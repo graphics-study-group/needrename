@@ -8,30 +8,55 @@ Govern the GPU spatial-hash broad-phase collision detection pipeline: AABB compu
 
 ### Requirement: SpatialHashBroadDetector class
 
-The `SpatialHashBroadDetector` class SHALL be an independent broad-phase collision detector that owns GPU compute pipelines and buffers for spatial-hash-based candidate pair generation. It SHALL follow the existing detector pattern: lazy SPIR-V loading on first call, `ComputeStage` ownership, `ComputeResourceBinding` management, and render-graph integration via an `AddDetectPasses(RenderGraphBuilder &, PhysicsScene &, const PhysicsSceneBufferHandles &)` method.
+The `SpatialHashBroadDetector` class SHALL be an independent broad-phase collision detector that owns GPU compute pipelines and buffers for spatial-hash-based candidate pair generation. It SHALL follow the new detector pattern: lazy SPIR-V loading on first `Detect` call, `ComputeStage` ownership, `ComputeResourceBinding` management, and self-owned RenderGraph recording via a `Detect(vk::CommandBuffer cb)` method.
 
-The constructor SHALL accept a `RenderSystem &`, a `uint32_t max_pairs` (maximum number of candidate collision pairs the output buffer can hold, typically set to the narrow-phase `max_contacts / 5`), a `GridConfig` struct (world bounds, cell size, max cells per shape), and a `uint32_t fallback_all_pairs_threshold`. No GPU resources SHALL be allocated until the first call to `AddDetectPasses()`.
+The constructor SHALL accept a `RenderSystem &` only. Sizing and configuration parameters SHALL be passed to `Configure()`. No GPU resources SHALL be allocated until `Configure` or `Detect` is first called.
 
-`AddDetectPasses()` SHALL accept pre-imported `PhysicsSceneBufferHandles` (render graph handles for scene-owned shape buffers) to avoid redundant `ImportExternalResource` calls.
+The detector SHALL expose a two-phase API:
+```cpp
+void Configure(
+    PhysicsScene &scene,
+    uint32_t shape_count,
+    GridConfig grid_config,
+    uint32_t fallback_all_pairs_threshold
+);
+BroadDetectorOutputBuffers Detect(vk::CommandBuffer cb);
+```
 
-#### Scenario: Lazy initialization on first call
+`Configure` SHALL cache `&scene` and all sizing parameters, ensure internal buffers are sized, and upload grid config and shape slot count to host-visible GPU buffers.
 
-- **WHEN** `SpatialHashBroadDetector::AddDetectPasses()` is called for the first time on a valid `PhysicsScene`
+`Detect` SHALL lazily build the detector's own RenderGraph. The RG structure SHALL be determined at build time: if `shape_count <= fallback_all_pairs_threshold`, a fallback RG is built (AABBs → clear pair count → fallback all-pairs); otherwise the full spatial-hash RG is built (using ParallelScan utility for prefix sums). `Detect` SHALL import scene buffers directly from the cached `PhysicsScene*`, record all passes to `cb`, and return raw `ComputeBuffer*` references to the output pair buffers.
+
+#### Scenario: Lazy initialization on first Detect call
+
+- **WHEN** `SpatialHashBroadDetector::Detect(cb)` is called for the first time after `Configure`
 - **THEN** the detector loads all broad-phase SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/SpatialHashBroadDetector/`
 - **AND** creates `ComputeStage` and `ComputeResourceBinding` instances for each shader
+- **AND** builds its RenderGraph and records it to `cb`
 - **AND** subsequent calls reuse the same pipelines
 
 #### Scenario: Detector exposes output buffers to narrow-phase
 
-- **WHEN** `SpatialHashBroadDetector::AddDetectPasses()` completes
-- **THEN** it returns a `BroadDetectorOutputHandles` struct containing pre-imported render graph handles for the pair buffer and pair count
-- **AND** `GetOutputBuffers()` returns a `BroadDetectorOutputBuffers` struct with raw `ComputeBuffer` references (`.pair_buffer`, `.pair_count_buffer`) and `.max_pairs`
+- **WHEN** `SpatialHashBroadDetector::Detect(cb)` completes
+- **THEN** it returns a `BroadDetectorOutputBuffers` struct with raw `ComputeBuffer` references (`.pair_buffer`, `.pair_count_buffer`) and `.max_pairs`
 - **AND** all buffers are owned by the detector and valid until the next call or detector destruction
 
 #### Scenario: Detector returns empty result for insufficient shapes
 
-- **WHEN** `AddDetectPasses()` is called with `shape_slot_count <= 1`
+- **WHEN** `Detect(cb)` is called with `shape_slot_count <= 1`
 - **THEN** the detector writes `pair_count = 0` and returns without dispatching any compute passes
+
+#### Scenario: Fallback RG built for small N
+
+- **WHEN** `shape_count <= fallback_all_pairs_threshold` at RG build time
+- **THEN** the detector builds a fallback RG (AABBs + all-pairs generation only)
+- **AND** no cell assignment, counting sort, or within-cell generation passes are present in the RG
+
+#### Scenario: Spatial-hash RG built for large N
+
+- **WHEN** `shape_count > fallback_all_pairs_threshold` at RG build time
+- **THEN** the detector builds the full spatial-hash RG with all passes
+- **AND** ParallelScan is used as a utility function during RG build to add prefix sum passes
 
 ### Requirement: AABB computation per shape
 
@@ -180,22 +205,6 @@ When `shape_count <= fallback_all_pairs_threshold`, the detector SHALL skip the 
 
 - **WHEN** a PhysicsScene has `shape_slot_count = 100` and `fallback_all_pairs_threshold = 8`
 - **THEN** the detector runs the full spatial-hash pipeline
-
-### Requirement: Grid configuration and validation
-
-The detector SHALL compute grid dimensions from `GridConfig` as `grid_dims = ceil((grid_world_max - grid_world_min) / cell_size)`. At construction time, the detector SHALL validate that `grid_dims.x * grid_dims.y * grid_dims.z <= 2^20` (1,048,576 cells). If validation fails, construction SHALL throw `std::runtime_error` with a descriptive message.
-
-#### Scenario: Valid grid configuration
-
-- **WHEN** `GridConfig` specifies world bounds (100, 100, 100), cell size 2.0
-- **THEN** `grid_dims = (50, 50, 50)` with 125,000 total cells
-- **AND** construction succeeds
-
-#### Scenario: Invalid grid configuration rejected
-
-- **WHEN** `GridConfig` specifies world bounds (1000, 1000, 1000), cell size 0.1
-- **THEN** `grid_dims = (10000, 10000, 10000)` with 10¹² cells
-- **AND** construction throws `std::runtime_error`
 
 ### Requirement: Grid config and threshold in XpbdConfig
 

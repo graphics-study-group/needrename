@@ -8,39 +8,42 @@ Govern GPU convex collision detection using the Minkowski Portal Refinement (MPR
 
 ### Requirement: ConvexCollisionDetector owns GPU collision detection pipeline
 
-The `ConvexCollisionDetector` class SHALL own a compute shader pipeline for GPU narrow-phase convex collision detection using the MPR algorithm, following the same pattern as `XPBDGpuSolver`: lazy SPIR-V loading on first call, `ComputeStage` ownership, `ComputeResourceBinding` management, and render-graph integration via an `AddDetectPasses()` method that populates a `RenderGraphBuilder`.
+The `ConvexCollisionDetector` class SHALL own a compute shader pipeline for GPU narrow-phase convex collision detection using the MPR algorithm. It SHALL follow the new detector pattern: lazy SPIR-V loading on first `Detect` call (or during `Configure`), `ComputeStage` ownership, `ComputeResourceBinding` management, and self-owned RenderGraph recording via a `Detect(vk::CommandBuffer cb)` method.
 
-The constructor SHALL accept a `RenderSystem&`, a `max_collision_pairs` count, and a `contact_margin` value (default 0.001). No GPU resources SHALL be allocated until the first call to `AddDetectPasses()`.
+The constructor SHALL accept a `RenderSystem &` only. Sizing parameters (`max_collision_pairs`, `contact_margin`) SHALL be passed to `Configure()`. No GPU resources SHALL be allocated until `Configure` or `Detect` is first called.
 
-The `AddDetectPasses()` method SHALL accept external GPU collision pair and pair count buffers produced by the broad-phase detector, along with their pre-imported render graph handles and scene buffer handles, instead of generating pairs internally.
-
+The detector SHALL expose a two-phase API:
 ```cpp
-NarrowDetectorOutputHandles AddDetectPasses(
-    RenderGraphBuilder &builder,
-    PhysicsScene &physics_scene,
+void Configure(
+    PhysicsScene &scene,
+    uint32_t max_collision_pairs,
+    float contact_margin,
     const ComputeBuffer &pair_buffer,
-    const ComputeBuffer &pair_count_buffer,
-    const PhysicsSceneBufferHandles &handles,
-    RGBufferHandle pair_buffer_handle,
-    RGBufferHandle pair_count_handle
+    const ComputeBuffer &pair_count_buffer
 );
+CollisionResultBuffers Detect(vk::CommandBuffer cb);
 ```
 
-#### Scenario: Lazy initialization on first call
-- **WHEN** `ConvexCollisionDetector::AddDetectPasses()` is called for the first time on a valid `PhysicsScene`
+`Configure` SHALL cache `&scene`, `&pair_buffer`, and `&pair_count_buffer`; ensure internal result buffers are sized; and upload `contact_margin` to a host-visible GPU uniform buffer. `Detect` SHALL lazily build the detector's own RenderGraph, import scene buffers from the cached `PhysicsScene*` and pair buffers from cached pointers with correct `prev_access`, record passes to `cb`, and return raw `ComputeBuffer*` references to collision result buffers.
+
+#### Scenario: Lazy initialization on first Detect call
+
+- **WHEN** `ConvexCollisionDetector::Detect(cb)` is called for the first time after `Configure`
 - **THEN** the detector loads the precompiled narrow-phase SPIR-V from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/ConvexCollisionDetector/detect_collisions.comp.spv`
 - **AND** creates a `ComputeStage` and `ComputeResourceBinding`
-- **AND** subsequent calls reuse the same pipeline without reloading
+- **AND** builds its RenderGraph and records it to `cb`
+- **AND** subsequent calls reuse the same pipeline and RG
 
 #### Scenario: Missing SPIR-V produces error
+
 - **WHEN** the collision detection SPIR-V file does not exist at runtime
-- **AND** `AddDetectPasses()` is called
+- **AND** `Detect(cb)` is called
 - **THEN** a `std::runtime_error` is thrown with the absolute path in the error message
 
-#### Scenario: AddDetectPasses() integrates with render graph using external pair buffer
-- **WHEN** `AddDetectPasses(builder, physics_scene, pair_buffer, pair_count_buffer, handles, pair_h, count_h)` is called
-- **THEN** it imports required PhysicsScene GPU buffers and uses the pre-imported pair buffer handles as external render-graph resources
-- **AND** adds a clear pass (zeroes `collision_count` via `clear_int_buffer.comp`) followed by a detect pass
+#### Scenario: Detect integrates with render graph using self-imported scene buffers
+
+- **WHEN** `Detect(cb)` is called
+- **THEN** the detector creates a `RenderGraphBuilder`, calls `ImportExternalResource` for each required PhysicsScene buffer (using correct `prev_access`), imports its internal result buffers, adds clear and detect passes, builds the RG, and records it to `cb`
 - **AND** the detect pass dispatches `(max_collision_pairs + 63) / 64` workgroups
 
 ### Requirement: Collision pair input buffer
@@ -237,40 +240,3 @@ The collision detection compute shader SHALL use `debugPrintfEXT` to output dete
 - **THEN** a `debugPrintfEXT` message is emitted containing i, j, d, and n
 - **AND** the message appears in the Vulkan validation layer output
 
-### Requirement: ConvexCollisionDetector accepts contact margin configuration
-
-The `ConvexCollisionDetector` constructor SHALL accept a `float contact_margin` parameter in addition to the existing `RenderSystem &` and `uint32_t max_collision_pairs`. The margin value SHALL be stored and later uploaded to the GPU as a uniform buffer for use in per-point penetration validation.
-
-#### Scenario: Detector constructed with contact margin
-
-- **WHEN** `ConvexCollisionDetector` is constructed with `contact_margin = 0.005`
-- **THEN** the margin is stored in the detector's Impl
-- **AND** a GPU uniform buffer is allocated/updated with the value 0.005 before shader dispatch
-
-#### Scenario: Zero contact margin is valid
-
-- **WHEN** `contact_margin` is set to 0.0
-- **THEN** only points with positive raw penetration (strict overlap) are retained
-- **AND** speculative contacts are disabled
-
-### Requirement: Detector config GPU uniform buffer
-
-The `ConvexCollisionDetector` SHALL own a GPU uniform buffer at shader binding 12 containing the `contact_margin` value. The buffer SHALL be a single `float` (4 bytes) and SHALL be updated whenever the margin changes.
-
-The `detect_collisions.comp` shader SHALL declare this buffer as:
-```glsl
-layout(set = 0, binding = 12) uniform DetectorConfig {
-    float contact_margin;
-} detector_config;
-```
-
-#### Scenario: Uniform buffer created on initialization
-
-- **WHEN** `ConvexCollisionDetector::Step()` is called for the first time
-- **THEN** a 4-byte uniform buffer is created for `contact_margin` at binding 12
-- **AND** the buffer is bound as a read-only uniform resource in the collision detection compute pass
-
-#### Scenario: Margin updated in buffer before each dispatch
-
-- **WHEN** the collision detection compute pass dispatches
-- **THEN** the `contact_margin` value in the GPU buffer matches the value stored in the detector's Impl

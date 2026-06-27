@@ -11,7 +11,7 @@
 #include "MainClass.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/PhysicsSystem.h"
-#include "Physics/Solver/XPBDGpuSolver.h"
+#include "Physics/Solver/XpbdGpuSolver.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"

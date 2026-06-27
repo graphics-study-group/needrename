@@ -1,4 +1,4 @@
-#include "XPBDGpuSolver.h"
+#include "XpbdGpuSolver.h"
 
 #include <cmake_config.h>
 
@@ -15,9 +15,11 @@
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/Compute/ComputeStage.h>
 #include <Render/Pipeline/RenderGraph/RGAttachmentDesc.h>
+#include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
+#include <Render/RenderSystem/SceneDataManager.h>
 
 #include <filesystem>
 #include <fstream>
@@ -25,16 +27,13 @@
 #include <vector>
 
 namespace {
-    std::vector<uint32_t> LoadPhysicsSpirv(const char *relative_path) {
+    std::vector<uint32_t> LoadSpirv(const char *relative_path) {
         std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
         std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        }
+        if (!file.is_open()) throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
         const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
+        if (size == 0u || size % sizeof(uint32_t) != 0u)
             throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
         std::vector<uint32_t> words(size / sizeof(uint32_t));
         file.seekg(0, std::ios::beg);
         file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
@@ -42,128 +41,159 @@ namespace {
     }
 } // namespace
 
+/*
+ * ============================================================================
+ * CROSS-RG prev_access TRACING
+ * ============================================================================
+ *
+ * Each Build*RG() function creates its own RenderGraphBuilder and imports
+ * every buffer it accesses via ImportExternalResource(buf, prev_access).
+ * prev_access tells the RG what state the buffer is in BEFORE this RG
+ * executes — which is the state left by the LAST pass of the PREVIOUS RG
+ * (or detector) in the GPUStep recording sequence.
+ *
+ * Recording order per substep:
+ *   PreCollisionRG → BroadDetect → NarrowDetect → PostCollisionPreIterRG
+ *   → PositionIterRG (×N) → PostPositionRG → VelocityIterRG (×M)
+ * Then after all substeps: ModelMatrixRG
+ *
+ * --- prev_access rules ---
+ *
+ * NON-LOOP RGs (recorded exactly once):  Use PRECISE prev_access that
+ *   reflects the actual last access of the previous RG in the chain.
+ *
+ * LOOP RGs (PositionIterRG, VelocityIterRG):  Use CONSERVATIVE prev_access
+ *   = {ShaderRandomRead, ShaderRandomWrite} ("RW") for all mutable buffers.
+ *   This is because after the first iteration, the buffer state is whatever
+ *   the RG's own last pass left it (RW or WW), but the baked-in prev_access
+ *   still says RR (the state before the first iteration).  Using RW covers:
+ *     - Iteration 1:  actual state = external RR/WW → barrier RW→* (OK, conservative)
+ *     - Iteration 2+: actual state = self RW → barrier RW→* (correct)
+ *
+ * --- Per-buffer state chain ---
+ *
+ * rigid_body_center_world_position (pos):
+ *   PreCollisionRG:   prev={AT::None} → writes (RW) → leaves RW
+ *   BroadDetect:      prev=RW → reads (RR) → leaves RR  [but prev=RW to be safe for write→read]
+ *   NarrowDetect:     prev=RR → reads (RR) → leaves RR
+ *   PostCollision:    prev=RR → doesn't touch → leaves RR
+ *   PositionIterRG:   prev=RW (conservative loop) → writes (RW) → leaves RW
+ *   PostPositionRG:   prev=RW → reads (RR) → leaves RR
+ *   VelocityIterRG:   prev=RR → doesn't touch → leaves RR
+ *   ModelMatrixRG:    prev=RR → reads (RR)
+ *
+ * rigid_body_linear_velocity (linvel):
+ *   PreCollisionRG:   prev=None → writes (RW) → leaves RW
+ *   BroadDetect:      doesn't touch
+ *   NarrowDetect:     doesn't touch
+ *   PostCollision:    doesn't touch → leaves RW (unchanged)
+ *   PositionIterRG:   doesn't touch → leaves RW
+ *   PostPositionRG:   prev=RW → writes (RW) → leaves RW
+ *   VelocityIterRG:   prev=RW (conservative loop) → writes (RW) → leaves RW
+ *   ModelMatrixRG:    doesn't touch
+ *
+ * Narrow-phase collision result buffers (collision_ids, normals, etc.):
+ *   Written by NarrowDetect (WW).
+ *   PositionIterRG:   prev=WW → reads (RR)
+ *   VelocityIterRG:   prev=RR → reads (RR)
+ *
+ * Narrow-phase collision count buffer:
+ *   Written by NarrowDetect (clear: WW → detect: RW) → leaves RW
+ *   PositionIterRG:   prev=WW (conservative) → reads (RR)
+ *   VelocityIterRG:   prev=RR → reads (RR)
+ */
+
 namespace Engine {
 
-    // ---- PImpl ----
+    // GpuStateSnapshot: cached parameters that trigger RG rebuild when they change.
+    struct GpuStateSnapshot {
+        uint32_t body_count = 0;
+        uint32_t max_contacts = 0;
+        uint32_t hinge_joint_count = 0;
+        uint32_t fixed_joint_count = 0;
+        uint32_t shape_count = 0;
 
-    struct XPBDGpuSolver::Impl {
+        bool operator==(const GpuStateSnapshot &o) const {
+            return body_count == o.body_count && max_contacts == o.max_contacts
+                   && hinge_joint_count == o.hinge_joint_count && fixed_joint_count == o.fixed_joint_count
+                   && shape_count == o.shape_count;
+        }
+        bool operator!=(const GpuStateSnapshot &o) const {
+            return !(*this == o);
+        }
+    };
+
+    struct XpbdGpuSolver::Impl {
         RenderSystem &render_system;
 
-        bool initialized = false;
+        bool shaders_loaded = false;
         XpbdConfig config{};
 
-        // Cached counts for lazy reallocation.
-        uint32_t cached_body_count = 0;
-        uint32_t cached_max_contacts = 0;
-        uint32_t cached_shape_count = 0;
+        // Cached snapshot for RG rebuild detection.
+        GpuStateSnapshot cached_snapshot{};
+
+        // Cached narrow-phase result buffer pointers (stable after Configure).
+        CollisionResultBuffers cached_narrow_results{};
 
         // ---- Owned collision detectors ----
         std::unique_ptr<SpatialHashBroadDetector> broad_detector{};
         std::unique_ptr<ConvexCollisionDetector> narrow_detector{};
 
-        // ---- Compute stages (one per shader) ----
-
+        // ---- Compute stages ----
         std::unique_ptr<ComputeStage> clear_int_stage{};
-        std::vector<uint32_t> clear_int_spirv{};
-
         std::unique_ptr<ComputeStage> snapshot_stage{};
-        std::vector<uint32_t> snapshot_spirv{};
-
         std::unique_ptr<ComputeStage> update_shape_world_pose_stage{};
-        std::vector<uint32_t> update_shape_world_pose_spirv{};
-
         std::unique_ptr<ComputeStage> integrate_stage{};
-        std::vector<uint32_t> integrate_spirv{};
-
         std::unique_ptr<ComputeStage> accum_pos_stage{};
-        std::vector<uint32_t> accum_pos_spirv{};
-
         std::unique_ptr<ComputeStage> apply_pos_stage{};
-        std::vector<uint32_t> apply_pos_spirv{};
-
         std::unique_ptr<ComputeStage> update_vel_stage{};
-        std::vector<uint32_t> update_vel_spirv{};
-
         std::unique_ptr<ComputeStage> accum_vel_stage{};
-        std::vector<uint32_t> accum_vel_spirv{};
-
         std::unique_ptr<ComputeStage> apply_vel_stage{};
-        std::vector<uint32_t> apply_vel_spirv{};
-
-        // ---- Model matrix (unchanged) ----
         std::unique_ptr<ComputeStage> model_matrix_stage{};
-        std::vector<uint32_t> model_matrix_spirv{};
-
-        // ---- Joint constraint shader stages ----
         std::unique_ptr<ComputeStage> clear_hinge_lagrange_stage{};
-        std::vector<uint32_t> clear_hinge_lagrange_spirv{};
-
         std::unique_ptr<ComputeStage> clear_fixed_lagrange_stage{};
-        std::vector<uint32_t> clear_fixed_lagrange_spirv{};
-
         std::unique_ptr<ComputeStage> accum_hinge_pos_stage{};
-        std::vector<uint32_t> accum_hinge_pos_spirv{};
-
         std::unique_ptr<ComputeStage> accum_fixed_pos_stage{};
-        std::vector<uint32_t> accum_fixed_pos_spirv{};
 
-        // ---- Intermediate GPU buffers (owned) ----
-
-        // Snapshots (per-body, vec4).
+        // ---- Intermediate GPU buffers ----
         std::unique_ptr<ComputeBuffer> gpu_pre_gravity_position{};
         std::unique_ptr<ComputeBuffer> gpu_pre_gravity_orientation{};
         std::unique_ptr<ComputeBuffer> gpu_pre_contact_linear_vel{};
         std::unique_ptr<ComputeBuffer> gpu_pre_contact_angular_vel{};
         std::unique_ptr<ComputeBuffer> gpu_substep_start_position{};
         std::unique_ptr<ComputeBuffer> gpu_substep_start_orientation{};
-
-        // Jacobi delta accumulators (per-body, 3 ints each for float atomic-add).
         std::unique_ptr<ComputeBuffer> gpu_linear_position_delta{};
         std::unique_ptr<ComputeBuffer> gpu_angular_position_delta{};
         std::unique_ptr<ComputeBuffer> gpu_position_delta_count{};
-
         std::unique_ptr<ComputeBuffer> gpu_linear_velocity_delta{};
         std::unique_ptr<ComputeBuffer> gpu_angular_velocity_delta{};
         std::unique_ptr<ComputeBuffer> gpu_velocity_delta_count{};
-
-        // Lagrange multipliers (per-contact, float as int).
         std::unique_ptr<ComputeBuffer> gpu_contact_lagrange{};
-
-        // Zero-filled buffer for lagrange memset (size = bytes).
         std::unique_ptr<ComputeBuffer> gpu_zero_buffer{};
-
-        // Joint Lagrange multiplier SoA buffers (solver-owned, one float per constraint).
         std::unique_ptr<ComputeBuffer> gpu_hinge_aligned_axis_lagrange{};
         std::unique_ptr<ComputeBuffer> gpu_hinge_position_lagrange{};
         std::unique_ptr<ComputeBuffer> gpu_fixed_rotation_lagrange{};
         std::unique_ptr<ComputeBuffer> gpu_fixed_position_lagrange{};
-
-        // Joint count caches for lazy reallocation.
-        uint32_t cached_hinge_joint_count = 0;
-        uint32_t cached_fixed_joint_count = 0;
-
-        // Joint-count uniform buffers (single uint, host-visible).
         std::unique_ptr<ComputeBuffer> gpu_hinge_joint_count_buffer{};
         std::unique_ptr<ComputeBuffer> gpu_fixed_joint_count_buffer{};
-
-        // Uniform SSBO: vec4(gravity.xyz, dt). Host-visible, written once.
         std::unique_ptr<ComputeBuffer> gpu_uniforms{};
-
-        // Element-count buffers (single uint each, host-visible).
         std::unique_ptr<ComputeBuffer> gpu_body_count_buffer{};
         std::unique_ptr<ComputeBuffer> gpu_contact_count_buffer{};
+
+        // ---- Self-owned RenderGraphs ----
+        std::unique_ptr<RenderGraph> precollision_rg{};
+        std::unique_ptr<RenderGraph> postcollision_preiter_rg{};
+        std::unique_ptr<RenderGraph> position_iter_rg{};
+        std::unique_ptr<RenderGraph> postposition_rg{};
+        std::unique_ptr<RenderGraph> velocity_iter_rg{};
+        std::unique_ptr<RenderGraph> model_matrix_rg{};
 
         explicit Impl(RenderSystem &rs) : render_system(rs) {
         }
 
-        Impl(const Impl &) = delete;
-        Impl &operator=(const Impl &) = delete;
-        Impl(Impl &&) = delete;
-        Impl &operator=(Impl &&) = delete;
-
-        // -----------------------------------------------------------------------
+        // -------------------------------------------------------------------
         // Buffer helpers
-        // -----------------------------------------------------------------------
+        // -------------------------------------------------------------------
 
         void EnsureBuffer(std::unique_ptr<ComputeBuffer> &buf, size_t bytes, const char *name) {
             const auto &alloc = render_system.GetAllocatorState();
@@ -195,7 +225,6 @@ namespace Engine {
             EnsureBuffer(gpu_velocity_delta_count, body_int1, "XPBD VelDeltaCnt");
             EnsureBuffer(gpu_contact_lagrange, lagrange_bytes, "XPBD ContactLagrange");
 
-            // Single-uint buffer for snapshot element count.
             {
                 size_t sz = sizeof(uint32_t);
                 if (!gpu_body_count_buffer || gpu_body_count_buffer->GetSize() != sz) {
@@ -205,8 +234,6 @@ namespace Engine {
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_body_count_buffer->GetVMAddress());
                 *addr = body_count;
             }
-
-            // Single-uint buffer for contacts clear count.
             {
                 size_t sz = sizeof(uint32_t);
                 if (!gpu_contact_count_buffer || gpu_contact_count_buffer->GetSize() != sz) {
@@ -216,25 +243,18 @@ namespace Engine {
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_contact_count_buffer->GetVMAddress());
                 *addr = max_contacts;
             }
-
-            // Uniform SSBO: vec4(gravity, dt). Recreate if missing.
             {
                 size_t sz = sizeof(glm::vec4);
                 if (!gpu_uniforms || gpu_uniforms->GetSize() != sz) {
                     gpu_uniforms = ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD Uniforms");
                 }
             }
-
-            // Zero buffer sized to max(max_contacts, body_count) * 4 bytes.
             {
                 size_t sz = std::max(max_contacts * sizeof(int), body_count * sizeof(glm::vec4));
                 if (!gpu_zero_buffer || gpu_zero_buffer->GetSize() < sz) {
-                    gpu_zero_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, false, false, false, false, "XPBD ZeroBuf");
+                    gpu_zero_buffer = ComputeBuffer::CreateUnique(alloc, sz, false, false, false, false, "XPBD ZeroBuf");
                 }
             }
-
-            // Joint Lagrange multiplier SoA buffers (one float per constraint).
             {
                 size_t hinge_fbytes = static_cast<size_t>(std::max(1u, hinge_joint_count)) * sizeof(float);
                 EnsureBuffer(gpu_hinge_aligned_axis_lagrange, hinge_fbytes, "XPBD HingeAlignLagrange");
@@ -245,8 +265,6 @@ namespace Engine {
                 EnsureBuffer(gpu_fixed_rotation_lagrange, fixed_fbytes, "XPBD FixedRotLagrange");
                 EnsureBuffer(gpu_fixed_position_lagrange, fixed_fbytes, "XPBD FixedPosLagrange");
             }
-
-            // Joint-count uniform buffers (single uint, host-visible).
             {
                 size_t sz = sizeof(uint32_t);
                 if (!gpu_hinge_joint_count_buffer || gpu_hinge_joint_count_buffer->GetSize() != sz) {
@@ -267,969 +285,1012 @@ namespace Engine {
             }
         }
 
-        void EnsureCollisionDetectors(uint32_t shape_count) {
-            if (shape_count <= 1u) {
-                broad_detector.reset();
-                narrow_detector.reset();
-                cached_shape_count = shape_count;
-                return;
-            }
-            if (!broad_detector || shape_count != cached_shape_count) {
-                // Narrow-phase: up to 5 contacts per pair (4 perturbation + MPR fallback).
-                uint32_t all_pairs = shape_count * (shape_count - 1u) / 2u;
-                uint32_t max_contacts = std::min(all_pairs * 5u, config.max_contact_points);
-                // Broad-phase: pair buffer capacity = narrow_max_contacts / 5.
-                uint32_t broad_max_pairs = std::max(1u, max_contacts / 5u);
+        // -------------------------------------------------------------------
+        // Lazy shader loading
+        // -------------------------------------------------------------------
 
-                GridConfig grid_config{};
-                grid_config.world_min = config.grid_world_min;
-                grid_config.world_max = config.grid_world_max;
-                grid_config.cell_size = config.grid_cell_size;
-                grid_config.max_cells_per_shape = config.max_cells_per_shape;
-                broad_detector = std::make_unique<SpatialHashBroadDetector>(
-                    render_system, broad_max_pairs, grid_config, config.fallback_all_pairs_threshold
-                );
-                narrow_detector =
-                    std::make_unique<ConvexCollisionDetector>(render_system, max_contacts, config.contact_margin);
-                cached_shape_count = shape_count;
-            }
+        void EnsureShadersLoaded() {
+            if (shaders_loaded) return;
+            shaders_loaded = true;
+
+            auto load = [this](const char *path, const char *name) {
+                auto spirv = LoadSpirv(path);
+                auto stage = std::make_unique<ComputeStage>(render_system);
+                stage->Instantiate(spirv, name);
+                return stage;
+            };
+            clear_int_stage = load("solver/XPBDSolver/clear_int_buffer.comp.spv", "XPBD Clear Int");
+            snapshot_stage = load("solver/XPBDSolver/snapshot_position.comp.spv", "XPBD Snapshot");
+            update_shape_world_pose_stage =
+                load("solver/XPBDSolver/update_shape_world_pose.comp.spv", "XPBD UpdateShape");
+            integrate_stage = load("solver/XPBDSolver/integrate_forces.comp.spv", "XPBD Integrate");
+            accum_pos_stage = load("solver/XPBDSolver/accumulate_contact_position.comp.spv", "XPBD AccumPos");
+            apply_pos_stage = load("solver/XPBDSolver/apply_body_position_deltas.comp.spv", "XPBD ApplyPos");
+            update_vel_stage = load("solver/XPBDSolver/update_velocities_from_pose.comp.spv", "XPBD UpdateVel");
+            accum_vel_stage = load("solver/XPBDSolver/accumulate_contact_velocity.comp.spv", "XPBD AccumVel");
+            apply_vel_stage = load("solver/XPBDSolver/apply_body_velocity_deltas.comp.spv", "XPBD ApplyVel");
+            model_matrix_stage = load("solver/XPBDSolver/model_matrix.comp.spv", "XPBD ModelMatrix");
+            clear_hinge_lagrange_stage =
+                load("solver/XPBDSolver/clear_hinge_lagrange.comp.spv", "XPBD ClearHinge");
+            clear_fixed_lagrange_stage =
+                load("solver/XPBDSolver/clear_fixed_lagrange.comp.spv", "XPBD ClearFixed");
+            accum_hinge_pos_stage =
+                load("solver/XPBDSolver/accumulate_hinge_position.comp.spv", "XPBD AccumHingePos");
+            accum_fixed_pos_stage =
+                load("solver/XPBDSolver/accumulate_fixed_position.comp.spv", "XPBD AccumFixedPos");
         }
 
-        // -----------------------------------------------------------------------
-        // Shader loading
-        // -----------------------------------------------------------------------
-
-        void EnsureInitialized() {
-            if (initialized) return;
-            initialized = true;
-
-            clear_int_spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_int_buffer.comp.spv");
-            clear_int_stage = std::make_unique<ComputeStage>(render_system);
-            clear_int_stage->Instantiate(clear_int_spirv, "XPBD Clear Int Buffer");
-
-            snapshot_spirv = LoadPhysicsSpirv("solver/XPBDSolver/snapshot_position.comp.spv");
-            snapshot_stage = std::make_unique<ComputeStage>(render_system);
-            snapshot_stage->Instantiate(snapshot_spirv, "XPBD Snapshot Copy");
-
-            update_shape_world_pose_spirv = LoadPhysicsSpirv("solver/XPBDSolver/update_shape_world_pose.comp.spv");
-            update_shape_world_pose_stage = std::make_unique<ComputeStage>(render_system);
-            update_shape_world_pose_stage->Instantiate(update_shape_world_pose_spirv, "XPBD Update Shape World Pose");
-
-            integrate_spirv = LoadPhysicsSpirv("solver/XPBDSolver/integrate_forces.comp.spv");
-            integrate_stage = std::make_unique<ComputeStage>(render_system);
-            integrate_stage->Instantiate(integrate_spirv, "XPBD Integrate Forces");
-
-            accum_pos_spirv = LoadPhysicsSpirv("solver/XPBDSolver/accumulate_contact_position.comp.spv");
-            accum_pos_stage = std::make_unique<ComputeStage>(render_system);
-            accum_pos_stage->Instantiate(accum_pos_spirv, "XPBD Accum Pos Deltas");
-
-            apply_pos_spirv = LoadPhysicsSpirv("solver/XPBDSolver/apply_body_position_deltas.comp.spv");
-            apply_pos_stage = std::make_unique<ComputeStage>(render_system);
-            apply_pos_stage->Instantiate(apply_pos_spirv, "XPBD Apply Pos Deltas");
-
-            update_vel_spirv = LoadPhysicsSpirv("solver/XPBDSolver/update_velocities_from_pose.comp.spv");
-            update_vel_stage = std::make_unique<ComputeStage>(render_system);
-            update_vel_stage->Instantiate(update_vel_spirv, "XPBD Update Velocities");
-
-            accum_vel_spirv = LoadPhysicsSpirv("solver/XPBDSolver/accumulate_contact_velocity.comp.spv");
-            accum_vel_stage = std::make_unique<ComputeStage>(render_system);
-            accum_vel_stage->Instantiate(accum_vel_spirv, "XPBD Accum Vel Deltas");
-
-            apply_vel_spirv = LoadPhysicsSpirv("solver/XPBDSolver/apply_body_velocity_deltas.comp.spv");
-            apply_vel_stage = std::make_unique<ComputeStage>(render_system);
-            apply_vel_stage->Instantiate(apply_vel_spirv, "XPBD Apply Vel Deltas");
-
-            model_matrix_spirv = LoadPhysicsSpirv("solver/XPBDSolver/model_matrix.comp.spv");
-            model_matrix_stage = std::make_unique<ComputeStage>(render_system);
-            model_matrix_stage->Instantiate(model_matrix_spirv, "XPBD Model Matrix");
-
-            // Joint constraint shaders.
-            clear_hinge_lagrange_spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_hinge_lagrange.comp.spv");
-            clear_hinge_lagrange_stage = std::make_unique<ComputeStage>(render_system);
-            clear_hinge_lagrange_stage->Instantiate(clear_hinge_lagrange_spirv, "XPBD Clear Hinge Lagrange");
-
-            clear_fixed_lagrange_spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_fixed_lagrange.comp.spv");
-            clear_fixed_lagrange_stage = std::make_unique<ComputeStage>(render_system);
-            clear_fixed_lagrange_stage->Instantiate(clear_fixed_lagrange_spirv, "XPBD Clear Fixed Lagrange");
-
-            accum_hinge_pos_spirv = LoadPhysicsSpirv("solver/XPBDSolver/accumulate_hinge_position.comp.spv");
-            accum_hinge_pos_stage = std::make_unique<ComputeStage>(render_system);
-            accum_hinge_pos_stage->Instantiate(accum_hinge_pos_spirv, "XPBD Accum Hinge Pos");
-
-            accum_fixed_pos_spirv = LoadPhysicsSpirv("solver/XPBDSolver/accumulate_fixed_position.comp.spv");
-            accum_fixed_pos_stage = std::make_unique<ComputeStage>(render_system);
-            accum_fixed_pos_stage->Instantiate(accum_fixed_pos_spirv, "XPBD Accum Fixed Pos");
-        }
-
-        // -----------------------------------------------------------------------
-        // Single snapshot pass helper
-        // -----------------------------------------------------------------------
-
-        void AddSnapshotPass(
-            RenderGraphBuilder &builder, const ComputeBuffer &src, const ComputeBuffer &dst, const char *name
-        ) {
-            auto src_handle = builder.ImportExternalResource(src, {MemoryAccessTypeBufferBits::None});
-            auto dst_handle = builder.ImportExternalResource(dst, {MemoryAccessTypeBufferBits::None});
-            auto cnt_handle =
-                builder.ImportExternalResource(*gpu_body_count_buffer, {MemoryAccessTypeBufferBits::None});
-
-            auto *binding = &snapshot_stage->AllocateResourceBinding();
-            auto &srb = binding->GetShaderResourceBinding();
-            srb.BindBuffer("SrcBuffer", src);
-            srb.BindBuffer("DstBuffer", dst);
-            srb.BindBuffer("ElemCount", *gpu_body_count_buffer);
-
-            auto *stage = snapshot_stage.get();
-            uint32_t wg = (cached_body_count + 63u) / 64u;
-
-            builder.AddPass(
-                RenderGraphPassBuilder{render_system}
-                    .SetName(name)
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(src_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                    .UseBuffer(dst_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                    .UseBuffer(cnt_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
-                    .Get()
-            );
-        }
+        // Convenience aliases.
+        using AT = MemoryAccessTypeBufferBits;
+        static constexpr MemoryAccessTypeBuffer RR{AT::ShaderRandomRead};
+        static constexpr MemoryAccessTypeBuffer RW{AT::ShaderRandomRead, AT::ShaderRandomWrite};
+        static constexpr MemoryAccessTypeBuffer WW{AT::ShaderRandomWrite};
+        static constexpr MemoryAccessTypeBuffer None{AT::None};
     };
 
     // =======================================================================
-    // Public API
+    // Constructor / Destructor
     // =======================================================================
 
-    XPBDGpuSolver::XPBDGpuSolver(RenderSystem &render_system) : m_impl(std::make_unique<Impl>(render_system)) {
+    XpbdGpuSolver::XpbdGpuSolver(RenderSystem &render_system) : m_impl(std::make_unique<Impl>(render_system)) {
     }
 
-    XPBDGpuSolver::~XPBDGpuSolver() = default;
+    XpbdGpuSolver::~XpbdGpuSolver() = default;
 
-    bool XPBDGpuSolver::IsInitialized() const noexcept {
-        return m_impl->initialized;
+    // =======================================================================
+    // ISolver Interface
+    // =======================================================================
+
+    bool XpbdGpuSolver::IsInitialized() const noexcept {
+        return m_impl->shaders_loaded;
     }
 
-    void XPBDGpuSolver::SetConfig(const XpbdConfig &config) noexcept {
+    void XpbdGpuSolver::SetConfig(const XpbdConfig &config) noexcept {
         m_impl->config = config;
     }
 
-    const XpbdConfig &XPBDGpuSolver::GetConfig() const noexcept {
+    const XpbdConfig &XpbdGpuSolver::GetConfig() const noexcept {
         return m_impl->config;
     }
 
-    void XPBDGpuSolver::AddStepPasses(
-        RenderGraphBuilder &builder, PhysicsScene &physics_scene, RGBufferHandle external_model_matrices_handle
-    ) {
-        const auto gpu = physics_scene.GetGpuBuffers();
+    void XpbdGpuSolver::PreGPUStep() {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) return;
 
-        if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_center_world_position == nullptr
-            || gpu.rigid_body_slot_count == 0u) {
-            return;
-        }
+        // Lazy shader loading.
+        m_impl->EnsureShadersLoaded();
 
-        // ---- Lazy initialization ----
-        m_impl->EnsureInitialized();
-        m_impl->EnsureCollisionDetectors(gpu.shape_slot_count);
-
-        // Compute max_contacts from shape count (up to 5 manifold points per pair:
-        // 4 perturbation + optionally 1 MPR fallback).
+        const uint32_t body_count = gpu.rigid_body_slot_count;
         const uint32_t shape_count = gpu.shape_slot_count;
         const uint32_t all_pairs = shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
         const uint32_t max_contacts = std::max(1u, std::min(all_pairs * 5u, m_impl->config.max_contact_points));
 
-        // Raw pointer for pass lambdas — evaluated at dispatch time each frame.
-        auto *pscene = &physics_scene;
-
-        const uint32_t body_count = gpu.rigid_body_slot_count;
-
-        // Recreate intermediate buffers if sizes changed.
-        if (body_count != m_impl->cached_body_count || max_contacts != m_impl->cached_max_contacts
-            || gpu.fixed_joint_count != m_impl->cached_fixed_joint_count
-            || gpu.hinge_joint_count != m_impl->cached_hinge_joint_count) {
+        // Ensure intermediate buffers are sized.
+        if (body_count != m_impl->cached_snapshot.body_count || max_contacts != m_impl->cached_snapshot.max_contacts
+            || gpu.hinge_joint_count != m_impl->cached_snapshot.hinge_joint_count
+            || gpu.fixed_joint_count != m_impl->cached_snapshot.fixed_joint_count) {
             m_impl->EnsureIntermediateBuffers(body_count, max_contacts, gpu.hinge_joint_count, gpu.fixed_joint_count);
-            m_impl->cached_body_count = body_count;
-            m_impl->cached_max_contacts = max_contacts;
-            m_impl->cached_hinge_joint_count = gpu.hinge_joint_count;
-            m_impl->cached_fixed_joint_count = gpu.fixed_joint_count;
         }
 
-        const uint32_t body_wg = (body_count + 63u) / 64u;
-        const uint32_t contact_wg = (max_contacts + 63u) / 64u;
-        const uint32_t shape_wg = (gpu.shape_slot_count + 63u) / 64u;
-
-        // Pre-import all body buffers (reused across passes).
-        auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, {MemoryAccessTypeBufferBits::None});
-        auto pos_h =
-            builder.ImportExternalResource(*gpu.rigid_body_center_world_position, {MemoryAccessTypeBufferBits::None});
-        auto rot_h =
-            builder.ImportExternalResource(*gpu.rigid_body_center_world_rotation, {MemoryAccessTypeBufferBits::None});
-        auto linvel_h =
-            builder.ImportExternalResource(*gpu.rigid_body_linear_velocity, {MemoryAccessTypeBufferBits::None});
-        auto angvel_h =
-            builder.ImportExternalResource(*gpu.rigid_body_angular_velocity, {MemoryAccessTypeBufferBits::None});
-        auto mass_h = builder.ImportExternalResource(*gpu.rigid_body_mass, {MemoryAccessTypeBufferBits::None});
-        auto inv_inertia_h =
-            builder.ImportExternalResource(*gpu.rigid_body_inverse_inertia, {MemoryAccessTypeBufferBits::None});
-        auto inertia_h = builder.ImportExternalResource(*gpu.rigid_body_inertia, {MemoryAccessTypeBufferBits::None});
-        auto extforce_h =
-            builder.ImportExternalResource(*gpu.rigid_body_external_force, {MemoryAccessTypeBufferBits::None});
-        auto exttorque_h =
-            builder.ImportExternalResource(*gpu.rigid_body_external_torque, {MemoryAccessTypeBufferBits::None});
-        auto kinematic_h =
-            builder.ImportExternalResource(*gpu.rigid_body_is_kinematic, {MemoryAccessTypeBufferBits::None});
-        auto dynfric_h =
-            builder.ImportExternalResource(*gpu.rigid_body_dynamic_friction, {MemoryAccessTypeBufferBits::None});
-        auto restitution_h =
-            builder.ImportExternalResource(*gpu.rigid_body_restitution, {MemoryAccessTypeBufferBits::None});
-
-        // Pre-import shape world/local buffers (read/write by shape world update pass).
-        auto shape_alive_h = builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
-        auto shape_local_pos_h =
-            builder.ImportExternalResource(*gpu.shape_local_position, {MemoryAccessTypeBufferBits::None});
-        auto shape_local_rot_h =
-            builder.ImportExternalResource(*gpu.shape_local_rotation, {MemoryAccessTypeBufferBits::None});
-        auto shape_world_pos_h =
-            builder.ImportExternalResource(*gpu.shape_world_position, {MemoryAccessTypeBufferBits::None});
-        auto shape_world_rot_h =
-            builder.ImportExternalResource(*gpu.shape_world_rotation, {MemoryAccessTypeBufferBits::None});
-
-        // Shape→body mapping.
-        auto shape2body_h =
-            builder.ImportExternalResource(*gpu.shape_bound_rigid_body, {MemoryAccessTypeBufferBits::None});
-
-        // Shape type and feature (read-only by detectors).
-        auto shape_type_h = builder.ImportExternalResource(*gpu.shape_type, {MemoryAccessTypeBufferBits::None});
-        auto shape_feature_h = builder.ImportExternalResource(*gpu.shape_feature, {MemoryAccessTypeBufferBits::None});
-
-        // Collision filter buffers (optional; only import if the scene has them).
-        RGBufferHandle shape_filter_off_h{}, shape_filter_cnt_h{}, shape_filter_dat_h{};
-        if (gpu.shape_filter_offset != nullptr) {
-            shape_filter_off_h =
-                builder.ImportExternalResource(*gpu.shape_filter_offset, {MemoryAccessTypeBufferBits::None});
-        }
-        if (gpu.shape_filter_count != nullptr) {
-            shape_filter_cnt_h =
-                builder.ImportExternalResource(*gpu.shape_filter_count, {MemoryAccessTypeBufferBits::None});
-        }
-        if (gpu.shape_filter_data != nullptr) {
-            shape_filter_dat_h =
-                builder.ImportExternalResource(*gpu.shape_filter_data, {MemoryAccessTypeBufferBits::None});
-        }
-
-        // ---- Construct PhysicsSceneBufferHandles for detectors ----
-        PhysicsSceneBufferHandles scene_handles;
-        scene_handles.shape_alive = shape_alive_h;
-        scene_handles.shape_type = shape_type_h;
-        scene_handles.shape_feature = shape_feature_h;
-        scene_handles.shape_world_position = shape_world_pos_h;
-        scene_handles.shape_world_rotation = shape_world_rot_h;
-        scene_handles.shape_bound_rigid_body = shape2body_h;
-        scene_handles.shape_local_position = shape_local_pos_h;
-        scene_handles.shape_local_rotation = shape_local_rot_h;
-        scene_handles.shape_filter_offset = shape_filter_off_h;
-        scene_handles.shape_filter_count = shape_filter_cnt_h;
-        scene_handles.shape_filter_data = shape_filter_dat_h;
-
-        // Pre-import joint definition buffers (PhysicsScene-owned, read-only).
-        RGBufferHandle fixed_joints_h{}, hinge_joints_h{};
-        if (gpu.gpu_fixed_joints != nullptr && gpu.fixed_joint_count > 0) {
-            fixed_joints_h = builder.ImportExternalResource(*gpu.gpu_fixed_joints, {MemoryAccessTypeBufferBits::None});
-        }
-        if (gpu.gpu_hinge_joints != nullptr && gpu.hinge_joint_count > 0) {
-            hinge_joints_h = builder.ImportExternalResource(*gpu.gpu_hinge_joints, {MemoryAccessTypeBufferBits::None});
-        }
-
-        // Pre-import joint Lagrange multiplier SoA buffers (solver-owned, read-write).
-        auto hinge_align_lag_h = builder.ImportExternalResource(
-            *m_impl->gpu_hinge_aligned_axis_lagrange, {MemoryAccessTypeBufferBits::None}
-        );
-        auto hinge_pos_lag_h =
-            builder.ImportExternalResource(*m_impl->gpu_hinge_position_lagrange, {MemoryAccessTypeBufferBits::None});
-        auto fixed_rot_lag_h =
-            builder.ImportExternalResource(*m_impl->gpu_fixed_rotation_lagrange, {MemoryAccessTypeBufferBits::None});
-        auto fixed_pos_lag_h =
-            builder.ImportExternalResource(*m_impl->gpu_fixed_position_lagrange, {MemoryAccessTypeBufferBits::None});
-
-        // Pre-import joint-count buffers.
-        auto hinge_cnt_h =
-            builder.ImportExternalResource(*m_impl->gpu_hinge_joint_count_buffer, {MemoryAccessTypeBufferBits::None});
-        auto fixed_cnt_h =
-            builder.ImportExternalResource(*m_impl->gpu_fixed_joint_count_buffer, {MemoryAccessTypeBufferBits::None});
-
-        // Pre-import intermediate buffers.
-        auto pregrav_pos_h =
-            builder.ImportExternalResource(*m_impl->gpu_pre_gravity_position, {MemoryAccessTypeBufferBits::None});
-        auto pregrav_ori_h =
-            builder.ImportExternalResource(*m_impl->gpu_pre_gravity_orientation, {MemoryAccessTypeBufferBits::None});
-        auto precont_lv_h =
-            builder.ImportExternalResource(*m_impl->gpu_pre_contact_linear_vel, {MemoryAccessTypeBufferBits::None});
-        auto precont_av_h =
-            builder.ImportExternalResource(*m_impl->gpu_pre_contact_angular_vel, {MemoryAccessTypeBufferBits::None});
-        auto ssp_pos_h =
-            builder.ImportExternalResource(*m_impl->gpu_substep_start_position, {MemoryAccessTypeBufferBits::None});
-        auto ssp_ori_h =
-            builder.ImportExternalResource(*m_impl->gpu_substep_start_orientation, {MemoryAccessTypeBufferBits::None});
-        auto lindelta_h =
-            builder.ImportExternalResource(*m_impl->gpu_linear_position_delta, {MemoryAccessTypeBufferBits::None});
-        auto angdelta_h =
-            builder.ImportExternalResource(*m_impl->gpu_angular_position_delta, {MemoryAccessTypeBufferBits::None});
-        auto cntdelta_h =
-            builder.ImportExternalResource(*m_impl->gpu_position_delta_count, {MemoryAccessTypeBufferBits::None});
-        auto linveldelta_h =
-            builder.ImportExternalResource(*m_impl->gpu_linear_velocity_delta, {MemoryAccessTypeBufferBits::None});
-        auto angveldelta_h =
-            builder.ImportExternalResource(*m_impl->gpu_angular_velocity_delta, {MemoryAccessTypeBufferBits::None});
-        auto velcntdelta_h =
-            builder.ImportExternalResource(*m_impl->gpu_velocity_delta_count, {MemoryAccessTypeBufferBits::None});
-        auto lagrange_h =
-            builder.ImportExternalResource(*m_impl->gpu_contact_lagrange, {MemoryAccessTypeBufferBits::None});
-
-        using AT = MemoryAccessTypeBufferBits;
-        const MemoryAccessTypeBuffer RR{AT::ShaderRandomRead};
-        const MemoryAccessTypeBuffer RW{AT::ShaderRandomRead, AT::ShaderRandomWrite};
-        const MemoryAccessTypeBuffer WW{AT::ShaderRandomWrite};
-
-        // ===================================================================
-        // Substep loop
-        // ===================================================================
-        const uint32_t substep_count = std::max(1u, m_impl->config.num_substep_perstep);
-        const float substep_dt = m_impl->config.time_step / static_cast<float>(substep_count);
-        const glm::vec4 gravity_dt(
-            m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, substep_dt
-        );
-
-        // Write uniforms to host-visible buffer.
+        // Write uniforms.
+        const float substep_dt = m_impl->config.time_step
+                                 / static_cast<float>(std::max(1u, m_impl->config.num_substep_perstep));
         {
             auto *uniform_addr = reinterpret_cast<glm::vec4 *>(m_impl->gpu_uniforms->GetVMAddress());
-            *uniform_addr = gravity_dt;
+            *uniform_addr =
+                glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, substep_dt);
         }
 
-        // Pre-import uniform buffer.
-        auto uniforms_h = builder.ImportExternalResource(*m_impl->gpu_uniforms, {MemoryAccessTypeBufferBits::None});
+        // Configure collision detectors.
+        {
+            // 1. Broad-phase: Configure creates internal pair buffers.
+            if (!m_impl->broad_detector) {
+                m_impl->broad_detector = std::make_unique<SpatialHashBroadDetector>(m_impl->render_system);
+            }
+            GridConfig grid_config{};
+            grid_config.world_min = m_impl->config.grid_world_min;
+            grid_config.world_max = m_impl->config.grid_world_max;
+            grid_config.cell_size = m_impl->config.grid_cell_size;
+            grid_config.max_cells_per_shape = m_impl->config.max_cells_per_shape;
+            m_impl->broad_detector->Configure(
+                *m_bound_scene, shape_count, grid_config, m_impl->config.fallback_all_pairs_threshold
+            );
 
+            // 2. Narrow-phase: Configure needs pair buffer pointers from broad-phase.
+            if (!m_impl->narrow_detector) {
+                m_impl->narrow_detector = std::make_unique<ConvexCollisionDetector>(m_impl->render_system);
+            }
+            uint32_t broad_max_pairs = m_impl->broad_detector->GetMaxPairs();
+            uint32_t narrow_max_contacts =
+                std::max(1u, std::min(broad_max_pairs * 5u, m_impl->config.max_contact_points));
+            m_impl->narrow_detector->Configure(
+                *m_bound_scene, narrow_max_contacts, m_impl->config.contact_margin,
+                *m_impl->broad_detector->GetPairBuffer(), *m_impl->broad_detector->GetPairCountBuffer()
+            );
+
+            // 3. Cache narrow-phase result buffer pointers for RG build use.
+            m_impl->cached_narrow_results = m_impl->narrow_detector->GetResultBuffers();
+        }
+
+        // Update cached snapshot AFTER all allocations so RG rebuild sees the new counts.
+        m_impl->cached_snapshot = {
+            body_count, max_contacts, gpu.hinge_joint_count, gpu.fixed_joint_count, shape_count
+        };
+    }
+
+    void XpbdGpuSolver::GPUStep(vk::CommandBuffer cb) {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) return;
+
+        const uint32_t body_count = gpu.rigid_body_slot_count;
+        const uint32_t shape_count = gpu.shape_slot_count;
+        const uint32_t all_pairs = shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
+        const uint32_t max_contacts = std::max(1u, std::min(all_pairs * 5u, m_impl->config.max_contact_points));
+
+        GpuStateSnapshot current{
+            body_count, max_contacts, gpu.hinge_joint_count, gpu.fixed_joint_count, shape_count
+        };
+        bool snapshot_changed = (current != m_impl->cached_snapshot);
+
+        // Rebuild RGs if snapshot changed.
+        if (snapshot_changed || !m_impl->precollision_rg) {
+            m_impl->precollision_rg = BuildPreCollisionRG();
+        }
+        if (snapshot_changed || !m_impl->postcollision_preiter_rg) {
+            m_impl->postcollision_preiter_rg = BuildPostCollisionPreIterRG();
+        }
+        if (snapshot_changed || !m_impl->position_iter_rg) {
+            m_impl->position_iter_rg = BuildPositionIterRG();
+        }
+        if (snapshot_changed || !m_impl->postposition_rg) {
+            m_impl->postposition_rg = BuildPostPositionRG();
+        }
+        if (snapshot_changed || !m_impl->velocity_iter_rg) {
+            m_impl->velocity_iter_rg = BuildVelocityIterRG();
+        }
+        if (snapshot_changed || !m_impl->model_matrix_rg) {
+            m_impl->model_matrix_rg = BuildModelMatrixRG();
+            m_impl->render_system.GetSceneDataManager().SetModelMatricesBuffer(gpu.model_matrices);
+        }
+
+        if (snapshot_changed) {
+            m_impl->cached_snapshot = current;
+        }
+
+        // Write time_step = 0 when paused.
+        const uint32_t substep_count = std::max(1u, m_impl->config.num_substep_perstep);
+        const float effective_dt =
+            m_bound_scene->IsSimulationEnabled() ? m_impl->config.time_step / static_cast<float>(substep_count) : 0.0f;
+        {
+            auto *u = reinterpret_cast<glm::vec4 *>(m_impl->gpu_uniforms->GetVMAddress());
+            *u = glm::vec4(u->x, u->y, u->z, effective_dt);
+        }
+
+        const uint32_t pos_iters = std::max(1u, m_impl->config.num_iter_persubstep);
+        const uint32_t vel_iters = std::max(1u, m_impl->config.num_velocity_iters);
+
+        // Substep loop.
         for (uint32_t ss = 0; ss < substep_count; ++ss) {
-            // --- Pass: Snapshot pre-gravity pose ---
-            m_impl->AddSnapshotPass(
-                builder,
-                *gpu.rigid_body_center_world_position,
-                *m_impl->gpu_pre_gravity_position,
-                "XPBD Snap PreGravPos"
-            );
-            m_impl->AddSnapshotPass(
-                builder,
-                *gpu.rigid_body_center_world_rotation,
-                *m_impl->gpu_pre_gravity_orientation,
-                "XPBD Snap PreGravOri"
-            );
+            // --- PreCollision RG ---
+            if (m_impl->precollision_rg && m_impl->precollision_rg->GetNumPasses() > 0) {
+                m_impl->precollision_rg->RecordAllPasses(cb);
+            }
 
-            // --- Pass: Integrate forces ---
+            // --- Broad-phase Detect ---
+            auto broad_out = m_impl->broad_detector->Detect(cb);
+
+            // --- Narrow-phase Configure with actual pair buffers, then Detect ---
             {
-                auto *binding = &m_impl->integrate_stage->AllocateResourceBinding();
-                auto &srb = binding->GetShaderResourceBinding();
-                srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-                srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-                srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
-                srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
-                srb.BindBuffer("RigidBodyInertia", *gpu.rigid_body_inertia);
-                srb.BindBuffer("RigidBodyExternalForce", *gpu.rigid_body_external_force);
-                srb.BindBuffer("RigidBodyExternalTorque", *gpu.rigid_body_external_torque);
-                srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-
-                auto *stage = m_impl->integrate_stage.get();
-                builder.AddPass(
-                    RenderGraphPassBuilder{m_impl->render_system}
-                        .SetName("XPBD Integrate Forces")
-                        .SetAffinity(RenderGraphPassAffinity::Compute)
-                        .UseBuffer(pos_h, RW)
-                        .UseBuffer(rot_h, RW)
-                        .UseBuffer(linvel_h, RW)
-                        .UseBuffer(angvel_h, RW)
-                        .UseBuffer(alive_h, RR)
-                        .UseBuffer(kinematic_h, RR)
-                        .UseBuffer(mass_h, RR)
-                        .UseBuffer(inv_inertia_h, RR)
-                        .UseBuffer(inertia_h, RR)
-                        .UseBuffer(extforce_h, RR)
-                        .UseBuffer(exttorque_h, RR)
-                        .UseBuffer(uniforms_h, RR)
-                        .SetPassFunction(
-                            [stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                if (!pscene->IsSimulationEnabled()) return;
-                                cb.BindComputeStage(*stage);
-                                cb.BindComputeResource(*binding);
-                                cb.DispatchCompute(body_wg, 1, 1);
-                            }
-                        )
-                        .Get()
+                uint32_t narrow_max_contacts =
+                    std::max(1u, std::min(broad_out.max_pairs * 5u, m_impl->config.max_contact_points));
+                m_impl->narrow_detector->Configure(
+                    *m_bound_scene, narrow_max_contacts, m_impl->config.contact_margin,
+                    broad_out.pair_buffer, broad_out.pair_count_buffer
                 );
             }
+            auto narrow_out = m_impl->narrow_detector->Detect(cb);
 
-            // --- Pass: Snapshot pre-contact velocities ---
-            m_impl->AddSnapshotPass(
-                builder,
-                *gpu.rigid_body_linear_velocity,
-                *m_impl->gpu_pre_contact_linear_vel,
-                "XPBD Snap PreContactLinVel"
-            );
-            m_impl->AddSnapshotPass(
-                builder,
-                *gpu.rigid_body_angular_velocity,
-                *m_impl->gpu_pre_contact_angular_vel,
-                "XPBD Snap PreContactAngVel"
-            );
-
-            // --- Pass: Snapshot substep-start pose ---
-            m_impl->AddSnapshotPass(
-                builder,
-                *gpu.rigid_body_center_world_position,
-                *m_impl->gpu_substep_start_position,
-                "XPBD Snap SubstepStartPos"
-            );
-            m_impl->AddSnapshotPass(
-                builder,
-                *gpu.rigid_body_center_world_rotation,
-                *m_impl->gpu_substep_start_orientation,
-                "XPBD Snap SubstepStartOri"
-            );
-
-            // --- Pass: Update shape world poses ---
-            if (gpu.shape_slot_count > 1u && gpu.shape_world_position != nullptr) {
-                auto *sw_binding = &m_impl->update_shape_world_pose_stage->AllocateResourceBinding();
-                auto &sw_srb = sw_binding->GetShaderResourceBinding();
-                sw_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
-                sw_srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
-                sw_srb.BindBuffer("ShapeLocalPosition", *gpu.shape_local_position);
-                sw_srb.BindBuffer("ShapeLocalRotation", *gpu.shape_local_rotation);
-                sw_srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                sw_srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                sw_srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
-                sw_srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
-
-                auto *sw_stage = m_impl->update_shape_world_pose_stage.get();
-                builder.AddPass(
-                    RenderGraphPassBuilder{m_impl->render_system}
-                        .SetName("XPBD Update Shape World Pose")
-                        .SetAffinity(RenderGraphPassAffinity::Compute)
-                        .UseBuffer(shape_alive_h, RR)
-                        .UseBuffer(shape2body_h, RR)
-                        .UseBuffer(shape_local_pos_h, RR)
-                        .UseBuffer(shape_local_rot_h, RR)
-                        .UseBuffer(pos_h, RR)
-                        .UseBuffer(rot_h, RR)
-                        .UseBuffer(shape_world_pos_h, RW)
-                        .UseBuffer(shape_world_rot_h, RW)
-                        .SetPassFunction(
-                            [sw_stage, sw_binding, shape_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                if (!pscene->IsSimulationEnabled()) return;
-                                cb.BindComputeStage(*sw_stage);
-                                cb.BindComputeResource(*sw_binding);
-                                cb.DispatchCompute(shape_wg, 1, 1);
-                            }
-                        )
-                        .Get()
-                );
+            // --- PostCollision PreIter RG ---
+            if (m_impl->postcollision_preiter_rg && m_impl->postcollision_preiter_rg->GetNumPasses() > 0) {
+                m_impl->postcollision_preiter_rg->RecordAllPasses(cb);
             }
 
-            // --- Pass: Broad-phase collision detection (spatial hash → candidate pairs) ---
-            BroadDetectorOutputHandles broad_out{};
-            if (m_impl->broad_detector) {
-                broad_out = m_impl->broad_detector->AddDetectPasses(builder, physics_scene, scene_handles);
-            }
-
-            // --- Pass: Narrow-phase collision detection (MPR on candidate pairs) ---
-            NarrowDetectorOutputHandles narrow_out{};
-            if (m_impl->narrow_detector && m_impl->broad_detector) {
-                auto broad_bufs = m_impl->broad_detector->GetOutputBuffers();
-                narrow_out = m_impl->narrow_detector->AddDetectPasses(
-                    builder,
-                    physics_scene,
-                    broad_bufs.pair_buffer,
-                    broad_bufs.pair_count_buffer,
-                    scene_handles,
-                    broad_out.pair_buffer,
-                    broad_out.pair_count
-                );
-            }
-
-            // Use pre-imported collision result handles directly (no re-import).
-            RGBufferHandle coll_ids_h = narrow_out.collision_ids;
-            RGBufferHandle coll_normals_h = narrow_out.collision_normals;
-            RGBufferHandle coll_pta_h = narrow_out.contact_point_a;
-            RGBufferHandle coll_ptb_h = narrow_out.contact_point_b;
-            RGBufferHandle coll_cnt_h = narrow_out.collision_count;
-
-            // Raw pointers for shader binding (still needed for srb.BindBuffer).
-            auto cr = m_impl->narrow_detector ? m_impl->narrow_detector->GetCollisionResultBuffers()
-                                              : CollisionResultBuffers{};
-
-            // --- Pass: Memset lagrange to zero ---
-            {
-                auto *binding = &m_impl->clear_int_stage->AllocateResourceBinding();
-                auto &srb = binding->GetShaderResourceBinding();
-                srb.BindBuffer("Target", *m_impl->gpu_contact_lagrange);
-                srb.BindBuffer("ElemCount", *m_impl->gpu_contact_count_buffer);
-
-                auto *stage = m_impl->clear_int_stage.get();
-                builder.AddPass(
-                    RenderGraphPassBuilder{m_impl->render_system}
-                        .SetName("XPBD Memset Lagrange")
-                        .SetAffinity(RenderGraphPassAffinity::Compute)
-                        .UseBuffer(lagrange_h, WW)
-                        .SetPassFunction([stage, binding, contact_wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                            cb.BindComputeStage(*stage);
-                            cb.BindComputeResource(*binding);
-                            cb.DispatchCompute(contact_wg, 1, 1);
-                        })
-                        .Get()
-                );
-            }
-
-            // --- Pass: Memset hinge lagrange to zero ---
-            if (gpu.hinge_joint_count > 0) {
-                auto *binding = &m_impl->clear_hinge_lagrange_stage->AllocateResourceBinding();
-                auto &srb = binding->GetShaderResourceBinding();
-                srb.BindBuffer("HingeAlignedAxisLagrange", *m_impl->gpu_hinge_aligned_axis_lagrange);
-                srb.BindBuffer("HingePositionLagrange", *m_impl->gpu_hinge_position_lagrange);
-                srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
-
-                auto *stage = m_impl->clear_hinge_lagrange_stage.get();
-                uint32_t hinge_wg = (gpu.hinge_joint_count + 255u) / 256u;
-                builder.AddPass(
-                    RenderGraphPassBuilder{m_impl->render_system}
-                        .SetName("XPBD Memset Hinge Lagrange")
-                        .SetAffinity(RenderGraphPassAffinity::Compute)
-                        .UseBuffer(hinge_align_lag_h, WW)
-                        .UseBuffer(hinge_pos_lag_h, WW)
-                        .UseBuffer(hinge_cnt_h, RR)
-                        .SetPassFunction([stage, binding, hinge_wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                            cb.BindComputeStage(*stage);
-                            cb.BindComputeResource(*binding);
-                            cb.DispatchCompute(hinge_wg, 1, 1);
-                        })
-                        .Get()
-                );
-            }
-
-            // --- Pass: Memset fixed lagrange to zero ---
-            if (gpu.fixed_joint_count > 0) {
-                auto *binding = &m_impl->clear_fixed_lagrange_stage->AllocateResourceBinding();
-                auto &srb = binding->GetShaderResourceBinding();
-                srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
-                srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
-                srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
-
-                auto *stage = m_impl->clear_fixed_lagrange_stage.get();
-                uint32_t fixed_wg = (gpu.fixed_joint_count + 255u) / 256u;
-                builder.AddPass(
-                    RenderGraphPassBuilder{m_impl->render_system}
-                        .SetName("XPBD Memset Fixed Lagrange")
-                        .SetAffinity(RenderGraphPassAffinity::Compute)
-                        .UseBuffer(fixed_rot_lag_h, WW)
-                        .UseBuffer(fixed_pos_lag_h, WW)
-                        .UseBuffer(fixed_cnt_h, RR)
-                        .SetPassFunction([stage, binding, fixed_wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                            cb.BindComputeStage(*stage);
-                            cb.BindComputeResource(*binding);
-                            cb.DispatchCompute(fixed_wg, 1, 1);
-                        })
-                        .Get()
-                );
-            }
-
-            // ================================================================
-            // Position solve iterations
-            // ================================================================
-            const uint32_t pos_iters = std::max(1u, m_impl->config.num_iter_persubstep);
+            // --- Position iterations ---
             for (uint32_t iter = 0; iter < pos_iters; ++iter) {
-                // Accumulate contact position deltas.
-                {
-                    auto *binding = &m_impl->accum_pos_stage->AllocateResourceBinding();
-                    auto &srb = binding->GetShaderResourceBinding();
-                    srb.BindBuffer("CollisionIds", *cr.collision_ids);
-                    srb.BindBuffer("CollisionNormals", *cr.collision_normals);
-                    srb.BindBuffer("ContactPointA", *cr.contact_point_a);
-                    srb.BindBuffer("ContactPointB", *cr.contact_point_b);
-                    srb.BindBuffer("CollisionCount", *cr.collision_count);
-                    srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
-                    srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
-                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
-                    srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
-                    srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
-                    srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
-                    srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
-                    srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-
-                    auto *stage = m_impl->accum_pos_stage.get();
-                    builder.AddPass(
-                        RenderGraphPassBuilder{m_impl->render_system}
-                            .SetName("XPBD Accum Contact Pos")
-                            .SetAffinity(RenderGraphPassAffinity::Compute)
-                            .UseBuffer(coll_ids_h, RR)
-                            .UseBuffer(coll_normals_h, RR)
-                            .UseBuffer(coll_pta_h, RR)
-                            .UseBuffer(coll_ptb_h, RR)
-                            .UseBuffer(coll_cnt_h, RR)
-                            .UseBuffer(shape2body_h, RR)
-                            .UseBuffer(pos_h, RR)
-                            .UseBuffer(rot_h, RR)
-                            .UseBuffer(alive_h, RR)
-                            .UseBuffer(kinematic_h, RR)
-                            .UseBuffer(mass_h, RR)
-                            .UseBuffer(inv_inertia_h, RR)
-                            .UseBuffer(ssp_pos_h, RR)
-                            .UseBuffer(ssp_ori_h, RR)
-                            .UseBuffer(lindelta_h, RW)
-                            .UseBuffer(angdelta_h, RW)
-                            .UseBuffer(cntdelta_h, RW)
-                            .UseBuffer(lagrange_h, RW)
-                            .SetPassFunction(
-                                [stage, binding, contact_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                    if (!pscene->IsSimulationEnabled()) return;
-                                    cb.BindComputeStage(*stage);
-                                    cb.BindComputeResource(*binding);
-                                    cb.DispatchCompute(contact_wg, 1, 1);
-                                }
-                            )
-                            .Get()
-                    );
+                if (m_impl->position_iter_rg && m_impl->position_iter_rg->GetNumPasses() > 0) {
+                    m_impl->position_iter_rg->RecordAllPasses(cb);
                 }
-
-                // Accumulate hinge position deltas (skip if no hinge joints).
-                if (gpu.hinge_joint_count > 0 && gpu.gpu_hinge_joints != nullptr) {
-                    auto *binding = &m_impl->accum_hinge_pos_stage->AllocateResourceBinding();
-                    auto &srb = binding->GetShaderResourceBinding();
-                    srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
-                    srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
-                    srb.BindBuffer("HingeAlignedAxisLagrange", *m_impl->gpu_hinge_aligned_axis_lagrange);
-                    srb.BindBuffer("HingePositionLagrange", *m_impl->gpu_hinge_position_lagrange);
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
-                    srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
-                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-                    srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
-                    srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
-                    srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
-
-                    auto *stage = m_impl->accum_hinge_pos_stage.get();
-                    uint32_t hinge_wg = (gpu.hinge_joint_count + 63u) / 64u;
-                    builder.AddPass(
-                        RenderGraphPassBuilder{m_impl->render_system}
-                            .SetName("XPBD Accum Hinge Pos")
-                            .SetAffinity(RenderGraphPassAffinity::Compute)
-                            .UseBuffer(hinge_joints_h, RR)
-                            .UseBuffer(hinge_cnt_h, RR)
-                            .UseBuffer(hinge_align_lag_h, RW)
-                            .UseBuffer(hinge_pos_lag_h, RW)
-                            .UseBuffer(pos_h, RR)
-                            .UseBuffer(rot_h, RR)
-                            .UseBuffer(alive_h, RR)
-                            .UseBuffer(kinematic_h, RR)
-                            .UseBuffer(mass_h, RR)
-                            .UseBuffer(inv_inertia_h, RR)
-                            .UseBuffer(uniforms_h, RR)
-                            .UseBuffer(lindelta_h, RW)
-                            .UseBuffer(angdelta_h, RW)
-                            .UseBuffer(cntdelta_h, RW)
-                            .SetPassFunction(
-                                [stage, binding, hinge_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                    if (!pscene->IsSimulationEnabled()) return;
-                                    cb.BindComputeStage(*stage);
-                                    cb.BindComputeResource(*binding);
-                                    cb.DispatchCompute(hinge_wg, 1, 1);
-                                }
-                            )
-                            .Get()
-                    );
-                }
-
-                // Accumulate fixed position deltas (skip if no fixed joints).
-                if (gpu.fixed_joint_count > 0 && gpu.gpu_fixed_joints != nullptr) {
-                    auto *binding = &m_impl->accum_fixed_pos_stage->AllocateResourceBinding();
-                    auto &srb = binding->GetShaderResourceBinding();
-                    srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
-                    srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
-                    srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
-                    srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
-                    srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
-                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-                    srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
-                    srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
-                    srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
-
-                    auto *stage = m_impl->accum_fixed_pos_stage.get();
-                    uint32_t fixed_wg = (gpu.fixed_joint_count + 63u) / 64u;
-                    builder.AddPass(
-                        RenderGraphPassBuilder{m_impl->render_system}
-                            .SetName("XPBD Accum Fixed Pos")
-                            .SetAffinity(RenderGraphPassAffinity::Compute)
-                            .UseBuffer(fixed_joints_h, RR)
-                            .UseBuffer(fixed_cnt_h, RR)
-                            .UseBuffer(fixed_rot_lag_h, RW)
-                            .UseBuffer(fixed_pos_lag_h, RW)
-                            .UseBuffer(pos_h, RR)
-                            .UseBuffer(rot_h, RR)
-                            .UseBuffer(alive_h, RR)
-                            .UseBuffer(kinematic_h, RR)
-                            .UseBuffer(mass_h, RR)
-                            .UseBuffer(inv_inertia_h, RR)
-                            .UseBuffer(uniforms_h, RR)
-                            .UseBuffer(lindelta_h, RW)
-                            .UseBuffer(angdelta_h, RW)
-                            .UseBuffer(cntdelta_h, RW)
-                            .SetPassFunction(
-                                [stage, binding, fixed_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                    if (!pscene->IsSimulationEnabled()) return;
-                                    cb.BindComputeStage(*stage);
-                                    cb.BindComputeResource(*binding);
-                                    cb.DispatchCompute(fixed_wg, 1, 1);
-                                }
-                            )
-                            .Get()
-                    );
-                }
-
-                // Apply body position deltas.
-                {
-                    auto *binding = &m_impl->apply_pos_stage->AllocateResourceBinding();
-                    auto &srb = binding->GetShaderResourceBinding();
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
-                    srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
-                    srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
-
-                    auto *stage = m_impl->apply_pos_stage.get();
-                    builder.AddPass(
-                        RenderGraphPassBuilder{m_impl->render_system}
-                            .SetName("XPBD Apply Body Pos")
-                            .SetAffinity(RenderGraphPassAffinity::Compute)
-                            .UseBuffer(pos_h, RW)
-                            .UseBuffer(rot_h, RW)
-                            .UseBuffer(alive_h, RR)
-                            .UseBuffer(kinematic_h, RR)
-                            .UseBuffer(lindelta_h, RW)
-                            .UseBuffer(angdelta_h, RW)
-                            .UseBuffer(cntdelta_h, RW)
-                            .SetPassFunction(
-                                [stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                    if (!pscene->IsSimulationEnabled()) return;
-                                    cb.BindComputeStage(*stage);
-                                    cb.BindComputeResource(*binding);
-                                    cb.DispatchCompute(body_wg, 1, 1);
-                                }
-                            )
-                            .Get()
-                    );
-                }
-            } // position iterations
-
-            // --- Pass: Update velocities from pose delta ---
-            {
-                auto *binding = &m_impl->update_vel_stage->AllocateResourceBinding();
-                auto &srb = binding->GetShaderResourceBinding();
-                srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-                srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-                srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                srb.BindBuffer("PreGravityPosition", *m_impl->gpu_pre_gravity_position);
-                srb.BindBuffer("PreGravityOrientation", *m_impl->gpu_pre_gravity_orientation);
-                srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-
-                auto *stage = m_impl->update_vel_stage.get();
-                builder.AddPass(
-                    RenderGraphPassBuilder{m_impl->render_system}
-                        .SetName("XPBD Update Velocities")
-                        .SetAffinity(RenderGraphPassAffinity::Compute)
-                        .UseBuffer(linvel_h, RW)
-                        .UseBuffer(angvel_h, RW)
-                        .UseBuffer(pos_h, RR)
-                        .UseBuffer(rot_h, RR)
-                        .UseBuffer(alive_h, RR)
-                        .UseBuffer(kinematic_h, RR)
-                        .UseBuffer(pregrav_pos_h, RR)
-                        .UseBuffer(pregrav_ori_h, RR)
-                        .UseBuffer(uniforms_h, RR)
-                        .SetPassFunction(
-                            [stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                if (!pscene->IsSimulationEnabled()) return;
-                                cb.BindComputeStage(*stage);
-                                cb.BindComputeResource(*binding);
-                                cb.DispatchCompute(body_wg, 1, 1);
-                            }
-                        )
-                        .Get()
-                );
             }
 
-            // ================================================================
-            // Velocity solve iterations
-            // ================================================================
-            const uint32_t vel_iters = std::max(1u, m_impl->config.num_velocity_iters);
+            // --- PostPosition RG ---
+            if (m_impl->postposition_rg && m_impl->postposition_rg->GetNumPasses() > 0) {
+                m_impl->postposition_rg->RecordAllPasses(cb);
+            }
+
+            // --- Velocity iterations ---
             for (uint32_t iter = 0; iter < vel_iters; ++iter) {
-                // Accumulate contact velocity deltas.
-                {
-                    auto *binding = &m_impl->accum_vel_stage->AllocateResourceBinding();
-                    auto &srb = binding->GetShaderResourceBinding();
-                    srb.BindBuffer("CollisionIds", *cr.collision_ids);
-                    srb.BindBuffer("CollisionNormals", *cr.collision_normals);
-                    srb.BindBuffer("ContactPointA", *cr.contact_point_a);
-                    srb.BindBuffer("ContactPointB", *cr.contact_point_b);
-                    srb.BindBuffer("CollisionCount", *cr.collision_count);
-                    srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-                    srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-                    srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
-                    srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
-                    srb.BindBuffer("RigidBodyDynamicFriction", *gpu.rigid_body_dynamic_friction);
-                    srb.BindBuffer("RigidBodyRestitution", *gpu.rigid_body_restitution);
-                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    srb.BindBuffer("PreContactLinearVelocity", *m_impl->gpu_pre_contact_linear_vel);
-                    srb.BindBuffer("PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel);
-                    srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
-                    srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
-                    srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
-                    srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
-                    srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
-                    srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-                    srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-
-                    auto *stage = m_impl->accum_vel_stage.get();
-                    builder.AddPass(
-                        RenderGraphPassBuilder{m_impl->render_system}
-                            .SetName("XPBD Accum Contact Vel")
-                            .SetAffinity(RenderGraphPassAffinity::Compute)
-                            .UseBuffer(coll_ids_h, RR)
-                            .UseBuffer(coll_normals_h, RR)
-                            .UseBuffer(coll_pta_h, RR)
-                            .UseBuffer(coll_ptb_h, RR)
-                            .UseBuffer(coll_cnt_h, RR)
-                            .UseBuffer(shape2body_h, RR)
-                            .UseBuffer(rot_h, RR)
-                            .UseBuffer(linvel_h, RR)
-                            .UseBuffer(angvel_h, RR)
-                            .UseBuffer(alive_h, RR)
-                            .UseBuffer(kinematic_h, RR)
-                            .UseBuffer(mass_h, RR)
-                            .UseBuffer(inv_inertia_h, RR)
-                            .UseBuffer(dynfric_h, RR)
-                            .UseBuffer(restitution_h, RR)
-                            .UseBuffer(precont_lv_h, RR)
-                            .UseBuffer(precont_av_h, RR)
-                            .UseBuffer(ssp_pos_h, RR)
-                            .UseBuffer(ssp_ori_h, RR)
-                            .UseBuffer(linveldelta_h, RW)
-                            .UseBuffer(angveldelta_h, RW)
-                            .UseBuffer(velcntdelta_h, RW)
-                            .UseBuffer(lagrange_h, RR)
-                            .UseBuffer(uniforms_h, RR)
-                            .SetPassFunction(
-                                [stage, binding, contact_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                    if (!pscene->IsSimulationEnabled()) return;
-                                    cb.BindComputeStage(*stage);
-                                    cb.BindComputeResource(*binding);
-                                    cb.DispatchCompute(contact_wg, 1, 1);
-                                }
-                            )
-                            .Get()
-                    );
+                if (m_impl->velocity_iter_rg && m_impl->velocity_iter_rg->GetNumPasses() > 0) {
+                    m_impl->velocity_iter_rg->RecordAllPasses(cb);
                 }
+            }
+        }
 
-                // Apply body velocity deltas.
-                {
-                    auto *binding = &m_impl->apply_vel_stage->AllocateResourceBinding();
-                    auto &srb = binding->GetShaderResourceBinding();
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-                    srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
-                    srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
-                    srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
+        // --- ModelMatrix RG (always, even when paused) ---
+        if (m_impl->model_matrix_rg && m_impl->model_matrix_rg->GetNumPasses() > 0) {
+            m_impl->model_matrix_rg->RecordAllPasses(cb);
+        }
+    }
 
-                    auto *stage = m_impl->apply_vel_stage.get();
-                    builder.AddPass(
-                        RenderGraphPassBuilder{m_impl->render_system}
-                            .SetName("XPBD Apply Body Vel")
-                            .SetAffinity(RenderGraphPassAffinity::Compute)
-                            .UseBuffer(linvel_h, RW)
-                            .UseBuffer(angvel_h, RW)
-                            .UseBuffer(alive_h, RR)
-                            .UseBuffer(kinematic_h, RR)
-                            .UseBuffer(linveldelta_h, RW)
-                            .UseBuffer(angveldelta_h, RW)
-                            .UseBuffer(velcntdelta_h, RW)
-                            .SetPassFunction(
-                                [stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                    if (!pscene->IsSimulationEnabled()) return;
-                                    cb.BindComputeStage(*stage);
-                                    cb.BindComputeResource(*binding);
-                                    cb.DispatchCompute(body_wg, 1, 1);
-                                }
-                            )
-                            .Get()
-                    );
-                }
-            } // velocity iterations
-        } // substep loop
+    // =======================================================================
+    // RG Build Functions
+    // =======================================================================
 
-        // ---- Model matrix update (after physics, always runs even when paused) ----
-        if (gpu.model_matrices != nullptr && gpu.rigid_body_center_world_rotation != nullptr) {
-            auto *binding = &m_impl->model_matrix_stage->AllocateResourceBinding();
-            auto &mm_srb = binding->GetShaderResourceBinding();
-            mm_srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-            mm_srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-            mm_srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-            mm_srb.BindBuffer("ModelMatrices", *gpu.model_matrices);
+    std::unique_ptr<RenderGraph> XpbdGpuSolver::BuildPreCollisionRG() {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        const uint32_t body_count = gpu.rigid_body_slot_count;
+        const uint32_t shape_count = gpu.shape_slot_count;
+        const uint32_t body_wg = (body_count + 63u) / 64u;
+        const uint32_t shape_wg = (shape_count + 63u) / 64u;
 
-            auto model_matrices_handle =
-                external_model_matrices_handle != RGBufferHandle{}
-                    ? external_model_matrices_handle
-                    : builder.ImportExternalResource(*gpu.model_matrices, {MemoryAccessTypeBufferBits::None});
+        RenderGraphBuilder builder{m_impl->render_system};
 
-            auto *mm_stage = m_impl->model_matrix_stage.get();
+        // prev_access = {AT::None} — first RG in the substep chain.
 
+        // Scene buffers.
+        auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, Impl::None);
+        auto pos_h = builder.ImportExternalResource(*gpu.rigid_body_center_world_position, Impl::None);
+        auto rot_h = builder.ImportExternalResource(*gpu.rigid_body_center_world_rotation, Impl::None);
+        auto linvel_h = builder.ImportExternalResource(*gpu.rigid_body_linear_velocity, Impl::None);
+        auto angvel_h = builder.ImportExternalResource(*gpu.rigid_body_angular_velocity, Impl::None);
+        auto mass_h = builder.ImportExternalResource(*gpu.rigid_body_mass, Impl::None);
+        auto inv_inertia_h = builder.ImportExternalResource(*gpu.rigid_body_inverse_inertia, Impl::None);
+        auto inertia_h = builder.ImportExternalResource(*gpu.rigid_body_inertia, Impl::None);
+        auto extforce_h = builder.ImportExternalResource(*gpu.rigid_body_external_force, Impl::None);
+        auto exttorque_h = builder.ImportExternalResource(*gpu.rigid_body_external_torque, Impl::None);
+        auto kinematic_h = builder.ImportExternalResource(*gpu.rigid_body_is_kinematic, Impl::None);
+
+        // Shape world buffers (written by this RG).
+        auto shape_alive_h = builder.ImportExternalResource(*gpu.shape_alive, Impl::None);
+        auto shape2body_h = builder.ImportExternalResource(*gpu.shape_bound_rigid_body, Impl::None);
+        auto shape_local_pos_h = builder.ImportExternalResource(*gpu.shape_local_position, Impl::None);
+        auto shape_local_rot_h = builder.ImportExternalResource(*gpu.shape_local_rotation, Impl::None);
+        auto shape_wpos_h = builder.ImportExternalResource(*gpu.shape_world_position, Impl::None);
+        auto shape_wrot_h = builder.ImportExternalResource(*gpu.shape_world_rotation, Impl::None);
+
+        // Internal buffers.
+        auto uniforms_h = builder.ImportExternalResource(*m_impl->gpu_uniforms, Impl::None);
+        auto body_cnt_h = builder.ImportExternalResource(*m_impl->gpu_body_count_buffer, Impl::None);
+        auto preg_pos_h = builder.ImportExternalResource(*m_impl->gpu_pre_gravity_position, Impl::None);
+        auto preg_ori_h = builder.ImportExternalResource(*m_impl->gpu_pre_gravity_orientation, Impl::None);
+        auto precont_lv_h = builder.ImportExternalResource(*m_impl->gpu_pre_contact_linear_vel, Impl::None);
+        auto precont_av_h = builder.ImportExternalResource(*m_impl->gpu_pre_contact_angular_vel, Impl::None);
+        auto ssp_pos_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_position, Impl::None);
+        auto ssp_ori_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_orientation, Impl::None);
+
+        auto *scene_ptr = m_bound_scene;
+
+        // Snapshot passes.
+        auto AddSnap = [&](const ComputeBuffer &src, const ComputeBuffer &dst, RGBufferHandle src_h,
+                           RGBufferHandle dst_h, const char *name) {
+            auto *binding = &m_impl->snapshot_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("SrcBuffer", src);
+            srb.BindBuffer("DstBuffer", dst);
+            srb.BindBuffer("ElemCount", *m_impl->gpu_body_count_buffer);
+            auto *stage = m_impl->snapshot_stage.get();
             builder.AddPass(
                 RenderGraphPassBuilder{m_impl->render_system}
-                    .SetName("XPBD Model Matrix Update")
-                    .UseBuffer(alive_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                    .UseBuffer(pos_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                    .UseBuffer(rot_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                    .UseBuffer(model_matrices_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
+                    .SetName(name)
                     .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .SetPassFunction([mm_stage, binding, body_wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                        cb.BindComputeStage(*mm_stage);
+                    .UseBuffer(src_h, Impl::RR)
+                    .UseBuffer(dst_h, Impl::WW)
+                    .UseBuffer(body_cnt_h, Impl::RR)
+                    .SetPassFunction([stage, binding, body_wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                        cb.BindComputeStage(*stage);
                         cb.BindComputeResource(*binding);
                         cb.DispatchCompute(body_wg, 1, 1);
                     })
                     .Get()
             );
+        };
+        AddSnap(*gpu.rigid_body_center_world_position, *m_impl->gpu_pre_gravity_position, pos_h, preg_pos_h,
+                "XPBD Snap PreGravPos");
+        AddSnap(*gpu.rigid_body_center_world_rotation, *m_impl->gpu_pre_gravity_orientation, rot_h, preg_ori_h,
+                "XPBD Snap PreGravOri");
+        AddSnap(*gpu.rigid_body_linear_velocity, *m_impl->gpu_pre_contact_linear_vel, linvel_h, precont_lv_h,
+                "XPBD Snap PreContactLinVel");
+        AddSnap(*gpu.rigid_body_angular_velocity, *m_impl->gpu_pre_contact_angular_vel, angvel_h, precont_av_h,
+                "XPBD Snap PreContactAngVel");
+        AddSnap(*gpu.rigid_body_center_world_position, *m_impl->gpu_substep_start_position, pos_h, ssp_pos_h,
+                "XPBD Snap SubstepStartPos");
+        AddSnap(*gpu.rigid_body_center_world_rotation, *m_impl->gpu_substep_start_orientation, rot_h, ssp_ori_h,
+                "XPBD Snap SubstepStartOri");
+
+        // Integrate forces.
+        {
+            auto *binding = &m_impl->integrate_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+            srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+            srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
+            srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
+            srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
+            srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
+            srb.BindBuffer("RigidBodyInertia", *gpu.rigid_body_inertia);
+            srb.BindBuffer("RigidBodyExternalForce", *gpu.rigid_body_external_force);
+            srb.BindBuffer("RigidBodyExternalTorque", *gpu.rigid_body_external_torque);
+            srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+            srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+            auto *stage = m_impl->integrate_stage.get();
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Integrate Forces")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(pos_h, Impl::RW)
+                    .UseBuffer(rot_h, Impl::RW)
+                    .UseBuffer(linvel_h, Impl::RW)
+                    .UseBuffer(angvel_h, Impl::RW)
+                    .UseBuffer(alive_h, Impl::RR)
+                    .UseBuffer(kinematic_h, Impl::RR)
+                    .UseBuffer(mass_h, Impl::RR)
+                    .UseBuffer(inv_inertia_h, Impl::RR)
+                    .UseBuffer(inertia_h, Impl::RR)
+                    .UseBuffer(extforce_h, Impl::RR)
+                    .UseBuffer(exttorque_h, Impl::RR)
+                    .UseBuffer(uniforms_h, Impl::RR)
+                    .SetPassFunction(
+                        [stage, binding, body_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(body_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
         }
+
+        // Update shape world poses.
+        if (shape_count > 1u && gpu.shape_world_position != nullptr) {
+            auto *binding = &m_impl->update_shape_world_pose_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
+            srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
+            srb.BindBuffer("ShapeLocalPosition", *gpu.shape_local_position);
+            srb.BindBuffer("ShapeLocalRotation", *gpu.shape_local_rotation);
+            srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+            srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
+            srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
+            auto *stage = m_impl->update_shape_world_pose_stage.get();
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Update Shape World Pose")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(shape_alive_h, Impl::RR)
+                    .UseBuffer(shape2body_h, Impl::RR)
+                    .UseBuffer(shape_local_pos_h, Impl::RR)
+                    .UseBuffer(shape_local_rot_h, Impl::RR)
+                    .UseBuffer(pos_h, Impl::RR)
+                    .UseBuffer(rot_h, Impl::RR)
+                    .UseBuffer(shape_wpos_h, Impl::RW)
+                    .UseBuffer(shape_wrot_h, Impl::RW)
+                    .SetPassFunction(
+                        [stage, binding, shape_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(shape_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        return builder.BuildRenderGraph();
+    }
+
+    std::unique_ptr<RenderGraph> XpbdGpuSolver::BuildPostCollisionPreIterRG() {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        const uint32_t contact_wg = (m_impl->cached_snapshot.max_contacts + 63u) / 64u;
+
+        RenderGraphBuilder builder{m_impl->render_system};
+        auto *scene_ptr = m_bound_scene;
+
+        // prev_access: detectors only read scene buffers, so prev_access = RR.
+        // For Lagrange multipliers (owned, cleared each substep): prev_access = {AT::None}.
+
+        auto lagrange_h = builder.ImportExternalResource(*m_impl->gpu_contact_lagrange, Impl::None);
+        auto contact_cnt_h = builder.ImportExternalResource(*m_impl->gpu_contact_count_buffer, Impl::None);
+
+        // Clear contact Lagrange.
+        {
+            auto *binding = &m_impl->clear_int_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("Target", *m_impl->gpu_contact_lagrange);
+            srb.BindBuffer("ElemCount", *m_impl->gpu_contact_count_buffer);
+            auto *stage = m_impl->clear_int_stage.get();
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Memset Lagrange")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(lagrange_h, Impl::WW)
+                    .SetPassFunction(
+                        [stage, binding, contact_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(contact_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        // Clear hinge Lagrange (conditional).
+        if (gpu.hinge_joint_count > 0) {
+            auto hinge_align_h =
+                builder.ImportExternalResource(*m_impl->gpu_hinge_aligned_axis_lagrange, Impl::None);
+            auto hinge_pos_h = builder.ImportExternalResource(*m_impl->gpu_hinge_position_lagrange, Impl::None);
+            auto hinge_cnt_h = builder.ImportExternalResource(*m_impl->gpu_hinge_joint_count_buffer, Impl::None);
+
+            auto *binding = &m_impl->clear_hinge_lagrange_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("HingeAlignedAxisLagrange", *m_impl->gpu_hinge_aligned_axis_lagrange);
+            srb.BindBuffer("HingePositionLagrange", *m_impl->gpu_hinge_position_lagrange);
+            srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
+            auto *stage = m_impl->clear_hinge_lagrange_stage.get();
+            uint32_t hinge_wg = (gpu.hinge_joint_count + 255u) / 256u;
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Memset Hinge Lagrange")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(hinge_align_h, Impl::WW)
+                    .UseBuffer(hinge_pos_h, Impl::WW)
+                    .UseBuffer(hinge_cnt_h, Impl::RR)
+                    .SetPassFunction(
+                        [stage, binding, hinge_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(hinge_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        // Clear fixed Lagrange (conditional).
+        if (gpu.fixed_joint_count > 0) {
+            auto fixed_rot_h = builder.ImportExternalResource(*m_impl->gpu_fixed_rotation_lagrange, Impl::None);
+            auto fixed_pos_h = builder.ImportExternalResource(*m_impl->gpu_fixed_position_lagrange, Impl::None);
+            auto fixed_cnt_h = builder.ImportExternalResource(*m_impl->gpu_fixed_joint_count_buffer, Impl::None);
+
+            auto *binding = &m_impl->clear_fixed_lagrange_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
+            srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
+            srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
+            auto *stage = m_impl->clear_fixed_lagrange_stage.get();
+            uint32_t fixed_wg = (gpu.fixed_joint_count + 255u) / 256u;
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Memset Fixed Lagrange")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(fixed_rot_h, Impl::WW)
+                    .UseBuffer(fixed_pos_h, Impl::WW)
+                    .UseBuffer(fixed_cnt_h, Impl::RR)
+                    .SetPassFunction(
+                        [stage, binding, fixed_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(fixed_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        return builder.BuildRenderGraph();
+    }
+
+    std::unique_ptr<RenderGraph> XpbdGpuSolver::BuildPositionIterRG() {
+        // LOOP RG: all mutable buffers use prev_access = RW (conservative for re-recording).
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        const auto &narrow = m_impl->cached_narrow_results;
+        const uint32_t body_wg = (m_impl->cached_snapshot.body_count + 63u) / 64u;
+        const uint32_t contact_wg = (m_impl->cached_snapshot.max_contacts + 63u) / 64u;
+
+        RenderGraphBuilder builder{m_impl->render_system};
+        auto *scene_ptr = m_bound_scene;
+
+        // Scene buffers.
+        auto pos_h = builder.ImportExternalResource(*gpu.rigid_body_center_world_position, Impl::RW);
+        auto rot_h = builder.ImportExternalResource(*gpu.rigid_body_center_world_rotation, Impl::RW);
+        auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, Impl::RR);
+        auto kinematic_h = builder.ImportExternalResource(*gpu.rigid_body_is_kinematic, Impl::RR);
+        auto mass_h = builder.ImportExternalResource(*gpu.rigid_body_mass, Impl::RR);
+        auto inv_inertia_h = builder.ImportExternalResource(*gpu.rigid_body_inverse_inertia, Impl::RR);
+        auto shape2body_h = builder.ImportExternalResource(*gpu.shape_bound_rigid_body, Impl::RR);
+
+        // Internal buffers.
+        auto lindelta_h = builder.ImportExternalResource(*m_impl->gpu_linear_position_delta, Impl::RW);
+        auto angdelta_h = builder.ImportExternalResource(*m_impl->gpu_angular_position_delta, Impl::RW);
+        auto cntdelta_h = builder.ImportExternalResource(*m_impl->gpu_position_delta_count, Impl::RW);
+        auto lagrange_h = builder.ImportExternalResource(*m_impl->gpu_contact_lagrange, Impl::RW);
+        auto ssp_pos_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_position, Impl::RR);
+        auto ssp_ori_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_orientation, Impl::RR);
+        auto uniforms_h = builder.ImportExternalResource(*m_impl->gpu_uniforms, Impl::RR);
+
+        // Narrow-phase collision results (written by NarrowDetect, prev_access = WW).
+        auto coll_ids_h = builder.ImportExternalResource(*narrow.collision_ids, Impl::WW);
+        auto coll_normals_h = builder.ImportExternalResource(*narrow.collision_normals, Impl::WW);
+        auto coll_pta_h = builder.ImportExternalResource(*narrow.contact_point_a, Impl::WW);
+        auto coll_ptb_h = builder.ImportExternalResource(*narrow.contact_point_b, Impl::WW);
+        auto coll_cnt_h = builder.ImportExternalResource(*narrow.collision_count, Impl::WW);
+
+        // Accumulate contact position deltas.
+        {
+            auto *binding = &m_impl->accum_pos_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("CollisionIds", *narrow.collision_ids);
+            srb.BindBuffer("CollisionNormals", *narrow.collision_normals);
+            srb.BindBuffer("ContactPointA", *narrow.contact_point_a);
+            srb.BindBuffer("ContactPointB", *narrow.contact_point_b);
+            srb.BindBuffer("CollisionCount", *narrow.collision_count);
+            srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
+            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+            srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+            srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
+            srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
+            srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+            srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
+            srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
+            srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
+            srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+            srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
+            srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
+            auto *stage = m_impl->accum_pos_stage.get();
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Accum Contact Pos")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(coll_ids_h, Impl::RR)
+                    .UseBuffer(coll_normals_h, Impl::RR)
+                    .UseBuffer(coll_pta_h, Impl::RR)
+                    .UseBuffer(coll_ptb_h, Impl::RR)
+                    .UseBuffer(coll_cnt_h, Impl::RR)
+                    .UseBuffer(shape2body_h, Impl::RR)
+                    .UseBuffer(pos_h, Impl::RR)
+                    .UseBuffer(rot_h, Impl::RR)
+                    .UseBuffer(alive_h, Impl::RR)
+                    .UseBuffer(kinematic_h, Impl::RR)
+                    .UseBuffer(mass_h, Impl::RR)
+                    .UseBuffer(inv_inertia_h, Impl::RR)
+                    .UseBuffer(ssp_pos_h, Impl::RR)
+                    .UseBuffer(ssp_ori_h, Impl::RR)
+                    .UseBuffer(lindelta_h, Impl::RW)
+                    .UseBuffer(angdelta_h, Impl::RW)
+                    .UseBuffer(cntdelta_h, Impl::RW)
+                    .UseBuffer(lagrange_h, Impl::RW)
+                    .SetPassFunction(
+                        [stage, binding, contact_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(contact_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        // Accumulate hinge position deltas (conditional on hinge joint count).
+        if (gpu.hinge_joint_count > 0 && gpu.gpu_hinge_joints != nullptr) {
+            auto hinge_joints_h = builder.ImportExternalResource(*gpu.gpu_hinge_joints, Impl::RR);
+            auto hinge_cnt_h =
+                builder.ImportExternalResource(*m_impl->gpu_hinge_joint_count_buffer, Impl::RR);
+            auto hinge_align_h =
+                builder.ImportExternalResource(*m_impl->gpu_hinge_aligned_axis_lagrange, Impl::RW);
+            auto hinge_pos_lag_h =
+                builder.ImportExternalResource(*m_impl->gpu_hinge_position_lagrange, Impl::RW);
+
+            auto *binding = &m_impl->accum_hinge_pos_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
+            srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
+            srb.BindBuffer("HingeAlignedAxisLagrange", *m_impl->gpu_hinge_aligned_axis_lagrange);
+            srb.BindBuffer("HingePositionLagrange", *m_impl->gpu_hinge_position_lagrange);
+            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+            srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+            srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
+            srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
+            srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+            srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+            srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
+            srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+            srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
+            auto *stage = m_impl->accum_hinge_pos_stage.get();
+            uint32_t hinge_wg = (gpu.hinge_joint_count + 63u) / 64u;
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Accum Hinge Pos")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(hinge_joints_h, Impl::RR)
+                    .UseBuffer(hinge_cnt_h, Impl::RR)
+                    .UseBuffer(hinge_align_h, Impl::RW)
+                    .UseBuffer(hinge_pos_lag_h, Impl::RW)
+                    .UseBuffer(pos_h, Impl::RR)
+                    .UseBuffer(rot_h, Impl::RR)
+                    .UseBuffer(alive_h, Impl::RR)
+                    .UseBuffer(kinematic_h, Impl::RR)
+                    .UseBuffer(mass_h, Impl::RR)
+                    .UseBuffer(inv_inertia_h, Impl::RR)
+                    .UseBuffer(uniforms_h, Impl::RR)
+                    .UseBuffer(lindelta_h, Impl::RW)
+                    .UseBuffer(angdelta_h, Impl::RW)
+                    .UseBuffer(cntdelta_h, Impl::RW)
+                    .SetPassFunction(
+                        [stage, binding, hinge_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(hinge_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        // Accumulate fixed position deltas (conditional on fixed joint count).
+        if (gpu.fixed_joint_count > 0 && gpu.gpu_fixed_joints != nullptr) {
+            auto fixed_joints_h = builder.ImportExternalResource(*gpu.gpu_fixed_joints, Impl::RR);
+            auto fixed_cnt_h =
+                builder.ImportExternalResource(*m_impl->gpu_fixed_joint_count_buffer, Impl::RR);
+            auto fixed_rot_h =
+                builder.ImportExternalResource(*m_impl->gpu_fixed_rotation_lagrange, Impl::RW);
+            auto fixed_pos_lag_h =
+                builder.ImportExternalResource(*m_impl->gpu_fixed_position_lagrange, Impl::RW);
+
+            auto *binding = &m_impl->accum_fixed_pos_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
+            srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
+            srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
+            srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
+            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+            srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+            srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
+            srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
+            srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+            srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+            srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
+            srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+            srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
+            auto *stage = m_impl->accum_fixed_pos_stage.get();
+            uint32_t fixed_wg = (gpu.fixed_joint_count + 63u) / 64u;
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Accum Fixed Pos")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(fixed_joints_h, Impl::RR)
+                    .UseBuffer(fixed_cnt_h, Impl::RR)
+                    .UseBuffer(fixed_rot_h, Impl::RW)
+                    .UseBuffer(fixed_pos_lag_h, Impl::RW)
+                    .UseBuffer(pos_h, Impl::RR)
+                    .UseBuffer(rot_h, Impl::RR)
+                    .UseBuffer(alive_h, Impl::RR)
+                    .UseBuffer(kinematic_h, Impl::RR)
+                    .UseBuffer(mass_h, Impl::RR)
+                    .UseBuffer(inv_inertia_h, Impl::RR)
+                    .UseBuffer(uniforms_h, Impl::RR)
+                    .UseBuffer(lindelta_h, Impl::RW)
+                    .UseBuffer(angdelta_h, Impl::RW)
+                    .UseBuffer(cntdelta_h, Impl::RW)
+                    .SetPassFunction(
+                        [stage, binding, fixed_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(fixed_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        // Apply body position deltas.
+        {
+            auto *binding = &m_impl->apply_pos_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+            srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+            srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+            srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
+            srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+            srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
+            auto *stage = m_impl->apply_pos_stage.get();
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Apply Body Pos")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(pos_h, Impl::RW)
+                    .UseBuffer(rot_h, Impl::RW)
+                    .UseBuffer(alive_h, Impl::RR)
+                    .UseBuffer(kinematic_h, Impl::RR)
+                    .UseBuffer(lindelta_h, Impl::RW)
+                    .UseBuffer(angdelta_h, Impl::RW)
+                    .UseBuffer(cntdelta_h, Impl::RW)
+                    .SetPassFunction(
+                        [stage, binding, body_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(body_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        return builder.BuildRenderGraph();
+    }
+
+    std::unique_ptr<RenderGraph> XpbdGpuSolver::BuildPostPositionRG() {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        const uint32_t body_wg = (m_impl->cached_snapshot.body_count + 63u) / 64u;
+
+        RenderGraphBuilder builder{m_impl->render_system};
+        auto *scene_ptr = m_bound_scene;
+
+        // prev_access: PositionIterRG last writes pos/rot (RW).
+        auto pos_h =
+            builder.ImportExternalResource(*gpu.rigid_body_center_world_position, Impl::RW);
+        auto rot_h =
+            builder.ImportExternalResource(*gpu.rigid_body_center_world_rotation, Impl::RW);
+        auto linvel_h =
+            builder.ImportExternalResource(*gpu.rigid_body_linear_velocity, Impl::RW);
+        auto angvel_h =
+            builder.ImportExternalResource(*gpu.rigid_body_angular_velocity, Impl::RW);
+        auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, Impl::RR);
+        auto kinematic_h = builder.ImportExternalResource(*gpu.rigid_body_is_kinematic, Impl::RR);
+        auto preg_pos_h = builder.ImportExternalResource(*m_impl->gpu_pre_gravity_position, Impl::RR);
+        auto preg_ori_h = builder.ImportExternalResource(*m_impl->gpu_pre_gravity_orientation, Impl::RR);
+        auto uniforms_h = builder.ImportExternalResource(*m_impl->gpu_uniforms, Impl::RR);
+
+        {
+            auto *binding = &m_impl->update_vel_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+            srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+            srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
+            srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
+            srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+            srb.BindBuffer("PreGravityPosition", *m_impl->gpu_pre_gravity_position);
+            srb.BindBuffer("PreGravityOrientation", *m_impl->gpu_pre_gravity_orientation);
+            srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+            auto *stage = m_impl->update_vel_stage.get();
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Update Velocities")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(linvel_h, Impl::RW)
+                    .UseBuffer(angvel_h, Impl::RW)
+                    .UseBuffer(pos_h, Impl::RR)
+                    .UseBuffer(rot_h, Impl::RR)
+                    .UseBuffer(alive_h, Impl::RR)
+                    .UseBuffer(kinematic_h, Impl::RR)
+                    .UseBuffer(preg_pos_h, Impl::RR)
+                    .UseBuffer(preg_ori_h, Impl::RR)
+                    .UseBuffer(uniforms_h, Impl::RR)
+                    .SetPassFunction(
+                        [stage, binding, body_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(body_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        return builder.BuildRenderGraph();
+    }
+
+    std::unique_ptr<RenderGraph> XpbdGpuSolver::BuildVelocityIterRG() {
+        // LOOP RG: conservative prev_access = RW for mutable buffers.
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        const auto &narrow = m_impl->cached_narrow_results;
+        const uint32_t body_wg = (m_impl->cached_snapshot.body_count + 63u) / 64u;
+        const uint32_t contact_wg = (m_impl->cached_snapshot.max_contacts + 63u) / 64u;
+
+        RenderGraphBuilder builder{m_impl->render_system};
+        auto *scene_ptr = m_bound_scene;
+
+        auto linvel_h =
+            builder.ImportExternalResource(*gpu.rigid_body_linear_velocity, Impl::RW);
+        auto angvel_h =
+            builder.ImportExternalResource(*gpu.rigid_body_angular_velocity, Impl::RW);
+        auto rot_h =
+            builder.ImportExternalResource(*gpu.rigid_body_center_world_rotation, Impl::RR);
+        auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, Impl::RR);
+        auto kinematic_h = builder.ImportExternalResource(*gpu.rigid_body_is_kinematic, Impl::RR);
+        auto mass_h = builder.ImportExternalResource(*gpu.rigid_body_mass, Impl::RR);
+        auto inv_inertia_h = builder.ImportExternalResource(*gpu.rigid_body_inverse_inertia, Impl::RR);
+        auto dynfric_h = builder.ImportExternalResource(*gpu.rigid_body_dynamic_friction, Impl::RR);
+        auto restitution_h = builder.ImportExternalResource(*gpu.rigid_body_restitution, Impl::RR);
+        auto shape2body_h = builder.ImportExternalResource(*gpu.shape_bound_rigid_body, Impl::RR);
+
+        auto precont_lv_h = builder.ImportExternalResource(*m_impl->gpu_pre_contact_linear_vel, Impl::RR);
+        auto precont_av_h = builder.ImportExternalResource(*m_impl->gpu_pre_contact_angular_vel, Impl::RR);
+        auto ssp_pos_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_position, Impl::RR);
+        auto ssp_ori_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_orientation, Impl::RR);
+        auto linveldelta_h = builder.ImportExternalResource(*m_impl->gpu_linear_velocity_delta, Impl::RW);
+        auto angveldelta_h = builder.ImportExternalResource(*m_impl->gpu_angular_velocity_delta, Impl::RW);
+        auto velcntdelta_h = builder.ImportExternalResource(*m_impl->gpu_velocity_delta_count, Impl::RW);
+        auto lagrange_h = builder.ImportExternalResource(*m_impl->gpu_contact_lagrange, Impl::RR);
+        auto uniforms_h = builder.ImportExternalResource(*m_impl->gpu_uniforms, Impl::RR);
+
+        // Narrow-phase collision results (read by PositionIterRG, prev_access = RR).
+        auto coll_ids_h = builder.ImportExternalResource(*narrow.collision_ids, Impl::RR);
+        auto coll_normals_h = builder.ImportExternalResource(*narrow.collision_normals, Impl::RR);
+        auto coll_pta_h = builder.ImportExternalResource(*narrow.contact_point_a, Impl::RR);
+        auto coll_ptb_h = builder.ImportExternalResource(*narrow.contact_point_b, Impl::RR);
+        auto coll_cnt_h = builder.ImportExternalResource(*narrow.collision_count, Impl::RR);
+
+        // Accumulate contact velocity deltas.
+        {
+            auto *binding = &m_impl->accum_vel_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("CollisionIds", *narrow.collision_ids);
+            srb.BindBuffer("CollisionNormals", *narrow.collision_normals);
+            srb.BindBuffer("ContactPointA", *narrow.contact_point_a);
+            srb.BindBuffer("ContactPointB", *narrow.contact_point_b);
+            srb.BindBuffer("CollisionCount", *narrow.collision_count);
+            srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
+            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+            srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
+            srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
+            srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
+            srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
+            srb.BindBuffer("RigidBodyDynamicFriction", *gpu.rigid_body_dynamic_friction);
+            srb.BindBuffer("RigidBodyRestitution", *gpu.rigid_body_restitution);
+            srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+            srb.BindBuffer("PreContactLinearVelocity", *m_impl->gpu_pre_contact_linear_vel);
+            srb.BindBuffer("PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel);
+            srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
+            srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
+            srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
+            srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
+            srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
+            srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
+            srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+            auto *stage = m_impl->accum_vel_stage.get();
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Accum Contact Vel")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(coll_ids_h, Impl::RR)
+                    .UseBuffer(coll_normals_h, Impl::RR)
+                    .UseBuffer(coll_pta_h, Impl::RR)
+                    .UseBuffer(coll_ptb_h, Impl::RR)
+                    .UseBuffer(coll_cnt_h, Impl::RR)
+                    .UseBuffer(shape2body_h, Impl::RR)
+                    .UseBuffer(rot_h, Impl::RR)
+                    .UseBuffer(linvel_h, Impl::RR)
+                    .UseBuffer(angvel_h, Impl::RR)
+                    .UseBuffer(alive_h, Impl::RR)
+                    .UseBuffer(kinematic_h, Impl::RR)
+                    .UseBuffer(mass_h, Impl::RR)
+                    .UseBuffer(inv_inertia_h, Impl::RR)
+                    .UseBuffer(dynfric_h, Impl::RR)
+                    .UseBuffer(restitution_h, Impl::RR)
+                    .UseBuffer(precont_lv_h, Impl::RR)
+                    .UseBuffer(precont_av_h, Impl::RR)
+                    .UseBuffer(ssp_pos_h, Impl::RR)
+                    .UseBuffer(ssp_ori_h, Impl::RR)
+                    .UseBuffer(linveldelta_h, Impl::RW)
+                    .UseBuffer(angveldelta_h, Impl::RW)
+                    .UseBuffer(velcntdelta_h, Impl::RW)
+                    .UseBuffer(lagrange_h, Impl::RR)
+                    .UseBuffer(uniforms_h, Impl::RR)
+                    .SetPassFunction(
+                        [stage, binding, contact_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(contact_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        // Apply body velocity deltas.
+        {
+            auto *binding = &m_impl->apply_vel_stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+            srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
+            srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
+            srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+            srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
+            srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
+            srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
+            auto *stage = m_impl->apply_vel_stage.get();
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("XPBD Apply Body Vel")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(linvel_h, Impl::RW)
+                    .UseBuffer(angvel_h, Impl::RW)
+                    .UseBuffer(alive_h, Impl::RR)
+                    .UseBuffer(kinematic_h, Impl::RR)
+                    .UseBuffer(linveldelta_h, Impl::RW)
+                    .UseBuffer(angveldelta_h, Impl::RW)
+                    .UseBuffer(velcntdelta_h, Impl::RW)
+                    .SetPassFunction(
+                        [stage, binding, body_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene_ptr->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(body_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+        }
+
+        return builder.BuildRenderGraph();
+    }
+
+    std::unique_ptr<RenderGraph> XpbdGpuSolver::BuildModelMatrixRG() {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        const uint32_t body_wg = (m_impl->cached_snapshot.body_count + 63u) / 64u;
+
+        RenderGraphBuilder builder{m_impl->render_system};
+
+        auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, Impl::RR);
+        auto pos_h =
+            builder.ImportExternalResource(*gpu.rigid_body_center_world_position, Impl::RR);
+        auto rot_h =
+            builder.ImportExternalResource(*gpu.rigid_body_center_world_rotation, Impl::RR);
+        auto mm_h = builder.ImportExternalResource(*gpu.model_matrices, Impl::None);
+
+        auto *stage = m_impl->model_matrix_stage.get();
+        auto *binding = &m_impl->model_matrix_stage->AllocateResourceBinding();
+        auto &srb = binding->GetShaderResourceBinding();
+        srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+        srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+        srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+        srb.BindBuffer("ModelMatrices", *gpu.model_matrices);
+
+        builder.AddPass(
+            RenderGraphPassBuilder{m_impl->render_system}
+                .SetName("XPBD Model Matrix")
+                .SetAffinity(RenderGraphPassAffinity::Compute)
+                .UseBuffer(alive_h, Impl::RR)
+                .UseBuffer(pos_h, Impl::RR)
+                .UseBuffer(rot_h, Impl::RR)
+                .UseBuffer(mm_h, Impl::WW)
+                .SetPassFunction([stage, binding, body_wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    cb.BindComputeStage(*stage);
+                    cb.BindComputeResource(*binding);
+                    cb.DispatchCompute(body_wg, 1, 1);
+                })
+                .Get()
+        );
+
+        return builder.BuildRenderGraph();
     }
 
 } // namespace Engine

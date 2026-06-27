@@ -13,8 +13,7 @@
 #include "MainClass.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/PhysicsSystem.h"
-#include "Physics/Solver/DummySolver.h"
-#include "Physics/Solver/XPBDGpuSolver.h"
+#include "Physics/Solver/XpbdGpuSolver.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
@@ -271,13 +270,23 @@ int main(int /*argc*/, char ** /*argv*/) {
         mc->PreRenderUpdate();
     }
 
-    // --- Create and register the dummy GPU physics solver ---
-    auto dummy_solver = std::make_unique<DummySolver>(*cmc->GetRenderSystem());
-    XpbdConfig dummy_config{};
-    dummy_config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
-    dummy_config.time_step = 1.0f / 100.0f;
-    dummy_solver->SetConfig(dummy_config);
-    cmc->GetPhysicsSystem()->RegisterSolver(physics_scene->GetSceneID(), std::move(dummy_solver));
+    // --- Create and register the XPBD GPU physics solver ---
+    auto xpbd_solver = std::make_unique<XpbdGpuSolver>(*cmc->GetRenderSystem());
+    XpbdConfig xpbd_config{};
+    xpbd_config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
+    xpbd_config.time_step = 1.0f / 100.0f;
+    xpbd_config.num_substep_perstep = 2;
+    xpbd_config.num_iter_persubstep = 100;
+    xpbd_config.num_velocity_iters = 100;
+    xpbd_config.max_contact_points = 50000u;
+    xpbd_config.contact_margin = 0.001f;
+    xpbd_config.grid_cell_size = 1.0f;
+    xpbd_config.grid_world_min = glm::vec3(-100.0f, -5.0f, -100.0f);
+    xpbd_config.grid_world_max = glm::vec3(100.0f, 20.0f, 100.0f);
+    xpbd_config.max_cells_per_shape = 8;
+    xpbd_config.fallback_all_pairs_threshold = 8;
+    xpbd_solver->SetConfig(xpbd_config);
+    cmc->GetPhysicsSystem()->RegisterSolver(physics_scene->GetSceneID(), std::move(xpbd_solver));
 
     // --- Build the rendering render graph (physics model matrices passed via ComplexRenderGraphBuilder) ---
     ComplexRenderGraphBuilder rg_builder(*cmc->GetRenderSystem());

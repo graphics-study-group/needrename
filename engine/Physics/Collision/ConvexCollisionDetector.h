@@ -3,19 +3,21 @@
 
 #include <memory>
 
+namespace vk {
+    struct CommandBuffer;
+} // namespace vk
+
 namespace Engine {
     class ComputeBuffer;
     class PhysicsScene;
-    class RenderGraphBuilder;
     class RenderSystem;
     enum class RGBufferHandle : int32_t;
-    struct PhysicsSceneBufferHandles;
 
     /**
      * @brief Bundle of read-only pointers to collision detection result buffers.
      *
-     * Returned by ConvexCollisionDetector::GetCollisionResultBuffers().  All
-     * buffers are owned by the detector and live until the detector is destroyed.
+     * Returned by ConvexCollisionDetector::Detect().  All buffers are owned by
+     * the detector and live until the detector is destroyed.
      */
     struct CollisionResultBuffers {
         const ComputeBuffer *collision_ids{};
@@ -27,25 +29,17 @@ namespace Engine {
     };
 
     /**
-     * @brief Pre-imported RenderGraph handles for narrow-phase result buffers.
-     *
-     * Returned by AddDetectPasses() so the solver can consume the handles
-     * directly without re-importing detector-owned buffers.
-     */
-    struct NarrowDetectorOutputHandles {
-        RGBufferHandle collision_ids{};
-        RGBufferHandle collision_normals{};
-        RGBufferHandle contact_point_a{};
-        RGBufferHandle contact_point_b{};
-        RGBufferHandle collision_count{};
-    };
-
-    /**
      * @brief GPU narrow-phase convex collision detection using MPR algorithm.
      *
      * ConvexCollisionDetector owns the MPR collision detection compute pipeline
-     * (detect_collisions.comp).  Collision pairs to test are provided externally
-     * by the broad-phase detector via GPU buffers.
+     * (detect_collisions.comp) and its own RenderGraph.  Collision pairs to test
+     * are provided by the broad-phase detector — pair buffer references are cached
+     * during Configure().
+     *
+     * Lifecycle:
+     *   1. Construct with RenderSystem& only (no GPU allocation).
+     *   2. Configure(scene, max_pairs, margin, pair_buf, count_buf) — CPU prep.
+     *   3. Detect(cb) — lazy-build RG, record passes to cb, return results.
      *
      * Collision results are stored in separate SoA GPU buffers:
      *   - collision_ids:       uvec2 (shape_a, shape_b)
@@ -55,15 +49,12 @@ namespace Engine {
      *   - collision_count:     uint  (total contact points, each atomicAdd'd)
      *
      * Each collision pair may produce up to 5 contact entries (4 perturbation
-     * + optionally 1 MPR fallback).  All buffers are sized to max_collision_pairs
-     * at construction time.
+     * + optionally 1 MPR fallback).  All result buffers are sized to
+     * max_collision_pairs * 5.
      */
     class ConvexCollisionDetector {
     public:
-        explicit ConvexCollisionDetector(
-            RenderSystem &render_system, uint32_t max_collision_pairs, float contact_margin = 0.001f
-        );
-
+        explicit ConvexCollisionDetector(RenderSystem &render_system);
         ~ConvexCollisionDetector();
 
         ConvexCollisionDetector(const ConvexCollisionDetector &) = delete;
@@ -72,35 +63,43 @@ namespace Engine {
         ConvexCollisionDetector &operator=(ConvexCollisionDetector &&) = delete;
 
         /**
-         * @brief Fill a render graph builder with the narrow-phase collision pass.
+         * @brief CPU-side preparation: cache references, size buffers, upload config.
          *
-         * Collision pairs are read from the external @p pair_buffer (produced
-         * by the broad-phase detector).  @p pair_count_buffer provides the actual
-         * number of pairs to test; threads beyond that count early-return.
+         * Safe to call every frame — no-op when nothing changed.
          *
-         * @param builder             Render graph builder to populate.
-         * @param physics_scene       Physics scene providing GPU shape buffers.
-         * @param pair_buffer         External GPU uvec2[] pair buffer (broad-phase output).
-         * @param pair_count_buffer   External GPU uint pair count buffer.
-         * @param handles             Pre-imported RenderGraph handles for scene-owned
-         *                            shape buffers.
-         * @param pair_buffer_handle  Pre-imported handle for pair_buffer.
-         * @param pair_count_handle   Pre-imported handle for pair_count_buffer.
-         * @return Handles to detector-owned collision result buffers.
+         * @param scene                Physics scene for GPU buffer access.
+         * @param max_collision_pairs  Maximum number of candidate pairs to test.
+         * @param contact_margin       Contact margin for penetration validation.
+         * @param pair_buffer          Broad-phase output: uvec2 pair buffer.
+         * @param pair_count_buffer    Broad-phase output: uint pair count buffer.
          */
-        NarrowDetectorOutputHandles AddDetectPasses(
-            RenderGraphBuilder &builder,
-            PhysicsScene &physics_scene,
+        void Configure(
+            PhysicsScene &scene,
+            uint32_t max_collision_pairs,
+            float contact_margin,
             const ComputeBuffer &pair_buffer,
-            const ComputeBuffer &pair_count_buffer,
-            const PhysicsSceneBufferHandles &handles,
-            RGBufferHandle pair_buffer_handle,
-            RGBufferHandle pair_count_handle
+            const ComputeBuffer &pair_count_buffer
         );
+
+        /**
+         * @brief GPU-side: lazy-build RenderGraph, record passes to cb.
+         *
+         * Must be called after Configure().  The detector owns its RG and
+         * rebuilds it only when sizing parameters change.
+         *
+         * @return Read-only pointers to collision result GPU buffers.
+         */
+        CollisionResultBuffers Detect(vk::CommandBuffer cb);
 
         bool IsInitialized() const noexcept;
 
-        CollisionResultBuffers GetCollisionResultBuffers() const noexcept;
+        /**
+         * @brief Get read-only pointers to result buffers.
+         *
+         * Valid after first Configure() (which calls EnsureBuffers).
+         * Pointers are stable for the detector's lifetime.
+         */
+        CollisionResultBuffers GetResultBuffers() const noexcept;
 
     private:
         struct Impl;

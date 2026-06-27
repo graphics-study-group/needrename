@@ -16,7 +16,6 @@
 namespace Engine {
     class ComputeBuffer;
     class RenderSystem;
-    enum class RGBufferHandle : int32_t;
 
     /**
      * @brief Enumerates supported collision shape kinds.
@@ -517,28 +516,6 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_offset{};
         std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_count{};
         std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_data{};
-    };
-
-    /**
-     * @brief Pre-imported RenderGraph buffer handles for scene-owned GPU
-     * buffers shared between the solver and collision detectors.
-     *
-     * Populated by XPBDGpuSolver::AddStepPasses() once per frame and
-     * passed to each detector's AddDetectPasses().  PhysicsScene does
-     * NOT store or use this struct — it is a type definition only.
-     */
-    struct PhysicsSceneBufferHandles {
-        RGBufferHandle shape_alive{};
-        RGBufferHandle shape_type{};
-        RGBufferHandle shape_feature{};
-        RGBufferHandle shape_world_position{};
-        RGBufferHandle shape_world_rotation{};
-        RGBufferHandle shape_bound_rigid_body{};
-        RGBufferHandle shape_local_position{};
-        RGBufferHandle shape_local_rotation{};
-        RGBufferHandle shape_filter_offset{};
-        RGBufferHandle shape_filter_count{};
-        RGBufferHandle shape_filter_data{};
     };
 } // namespace Engine
 

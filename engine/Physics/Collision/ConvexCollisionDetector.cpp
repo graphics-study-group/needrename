@@ -13,6 +13,7 @@
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/Compute/ComputeStage.h>
 #include <Render/Pipeline/RenderGraph/RGAttachmentDesc.h>
+#include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
@@ -25,10 +26,6 @@
 namespace {
     /**
      * @brief Load a precompiled physics SPIR-V blob from disk.
-     *
-     * Resolves @p relative_path against ENGINE_PHYSICS_SPIRV_DIR and reads the
-     * file as 32-bit words.  Throws std::runtime_error (with the absolute path)
-     * when the file is missing, empty, or its size is not a multiple of 4 bytes.
      */
     std::vector<uint32_t> LoadPhysicsSpirv(const char *relative_path) {
         std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
@@ -51,9 +48,18 @@ namespace Engine {
 
     struct ConvexCollisionDetector::Impl {
         RenderSystem &render_system;
-        uint32_t max_collision_pairs;
 
-        bool initialized = false;
+        // Cached references from Configure.
+        PhysicsScene *cached_scene = nullptr;
+        const ComputeBuffer *cached_pair_buffer = nullptr;
+        const ComputeBuffer *cached_pair_count_buffer = nullptr;
+
+        // Sizing / config cached from Configure.
+        uint32_t max_collision_pairs = 1;
+        float contact_margin = 0.001f;
+        uint32_t cached_max_pairs_for_rg = 0; // For RG rebuild detection.
+
+        bool shaders_loaded = false;
 
         // ---- Clear pipeline (resets collision_count each frame) ----
         std::unique_ptr<ComputeStage> clear_stage{};
@@ -66,27 +72,19 @@ namespace Engine {
         std::vector<uint32_t> detect_cached_spirv{};
 
         // ---- Owned GPU buffers ----
-
-        // shape_slot_count: single-uint buffer read by detection shader.
         std::unique_ptr<ComputeBuffer> gpu_shape_slot_count{};
-
-        // Collision result buffers.
         std::unique_ptr<ComputeBuffer> gpu_collision_ids{};
         std::unique_ptr<ComputeBuffer> gpu_collision_normals{};
         std::unique_ptr<ComputeBuffer> gpu_contact_point_a{};
         std::unique_ptr<ComputeBuffer> gpu_contact_point_b{};
         std::unique_ptr<ComputeBuffer> gpu_collision_count{};
-
-        // Detector config uniform buffer (binding 12): single float contact_margin.
         std::unique_ptr<ComputeBuffer> gpu_detector_config{};
-
-        // Constant-one buffer for clear_int ElemCount.
         std::unique_ptr<ComputeBuffer> gpu_one{};
 
-        float contact_margin = 0.001f;
+        // ---- Self-owned RenderGraph ----
+        std::unique_ptr<RenderGraph> render_graph{};
 
-        explicit Impl(RenderSystem &rs, uint32_t max_pairs, float margin) :
-            render_system(rs), max_collision_pairs(max_pairs), contact_margin(margin) {
+        explicit Impl(RenderSystem &rs) : render_system(rs) {
         }
 
         Impl(const Impl &) = delete;
@@ -94,15 +92,11 @@ namespace Engine {
         Impl(Impl &&) = delete;
         Impl &operator=(Impl &&) = delete;
 
-        /**
-         * @brief Create or recreate all owned GPU buffers.
-         */
         void EnsureBuffers() {
             const auto &allocator = render_system.GetAllocatorState();
             const size_t safe_pairs = std::max<uint32_t>(1u, max_collision_pairs);
+            const size_t result_entries = safe_pairs * 5u;
 
-            // Single-uint buffer for shape slot count.  Must be host-visible
-            // so we can write the count each frame via GetVMAddress().
             {
                 const size_t byte_size = sizeof(uint32_t);
                 if (!gpu_shape_slot_count || gpu_shape_slot_count->GetSize() != byte_size) {
@@ -110,18 +104,15 @@ namespace Engine {
                         ComputeBuffer::CreateUnique(allocator, byte_size, true, false, false, false, "ShapeSlotCount");
                 }
             }
-
-            // Result buffers — each manifold point is a separate entry (max 5 per pair:
-            // 4 perturbation + optionally 1 MPR fallback).
             {
-                const size_t byte_size = safe_pairs * sizeof(glm::uvec2);
+                const size_t byte_size = result_entries * sizeof(glm::uvec2);
                 if (!gpu_collision_ids || gpu_collision_ids->GetSize() != byte_size) {
                     gpu_collision_ids =
                         ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "CollisionIds");
                 }
             }
             {
-                const size_t byte_size = safe_pairs * sizeof(glm::vec4);
+                const size_t byte_size = result_entries * sizeof(glm::vec4);
                 if (!gpu_collision_normals || gpu_collision_normals->GetSize() != byte_size) {
                     gpu_collision_normals = ComputeBuffer::CreateUnique(
                         allocator, byte_size, false, false, false, false, "CollisionNormals"
@@ -129,14 +120,14 @@ namespace Engine {
                 }
             }
             {
-                const size_t byte_size = safe_pairs * sizeof(glm::vec4);
+                const size_t byte_size = result_entries * sizeof(glm::vec4);
                 if (!gpu_contact_point_a || gpu_contact_point_a->GetSize() != byte_size) {
                     gpu_contact_point_a =
                         ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "ContactPointA");
                 }
             }
             {
-                const size_t byte_size = safe_pairs * sizeof(glm::vec4);
+                const size_t byte_size = result_entries * sizeof(glm::vec4);
                 if (!gpu_contact_point_b || gpu_contact_point_b->GetSize() != byte_size) {
                     gpu_contact_point_b =
                         ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "ContactPointB");
@@ -149,8 +140,6 @@ namespace Engine {
                         ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "CollisionCount");
                 }
             }
-            // Detector config uniform buffer: single float contact_margin.
-            // Host-visible so we can update it each frame.
             {
                 const size_t byte_size = sizeof(float);
                 if (!gpu_detector_config || gpu_detector_config->GetSize() != byte_size) {
@@ -158,8 +147,6 @@ namespace Engine {
                         ComputeBuffer::CreateUnique(allocator, byte_size, true, false, false, false, "DetectorConfig");
                 }
             }
-
-            // Constant-one buffer for single-element clears.
             {
                 if (!gpu_one || gpu_one->GetSize() < sizeof(uint32_t)) {
                     gpu_one = ComputeBuffer::CreateUnique(
@@ -171,31 +158,21 @@ namespace Engine {
             }
         }
 
-        /**
-         * @brief Lazily load compute shaders and create pipelines.
-         *
-         * Idempotent — only does work on the first call.
-         */
-        void EnsureInitialized() {
-            if (initialized) return;
-            initialized = true;
+        void EnsureShadersLoaded() {
+            if (shaders_loaded) return;
+            shaders_loaded = true;
 
-            // --- Clear pipeline (zeroes collision_count each frame) ---
             clear_cached_spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_int_buffer.comp.spv");
             clear_stage = std::make_unique<ComputeStage>(render_system);
             clear_stage->Instantiate(clear_cached_spirv, "ConvexDetect ClearCount");
             clear_resource_binding = &clear_stage->AllocateResourceBinding();
 
-            // --- Collision-detection pipeline ---
             detect_cached_spirv = LoadPhysicsSpirv("collision/ConvexCollisionDetector/detect_collisions.comp.spv");
             detect_stage = std::make_unique<ComputeStage>(render_system);
             detect_stage->Instantiate(detect_cached_spirv, "Convex Collision Detection");
             detect_resource_binding = &detect_stage->AllocateResourceBinding();
         }
 
-        /**
-         * @brief Upload the shape slot count to the GPU buffer via host mapping.
-         */
         void UpdateShapeSlotCount(uint32_t count) {
             auto *addr = reinterpret_cast<uint32_t *>(gpu_shape_slot_count->GetVMAddress());
             *addr = count;
@@ -205,24 +182,166 @@ namespace Engine {
             auto *addr = reinterpret_cast<float *>(gpu_detector_config->GetVMAddress());
             *addr = contact_margin;
         }
+
+        std::unique_ptr<RenderGraph> BuildRenderGraph() {
+            assert(cached_scene && "Configure must be called before Detect");
+            const auto gpu = cached_scene->GetGpuBuffers();
+
+            RenderGraphBuilder builder{render_system};
+
+            using AT = MemoryAccessTypeBufferBits;
+            const MemoryAccessTypeBuffer RR{AT::ShaderRandomRead};
+            const MemoryAccessTypeBuffer RW{AT::ShaderRandomRead, AT::ShaderRandomWrite};
+            const MemoryAccessTypeBuffer WW{AT::ShaderRandomWrite};
+
+            // prev_access = None for detector-owned buffers (first write/use in the detector).
+            // For scene buffers, prev_access = RR — the broad-phase (which runs before us)
+            // only reads these.  For the pair buffers (broad-phase output), prev_access = WW
+            // since broad-phase wrote them.
+
+            // --- Import scene buffers (read-only) ---
+            auto shape_alive_h = builder.ImportExternalResource(*gpu.shape_alive, RR);
+            auto shape_type_h = builder.ImportExternalResource(*gpu.shape_type, RR);
+            auto shape_feature_h = builder.ImportExternalResource(*gpu.shape_feature, RR);
+            auto shape_wpos_h = builder.ImportExternalResource(*gpu.shape_world_position, RR);
+            auto shape_wrot_h = builder.ImportExternalResource(*gpu.shape_world_rotation, RR);
+
+            // --- Import pair buffers (broad-phase output, written by broad-phase) ---
+            auto pair_h = builder.ImportExternalResource(*cached_pair_buffer, WW);
+            auto pair_cnt_h = builder.ImportExternalResource(*cached_pair_count_buffer, WW);
+
+            // --- Import owned buffers ---
+            auto slot_cnt_h = builder.ImportExternalResource(*gpu_shape_slot_count, {AT::None});
+            auto ids_h = builder.ImportExternalResource(*gpu_collision_ids, {AT::None});
+            auto normals_h = builder.ImportExternalResource(*gpu_collision_normals, {AT::None});
+            auto cpa_h = builder.ImportExternalResource(*gpu_contact_point_a, {AT::None});
+            auto cpb_h = builder.ImportExternalResource(*gpu_contact_point_b, {AT::None});
+            auto count_h = builder.ImportExternalResource(*gpu_collision_count, {AT::None});
+            auto cfg_h = builder.ImportExternalResource(*gpu_detector_config, {AT::None});
+            auto one_h = builder.ImportExternalResource(*gpu_one, {AT::None});
+
+            // Bind detection shader resources.
+            auto &detect_srb = detect_resource_binding->GetShaderResourceBinding();
+            detect_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
+            detect_srb.BindBuffer("ShapeType", *gpu.shape_type);
+            detect_srb.BindBuffer("ShapeFeature", *gpu.shape_feature);
+            detect_srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
+            detect_srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
+            detect_srb.BindBuffer("CollisionPairs", *cached_pair_buffer);
+            detect_srb.BindBuffer("PairCount", *cached_pair_count_buffer);
+            detect_srb.BindBuffer("CollisionIds", *gpu_collision_ids);
+            detect_srb.BindBuffer("CollisionNormals", *gpu_collision_normals);
+            detect_srb.BindBuffer("ContactPointA", *gpu_contact_point_a);
+            detect_srb.BindBuffer("ContactPointB", *gpu_contact_point_b);
+            detect_srb.BindBuffer("CollisionCount", *gpu_collision_count);
+            detect_srb.BindBuffer("ShapeSlotCount", *gpu_shape_slot_count);
+            detect_srb.BindBuffer("DetectorConfig", *gpu_detector_config);
+
+            const uint32_t detect_wg = std::max(1u, (max_collision_pairs + 63u) / 64u);
+            auto *detect_stage_ptr = detect_stage.get();
+            auto *detect_binding = detect_resource_binding;
+
+            // --- Pass 1: Clear collision count ---
+            {
+                auto &clear_srb = clear_resource_binding->GetShaderResourceBinding();
+                clear_srb.BindBuffer("Target", *gpu_collision_count);
+                clear_srb.BindBuffer("ElemCount", *gpu_one);
+
+                auto *clear_stage_ptr = clear_stage.get();
+                auto *clear_binding_ptr = clear_resource_binding;
+                builder.AddPass(
+                    RenderGraphPassBuilder{render_system}
+                        .SetName("ConvexDetect ClearCount")
+                        .SetAffinity(RenderGraphPassAffinity::Compute)
+                        .UseBuffer(count_h, WW)
+                        .UseBuffer(one_h, RR)
+                        .SetPassFunction(
+                            [clear_stage_ptr, clear_binding_ptr,
+                             scene = cached_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                if (!scene->IsSimulationEnabled()) return;
+                                cb.BindComputeStage(*clear_stage_ptr);
+                                cb.BindComputeResource(*clear_binding_ptr);
+                                cb.DispatchCompute(1, 1, 1);
+                            }
+                        )
+                        .Get()
+                );
+            }
+
+            // --- Pass 2: MPR collision detection ---
+            builder.AddPass(
+                RenderGraphPassBuilder{render_system}
+                    .SetName("Convex Collision Detection")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(shape_alive_h, RR)
+                    .UseBuffer(shape_type_h, RR)
+                    .UseBuffer(shape_feature_h, RR)
+                    .UseBuffer(shape_wpos_h, RR)
+                    .UseBuffer(shape_wrot_h, RR)
+                    .UseBuffer(pair_h, RR)
+                    .UseBuffer(pair_cnt_h, RR)
+                    .UseBuffer(ids_h, WW)
+                    .UseBuffer(normals_h, WW)
+                    .UseBuffer(cpa_h, WW)
+                    .UseBuffer(cpb_h, WW)
+                    .UseBuffer(count_h, RW)
+                    .UseBuffer(slot_cnt_h, RR)
+                    .UseBuffer(cfg_h, RR)
+                    .SetPassFunction(
+                        [detect_stage_ptr, detect_binding, detect_wg,
+                         scene = cached_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!scene->IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*detect_stage_ptr);
+                            cb.BindComputeResource(*detect_binding);
+                            cb.DispatchCompute(detect_wg, 1, 1);
+                        }
+                    )
+                    .Get()
+            );
+
+            return builder.BuildRenderGraph();
+        }
     };
 
     // -----------------------------------------------------------------------
     // Public API
     // -----------------------------------------------------------------------
 
-    ConvexCollisionDetector::ConvexCollisionDetector(
-        RenderSystem &render_system, uint32_t max_collision_pairs, float contact_margin
-    ) : m_impl(std::make_unique<Impl>(render_system, max_collision_pairs, contact_margin)) {
+    ConvexCollisionDetector::ConvexCollisionDetector(RenderSystem &render_system) :
+        m_impl(std::make_unique<Impl>(render_system)) {
     }
 
     ConvexCollisionDetector::~ConvexCollisionDetector() = default;
 
     bool ConvexCollisionDetector::IsInitialized() const noexcept {
-        return m_impl->initialized;
+        return m_impl->shaders_loaded;
     }
 
-    CollisionResultBuffers ConvexCollisionDetector::GetCollisionResultBuffers() const noexcept {
+    void ConvexCollisionDetector::Configure(
+        PhysicsScene &scene,
+        uint32_t max_collision_pairs,
+        float contact_margin,
+        const ComputeBuffer &pair_buffer,
+        const ComputeBuffer &pair_count_buffer
+    ) {
+        m_impl->cached_scene = &scene;
+        m_impl->cached_pair_buffer = &pair_buffer;
+        m_impl->cached_pair_count_buffer = &pair_count_buffer;
+        m_impl->max_collision_pairs = std::max(1u, max_collision_pairs);
+        m_impl->contact_margin = contact_margin;
+
+        m_impl->EnsureBuffers();
+        m_impl->EnsureShadersLoaded();
+
+        // Upload CPU data to GPU-visible buffers.
+        const auto gpu = scene.GetGpuBuffers();
+        if (gpu.shape_slot_count > 0u) {
+            m_impl->UpdateShapeSlotCount(gpu.shape_slot_count);
+        }
+        m_impl->UpdateDetectorConfig();
+    }
+
+    CollisionResultBuffers ConvexCollisionDetector::GetResultBuffers() const noexcept {
         CollisionResultBuffers result;
         result.collision_ids = m_impl->gpu_collision_ids.get();
         result.collision_normals = m_impl->gpu_collision_normals.get();
@@ -233,151 +352,33 @@ namespace Engine {
         return result;
     }
 
-    NarrowDetectorOutputHandles ConvexCollisionDetector::AddDetectPasses(
-        RenderGraphBuilder &builder,
-        PhysicsScene &physics_scene,
-        const ComputeBuffer &pair_buffer,
-        const ComputeBuffer &pair_count_buffer,
-        const PhysicsSceneBufferHandles &handles,
-        RGBufferHandle pair_buffer_handle,
-        RGBufferHandle pair_count_handle
-    ) {
-        const auto gpu = physics_scene.GetGpuBuffers();
+    CollisionResultBuffers ConvexCollisionDetector::Detect(vk::CommandBuffer cb) {
+        assert(m_impl->cached_scene && "Configure must be called before Detect");
+        const auto gpu = m_impl->cached_scene->GetGpuBuffers();
 
         if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || gpu.shape_slot_count == 0u) {
-            return {};
+            CollisionResultBuffers empty;
+            empty.max_collision_pairs = m_impl->max_collision_pairs;
+            return empty;
         }
 
-        // --- Ensure buffers are created ---
-        m_impl->EnsureBuffers();
-
-        // --- Lazy initialization (first call only) ---
-        m_impl->EnsureInitialized();
-
-        // Upload shape slot count and detector config to GPU.
-        m_impl->UpdateShapeSlotCount(gpu.shape_slot_count);
-        m_impl->UpdateDetectorConfig();
-
-        // ---- Bind resources for detection shader ----
-        auto &detect_srb = m_impl->detect_resource_binding->GetShaderResourceBinding();
-        detect_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
-        detect_srb.BindBuffer("ShapeType", *gpu.shape_type);
-        detect_srb.BindBuffer("ShapeFeature", *gpu.shape_feature);
-        detect_srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
-        detect_srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
-        // External pair buffer.
-        detect_srb.BindBuffer("CollisionPairs", pair_buffer);
-        detect_srb.BindBuffer("PairCount", pair_count_buffer);
-        // Result buffers.
-        detect_srb.BindBuffer("CollisionIds", *m_impl->gpu_collision_ids);
-        detect_srb.BindBuffer("CollisionNormals", *m_impl->gpu_collision_normals);
-        detect_srb.BindBuffer("ContactPointA", *m_impl->gpu_contact_point_a);
-        detect_srb.BindBuffer("ContactPointB", *m_impl->gpu_contact_point_b);
-        detect_srb.BindBuffer("CollisionCount", *m_impl->gpu_collision_count);
-        detect_srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
-        detect_srb.BindBuffer("DetectorConfig", *m_impl->gpu_detector_config);
-
-        // ---- Use pre-imported scene buffer handles (no self-import) ----
-        auto shape_alive_handle = handles.shape_alive;
-        auto shape_type_handle = handles.shape_type;
-        auto shape_feature_handle = handles.shape_feature;
-        auto shape_world_pos_handle = handles.shape_world_position;
-        auto shape_world_rot_handle = handles.shape_world_rotation;
-
-        // ---- Owned result buffers (still imported here) ----
-        auto slot_count_handle =
-            builder.ImportExternalResource(*m_impl->gpu_shape_slot_count, {MemoryAccessTypeBufferBits::None});
-        auto collision_ids_handle =
-            builder.ImportExternalResource(*m_impl->gpu_collision_ids, {MemoryAccessTypeBufferBits::None});
-        auto collision_normals_handle =
-            builder.ImportExternalResource(*m_impl->gpu_collision_normals, {MemoryAccessTypeBufferBits::None});
-        auto contact_a_handle =
-            builder.ImportExternalResource(*m_impl->gpu_contact_point_a, {MemoryAccessTypeBufferBits::None});
-        auto contact_b_handle =
-            builder.ImportExternalResource(*m_impl->gpu_contact_point_b, {MemoryAccessTypeBufferBits::None});
-        auto collision_count_handle =
-            builder.ImportExternalResource(*m_impl->gpu_collision_count, {MemoryAccessTypeBufferBits::None});
-        auto detector_config_handle =
-            builder.ImportExternalResource(*m_impl->gpu_detector_config, {MemoryAccessTypeBufferBits::None});
-
-        auto *detect_stage = m_impl->detect_stage.get();
-        auto *detect_binding = m_impl->detect_resource_binding;
-
-        // Import gpu_one for the clear pass's ElemCount binding.
-        auto one_h = builder.ImportExternalResource(*m_impl->gpu_one, {MemoryAccessTypeBufferBits::None});
-
-        // ---- Pass 1: Clear collision count on GPU (runs every frame) ----
-        {
-            auto &clear_srb = m_impl->clear_resource_binding->GetShaderResourceBinding();
-            clear_srb.BindBuffer("Target", *m_impl->gpu_collision_count);
-            clear_srb.BindBuffer("ElemCount", *m_impl->gpu_one);
-
-            auto *clear_stage_ptr = m_impl->clear_stage.get();
-            auto *clear_binding_ptr = m_impl->clear_resource_binding;
-            builder.AddPass(
-                RenderGraphPassBuilder{m_impl->render_system}
-                    .SetName("ConvexDetect ClearCount")
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(collision_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                    .UseBuffer(one_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                    .SetPassFunction(
-                        [clear_stage_ptr,
-                         clear_binding_ptr,
-                         &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                            if (!physics_scene.IsSimulationEnabled()) return;
-                            cb.BindComputeStage(*clear_stage_ptr);
-                            cb.BindComputeResource(*clear_binding_ptr);
-                            cb.DispatchCompute(1, 1, 1);
-                        }
-                    )
-                    .Get()
-            );
+        // Lazy RG creation / rebuild when max_collision_pairs changes.
+        if (!m_impl->render_graph || m_impl->max_collision_pairs != m_impl->cached_max_pairs_for_rg) {
+            m_impl->render_graph = m_impl->BuildRenderGraph();
+            m_impl->cached_max_pairs_for_rg = m_impl->max_collision_pairs;
         }
 
-        // Dispatch with max_pair_capacity workgroups; extra threads early-return.
-        const uint32_t detect_workgroups = std::max(1u, (m_impl->max_collision_pairs + 63u) / 64u);
+        if (m_impl->render_graph && m_impl->render_graph->GetNumPasses() > 0) {
+            m_impl->render_graph->RecordAllPasses(cb);
+        }
 
-        // ---- Pass: Collision detection ----
-        builder.AddPass(
-            RenderGraphPassBuilder{m_impl->render_system}
-                .SetName("Convex Collision Detection")
-                .SetAffinity(RenderGraphPassAffinity::Compute)
-                .UseBuffer(shape_alive_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(shape_type_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(shape_feature_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(shape_world_pos_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(shape_world_rot_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(pair_buffer_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(pair_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(collision_ids_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                .UseBuffer(collision_normals_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                .UseBuffer(contact_a_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                .UseBuffer(contact_b_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                .UseBuffer(
-                    collision_count_handle,
-                    {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite}
-                )
-                .UseBuffer(slot_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(detector_config_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .SetPassFunction(
-                    [detect_stage, detect_binding, detect_workgroups, &physics_scene](
-                        CommandBuffer &cb, const RenderGraph &
-                    ) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*detect_stage);
-                        cb.BindComputeResource(*detect_binding);
-                        cb.DispatchCompute(detect_workgroups, 1, 1);
-                    }
-                )
-                .Get()
-        );
-
-        return {
-            .collision_ids = collision_ids_handle,
-            .collision_normals = collision_normals_handle,
-            .contact_point_a = contact_a_handle,
-            .contact_point_b = contact_b_handle,
-            .collision_count = collision_count_handle
-        };
+        CollisionResultBuffers result;
+        result.collision_ids = m_impl->gpu_collision_ids.get();
+        result.collision_normals = m_impl->gpu_collision_normals.get();
+        result.contact_point_a = m_impl->gpu_contact_point_a.get();
+        result.contact_point_b = m_impl->gpu_contact_point_b.get();
+        result.collision_count = m_impl->gpu_collision_count.get();
+        result.max_collision_pairs = m_impl->max_collision_pairs;
+        return result;
     }
 } // namespace Engine

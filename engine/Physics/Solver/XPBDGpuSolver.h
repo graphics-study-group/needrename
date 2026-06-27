@@ -1,16 +1,19 @@
 #ifndef ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED
 #define ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED
 
+#include "ISolver.h"
+
 #include <glm.hpp>
 #include <memory>
 
 namespace Engine {
     class ComputeBuffer;
+    class ComputeStage;
+    class ConvexCollisionDetector;
     class PhysicsScene;
-    class RenderGraphBuilder;
+    class RenderGraph;
     class RenderSystem;
-
-    // Forward declaration from Render/Pipeline/RenderGraph/RGAttachmentDesc.h
+    class SpatialHashBroadDetector;
     enum class RGBufferHandle : int32_t;
 
     /**
@@ -18,10 +21,10 @@ namespace Engine {
      */
     struct XpbdConfig {
         glm::vec3 gravity{0.0f, 0.0f, -9.81f};
-        float time_step = 1.0f / 100.0f;
-        uint32_t num_substep_perstep = 1;
-        uint32_t num_iter_persubstep = 1;
-        uint32_t num_velocity_iters = 1;
+        float time_step = 1.0f / 60.0f;
+        uint32_t num_substep_perstep = 2;
+        uint32_t num_iter_persubstep = 20;
+        uint32_t num_velocity_iters = 20;
         uint32_t max_contact_points = 100000u;
         float contact_margin = 0.001f;
 
@@ -30,56 +33,51 @@ namespace Engine {
         glm::vec3 grid_world_max{100.0f, 100.0f, 100.0f};
         float grid_cell_size = 2.0f;
         uint32_t max_cells_per_shape = 8;
-        uint32_t fallback_all_pairs_threshold = 8;
+        uint32_t fallback_all_pairs_threshold = 32;
     };
 
     /**
-     * @brief XPBD GPU solver with multi-pass compute shader dispatch.
+     * @brief XPBD GPU solver with multi-RenderGraph architecture.
      *
-     * Implements a full GPU XPBD contact solver:
-     *   - Semi-implicit Euler force integration (gravity + external)
-     *   - Shape world pose update (body pose → shape world transforms)
-     *   - Per-substep collision detection (owned internally)
-     *   - Jacobi contact position solve with lagrange accumulation
-     *   - Velocity update from pose delta
-     *   - Velocity-level friction + restitution solve
+     * Inherits ISolver.  Owns multiple RenderGraphs, each representing a
+     * distinct physics phase.  RGs are built lazily and recorded in sequence
+     * during GPUStep via CPU-side substep / iteration loops.
      *
-     * All intermediate GPU buffers (snapshots, accumulators, lagrange) are
-     * owned by the solver and sized lazily on first Step().
-     * Collision detection is managed internally — external callers do not
-     * need to create or pass a ConvexCollisionDetector.
+     * Lifecycle:
+     *   1. Construct with RenderSystem&.
+     *   2. OnBindToScene(scene) — called by PhysicsSystem during registration.
+     *   3. PreGPUStep() — shader loading, buffer sizing, CPU uploads, detector Configure.
+     *   4. GPUStep(cb) — lazy-build RGs, record in sequence with loops.
      */
-    class XPBDGpuSolver {
+    class XpbdGpuSolver : public ISolver {
     public:
-        explicit XPBDGpuSolver(RenderSystem &render_system);
-        ~XPBDGpuSolver();
+        explicit XpbdGpuSolver(RenderSystem &render_system);
+        ~XpbdGpuSolver() override;
 
-        XPBDGpuSolver(const XPBDGpuSolver &) = delete;
-        XPBDGpuSolver &operator=(const XPBDGpuSolver &) = delete;
-        XPBDGpuSolver(XPBDGpuSolver &&) = delete;
-        XPBDGpuSolver &operator=(XPBDGpuSolver &&) = delete;
+        XpbdGpuSolver(const XpbdGpuSolver &) = delete;
+        XpbdGpuSolver &operator=(const XpbdGpuSolver &) = delete;
+        XpbdGpuSolver(XpbdGpuSolver &&) = delete;
+        XpbdGpuSolver &operator=(XpbdGpuSolver &&) = delete;
 
-        /**
-         * @brief Fill a render graph builder with XPBD compute passes.
-         *
-         * @param builder       Render graph builder to populate.
-         * @param physics_scene Physics scene providing GPU body and shape buffers.
-         * @param external_model_matrices_handle Optional pre-imported model
-         *        matrices buffer handle for sharing with rendering passes.
-         */
-        void AddStepPasses(
-            RenderGraphBuilder &builder,
-            PhysicsScene &physics_scene,
-            RGBufferHandle external_model_matrices_handle = RGBufferHandle{}
-        );
+        // ISolver interface
+        void PreGPUStep() override;
+        void GPUStep(vk::CommandBuffer cb) override;
+        bool IsInitialized() const noexcept override;
 
-        bool IsInitialized() const noexcept;
         void SetConfig(const XpbdConfig &config) noexcept;
         const XpbdConfig &GetConfig() const noexcept;
 
     private:
         struct Impl;
         std::unique_ptr<Impl> m_impl;
+
+        // RG build helpers.
+        std::unique_ptr<RenderGraph> BuildPreCollisionRG();
+        std::unique_ptr<RenderGraph> BuildPostCollisionPreIterRG();
+        std::unique_ptr<RenderGraph> BuildPositionIterRG();
+        std::unique_ptr<RenderGraph> BuildPostPositionRG();
+        std::unique_ptr<RenderGraph> BuildVelocityIterRG();
+        std::unique_ptr<RenderGraph> BuildModelMatrixRG();
     };
 } // namespace Engine
 
