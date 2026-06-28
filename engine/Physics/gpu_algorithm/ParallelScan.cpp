@@ -69,7 +69,9 @@ namespace Engine {
         // ---- Parameter buffer pool ----
         // Each pass gets its own tiny host-visible buffer so that
         // parameters are never overwritten between passes.
+        // Buffers are reused across AddPasses calls to avoid unbounded growth.
         std::vector<std::unique_ptr<ComputeBuffer>> param_pool;
+        size_t param_pool_index = 0;
 
         explicit Impl(RenderSystem &rs, uint32_t mec) : render_system(rs), max_elem_count(mec) {
             if (max_elem_count == 0u) {
@@ -105,22 +107,26 @@ namespace Engine {
         // Parameter buffer pool
         // -------------------------------------------------------------------
 
-        /// Acquire a fresh host-visible parameter buffer with the given values.
+        /// Acquire a host-visible parameter buffer with the given values.
+        /// Reuses existing pool buffers when available; only allocates new ones
+        /// when the pool is exhausted.
         ComputeBuffer &AcquireParamBuffer(
             uint32_t mode, uint32_t data_offset, uint32_t elem_count, uint32_t block_offset
         ) {
-            const auto &alloc = render_system.GetAllocatorState();
-            auto buf = ComputeBuffer::CreateUnique(
-                alloc, sizeof(ScanParamsGpu), true, false, false, false, "ParallelScan Params"
-            );
-            auto *addr = reinterpret_cast<ScanParamsGpu *>(buf->GetVMAddress());
+            if (param_pool_index >= param_pool.size()) {
+                const auto &alloc = render_system.GetAllocatorState();
+                auto buf = ComputeBuffer::CreateUnique(
+                    alloc, sizeof(ScanParamsGpu), true, false, false, false, "ParallelScan Params"
+                );
+                param_pool.push_back(std::move(buf));
+            }
+            auto &buf = *param_pool[param_pool_index++];
+            auto *addr = reinterpret_cast<ScanParamsGpu *>(buf.GetVMAddress());
             addr->mode = mode;
             addr->data_offset = data_offset;
             addr->elem_count = elem_count;
             addr->block_offset = block_offset;
-
-            param_pool.push_back(std::move(buf));
-            return *param_pool.back();
+            return buf;
         }
 
         // -------------------------------------------------------------------
@@ -407,6 +413,9 @@ namespace Engine {
         }
 
         m_impl->EnsureInitialized();
+
+        // Reset param pool cursor — buffers are reused across passes within this call.
+        m_impl->param_pool_index = 0;
 
         // The caller owns and manages all buffers — we just orchestrate passes.
         m_impl->AddScanInternal(
