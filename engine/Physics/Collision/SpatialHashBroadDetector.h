@@ -31,9 +31,9 @@ namespace Engine {
      * lifetime.
      */
     struct BroadDetectorOutputBuffers {
-        const ComputeBuffer &pair_buffer;
-        const ComputeBuffer &pair_count_buffer;
-        uint32_t max_pairs;
+        const ComputeBuffer *pair_buffer{};
+        const ComputeBuffer *pair_count_buffer{};
+        uint32_t max_pairs{};
     };
 
     /**
@@ -76,7 +76,8 @@ namespace Engine {
             PhysicsScene &scene,
             uint32_t shape_count,
             const GridConfig &grid_config,
-            uint32_t fallback_all_pairs_threshold
+            uint32_t fallback_all_pairs_threshold,
+            uint32_t max_global_shape_count
         );
 
         /**
@@ -97,13 +98,13 @@ namespace Engine {
          */
         uint32_t GetMaxPairs() const noexcept;
 
-        /**
-         * @brief Get raw pointers to owned pair output buffers.
+         /**
+         * @brief Get read-only pointers to result buffers.
          *
-         * Valid after Configure().  Pointers are stable for the detector's lifetime.
+         * Valid after first Configure() (which calls EnsureBuffers).
+         * Pointers are stable for the detector's lifetime.
          */
-        const ComputeBuffer *GetPairBuffer() const noexcept;
-        const ComputeBuffer *GetPairCountBuffer() const noexcept;
+        BroadDetectorOutputBuffers GetResultBuffers() const noexcept;
 
     private:
         struct Impl;

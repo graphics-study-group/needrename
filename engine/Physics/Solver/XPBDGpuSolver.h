@@ -33,6 +33,7 @@ namespace Engine {
         glm::vec3 grid_world_max{100.0f, 100.0f, 100.0f};
         float grid_cell_size = 2.0f;
         uint32_t max_cells_per_shape = 8;
+        uint32_t max_global_shape_count = 128;
         uint32_t fallback_all_pairs_threshold = 32;
     };
 

@@ -20,8 +20,8 @@ layout(set = 0, binding = 3) buffer      RigidBodyLinearVelocity      { vec4 v[]
 layout(set = 0, binding = 4) buffer      RigidBodyAngularVelocity     { vec4 v[]; } rigid_body_angular_velocity;
 layout(set = 0, binding = 5) readonly buffer RigidBodyIsKinematic     { uint v[]; } rigid_body_is_kinematic;
 
-layout(set = 0, binding = 6) readonly buffer PreGravityPosition      { vec4 v[]; } pre_gravity_position;
-layout(set = 0, binding = 7) readonly buffer PreGravityOrientation   { vec4 v[]; } pre_gravity_orientation;
+layout(set = 0, binding = 6) readonly buffer SubstepStartPosition      { vec4 v[]; } substep_start_position;
+layout(set = 0, binding = 7) readonly buffer SubstepStartOrientation   { vec4 v[]; } substep_start_orientation;
 
 layout(set = 0, binding = 8) readonly buffer XpbdUniforms {
     vec4 gravity;  // w = dt
@@ -37,13 +37,13 @@ void main() {
     if (dt <= 1e-8) return;
 
     // Linear velocity from position delta.
-    vec3 delta_pos = rigid_body_center_position.v[idx].xyz - pre_gravity_position.v[idx].xyz;
+    vec3 delta_pos = rigid_body_center_position.v[idx].xyz - substep_start_position.v[idx].xyz;
     rigid_body_linear_velocity.v[idx].xyz = delta_pos / dt;
 
     // Angular velocity from orientation delta.
     // dq = q_post * q_pre^{-1}  (q_pre^{-1} = conjugate for unit quaternion)
     vec4 q_cur = rigid_body_center_rotation.v[idx];
-    vec4 q_pre = pre_gravity_orientation.v[idx];
+    vec4 q_pre = substep_start_orientation.v[idx];
     vec4 q_pre_inv = vec4(-q_pre.x, -q_pre.y, -q_pre.z, q_pre.w);
 
     vec4 dq = quat_mul(q_cur, q_pre_inv);

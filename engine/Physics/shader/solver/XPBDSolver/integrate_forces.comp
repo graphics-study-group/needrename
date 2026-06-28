@@ -3,8 +3,7 @@
 
 // integrate_forces.comp — Semi-implicit Euler integration of gravity and
 // external forces/torques on each rigid body.  Angular integration is
-// performed in body-frame (matching the CPU RigidSolver::step and the
-// CUDA XPBD reference).
+// performed in body-frame.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 

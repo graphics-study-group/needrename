@@ -284,6 +284,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     xpbd_config.grid_world_min = glm::vec3(-100.0f, -5.0f, -100.0f);
     xpbd_config.grid_world_max = glm::vec3(100.0f, 20.0f, 100.0f);
     xpbd_config.max_cells_per_shape = 8;
+    xpbd_config.max_global_shape_count = 128;
     xpbd_config.fallback_all_pairs_threshold = 8;
     xpbd_solver->SetConfig(xpbd_config);
     cmc->GetPhysicsSystem()->RegisterSolver(physics_scene->GetSceneID(), std::move(xpbd_solver));

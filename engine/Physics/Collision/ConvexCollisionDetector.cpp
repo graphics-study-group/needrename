@@ -55,7 +55,8 @@ namespace Engine {
         const ComputeBuffer *cached_pair_count_buffer = nullptr;
 
         // Sizing / config cached from Configure.
-        uint32_t max_collision_pairs = 1;
+        uint32_t max_input_collision_pairs = 1;
+        uint32_t max_output_collision_pairs = 1;
         float contact_margin = 0.001f;
         uint32_t cached_max_pairs_for_rg = 0; // For RG rebuild detection.
 
@@ -94,8 +95,7 @@ namespace Engine {
 
         void EnsureBuffers() {
             const auto &allocator = render_system.GetAllocatorState();
-            const size_t safe_pairs = std::max<uint32_t>(1u, max_collision_pairs);
-            const size_t result_entries = safe_pairs * 5u;
+            const size_t result_entries = std::max<uint32_t>(1u, max_output_collision_pairs);
 
             {
                 const size_t byte_size = sizeof(uint32_t);
@@ -220,27 +220,6 @@ namespace Engine {
             auto cfg_h = builder.ImportExternalResource(*gpu_detector_config, {AT::None});
             auto one_h = builder.ImportExternalResource(*gpu_one, {AT::None});
 
-            // Bind detection shader resources.
-            auto &detect_srb = detect_resource_binding->GetShaderResourceBinding();
-            detect_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
-            detect_srb.BindBuffer("ShapeType", *gpu.shape_type);
-            detect_srb.BindBuffer("ShapeFeature", *gpu.shape_feature);
-            detect_srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
-            detect_srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
-            detect_srb.BindBuffer("CollisionPairs", *cached_pair_buffer);
-            detect_srb.BindBuffer("PairCount", *cached_pair_count_buffer);
-            detect_srb.BindBuffer("CollisionIds", *gpu_collision_ids);
-            detect_srb.BindBuffer("CollisionNormals", *gpu_collision_normals);
-            detect_srb.BindBuffer("ContactPointA", *gpu_contact_point_a);
-            detect_srb.BindBuffer("ContactPointB", *gpu_contact_point_b);
-            detect_srb.BindBuffer("CollisionCount", *gpu_collision_count);
-            detect_srb.BindBuffer("ShapeSlotCount", *gpu_shape_slot_count);
-            detect_srb.BindBuffer("DetectorConfig", *gpu_detector_config);
-
-            const uint32_t detect_wg = std::max(1u, (max_collision_pairs + 63u) / 64u);
-            auto *detect_stage_ptr = detect_stage.get();
-            auto *detect_binding = detect_resource_binding;
-
             // --- Pass 1: Clear collision count ---
             {
                 auto &clear_srb = clear_resource_binding->GetShaderResourceBinding();
@@ -256,9 +235,7 @@ namespace Engine {
                         .UseBuffer(count_h, WW)
                         .UseBuffer(one_h, RR)
                         .SetPassFunction(
-                            [clear_stage_ptr, clear_binding_ptr,
-                             scene = cached_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                if (!scene->IsSimulationEnabled()) return;
+                            [clear_stage_ptr, clear_binding_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
                                 cb.BindComputeStage(*clear_stage_ptr);
                                 cb.BindComputeResource(*clear_binding_ptr);
                                 cb.DispatchCompute(1, 1, 1);
@@ -269,35 +246,55 @@ namespace Engine {
             }
 
             // --- Pass 2: MPR collision detection ---
-            builder.AddPass(
-                RenderGraphPassBuilder{render_system}
-                    .SetName("Convex Collision Detection")
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(shape_alive_h, RR)
-                    .UseBuffer(shape_type_h, RR)
-                    .UseBuffer(shape_feature_h, RR)
-                    .UseBuffer(shape_wpos_h, RR)
-                    .UseBuffer(shape_wrot_h, RR)
-                    .UseBuffer(pair_h, RR)
-                    .UseBuffer(pair_cnt_h, RR)
-                    .UseBuffer(ids_h, WW)
-                    .UseBuffer(normals_h, WW)
-                    .UseBuffer(cpa_h, WW)
-                    .UseBuffer(cpb_h, WW)
-                    .UseBuffer(count_h, RW)
-                    .UseBuffer(slot_cnt_h, RR)
-                    .UseBuffer(cfg_h, RR)
-                    .SetPassFunction(
-                        [detect_stage_ptr, detect_binding, detect_wg,
-                         scene = cached_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                            if (!scene->IsSimulationEnabled()) return;
-                            cb.BindComputeStage(*detect_stage_ptr);
-                            cb.BindComputeResource(*detect_binding);
-                            cb.DispatchCompute(detect_wg, 1, 1);
-                        }
-                    )
-                    .Get()
-            );
+            {
+                auto &detect_srb = detect_resource_binding->GetShaderResourceBinding();
+                detect_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
+                detect_srb.BindBuffer("ShapeType", *gpu.shape_type);
+                detect_srb.BindBuffer("ShapeFeature", *gpu.shape_feature);
+                detect_srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
+                detect_srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
+                detect_srb.BindBuffer("CollisionPairs", *cached_pair_buffer);
+                detect_srb.BindBuffer("PairCount", *cached_pair_count_buffer);
+                detect_srb.BindBuffer("CollisionIds", *gpu_collision_ids);
+                detect_srb.BindBuffer("CollisionNormals", *gpu_collision_normals);
+                detect_srb.BindBuffer("ContactPointA", *gpu_contact_point_a);
+                detect_srb.BindBuffer("ContactPointB", *gpu_contact_point_b);
+                detect_srb.BindBuffer("CollisionCount", *gpu_collision_count);
+                detect_srb.BindBuffer("ShapeSlotCount", *gpu_shape_slot_count);
+                detect_srb.BindBuffer("DetectorConfig", *gpu_detector_config);
+
+                const uint32_t detect_wg = std::max(1u, (max_input_collision_pairs + 63u) / 64u);
+                auto *detect_stage_ptr = detect_stage.get();
+                auto *detect_binding = detect_resource_binding;
+
+                builder.AddPass(
+                    RenderGraphPassBuilder{render_system}
+                        .SetName("Convex Collision Detection")
+                        .SetAffinity(RenderGraphPassAffinity::Compute)
+                        .UseBuffer(shape_alive_h, RR)
+                        .UseBuffer(shape_type_h, RR)
+                        .UseBuffer(shape_feature_h, RR)
+                        .UseBuffer(shape_wpos_h, RR)
+                        .UseBuffer(shape_wrot_h, RR)
+                        .UseBuffer(pair_h, RR)
+                        .UseBuffer(pair_cnt_h, RR)
+                        .UseBuffer(ids_h, WW)
+                        .UseBuffer(normals_h, WW)
+                        .UseBuffer(cpa_h, WW)
+                        .UseBuffer(cpb_h, WW)
+                        .UseBuffer(count_h, RW)
+                        .UseBuffer(slot_cnt_h, RR)
+                        .UseBuffer(cfg_h, RR)
+                        .SetPassFunction(
+                            [detect_stage_ptr, detect_binding, detect_wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                                cb.BindComputeStage(*detect_stage_ptr);
+                                cb.BindComputeResource(*detect_binding);
+                                cb.DispatchCompute(detect_wg, 1, 1);
+                            }
+                        )
+                        .Get()
+                );
+            }
 
             return builder.BuildRenderGraph();
         }
@@ -319,7 +316,8 @@ namespace Engine {
 
     void ConvexCollisionDetector::Configure(
         PhysicsScene &scene,
-        uint32_t max_collision_pairs,
+        uint32_t max_input_collision_pairs,
+        uint32_t max_output_collision_pairs,
         float contact_margin,
         const ComputeBuffer &pair_buffer,
         const ComputeBuffer &pair_count_buffer
@@ -327,7 +325,8 @@ namespace Engine {
         m_impl->cached_scene = &scene;
         m_impl->cached_pair_buffer = &pair_buffer;
         m_impl->cached_pair_count_buffer = &pair_count_buffer;
-        m_impl->max_collision_pairs = std::max(1u, max_collision_pairs);
+        m_impl->max_input_collision_pairs = std::max(1u, max_input_collision_pairs);
+        m_impl->max_output_collision_pairs = std::max(1u, max_output_collision_pairs);
         m_impl->contact_margin = contact_margin;
 
         m_impl->EnsureBuffers();
@@ -348,7 +347,7 @@ namespace Engine {
         result.contact_point_a = m_impl->gpu_contact_point_a.get();
         result.contact_point_b = m_impl->gpu_contact_point_b.get();
         result.collision_count = m_impl->gpu_collision_count.get();
-        result.max_collision_pairs = m_impl->max_collision_pairs;
+        result.max_output_collision_pairs = m_impl->max_output_collision_pairs;
         return result;
     }
 
@@ -358,14 +357,14 @@ namespace Engine {
 
         if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || gpu.shape_slot_count == 0u) {
             CollisionResultBuffers empty;
-            empty.max_collision_pairs = m_impl->max_collision_pairs;
+            empty.max_output_collision_pairs = m_impl->max_output_collision_pairs;
             return empty;
         }
 
-        // Lazy RG creation / rebuild when max_collision_pairs changes.
-        if (!m_impl->render_graph || m_impl->max_collision_pairs != m_impl->cached_max_pairs_for_rg) {
+        // Lazy RG creation / rebuild when max_input_collision_pairs changes.
+        if (!m_impl->render_graph || m_impl->max_input_collision_pairs != m_impl->cached_max_pairs_for_rg) {
             m_impl->render_graph = m_impl->BuildRenderGraph();
-            m_impl->cached_max_pairs_for_rg = m_impl->max_collision_pairs;
+            m_impl->cached_max_pairs_for_rg = m_impl->max_input_collision_pairs;
         }
 
         if (m_impl->render_graph && m_impl->render_graph->GetNumPasses() > 0) {
@@ -378,7 +377,7 @@ namespace Engine {
         result.contact_point_a = m_impl->gpu_contact_point_a.get();
         result.contact_point_b = m_impl->gpu_contact_point_b.get();
         result.collision_count = m_impl->gpu_collision_count.get();
-        result.max_collision_pairs = m_impl->max_collision_pairs;
+        result.max_output_collision_pairs = m_impl->max_output_collision_pairs;
         return result;
     }
 } // namespace Engine

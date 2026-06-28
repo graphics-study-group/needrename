@@ -25,7 +25,7 @@ namespace Engine {
         const ComputeBuffer *contact_point_a{};
         const ComputeBuffer *contact_point_b{};
         const ComputeBuffer *collision_count{};
-        uint32_t max_collision_pairs{0};
+        uint32_t max_output_collision_pairs{0};
     };
 
     /**
@@ -68,14 +68,16 @@ namespace Engine {
          * Safe to call every frame — no-op when nothing changed.
          *
          * @param scene                Physics scene for GPU buffer access.
-         * @param max_collision_pairs  Maximum number of candidate pairs to test.
+         * @param max_input_collision_pairs  Maximum number of candidate pairs to test.
+         * @param max_output_collision_pairs Maximum number of output collision pairs.
          * @param contact_margin       Contact margin for penetration validation.
          * @param pair_buffer          Broad-phase output: uvec2 pair buffer.
          * @param pair_count_buffer    Broad-phase output: uint pair count buffer.
          */
         void Configure(
             PhysicsScene &scene,
-            uint32_t max_collision_pairs,
+            uint32_t max_input_collision_pairs,
+            uint32_t max_output_collision_pairs,
             float contact_margin,
             const ComputeBuffer &pair_buffer,
             const ComputeBuffer &pair_count_buffer
