@@ -40,6 +40,10 @@ void main() {
     float cell_size = grid_config.world_min.w;
     vec3 wmin = grid_config.world_min.xyz;
     ivec3 dims = grid_config.grid_dims.xyz;
+    vec3 wmax = wmin + vec3(dims) * cell_size;
+
+    // Skip shapes entirely outside the grid.
+    if (any(lessThan(mx, wmin)) || any(greaterThan(mn, wmax))) return;
 
     ivec3 cmin = ivec3(floor((mn - wmin) / cell_size));
     ivec3 cmax = ivec3(floor((mx - wmin) / cell_size));

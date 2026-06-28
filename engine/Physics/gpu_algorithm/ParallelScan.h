@@ -122,6 +122,8 @@ namespace Engine {
         /// Get the maximum element count this instance was configured for.
         uint32_t GetMaxElemCount() const noexcept;
 
+        void ResetGraph() noexcept;
+
     private:
         struct Impl;
         std::unique_ptr<Impl> m_impl;

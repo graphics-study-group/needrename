@@ -56,21 +56,21 @@ namespace Engine {
 
     struct ParallelScan::Impl {
         RenderSystem &render_system;
-        uint32_t max_elem_count;
+        uint32_t max_elem_count = 1u;
         bool initialized = false;
 
         // ---- Compute stages ----
-        std::unique_ptr<ComputeStage> scan_stage; // parallel_scan.comp (modes 0 & 1)
-        std::vector<uint32_t> scan_spirv;
+        std::unique_ptr<ComputeStage> scan_stage{}; // parallel_scan.comp (modes 0 & 1)
+        std::vector<uint32_t> scan_spirv{};
 
-        std::unique_ptr<ComputeStage> offset_stage; // add_block_offset.comp
-        std::vector<uint32_t> offset_spirv;
+        std::unique_ptr<ComputeStage> offset_stage{}; // add_block_offset.comp
+        std::vector<uint32_t> offset_spirv{};
 
         // ---- Parameter buffer pool ----
         // Each pass gets its own tiny host-visible buffer so that
         // parameters are never overwritten between passes.
         // Buffers are reused across AddPasses calls to avoid unbounded growth.
-        std::vector<std::unique_ptr<ComputeBuffer>> param_pool;
+        std::vector<std::unique_ptr<ComputeBuffer>> param_pool{};
         size_t param_pool_index = 0;
 
         explicit Impl(RenderSystem &rs, uint32_t mec) : render_system(rs), max_elem_count(mec) {
@@ -380,6 +380,11 @@ namespace Engine {
         return m_impl->max_elem_count;
     }
 
+    void ParallelScan::ResetGraph() noexcept {
+        // Reset param pool cursor — buffers are reused across passes within this call.
+        m_impl->param_pool_index = 0;
+    }
+
     size_t ParallelScan::GetRequiredBlockSumsBytes(uint32_t max_elem_count) noexcept {
         if (max_elem_count == 0u) return sizeof(uint32_t);
         size_t total_entries = 0;
@@ -413,9 +418,6 @@ namespace Engine {
         }
 
         m_impl->EnsureInitialized();
-
-        // Reset param pool cursor — buffers are reused across passes within this call.
-        m_impl->param_pool_index = 0;
 
         // The caller owns and manages all buffers — we just orchestrate passes.
         m_impl->AddScanInternal(

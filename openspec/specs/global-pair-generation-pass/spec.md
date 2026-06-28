@@ -8,20 +8,26 @@ Govern the dedicated GPU compute pass that generates collision pairs involving g
 
 ### Requirement: Compact global-shape index list
 
-During AABB computation, the `compute_aabbs.comp` shader SHALL write each global shape's index into a compact `global_list[]` buffer via atomic append. A separate `global_count[]` buffer SHALL track the total number of global shapes.
+During AABB computation, the `compute_aabbs.comp` shader SHALL write each global shape's index into a compact `global_list[]` buffer via atomic append. A shape is global if and only if its AABB spans more than `max_cells_per_shape` cells. Shapes entirely outside `[grid_world_min, grid_world_max]` SHALL NOT be marked global.
 
-The `global_list[]` buffer SHALL be sized to `shape_slot_count` (worst case: all shapes are global). The `global_count[]` buffer SHALL be cleared to zero before the AABB pass each frame.
+A separate `global_count[]` buffer SHALL track the total number of global shapes. The `global_list[]` buffer SHALL be sized to `shape_slot_count` (worst case: all shapes are global). The `global_count[]` buffer SHALL be cleared to zero before the AABB pass each frame.
 
 #### Scenario: Global shape appended to list
 
-- **WHEN** `compute_aabbs.comp` marks `global_flags[i] = 1` for shape `i`
+- **WHEN** `compute_aabbs.comp` marks `global_flags[i] = 1` for shape `i` because `num_cells > max_cells_per_shape`
 - **THEN** shape index `i` is written to `global_list[atomicAdd(global_count[0], 1)]`
 
 #### Scenario: No global shapes produces empty list
 
-- **WHEN** all shapes have AABBs within world bounds and span ≤ `max_cells_per_shape` cells
+- **WHEN** all shapes have AABBs spanning ≤ `max_cells_per_shape` cells
 - **THEN** `global_count[0] = 0` after AABB pass
 - **AND** no entries are written to `global_list[]`
+
+#### Scenario: Out-of-bounds shape not in global list
+
+- **WHEN** a shape is entirely outside world bounds
+- **THEN** its index is NOT written to `global_list[]`
+- **AND** `global_count` is NOT incremented for this shape
 
 ### Requirement: Dedicated global pair generation shader
 
@@ -42,7 +48,7 @@ Each thread SHALL map `gl_WorkGroupID.y` to a global shape index `g = global_lis
 
 #### Scenario: Two global shapes deduplicated
 
-- **WHEN** global shapes 5 and 8 are both alive
+- **WHEN** global shapes 5 and 8 are both alive (both span too many cells)
 - **THEN** thread (s=8, g_idx_of_5) emits pair (5, 8) because `5 < 8`
 - **AND** thread (s=5, g_idx_of_8) skips because `global_flags[5] != 0 AND 8 > 5`
 
@@ -54,7 +60,7 @@ Each thread SHALL map `gl_WorkGroupID.y` to a global shape index `g = global_lis
 
 #### Scenario: All shapes are global
 
-- **WHEN** all N shapes are marked global
+- **WHEN** all N shapes are marked global (all span > max_cells_per_shape)
 - **THEN** the shader generates exactly N×(N−1)/2 pairs (same as all-pairs)
 - **AND** each pair appears exactly once due to dedup logic
 

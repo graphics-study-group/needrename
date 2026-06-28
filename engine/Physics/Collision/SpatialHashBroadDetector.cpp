@@ -1,6 +1,8 @@
 #include "SpatialHashBroadDetector.h"
 
+#include <Physics/gpu_algorithm/CompactUnique.h>
 #include <Physics/gpu_algorithm/ParallelScan.h>
+#include <Physics/gpu_algorithm/RadixSort.h>
 
 #include <cmake_config.h>
 
@@ -131,8 +133,19 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> gpu_one{};
         std::unique_ptr<ComputeBuffer> gpu_grid_cells_p1{};
 
+        // Dedup buffers.
+        std::unique_ptr<ComputeBuffer> gpu_pairs_temp{};     // ping-pong for RadixSort
+        std::unique_ptr<ComputeBuffer> gpu_radix_scratch{};  // 256-uint histogram
+        std::unique_ptr<ComputeBuffer> gpu_unique_flags{};   // original 0/1 flags
+        std::unique_ptr<ComputeBuffer> gpu_unique_offsets{}; // prefix-sum offsets
+        std::unique_ptr<ComputeBuffer> gpu_unique_count{};   // output unique count
+
         // Parallel prefix-sum executor (reusable across scan sites).
         std::unique_ptr<ParallelScan> scan{};
+
+        // Dedup algorithm instances.
+        std::unique_ptr<RadixSort> radix_sort{};
+        std::unique_ptr<CompactUnique> compact_unique{};
 
         // Block-sums scratch buffer for ParallelScan.
         std::unique_ptr<ComputeBuffer> gpu_scan_scratch{};
@@ -210,6 +223,22 @@ namespace Engine {
                 gpu_one = ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH One");
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_one->GetVMAddress());
                 *addr = 1u;
+            }
+
+            // Dedup buffers.
+            {
+                const size_t temp_bytes = static_cast<size_t>(max_pairs) * sizeof(glm::uvec2);
+                EnsureBuffer(gpu_pairs_temp, temp_bytes, "BH PairsTemp");
+            }
+            EnsureBuffer(gpu_radix_scratch, RadixSort::GetRequiredScratchBytes(), "BH RadixScratch");
+            {
+                const size_t flags_bytes = CompactUnique::GetRequiredFlagBytes(max_pairs);
+                EnsureBuffer(gpu_unique_flags, flags_bytes, "BH UniqueFlags");
+                EnsureBuffer(gpu_unique_offsets, flags_bytes, "BH UniqueOffsets");
+            }
+            if (!gpu_unique_count || gpu_unique_count->GetSize() < sizeof(uint32_t)) {
+                gpu_unique_count =
+                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH UniqueCount");
             }
 
             if (!gpu_grid_cells_p1 || gpu_grid_cells_p1->GetSize() < sizeof(uint32_t)) {
@@ -364,26 +393,36 @@ namespace Engine {
             auto filt_dat_h = builder.ImportExternalResource(*gpu.shape_filter_data, RR);
 
             // --- Import owned buffers ---
-            auto scount_h = builder.ImportExternalResource(*gpu_shape_slot_count, {AT::None});
-            auto aabb_min_h = builder.ImportExternalResource(*gpu_aabb_min, {AT::None});
-            auto aabb_max_h = builder.ImportExternalResource(*gpu_aabb_max, {AT::None});
-            auto global_h = builder.ImportExternalResource(*gpu_global_flags, {AT::None});
-            auto global_list_h = builder.ImportExternalResource(*gpu_global_list, {AT::None});
-            auto global_count_h = builder.ImportExternalResource(*gpu_global_count, {AT::None});
-            auto one_h = builder.ImportExternalResource(*gpu_one, {AT::None});
-            auto scc_h = builder.ImportExternalResource(*gpu_shape_cell_count, {AT::None});
-            auto sco_h = builder.ImportExternalResource(*gpu_shape_cell_offset, {AT::None});
-            auto csp_h = builder.ImportExternalResource(*gpu_cell_shape_pairs, {AT::None});
-            auto total_h = builder.ImportExternalResource(*gpu_total_assignments, {AT::None});
-            auto hist_h = builder.ImportExternalResource(*gpu_cell_histogram, {AT::None});
-            auto coff_h = builder.ImportExternalResource(*gpu_cell_offsets, {AT::None});
-            auto cscr_h = builder.ImportExternalResource(*gpu_cell_scratch, {AT::None});
-            auto sorted_h = builder.ImportExternalResource(*gpu_sorted_pairs, {AT::None});
-            auto pairs_h = builder.ImportExternalResource(*gpu_collision_pairs, {AT::None});
-            auto pcnt_h = builder.ImportExternalResource(*gpu_pair_count, {AT::None});
-            auto gcfg_h = builder.ImportExternalResource(*gpu_grid_config, {AT::None});
-            auto cells_p1_h = builder.ImportExternalResource(*gpu_grid_cells_p1, {AT::None});
-            auto scan_scratch_h = builder.ImportExternalResource(*gpu_scan_scratch, {AT::None});
+            auto scount_h = builder.ImportExternalResource(*gpu_shape_slot_count, RR);
+            auto aabb_min_h = builder.ImportExternalResource(*gpu_aabb_min, RW);
+            auto aabb_max_h = builder.ImportExternalResource(*gpu_aabb_max, RW);
+            auto global_h = builder.ImportExternalResource(*gpu_global_flags, RW);
+            auto global_list_h = builder.ImportExternalResource(*gpu_global_list, RW);
+            auto global_count_h = builder.ImportExternalResource(*gpu_global_count, RW);
+            auto one_h = builder.ImportExternalResource(*gpu_one, RR);
+            auto scc_h = builder.ImportExternalResource(*gpu_shape_cell_count, RW);
+            auto sco_h = builder.ImportExternalResource(*gpu_shape_cell_offset, RW);
+            auto csp_h = builder.ImportExternalResource(*gpu_cell_shape_pairs, RW);
+            auto total_h = builder.ImportExternalResource(*gpu_total_assignments, RW);
+            auto hist_h = builder.ImportExternalResource(*gpu_cell_histogram, RW);
+            auto coff_h = builder.ImportExternalResource(*gpu_cell_offsets, RW);
+            auto cscr_h = builder.ImportExternalResource(*gpu_cell_scratch, RW);
+            auto sorted_h = builder.ImportExternalResource(*gpu_sorted_pairs, RW);
+            auto pairs_h = builder.ImportExternalResource(*gpu_collision_pairs, RW);
+            auto pcnt_h = builder.ImportExternalResource(*gpu_pair_count, RW);
+            auto gcfg_h = builder.ImportExternalResource(*gpu_grid_config, RW);
+            auto cells_p1_h = builder.ImportExternalResource(*gpu_grid_cells_p1, RW);
+            auto scan_scratch_h = builder.ImportExternalResource(*gpu_scan_scratch, RW);
+
+            // --- Import dedup buffers ---
+            auto temp_pairs_h = builder.ImportExternalResource(*gpu_pairs_temp, RW);
+            auto radix_scratch_h = builder.ImportExternalResource(*gpu_radix_scratch, RW);
+            auto unique_flags_h = builder.ImportExternalResource(*gpu_unique_flags, RW);
+            auto unique_offsets_h = builder.ImportExternalResource(*gpu_unique_offsets, RW);
+            auto unique_count_h = builder.ImportExternalResource(*gpu_unique_count, RW);
+
+            if (scan) scan->ResetGraph();
+            if (radix_sort) radix_sort->ResetGraph();
 
             // --- Determine if we use fallback ---
             bool use_fallback = (shape_count <= fallback_threshold);
@@ -819,8 +858,7 @@ namespace Engine {
                         .UseBuffer(filt_cnt_h, RR)
                         .UseBuffer(filt_dat_h, RR)
                         .SetPassFunction(
-                            [stage, binding, n_wg, g_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &)
-                                -> void {
+                            [stage, binding, n_wg, g_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
                                 if (!scene_ptr->IsSimulationEnabled()) return;
                                 cb.BindComputeStage(*stage);
                                 cb.BindComputeResource(*binding);
@@ -829,6 +867,83 @@ namespace Engine {
                         )
                         .Get()
                 );
+            }
+
+            // === Dedup: RadixSort + CompactUnique ===
+            // Import dedup buffers and add sort + unique passes after pair generation.
+            {
+                // Lazy-create algorithm instances.
+                if (!radix_sort || radix_sort->GetMaxElemCount() < max_pairs) {
+                    radix_sort = std::make_unique<RadixSort>(render_system, max_pairs);
+                }
+                if (!compact_unique || compact_unique->GetMaxElemCount() < max_pairs) {
+                    compact_unique = std::make_unique<CompactUnique>(render_system, max_pairs);
+                }
+
+                // Sort pairs by (a, b).
+                radix_sort->AddPasses(
+                    builder,
+                    pairs_h,
+                    temp_pairs_h,
+                    *gpu_collision_pairs,
+                    *gpu_pairs_temp,
+                    radix_scratch_h,
+                    *gpu_radix_scratch,
+                    max_pairs,         // elem_capacity (buffer size, for dispatch sizing)
+                    pcnt_h,            // pair_count handle (RG tracks dependency)
+                    *gpu_pair_count,   // pair_count buffer (read at GPU execution time)
+                    cached_shape_count // max_shape_count for validation
+                );
+
+                // Compact unique.
+                compact_unique->AddPasses(
+                    builder,
+                    pairs_h,
+                    *gpu_collision_pairs,
+                    unique_flags_h,
+                    *gpu_unique_flags,
+                    unique_offsets_h,
+                    *gpu_unique_offsets,
+                    unique_count_h,
+                    *gpu_unique_count,
+                    scan_scratch_h,
+                    *gpu_scan_scratch,
+                    *scan,
+                    pcnt_h,          // pair_count handle
+                    *gpu_pair_count, // pair_count buffer (read at GPU execution time)
+                    max_pairs        // elem_capacity
+                );
+
+                // Copy unique_count back to pair_count so downstream
+                // consumers see the deduplicated count.
+                {
+                    ComputeResourceBinding &cbind = copy_stage->AllocateResourceBinding();
+                    auto &srb = cbind.GetShaderResourceBinding();
+                    srb.BindBuffer("SrcBuffer", *gpu_unique_count);
+                    srb.BindBuffer("DstBuffer", *gpu_pair_count);
+                    srb.BindBuffer("ElemCount", *gpu_one);
+
+                    auto *stage = copy_stage.get();
+                    auto *binding_ptr = &cbind;
+                    auto *scene_ptr = cached_scene;
+                    builder.AddPass(
+                        RenderGraphPassBuilder{render_system}
+                            .SetName("BH Copy UniqueCount -> PairCount")
+                            .SetAffinity(RenderGraphPassAffinity::Compute)
+                            .UseBuffer(unique_count_h, RR)
+                            .UseBuffer(pcnt_h, WW)
+                            .UseBuffer(one_h, RR)
+                            .SetPassFunction(
+                                [stage, binding_ptr, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                                    if (!scene_ptr->IsSimulationEnabled()) return;
+                                    cb.BindComputeStage(*stage);
+                                    cb.BindComputeResource(*binding_ptr);
+                                    cb.DispatchCompute(1, 1, 1);
+                                }
+                            )
+                            .Get()
+                    );
+                }
             }
 
             return builder.BuildRenderGraph();

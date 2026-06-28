@@ -1,0 +1,58 @@
+#version 450 core
+
+// Compact unique entries using post-scan flag offsets.
+//
+// Input: sorted pairs, original unique flags (pre-scan), flag offsets (post-scan exclusive prefix sum)
+//
+// Each thread:
+//   reads original_flags[i]  (1 if this pair is the first occurrence, 0 if duplicate)
+//   reads flag_offsets[i]    (compacted write position if unique)
+//   if original_flags[i] == 1, writes sorted_pairs[i] to output[flag_offsets[i]]
+//
+// The last thread writes the total unique count to count_buf[0]:
+//   total = flag_offsets[N-1] + original_flags[N-1]
+//
+// Dispatch: ceil(elem_count / 64), 1, 1
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SortedPairs {
+    uvec2 v[];
+} sorted_pairs;
+
+layout(set = 0, binding = 1) writeonly buffer CompactPairs {
+    uvec2 v[];
+} compact_pairs;
+
+layout(set = 0, binding = 2) readonly buffer OriginalFlags {
+    uint v[];
+} original_flags;
+
+layout(set = 0, binding = 3) readonly buffer FlagOffsets {
+    uint v[];
+} flag_offsets;
+
+layout(set = 0, binding = 4) buffer UniqueCount {
+    uint v[];
+} unique_count;
+
+layout(set = 0, binding = 5) readonly buffer ElemCount {
+    uint count;
+} elem_count;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= elem_count.count) return;
+
+    uint orig_flag = original_flags.v[idx];
+    uint offset = flag_offsets.v[idx];
+
+    if (orig_flag != 0u) {
+        compact_pairs.v[offset] = sorted_pairs.v[idx];
+    }
+
+    // Last thread writes total unique count.
+    if (idx == elem_count.count - 1u) {
+        unique_count.v[0] = offset + orig_flag;
+    }
+}

@@ -274,10 +274,10 @@ int main(int /*argc*/, char ** /*argv*/) {
     auto xpbd_solver = std::make_unique<XpbdGpuSolver>(*cmc->GetRenderSystem());
     XpbdConfig xpbd_config{};
     xpbd_config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
-    xpbd_config.time_step = 1.0f / 100.0f;
+    xpbd_config.time_step = 1.0f / 60.0f;
     xpbd_config.num_substep_perstep = 2;
     xpbd_config.num_iter_persubstep = 100;
-    xpbd_config.num_velocity_iters = 100;
+    xpbd_config.num_velocity_iters = 50;
     xpbd_config.max_contact_points = 50000u;
     xpbd_config.contact_margin = 0.001f;
     xpbd_config.grid_cell_size = 1.0f;

@@ -1,0 +1,51 @@
+#version 450 core
+
+// In-place exclusive prefix sum over 256 uint elements using shared-memory
+// Blelloch scan.  Single workgroup dispatch; no UBO parameters needed.
+//
+// Dispatch: (1, 1, 1)  — exactly 256 threads, one workgroup
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) buffer Histogram {
+    uint v[256];
+} histogram;
+
+shared uint s[256];
+
+void main() {
+    uint tid = gl_LocalInvocationID.x;
+
+    // Load from buffer into shared memory.
+    s[tid] = histogram.v[tid];
+    barrier();
+
+    // --- Upsweep (parallel reduction) ---
+    for (uint offset = 1u; offset < 256u; offset <<= 1u) {
+        uint idx = (tid + 1u) * offset * 2u - 1u;
+        if (idx < 256u) {
+            s[idx] += s[idx - offset];
+        }
+        barrier();
+    }
+
+    // Convert inclusive → exclusive: clear the last element.
+    if (tid == 0u) {
+        s[255u] = 0u;
+    }
+    barrier();
+
+    // --- Downsweep (distribution) ---
+    for (uint offset = 128u; offset > 0u; offset >>= 1u) {
+        uint idx = (tid + 1u) * offset * 2u - 1u;
+        if (idx < 256u) {
+            uint t = s[idx - offset];
+            s[idx - offset] = s[idx];
+            s[idx] += t;
+        }
+        barrier();
+    }
+
+    // Write result back to buffer.
+    histogram.v[tid] = s[tid];
+}

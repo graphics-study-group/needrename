@@ -99,29 +99,34 @@ void main() {
     aabb_min.v[idx] = vec4(mn, 0.0);
     aabb_max.v[idx] = vec4(mx, 0.0);
 
-    // --- Compute cell range and check global flag ---
+    // --- Check if entirely outside grid bounds ---
     float cell_size = grid_config.world_min.w;
     vec3 wmin = grid_config.world_min.xyz;
     ivec3 dims = grid_config.grid_dims.xyz;
+    vec3 wmax = wmin + vec3(dims) * cell_size;
     int max_cells = grid_config.grid_dims.w;
 
-    // Cell coordinates for AABB.
+    if (any(lessThan(mx, wmin)) || any(greaterThan(mn, wmax))) {
+        // Shape is entirely outside the grid — ignore completely.
+        // Write degenerate AABB and do NOT mark as global.
+        aabb_min.v[idx] = vec4(wmin, 0.0);
+        aabb_max.v[idx] = vec4(wmin, 0.0);
+        return;
+    }
+
+    // --- Compute cell range and check global flag ---
     ivec3 cmin = ivec3(floor((mn - wmin) / cell_size));
     ivec3 cmax = ivec3(floor((mx - wmin) / cell_size));
 
-    // Clamp to grid.
+    // Clamp to grid (shape is at least partially inside).
     cmin = clamp(cmin, ivec3(0), dims - 1);
     cmax = clamp(cmax, ivec3(0), dims - 1);
-
-    // Check if entirely outside grid.
-    vec3 wmax = grid_config.world_min.xyz + vec3(dims) * cell_size;
-    bool outside = any(lessThan(mx, wmin)) || any(greaterThan(mn, wmax));
 
     // Number of cells this shape spans.
     ivec3 span = cmax - cmin + ivec3(1);
     int num_cells = span.x * span.y * span.z;
 
-    if (outside || num_cells > max_cells) {
+    if (num_cells > max_cells) {
         global_flags.v[idx] = 1u;
         uint slot = atomicAdd(global_count.v[0], 1u);
         global_list.v[slot] = idx;

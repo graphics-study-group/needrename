@@ -111,9 +111,9 @@ The detector SHALL assign each non-global alive shape to all spatial grid cells 
 
 ### Requirement: Global shape handling
 
-Shapes whose AABB spans more than `max_cells_per_shape` cells SHALL be marked as global (`global_flags[i] = 1`). Shapes whose AABB center is outside `[grid_world_min, grid_world_max]` SHALL also be marked global. Global shapes SHALL be excluded from cell assignment, counting sort, and within-cell pair generation.
+Shapes whose AABB spans more than `max_cells_per_shape` cells SHALL be marked as global (`global_flags[i] = 1`). Shapes whose AABB is entirely outside `[grid_world_min, grid_world_max]` SHALL NOT be marked global — they SHALL be silently ignored (no pairs generated, not included in `global_list[]`). Global shapes SHALL be excluded from cell assignment, counting sort, and within-cell pair generation.
 
-During AABB computation, global shape indices SHALL be written into a compact `global_list[]` buffer via atomic append (`global_count` tracks the count). A separate `global_count` clear pass (using `memset_uint.comp`) SHALL run before each frame's AABB pass.
+During AABB computation, global shape indices (spanning too many cells) SHALL be written into a compact `global_list[]` buffer via atomic append (`global_count` tracks the count). A separate `global_count` clear pass (using `memset_uint.comp`) SHALL run before each frame's AABB pass.
 
 After within-cell pair generation, a dedicated `generate_global_pairs.comp` shader SHALL generate pairs between each global shape and every other alive shape (both global and non-global) using a 2D dispatch `(ceil(N/64), G, 1)` where G is the number of global shapes. Global×global pairs SHALL be deduplicated by only emitting from the smaller global index.
 
@@ -125,11 +125,20 @@ After within-cell pair generation, a dedicated `generate_global_pairs.comp` shad
 - **AND** shape `i` is appended to `global_list[]`
 - **AND** `generate_global_pairs.comp` generates pairs `(min(i,j), max(i,j))` for all `j != i`
 
-#### Scenario: Shape outside bounds marked global
+#### Scenario: Shape outside bounds is silently ignored
 
-- **WHEN** a shape's AABB center is outside `[grid_world_min, grid_world_max]`
-- **THEN** `global_flags[i] = 1`
-- **AND** the shape is treated identically to a shape exceeding `max_cells_per_shape`
+- **WHEN** a shape's AABB is entirely outside `[grid_world_min, grid_world_max]`
+- **THEN** `global_flags[i] = 0`
+- **AND** the shape is NOT appended to `global_list[]`
+- **AND** `count_cells.comp` and `fill_cells.comp` skip this shape (explicit out-of-bounds check)
+- **AND** no collision pairs involving this shape are generated
+
+#### Scenario: Shape partially outside bounds is not ignored
+
+- **WHEN** a shape's AABB overlaps the grid boundary but is not entirely outside
+- **THEN** the AABB SHALL be clamped to grid bounds for cell-range computation
+- **AND** the shape participates normally in cell assignment and pair generation
+- **AND** `global_flags[i]` is set only if `num_cells > max_cells_per_shape`
 
 ### Requirement: Counting sort by cell ID
 
@@ -205,6 +214,55 @@ When `shape_count <= fallback_all_pairs_threshold`, the detector SHALL skip the 
 
 - **WHEN** a PhysicsScene has `shape_slot_count = 100` and `fallback_all_pairs_threshold = 8`
 - **THEN** the detector runs the full spatial-hash pipeline
+
+### Requirement: Post-generation pair deduplication
+
+After within-cell pair generation (`generate_broad_pairs.comp`) and global pair generation (`generate_global_pairs.comp`) complete, the detector SHALL perform deduplication on the combined `collision_pairs[]` output buffer before returning results to the caller.
+
+The dedup SHALL proceed in two stages:
+1. **Sort**: `RadixSort::AddPasses` sorts all pairs in `collision_pairs[]` by `(a, b)` ascending. The sorted result SHALL overwrite `collision_pairs[]`.
+2. **Compact**: `CompactUnique::AddPasses` removes adjacent duplicates and compacts the result. The compacted unique pairs SHALL overwrite `collision_pairs[]` and `pair_count` SHALL be updated via a copy from `unique_count`.
+
+**Dispatch sizing**: Both stages SHALL pass `max_pairs` (buffer capacity) as `elem_capacity` for dispatch workgroup sizing. The actual pair count (`gpu_pair_count`) SHALL be passed as a GPU buffer binding — each shader reads this at execution time to skip threads beyond the valid range. At RenderGraph build time, `gpu_pair_count` is NOT read via `GetVMAddress()` (which would return stale data since the GPU hasn't executed yet).
+
+The detector SHALL allocate the following additional buffers:
+- `gpu_pairs_temp`: ping-pong temp for RadixSort (`max_pairs × sizeof(glm::uvec2)`)
+- `gpu_radix_scratch`: 256-uint histogram (1 KB)
+- `gpu_unique_flags`: original 0/1 flags (`max_pairs × sizeof(uint32_t)`)
+- `gpu_unique_offsets`: prefix-sum offsets, same size as flags
+- `gpu_unique_count`: output unique count (`sizeof(uint32_t)`, host-visible)
+
+The detector SHALL use its existing `ParallelScan` instance for `CompactUnique`'s internal prefix sum. The dedup SHALL be skipped if the fallback all-pairs path is used.
+
+#### Scenario: Duplicate pairs are removed
+
+- **WHEN** within-cell generation produces pairs `[(1,4), (2,3), (1,4)]` (pair (1,4) appears twice)
+- **AND** no global pairs are generated
+- **THEN** after dedup, `collision_pairs[]` contains `[(1,4), (2,3)]`
+- **AND** `pair_count = 2`
+
+#### Scenario: Dedup dispatches for max_pairs, reads actual count from GPU
+
+- **WHEN** the detector builds the dedup section of the render graph
+- **THEN** `RadixSort::AddPasses` is called with `elem_capacity = max_pairs` and `pair_count_buf = gpu_pair_count`
+- **AND** `GetVMAddress()` is NOT called on `gpu_pair_count` during RG build
+
+### Requirement: Out-of-bounds shape exclusion in cell passes
+
+The `count_cells.comp` and `fill_cells.comp` shaders SHALL each include an explicit out-of-bounds check that returns early for shapes whose AABB is entirely outside `[grid_world_min, grid_world_max]`. This check SHALL be in addition to the existing `global_flags` check.
+
+The AABB computation shader (`compute_aabbs.comp`) SHALL write a degenerate (zero-size) AABB at `world_min` for out-of-bounds shapes and SHALL NOT set `global_flags` or append to `global_list`.
+
+#### Scenario: Out-of-bounds shape excluded from count_cells
+
+- **WHEN** shape `i` has AABB entirely outside the grid
+- **THEN** `count_cells.comp` writes `shape_cell_count[i] = 0`
+- **AND** no contribution to `total_assignments`
+
+#### Scenario: Out-of-bounds shape excluded from fill_cells
+
+- **WHEN** shape `i` has AABB entirely outside the grid
+- **THEN** `fill_cells.comp` writes no `(cell_id, shape_index)` pairs for shape `i`
 
 ### Requirement: Grid config and threshold in XpbdConfig
 

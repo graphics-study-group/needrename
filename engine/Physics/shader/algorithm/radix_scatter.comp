@@ -1,0 +1,55 @@
+#version 450 core
+
+// Radix sort scatter pass.
+//
+// Each thread reads one uvec2 pair from the unsorted input, extracts the 8-bit
+// digit, and atomically claims a write position from the prefix-summed histogram.
+// The histogram serves as both the base offset and the atomic counter — after
+// the scatter it is corrupted (contains end positions) and must be re-cleared
+// before the next radix pass.
+//
+// Dispatch: ceil(elem_capacity / 64), 1, 1
+//   elem_capacity is the buffer size (max_pairs), used only to size the dispatch.
+//   The actual pair count is read from the PairCount buffer at execution time.
+//   Threads with idx >= pair_count.count return immediately.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer PairsIn {
+    uvec2 v[];
+} pairs_in;
+
+layout(set = 0, binding = 1) writeonly buffer PairsOut {
+    uvec2 v[];
+} pairs_out;
+
+layout(set = 0, binding = 2) buffer Histogram {
+    uint v[256];
+} histogram;
+
+layout(set = 0, binding = 3) readonly buffer RadixParams {
+    uint byte_shift;    // 0, 8, 16, or 24
+    uint word_select;   // 0 = pair.y (secondary), 1 = pair.x (primary)
+    uint elem_capacity; // buffer capacity (used for dispatch sizing on CPU)
+    uint _pad;
+} radix_params;
+
+// Actual pair count, written by the pair-generation passes earlier in the frame.
+// Read at GPU execution time — NOT a CPU constant baked at RG build time.
+layout(set = 0, binding = 4) readonly buffer PairCount {
+    uint count;
+} pair_count;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+
+    // Skip threads beyond the actual number of pairs.
+    if (idx >= pair_count.count) return;
+
+    uvec2 pair = pairs_in.v[idx];
+    uint key = (radix_params.word_select == 0u) ? pair.y : pair.x;
+    uint digit = (key >> radix_params.byte_shift) & 0xFFu;
+
+    uint pos = atomicAdd(histogram.v[digit], 1u);
+    pairs_out.v[pos] = pair;
+}
