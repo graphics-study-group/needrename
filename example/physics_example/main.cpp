@@ -26,6 +26,108 @@
 
 using namespace Engine;
 
+void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb,glm::vec3 global_offset) {
+    // --- Load preset solid color materials ---
+    auto red_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
+    auto green_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
+    auto blue_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"});
+    auto yellow_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_yellow.asset"});
+    auto cyan_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_cyan.asset"});
+    auto magenta_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_magenta.asset"});
+    auto orange_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_orange.asset"});
+    auto white_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
+
+    // ---- Falling boxes (dynamic, stacked at various Z heights) ----
+    // Red box — drops from center.
+    builder.AddBox({
+        .position = glm::vec3(0.0f, 0.0f, 0.49f) + global_offset,
+        .rotation = glm::angleAxis(glm::radians(0.0f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f))),
+        .half_extents = {0.5f, 0.5f, 0.5f},
+        .mass = 1.0f,
+        .material = red_mat,
+    });
+
+    builder.AddBox({
+        .position = glm::vec3(0.0f, -0.7f, 2.0f) + global_offset,
+        .rotation = glm::angleAxis(glm::radians(44.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f))),
+        .half_extents = {0.2f, 0.5f, 0.2f},
+        .mass = 1.0f,
+        .material = green_mat,
+    });
+
+    // Green box — offset in X, higher up.
+    builder.AddSphere({
+        .position = glm::vec3(1.2f, 0.0f, 7.0f) + global_offset,
+        .radius = 0.5f,
+        .mass = 1.0f,
+        .material = green_mat,
+    });
+
+    // Blue box — offset in Y, medium height.
+    builder.AddCylinder({
+        .position = glm::vec3(0.0f, 1.2f, 6.0f) + global_offset,
+        .radius = 0.2f,
+        .half_height = 1.0f,
+        .mass = 1.0f,
+        .material = blue_mat,
+    });
+
+    // Yellow box — taller shape, higher up.
+    builder.AddSphere({
+        .position = glm::vec3(-1.0f, -0.5f, 8.0f) + global_offset,
+        .radius = 0.4f,
+        .mass = 2.0f,
+        .material = yellow_mat,
+    });
+
+    // Cyan box — wide flat box.
+    builder.AddCylinder({
+        .position = glm::vec3(2.0f, -1.0f, 9.0f) + global_offset,
+        .radius = 0.8f,
+        .half_height = 0.3f,
+        .mass = 0.5f,
+        .material = cyan_mat,
+    });
+
+    // Magenta box — small cube, highest.
+    builder.AddCylinder({
+        .position = glm::vec3(-2.0f, 1.0f, 10.0f) + global_offset,
+        .rotation = glm::angleAxis(glm::radians(90.0f), glm::normalize(glm::vec3(0.5f, 0.0f, 1.0f))),
+        .radius = 0.3f,
+        .half_height = 0.6f,
+        .mass = 0.3f,
+        .material = magenta_mat,
+    });
+
+    // Orange box — medium cube, slightly rotated.
+    builder.AddBox({
+        .position = glm::vec3(0.5f, 2.0f, 4.0f) + global_offset,
+        .rotation = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::vec3(0.3f, 0.2f, 0.7f))),
+        .half_extents = {0.5f, 0.5f, 0.5f},
+        .mass = 1.5f,
+        .material = orange_mat,
+    });
+
+    // rigid bricks
+    int n = 6;
+    glm::vec3 brick_size(0.3f, 0.6f, 0.3f);
+    glm::vec3 offset(5.0f, 0.7f, 0.0f);
+    offset += global_offset;
+    for (int i = 0; i < n; ++i) {
+        glm::vec3 start_pos = glm::vec3(0.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f)) + offset;
+        for (int j = 0; j < n - i; ++j)
+            builder.AddBox({
+                .position = start_pos + glm::vec3(0.0f, brick_size.y * (j + 0.5f * i), 0.0f),
+                .half_extents = brick_size * 0.5f,
+                .mass = 0.2f,
+                .material = blue_mat,
+            });
+    }
+
+    // Double pendulum demo — hinge + fixed joint test.
+    builder.AddDoublePendulum(glm::vec3(6.5f, 0.0f, 4.5f) + global_offset);
+}
+
 int main(int /*argc*/, char ** /*argv*/) {
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
     project_path = project_path / "empty_with_sky";
@@ -71,16 +173,6 @@ int main(int /*argc*/, char ** /*argv*/) {
     input->AddAxis(Input::ButtonAxis("mouse right", Input::AxisType::TypeMouseButton, "mouse right", ""));
     input->AddAxis(Input::ButtonAxis("toggle simulation", Input::AxisType::TypeKey, "space", ""));
 
-    // --- Load preset solid color materials ---
-    auto red_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
-    auto green_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
-    auto blue_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"});
-    auto yellow_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_yellow.asset"});
-    auto cyan_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_cyan.asset"});
-    auto magenta_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_magenta.asset"});
-    auto orange_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_orange.asset"});
-    auto white_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
-
     // --- Create physics objects via SceneBuilder ---
     GameObject &root = scene.CreateGameObject();
     {
@@ -95,100 +187,18 @@ int main(int /*argc*/, char ** /*argv*/) {
     // Z is up, so the floor extends in X and Y, centered at z = -0.5.
     builder.AddBox({
         .position = {0.0f, 0.0f, -0.5f},
-        .half_extents = {8.0f, 8.0f, 0.5f},
+        .half_extents = {100.0f, 100.0f, 0.5f},
         .mass = 0.0f,
         .kinematic = true,
-        .material = white_mat,
+        .material = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"}),
     });
 
-    // ---- Falling boxes (dynamic, stacked at various Z heights) ----
-    // Red box — drops from center.
-    builder.AddBox({
-        .position = {0.0f, 0.0f, 0.49f},
-        .rotation = glm::angleAxis(glm::radians(0.0f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f))),
-        .half_extents = {0.5f, 0.5f, 0.5f},
-        .mass = 1.0f,
-        .material = red_mat,
-    });
-
-    builder.AddBox({
-        .position = {0.0f, -0.7f, 2.0f},
-        .rotation = glm::angleAxis(glm::radians(44.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f))),
-        .half_extents = {0.2f, 0.5f, 0.2f},
-        .mass = 1.0f,
-        .material = green_mat,
-    });
-
-    // Green box — offset in X, higher up.
-    builder.AddSphere({
-        .position = {1.2f, 0.0f, 7.0f},
-        .radius = 0.5f,
-        .mass = 1.0f,
-        .material = green_mat,
-    });
-
-    // Blue box — offset in Y, medium height.
-    builder.AddCylinder({
-        .position = {0.0f, 1.2f, 6.0f},
-        .radius = 0.2f,
-        .half_height = 1.0f,
-        .mass = 1.0f,
-        .material = blue_mat,
-    });
-
-    // Yellow box — taller shape, higher up.
-    builder.AddSphere({
-        .position = {-1.0f, -0.5f, 8.0f},
-        .radius = 0.4f,
-        .mass = 2.0f,
-        .material = yellow_mat,
-    });
-
-    // Cyan box — wide flat box.
-    builder.AddCylinder({
-        .position = {2.0f, -1.0f, 9.0f},
-        .radius = 0.8f,
-        .half_height = 0.3f,
-        .mass = 0.5f,
-        .material = cyan_mat,
-    });
-
-    // Magenta box — small cube, highest.
-    builder.AddCylinder({
-        .position = {-2.0f, 1.0f, 10.0f},
-        .rotation = glm::angleAxis(glm::radians(90.0f), glm::normalize(glm::vec3(0.5f, 0.0f, 1.0f))),
-        .radius = 0.3f,
-        .half_height = 0.6f,
-        .mass = 0.3f,
-        .material = magenta_mat,
-    });
-
-    // Orange box — medium cube, slightly rotated.
-    builder.AddBox({
-        .position = {0.5f, 2.0f, 4.0f},
-        .rotation = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::vec3(0.3f, 0.2f, 0.7f))),
-        .half_extents = {0.5f, 0.5f, 0.5f},
-        .mass = 1.5f,
-        .material = orange_mat,
-    });
-
-    // rigid bricks
-    int n = 6;
-    glm::vec3 brick_size(0.3f, 0.6f, 0.3f);
-    glm::vec3 offset(5.0f, 0.7f, 0.0f);
-    for (int i = 0; i < n; ++i) {
-        glm::vec3 start_pos = glm::vec3(0.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f)) + offset;
-        for (int j = 0; j < n - i; ++j)
-            builder.AddBox({
-                .position = start_pos + glm::vec3(0.0f, brick_size.y * (j + 0.5f * i), 0.0f),
-                .half_extents = brick_size * 0.5f,
-                .mass = 0.2f,
-                .material = blue_mat,
-            });
-    }
-
-    // Double pendulum demo — hinge + fixed joint test.
-    builder.AddDoublePendulum({6.5f, 0.0f, 4.5f});
+    // AddTemplateScene(builder, adb, glm::vec3(0.0f, 0.0f, 0.0f));
+    int n = 3;
+    float margin = 8.0f;
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            AddTemplateScene(builder, adb, glm::vec3((i - n / 2.0f) * margin, (j - n / 2.0f) * margin, 0.0f));
 
     // --- Camera setup ---
     // Z is up, camera is positioned to the side looking at the falling zone.
@@ -276,8 +286,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     xpbd_config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
     xpbd_config.time_step = 1.0f / 60.0f;
     xpbd_config.num_substep_perstep = 2;
-    xpbd_config.num_iter_persubstep = 100;
-    xpbd_config.num_velocity_iters = 50;
+    xpbd_config.num_iter_persubstep = 50;
+    xpbd_config.num_velocity_iters = 10;
     xpbd_config.max_contact_points = 50000u;
     xpbd_config.contact_margin = 0.001f;
     xpbd_config.grid_cell_size = 1.0f;
