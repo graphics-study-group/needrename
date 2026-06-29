@@ -1,5 +1,6 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_atomic_float : enable
 
 // accumulate_contact_velocity.comp — Per-contact velocity-level XPBD:
 // restitution (normal) + dynamic friction (tangent), Jacobi accumulate.
@@ -7,7 +8,6 @@
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #include "common/xpbd_math.glsl"
-#include "common/xpbd_atomic.glsl"
 
 // ---- Collision buffers ----
 layout(set = 0, binding = 0)  readonly buffer CollisionIds       { uvec2 v[]; } collision_ids;
@@ -37,12 +37,12 @@ layout(set = 0, binding = 17) readonly buffer SubstepStartPosition    { vec4 v[]
 layout(set = 0, binding = 18) readonly buffer SubstepStartOrientation { vec4 v[]; } substep_start_orientation;
 
 // ---- Velocity delta accumulators ----
-layout(set = 0, binding = 19) buffer LinearVelocityDeltaI  { int v[]; } lin_vel_delta;
-layout(set = 0, binding = 20) buffer AngularVelocityDeltaI { int v[]; } ang_vel_delta;
-layout(set = 0, binding = 21) buffer VelocityDeltaCount    { int v[]; } vel_delta_count;
+layout(set = 0, binding = 19) buffer LinearVelocityDelta  { float v[]; } lin_vel_delta;
+layout(set = 0, binding = 20) buffer AngularVelocityDelta { float v[]; } ang_vel_delta;
+layout(set = 0, binding = 21) buffer VelocityDeltaCount    { float v[]; } vel_delta_count;
 
 // ---- Lagrange (readonly) ----
-layout(set = 0, binding = 22) readonly buffer ContactLagrange { int v[]; } lagrange;
+layout(set = 0, binding = 22) readonly buffer ContactLagrange { float v[]; } lagrange;
 
 layout(set = 0, binding = 23) readonly buffer XpbdUniforms { vec4 gravity; } uniforms;
 
@@ -123,7 +123,7 @@ void main() {
     if (tangent_speed > 1e-8 && dt > 1e-8) {
         float friction_coef = 0.5 * (rigid_body_dynamic_friction.v[body_a]
                                      + rigid_body_dynamic_friction.v[body_b]);
-        float normal_lagrange = abs(intBitsToFloat(lagrange.v[cidx]));
+        float normal_lagrange = abs(lagrange.v[cidx]);
         float normal_impulse_mag = normal_lagrange / dt;
         float friction_cap = normal_impulse_mag * friction_coef;
         float tangent_correction = min(tangent_speed, friction_cap);
@@ -151,29 +151,29 @@ void main() {
     // Atomic accumulate for body A.
     if (!kinematic_a && inv_mass_a > 0.0) {
         vec3 ld = inv_mass_a * impulse;
-        ATOMIC_ADD_FLOAT(lin_vel_delta.v[body_a * 3u + 0u], ld.x);
-        ATOMIC_ADD_FLOAT(lin_vel_delta.v[body_a * 3u + 1u], ld.y);
-        ATOMIC_ADD_FLOAT(lin_vel_delta.v[body_a * 3u + 2u], ld.z);
+        atomicAdd(lin_vel_delta.v[body_a * 3u + 0u], ld.x);
+        atomicAdd(lin_vel_delta.v[body_a * 3u + 1u], ld.y);
+        atomicAdd(lin_vel_delta.v[body_a * 3u + 2u], ld.z);
 
         vec3 ad = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, cross(r_a, impulse));
-        ATOMIC_ADD_FLOAT(ang_vel_delta.v[body_a * 3u + 0u], ad.x);
-        ATOMIC_ADD_FLOAT(ang_vel_delta.v[body_a * 3u + 1u], ad.y);
-        ATOMIC_ADD_FLOAT(ang_vel_delta.v[body_a * 3u + 2u], ad.z);
+        atomicAdd(ang_vel_delta.v[body_a * 3u + 0u], ad.x);
+        atomicAdd(ang_vel_delta.v[body_a * 3u + 1u], ad.y);
+        atomicAdd(ang_vel_delta.v[body_a * 3u + 2u], ad.z);
 
-        ATOMIC_ADD_FLOAT(vel_delta_count.v[body_a], 1.0);
+        atomicAdd(vel_delta_count.v[body_a], 1.0);
     }
 
     if (!kinematic_b && inv_mass_b > 0.0) {
         vec3 ld = -inv_mass_b * impulse;
-        ATOMIC_ADD_FLOAT(lin_vel_delta.v[body_b * 3u + 0u], ld.x);
-        ATOMIC_ADD_FLOAT(lin_vel_delta.v[body_b * 3u + 1u], ld.y);
-        ATOMIC_ADD_FLOAT(lin_vel_delta.v[body_b * 3u + 2u], ld.z);
+        atomicAdd(lin_vel_delta.v[body_b * 3u + 0u], ld.x);
+        atomicAdd(lin_vel_delta.v[body_b * 3u + 1u], ld.y);
+        atomicAdd(lin_vel_delta.v[body_b * 3u + 2u], ld.z);
 
         vec3 ad = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, cross(r_b, impulse));
-        ATOMIC_ADD_FLOAT(ang_vel_delta.v[body_b * 3u + 0u], -ad.x);
-        ATOMIC_ADD_FLOAT(ang_vel_delta.v[body_b * 3u + 1u], -ad.y);
-        ATOMIC_ADD_FLOAT(ang_vel_delta.v[body_b * 3u + 2u], -ad.z);
+        atomicAdd(ang_vel_delta.v[body_b * 3u + 0u], -ad.x);
+        atomicAdd(ang_vel_delta.v[body_b * 3u + 1u], -ad.y);
+        atomicAdd(ang_vel_delta.v[body_b * 3u + 2u], -ad.z);
 
-        ATOMIC_ADD_FLOAT(vel_delta_count.v[body_b], 1.0);
+        atomicAdd(vel_delta_count.v[body_b], 1.0);
     }
 }

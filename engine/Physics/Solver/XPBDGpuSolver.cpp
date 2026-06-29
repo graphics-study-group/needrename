@@ -135,9 +135,9 @@ namespace Engine {
         ) {
             const auto &alloc = render_system.GetAllocatorState();
             size_t body_bytes = static_cast<size_t>(body_count) * sizeof(glm::vec4);
-            size_t body_int3 = static_cast<size_t>(body_count) * 3 * sizeof(int);
-            size_t body_int1 = static_cast<size_t>(body_count) * sizeof(int);
-            size_t contact_lagrange_bytes = static_cast<size_t>(max_contacts) * sizeof(int);
+            size_t body_int3 = static_cast<size_t>(body_count) * 3 * sizeof(float);
+            size_t body_int1 = static_cast<size_t>(body_count) * sizeof(float);
+            size_t contact_lagrange_bytes = static_cast<size_t>(max_contacts) * sizeof(float);
             size_t hinge_fbytes = static_cast<size_t>(std::max(1u, hinge_joint_count)) * sizeof(float);
             size_t fixed_fbytes = static_cast<size_t>(std::max(1u, fixed_joint_count)) * sizeof(float);
 
@@ -739,8 +739,8 @@ namespace Engine {
             srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
             srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
             srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
-            srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
-            srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+            srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
+            srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
             srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
             srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
             auto *stage = m_impl->accum_pos_stage.get();
@@ -795,8 +795,8 @@ namespace Engine {
             srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
             srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
             srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-            srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
-            srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+            srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
+            srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
             srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
             auto *stage = m_impl->accum_hinge_pos_stage.get();
             uint32_t hinge_wg = (gpu.hinge_joint_count + 63u) / 64u;
@@ -847,8 +847,8 @@ namespace Engine {
             srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
             srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
             srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-            srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
-            srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+            srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
+            srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
             srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
             auto *stage = m_impl->accum_fixed_pos_stage.get();
             uint32_t fixed_wg = (gpu.fixed_joint_count + 63u) / 64u;
@@ -887,8 +887,8 @@ namespace Engine {
             srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
             srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
             srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-            srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
-            srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+            srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
+            srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
             srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
             auto *stage = m_impl->apply_pos_stage.get();
             builder.AddPass(
@@ -1028,8 +1028,8 @@ namespace Engine {
             srb.BindBuffer("PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel);
             srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
             srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
-            srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
-            srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
+            srb.BindBuffer("LinearVelocityDelta", *m_impl->gpu_linear_velocity_delta);
+            srb.BindBuffer("AngularVelocityDelta", *m_impl->gpu_angular_velocity_delta);
             srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
             srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
             srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
@@ -1079,8 +1079,8 @@ namespace Engine {
             srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
             srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
             srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-            srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
-            srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
+            srb.BindBuffer("LinearVelocityDelta", *m_impl->gpu_linear_velocity_delta);
+            srb.BindBuffer("AngularVelocityDelta", *m_impl->gpu_angular_velocity_delta);
             srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
             auto *stage = m_impl->apply_vel_stage.get();
             builder.AddPass(

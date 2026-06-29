@@ -1,5 +1,6 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_atomic_float : enable
 
 // accumulate_contact_position.comp — Per-contact XPBD position constraint
 // accumulate phase (Jacobi parallelization).
@@ -7,7 +8,6 @@
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #include "common/xpbd_math.glsl"
-#include "common/xpbd_atomic.glsl"
 
 // ---- Collision result buffers ----
 
@@ -32,13 +32,13 @@ layout(set = 0, binding = 11) readonly buffer RigidBodyIsKinematic    { uint v[]
 layout(set = 0, binding = 12) readonly buffer SubstepStartPosition    { vec4 v[]; } substep_start_position;
 layout(set = 0, binding = 13) readonly buffer SubstepStartOrientation { vec4 v[]; } substep_start_orientation;
 
-// ---- Jacobi accumulators (int for atomic float-add) ----
-layout(set = 0, binding = 14) buffer LinearPositionDeltaI  { int v[]; } lin_delta;
-layout(set = 0, binding = 15) buffer AngularPositionDeltaI { int v[]; } ang_delta;
-layout(set = 0, binding = 16) buffer PositionDeltaCount    { int v[]; } delta_count;
+// ---- Jacobi accumulators (float with GL_EXT_shader_atomic_float) ----
+layout(set = 0, binding = 14) buffer LinearPositionDelta  { float v[]; } lin_delta;
+layout(set = 0, binding = 15) buffer AngularPositionDelta { float v[]; } ang_delta;
+layout(set = 0, binding = 16) buffer PositionDeltaCount    { float v[]; } delta_count;
 
 // ---- Lagrange multipliers ----
-layout(set = 0, binding = 17) buffer ContactLagrange { int v[]; } lagrange;
+layout(set = 0, binding = 17) buffer ContactLagrange { float v[]; } lagrange;
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
@@ -110,31 +110,31 @@ void main() {
 
     if (!kinematic_a && inv_mass_a > 0.0) {
         vec3 lin_d = -inv_mass_a * impulse;
-        ATOMIC_ADD_FLOAT(lin_delta.v[body_a * 3u + 0u], lin_d.x);
-        ATOMIC_ADD_FLOAT(lin_delta.v[body_a * 3u + 1u], lin_d.y);
-        ATOMIC_ADD_FLOAT(lin_delta.v[body_a * 3u + 2u], lin_d.z);
+        atomicAdd(lin_delta.v[body_a * 3u + 0u], lin_d.x);
+        atomicAdd(lin_delta.v[body_a * 3u + 1u], lin_d.y);
+        atomicAdd(lin_delta.v[body_a * 3u + 2u], lin_d.z);
 
         vec3 ang_d = -apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, cross(r_a, impulse));
-        ATOMIC_ADD_FLOAT(ang_delta.v[body_a * 3u + 0u], ang_d.x);
-        ATOMIC_ADD_FLOAT(ang_delta.v[body_a * 3u + 1u], ang_d.y);
-        ATOMIC_ADD_FLOAT(ang_delta.v[body_a * 3u + 2u], ang_d.z);
+        atomicAdd(ang_delta.v[body_a * 3u + 0u], ang_d.x);
+        atomicAdd(ang_delta.v[body_a * 3u + 1u], ang_d.y);
+        atomicAdd(ang_delta.v[body_a * 3u + 2u], ang_d.z);
 
-        ATOMIC_ADD_FLOAT(delta_count.v[body_a], 1.0);
+        atomicAdd(delta_count.v[body_a], 1.0);
     }
 
     if (!kinematic_b && inv_mass_b > 0.0) {
         vec3 lin_d = inv_mass_b * impulse;
-        ATOMIC_ADD_FLOAT(lin_delta.v[body_b * 3u + 0u], lin_d.x);
-        ATOMIC_ADD_FLOAT(lin_delta.v[body_b * 3u + 1u], lin_d.y);
-        ATOMIC_ADD_FLOAT(lin_delta.v[body_b * 3u + 2u], lin_d.z);
+        atomicAdd(lin_delta.v[body_b * 3u + 0u], lin_d.x);
+        atomicAdd(lin_delta.v[body_b * 3u + 1u], lin_d.y);
+        atomicAdd(lin_delta.v[body_b * 3u + 2u], lin_d.z);
 
         vec3 ang_d = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, cross(r_b, impulse));
-        ATOMIC_ADD_FLOAT(ang_delta.v[body_b * 3u + 0u], ang_d.x);
-        ATOMIC_ADD_FLOAT(ang_delta.v[body_b * 3u + 1u], ang_d.y);
-        ATOMIC_ADD_FLOAT(ang_delta.v[body_b * 3u + 2u], ang_d.z);
+        atomicAdd(ang_delta.v[body_b * 3u + 0u], ang_d.x);
+        atomicAdd(ang_delta.v[body_b * 3u + 1u], ang_d.y);
+        atomicAdd(ang_delta.v[body_b * 3u + 2u], ang_d.z);
 
-        ATOMIC_ADD_FLOAT(delta_count.v[body_b], 1.0);
+        atomicAdd(delta_count.v[body_b], 1.0);
     }
 
-    ATOMIC_ADD_FLOAT(lagrange.v[cidx], dlambda);
+    atomicAdd(lagrange.v[cidx], dlambda);
 }

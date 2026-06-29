@@ -15,9 +15,9 @@ layout(set = 0, binding = 1) buffer      RigidBodyCenterPosition  { vec4 v[]; } 
 layout(set = 0, binding = 2) buffer      RigidBodyCenterRotation  { vec4 v[]; } rigid_body_center_rotation;
 layout(set = 0, binding = 3) readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
 
-layout(set = 0, binding = 4) buffer LinearPositionDeltaI  { int v[]; } linear_delta_i;
-layout(set = 0, binding = 5) buffer AngularPositionDeltaI { int v[]; } angular_delta_i;
-layout(set = 0, binding = 6) buffer PositionDeltaCount    { int v[]; } delta_count;
+layout(set = 0, binding = 4) buffer LinearPositionDelta  { float v[]; } linear_delta_i;
+layout(set = 0, binding = 5) buffer AngularPositionDelta { float v[]; } angular_delta_i;
+layout(set = 0, binding = 6) buffer PositionDeltaCount    { float v[]; } delta_count;
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
@@ -25,19 +25,19 @@ void main() {
     if (rigid_body_alive.v[idx] == 0u) return;
     if (rigid_body_is_kinematic.v[idx] != 0u) return;
 
-    float count = intBitsToFloat(delta_count.v[idx]);
+    float count = delta_count.v[idx];
     if (count <= 0.0) return;
     float inv_count = 1.0 / count;
 
     vec3 linear_delta;
-    linear_delta.x = intBitsToFloat(linear_delta_i.v[idx * 3u + 0u]) * inv_count;
-    linear_delta.y = intBitsToFloat(linear_delta_i.v[idx * 3u + 1u]) * inv_count;
-    linear_delta.z = intBitsToFloat(linear_delta_i.v[idx * 3u + 2u]) * inv_count;
+    linear_delta.x = linear_delta_i.v[idx * 3u + 0u] * inv_count;
+    linear_delta.y = linear_delta_i.v[idx * 3u + 1u] * inv_count;
+    linear_delta.z = linear_delta_i.v[idx * 3u + 2u] * inv_count;
 
     vec3 angular_delta;
-    angular_delta.x = intBitsToFloat(angular_delta_i.v[idx * 3u + 0u]) * inv_count;
-    angular_delta.y = intBitsToFloat(angular_delta_i.v[idx * 3u + 1u]) * inv_count;
-    angular_delta.z = intBitsToFloat(angular_delta_i.v[idx * 3u + 2u]) * inv_count;
+    angular_delta.x = angular_delta_i.v[idx * 3u + 0u] * inv_count;
+    angular_delta.y = angular_delta_i.v[idx * 3u + 1u] * inv_count;
+    angular_delta.z = angular_delta_i.v[idx * 3u + 2u] * inv_count;
 
     // Apply linear delta.
     rigid_body_center_position.v[idx].xyz += linear_delta;
@@ -53,11 +53,11 @@ void main() {
     }
 
     // Reset accumulators to zero.
-    linear_delta_i.v[idx * 3u + 0u] = 0;
-    linear_delta_i.v[idx * 3u + 1u] = 0;
-    linear_delta_i.v[idx * 3u + 2u] = 0;
-    angular_delta_i.v[idx * 3u + 0u] = 0;
-    angular_delta_i.v[idx * 3u + 1u] = 0;
-    angular_delta_i.v[idx * 3u + 2u] = 0;
-    delta_count.v[idx] = 0;
+    linear_delta_i.v[idx * 3u + 0u] = 0.0;
+    linear_delta_i.v[idx * 3u + 1u] = 0.0;
+    linear_delta_i.v[idx * 3u + 2u] = 0.0;
+    angular_delta_i.v[idx * 3u + 0u] = 0.0;
+    angular_delta_i.v[idx * 3u + 1u] = 0.0;
+    angular_delta_i.v[idx * 3u + 2u] = 0.0;
+    delta_count.v[idx] = 0.0;
 }

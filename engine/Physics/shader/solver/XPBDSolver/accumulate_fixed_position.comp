@@ -1,5 +1,6 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_atomic_float : enable
 
 // accumulate_fixed_position.comp — Per-fixed XPBD position constraint
 // accumulate phase (Jacobi parallelization).
@@ -11,7 +12,6 @@
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #include "common/xpbd_math.glsl"
-#include "common/xpbd_atomic.glsl"
 #include "common/xpbd_joint_math.glsl"
 
 // ---- Joint definition buffer (PhysicsScene-owned, read-only) ----
@@ -43,9 +43,9 @@ layout(set = 0, binding = 9)  readonly buffer RigidBodyIsKinematic    { uint v[]
 layout(set = 0, binding = 10) readonly buffer XpbdUniforms { vec4 v; } uniforms;  // xyz = gravity, w = substep_dt
 
 // ---- Jacobi accumulators (shared with contact and hinge solvers) ----
-layout(set = 0, binding = 11) buffer LinearPositionDeltaI  { int v[]; } lin_delta;
-layout(set = 0, binding = 12) buffer AngularPositionDeltaI { int v[]; } ang_delta;
-layout(set = 0, binding = 13) buffer PositionDeltaCount    { int v[]; } delta_count;
+layout(set = 0, binding = 11) buffer LinearPositionDelta  { float v[]; } lin_delta;
+layout(set = 0, binding = 12) buffer AngularPositionDelta { float v[]; } ang_delta;
+layout(set = 0, binding = 13) buffer PositionDeltaCount    { float v[]; } delta_count;
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
@@ -107,17 +107,17 @@ void main() {
 
             if (!scripted_obj1) {
                 vec3 ang_d = obj1_world_inv_i_n * dlambda;
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj1_idx * 3u + 0u], ang_d.x);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj1_idx * 3u + 1u], ang_d.y);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj1_idx * 3u + 2u], ang_d.z);
-                ATOMIC_ADD_FLOAT(delta_count.v[obj1_idx], 1.0);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 0u], ang_d.x);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 1u], ang_d.y);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 2u], ang_d.z);
+                atomicAdd(delta_count.v[obj1_idx], 1.0);
             }
             if (!scripted_obj2) {
                 vec3 ang_d = -(obj2_world_inv_i_n * dlambda);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj2_idx * 3u + 0u], ang_d.x);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj2_idx * 3u + 1u], ang_d.y);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj2_idx * 3u + 2u], ang_d.z);
-                ATOMIC_ADD_FLOAT(delta_count.v[obj2_idx], 1.0);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 0u], ang_d.x);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 1u], ang_d.y);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 2u], ang_d.z);
+                atomicAdd(delta_count.v[obj2_idx], 1.0);
             }
 
             rotation_lagrange.v[cidx] += dlambda;
@@ -157,30 +157,30 @@ void main() {
 
             if (!scripted_obj1) {
                 vec3 lin_d = inv_mass_obj1 * impulse;
-                ATOMIC_ADD_FLOAT(lin_delta.v[obj1_idx * 3u + 0u], lin_d.x);
-                ATOMIC_ADD_FLOAT(lin_delta.v[obj1_idx * 3u + 1u], lin_d.y);
-                ATOMIC_ADD_FLOAT(lin_delta.v[obj1_idx * 3u + 2u], lin_d.z);
+                atomicAdd(lin_delta.v[obj1_idx * 3u + 0u], lin_d.x);
+                atomicAdd(lin_delta.v[obj1_idx * 3u + 1u], lin_d.y);
+                atomicAdd(lin_delta.v[obj1_idx * 3u + 2u], lin_d.z);
 
                 vec3 ang_d = apply_world_inv_inertia(inv_inertia1, ori1, cross(r1, impulse));
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj1_idx * 3u + 0u], ang_d.x);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj1_idx * 3u + 1u], ang_d.y);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj1_idx * 3u + 2u], ang_d.z);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 0u], ang_d.x);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 1u], ang_d.y);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 2u], ang_d.z);
 
-                ATOMIC_ADD_FLOAT(delta_count.v[obj1_idx], 1.0);
+                atomicAdd(delta_count.v[obj1_idx], 1.0);
             }
 
             if (!scripted_obj2) {
                 vec3 lin_d = -inv_mass_obj2 * impulse;
-                ATOMIC_ADD_FLOAT(lin_delta.v[obj2_idx * 3u + 0u], lin_d.x);
-                ATOMIC_ADD_FLOAT(lin_delta.v[obj2_idx * 3u + 1u], lin_d.y);
-                ATOMIC_ADD_FLOAT(lin_delta.v[obj2_idx * 3u + 2u], lin_d.z);
+                atomicAdd(lin_delta.v[obj2_idx * 3u + 0u], lin_d.x);
+                atomicAdd(lin_delta.v[obj2_idx * 3u + 1u], lin_d.y);
+                atomicAdd(lin_delta.v[obj2_idx * 3u + 2u], lin_d.z);
 
                 vec3 ang_d = -apply_world_inv_inertia(inv_inertia2, ori2, cross(r2, impulse));
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj2_idx * 3u + 0u], ang_d.x);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj2_idx * 3u + 1u], ang_d.y);
-                ATOMIC_ADD_FLOAT(ang_delta.v[obj2_idx * 3u + 2u], ang_d.z);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 0u], ang_d.x);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 1u], ang_d.y);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 2u], ang_d.z);
 
-                ATOMIC_ADD_FLOAT(delta_count.v[obj2_idx], 1.0);
+                atomicAdd(delta_count.v[obj2_idx], 1.0);
             }
 
             position_lagrange.v[cidx] += dlambda;
