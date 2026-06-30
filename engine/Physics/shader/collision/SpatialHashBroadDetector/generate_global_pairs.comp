@@ -25,6 +25,15 @@ layout(set = 0, binding = 7)  readonly buffer ShapeFilterOffset { uint v[]; } fi
 layout(set = 0, binding = 8)  readonly buffer ShapeFilterCount  { uint v[]; } filter_count;
 layout(set = 0, binding = 9)  readonly buffer ShapeFilterData   { uint v[]; } filter_data;
 
+// AABB buffers (produced by compute_aabbs.comp).
+layout(set = 0, binding = 10) readonly buffer AabbMin { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 11) readonly buffer AabbMax { vec4 v[]; } aabb_max;
+
+bool aabb_overlap(uint a, uint b) {
+    return all(greaterThanEqual(aabb_max.v[a].xyz, aabb_min.v[b].xyz))
+        && all(greaterThanEqual(aabb_max.v[b].xyz, aabb_min.v[a].xyz));
+}
+
 // Binary search: return true if `target` is in filter_data[lo .. lo+cnt-1].
 bool is_filtered(uint shape_a, uint shape_b) {
     uint lo = filter_offset.v[shape_a];
@@ -59,6 +68,8 @@ void main() {
 
     // Deduplicate global×global pairs: only the smaller global index emits.
     if (global_flags.v[s] != 0u && g > s) return;
+
+    if (!aabb_overlap(g, s)) return;
 
     // Ensure canonical pair order.
     uint a = min(g, s);

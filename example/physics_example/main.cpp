@@ -193,7 +193,7 @@ int main(int /*argc*/, char ** /*argv*/) {
         .material = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"}),
     });
 
-    // AddTemplateScene(builder, adb, glm::vec3(0.0f, 0.0f, 0.0f));
+    // AddTemplateScene(builder, adb, glm::vec3(-10.0f, -10.0f, 0.0f));
     int n = 3;
     float margin = 8.0f;
     for (int i = 0; i < n; ++i)
@@ -291,8 +291,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     xpbd_config.max_contact_points = 50000u;
     xpbd_config.contact_margin = 0.001f;
     xpbd_config.grid_cell_size = 1.0f;
-    xpbd_config.grid_world_min = glm::vec3(-100.0f, -5.0f, -100.0f);
-    xpbd_config.grid_world_max = glm::vec3(100.0f, 20.0f, 100.0f);
+    xpbd_config.grid_world_min = glm::vec3(-100.0f, -100.0f, -5.0f);
+    xpbd_config.grid_world_max = glm::vec3(100.0f, 100.0f, 20.0f);
     xpbd_config.max_cells_per_shape = 8;
     xpbd_config.max_global_shape_count = 128;
     xpbd_config.fallback_all_pairs_threshold = 8;
