@@ -28,9 +28,9 @@ layout(set = 0, binding = 9)  readonly buffer RigidBodyMass           { float v[
 layout(set = 0, binding = 10) readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
 layout(set = 0, binding = 11) readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
 
-// ---- Substep-start snapshots ----
-layout(set = 0, binding = 12) readonly buffer SubstepStartPosition    { vec4 v[]; } substep_start_position;
-layout(set = 0, binding = 13) readonly buffer SubstepStartOrientation { vec4 v[]; } substep_start_orientation;
+// ---- Shape local transforms ----
+layout(set = 0, binding = 12) readonly buffer ShapeLocalPosition    { vec4 v[]; } shape_local_position;
+layout(set = 0, binding = 13) readonly buffer ShapeLocalRotation    { vec4 v[]; } shape_local_rotation;
 
 // ---- Jacobi accumulators (float with GL_EXT_shader_atomic_float) ----
 layout(set = 0, binding = 14) buffer LinearPositionDelta  { float v[]; } lin_delta;
@@ -68,28 +68,29 @@ void main() {
     if (nlen < 1e-8) return;
     n /= nlen;
 
-    vec3 world_pt_a = contact_point_a.v[cidx].xyz;
-    vec3 world_pt_b = contact_point_b.v[cidx].xyz;
+    // Shape-local contact points from collision detection.
+    vec3 local_pt_a = contact_point_a.v[cidx].xyz;
+    vec3 local_pt_b = contact_point_b.v[cidx].xyz;
 
-    // Local contact points from substep-start pose.
-    vec3 pos_a_start = substep_start_position.v[body_a].xyz;
-    vec3 pos_b_start = substep_start_position.v[body_b].xyz;
-    vec4 ori_a_start = substep_start_orientation.v[body_a];
-    vec4 ori_b_start = substep_start_orientation.v[body_b];
-
-    vec3 r_a_local = quat_inv_rotate(ori_a_start, world_pt_a - pos_a_start);
-    vec3 r_b_local = quat_inv_rotate(ori_b_start, world_pt_b - pos_b_start);
-
-    // Current world contact points.
+    // Current body poses.
     vec3 pos_a = rigid_body_center_position.v[body_a].xyz;
     vec3 pos_b = rigid_body_center_position.v[body_b].xyz;
     vec4 ori_a = rigid_body_center_rotation.v[body_a];
     vec4 ori_b = rigid_body_center_rotation.v[body_b];
 
-    vec3 r_a = quat_rotate(ori_a, r_a_local);
-    vec3 r_b = quat_rotate(ori_b, r_b_local);
-    vec3 contact_a = pos_a + r_a;
-    vec3 contact_b = pos_b + r_b;
+    // Shape local offsets.
+    vec3 shape_local_pos_a = shape_local_position.v[shape_a].xyz;
+    vec3 shape_local_pos_b = shape_local_position.v[shape_b].xyz;
+    vec4 shape_local_rot_a = shape_local_rotation.v[shape_a];
+    vec4 shape_local_rot_b = shape_local_rotation.v[shape_b];
+
+    // Compute world-space contact points from shape-local coords + current body pose.
+    vec3 local_in_body_a = quat_rotate(shape_local_rot_a, local_pt_a) + shape_local_pos_a;
+    vec3 local_in_body_b = quat_rotate(shape_local_rot_b, local_pt_b) + shape_local_pos_b;
+    vec3 contact_a = pos_a + quat_rotate(ori_a, local_in_body_a);
+    vec3 contact_b = pos_b + quat_rotate(ori_b, local_in_body_b);
+    vec3 r_a = contact_a - pos_a;
+    vec3 r_b = contact_b - pos_b;
 
     float C = dot(contact_a - contact_b, n);
     if (C <= 0.0) return;

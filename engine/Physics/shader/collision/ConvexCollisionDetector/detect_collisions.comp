@@ -55,11 +55,11 @@ layout(set = 0, binding = 7) writeonly buffer CollisionNormals {
 } collision_normals;
 
 layout(set = 0, binding = 8) writeonly buffer ContactPointA {
-    vec4 v[]; // xyz = contact point on A (world), w = 0
+    vec4 v[]; // xyz = contact point on A (shape-local), w = 0
 } contact_point_a;
 
 layout(set = 0, binding = 9) writeonly buffer ContactPointB {
-    vec4 v[]; // xyz = contact point on B (world), w = 0
+    vec4 v[]; // xyz = contact point on B (shape-local), w = 0
 } contact_point_b;
 
 layout(set = 0, binding = 10) buffer CollisionCount {
@@ -155,6 +155,7 @@ void main() {
     }
 
     // Write each manifold point as a separate result entry.
+    // Convert world-space contact points to shape-local space.
     uint write_idx_start = atomicAdd(collision_count.v[0], num_points);
     for (uint pi = 0u; pi < num_points; pi++) {
         uint write_idx = write_idx_start + pi;
@@ -164,9 +165,13 @@ void main() {
             break;
         }
 
+        // Convert world-space contact points to shape-local coordinates.
+        vec3 local_pt_a = quat_inv_rotate(shape_world_rotation.v[shape_a], pts_a[pi] - shape_world_position.v[shape_a].xyz);
+        vec3 local_pt_b = quat_inv_rotate(shape_world_rotation.v[shape_b], pts_b[pi] - shape_world_position.v[shape_b].xyz);
+
         collision_ids.v[write_idx]     = uvec2(shape_a, shape_b);
         collision_normals.v[write_idx] = vec4(base_result.contact_normal, depths[pi]);
-        contact_point_a.v[write_idx]   = vec4(pts_a[pi], 0.0);
-        contact_point_b.v[write_idx]   = vec4(pts_b[pi], 0.0);
+        contact_point_a.v[write_idx]   = vec4(local_pt_a, 0.0);
+        contact_point_b.v[write_idx]   = vec4(local_pt_b, 0.0);
     }
 }

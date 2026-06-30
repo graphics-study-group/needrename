@@ -501,20 +501,6 @@ namespace Engine {
             ssp_ori_h,
             "XPBD Snap SubstepStartOri"
         );
-        AddSnap(
-            *gpu.rigid_body_linear_velocity,
-            *m_impl->gpu_pre_contact_linear_vel,
-            linvel_h,
-            precont_lv_h,
-            "XPBD Snap PreContactLinVel"
-        );
-        AddSnap(
-            *gpu.rigid_body_angular_velocity,
-            *m_impl->gpu_pre_contact_angular_vel,
-            angvel_h,
-            precont_av_h,
-            "XPBD Snap PreContactAngVel"
-        );
 
         // Integrate forces.
         {
@@ -557,6 +543,22 @@ namespace Engine {
                     .Get()
             );
         }
+
+        // Pre-contact velocity snapshots (after force integration, for restitution reference).
+        AddSnap(
+            *gpu.rigid_body_linear_velocity,
+            *m_impl->gpu_pre_contact_linear_vel,
+            linvel_h,
+            precont_lv_h,
+            "XPBD Snap PreContactLinVel"
+        );
+        AddSnap(
+            *gpu.rigid_body_angular_velocity,
+            *m_impl->gpu_pre_contact_angular_vel,
+            angvel_h,
+            precont_av_h,
+            "XPBD Snap PreContactAngVel"
+        );
 
         // Update shape world poses.
         if (shape_count > 1u && gpu.shape_world_position != nullptr) {
@@ -712,6 +714,8 @@ namespace Engine {
         auto lagrange_h = builder.ImportExternalResource(*m_impl->gpu_contact_lagrange, Impl::RW);
         auto ssp_pos_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_position, Impl::RR);
         auto ssp_ori_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_orientation, Impl::RR);
+        auto shape_local_pos_h = builder.ImportExternalResource(*gpu.shape_local_position, Impl::RR);
+        auto shape_local_rot_h = builder.ImportExternalResource(*gpu.shape_local_rotation, Impl::RR);
         auto uniforms_h = builder.ImportExternalResource(*m_impl->gpu_uniforms, Impl::RR);
 
         // Narrow-phase collision results
@@ -737,8 +741,8 @@ namespace Engine {
             srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
             srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
             srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-            srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
-            srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
+            srb.BindBuffer("ShapeLocalPosition", *gpu.shape_local_position);
+            srb.BindBuffer("ShapeLocalRotation", *gpu.shape_local_rotation);
             srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
             srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
             srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
@@ -760,8 +764,8 @@ namespace Engine {
                     .UseBuffer(kinematic_h, Impl::RR)
                     .UseBuffer(mass_h, Impl::RR)
                     .UseBuffer(inv_inertia_h, Impl::RR)
-                    .UseBuffer(ssp_pos_h, Impl::RR)
-                    .UseBuffer(ssp_ori_h, Impl::RR)
+                    .UseBuffer(shape_local_pos_h, Impl::RR)
+                    .UseBuffer(shape_local_rot_h, Impl::RR)
                     .UseBuffer(lindelta_h, Impl::RW)
                     .UseBuffer(angdelta_h, Impl::RW)
                     .UseBuffer(cntdelta_h, Impl::RW)
@@ -992,6 +996,8 @@ namespace Engine {
         auto precont_av_h = builder.ImportExternalResource(*m_impl->gpu_pre_contact_angular_vel, Impl::RR);
         auto ssp_pos_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_position, Impl::RR);
         auto ssp_ori_h = builder.ImportExternalResource(*m_impl->gpu_substep_start_orientation, Impl::RR);
+        auto shape_local_pos_h2 = builder.ImportExternalResource(*gpu.shape_local_position, Impl::RR);
+        auto shape_local_rot_h2 = builder.ImportExternalResource(*gpu.shape_local_rotation, Impl::RR);
         auto linveldelta_h = builder.ImportExternalResource(*m_impl->gpu_linear_velocity_delta, Impl::RW);
         auto angveldelta_h = builder.ImportExternalResource(*m_impl->gpu_angular_velocity_delta, Impl::RW);
         auto velcntdelta_h = builder.ImportExternalResource(*m_impl->gpu_velocity_delta_count, Impl::RW);
@@ -1026,8 +1032,8 @@ namespace Engine {
             srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
             srb.BindBuffer("PreContactLinearVelocity", *m_impl->gpu_pre_contact_linear_vel);
             srb.BindBuffer("PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel);
-            srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
-            srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
+            srb.BindBuffer("ShapeLocalPosition", *gpu.shape_local_position);
+            srb.BindBuffer("ShapeLocalRotation", *gpu.shape_local_rotation);
             srb.BindBuffer("LinearVelocityDelta", *m_impl->gpu_linear_velocity_delta);
             srb.BindBuffer("AngularVelocityDelta", *m_impl->gpu_angular_velocity_delta);
             srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
@@ -1055,8 +1061,8 @@ namespace Engine {
                     .UseBuffer(restitution_h, Impl::RR)
                     .UseBuffer(precont_lv_h, Impl::RR)
                     .UseBuffer(precont_av_h, Impl::RR)
-                    .UseBuffer(ssp_pos_h, Impl::RR)
-                    .UseBuffer(ssp_ori_h, Impl::RR)
+                    .UseBuffer(shape_local_pos_h2, Impl::RR)
+                    .UseBuffer(shape_local_rot_h2, Impl::RR)
                     .UseBuffer(linveldelta_h, Impl::RW)
                     .UseBuffer(angveldelta_h, Impl::RW)
                     .UseBuffer(velcntdelta_h, Impl::RW)

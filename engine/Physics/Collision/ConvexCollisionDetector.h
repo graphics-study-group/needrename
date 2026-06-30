@@ -44,8 +44,8 @@ namespace Engine {
      * Collision results are stored in separate SoA GPU buffers:
      *   - collision_ids:       uvec2 (shape_a, shape_b)
      *   - collision_normals:   vec4  (xyz = normal, w = penetration depth)
-     *   - contact_point_a:     vec4  (contact point on A, world space)
-     *   - contact_point_b:     vec4  (contact point on B, world space)
+     *   - contact_point_a:     vec4  (contact point on A, shape-local space)
+     *   - contact_point_b:     vec4  (contact point on B, shape-local space)
      *   - collision_count:     uint  (total contact points, each atomicAdd'd)
      *
      * Each collision pair may produce up to 5 contact entries (4 perturbation
