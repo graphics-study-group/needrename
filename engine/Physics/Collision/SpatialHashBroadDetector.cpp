@@ -493,6 +493,8 @@ namespace Engine {
                 srb.BindBuffer("ShapeFilterOffset", *gpu.shape_filter_offset);
                 srb.BindBuffer("ShapeFilterCount", *gpu.shape_filter_count);
                 srb.BindBuffer("ShapeFilterData", *gpu.shape_filter_data);
+                srb.BindBuffer("AabbMin", *gpu_aabb_min);
+                srb.BindBuffer("AabbMax", *gpu_aabb_max);
 
                 uint32_t total_pairs = (shape_count * (shape_count - 1u)) / 2u;
                 uint32_t wg = (total_pairs + 63u) / 64u;
@@ -517,6 +519,8 @@ namespace Engine {
                         .UseBuffer(filt_off_h, RR)
                         .UseBuffer(filt_cnt_h, RR)
                         .UseBuffer(filt_dat_h, RR)
+                        .UseBuffer(aabb_min_h, RR)
+                        .UseBuffer(aabb_max_h, RR)
                         .SetPassFunction(
                             [stage, binding, wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
                                 if (!scene_ptr->IsSimulationEnabled()) return;
@@ -791,6 +795,8 @@ namespace Engine {
                 srb.BindBuffer("ShapeFilterOffset", *gpu.shape_filter_offset);
                 srb.BindBuffer("ShapeFilterCount", *gpu.shape_filter_count);
                 srb.BindBuffer("ShapeFilterData", *gpu.shape_filter_data);
+                srb.BindBuffer("AabbMin", *gpu_aabb_min);
+                srb.BindBuffer("AabbMax", *gpu_aabb_max);
 
                 auto *stage = generate_pairs_stage.get();
                 auto *binding = generate_pairs_binding;
@@ -812,6 +818,8 @@ namespace Engine {
                         .UseBuffer(filt_off_h, RR)
                         .UseBuffer(filt_cnt_h, RR)
                         .UseBuffer(filt_dat_h, RR)
+                        .UseBuffer(aabb_min_h, RR)
+                        .UseBuffer(aabb_max_h, RR)
                         .SetPassFunction(
                             [stage, binding, wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
                                 if (!scene_ptr->IsSimulationEnabled()) return;
@@ -837,6 +845,8 @@ namespace Engine {
                 srb.BindBuffer("ShapeFilterOffset", *gpu.shape_filter_offset);
                 srb.BindBuffer("ShapeFilterCount", *gpu.shape_filter_count);
                 srb.BindBuffer("ShapeFilterData", *gpu.shape_filter_data);
+                srb.BindBuffer("AabbMin", *gpu_aabb_min);
+                srb.BindBuffer("AabbMax", *gpu_aabb_max);
 
                 auto *stage = global_pairs_stage.get();
                 auto *binding = global_pairs_binding;
@@ -857,6 +867,8 @@ namespace Engine {
                         .UseBuffer(filt_off_h, RR)
                         .UseBuffer(filt_cnt_h, RR)
                         .UseBuffer(filt_dat_h, RR)
+                        .UseBuffer(aabb_min_h, RR)
+                        .UseBuffer(aabb_max_h, RR)
                         .SetPassFunction(
                             [stage, binding, n_wg, g_wg, scene_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
                                 if (!scene_ptr->IsSimulationEnabled()) return;

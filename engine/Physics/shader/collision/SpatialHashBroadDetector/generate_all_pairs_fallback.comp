@@ -19,6 +19,15 @@ layout(set = 0, binding = 4) readonly buffer ShapeFilterOffset { uint v[]; } fil
 layout(set = 0, binding = 5) readonly buffer ShapeFilterCount  { uint v[]; } filter_count;
 layout(set = 0, binding = 6) readonly buffer ShapeFilterData   { uint v[]; } filter_data;
 
+// AABB buffers (produced by compute_aabbs.comp).
+layout(set = 0, binding = 7) readonly buffer AabbMin { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 8) readonly buffer AabbMax { vec4 v[]; } aabb_max;
+
+bool aabb_overlap(uint a, uint b) {
+    return all(greaterThanEqual(aabb_max.v[a].xyz, aabb_min.v[b].xyz))
+        && all(greaterThanEqual(aabb_max.v[b].xyz, aabb_min.v[a].xyz));
+}
+
 bool is_filtered(uint shape_a, uint shape_b) {
     uint lo = filter_offset.v[shape_a];
     uint hi = lo + filter_count.v[shape_a];
@@ -51,6 +60,8 @@ void main() {
     uint j = i + 1u + remaining;
 
     if (shape_alive.v[i] == 0u || shape_alive.v[j] == 0u) return;
+
+    if (!aabb_overlap(i, j)) return;
 
     if (is_filtered(i, j)) return;
 
