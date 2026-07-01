@@ -109,7 +109,7 @@ void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb,glm::vec3 g
     });
 
     // rigid bricks
-    int n = 6;
+    int n = 5;
     glm::vec3 brick_size(0.3f, 0.6f, 0.3f);
     glm::vec3 offset(5.0f, 0.7f, 0.0f);
     offset += global_offset;
@@ -194,7 +194,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
 
     // AddTemplateScene(builder, adb, glm::vec3(-10.0f, -10.0f, 0.0f));
-    int n = 6;
+    int n = 7;
     float margin = 8.0f;
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j)
@@ -269,7 +269,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     physics_scene->DebugPrint();
 
     // Disable simulation from the start.
-    physics_scene->SetSimulationEnabled(false);
+    physics_scene->SetSimulationEnabled(true);
 
     // Awake mesh components → registers renderers.
     scene.AddInitEvent();
@@ -285,9 +285,9 @@ int main(int /*argc*/, char ** /*argv*/) {
     XpbdConfig xpbd_config{};
     xpbd_config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
     xpbd_config.time_step = 1.0f / 60.0f;
-    xpbd_config.num_substep_perstep = 2;
-    xpbd_config.num_iter_persubstep = 50;
-    xpbd_config.num_velocity_iters = 10;
+    xpbd_config.num_substep_perstep = 1;
+    xpbd_config.num_iter_persubstep = 40;
+    xpbd_config.num_velocity_iters = 40;
     xpbd_config.max_contact_points = 50000u;
     xpbd_config.contact_margin = 0.001f;
     xpbd_config.grid_cell_size = 2.0f;

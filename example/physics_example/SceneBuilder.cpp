@@ -285,7 +285,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         auto &constraint = sphere.AddComponent<PhysicsConstraintComponent>();
         HingeJointDef hinge{};
         hinge.m_obj2_handle = box1.GetHandle();
-        hinge.m_compliance = 0.0f;
+        hinge.m_compliance = 0.0001f;
         hinge.m_obj1_local_aligned_axis = kAlignedAxis;
         hinge.m_obj2_local_aligned_axis = kAlignedAxis;
         // attach at sphere bottom → box1 top
@@ -299,7 +299,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         auto &constraint = box1.AddComponent<PhysicsConstraintComponent>();
         HingeJointDef hinge{};
         hinge.m_obj2_handle = box2.GetHandle();
-        hinge.m_compliance = 0.0f;
+        hinge.m_compliance = 0.0001f;
         hinge.m_obj1_local_aligned_axis = kAlignedAxis;
         hinge.m_obj2_local_aligned_axis = kAlignedAxis;
         // attach at box1 bottom → box2 top
