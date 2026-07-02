@@ -10,10 +10,11 @@ namespace Engine::RenderSystemState {
     struct DeviceInterface::impl {
 
         static constexpr const char *VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
-        static constexpr std::array<const char *, 3> DEVICE_EXTENSION_NAMES{
+        static constexpr std::array<const char *, 4> DEVICE_EXTENSION_NAMES{
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
+            VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME
         };
 
         vk::UniqueInstance instance{};
@@ -278,9 +279,10 @@ namespace Engine::RenderSystemState {
             }
 
             // Check features
-            auto device_features = pd.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features>();
+            auto device_features = pd.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
             auto features13 = device_features.get<vk::PhysicalDeviceVulkan13Features>();
-            if (!(features13.dynamicRendering && features13.synchronization2)) {
+            auto atomicFloatFeatures = device_features.get<vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
+            if (!(features13.dynamicRendering && features13.synchronization2 && atomicFloatFeatures.shaderBufferFloat32AtomicAdd)) {
                 SDL_LogInfo(
                     SDL_LOG_CATEGORY_RENDER, "This physical device does not support needed Vulkan 1.3 features."
                 );
@@ -399,7 +401,11 @@ namespace Engine::RenderSystemState {
             vk::PhysicalDeviceVulkan12Features features12{};
             features12.timelineSemaphore = true;
 
+            vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT atomicFloatFeatures{};
+            atomicFloatFeatures.shaderBufferFloat32AtomicAdd = VK_TRUE;
+
             features13.pNext = &features12;
+            features12.pNext = &atomicFloatFeatures;
             pdf.pNext = &features13;
             dci.pNext = &pdf;
 

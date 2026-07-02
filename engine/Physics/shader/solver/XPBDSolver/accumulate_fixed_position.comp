@@ -82,15 +82,11 @@ void main() {
     // =====================================================================
     // Constraint 1: Rotation constraint
     // Drive relative rotation toward initial snapshot.
-    // q_rel_current = q1⁻¹ * q2
-    // q_error = q_rel_current * q_initial⁻¹
-    // C_rot = |2 * sign(q_error.w) * q_error.xyz|
     // =====================================================================
     vec4 q1_inv = quat_inverse(ori1);
-    vec4 q_rel_current = quat_mul(q1_inv, ori2);
-    vec4 q_initial = constraint.initial_rel_rotation;
-    vec4 q_initial_inv = quat_inverse(q_initial);
-    vec4 q_error = quat_mul(q_rel_current, q_initial_inv);
+    vec4 q_rel_current = quat_mul(ori2, q1_inv);
+    vec4 q_initial_inv = quat_inverse(constraint.initial_rel_rotation);
+    vec4 q_error = quat_mul(quat_mul(ori2, q_initial_inv), q1_inv);
     vec3 angular_correction = quat_to_rotation_vec(q_error);
     float angular_norm = length(angular_correction);
 
