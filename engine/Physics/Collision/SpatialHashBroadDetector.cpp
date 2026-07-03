@@ -249,8 +249,7 @@ namespace Engine {
             EnsureBuffer(gpu_grid_config, sizeof(GridConfigGpu), "BH GridConfig", true);
 
             {
-                uint32_t max_scan_elems = std::max(shape_count, grid_total_cells + 1u);
-                size_t scratch_bytes = ParallelScan::GetRequiredBlockSumsBytes(max_scan_elems);
+                size_t scratch_bytes = ParallelScan::GetRequiredBlockSumsBytes(max_assignment_pairs);
                 EnsureBuffer(gpu_scan_scratch, scratch_bytes, "BH ScanScratch");
             }
         }
@@ -580,9 +579,8 @@ namespace Engine {
 
             // === Prefix sum: shape_cell_count → shape_cell_offset ===
             {
-                uint32_t max_scan_elems = std::max(shape_count, grid_total_cells + 1u);
-                if (!scan || scan->GetMaxElemCount() < max_scan_elems) {
-                    scan = std::make_unique<ParallelScan>(render_system, max_scan_elems);
+                if (!scan || scan->GetMaxElemCount() < max_assignment_pairs) {
+                    scan = std::make_unique<ParallelScan>(render_system, max_assignment_pairs);
                 }
                 scan->AddPasses(
                     builder,
@@ -996,7 +994,7 @@ namespace Engine {
         m_impl->grid_config = grid_config;
         m_impl->fallback_threshold = fallback_all_pairs_threshold;
         m_impl->max_global_shape_count = max_global_shape_count;
-        m_impl->max_assignment_pairs = shape_count * std::max(1u, grid_config.max_cells_per_shape);
+        m_impl->max_assignment_pairs = shape_count * std::max(1u, grid_config.max_cells_per_shape + max_global_shape_count);
 
         // Validate and compute grid dimensions.
         glm::vec3 extent = grid_config.world_max - grid_config.world_min;
