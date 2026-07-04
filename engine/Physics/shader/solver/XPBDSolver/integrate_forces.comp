@@ -63,7 +63,6 @@ void main() {
     uint idx = gl_GlobalInvocationID.x;
     if (idx >= rigid_body_alive.v.length()) return;
     if (rigid_body_alive.v[idx] == 0u) return;
-    if (rigid_body_is_kinematic.v[idx] != 0u) return;
 
     float inv_mass = 1.0 / max(rigid_body_mass.v[idx], 1e-12);
 
@@ -72,6 +71,7 @@ void main() {
 
     // ---- Linear integration ----
     vec3 total_linear_accel = gravity_vec + rigid_body_external_force.v[idx].xyz * inv_mass;
+    if (rigid_body_is_kinematic.v[idx] != 0u) total_linear_accel = vec3(0.0);
 
     rigid_body_linear_velocity.v[idx].xyz += total_linear_accel * dt;
     rigid_body_center_position.v[idx].xyz += rigid_body_linear_velocity.v[idx].xyz * dt;
@@ -85,6 +85,7 @@ void main() {
 
     // External torque in body frame: tb = q^{-1} * tau_ext
     vec3 tb = quat_inv_rotate(orientation, rigid_body_external_torque.v[idx].xyz);
+    if (rigid_body_is_kinematic.v[idx] != 0u) tb = vec3(0.0);
 
     // Coriolis: tb -= cross(wb, I_local * wb)
     vec3 I_wb = multiply_mat4_3x3_vec3(rigid_body_inertia.v[idx], wb);
