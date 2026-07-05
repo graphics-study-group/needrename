@@ -99,7 +99,7 @@ void main() {
         float denom = w1 + w2 + tilde_alpha;
 
         if (denom > kEpsilon) {
-            float dlambda = (angular_norm + rotation_lagrange.v[cidx] * tilde_alpha) / denom;
+            float dlambda = (angular_norm - rotation_lagrange.v[cidx] * tilde_alpha) / denom;
 
             if (!scripted_obj1) {
                 vec3 ang_d = obj1_world_inv_i_n * dlambda;
@@ -148,7 +148,7 @@ void main() {
         float denom = w1 + w2 + tilde_alpha;
 
         if (denom > kEpsilon) {
-            float dlambda = (positional_norm + position_lagrange.v[cidx] * tilde_alpha) / denom;
+            float dlambda = (positional_norm - position_lagrange.v[cidx] * tilde_alpha) / denom;
             vec3 impulse = dlambda * n;
 
             if (!scripted_obj1) {

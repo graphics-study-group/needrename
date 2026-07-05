@@ -285,7 +285,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         auto &constraint = sphere.AddComponent<PhysicsConstraintComponent>();
         HingeJointDef hinge{};
         hinge.m_obj2_handle = box1.GetHandle();
-        hinge.m_compliance = 0.0001f;
+        hinge.m_compliance = 0.0f;
         hinge.m_hinge_axis_obj1 = kHingeAxis;
         hinge.m_hinge_anchor_obj1 = glm::vec3(0.0f, 0.0f, 0.0f);
         constraint.m_joints.push_back(hinge);
@@ -296,7 +296,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         auto &constraint = box1.AddComponent<PhysicsConstraintComponent>();
         HingeJointDef hinge{};
         hinge.m_obj2_handle = box2.GetHandle();
-        hinge.m_compliance = 0.0001f;
+        hinge.m_compliance = 0.0f;
         hinge.m_hinge_axis_obj1 = kHingeAxis;
         hinge.m_hinge_anchor_obj1 = glm::vec3(0.0f, 0.0f, -kBoxHalfZ - 0.5f * kGap);
         constraint.m_joints.push_back(hinge);

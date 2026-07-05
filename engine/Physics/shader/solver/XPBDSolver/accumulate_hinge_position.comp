@@ -1,7 +1,6 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_atomic_float : enable
-#extension GL_EXT_debug_printf : enable
 
 // accumulate_hinge_position.comp — Per-hinge XPBD position constraint
 // accumulate phase (Jacobi parallelization).
@@ -110,7 +109,7 @@ void main() {
         float denom = w1 + w2 + tilde_alpha;
 
         if (denom > kEpsilon) {
-            float dlambda = (angular_norm + hinge_axis_lagrange.v[cidx] * tilde_alpha) / denom;
+            float dlambda = (angular_norm - hinge_axis_lagrange.v[cidx] * tilde_alpha) / denom;
 
             if (!scripted_obj1) {
                 vec3 ang_d = obj1_world_inv_i_n * dlambda;
@@ -153,9 +152,8 @@ void main() {
         float denom = w1 + w2 + tilde_alpha;
 
         if (denom > kEpsilon) {
-            float dlambda = (positional_norm + hinge_anchor_lagrange.v[cidx] * tilde_alpha) / denom;
+            float dlambda = (positional_norm - hinge_anchor_lagrange.v[cidx] * tilde_alpha) / denom;
             vec3 impulse = dlambda * n;
-            debugPrintfEXT("impulse: %f %f %f dlambda: %f\n", impulse.x, impulse.y, impulse.z, dlambda);
 
             if (!scripted_obj1) {
                 vec3 lin_d = inv_mass_obj1 * impulse;

@@ -21,12 +21,14 @@
 #include "UserInterface/Input.h"
 #include "cmake_config.h"
 
+#include <Framework/component/physics/RigidBodyComponent.h>
+
 #include <SDL3/SDL.h>
 #include <cassert>
 
 using namespace Engine;
 
-void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb,glm::vec3 global_offset) {
+void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb, glm::vec3 global_offset) {
     // --- Load preset solid color materials ---
     auto red_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
     auto green_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
@@ -109,8 +111,8 @@ void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb,glm::vec3 g
     });
 
     // rigid bricks
-    int n = 5;
-    glm::vec3 brick_size(0.3f, 0.6f, 0.3f);
+    int n = 6;
+    glm::vec3 brick_size(0.5f, 0.8f, 0.5f);
     glm::vec3 offset(5.0f, 0.7f, 0.0f);
     offset += global_offset;
     for (int i = 0; i < n; ++i) {
@@ -126,6 +128,111 @@ void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb,glm::vec3 g
 
     // Double pendulum demo — hinge + fixed joint test.
     builder.AddDoublePendulum(glm::vec3(6.5f, 0.0f, 4.5f) + global_offset);
+}
+
+void AddTemplateScene2(SceneBuilder &builder, FileSystemDatabase &adb, glm::vec3 global_offset) {
+    // --- Load preset solid color materials ---
+    auto red_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
+    auto green_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
+    auto blue_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"});
+    auto yellow_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_yellow.asset"});
+    auto cyan_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_cyan.asset"});
+    auto magenta_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_magenta.asset"});
+    auto orange_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_orange.asset"});
+    auto white_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
+
+    float wall_half_height = 3.0f;
+    float wall_half_size = 15.0f;
+    builder.AddBox(
+        {.position = glm::vec3(-wall_half_size, 0.0f, wall_half_height) + global_offset,
+         .rotation = glm::quat(),
+         .half_extents = {0.5f, wall_half_size, wall_half_height},
+         .mass = 1.0f,
+         .kinematic = true,
+         .material = blue_mat}
+    );
+    builder.AddBox(
+        {.position = glm::vec3(wall_half_size, 0.0f, wall_half_height) + global_offset,
+         .rotation = glm::quat(),
+         .half_extents = {0.5f, wall_half_size, wall_half_height},
+         .mass = 1.0f,
+         .kinematic = true,
+         .material = blue_mat}
+    );
+    builder.AddBox(
+        {.position = glm::vec3(0.0f, -wall_half_size, wall_half_height) + global_offset,
+         .rotation = glm::quat(),
+         .half_extents = {wall_half_size, 0.5f, wall_half_height},
+         .mass = 1.0f,
+         .kinematic = true,
+         .material = blue_mat}
+    );
+    builder.AddBox(
+        {.position = glm::vec3(0.0f, wall_half_size, wall_half_height) + global_offset,
+         .rotation = glm::quat(),
+         .half_extents = {wall_half_size, 0.5f, wall_half_height},
+         .mass = 1.0f,
+         .kinematic = true,
+         .material = blue_mat}
+    );
+
+    auto &obj = builder.AddBox(
+        {.position = glm::vec3(0.0f, 0.0f, 0.7f) + global_offset,
+         .rotation = glm::quat(),
+         .half_extents = {0.3f, 8.0f, 0.7f},
+         .mass = 1.0f,
+         .kinematic = true,
+         .material = orange_mat}
+    );
+    for (auto &comp : obj.m_components) {
+        if (auto *tc = dynamic_cast<RigidBodyComponent *>(comp.GetComponent())) {
+            tc->m_angular_velocity_axis_angle = glm::vec3(0.0f, 0.0f, 1.0f) * glm::radians(90.0f);
+            break;
+        }
+    }
+
+    int n = 9;
+    int m = 15;
+    float offset = 2.2f;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            for (int k = 0; k < m; k++) {
+                int type = rand() % 3;
+                glm::vec3 pos =
+                    glm::vec3((-(n + 1) / 2 + i) * offset, (-(n + 1) / 2 + j) * offset, ((n + 1) / 2 + k) * offset)
+                    + global_offset;
+                glm::vec3 rot_axis = glm::normalize(glm::vec3(rand() % 100, rand() % 100, rand() % 100));
+                float rot_angle = glm::radians((float)(rand() % 360));
+                glm::quat rot = glm::angleAxis(rot_angle, rot_axis);
+                switch (type) {
+                case 0:
+                    builder.AddBox(
+                        {.position = pos,
+                         .rotation = rot,
+                         .half_extents = {0.5f, 0.7f, 0.5f},
+                         .mass = 1.0f,
+                         .material = red_mat}
+                    );
+                    break;
+                case 1:
+                    builder.AddSphere(
+                        {.position = pos, .rotation = rot, .radius = 0.5f, .mass = 1.0f, .material = green_mat}
+                    );
+                    break;
+                case 2:
+                    builder.AddCylinder(
+                        {.position = pos,
+                         .rotation = rot,
+                         .radius = 0.5f,
+                         .half_height = 0.5f,
+                         .mass = 1.0f,
+                         .material = blue_mat}
+                    );
+                    break;
+                default:
+                    break;
+                }
+            }
 }
 
 int main(int /*argc*/, char ** /*argv*/) {
@@ -193,12 +300,13 @@ int main(int /*argc*/, char ** /*argv*/) {
         .material = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"}),
     });
 
-    // AddTemplateScene(builder, adb, glm::vec3(-10.0f, -10.0f, 0.0f));
-    int n = 7;
-    float margin = 8.0f;
-    for (int i = 0; i < n; ++i)
-        for (int j = 0; j < n; ++j)
-            AddTemplateScene(builder, adb, glm::vec3((i - n / 2.0f) * margin, (j - n / 2.0f) * margin, 0.0f));
+    // AddTemplateScene(builder, adb, glm::vec3(0.0f, 5.0f, 0.0f));
+    // int n = 7;
+    // float margin = 8.0f;
+    // for (int i = 0; i < n; ++i)
+    //     for (int j = 0; j < n; ++j)
+    //         AddTemplateScene(builder, adb, glm::vec3((i - n / 2.0f) * margin, (j - n / 2.0f) * margin, 0.0f));
+    AddTemplateScene2(builder, adb, glm::vec3(0.0f, 0.0f, 0.0f));
 
     // --- Camera setup ---
     // Z is up, camera is positioned to the side looking at the falling zone.
@@ -269,7 +377,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     physics_scene->DebugPrint();
 
     // Disable simulation from the start.
-    physics_scene->SetSimulationEnabled(true);
+    physics_scene->SetSimulationEnabled(false);
 
     // Awake mesh components → registers renderers.
     scene.AddInitEvent();
@@ -293,6 +401,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     xpbd_config.grid_cell_size = 2.0f;
     xpbd_config.grid_world_min = glm::vec3(-100.0f, -100.0f, -5.0f);
     xpbd_config.grid_world_max = glm::vec3(100.0f, 100.0f, 20.0f);
+    // xpbd_config.grid_world_min = glm::vec3(-30.0f, -30.0f, -5.0f);
+    // xpbd_config.grid_world_max = glm::vec3(30.0f, 30.0f, 50.0f);
     xpbd_config.max_cells_per_shape = 8;
     xpbd_config.max_global_shape_count = 128;
     xpbd_config.fallback_all_pairs_threshold = 128;
