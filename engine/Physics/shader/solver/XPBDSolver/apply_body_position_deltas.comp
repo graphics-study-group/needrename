@@ -1,5 +1,6 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_debug_printf : require
 
 // apply_body_position_deltas.comp — Per-body Jacobi apply phase for
 // position constraints.  Averages the accumulated deltas and applies
@@ -51,6 +52,8 @@ void main() {
         orientation = quat_normalize(orientation);
         rigid_body_center_rotation.v[idx] = orientation;
     }
+
+    debugPrintfEXT("linear: %f %f %f angular: %f %f %f count: %f\n", linear_delta.x, linear_delta.y, linear_delta.z, angular_delta.x, angular_delta.y, angular_delta.z, count);
 
     // Reset accumulators to zero.
     linear_delta_i.v[idx * 3u + 0u] = 0.0;

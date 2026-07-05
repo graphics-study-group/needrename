@@ -193,16 +193,22 @@ namespace Engine {
             EnsureBuffer(gpu_total_assignments, sizeof(uint32_t), "BH TotalAssign", true);
 
             EnsureBuffer(
-                gpu_cell_shape_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH CellShapePairs"
+                gpu_cell_shape_pairs,
+                static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2),
+                "BH CellShapePairs"
             );
-            EnsureBuffer(gpu_sorted_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH SortedPairs");
+            EnsureBuffer(
+                gpu_sorted_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH SortedPairs"
+            );
 
             size_t cell_uint1 = static_cast<size_t>(grid_total_cells + 1u) * sizeof(uint32_t);
             EnsureBuffer(gpu_cell_histogram, cell_uint1, "BH CellHist");
             EnsureBuffer(gpu_cell_offsets, cell_uint1, "BH CellOffsets");
             EnsureBuffer(gpu_cell_scratch, cell_uint1, "BH CellScratch");
 
-            EnsureBuffer(gpu_collision_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH CollisionPairs");
+            EnsureBuffer(
+                gpu_collision_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH CollisionPairs"
+            );
             EnsureBuffer(gpu_pair_count, sizeof(uint32_t), "BH PairCount", true);
 
             {
@@ -895,10 +901,10 @@ namespace Engine {
                     *gpu_pairs_temp,
                     radix_scratch_h,
                     *gpu_radix_scratch,
-                    max_assignment_pairs,         // elem_capacity (buffer size, for dispatch sizing)
-                    pcnt_h,            // pair_count handle (RG tracks dependency)
-                    *gpu_pair_count,   // pair_count buffer (read at GPU execution time)
-                    cached_shape_count // max_shape_count for validation
+                    max_assignment_pairs, // elem_capacity (buffer size, for dispatch sizing)
+                    pcnt_h,               // pair_count handle (RG tracks dependency)
+                    *gpu_pair_count,      // pair_count buffer (read at GPU execution time)
+                    cached_shape_count    // max_shape_count for validation
                 );
 
                 // Compact unique.
@@ -915,9 +921,9 @@ namespace Engine {
                     scan_scratch_h,
                     *gpu_scan_scratch,
                     *scan,
-                    pcnt_h,          // pair_count handle
-                    *gpu_pair_count, // pair_count buffer (read at GPU execution time)
-                    max_assignment_pairs        // elem_capacity
+                    pcnt_h,              // pair_count handle
+                    *gpu_pair_count,     // pair_count buffer (read at GPU execution time)
+                    max_assignment_pairs // elem_capacity
                 );
 
                 // Copy unique_count back to pair_count so downstream
@@ -994,7 +1000,8 @@ namespace Engine {
         m_impl->grid_config = grid_config;
         m_impl->fallback_threshold = fallback_all_pairs_threshold;
         m_impl->max_global_shape_count = max_global_shape_count;
-        m_impl->max_assignment_pairs = shape_count * std::max(1u, grid_config.max_cells_per_shape + max_global_shape_count);
+        m_impl->max_assignment_pairs =
+            shape_count * std::max(1u, grid_config.max_cells_per_shape + max_global_shape_count);
 
         // Validate and compute grid dimensions.
         glm::vec3 extent = grid_config.world_max - grid_config.world_min;

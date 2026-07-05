@@ -279,10 +279,14 @@ namespace Engine::RenderSystemState {
             }
 
             // Check features
-            auto device_features = pd.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
+            auto device_features = pd.getFeatures2<
+                vk::PhysicalDeviceFeatures2,
+                vk::PhysicalDeviceVulkan13Features,
+                vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
             auto features13 = device_features.get<vk::PhysicalDeviceVulkan13Features>();
             auto atomicFloatFeatures = device_features.get<vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
-            if (!(features13.dynamicRendering && features13.synchronization2 && atomicFloatFeatures.shaderBufferFloat32AtomicAdd)) {
+            if (!(features13.dynamicRendering && features13.synchronization2
+                  && atomicFloatFeatures.shaderBufferFloat32AtomicAdd)) {
                 SDL_LogInfo(
                     SDL_LOG_CATEGORY_RENDER, "This physical device does not support needed Vulkan 1.3 features."
                 );

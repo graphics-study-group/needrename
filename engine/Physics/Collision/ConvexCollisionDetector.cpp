@@ -286,7 +286,9 @@ namespace Engine {
                         .UseBuffer(slot_cnt_h, RR)
                         .UseBuffer(cfg_h, RR)
                         .SetPassFunction(
-                            [detect_stage_ptr, detect_binding, detect_wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                            [detect_stage_ptr,
+                             detect_binding,
+                             detect_wg](CommandBuffer &cb, const RenderGraph &) -> void {
                                 cb.BindComputeStage(*detect_stage_ptr);
                                 cb.BindComputeResource(*detect_binding);
                                 cb.DispatchCompute(detect_wg, 1, 1);

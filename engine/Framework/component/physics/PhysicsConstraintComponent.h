@@ -32,10 +32,10 @@ namespace Engine {
      * No angle limits or target angle support in this version.
      */
     struct HingeJointDef {
-        ObjectHandle m_obj2_handle;     ///< Handle of the second object.
-        glm::vec3 m_hinge_axis_obj1;    ///< Hinge axis in obj1's local frame (will be normalized).
-        glm::vec3 m_hinge_anchor_obj1;   ///< Hinge anchor point in obj1's local frame.
-        float m_compliance{0.0f};       ///< Joint compliance (0 = hard constraint).
+        ObjectHandle m_obj2_handle;    ///< Handle of the second object.
+        glm::vec3 m_hinge_axis_obj1;   ///< Hinge axis in obj1's local frame (will be normalized).
+        glm::vec3 m_hinge_anchor_obj1; ///< Hinge anchor point in obj1's local frame.
+        float m_compliance{0.0f};      ///< Joint compliance (0 = hard constraint).
     };
 
     /// Variant type for storing either joint type.

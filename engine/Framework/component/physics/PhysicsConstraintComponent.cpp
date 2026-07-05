@@ -107,7 +107,8 @@ namespace Engine {
                         if (glm::length(axis) < 1e-6f) {
                             SDL_LogError(
                                 SDL_LOG_CATEGORY_APPLICATION,
-                                "[PhysicsConstraintComponent] HingeJoint obj2 (handle %u) has a zero-length hinge axis.",
+                                "[PhysicsConstraintComponent] HingeJoint obj2 (handle %u) has a zero-length hinge "
+                                "axis.",
                                 joint_def.m_obj2_handle.GetID()
                             );
                             return;
