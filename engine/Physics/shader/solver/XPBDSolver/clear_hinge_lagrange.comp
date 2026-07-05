@@ -6,14 +6,14 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(set = 0, binding = 0) buffer HingeAlignedAxisLagrange { float v[]; } hinge_aligned_axis_lagrange;
-layout(set = 0, binding = 1) buffer HingePositionLagrange   { float v[]; } hinge_position_lagrange;
+layout(set = 0, binding = 0) buffer HingeAxisLagrange   { float v[]; } hinge_axis_lagrange;
+layout(set = 0, binding = 1) buffer HingeAnchorLagrange { float v[]; } hinge_anchor_lagrange;
 layout(set = 0, binding = 2) readonly buffer HingeJointCount { uint count; } hinge_joint_count;
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
     if (idx >= hinge_joint_count.count) return;
 
-    hinge_aligned_axis_lagrange.v[idx] = 0.0;
-    hinge_position_lagrange.v[idx] = 0.0;
+    hinge_axis_lagrange.v[idx] = 0.0;
+    hinge_anchor_lagrange.v[idx] = 0.0;
 }

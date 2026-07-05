@@ -238,7 +238,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
     constexpr float kCylHalfH = 0.5f;
     constexpr float kGap = 0.1f; // clearance between connected bodies to prevent collision
 
-    const glm::vec3 kAlignedAxis(0.0f, 1.0f, 0.0f); // hinge rotates around Y (swing in XZ plane)
+    const glm::vec3 kHingeAxis(0.0f, 1.0f, 0.0f); // hinge rotates around Y (swing in XZ plane)
 
     // --- 1. Kinematic anchor sphere ---
     GameObject &sphere = AddSphere({
@@ -286,11 +286,8 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         HingeJointDef hinge{};
         hinge.m_obj2_handle = box1.GetHandle();
         hinge.m_compliance = 0.0001f;
-        hinge.m_obj1_local_aligned_axis = kAlignedAxis;
-        hinge.m_obj2_local_aligned_axis = kAlignedAxis;
-        // attach at sphere bottom → box1 top
-        hinge.m_obj1_local_attach_point = glm::vec3(0.0f, 0.0f, 0.0f);
-        hinge.m_obj2_local_attach_point = glm::vec3(0.0f, 0.0f, kBoxHalfZ + kGap + kSphereRadius);
+        hinge.m_hinge_axis_obj1 = kHingeAxis;
+        hinge.m_hinge_anchor_obj1 = glm::vec3(0.0f, 0.0f, 0.0f);
         constraint.m_joints.push_back(hinge);
     }
 
@@ -300,11 +297,8 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         HingeJointDef hinge{};
         hinge.m_obj2_handle = box2.GetHandle();
         hinge.m_compliance = 0.0001f;
-        hinge.m_obj1_local_aligned_axis = kAlignedAxis;
-        hinge.m_obj2_local_aligned_axis = kAlignedAxis;
-        // attach at box1 bottom → box2 top
-        hinge.m_obj1_local_attach_point = glm::vec3(0.0f, 0.0f, -kBoxHalfZ - 0.5f * kGap);
-        hinge.m_obj2_local_attach_point = glm::vec3(0.0f, 0.0f, kBoxHalfZ + 0.5f * kGap);
+        hinge.m_hinge_axis_obj1 = kHingeAxis;
+        hinge.m_hinge_anchor_obj1 = glm::vec3(0.0f, 0.0f, -kBoxHalfZ - 0.5f * kGap);
         constraint.m_joints.push_back(hinge);
     }
 

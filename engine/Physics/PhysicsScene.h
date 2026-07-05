@@ -59,10 +59,10 @@ namespace Engine {
         uint32_t obj2_index;
         float compliance;
         float _pad;
-        glm::vec4 obj1_local_aligned_axis;
-        glm::vec4 obj2_local_aligned_axis;
-        glm::vec4 obj1_local_attach_point;
-        glm::vec4 obj2_local_attach_point;
+        glm::vec4 hinge_axis_obj1;       ///< Hinge axis in obj1's local frame.
+        glm::vec4 hinge_anchor_obj1;     ///< Hinge anchor point in obj1's local frame.
+        glm::vec4 initial_rel_pos_local; ///< q1_init⁻¹ * (pos2_init - pos1_init)
+        glm::vec4 initial_rel_rotation;  ///< q1_init⁻¹ * q2_init
     };
 
     static_assert(sizeof(GpuFixedJoint) == 48, "GpuFixedJoint must be 48 bytes (std430)");
@@ -283,19 +283,19 @@ namespace Engine {
          * @param obj1_index Rigid body index of the owning object.
          * @param obj2_index Rigid body index of the second object.
          * @param compliance Joint compliance parameter.
-         * @param obj1_local_aligned_axis Aligned axis in obj1's local frame.
-         * @param obj2_local_aligned_axis Aligned axis in obj2's local frame.
-         * @param obj1_local_attach_point Attachment point in obj1's local frame.
-         * @param obj2_local_attach_point Attachment point in obj2's local frame.
+         * @param hinge_axis_obj1 Hinge axis in obj1's local frame.
+         * @param hinge_anchor_obj1 Hinge anchor point in obj1's local frame.
+         * @param initial_rel_pos_local q1_init⁻¹ * (pos2_init - pos1_init).
+         * @param initial_rel_rotation q1_init⁻¹ * q2_init.
          */
         void RegisterHingeJoint(
             uint32_t obj1_index,
             uint32_t obj2_index,
             float compliance,
-            const glm::vec3 &obj1_local_aligned_axis,
-            const glm::vec3 &obj2_local_aligned_axis,
-            const glm::vec3 &obj1_local_attach_point,
-            const glm::vec3 &obj2_local_attach_point
+            const glm::vec3 &hinge_axis_obj1,
+            const glm::vec3 &hinge_anchor_obj1,
+            const glm::vec3 &initial_rel_pos_local,
+            const glm::quat &initial_rel_rotation
         );
 
         /**
