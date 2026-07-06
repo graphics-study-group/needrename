@@ -23,6 +23,7 @@ layout(std140, set = 2, binding = 0) uniform Material {
     float metalnessFactor;
     float roughnessFactor;
     vec4 emissiveFactor;
+    vec4 albedoFactor;
 } material;
 layout (set=2, binding=1) uniform sampler2D albedoSampler;
 layout (set=2, binding=2) uniform sampler2D MRAOSampler;
@@ -87,7 +88,7 @@ float calculateShadow(int lightIndex)
 
 void main()
 {
-    vec3 albedo = texture(albedoSampler, frag_uv).rgb;
+    vec3 albedo = texture(albedoSampler, frag_uv).rgb * material.albedoFactor.rgb;
 
     const float metalness = texture(MRAOSampler, frag_uv).r * material.metalnessFactor;
     const float roughness = texture(MRAOSampler, frag_uv).g * material.roughnessFactor;

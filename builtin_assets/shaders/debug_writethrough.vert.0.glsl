@@ -14,10 +14,10 @@ layout(location = 2) out vec3 to_frag_normal;
 layout(location = 3) out vec2 to_frag_uv_0;
 
 void main() {
-    gl_Position = camera.cameras[pc.camera_id].proj * camera.cameras[pc.camera_id].view * pc.model * vec4(vertex_position.xyz, 1.0);
+    gl_Position = camera.cameras[pc.camera_id].proj * camera.cameras[pc.camera_id].view * get_model_matrix() * vec4(vertex_position.xyz, 1.0);
 
     to_frag_color = vertex_color;
     to_frag_uv_0 = vertex_uv_0;
-    to_frag_normal = mat3(pc.model) * vertex_normal;
-    to_frag_position = vec3(pc.model * vec4(vertex_position.xyz, 1.0));
+    to_frag_normal = mat3(get_model_matrix()) * vertex_normal;
+    to_frag_position = vec3(get_model_matrix() * vec4(vertex_position.xyz, 1.0));
 }

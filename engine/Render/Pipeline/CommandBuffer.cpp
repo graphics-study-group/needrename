@@ -253,7 +253,7 @@ namespace Engine {
     }
 
     void CommandBuffer::DrawMesh(
-        const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index
+        const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index, int32_t model_mat_index
     ) {
         auto bindings = mesh.GetVertexAttributeBufferBindings();
         std::vector<vk::DeviceSize> offsets{};
@@ -272,7 +272,8 @@ namespace Engine {
         struct {
             glm::mat4 m;
             int32_t i;
-        } push_constants{.m = model_matrix, .i = camera_index};
+            int32_t mi;
+        } push_constants{.m = model_matrix, .i = camera_index, .mi = model_mat_index};
 
         cb.pushConstants(
             m_bound_material_pipeline.value().second,
@@ -309,6 +310,7 @@ namespace Engine {
             if (!mesh || !material_instance) continue;
 
             const glm::mat4 &model_matrix = renderer_manager.GetModelMatrix(rid);
+            int32_t model_mat_index = renderer_manager.GetModelMatrixIndex(rid);
 
             auto tpl = material_instance->GetLibrary().FindMaterialTemplate(
                 tag, {{mesh->GetVertexAttributeFormat()}, m_pripr}
@@ -316,7 +318,7 @@ namespace Engine {
             if (!tpl) continue;
 
             this->BindMaterial(*material_instance, *tpl);
-            this->DrawMesh(*mesh, model_matrix, camera_index);
+            this->DrawMesh(*mesh, model_matrix, camera_index, model_mat_index);
         }
     }
 

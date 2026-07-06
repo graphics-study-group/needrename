@@ -5,15 +5,31 @@
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
+#include <MainClass.h>
+#include <Physics/PhysicsScene.h>
+#include <Physics/PhysicsSystem.h>
 #include <Reflection/Type.h>
 #include <algorithm>
 
 namespace Engine {
-    Scene::Scene(uint32_t sceneID, bool enable_rendering) : m_sceneID(sceneID), m_enable_rendering(enable_rendering) {
+    Scene::Scene(uint32_t sceneID, bool enable_rendering, bool enable_physics) :
+        m_sceneID(sceneID), m_enable_rendering(enable_rendering), m_enable_physics(enable_physics) {
         m_event_queue = std::make_unique<EventQueue>(*this);
+        if (enable_physics) {
+            MainClass::GetInstance()->GetPhysicsSystem()->CreateScene(sceneID);
+        }
     }
 
     Scene::~Scene() {
+        if (m_enable_physics) {
+            auto cmc = MainClass::GetInstance();
+            if (cmc) {
+                auto physics_system = cmc->GetPhysicsSystem();
+                if (physics_system) {
+                    physics_system->DestroyScene(m_sceneID);
+                }
+            }
+        }
     }
 
     uint32_t Scene::GetID() const noexcept {
@@ -192,6 +208,9 @@ namespace Engine {
 
     void Scene::Clear() {
         ClearEventQueue();
+        if (auto *physics_scene = GetPhysicsScene()) {
+            physics_scene->Clear();
+        }
         m_game_objects.clear();
         m_components.clear();
         m_go_map.clear();
@@ -204,6 +223,34 @@ namespace Engine {
 
     bool Scene::IsRenderingEnabled() const noexcept {
         return m_enable_rendering;
+    }
+
+    PhysicsScene *Scene::GetPhysicsScene() {
+        if (!m_enable_physics) {
+            return nullptr;
+        }
+        auto cmc = MainClass::GetInstance();
+        if (cmc) {
+            auto physics_system = cmc->GetPhysicsSystem();
+            if (physics_system) {
+                return physics_system->GetScenePtr(m_sceneID);
+            }
+        }
+        return nullptr;
+    }
+
+    const PhysicsScene *Scene::GetPhysicsScene() const {
+        if (!m_enable_physics) {
+            return nullptr;
+        }
+        auto cmc = MainClass::GetInstance();
+        if (cmc) {
+            auto physics_system = cmc->GetPhysicsSystem();
+            if (physics_system) {
+                return physics_system->GetScenePtr(m_sceneID);
+            }
+        }
+        return nullptr;
     }
 
     ComponentHandle Scene::NextAvailableComponentHandle() {

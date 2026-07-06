@@ -1,0 +1,134 @@
+#version 450 core
+
+// Per-shape AABB computation and global-flag marking.
+//
+// Reads shape world position, rotation, type, and feature to compute a
+// conservative world-space AABB.  Marks shapes as global if their AABB spans
+// more than max_cells_per_shape cells or lies entirely outside world bounds.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// --- Shape data (PhysicsScene buffers) ---
+layout(set = 0, binding = 0) readonly buffer ShapeAlive         { uint v[]; } shape_alive;
+layout(set = 0, binding = 1) readonly buffer ShapeType          { uint v[]; } shape_type;
+layout(set = 0, binding = 2) readonly buffer ShapeFeature       { vec4 v[]; } shape_feature;
+layout(set = 0, binding = 3) readonly buffer ShapeWorldPosition { vec4 v[]; } shape_world_pos;
+layout(set = 0, binding = 4) readonly buffer ShapeWorldRotation { vec4 v[]; } shape_world_rot;
+
+// --- Outputs ---
+layout(set = 0, binding = 5) writeonly buffer AabbMin  { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 6) writeonly buffer AabbMax  { vec4 v[]; } aabb_max;
+layout(set = 0, binding = 7) writeonly buffer GlobalFlags { uint v[]; } global_flags;
+
+// --- Config ---
+layout(set = 0, binding = 8) readonly buffer ShapeSlotCount { uint count; } shape_slot_count;
+
+layout(set = 0, binding = 9) readonly buffer GridConfig {
+    vec4 world_min;       // xyz = bounds min, w = cell_size
+    ivec4 grid_dims;      // xyz = grid dimensions, w = max_cells_per_shape
+    uint total_cells;
+} grid_config;
+
+layout(set = 0, binding = 10) writeonly buffer GlobalList  { uint v[]; } global_list;
+layout(set = 0, binding = 11) buffer GlobalCount           { uint v[]; } global_count;
+
+// --- Shape type constants ---
+#define SHAPE_TYPE_BOX      0u
+#define SHAPE_TYPE_SPHERE   1u
+#define SHAPE_TYPE_CYLINDER 2u
+
+// Rotate a vec3 by a quaternion (vec4: xyz=axis*sin(half), w=cos(half)).
+vec3 quat_rotate(vec4 q, vec3 v) {
+    vec3 t = 2.0 * cross(q.xyz, v);
+    return v + q.w * t + cross(q.xyz, t);
+}
+
+void compute_box_aabb(vec3 pos, vec4 rot, vec3 half_ext, out vec3 mn, out vec3 mx) {
+    // Compute world-space extents via abs of rotated basis axes.
+    vec3 rx = abs(quat_rotate(rot, vec3(1.0, 0.0, 0.0))) * half_ext.x;
+    vec3 ry = abs(quat_rotate(rot, vec3(0.0, 1.0, 0.0))) * half_ext.y;
+    vec3 rz = abs(quat_rotate(rot, vec3(0.0, 0.0, 1.0))) * half_ext.z;
+    vec3 half_ext_world = rx + ry + rz;
+    mn = pos - half_ext_world;
+    mx = pos + half_ext_world;
+}
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= shape_slot_count.count) return;
+
+    // Default: zero AABB, not global.
+    aabb_min.v[idx] = vec4(0.0);
+    aabb_max.v[idx] = vec4(0.0);
+    global_flags.v[idx] = 0u;
+
+    if (shape_alive.v[idx] == 0u) return;
+
+    vec3 pos = shape_world_pos.v[idx].xyz;
+    vec4 rot = shape_world_rot.v[idx];
+    uint stype = shape_type.v[idx];
+    vec3 feature = shape_feature.v[idx].xyz;
+
+    vec3 mn, mx;
+
+    if (stype == SHAPE_TYPE_BOX) {
+        compute_box_aabb(pos, rot, feature, mn, mx);
+    } else if (stype == SHAPE_TYPE_SPHERE) {
+        float r = feature.x;
+        mn = pos - vec3(r);
+        mx = pos + vec3(r);
+    } else if (stype == SHAPE_TYPE_CYLINDER) {
+        // Cylinder: feature = (radius, half_height, 0).  Bound conservatively.
+        float r = feature.x;
+        float hh = feature.y;
+        vec3 local_min = vec3(-r, -r, -hh);
+        vec3 local_max = vec3(r, r, hh);
+        // Conservative AABB via rotated extents (same as box).
+        compute_box_aabb(pos, rot, (local_max - local_min) * 0.5, mn, mx);
+        mn += pos;
+        mx += pos;
+        // Fix: compute_box_aabb already adds pos.  Just use half-extents.
+        vec3 half_ext = vec3(r, r, hh);
+        compute_box_aabb(pos, rot, half_ext, mn, mx);
+    } else {
+        // Unknown type: point at world position.
+        mn = pos;
+        mx = pos;
+    }
+
+    aabb_min.v[idx] = vec4(mn, 0.0);
+    aabb_max.v[idx] = vec4(mx, 0.0);
+
+    // --- Check if entirely outside grid bounds ---
+    float cell_size = grid_config.world_min.w;
+    vec3 wmin = grid_config.world_min.xyz;
+    ivec3 dims = grid_config.grid_dims.xyz;
+    vec3 wmax = wmin + vec3(dims) * cell_size;
+    int max_cells = grid_config.grid_dims.w;
+
+    if (any(lessThan(mx, wmin)) || any(greaterThan(mn, wmax))) {
+        // Shape is entirely outside the grid — ignore completely.
+        // Write degenerate AABB and do NOT mark as global.
+        aabb_min.v[idx] = vec4(wmin, 0.0);
+        aabb_max.v[idx] = vec4(wmin, 0.0);
+        return;
+    }
+
+    // --- Compute cell range and check global flag ---
+    ivec3 cmin = ivec3(floor((mn - wmin) / cell_size));
+    ivec3 cmax = ivec3(floor((mx - wmin) / cell_size));
+
+    // Clamp to grid (shape is at least partially inside).
+    cmin = clamp(cmin, ivec3(0), dims - 1);
+    cmax = clamp(cmax, ivec3(0), dims - 1);
+
+    // Number of cells this shape spans.
+    ivec3 span = cmax - cmin + ivec3(1);
+    int num_cells = span.x * span.y * span.z;
+
+    if (num_cells > max_cells) {
+        global_flags.v[idx] = 1u;
+        uint slot = atomicAdd(global_count.v[0], 1u);
+        global_list.v[slot] = idx;
+    }
+}

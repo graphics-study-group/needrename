@@ -1,0 +1,107 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+
+// integrate_forces.comp — Semi-implicit Euler integration of gravity and
+// external forces/torques on each rigid body.  Angular integration is
+// performed in body-frame.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "common/xpbd_math.glsl"
+
+// ---- Buffers ----
+
+layout(set = 0, binding = 0) readonly buffer RigidBodyAlive {
+    uint v[];
+} rigid_body_alive;
+
+layout(set = 0, binding = 1) buffer RigidBodyCenterPosition {
+    vec4 v[];
+} rigid_body_center_position;
+
+layout(set = 0, binding = 2) buffer RigidBodyCenterRotation {
+    vec4 v[];
+} rigid_body_center_rotation;
+
+layout(set = 0, binding = 3) buffer RigidBodyLinearVelocity {
+    vec4 v[];
+} rigid_body_linear_velocity;
+
+layout(set = 0, binding = 4) buffer RigidBodyAngularVelocity {
+    vec4 v[];
+} rigid_body_angular_velocity;
+
+layout(set = 0, binding = 5) readonly buffer RigidBodyMass {
+    float v[];
+} rigid_body_mass;
+
+layout(set = 0, binding = 6) readonly buffer RigidBodyInverseInertia {
+    mat4 v[];
+} rigid_body_inverse_inertia;
+
+layout(set = 0, binding = 7) readonly buffer RigidBodyInertia {
+    mat4 v[];
+} rigid_body_inertia;
+
+layout(set = 0, binding = 8) readonly buffer RigidBodyExternalForce {
+    vec4 v[];
+} rigid_body_external_force;
+
+layout(set = 0, binding = 9) readonly buffer RigidBodyExternalTorque {
+    vec4 v[];
+} rigid_body_external_torque;
+
+layout(set = 0, binding = 10) readonly buffer RigidBodyIsKinematic {
+    uint v[];
+} rigid_body_is_kinematic;
+
+layout(set = 0, binding = 11) readonly buffer XpbdUniforms {
+    vec4 gravity;  // xyz = gravity direction, w = dt
+} uniforms;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= rigid_body_alive.v.length()) return;
+    if (rigid_body_alive.v[idx] == 0u) return;
+
+    float inv_mass = 1.0 / max(rigid_body_mass.v[idx], 1e-12);
+
+    vec3 gravity_vec = uniforms.gravity.xyz;
+    float dt = uniforms.gravity.w;
+
+    // ---- Linear integration ----
+    vec3 total_linear_accel = gravity_vec + rigid_body_external_force.v[idx].xyz * inv_mass;
+    if (rigid_body_is_kinematic.v[idx] != 0u) total_linear_accel = vec3(0.0);
+
+    rigid_body_linear_velocity.v[idx].xyz += total_linear_accel * dt;
+    rigid_body_center_position.v[idx].xyz += rigid_body_linear_velocity.v[idx].xyz * dt;
+
+    // ---- Angular integration (body frame, matching CUDA reference) ----
+    vec4 orientation = rigid_body_center_rotation.v[idx];
+    vec3 w           = rigid_body_angular_velocity.v[idx].xyz;
+
+    // Body-frame angular velocity: wb = q^{-1} * w
+    vec3 wb = quat_inv_rotate(orientation, w);
+
+    // External torque in body frame: tb = q^{-1} * tau_ext
+    vec3 tb = quat_inv_rotate(orientation, rigid_body_external_torque.v[idx].xyz);
+    if (rigid_body_is_kinematic.v[idx] != 0u) tb = vec3(0.0);
+
+    // Coriolis: tb -= cross(wb, I_local * wb)
+    vec3 I_wb = multiply_mat4_3x3_vec3(rigid_body_inertia.v[idx], wb);
+    tb -= cross(wb, I_wb);
+
+    // Integrate in body frame: wb += I_local_inv * tb * dt
+    mat3 inv_I = mat3(rigid_body_inverse_inertia.v[idx]);
+    wb += inv_I * tb * dt;
+
+    // Back to world frame: w = q * wb
+    w = quat_rotate(orientation, wb);
+    rigid_body_angular_velocity.v[idx] = vec4(w, 0.0);
+
+    // Quaternion update: q += 0.5 * Quat(w, 0) * q * dt
+    vec4 q_update = vec4(w.x, w.y, w.z, 0.0);
+    orientation += 0.5 * quat_mul(q_update, orientation) * dt;
+    orientation = quat_normalize(orientation);
+    rigid_body_center_rotation.v[idx] = orientation;
+}

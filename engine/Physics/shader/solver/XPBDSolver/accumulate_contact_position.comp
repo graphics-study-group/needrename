@@ -1,0 +1,141 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_atomic_float : enable
+
+// accumulate_contact_position.comp — Per-contact XPBD position constraint
+// accumulate phase (Jacobi parallelization).
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "common/xpbd_math.glsl"
+
+// ---- Collision result buffers ----
+
+layout(set = 0, binding = 0) readonly buffer CollisionIds       { uvec2 v[]; } collision_ids;
+layout(set = 0, binding = 1) readonly buffer CollisionNormals   { vec4 v[];  } collision_normals;
+layout(set = 0, binding = 2) readonly buffer ContactPointA      { vec4 v[];  } contact_point_a;
+layout(set = 0, binding = 3) readonly buffer ContactPointB      { vec4 v[];  } contact_point_b;
+layout(set = 0, binding = 4) readonly buffer CollisionCount     { uint count; } collision_count;
+
+// ---- Shape→body mapping ----
+layout(set = 0, binding = 5) readonly buffer ShapeBoundRigidBody { uint v[]; } shape_bound_rigid_body;
+
+// ---- Body state ----
+layout(set = 0, binding = 6)  readonly buffer RigidBodyAlive         { uint v[]; } rigid_body_alive;
+layout(set = 0, binding = 7)  buffer      RigidBodyCenterPosition   { vec4 v[]; } rigid_body_center_position;
+layout(set = 0, binding = 8)  buffer      RigidBodyCenterRotation   { vec4 v[]; } rigid_body_center_rotation;
+layout(set = 0, binding = 9)  readonly buffer RigidBodyMass           { float v[];} rigid_body_mass;
+layout(set = 0, binding = 10) readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
+layout(set = 0, binding = 11) readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
+
+// ---- Shape local transforms ----
+layout(set = 0, binding = 12) readonly buffer ShapeLocalPosition    { vec4 v[]; } shape_local_position;
+layout(set = 0, binding = 13) readonly buffer ShapeLocalRotation    { vec4 v[]; } shape_local_rotation;
+
+// ---- Jacobi accumulators (float with GL_EXT_shader_atomic_float) ----
+layout(set = 0, binding = 14) buffer LinearPositionDelta  { float v[]; } lin_delta;
+layout(set = 0, binding = 15) buffer AngularPositionDelta { float v[]; } ang_delta;
+layout(set = 0, binding = 16) buffer PositionDeltaCount    { float v[]; } delta_count;
+
+// ---- Lagrange multipliers ----
+layout(set = 0, binding = 17) buffer ContactLagrange { float v[]; } lagrange;
+
+void main() {
+    uint cidx = gl_GlobalInvocationID.x;
+    if (cidx >= collision_count.count) return;
+
+    uvec2 pair = collision_ids.v[cidx];
+    uint shape_a = pair.x, shape_b = pair.y;
+    if (shape_a >= shape_bound_rigid_body.v.length() || shape_b >= shape_bound_rigid_body.v.length()) return;
+
+    uint body_a = shape_bound_rigid_body.v[shape_a];
+    uint body_b = shape_bound_rigid_body.v[shape_b];
+    uint body_count = rigid_body_alive.v.length();
+    if (body_a >= body_count || body_b >= body_count) return;
+    if (rigid_body_alive.v[body_a] == 0u || rigid_body_alive.v[body_b] == 0u) return;
+
+    float mass_a = rigid_body_mass.v[body_a];
+    float mass_b = rigid_body_mass.v[body_b];
+    float inv_mass_a = (mass_a > 1e-12) ? (1.0 / mass_a) : 0.0;
+    float inv_mass_b = (mass_b > 1e-12) ? (1.0 / mass_b) : 0.0;
+    if (inv_mass_a <= 0.0 && inv_mass_b <= 0.0) return;
+
+    bool kinematic_a = (rigid_body_is_kinematic.v[body_a] != 0u);
+    bool kinematic_b = (rigid_body_is_kinematic.v[body_b] != 0u);
+
+    vec3 n = collision_normals.v[cidx].xyz;
+    float nlen = length(n);
+    if (nlen < 1e-8) return;
+    n /= nlen;
+
+    // Shape-local contact points from collision detection.
+    vec3 local_pt_a = contact_point_a.v[cidx].xyz;
+    vec3 local_pt_b = contact_point_b.v[cidx].xyz;
+
+    // Current body poses.
+    vec3 pos_a = rigid_body_center_position.v[body_a].xyz;
+    vec3 pos_b = rigid_body_center_position.v[body_b].xyz;
+    vec4 ori_a = rigid_body_center_rotation.v[body_a];
+    vec4 ori_b = rigid_body_center_rotation.v[body_b];
+
+    // Shape local offsets.
+    vec3 shape_local_pos_a = shape_local_position.v[shape_a].xyz;
+    vec3 shape_local_pos_b = shape_local_position.v[shape_b].xyz;
+    vec4 shape_local_rot_a = shape_local_rotation.v[shape_a];
+    vec4 shape_local_rot_b = shape_local_rotation.v[shape_b];
+
+    // Compute world-space contact points from shape-local coords + current body pose.
+    vec3 local_in_body_a = quat_rotate(shape_local_rot_a, local_pt_a) + shape_local_pos_a;
+    vec3 local_in_body_b = quat_rotate(shape_local_rot_b, local_pt_b) + shape_local_pos_b;
+    vec3 contact_a = pos_a + quat_rotate(ori_a, local_in_body_a);
+    vec3 contact_b = pos_b + quat_rotate(ori_b, local_in_body_b);
+    vec3 r_a = contact_a - pos_a;
+    vec3 r_b = contact_b - pos_b;
+
+    float C = dot(contact_a - contact_b, n);
+    if (C <= 0.0) return;
+
+    vec3 r_a_n = cross(r_a, n);
+    vec3 r_b_n = cross(r_b, n);
+
+    vec3 w_inv_i_a = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, r_a_n);
+    vec3 w_inv_i_b = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, r_b_n);
+
+    float w_a = inv_mass_a + dot(w_inv_i_a, r_a_n);
+    float w_b = inv_mass_b + dot(w_inv_i_b, r_b_n);
+    float denom = w_a + w_b;
+    if (denom <= 1e-8) return;
+
+    float dlambda = C / denom;
+    vec3 impulse = dlambda * n;
+
+    if (!kinematic_a && inv_mass_a > 0.0) {
+        vec3 lin_d = -inv_mass_a * impulse;
+        atomicAdd(lin_delta.v[body_a * 3u + 0u], lin_d.x);
+        atomicAdd(lin_delta.v[body_a * 3u + 1u], lin_d.y);
+        atomicAdd(lin_delta.v[body_a * 3u + 2u], lin_d.z);
+
+        vec3 ang_d = -apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, cross(r_a, impulse));
+        atomicAdd(ang_delta.v[body_a * 3u + 0u], ang_d.x);
+        atomicAdd(ang_delta.v[body_a * 3u + 1u], ang_d.y);
+        atomicAdd(ang_delta.v[body_a * 3u + 2u], ang_d.z);
+
+        atomicAdd(delta_count.v[body_a], 1.0);
+    }
+
+    if (!kinematic_b && inv_mass_b > 0.0) {
+        vec3 lin_d = inv_mass_b * impulse;
+        atomicAdd(lin_delta.v[body_b * 3u + 0u], lin_d.x);
+        atomicAdd(lin_delta.v[body_b * 3u + 1u], lin_d.y);
+        atomicAdd(lin_delta.v[body_b * 3u + 2u], lin_d.z);
+
+        vec3 ang_d = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, cross(r_b, impulse));
+        atomicAdd(ang_delta.v[body_b * 3u + 0u], ang_d.x);
+        atomicAdd(ang_delta.v[body_b * 3u + 1u], ang_d.y);
+        atomicAdd(ang_delta.v[body_b * 3u + 2u], ang_d.z);
+
+        atomicAdd(delta_count.v[body_b], 1.0);
+    }
+
+    atomicAdd(lagrange.v[cidx], dlambda);
+}

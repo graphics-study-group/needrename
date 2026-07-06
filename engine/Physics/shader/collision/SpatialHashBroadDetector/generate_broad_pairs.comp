@@ -1,0 +1,89 @@
+#version 450 core
+
+// Within-cell upper-triangle pair generation with collision filter checking.
+//
+// Each workgroup processes multiple cells.  For each cell c with K shapes,
+// generates K*(K-1)/2 pairs (i < j) and writes them to the output buffer.
+// Binary-search checks shape_filter_data to skip filtered pairs.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SortedPairs   { uvec2 v[]; } sorted_pairs;
+layout(set = 0, binding = 1) readonly buffer CellOffsets   { uint v[]; } cell_offsets;   // exclusive scan of histogram
+layout(set = 0, binding = 2) readonly buffer GlobalFlags   { uint v[]; } global_flags;
+layout(set = 0, binding = 3) readonly buffer ShapeAlive    { uint v[]; } shape_alive;
+layout(set = 0, binding = 4) readonly buffer ShapeSlotCount { uint count; } shape_slot_count;
+
+layout(set = 0, binding = 5) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
+layout(set = 0, binding = 6) buffer PairCount               { uint v[]; } pair_count;
+
+layout(set = 0, binding = 7) readonly buffer GridConfig {
+    vec4 world_min;
+    ivec4 grid_dims;
+    uint total_cells;
+} grid_config;
+
+layout(set = 0, binding = 8) readonly buffer TotalAssignments { uint total; } total_assignments;
+
+// Collision filter buffers.
+layout(set = 0, binding = 9)  readonly buffer ShapeFilterOffset { uint v[]; } filter_offset;
+layout(set = 0, binding = 10) readonly buffer ShapeFilterCount  { uint v[]; } filter_count;
+layout(set = 0, binding = 11) readonly buffer ShapeFilterData   { uint v[]; } filter_data;
+
+// AABB buffers (produced by compute_aabbs.comp).
+layout(set = 0, binding = 12) readonly buffer AabbMin { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 13) readonly buffer AabbMax { vec4 v[]; } aabb_max;
+
+bool aabb_overlap(uint a, uint b) {
+    return all(greaterThanEqual(aabb_max.v[a].xyz, aabb_min.v[b].xyz))
+        && all(greaterThanEqual(aabb_max.v[b].xyz, aabb_min.v[a].xyz));
+}
+
+// Binary search: return true if `target` is in filter_data[lo .. lo+cnt-1].
+bool is_filtered(uint shape_a, uint shape_b) {
+    uint lo = filter_offset.v[shape_a];
+    uint hi = lo + filter_count.v[shape_a];
+    while (lo < hi) {
+        uint mid = (lo + hi) / 2u;
+        uint val = filter_data.v[mid];
+        if (val == shape_b) return true;
+        if (val < shape_b) lo = mid + 1u;
+        else hi = mid;
+    }
+    return false;
+}
+
+void main() {
+    uint cell_idx = gl_GlobalInvocationID.x;
+    if (cell_idx >= grid_config.total_cells) return;
+
+    // Range of entries in sorted_pairs for this cell.
+    uint start = cell_offsets.v[cell_idx];
+    uint end   = cell_offsets.v[cell_idx + 1u];
+    uint k = end - start;  // number of shapes in this cell
+
+    if (k < 2u) return;
+
+    // Upper-triangle pair generation within this cell.
+    for (uint ii = 0u; ii < k; ++ii) {
+        uint shape_a = sorted_pairs.v[start + ii].y;
+        if (shape_alive.v[shape_a] == 0u) continue;
+
+        for (uint jj = ii + 1u; jj < k; ++jj) {
+            uint shape_b = sorted_pairs.v[start + jj].y;
+            if (shape_alive.v[shape_b] == 0u) continue;
+
+            if (!aabb_overlap(shape_a, shape_b)) continue;
+
+            // Ensure a < b.
+            uint a = min(shape_a, shape_b);
+            uint b = max(shape_a, shape_b);
+
+            // Skip filtered pairs (symmetric, so check one direction).
+            if (is_filtered(a, b)) continue;
+
+            uint slot = atomicAdd(pair_count.v[0], 1u);
+            collision_pairs.v[slot] = uvec2(a, b);
+        }
+    }
+}

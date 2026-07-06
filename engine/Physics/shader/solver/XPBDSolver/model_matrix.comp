@@ -1,0 +1,54 @@
+#version 450 core
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer RigidBodyAlive {
+    uint v[];
+} rigid_body_alive;
+
+layout(set = 0, binding = 1) readonly buffer RigidBodyCenterPosition {
+    vec4 v[];
+} rigid_body_center_position;
+
+layout(set = 0, binding = 2) readonly buffer RigidBodyCenterRotation {
+    vec4 v[];
+} rigid_body_center_rotation;
+
+layout(set = 0, binding = 3) writeonly buffer ModelMatrices {
+    mat4 v[];
+} model_matrices;
+
+mat4 quaternion_to_mat4(vec4 q) {
+    float x = q.x, y = q.y, z = q.z, w = q.w;
+    float xx = x * x, yy = y * y, zz = z * z;
+    float xy = x * y, xz = x * z, yz = y * z;
+    float wx = w * x, wy = w * y, wz = w * z;
+
+    return mat4(
+        vec4(1.0 - 2.0 * (yy + zz), 2.0 * (xy + wz),       2.0 * (xz - wy),       0.0),
+        vec4(2.0 * (xy - wz),       1.0 - 2.0 * (xx + zz), 2.0 * (yz + wx),       0.0),
+        vec4(2.0 * (xz + wy),       2.0 * (yz - wx),       1.0 - 2.0 * (xx + yy), 0.0),
+        vec4(0.0, 0.0, 0.0, 1.0)
+    );
+}
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= rigid_body_alive.v.length()) {
+        return;
+    }
+    if (rigid_body_alive.v[index] == 0u) {
+        return;
+    }
+
+    vec3 pos = rigid_body_center_position.v[index].xyz;
+    vec4 quat = rigid_body_center_rotation.v[index];
+    mat4 rot = quaternion_to_mat4(quat);
+
+    model_matrices.v[index] = mat4(
+        rot[0],
+        rot[1],
+        rot[2],
+        vec4(pos, 1.0)
+    );
+}

@@ -132,7 +132,7 @@ namespace Editor {
                             cb.DrawRenderers(
                                 "Shadowmap",
                                 system.GetRendererManager().FilterAndSortRenderers({}),
-                                0,
+                                i,
                                 shadow_map_extent
                             );
                             cb.EndRendering();

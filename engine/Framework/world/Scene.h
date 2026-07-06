@@ -13,6 +13,7 @@ namespace Engine {
     class EventQueue;
     class Component;
     class SceneAsset;
+    class PhysicsScene;
     namespace Reflection {
         class Type;
     }
@@ -30,7 +31,7 @@ namespace Engine {
     class Scene {
     protected:
         friend class WorldSystem;
-        Scene(uint32_t sceneID, bool enable_rendering);
+        Scene(uint32_t sceneID, bool enable_rendering, bool enable_physics);
 
     public:
         virtual ~Scene();
@@ -197,6 +198,9 @@ namespace Engine {
          */
         bool IsRenderingEnabled() const noexcept;
 
+        PhysicsScene *GetPhysicsScene();
+        const PhysicsScene *GetPhysicsScene() const;
+
     protected:
         uint32_t m_sceneID;
 
@@ -219,6 +223,9 @@ namespace Engine {
         // Determine whether the components in the scene should be registered to the render system and processed in the rendering pipeline.
         // Currently only main scene in WorldSystem can enable rendering.
         bool m_enable_rendering{false};
+        // Determine whether the components in the scene should be registered to the physics system and processed in the physics simulation.
+        // Currently only main scene in WorldSystem can enable physics simulation.
+        bool m_enable_physics{false};
 
     protected:
         // GameObject need to access AddComponent function

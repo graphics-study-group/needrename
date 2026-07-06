@@ -9,6 +9,7 @@
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
 #include <Framework/world/WorldSystem.h>
+#include <Physics/PhysicsSystem.h>
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
@@ -75,6 +76,7 @@ namespace Engine {
         this->window = std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, sdl_window_flags);
         this->time = std::make_shared<TimeSystem>();
         this->renderer = std::make_shared<RenderSystem>(this->window);
+        this->physics = std::make_shared<PhysicsSystem>();
         this->world = std::make_shared<WorldSystem>();
         this->asset_database = std::make_shared<FileSystemDatabase>();
         this->asset_manager = std::make_shared<AssetManager>();
@@ -127,6 +129,10 @@ namespace Engine {
 
     std::shared_ptr<WorldSystem> MainClass::GetWorldSystem() const {
         return world;
+    }
+
+    std::shared_ptr<PhysicsSystem> MainClass::GetPhysicsSystem() const {
+        return physics;
     }
 
     std::shared_ptr<GUISystem> MainClass::GetGUISystem() const {
@@ -183,7 +189,26 @@ namespace Engine {
         this->world->UpdateRendererData(*this->renderer);
 
         this->renderer->StartFrame();
-        this->render_graph->Execute(*this->renderer);
+
+        // Phase 1: CPU-side physics prep (no CB needed).
+        this->physics->PreGPUStep();
+
+        // Phase 2: GPU recording — physics + rendering share one CB.
+        auto cb = this->renderer->GetFrameManager().GetRawMainCommandBuffer();
+        cb.begin(vk::CommandBufferBeginInfo{});
+
+        this->physics->GPUStep(cb); // solvers record their RGs
+
+        if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
+            this->render_graph->RecordAllPasses(cb);
+        }
+
+        cb.end();
+        this->renderer->GetFrameManager().SubmitMainCommandBuffer();
+
+        // Phase 3: Physics readback / post-processing (CB already submitted).
+        this->physics->PostGPUStep();
+
         auto [w, h] = this->window->GetSize();
         this->renderer->CompleteFrame(
             *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),

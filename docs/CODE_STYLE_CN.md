@@ -195,3 +195,8 @@ namespace Engine {
 
 - 使用 `assert` 进行断言检查
 - 示例：`assert(ptr != nullptr && "Pointer must not be null");`
+
+### 5.5 功能文档
+
+重要功能应附带 OpenSpec 规范文档，存放于 `openspec/specs/` 目录。
+请参考 [贡献指南](./CONTRIBUTING_CN.md#openspec-工作流) 了解相应工作流程。

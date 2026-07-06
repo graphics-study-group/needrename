@@ -21,7 +21,9 @@ namespace {
         case Compute:
             return vk::PipelineStageFlagBits2::eComputeShader;
         default:
-            return vk::PipelineStageFlagBits2::eNone;
+            // Virtual Source pass or unknown affinity — use the most
+            // conservative stage so that barrier access flags are valid.
+            return vk::PipelineStageFlagBits2::eAllCommands;
         }
     }
 

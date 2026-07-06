@@ -41,6 +41,16 @@
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
                 "m_value": 1.0
+            },
+            "albedoFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.0
+                ]
             }
         }
     }

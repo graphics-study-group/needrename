@@ -1,0 +1,31 @@
+#version 450 core
+
+// Generic vec4 buffer copy — one thread per element.
+// Used for all snapshot copies (position, orientation, velocity).
+//
+// Bindings:
+//   binding 0: readonly source vec4[]
+//   binding 1: writeonly destination vec4[]
+//   binding 2: readonly buffer containing element count (uint)
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SrcBuffer {
+    vec4 v[];
+} src;
+
+layout(set = 0, binding = 1) writeonly buffer DstBuffer {
+    vec4 v[];
+} dst;
+
+layout(set = 0, binding = 2) readonly buffer ElemCount {
+    uint count;
+} elem_count;
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= elem_count.count) {
+        return;
+    }
+    dst.v[index] = src.v[index];
+}

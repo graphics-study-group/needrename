@@ -1,0 +1,185 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_atomic_float : enable
+
+// accumulate_fixed_position.comp — Per-fixed XPBD position constraint
+// accumulate phase (Jacobi parallelization).
+//
+// Solves two constraints per fixed joint:
+//   1. Rotation: drive relative rotation toward initial snapshot
+//   2. Position: drive relative position toward initial snapshot in obj1's local frame
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "common/xpbd_math.glsl"
+#include "common/xpbd_joint_math.glsl"
+
+// ---- Joint definition buffer (PhysicsScene-owned, read-only) ----
+struct GpuFixedJoint {
+    uint obj1_index;
+    uint obj2_index;
+    float compliance;
+    float _pad;
+    vec4 initial_rel_pos_local;
+    vec4 initial_rel_rotation;
+};
+
+layout(set = 0, binding = 0)  readonly buffer FixedJoints         { GpuFixedJoint v[]; } fixed_joints;
+layout(set = 0, binding = 1)  readonly buffer FixedJointCount     { uint count; } fixed_joint_count;
+
+// ---- Lagrange multiplier SoA buffers (solver-owned, read-write) ----
+layout(set = 0, binding = 2)  buffer FixedRotationLagrange { float v[]; } rotation_lagrange;
+layout(set = 0, binding = 3)  buffer FixedPositionLagrange { float v[]; } position_lagrange;
+
+// ---- Body state (read-only) ----
+layout(set = 0, binding = 4)  readonly buffer RigidBodyAlive         { uint v[]; } rigid_body_alive;
+layout(set = 0, binding = 5)  readonly buffer RigidBodyCenterPosition { vec4 v[]; } rigid_body_center_position;
+layout(set = 0, binding = 6)  readonly buffer RigidBodyCenterRotation { vec4 v[]; } rigid_body_center_rotation;
+layout(set = 0, binding = 7)  readonly buffer RigidBodyMass           { float v[]; } rigid_body_mass;
+layout(set = 0, binding = 8)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
+layout(set = 0, binding = 9)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
+
+// ---- Uniforms (dt) ----
+layout(set = 0, binding = 10) readonly buffer XpbdUniforms { vec4 v; } uniforms;  // xyz = gravity, w = substep_dt
+
+// ---- Jacobi accumulators (shared with contact and hinge solvers) ----
+layout(set = 0, binding = 11) buffer LinearPositionDelta  { float v[]; } lin_delta;
+layout(set = 0, binding = 12) buffer AngularPositionDelta { float v[]; } ang_delta;
+layout(set = 0, binding = 13) buffer PositionDeltaCount    { float v[]; } delta_count;
+
+void main() {
+    uint cidx = gl_GlobalInvocationID.x;
+    if (cidx >= fixed_joint_count.count) return;
+
+    GpuFixedJoint constraint = fixed_joints.v[cidx];
+    uint obj1_idx = constraint.obj1_index;
+    uint obj2_idx = constraint.obj2_index;
+    uint body_count = rigid_body_alive.v.length();
+    if (obj1_idx >= body_count || obj2_idx >= body_count) return;
+    if (rigid_body_alive.v[obj1_idx] == 0u || rigid_body_alive.v[obj2_idx] == 0u) return;
+
+    bool scripted_obj1 = (rigid_body_is_kinematic.v[obj1_idx] != 0u);
+    bool scripted_obj2 = (rigid_body_is_kinematic.v[obj2_idx] != 0u);
+    if (scripted_obj1 && scripted_obj2) return;
+
+    float inv_mass_obj1 = rigid_body_mass.v[obj1_idx];
+    float inv_mass_obj2 = rigid_body_mass.v[obj2_idx];
+    inv_mass_obj1 = (inv_mass_obj1 > 1e-12) ? (1.0 / inv_mass_obj1) : 0.0;
+    inv_mass_obj2 = (inv_mass_obj2 > 1e-12) ? (1.0 / inv_mass_obj2) : 0.0;
+
+    vec3 pos1 = rigid_body_center_position.v[obj1_idx].xyz;
+    vec3 pos2 = rigid_body_center_position.v[obj2_idx].xyz;
+    vec4 ori1 = rigid_body_center_rotation.v[obj1_idx];
+    vec4 ori2 = rigid_body_center_rotation.v[obj2_idx];
+
+    mat4 inv_inertia1 = rigid_body_inverse_inertia.v[obj1_idx];
+    mat4 inv_inertia2 = rigid_body_inverse_inertia.v[obj2_idx];
+
+    float dt = uniforms.v.w;
+    float tilde_alpha = constraint.compliance / (dt * dt);
+    float kEpsilon = 1e-8;
+
+    // =====================================================================
+    // Constraint 1: Rotation constraint
+    // Drive relative rotation toward initial snapshot.
+    // =====================================================================
+    vec4 q1_inv = quat_inverse(ori1);
+    vec4 q_rel_current = quat_mul(ori2, q1_inv);
+    vec4 q_initial_inv = quat_inverse(constraint.initial_rel_rotation);
+    vec4 q_error = quat_mul(quat_mul(ori2, q_initial_inv), q1_inv);
+    vec3 angular_correction = quat_to_rotation_vec(q_error);
+    float angular_norm = length(angular_correction);
+
+    if (angular_norm > kEpsilon) {
+        vec3 n = angular_correction / angular_norm;
+        vec3 obj1_world_inv_i_n = apply_world_inv_inertia(inv_inertia1, ori1, n);
+        vec3 obj2_world_inv_i_n = apply_world_inv_inertia(inv_inertia2, ori2, n);
+        float w1 = dot(obj1_world_inv_i_n, n);
+        float w2 = dot(obj2_world_inv_i_n, n);
+        float denom = w1 + w2 + tilde_alpha;
+
+        if (denom > kEpsilon) {
+            float dlambda = (angular_norm - rotation_lagrange.v[cidx] * tilde_alpha) / denom;
+
+            if (!scripted_obj1) {
+                vec3 ang_d = obj1_world_inv_i_n * dlambda;
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 0u], ang_d.x);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 1u], ang_d.y);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 2u], ang_d.z);
+                atomicAdd(delta_count.v[obj1_idx], 1.0);
+            }
+            if (!scripted_obj2) {
+                vec3 ang_d = -(obj2_world_inv_i_n * dlambda);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 0u], ang_d.x);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 1u], ang_d.y);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 2u], ang_d.z);
+                atomicAdd(delta_count.v[obj2_idx], 1.0);
+            }
+
+            rotation_lagrange.v[cidx] += dlambda;
+        }
+    }
+
+    // =====================================================================
+    // Constraint 2: Position constraint
+    // Drive obj2 COM in obj1's local frame toward its initial value.
+    // target_pos_world = pos1 + quat_rotate(q1, initial_rel_pos_local)
+    // C_pos = |pos2 - target_pos_world|
+    // =====================================================================
+    vec3 target_pos_world = pos1 + quat_rotate(ori1, constraint.initial_rel_pos_local.xyz);
+    vec3 positional_correction = pos2 - target_pos_world;
+    float positional_norm = length(positional_correction);
+
+    if (positional_norm > kEpsilon) {
+        vec3 n = positional_correction / positional_norm;
+
+        // r1 is the lever arm from pos1 to the attachment point.
+        // The attachment point is at target_pos_world, so r1 = target_pos_world - pos1.
+        vec3 r1 = target_pos_world - pos1;
+        // r2 = 0 because we attach at obj2's COM (pos2 is the attachment point).
+        vec3 r2 = vec3(0.0);
+
+        vec3 r1_n = cross(r1, n);
+        vec3 r2_n = cross(r2, n);
+        vec3 i1_r1n = apply_world_inv_inertia(inv_inertia1, ori1, r1_n);
+        vec3 i2_r2n = apply_world_inv_inertia(inv_inertia2, ori2, r2_n);
+        float w1 = inv_mass_obj1 + dot(i1_r1n, r1_n);
+        float w2 = inv_mass_obj2 + dot(i2_r2n, r2_n);
+        float denom = w1 + w2 + tilde_alpha;
+
+        if (denom > kEpsilon) {
+            float dlambda = (positional_norm - position_lagrange.v[cidx] * tilde_alpha) / denom;
+            vec3 impulse = dlambda * n;
+
+            if (!scripted_obj1) {
+                vec3 lin_d = inv_mass_obj1 * impulse;
+                atomicAdd(lin_delta.v[obj1_idx * 3u + 0u], lin_d.x);
+                atomicAdd(lin_delta.v[obj1_idx * 3u + 1u], lin_d.y);
+                atomicAdd(lin_delta.v[obj1_idx * 3u + 2u], lin_d.z);
+
+                vec3 ang_d = apply_world_inv_inertia(inv_inertia1, ori1, cross(r1, impulse));
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 0u], ang_d.x);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 1u], ang_d.y);
+                atomicAdd(ang_delta.v[obj1_idx * 3u + 2u], ang_d.z);
+
+                atomicAdd(delta_count.v[obj1_idx], 1.0);
+            }
+
+            if (!scripted_obj2) {
+                vec3 lin_d = -inv_mass_obj2 * impulse;
+                atomicAdd(lin_delta.v[obj2_idx * 3u + 0u], lin_d.x);
+                atomicAdd(lin_delta.v[obj2_idx * 3u + 1u], lin_d.y);
+                atomicAdd(lin_delta.v[obj2_idx * 3u + 2u], lin_d.z);
+
+                vec3 ang_d = -apply_world_inv_inertia(inv_inertia2, ori2, cross(r2, impulse));
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 0u], ang_d.x);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 1u], ang_d.y);
+                atomicAdd(ang_delta.v[obj2_idx * 3u + 2u], ang_d.z);
+
+                atomicAdd(delta_count.v[obj2_idx], 1.0);
+            }
+
+            position_lagrange.v[cidx] += dlambda;
+        }
+    }
+}

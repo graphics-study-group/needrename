@@ -1,0 +1,52 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+
+// update_velocities_from_pose.comp — Compute per-body velocity from the
+// net pose change during the substep.
+//
+//   v = (p_post - p_pre) / dt
+//   dq = q_post * q_pre^{-1}  →  w = sign(dq.w) * 2 * dq.xyz / dt
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "common/xpbd_math.glsl"
+
+// ---- Buffers ----
+
+layout(set = 0, binding = 0) readonly buffer RigidBodyAlive       { uint v[]; } rigid_body_alive;
+layout(set = 0, binding = 1) readonly buffer RigidBodyCenterPosition  { vec4 v[]; } rigid_body_center_position;
+layout(set = 0, binding = 2) readonly buffer RigidBodyCenterRotation  { vec4 v[]; } rigid_body_center_rotation;
+layout(set = 0, binding = 3) buffer      RigidBodyLinearVelocity      { vec4 v[]; } rigid_body_linear_velocity;
+layout(set = 0, binding = 4) buffer      RigidBodyAngularVelocity     { vec4 v[]; } rigid_body_angular_velocity;
+layout(set = 0, binding = 5) readonly buffer RigidBodyIsKinematic     { uint v[]; } rigid_body_is_kinematic;
+
+layout(set = 0, binding = 6) readonly buffer SubstepStartPosition      { vec4 v[]; } substep_start_position;
+layout(set = 0, binding = 7) readonly buffer SubstepStartOrientation   { vec4 v[]; } substep_start_orientation;
+
+layout(set = 0, binding = 8) readonly buffer XpbdUniforms {
+    vec4 gravity;  // w = dt
+} uniforms;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= rigid_body_alive.v.length()) return;
+    if (rigid_body_alive.v[idx] == 0u) return;
+    if (rigid_body_is_kinematic.v[idx] != 0u) return;
+
+    float dt = uniforms.gravity.w;
+    if (dt <= 1e-8) return;
+
+    // Linear velocity from position delta.
+    vec3 delta_pos = rigid_body_center_position.v[idx].xyz - substep_start_position.v[idx].xyz;
+    rigid_body_linear_velocity.v[idx].xyz = delta_pos / dt;
+
+    // Angular velocity from orientation delta.
+    // dq = q_post * q_pre^{-1}  (q_pre^{-1} = conjugate for unit quaternion)
+    vec4 q_cur = rigid_body_center_rotation.v[idx];
+    vec4 q_pre = substep_start_orientation.v[idx];
+    vec4 q_pre_inv = vec4(-q_pre.x, -q_pre.y, -q_pre.z, q_pre.w);
+
+    vec4 dq = quat_mul(q_cur, q_pre_inv);
+    float sign = (dq.w >= 0.0) ? 1.0 : -1.0;
+    rigid_body_angular_velocity.v[idx].xyz = sign * (2.0 / dt) * dq.xyz;
+}

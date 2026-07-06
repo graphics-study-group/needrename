@@ -1,0 +1,13 @@
+{
+    "%extra_data": [],
+    "%main_data": {
+        "%type": "Engine::LevelAsset",
+        "Asset::m_guid": "ff182376-0000-0000-0000-000000000000",
+        "LevelAsset::m_default_camera": 6,
+        "LevelAsset::m_skybox_material": "02f70d06-16a5-4b39-0312-1b47c937f883",
+        "SceneAsset::components": [
+        ],
+        "SceneAsset::objects": [
+        ]
+    }
+}

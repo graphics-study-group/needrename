@@ -111,6 +111,9 @@ namespace Engine {
             bmb.reserve(subpass.buffer_barriers.size());
             for (const auto &[r, b] : subpass.buffer_barriers) {
                 bmb.push_back(vk::MemoryBarrier2{b.srcStageMask, b.srcAccessMask, b.dstStageMask, b.dstAccessMask});
+                // TODO: Use BufferMemoryBarrier2.
+                // for now, we only need one MemoryBarrier2
+                break;
             }
 
             cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, bmb, {}, imb});
@@ -148,13 +151,11 @@ namespace Engine {
     }
 
     void RenderGraph::RecordAllPasses(vk::CommandBuffer cb) {
-        cb.begin(vk::CommandBufferBeginInfo{});
         RecordPrePass(cb);
         for (size_t i = 0; i < pimpl->passes.size(); i++) {
             this->Record(i, cb);
         }
         RecordPostPass(cb);
-        cb.end();
     }
 
     void RenderGraph::Execute(RenderSystem &system) {
@@ -182,8 +183,14 @@ namespace Engine {
         auto &fm = system.GetFrameManager();
         auto cb = fm.GetRawMainCommandBuffer();
 
+        cb.begin(vk::CommandBufferBeginInfo{});
         RecordAllPasses(cb);
+        cb.end();
         fm.SubmitMainCommandBuffer();
+    }
+
+    uint32_t RenderGraph::GetNumPasses() const noexcept {
+        return static_cast<uint32_t>(pimpl->passes.size());
     }
 
 } // namespace Engine

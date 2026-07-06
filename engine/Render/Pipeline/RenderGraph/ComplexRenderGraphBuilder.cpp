@@ -15,6 +15,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <Render/Memory/ComputeBuffer.h>
+
 namespace Engine {
     ComplexRenderGraphBuilder::ComplexRenderGraphBuilder(RenderSystem &system) : m_system(system) {
         // XXX: Hardcoded bloom shader. Should use AssetManager to load shader when we have pipeline asset.
@@ -23,9 +25,20 @@ namespace Engine {
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        uint32_t texture_width, uint32_t texture_height, RGTextureHandle &final_color_target_id
+        uint32_t texture_width,
+        uint32_t texture_height,
+        RGTextureHandle &final_color_target_id,
+        const ComputeBuffer *model_matrices_buffer
     ) {
         RenderGraphBuilder rgb{m_system};
+
+        // Import optional physics model matrices buffer.
+        RGBufferHandle mm_handle{};
+        if (model_matrices_buffer != nullptr) {
+            mm_handle = rgb.ImportExternalResource(
+                *model_matrices_buffer, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomWrite)
+            );
+        }
 
         // Request transient resources
         RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
@@ -73,14 +86,21 @@ namespace Engine {
         auto &bloom_compute_stage = *m_bloom_compute_stage;
         using IAT = MemoryAccessTypeImageBits;
 
+        bool has_model_matrices = (model_matrices_buffer != nullptr);
+
         /**
          * Shadowmap passes — one per shadow-casting light.
          * Manual BeginRendering/EndRendering, no WrapRenderPass().
          */
         for (size_t i = 0; i < shadow_ids.size(); i++) {
+            auto shadow_builder = RenderGraphPassBuilder{m_system}.SetName("Shadowmap Pass " + std::to_string(i));
+            if (has_model_matrices) {
+                shadow_builder.UseBuffer(
+                    mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead)
+                );
+            }
             rgb.AddPass(
-                RenderGraphPassBuilder{m_system}
-                    .SetName("Shadowmap Pass " + std::to_string(i))
+                shadow_builder
                     .SetDepthStencilAttachment(
                         {shadow_ids[i],
                          {},
@@ -107,7 +127,7 @@ namespace Engine {
                             cb.DrawRenderers(
                                 "Shadowmap",
                                 system.GetRendererManager().FilterAndSortRenderers({}),
-                                0,
+                                i,
                                 shadow_map_extent
                             );
                             cb.EndRendering();
@@ -127,6 +147,13 @@ namespace Engine {
             // Declare shadow map reads
             for (size_t i = 0; i < shadow_ids.size(); i++) {
                 lit_pass_builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
+            }
+
+            // Declare model matrices read (after physics compute writes).
+            if (has_model_matrices) {
+                lit_pass_builder.UseBuffer(
+                    mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead)
+                );
             }
 
             lit_pass_builder

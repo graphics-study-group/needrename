@@ -1,0 +1,20 @@
+#version 450 core
+
+// Writes zero to every element of a uint[] SSBO.
+// Used to clear cell histograms and other atomic-accumulation buffers.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) buffer Target {
+    uint v[];
+} target;
+
+layout(set = 0, binding = 1) readonly buffer ElemCount {
+    uint count;
+} elem_count;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= elem_count.count) return;
+    target.v[idx] = 0u;
+}

@@ -1,0 +1,40 @@
+#version 450 core
+
+// Flag unique entries in a sorted uvec2 array.
+//
+// Each thread compares pairs[i] with pairs[i-1].  The first element (i == 0)
+// is always flagged unique.  Subsequent elements are flagged unique (1) if
+// they differ in either component from the predecessor; otherwise 0.
+//
+// Output: unique_flags[i] = 1 for first occurrence of each unique pair.
+//
+// Dispatch: ceil(elem_count / 64), 1, 1
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SortedPairs {
+    uvec2 v[];
+} sorted_pairs;
+
+layout(set = 0, binding = 1) writeonly buffer UniqueFlags {
+    uint v[];
+} unique_flags;
+
+layout(set = 0, binding = 2) readonly buffer ElemCount {
+    uint count;
+} elem_count;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= elem_count.count) return;
+
+    if (idx == 0u) {
+        unique_flags.v[0] = 1u;
+        return;
+    }
+
+    uvec2 cur = sorted_pairs.v[idx];
+    uvec2 prev = sorted_pairs.v[idx - 1u];
+
+    unique_flags.v[idx] = (cur == prev) ? 0u : 1u;
+}

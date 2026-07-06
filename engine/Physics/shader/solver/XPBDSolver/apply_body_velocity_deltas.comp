@@ -1,0 +1,46 @@
+#version 450 core
+
+// apply_body_velocity_deltas.comp — Per-body Jacobi apply phase for
+// velocity constraints.  Averages the accumulated velocity deltas,
+// applies them, and resets accumulators.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer RigidBodyAlive        { uint v[]; } rigid_body_alive;
+layout(set = 0, binding = 1) buffer      RigidBodyLinearVelocity   { vec4 v[]; } rigid_body_linear_velocity;
+layout(set = 0, binding = 2) buffer      RigidBodyAngularVelocity  { vec4 v[]; } rigid_body_angular_velocity;
+layout(set = 0, binding = 3) readonly buffer RigidBodyIsKinematic     { uint v[]; } rigid_body_is_kinematic;
+
+layout(set = 0, binding = 4) buffer LinearVelocityDelta  { float v[]; } linear_vel_delta_i;
+layout(set = 0, binding = 5) buffer AngularVelocityDelta { float v[]; } angular_vel_delta_i;
+layout(set = 0, binding = 6) buffer VelocityDeltaCount    { float v[]; } velocity_delta_count;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= rigid_body_alive.v.length()) return;
+    if (rigid_body_alive.v[idx] == 0u) return;
+    if (rigid_body_is_kinematic.v[idx] != 0u) return;
+
+    float count = velocity_delta_count.v[idx];
+    if (count <= 0.0) return;
+    float inv_count = 1.0 / count;
+
+    // Apply averaged linear velocity delta.
+    rigid_body_linear_velocity.v[idx].x += linear_vel_delta_i.v[idx * 3u + 0u] * inv_count;
+    rigid_body_linear_velocity.v[idx].y += linear_vel_delta_i.v[idx * 3u + 1u] * inv_count;
+    rigid_body_linear_velocity.v[idx].z += linear_vel_delta_i.v[idx * 3u + 2u] * inv_count;
+
+    // Apply averaged angular velocity delta.
+    rigid_body_angular_velocity.v[idx].x += angular_vel_delta_i.v[idx * 3u + 0u] * inv_count;
+    rigid_body_angular_velocity.v[idx].y += angular_vel_delta_i.v[idx * 3u + 1u] * inv_count;
+    rigid_body_angular_velocity.v[idx].z += angular_vel_delta_i.v[idx * 3u + 2u] * inv_count;
+
+    // Reset accumulators.
+    linear_vel_delta_i.v[idx * 3u + 0u] = 0.0;
+    linear_vel_delta_i.v[idx * 3u + 1u] = 0.0;
+    linear_vel_delta_i.v[idx * 3u + 2u] = 0.0;
+    angular_vel_delta_i.v[idx * 3u + 0u] = 0.0;
+    angular_vel_delta_i.v[idx * 3u + 1u] = 0.0;
+    angular_vel_delta_i.v[idx * 3u + 2u] = 0.0;
+    velocity_delta_count.v[idx] = 0.0;
+}

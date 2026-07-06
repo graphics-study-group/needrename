@@ -8,4 +8,7 @@ CMakeCache.txt
 
 .cache/
 
-# projects/test_project
+.claude
+.kilocode
+.kilo
+.agents

@@ -100,6 +100,12 @@ namespace Engine {
         void RecordAllPasses(vk::CommandBuffer);
 
         /**
+         * @brief Get the number of compiled passes in this render graph.
+         */
+        [[nodiscard]]
+        uint32_t GetNumPasses() const noexcept;
+
+        /**
          * @brief Execute the render graph by recording all commands onto the
          * main command buffer and submitting it for execution.
          *
