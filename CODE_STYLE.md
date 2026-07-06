@@ -195,3 +195,8 @@ namespace Engine {
 
 - Use `assert` for assertion checks
 - Example: `assert(ptr != nullptr && "Pointer must not be null");`
+
+### 5.5 Feature Documentation
+
+Major features should be accompanied by an OpenSpec spec document in `openspec/specs/`.
+Refer to the [Contributing Guide](./CONTRIBUTING.md#openspec-workflow) for the workflow.
