@@ -12,7 +12,7 @@ namespace vk {
 
 namespace Engine {
     class RenderSystem;
-    class GraphicsCommandBuffer;
+    class CommandBuffer;
 
     namespace RenderSystemState {
         /**
@@ -178,7 +178,7 @@ namespace Engine {
              * @todo It should be relocated and integrated with GraphicsCommandBuffer.
              */
             void DrawSkybox(
-                GraphicsCommandBuffer &cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent
+                CommandBuffer &cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent
             ) const;
 
             /**

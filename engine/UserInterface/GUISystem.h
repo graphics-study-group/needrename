@@ -16,7 +16,7 @@ namespace Engine {
     namespace AttachmentUtils {
         class AttachmentDescription;
     }
-    class GraphicsCommandBuffer;
+    class CommandBuffer;
 
     class GUISystem {
     protected:
@@ -70,7 +70,7 @@ namespace Engine {
          * attachment is used again, synchronization barriers must be set up correctly.
          */
         void DrawGUI(
-            const AttachmentUtils::AttachmentDescription &attachment, vk::Extent2D extent, GraphicsCommandBuffer &cb
+            const AttachmentUtils::AttachmentDescription &attachment, vk::Extent2D extent, CommandBuffer &cb
         ) const;
 
         /**

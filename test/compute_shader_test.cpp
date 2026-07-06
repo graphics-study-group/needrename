@@ -20,7 +20,7 @@ auto BuildRenderGraph(
     ComputeStage &compute,
     ComputeResourceBinding &cbinding
 ) {
-    RenderGraphBuilder2 rgb{rsys};
+    RenderGraphBuilder rgb{rsys};
     auto ci = rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
     auto co = rgb.ImportExternalResource(color_out);
     auto cp = rgb.ImportExternalResource(color_present);
@@ -30,10 +30,11 @@ auto BuildRenderGraph(
             .UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead)
             .UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite)
             .UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite)
-            .SetComputePassFunction([&](ComputeCommandBuffer &ccb, const RenderGraph2 &rg) -> void {
-                ccb.BindComputeStage(compute);
-                ccb.BindComputeResource(cbinding);
-                ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
+            .SetAffinity(RenderGraphPassAffinity::Compute)
+            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &rg) -> void {
+                cb.BindComputeStage(compute);
+                cb.BindComputeResource(cbinding);
+                cb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
             })
             .Get()
     );
@@ -43,8 +44,8 @@ auto BuildRenderGraph(
             .SetName("Blitting")
             .UseImage(ci, MemoryAccessTypeImageBits::TransferWrite)
             .UseImage(co, MemoryAccessTypeImageBits::TransferRead)
-            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &tcb, const RenderGraph2 &) -> void {
-                tcb.BlitColorImage(color_out, color_in);
+            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &) -> void {
+                cb.BlitColorImage(color_out, color_in);
             })
             .Get()
     );
@@ -120,8 +121,8 @@ int main(int argc, char *argv[]) {
         rsys->StartFrame();
         cbinding.GetStructuredBuffer().SetVariable<uint32_t>("UBO::frame_count", static_cast<uint32_t>(frame_count));
 
-        if (frame_count == 1) rg.AddExternalInputDependency(g_color_in_handle, MemoryAccessTypeImageBits::None);
-        rg.Execute(*rsys);
+        if (frame_count == 1) rg->AddExternalInputDependency(g_color_in_handle, MemoryAccessTypeImageBits::None);
+        rg->Execute(*rsys);
 
         rsys->CompleteFrame(
             *color_present,

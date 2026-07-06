@@ -7,8 +7,7 @@
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
+#include <Render/Pipeline/CommandBuffer.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>

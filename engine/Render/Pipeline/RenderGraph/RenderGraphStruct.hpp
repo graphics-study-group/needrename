@@ -10,7 +10,7 @@
 #include "Render/RenderSystem/ResizableRTTManager.h"
 
 namespace Engine {
-    class RenderGraph2;
+    class RenderGraph;
     class RenderTargetTexture;
 
     using RenderTargetTextureVariant = std::variant<RenderTargetTexture *, RRTTHandle>;
@@ -45,7 +45,7 @@ namespace Engine {
 
             PipelineRuntimeInfoPerRendering per_rendering_info{};
 
-            std::function<void(vk::CommandBuffer, const RenderGraph2 &rg)> pass_work{};
+            std::function<void(vk::CommandBuffer, const RenderGraph &rg)> pass_work{};
         };
         std::vector<Subpass> subpasses{};
     };

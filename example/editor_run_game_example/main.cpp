@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
     auto project_widget = main_window.FindWidgetAs<Editor::ProjectWidget>(Editor::MainWindow::k_project_widget_name);
 
     auto rgb = std::make_unique<Editor::EditorRenderGraphBuilder>(*cmc->GetRenderSystem());
-    int32_t final_color_id, scene_color_id, game_color_id;
+    RGTextureHandle final_color_id, scene_color_id, game_color_id;
     auto rg = rgb->BuildEditorRenderGraph(
         screenWidth, screenHeight, scene_widget.get(), game_widget.get(), scene_color_id, game_color_id, final_color_id
     );
@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
         main_window.Render();
 
         rsys->StartFrame();
-        rg->Execute();
+        rg->Execute(*rsys);
         auto [w, h] = cmc->GetWindow()->GetSize();
         rsys->CompleteFrame(*rg->GetInternalTextureResource(final_color_id), w, h);
     }

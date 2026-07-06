@@ -1,51 +1,44 @@
 #include "RenderGraphPass.h"
 
 #include "Render/DebugUtils.h"
-#include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
+#include "Render/Pipeline/CommandBuffer.h"
+#include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"
 
 namespace Engine {
-    RenderGraphPassBuilder &RenderGraphPassBuilder::SetRasterizerPassFunction(
-        std::function<void(GraphicsCommandBuffer &, const RenderGraph2 &)> fn
+    RenderGraphPassBuilder &RenderGraphPassBuilder::SetPassFunction(
+        std::function<void(CommandBuffer &, const RenderGraph &)> fn
     ) noexcept {
-        auto f = [system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
-            GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-            gcb.SetRenderingInfo(rg.GetCurrentPassRuntimeInfo());
-            std::invoke(fn, std::ref(gcb), std::cref(rg));
-        };
-        pass.pass_function = f;
-        pass.actual_type = RenderGraphPassAffinity::Graphics;
-        pass.affinity = RenderGraphPassAffinity::Graphics;
-        return *this;
-    }
+        RenderGraphPassAffinity actual_type;
+        bool is_graphics = false;
 
-    RenderGraphPassBuilder &RenderGraphPassBuilder::SetComputePassFunction(
-        std::function<void(ComputeCommandBuffer &, const RenderGraph2 &)> fn
-    ) noexcept {
-        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
-            ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
-            DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
-            std::invoke(fn, std::ref(ccb), std::cref(rg));
-            DEBUG_CMD_END_LABEL(cb);
-        };
-        pass.pass_function = f;
-        pass.actual_type = RenderGraphPassAffinity::Compute;
-        pass.affinity = RenderGraphPassAffinity::Graphics;
-        return *this;
-    }
+        switch (pass.affinity) {
+            using enum RenderGraphPassAffinity;
+        case Graphics:
+            actual_type = Graphics;
+            is_graphics = true;
+            break;
+        case Compute:
+            actual_type = Compute;
+            break;
+        case Transfer:
+            actual_type = Transfer;
+            break;
+        default:
+            actual_type = Graphics;
+            is_graphics = true;
+            break;
+        }
 
-    RenderGraphPassBuilder &RenderGraphPassBuilder::SetTransferPassFunction(
-        std::function<void(TransferCommandBuffer &, const RenderGraph2 &)> fn
-    ) noexcept {
-        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
-            TransferCommandBuffer ccb{cb};
-            DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
-            std::invoke(fn, std::ref(ccb), std::cref(rg));
-            DEBUG_CMD_END_LABEL(cb);
+        auto f = [system = &this->system, fn, is_graphics](vk::CommandBuffer cb, const RenderGraph &rg) {
+            CommandBuffer cmdbuf{*system, cb, system->GetFrameManager().GetFrameInFlight()};
+            if (is_graphics) {
+                cmdbuf.SetRenderingInfo(rg.GetCurrentPassRuntimeInfo());
+            }
+            std::invoke(fn, std::ref(cmdbuf), std::cref(rg));
         };
         pass.pass_function = f;
-        pass.actual_type = RenderGraphPassAffinity::Transfer;
-        pass.affinity = RenderGraphPassAffinity::Graphics;
+        pass.actual_type = actual_type;
         return *this;
     }
 
@@ -58,7 +51,7 @@ namespace Engine {
                      ca = pass.color_attachments,
                      da = pass.depth_attachment,
                      name = pass.name,
-                     wrapped = pass.pass_function](vk::CommandBuffer cb, const RenderGraph2 &rg) {
+                     wrapped = pass.pass_function](vk::CommandBuffer cb, const RenderGraph &rg) {
             // Construct rendering info
 
             vk::Rect2D rendering_area{

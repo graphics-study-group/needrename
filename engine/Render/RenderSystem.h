@@ -21,7 +21,7 @@ namespace Engine {
     class SDLWindow;
     class RendererComponent;
     class Camera;
-    class GraphicsCommandBuffer;
+    class CommandBuffer;
     class RenderTargetTexture;
 
     namespace ConstantData {

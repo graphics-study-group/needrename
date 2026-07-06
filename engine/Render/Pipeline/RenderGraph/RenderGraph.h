@@ -1,83 +1,113 @@
-#ifndef PIPELINE_RENDERGRAPH_RENDERGRAPH_INCLUDED
-#define PIPELINE_RENDERGRAPH_RENDERGRAPH_INCLUDED
-
-#include <functional>
-#include <vector>
+#ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPH2
+#define PIPELINE_RENDERGRAPH2_RENDERGRAPH2
 
 #include "Render/Memory/MemoryAccessTypes.h"
 
 namespace vk {
-    class CommandBuffer;
+    struct CommandBuffer;
 }
 
 namespace Engine {
-    namespace RenderSystemState {
-        class FrameManager;
-    }
 
-    namespace RenderGraphImpl {
-        struct RenderGraphExtraInfo;
-    }
+    class RenderGraphCompiledPass;
+    class RenderGraph2ExtraInfo;
+    class PipelineRuntimeInfoPerRendering;
+
+    enum class RGTextureHandle : int32_t;
+    enum class RGBufferHandle : int32_t;
 
     /**
-     * @brief Resolved render graph ready to be executed.
-     * Contains a list of `vk::CommandBuffer` method calls.
+     * @brief Render Graph 2.
      *
-     * Dependencies should be resolved when building the render graph.
-     *
-     * @deprecated Use new `Engine::RenderGraph2` instead.
+     * Contains a list of passes compiled by the builder.
+     * It holds ownerships of transient render target textures, and compiles
+     * image barriers accordingly.
      */
     class RenderGraph {
-        RenderSystem &m_system;
-
         struct impl;
         std::unique_ptr<impl> pimpl;
 
-        friend class RenderGraphBuilder;
-
-        RenderGraph(
-            RenderSystem &system,
-            std::vector<std::function<void(vk::CommandBuffer, const RenderGraph &)>> &&commands,
-            RenderGraphImpl::RenderGraphExtraInfo &&extra
-        );
-
     public:
-        ~RenderGraph();
+        RenderGraph(std::vector<RenderGraphCompiledPass> &&passes, RenderGraph2ExtraInfo &&extra) noexcept;
+        ~RenderGraph() noexcept;
 
         /**
          * @brief Add an external input dependency on a texture for this frame.
-         *
          * Useful for setting up temporal reused textures.
+         *
+         * This method can only be used on imported resources. It may insert
+         * a full pipeline barrier to effectuate the desired access, so use this
+         * method sparingly.
          */
-        void AddExternalInputDependency(Texture &texture, MemoryAccessTypeImageBits previous_access);
-        void AddExternalInputDependency(DeviceBuffer &buffer, MemoryAccessTypeBuffer previous_access);
+        void AddExternalInputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access);
 
         /**
          * @brief Add an external output dependency on a texture for this frame.
+         * Useful for setting up textures read-back by CPU side.
          *
-         * Useful if you want to present an image that is not used as a color attachment.
+         * This method can only be used on imported resources. It may insert
+         * a full pipeline barrier to effectuate the desired access, so use this
+         * method sparingly.
          */
-        void AddExternalOutputDependency(Texture &texture, MemoryAccessTypeImageBits next_access);
-        void AddExternalOutputDependency(DeviceBuffer &buffer, MemoryAccessTypeBuffer next_access);
+        void AddExternalOutputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access);
 
         /**
          * @brief Get a internally managed render target texture.
          *
+         * If the render target texture is managed by a `ResizableRTTManager`,
+         * it will be automatically resolved.
+         *
          * @return nullptr if handle is not available.
          */
-        RenderTargetTexture *GetInternalTextureResource(int32_t handle) const noexcept;
+        RenderTargetTexture *GetInternalTextureResource(RGTextureHandle handle) const noexcept;
 
         /**
-         * @brief Record all operations onto the specified command buffer.
+         * @brief Request the graphics pipeline runtime information of the
+         * current pass or subpass.
          */
-        void Record(vk::CommandBuffer cb);
+        const PipelineRuntimeInfoPerRendering &GetCurrentPassRuntimeInfo() const noexcept;
 
         /**
-         * @brief Execute the render graph by recording all commands onto the main command
-         * buffer and submitting it for execution.
+         * @brief Record all operations of a given pass onto the specified
+         * command buffer.
          */
-        void Execute();
+        void Record(uint32_t pass, vk::CommandBuffer cb) const;
+
+        /**
+         * @brief Record synchronization prior to any passes.
+         *
+         * Such synchronization will only happen if external input dependencies
+         * are specified.
+         * External input dependencies will be reset.
+         */
+        void RecordPrePass(vk::CommandBuffer);
+
+        /**
+         * @brief Record synchronization after the render graph.
+         *
+         * Such synchronization will only happen if external output dependencies
+         * are specified.
+         * External output dependencies will be reset.
+         */
+        void RecordPostPass(vk::CommandBuffer);
+
+        /**
+         * @brief Record all passes onto the same command buffer.
+         *
+         * This method disregards task affinities, and enforces serialized
+         * start of execution on GPU.
+         */
+        void RecordAllPasses(vk::CommandBuffer);
+
+        /**
+         * @brief Execute the render graph by recording all commands onto the
+         * main command buffer and submitting it for execution.
+         *
+         * This method disregards task affinities, and enforces serialized
+         * start of execution on GPU.
+         */
+        void Execute(RenderSystem &system);
     };
 } // namespace Engine
 
-#endif // PIPELINE_RENDERGRAPH_RENDERGRAPH_INCLUDED
+#endif // PIPELINE_RENDERGRAPH2_RENDERGRAPH2

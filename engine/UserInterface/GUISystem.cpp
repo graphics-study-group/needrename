@@ -2,7 +2,7 @@
 
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/ImageUtilsFunc.h"
-#include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
+#include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/Structs.h"
@@ -76,7 +76,7 @@ namespace Engine {
     }
 
     void GUISystem::DrawGUI(
-        const AttachmentUtils::AttachmentDescription &att, vk::Extent2D extent, GraphicsCommandBuffer &cb
+        const AttachmentUtils::AttachmentDescription &att, vk::Extent2D extent, CommandBuffer &cb
     ) const {
         cb.BeginRendering(att, {}, extent, "GUI rendering pass");
         ImGui::Render();
