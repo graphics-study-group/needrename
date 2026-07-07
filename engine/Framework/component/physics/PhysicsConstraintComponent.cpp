@@ -5,6 +5,7 @@
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <Physics/PhysicsScene.h>
+#include <Reflection/Archive.h>
 
 #include <SDL3/SDL.h>
 
@@ -97,6 +98,105 @@ namespace Engine {
                 },
                 joint_var
             );
+        }
+    }
+
+    void PhysicsConstraintComponent::save_to_archive(Serialization::Archive &archive) const {
+        // Let the base class handle Component::m_handle + generated fields.
+        Component::save_to_archive(archive);
+
+        Serialization::Json &json = *archive.m_cursor;
+        Serialization::Json joints_array = Serialization::Json::array();
+
+        for (const auto &joint_var : m_joints) {
+            Serialization::Json j = Serialization::Json::object();
+            std::visit(
+                [&j](const auto &def) {
+                    using T = std::decay_t<decltype(def)>;
+                    if constexpr (std::is_same_v<T, FixedJointDef>) {
+                        j["type"] = "fixed";
+                        j["obj2_handle"] = def.m_obj2_handle.GetID();
+                        j["compliance"] = def.m_compliance;
+                    } else if constexpr (std::is_same_v<T, HingeJointDef>) {
+                        j["type"] = "hinge";
+                        j["obj2_handle"] = def.m_obj2_handle.GetID();
+                        j["compliance"] = def.m_compliance;
+                        j["obj1_axis"] = {
+                            def.m_obj1_local_aligned_axis.x,
+                            def.m_obj1_local_aligned_axis.y,
+                            def.m_obj1_local_aligned_axis.z
+                        };
+                        j["obj2_axis"] = {
+                            def.m_obj2_local_aligned_axis.x,
+                            def.m_obj2_local_aligned_axis.y,
+                            def.m_obj2_local_aligned_axis.z
+                        };
+                        j["obj1_attach"] = {
+                            def.m_obj1_local_attach_point.x,
+                            def.m_obj1_local_attach_point.y,
+                            def.m_obj1_local_attach_point.z
+                        };
+                        j["obj2_attach"] = {
+                            def.m_obj2_local_attach_point.x,
+                            def.m_obj2_local_attach_point.y,
+                            def.m_obj2_local_attach_point.z
+                        };
+                    }
+                },
+                joint_var
+            );
+            joints_array.push_back(std::move(j));
+        }
+        json["m_joints"] = std::move(joints_array);
+    }
+
+    void PhysicsConstraintComponent::load_from_archive(Serialization::Archive &archive) {
+        // Let the base class restore Component::m_handle + generated fields.
+        Component::load_from_archive(archive);
+
+        Serialization::Json &json = *archive.m_cursor;
+        if (!json.contains("m_joints") || !json["m_joints"].is_array()) {
+            return;
+        }
+
+        m_joints.clear();
+        for (const auto &j : json["m_joints"]) {
+            const std::string type = j.value("type", "");
+            if (type == "fixed") {
+                FixedJointDef def;
+                def.m_obj2_handle = ObjectHandle(j.value("obj2_handle", 0u));
+                def.m_compliance = j.value("compliance", 0.0f);
+                m_joints.push_back(def);
+            } else if (type == "hinge") {
+                HingeJointDef def;
+                def.m_obj2_handle = ObjectHandle(j.value("obj2_handle", 0u));
+                def.m_compliance = j.value("compliance", 0.0f);
+                if (j.contains("obj1_axis") && j["obj1_axis"].is_array() && j["obj1_axis"].size() >= 3) {
+                    def.m_obj1_local_aligned_axis = glm::vec3(
+                        j["obj1_axis"][0].get<float>(), j["obj1_axis"][1].get<float>(), j["obj1_axis"][2].get<float>()
+                    );
+                }
+                if (j.contains("obj2_axis") && j["obj2_axis"].is_array() && j["obj2_axis"].size() >= 3) {
+                    def.m_obj2_local_aligned_axis = glm::vec3(
+                        j["obj2_axis"][0].get<float>(), j["obj2_axis"][1].get<float>(), j["obj2_axis"][2].get<float>()
+                    );
+                }
+                if (j.contains("obj1_attach") && j["obj1_attach"].is_array() && j["obj1_attach"].size() >= 3) {
+                    def.m_obj1_local_attach_point = glm::vec3(
+                        j["obj1_attach"][0].get<float>(),
+                        j["obj1_attach"][1].get<float>(),
+                        j["obj1_attach"][2].get<float>()
+                    );
+                }
+                if (j.contains("obj2_attach") && j["obj2_attach"].is_array() && j["obj2_attach"].size() >= 3) {
+                    def.m_obj2_local_attach_point = glm::vec3(
+                        j["obj2_attach"][0].get<float>(),
+                        j["obj2_attach"][1].get<float>(),
+                        j["obj2_attach"][2].get<float>()
+                    );
+                }
+                m_joints.push_back(def);
+            }
         }
     }
 

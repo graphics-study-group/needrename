@@ -291,11 +291,24 @@ namespace Engine {
         m_rigid_body_external_force.push_back(ToVec4(external_force));
         m_rigid_body_external_torque.push_back(ToVec4(external_torque));
         m_rigid_body_need_init.push_back(false);
+        m_rigid_body_use_manual_inertia.push_back(false);
+        m_rigid_body_manual_inertia.push_back(glm::mat3(0.0f));
         m_rigid_body_to_shapes[new_index] = {};
 
         EnqueueRigidBodyInitialization(new_index);
 
         return new_index;
+    }
+
+    void PhysicsScene::SetRigidBodyManualInertia(uint32_t rigid_body_index, const glm::mat3 &inertia) {
+        if (!IsRigidBodyIndexValid(rigid_body_index)) {
+            return;
+        }
+        if (rigid_body_index >= m_rigid_body_use_manual_inertia.size()) {
+            return;
+        }
+        m_rigid_body_use_manual_inertia[rigid_body_index] = true;
+        m_rigid_body_manual_inertia[rigid_body_index] = inertia;
     }
 
     void PhysicsScene::UnregisterRigidBody(uint32_t rigid_body_index) {
@@ -667,6 +680,24 @@ namespace Engine {
             m_rigid_body_center_offset_local_position[rigid_body_index] = glm::vec4(0.0f);
             m_rigid_body_inertia[rigid_body_index] = glm::mat4(0.0f);
             m_rigid_body_inverse_inertia[rigid_body_index] = glm::mat4(0.0f);
+            return;
+        }
+
+        // If manual inertia is set, use it directly and skip automatic computation.
+        if (rigid_body_index < m_rigid_body_use_manual_inertia.size()
+            && m_rigid_body_use_manual_inertia[rigid_body_index]) {
+            m_rigid_body_inertia[rigid_body_index] = glm::mat4(m_rigid_body_manual_inertia[rigid_body_index]);
+            const float det = glm::determinant(m_rigid_body_manual_inertia[rigid_body_index]);
+            if (det > 1e-12f) {
+                m_rigid_body_inverse_inertia[rigid_body_index] =
+                    glm::mat4(glm::inverse(m_rigid_body_manual_inertia[rigid_body_index]));
+            } else {
+                m_rigid_body_inverse_inertia[rigid_body_index] = glm::mat4(0.0f);
+            }
+            // Center-of-mass stays at the GameObject's world position/orientation.
+            m_rigid_body_center_world_position[rigid_body_index] = ToVec4(object_world_position);
+            m_rigid_body_center_world_rotation[rigid_body_index] = ToVec4(object_world_rotation);
+            m_rigid_body_center_offset_local_position[rigid_body_index] = glm::vec4(0.0f);
             return;
         }
 

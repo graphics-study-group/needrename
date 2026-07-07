@@ -62,6 +62,13 @@ namespace Engine {
         REFL_SER_ENABLE glm::vec3 m_external_force{0.0f, 0.0f, 0.0f};
         REFL_SER_ENABLE glm::vec3 m_external_torque{0.0f, 0.0f, 0.0f};
 
+        // Manual inertia tensor override — when enabled, PhysicsScene skips
+        // automatic volume-weighted inertia computation and uses these values.
+        // Diagonal: (ixx, iyy, izz).  Off-diagonal: (ixy, ixz, iyz).
+        REFL_SER_ENABLE bool m_use_manual_inertia{false};
+        REFL_SER_ENABLE glm::vec3 m_manual_inertia_diag{0.0f, 0.0f, 0.0f};
+        REFL_SER_ENABLE glm::vec3 m_manual_inertia_offdiag{0.0f, 0.0f, 0.0f};
+
     private:
         uint32_t m_rigid_body_index{PhysicsScene::INVALID_INDEX};
 

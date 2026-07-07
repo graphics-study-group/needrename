@@ -95,7 +95,9 @@ namespace Engine {
         for (size_t i = 0; i < shadow_ids.size(); i++) {
             auto shadow_builder = RenderGraphPassBuilder{m_system}.SetName("Shadowmap Pass " + std::to_string(i));
             if (has_model_matrices) {
-                shadow_builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead));
+                shadow_builder.UseBuffer(
+                    mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead)
+                );
             }
             rgb.AddPass(
                 shadow_builder
@@ -149,7 +151,9 @@ namespace Engine {
 
             // Declare model matrices read (after physics compute writes).
             if (has_model_matrices) {
-                lit_pass_builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead));
+                lit_pass_builder.UseBuffer(
+                    mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead)
+                );
             }
 
             lit_pass_builder

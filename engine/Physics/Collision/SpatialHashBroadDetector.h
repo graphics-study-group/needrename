@@ -98,7 +98,7 @@ namespace Engine {
          */
         uint32_t GetMaxPairs() const noexcept;
 
-         /**
+        /**
          * @brief Get read-only pointers to result buffers.
          *
          * Valid after first Configure() (which calls EnsureBuffers).

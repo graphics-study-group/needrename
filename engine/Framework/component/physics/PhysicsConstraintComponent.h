@@ -20,8 +20,8 @@ namespace Engine {
      * transform is computed at Awake() time from current world transforms.
      */
     struct FixedJointDef {
-        ObjectHandle m_obj2_handle; ///< Handle of the second object.
-        float m_compliance{0.0f};   ///< Joint compliance (0 = hard constraint).
+        ObjectHandle m_obj2_handle{}; ///< Handle of the second object.
+        float m_compliance{0.0f};     ///< Joint compliance (0 = hard constraint).
     };
 
     /**
@@ -31,12 +31,12 @@ namespace Engine {
      * target angle support in this version.
      */
     struct HingeJointDef {
-        ObjectHandle m_obj2_handle;          ///< Handle of the second object.
-        glm::vec3 m_obj1_local_aligned_axis; ///< Aligned axis in obj1's local frame.
-        glm::vec3 m_obj2_local_aligned_axis; ///< Aligned axis in obj2's local frame.
-        glm::vec3 m_obj1_local_attach_point; ///< Attachment point in obj1's local frame.
-        glm::vec3 m_obj2_local_attach_point; ///< Attachment point in obj2's local frame.
-        float m_compliance{0.0f};            ///< Joint compliance (0 = hard constraint).
+        ObjectHandle m_obj2_handle{};              ///< Handle of the second object.
+        glm::vec3 m_obj1_local_aligned_axis{0.0f}; ///< Aligned axis in obj1's local frame.
+        glm::vec3 m_obj2_local_aligned_axis{0.0f}; ///< Aligned axis in obj2's local frame.
+        glm::vec3 m_obj1_local_attach_point{0.0f}; ///< Attachment point in obj1's local frame.
+        glm::vec3 m_obj2_local_attach_point{0.0f}; ///< Attachment point in obj2's local frame.
+        float m_compliance{0.0f};                  ///< Joint compliance (0 = hard constraint).
     };
 
     /// Variant type for storing either joint type.
@@ -75,8 +75,21 @@ namespace Engine {
          */
         void Awake() override;
 
+        /**
+         * @brief Custom serialization for m_joints variant vector.
+         *
+         * The reflection system cannot handle std::variant, so we manually
+         * write each joint as a tagged JSON object.
+         */
+        void save_to_archive(Serialization::Archive &archive) const;
+
+        /**
+         * @brief Custom deserialization for m_joints variant vector.
+         */
+        void load_from_archive(Serialization::Archive &archive);
+
     public:
-        /// Joint definitions (editable at construction time, not serialized).
+        /// Joint definitions.
         std::vector<JointVariant> m_joints{};
     };
 } // namespace Engine

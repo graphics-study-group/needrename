@@ -91,6 +91,16 @@ namespace Engine {
             if (shape_index == PhysicsScene::INVALID_INDEX) continue;
             physics_scene->SetCollisionShapeRigidBody(shape_index, m_rigid_body_index);
         }
+
+        if (m_use_manual_inertia) {
+            const glm::mat3 inertia(
+                glm::vec3(m_manual_inertia_diag.x, m_manual_inertia_offdiag.x, m_manual_inertia_offdiag.y),
+                glm::vec3(m_manual_inertia_offdiag.x, m_manual_inertia_diag.y, m_manual_inertia_offdiag.z),
+                glm::vec3(m_manual_inertia_offdiag.y, m_manual_inertia_offdiag.z, m_manual_inertia_diag.z)
+            );
+            physics_scene->SetRigidBodyManualInertia(m_rigid_body_index, inertia);
+        }
+
         physics_scene->EnqueueRigidBodyInitialization(m_rigid_body_index);
     }
 

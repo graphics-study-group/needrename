@@ -41,7 +41,6 @@ foreach(SRC ${PHYSICS_GLSL_SOURCES})
         COMMAND ${CMAKE_COMMAND} -E make_directory "${OUT_DIR}"
         COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} $<$<CONFIG:Debug>:-gVS> -V "${SRC}" -o "${OUT}"
         DEPENDS "${SRC}"
-        VERBATIM
     )
     list(APPEND PHYSICS_SPIRV_OUTPUTS "${OUT}")
 endforeach()

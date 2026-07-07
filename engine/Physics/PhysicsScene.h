@@ -261,6 +261,17 @@ namespace Engine {
         void EnqueueRigidBodyInitialization(uint32_t rigid_body_index);
 
         /**
+         * @brief Set a manually-defined inertia tensor for a rigid body.
+         *
+         * When set, RecalculateRigidBodyState skips automatic volume-weighted
+         * inertia computation and uses the provided tensor directly.
+         *
+         * @param rigid_body_index Rigid body index.
+         * @param inertia 3x3 inertia tensor.
+         */
+        void SetRigidBodyManualInertia(uint32_t rigid_body_index, const glm::mat3 &inertia);
+
+        /**
          * @brief Register a FixedJoint constraint.
          *
          * @param obj1_index Rigid body index of the owning object.
@@ -449,6 +460,9 @@ namespace Engine {
         std::vector<glm::vec4> m_rigid_body_center_offset_local_position{};
         std::vector<glm::mat4> m_rigid_body_inertia{};
         std::vector<glm::mat4> m_rigid_body_inverse_inertia{};
+        // Manual inertia override (not GPU-synced — used in RecalculateRigidBodyState)
+        std::vector<bool> m_rigid_body_use_manual_inertia{};
+        std::vector<glm::mat3> m_rigid_body_manual_inertia{};
         std::vector<glm::vec4> m_rigid_body_linear_velocity{};
         std::vector<glm::vec4> m_rigid_body_angular_velocity{};
         std::vector<glm::vec4> m_rigid_body_external_force{};

@@ -344,8 +344,15 @@ namespace Engine {
             // Step 2: Build histogram.
             auto &hist_param = AcquireHistogramParam(byte_shift, word_select, elem_capacity);
             AddHistogramPass(
-                builder, pairs_in_handle, pairs_in_buf, scratch_handle, scratch_buf, hist_param,
-                pair_count_handle, pair_count_buf, elem_capacity
+                builder,
+                pairs_in_handle,
+                pairs_in_buf,
+                scratch_handle,
+                scratch_buf,
+                hist_param,
+                pair_count_handle,
+                pair_count_buf,
+                elem_capacity
             );
 
             // Step 3: Exclusive prefix sum over 256 histogram entries.
