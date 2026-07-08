@@ -54,7 +54,7 @@ namespace Engine {
                 if (physicsScene) {
                     while (currentObj) {
                         auto rigid_idx = physicsScene->FindRigidBodyByObjectHandle(currentObj->GetHandle());
-                        if (rigid_idx != PhysicsScene::INVALID_INDEX) {
+                        if (rigid_idx != PhysicsScene::INVALID_INDEX && physicsScene->IsModelMatrixActive(rigid_idx)) {
                             model_mat_index = static_cast<int32_t>(rigid_idx);
                             // Compute local transform relative to the rigid body's GO.
                             // The shader will compose: model_matrices[index] * pc.model.

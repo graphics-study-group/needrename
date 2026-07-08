@@ -45,6 +45,15 @@ namespace Engine {
         void Awake() override;
 
         /**
+         * @brief Upload current transform and properties to PhysicsScene.
+         *
+         * Init refreshes the rigid body's world pose and serialized properties
+         * in PhysicsScene using the cached index from Awake, then enqueues
+         * recomputation of center-of-mass and inertia tensor.
+         */
+        void Init() override;
+
+        /**
          * @brief Get the rigid body index in PhysicsScene.
          *
          * @return Physics rigid body index, or INVALID_INDEX if unregistered.

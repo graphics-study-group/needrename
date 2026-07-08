@@ -76,6 +76,16 @@ namespace Engine {
         void Awake() override;
 
         /**
+         * @brief Resolve handles and upload joint data to PhysicsScene.
+         *
+         * Init resolves ObjectHandles to rigid body indices (guaranteed
+         * available since all RigidBody Awake callbacks have completed),
+         * recomputes FixedJoint initial relative transforms from current
+         * world poses, and fills the allocated joint slots.
+         */
+        void Init() override;
+
+        /**
          * @brief Custom serialization for m_joints variant vector.
          *
          * The reflection system cannot handle std::variant, so we manually
@@ -91,6 +101,10 @@ namespace Engine {
     public:
         /// Joint definitions.
         std::vector<JointVariant> m_joints{};
+
+    private:
+        /// Cached joint indices from Awake allocation, parallel to m_joints.
+        std::vector<std::pair<uint32_t, bool>> m_joint_indices{};
     };
 } // namespace Engine
 

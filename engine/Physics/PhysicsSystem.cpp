@@ -95,4 +95,10 @@ namespace Engine {
             }
         }
     }
+
+    void PhysicsSystem::InitializePendingRigidBodies(RenderSystem &render_system) {
+        for (auto &[scene_id, scene] : m_scene_map) {
+            scene->InitializePendingRigidBodies(render_system);
+        }
+    }
 } // namespace Engine

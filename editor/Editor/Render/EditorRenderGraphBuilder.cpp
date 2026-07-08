@@ -4,6 +4,7 @@
 #include <Asset/Shader/ShaderAsset.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
+#include <Render/Memory/ComputeBuffer.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
@@ -40,7 +41,8 @@ namespace Editor {
         GameWidget *game_widget,
         RGTextureHandle &scene_widget_color_id,
         RGTextureHandle &game_widget_color_id,
-        RGTextureHandle &final_color_target_id
+        RGTextureHandle &final_color_target_id,
+        const ComputeBuffer *model_matrices_buffer
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -91,6 +93,14 @@ namespace Editor {
         m_scene_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
         m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
 
+        using IBT = MemoryAccessTypeBufferBits;
+        RGBufferHandle mm_handle{};
+        bool has_model_matrices = (model_matrices_buffer != nullptr);
+        if (has_model_matrices) {
+            mm_handle =
+                rgb.ImportExternalResource(*model_matrices_buffer, MemoryAccessTypeBuffer(IBT::ShaderRandomWrite));
+        }
+
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
         auto gui_system = MainClass::GetInstance()->GetGUISystem().get();
@@ -103,16 +113,20 @@ namespace Editor {
          * Shadowmap passes — one per shadow-casting light.
          */
         for (size_t i = 0; i < shadow_ids.size(); i++) {
-            rgb.AddPass(
-                RenderGraphPassBuilder{m_system}
-                    .SetName("Shadowmap Pass " + std::to_string(i))
-                    .SetDepthStencilAttachment(
-                        {shadow_ids[i],
-                         {},
-                         AttachmentUtils::LoadOperation::Clear,
-                         AttachmentUtils::StoreOperation::Store,
-                         AttachmentUtils::DepthClearValue{1.0f, 0U}}
-                    )
+            auto shadow_builder = RenderGraphPassBuilder{m_system}
+                                      .SetName("Shadowmap Pass " + std::to_string(i))
+                                      .SetDepthStencilAttachment(
+                                          {shadow_ids[i],
+                                           {},
+                                           AttachmentUtils::LoadOperation::Clear,
+                                           AttachmentUtils::StoreOperation::Store,
+                                           AttachmentUtils::DepthClearValue{1.0f, 0U}}
+                                      );
+            if (has_model_matrices) {
+                shadow_builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
+            }
+            auto shadow_pass =
+                shadow_builder
                     .SetPassFunction([&system, shadow_ids, i](CommandBuffer &cb, const RenderGraph &rg) {
                         vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
                         vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
@@ -138,9 +152,8 @@ namespace Editor {
                             cb.EndRendering();
                         }
                     })
-                    .Get()
-                // No WrapRenderPass — manual rendering
-            );
+                    .Get();
+            rgb.AddPass(std::move(shadow_pass));
         }
 
         /**
@@ -150,6 +163,9 @@ namespace Editor {
             auto builder = RenderGraphPassBuilder{m_system}.SetName("Scene Lit pass");
             for (size_t i = 0; i < shadow_ids.size(); i++) {
                 builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
+            }
+            if (has_model_matrices) {
+                builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
             }
             builder
                 .AppendColorAttachment(
@@ -223,6 +239,9 @@ namespace Editor {
             auto builder = RenderGraphPassBuilder{m_system}.SetName("Game Lit pass");
             for (size_t i = 0; i < shadow_ids.size(); i++) {
                 builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
+            }
+            if (has_model_matrices) {
+                builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
             }
             builder
                 .AppendColorAttachment(

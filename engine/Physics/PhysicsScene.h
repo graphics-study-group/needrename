@@ -310,6 +310,68 @@ namespace Engine {
         );
 
         /**
+         * @brief Allocate an empty FixedJoint slot in the joints vector.
+         *
+         * Used by PhysicsConstraintComponent::Awake to reserve a slot before
+         * rigid body indices are known. The slot is filled by UpdateFixedJoint
+         * during Init.
+         *
+         * @return Allocated joint index.
+         */
+        uint32_t AllocateFixedJoint();
+
+        /**
+         * @brief Fill an allocated FixedJoint slot with resolved data.
+         *
+         * @param joint_idx Joint index returned by AllocateFixedJoint.
+         * @param obj1_index Rigid body index of the owning object.
+         * @param obj2_index Rigid body index of the second object.
+         * @param compliance Joint compliance parameter.
+         * @param initial_rel_pos_local Initial relative position in obj1's local frame.
+         * @param initial_rel_rotation Initial relative rotation quaternion.
+         */
+        void UpdateFixedJoint(
+            uint32_t joint_idx,
+            uint32_t obj1_index,
+            uint32_t obj2_index,
+            float compliance,
+            const glm::vec3 &initial_rel_pos_local,
+            const glm::quat &initial_rel_rotation
+        );
+
+        /**
+         * @brief Allocate an empty HingeJoint slot in the joints vector.
+         *
+         * Used by PhysicsConstraintComponent::Awake to reserve a slot.
+         *
+         * @return Allocated joint index.
+         */
+        uint32_t AllocateHingeJoint();
+
+        /**
+         * @brief Fill an allocated HingeJoint slot with resolved data.
+         *
+         * @param joint_idx Joint index returned by AllocateHingeJoint.
+         * @param obj1_index Rigid body index of the owning object.
+         * @param obj2_index Rigid body index of the second object.
+         * @param compliance Joint compliance parameter.
+         * @param obj1_local_aligned_axis Aligned axis in obj1's local frame.
+         * @param obj2_local_aligned_axis Aligned axis in obj2's local frame.
+         * @param obj1_local_attach_point Attachment point in obj1's local frame.
+         * @param obj2_local_attach_point Attachment point in obj2's local frame.
+         */
+        void UpdateHingeJoint(
+            uint32_t joint_idx,
+            uint32_t obj1_index,
+            uint32_t obj2_index,
+            float compliance,
+            const glm::vec3 &obj1_local_aligned_axis,
+            const glm::vec3 &obj2_local_aligned_axis,
+            const glm::vec3 &obj1_local_attach_point,
+            const glm::vec3 &obj2_local_attach_point
+        );
+
+        /**
          * @brief Initialize all queued rigid bodies.
          *
          * This recalculates center of mass, inertia tensor, and shape local
@@ -402,10 +464,24 @@ namespace Engine {
         void DebugPrint() const;
 
         /**
+         * @brief Upload current world transform for an existing rigid body.
+         *
+         * This is used by RigidBodyComponent::Init to refresh initial pose
+         * from the current GameObject transform before re-enqueuing init.
+         *
+         * @param rigid_body_index Rigid body index.
+         * @param world_position Current world position.
+         * @param world_rotation Current world rotation.
+         */
+        void SetRigidBodyTransform(
+            uint32_t rigid_body_index, const glm::vec3 &world_position, const glm::quat &world_rotation
+        );
+
+        /**
          * @brief Enable or disable GPU simulation for this scene.
          *
-         * When disabled, the XPBD compute passes will skip dispatch,
-         * but model matrix updates still run so objects remain visible.
+         * When disabled, the XPBD compute passes will skip dispatch
+         * and all model_matrix_active flags are cleared.
          *
          * @param enabled True to enable simulation, false to pause.
          */
@@ -417,6 +493,25 @@ namespace Engine {
          * @return True if simulation is enabled.
          */
         bool IsSimulationEnabled() const noexcept;
+
+        /**
+         * @brief Set whether this rigid body's model matrix SSBO slot is active.
+         *
+         * When active, PreRenderUpdate sets model_mat_index for descendant renderers.
+         * When inactive, renderers use TransformComponent push-constants instead.
+         *
+         * @param rigid_body_index Rigid body index.
+         * @param active True to enable SSBO-driven rendering.
+         */
+        void SetModelMatrixActive(uint32_t rigid_body_index, bool active);
+
+        /**
+         * @brief Check whether this rigid body's model matrix SSBO slot is active.
+         *
+         * @param rigid_body_index Rigid body index.
+         * @return True if the SSBO path is active for this rigid body.
+         */
+        bool IsModelMatrixActive(uint32_t rigid_body_index) const noexcept;
 
         /**
          * @brief Resolve pending collision filter ObjectHandles to shape indices.
@@ -470,6 +565,7 @@ namespace Engine {
         std::vector<bool> m_rigid_body_need_init{};
         std::deque<uint32_t> m_rigid_body_init_queue{};
         std::unordered_map<uint32_t, std::vector<uint32_t>> m_rigid_body_to_shapes{};
+        std::vector<bool> m_rigid_body_model_matrix_active{};
 
         std::vector<uint32_t> m_shape_to_rigid_body{};
         std::vector<uint32_t> m_shape_type{};

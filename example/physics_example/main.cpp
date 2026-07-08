@@ -26,7 +26,7 @@
 
 using namespace Engine;
 
-void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb,glm::vec3 global_offset) {
+void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb, glm::vec3 global_offset) {
     // --- Load preset solid color materials ---
     auto red_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
     auto green_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});

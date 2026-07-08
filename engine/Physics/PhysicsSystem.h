@@ -14,7 +14,7 @@ namespace vk {
 
 namespace Engine {
     class PhysicsScene;
-    class PhysicsScene;
+    class RenderSystem;
 
     /**
      * @brief Physics scene manager at engine-system scope.
@@ -105,6 +105,21 @@ namespace Engine {
          * @param solver   Unique-ownership solver instance.
          */
         void RegisterSolver(uint32_t scene_id, std::unique_ptr<ISolver> solver);
+
+        /**
+         * @brief Initialize all pending rigid bodies across all scenes.
+         *
+         * Calls InitializePendingRigidBodies on each PhysicsScene that has
+         * enqueued initializations. This creates/refreshes GPU buffers for
+         * rigid body SoA data and model matrices.
+         *
+         * Must be called after ProcessEvents and before UpdateRendererData,
+         * so that SSBO model matrices are GPU-ready before renderers query
+         * their model_mat_index.
+         *
+         * @param render_system Render system for GPU buffer management.
+         */
+        void InitializePendingRigidBodies(RenderSystem &render_system);
 
         /**
          * @brief CPU-side preparation before GPU work.

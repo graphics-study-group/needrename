@@ -294,6 +294,7 @@ namespace Engine {
         m_rigid_body_use_manual_inertia.push_back(false);
         m_rigid_body_manual_inertia.push_back(glm::mat3(0.0f));
         m_rigid_body_to_shapes[new_index] = {};
+        m_rigid_body_model_matrix_active.push_back(false);
 
         EnqueueRigidBodyInitialization(new_index);
 
@@ -451,6 +452,74 @@ namespace Engine {
         joint.obj2_local_attach_point =
             glm::vec4(obj2_local_attach_point.x, obj2_local_attach_point.y, obj2_local_attach_point.z, 0.0f);
         m_hinge_joints.push_back(joint);
+    }
+
+    uint32_t PhysicsScene::AllocateFixedJoint() {
+        GpuFixedJoint joint{};
+        joint.obj1_index = INVALID_INDEX;
+        joint.obj2_index = INVALID_INDEX;
+        joint.compliance = 0.0f;
+        m_fixed_joints.push_back(joint);
+        return static_cast<uint32_t>(m_fixed_joints.size() - 1);
+    }
+
+    void PhysicsScene::UpdateFixedJoint(
+        uint32_t joint_idx,
+        uint32_t obj1_index,
+        uint32_t obj2_index,
+        float compliance,
+        const glm::vec3 &initial_rel_pos_local,
+        const glm::quat &initial_rel_rotation
+    ) {
+        if (joint_idx >= m_fixed_joints.size()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "UpdateFixedJoint: joint index %u out of range", joint_idx);
+            return;
+        }
+        GpuFixedJoint &joint = m_fixed_joints[joint_idx];
+        joint.obj1_index = obj1_index;
+        joint.obj2_index = obj2_index;
+        joint.compliance = compliance;
+        joint.initial_rel_pos_local =
+            glm::vec4(initial_rel_pos_local.x, initial_rel_pos_local.y, initial_rel_pos_local.z, 0.0f);
+        joint.initial_rel_rotation =
+            glm::vec4(initial_rel_rotation.x, initial_rel_rotation.y, initial_rel_rotation.z, initial_rel_rotation.w);
+    }
+
+    uint32_t PhysicsScene::AllocateHingeJoint() {
+        GpuHingeJoint joint{};
+        joint.obj1_index = INVALID_INDEX;
+        joint.obj2_index = INVALID_INDEX;
+        joint.compliance = 0.0f;
+        m_hinge_joints.push_back(joint);
+        return static_cast<uint32_t>(m_hinge_joints.size() - 1);
+    }
+
+    void PhysicsScene::UpdateHingeJoint(
+        uint32_t joint_idx,
+        uint32_t obj1_index,
+        uint32_t obj2_index,
+        float compliance,
+        const glm::vec3 &obj1_local_aligned_axis,
+        const glm::vec3 &obj2_local_aligned_axis,
+        const glm::vec3 &obj1_local_attach_point,
+        const glm::vec3 &obj2_local_attach_point
+    ) {
+        if (joint_idx >= m_hinge_joints.size()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "UpdateHingeJoint: joint index %u out of range", joint_idx);
+            return;
+        }
+        GpuHingeJoint &joint = m_hinge_joints[joint_idx];
+        joint.obj1_index = obj1_index;
+        joint.obj2_index = obj2_index;
+        joint.compliance = compliance;
+        joint.obj1_local_aligned_axis =
+            glm::vec4(obj1_local_aligned_axis.x, obj1_local_aligned_axis.y, obj1_local_aligned_axis.z, 0.0f);
+        joint.obj2_local_aligned_axis =
+            glm::vec4(obj2_local_aligned_axis.x, obj2_local_aligned_axis.y, obj2_local_aligned_axis.z, 0.0f);
+        joint.obj1_local_attach_point =
+            glm::vec4(obj1_local_attach_point.x, obj1_local_attach_point.y, obj1_local_attach_point.z, 0.0f);
+        joint.obj2_local_attach_point =
+            glm::vec4(obj2_local_attach_point.x, obj2_local_attach_point.y, obj2_local_attach_point.z, 0.0f);
     }
 
     void PhysicsScene::SetCollisionShapeRigidBody(uint32_t shape_index, uint32_t rigid_body_index) {
@@ -1085,8 +1154,44 @@ namespace Engine {
         m_pending_filter_handles.resize(shape_count);
     }
 
+    void PhysicsScene::SetRigidBodyTransform(
+        uint32_t rigid_body_index, const glm::vec3 &world_position, const glm::quat &world_rotation
+    ) {
+        if (!IsRigidBodyIndexValid(rigid_body_index)) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION, "SetRigidBodyTransform: rigid body index %u is invalid", rigid_body_index
+            );
+            return;
+        }
+        m_rigid_body_center_world_position[rigid_body_index] = glm::vec4(world_position, 0.0f);
+        m_rigid_body_center_world_rotation[rigid_body_index] =
+            glm::vec4(world_rotation.x, world_rotation.y, world_rotation.z, world_rotation.w);
+    }
+
+    void PhysicsScene::SetModelMatrixActive(uint32_t rigid_body_index, bool active) {
+        if (!IsRigidBodyIndexValid(rigid_body_index)) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION, "SetModelMatrixActive: rigid body index %u is invalid", rigid_body_index
+            );
+            return;
+        }
+        m_rigid_body_model_matrix_active[rigid_body_index] = active;
+    }
+
+    bool PhysicsScene::IsModelMatrixActive(uint32_t rigid_body_index) const noexcept {
+        if (rigid_body_index >= m_rigid_body_model_matrix_active.size()) {
+            return false;
+        }
+        return m_rigid_body_model_matrix_active[rigid_body_index];
+    }
+
     void PhysicsScene::SetSimulationEnabled(bool enabled) {
         m_simulation_enabled = enabled;
+        if (!enabled) {
+            for (size_t i = 0; i < m_rigid_body_model_matrix_active.size(); ++i) {
+                m_rigid_body_model_matrix_active[i] = false;
+            }
+        }
     }
 
     bool PhysicsScene::IsSimulationEnabled() const noexcept {

@@ -40,6 +40,14 @@ namespace Engine {
         void Awake() override;
 
         /**
+         * @brief Upload current geometry to PhysicsScene.
+         *
+         * Init refreshes the shape world position, rotation, type, feature,
+         * and ignore list, then re-attempts attachment to an ancestor rigid body.
+         */
+        void Init() override;
+
+        /**
          * @brief Check whether this shape has a valid physics registration.
          *
          * @return True if the shape index is valid in PhysicsScene.

@@ -27,45 +27,82 @@ namespace Engine {
             return;
         }
 
-        // Find own rigid body index via the parent GameObject handle.
+        m_joint_indices.clear();
+        m_joint_indices.reserve(m_joints.size());
+
+        for (const auto &joint_var : m_joints) {
+            std::visit(
+                [&](const auto &joint_def) {
+                    using T = std::decay_t<decltype(joint_def)>;
+                    if constexpr (std::is_same_v<T, FixedJointDef>) {
+                        uint32_t idx = physics_scene->AllocateFixedJoint();
+                        m_joint_indices.push_back({idx, false});
+                    } else if constexpr (std::is_same_v<T, HingeJointDef>) {
+                        uint32_t idx = physics_scene->AllocateHingeJoint();
+                        m_joint_indices.push_back({idx, true});
+                    }
+                },
+                joint_var
+            );
+        }
+    }
+
+    void PhysicsConstraintComponent::Init() {
+        Scene *scene = GetScene();
+        if (scene == nullptr) {
+            return;
+        }
+
+        PhysicsScene *physics_scene = scene->GetPhysicsScene();
+        if (physics_scene == nullptr) {
+            return;
+        }
+
         ObjectHandle own_handle = GetParentGameObject()->GetHandle();
         uint32_t obj1_index = physics_scene->FindRigidBodyByObjectHandle(own_handle);
         if (obj1_index == PhysicsScene::INVALID_INDEX) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_APPLICATION,
-                "[PhysicsConstraintComponent] Owner object (handle %u) has no RigidBodyComponent.",
+                "[PhysicsConstraintComponent::Init] Owner object (handle %u) has no RigidBodyComponent.",
                 own_handle.GetID()
             );
             return;
         }
 
-        // Get owner's transform for FixedJoint initial relative transform computation.
         const Transform &t1 = GetParentGameObject()->GetWorldTransform();
 
-        // Process each joint definition.
-        for (const auto &joint_var : m_joints) {
+        for (size_t i = 0; i < m_joints.size(); ++i) {
+            if (i >= m_joint_indices.size()) {
+                SDL_LogError(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "[PhysicsConstraintComponent::Init] Joint count mismatch (Awake may have failed)."
+                );
+                break;
+            }
+
+            uint32_t joint_idx = m_joint_indices[i].first;
+            bool is_hinge = m_joint_indices[i].second;
+
             std::visit(
                 [&](const auto &joint_def) {
                     using T = std::decay_t<decltype(joint_def)>;
 
-                    // Find obj2 rigid body index via handle.
                     uint32_t obj2_index = physics_scene->FindRigidBodyByObjectHandle(joint_def.m_obj2_handle);
                     if (obj2_index == PhysicsScene::INVALID_INDEX) {
                         SDL_LogError(
                             SDL_LOG_CATEGORY_APPLICATION,
-                            "[PhysicsConstraintComponent] Joint obj2 (handle %u) has no RigidBodyComponent.",
+                            "[PhysicsConstraintComponent::Init] Joint obj2 (handle %u) has no RigidBodyComponent.",
                             joint_def.m_obj2_handle.GetID()
                         );
                         return;
                     }
 
                     if constexpr (std::is_same_v<T, FixedJointDef>) {
-                        // Get obj2 transform for initial relative transform calculation.
                         GameObject *obj2_go = scene->GetGameObject(joint_def.m_obj2_handle);
                         if (obj2_go == nullptr) {
                             SDL_LogError(
                                 SDL_LOG_CATEGORY_APPLICATION,
-                                "[PhysicsConstraintComponent] Joint obj2 (handle %u) not found in scene.",
+                                "[PhysicsConstraintComponent::Init] Joint obj2 (handle %u) not found in scene.",
                                 joint_def.m_obj2_handle.GetID()
                             );
                             return;
@@ -76,16 +113,22 @@ namespace Engine {
                         glm::vec3 pos2 = t2.GetPosition();
                         glm::quat q1 = t1.GetRotation();
                         glm::quat q2 = t2.GetRotation();
-
                         glm::quat q1_inv = glm::inverse(q1);
+
                         glm::vec3 initial_rel_pos_local = q1_inv * (pos2 - pos1);
                         glm::quat initial_rel_rotation = q1_inv * q2;
 
-                        physics_scene->RegisterFixedJoint(
-                            obj1_index, obj2_index, joint_def.m_compliance, initial_rel_pos_local, initial_rel_rotation
+                        physics_scene->UpdateFixedJoint(
+                            joint_idx,
+                            obj1_index,
+                            obj2_index,
+                            joint_def.m_compliance,
+                            initial_rel_pos_local,
+                            initial_rel_rotation
                         );
                     } else if constexpr (std::is_same_v<T, HingeJointDef>) {
-                        physics_scene->RegisterHingeJoint(
+                        physics_scene->UpdateHingeJoint(
+                            joint_idx,
                             obj1_index,
                             obj2_index,
                             joint_def.m_compliance,
@@ -96,7 +139,7 @@ namespace Engine {
                         );
                     }
                 },
-                joint_var
+                m_joints[i]
             );
         }
     }

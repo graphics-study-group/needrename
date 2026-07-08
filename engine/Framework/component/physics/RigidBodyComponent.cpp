@@ -54,18 +54,6 @@ namespace Engine {
             const uint32_t existing_index = physics_scene->FindRigidBodyByObjectHandle(root->GetHandle());
             if (existing_index != PhysicsScene::INVALID_INDEX) {
                 m_rigid_body_index = existing_index;
-                physics_scene->SetRigidBodyProperties(
-                    m_rigid_body_index,
-                    m_mass,
-                    m_static_friction,
-                    m_dynamic_friction,
-                    m_restitution,
-                    m_is_kinematic,
-                    m_linear_velocity,
-                    m_angular_velocity_axis_angle,
-                    m_external_force,
-                    m_external_torque
-                );
             } else {
                 const Transform world_transform = root->GetWorldTransform();
                 m_rigid_body_index = physics_scene->RegisterRigidBody(
@@ -91,6 +79,43 @@ namespace Engine {
             if (shape_index == PhysicsScene::INVALID_INDEX) continue;
             physics_scene->SetCollisionShapeRigidBody(shape_index, m_rigid_body_index);
         }
+    }
+
+    void RigidBodyComponent::Init() {
+        auto *scene = GetScene();
+        auto *go = GetParentGameObject();
+        if (scene == nullptr || go == nullptr) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "RigidBodyComponent init failed: missing scene or object");
+            return;
+        }
+
+        auto *physics_scene = scene->GetPhysicsScene();
+        if (physics_scene == nullptr) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "RigidBodyComponent init failed: physics scene missing");
+            return;
+        }
+
+        if (m_rigid_body_index == PhysicsScene::INVALID_INDEX) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "RigidBodyComponent init failed: not registered");
+            return;
+        }
+
+        const Transform world_transform = go->GetWorldTransform();
+        physics_scene->SetRigidBodyTransform(
+            m_rigid_body_index, world_transform.GetPosition(), world_transform.GetRotation()
+        );
+        physics_scene->SetRigidBodyProperties(
+            m_rigid_body_index,
+            m_mass,
+            m_static_friction,
+            m_dynamic_friction,
+            m_restitution,
+            m_is_kinematic,
+            m_linear_velocity,
+            m_angular_velocity_axis_angle,
+            m_external_force,
+            m_external_torque
+        );
 
         if (m_use_manual_inertia) {
             const glm::mat3 inertia(
@@ -102,6 +127,7 @@ namespace Engine {
         }
 
         physics_scene->EnqueueRigidBodyInitialization(m_rigid_body_index);
+        physics_scene->SetModelMatrixActive(m_rigid_body_index, true);
     }
 
     uint32_t RigidBodyComponent::GetPhysicsRigidBodyIndex() const noexcept {

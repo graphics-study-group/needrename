@@ -9,7 +9,9 @@
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
 #include <Framework/world/WorldSystem.h>
+#include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
+#include <Physics/Solver/XpbdGpuSolver.h>
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
@@ -61,6 +63,26 @@ namespace Engine {
         GUID default_level_guid(project_config["default_level"].get<std::string>());
         auto level_asset = dynamic_cast<LevelAsset *>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         level_asset->LoadToWorld();
+
+        auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene();
+        if (phys_scene->GetGpuBuffers().rigid_body_slot_count == 0) return;
+        auto solver = std::make_unique<XpbdGpuSolver>(*renderer);
+        XpbdConfig config{};
+        config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
+        config.time_step = 1.0f / 60.0f;
+        config.num_substep_perstep = 2;
+        config.num_iter_persubstep = 50;
+        config.num_velocity_iters = 10;
+        config.max_contact_points = 50000u;
+        config.contact_margin = 0.001f;
+        config.grid_cell_size = 2.0f;
+        config.grid_world_min = glm::vec3(-100.0f, -100.0f, -5.0f);
+        config.grid_world_max = glm::vec3(100.0f, 100.0f, 20.0f);
+        config.max_cells_per_shape = 8;
+        config.max_global_shape_count = 128;
+        config.fallback_all_pairs_threshold = 8;
+        solver->SetConfig(config);
+        physics->RegisterSolver(phys_scene->GetSceneID(), std::move(solver));
     }
 
     void MainClass::Initialize(
@@ -185,24 +207,19 @@ namespace Engine {
         // this->gui->PrepareGUI();
 
         this->world->GetMainSceneRef().ProcessEvents();
-
+        this->physics->InitializePendingRigidBodies(*this->renderer);
         this->world->UpdateRendererData(*this->renderer);
 
         this->renderer->StartFrame();
-
         // Phase 1: CPU-side physics prep (no CB needed).
         this->physics->PreGPUStep();
-
         // Phase 2: GPU recording — physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().GetRawMainCommandBuffer();
         cb.begin(vk::CommandBufferBeginInfo{});
-
         this->physics->GPUStep(cb); // solvers record their RGs
-
         if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
             this->render_graph->RecordAllPasses(cb);
         }
-
         cb.end();
         this->renderer->GetFrameManager().SubmitMainCommandBuffer();
 

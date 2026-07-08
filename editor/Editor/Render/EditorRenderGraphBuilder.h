@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
+    class ComputeBuffer;
     class ComputeStage;
     class RenderGraph;
     class RenderSystem;
@@ -31,7 +32,8 @@ namespace Editor {
             GameWidget *game_widget,
             Engine::RGTextureHandle &scene_widget_color_id,
             Engine::RGTextureHandle &game_widget_color_id,
-            Engine::RGTextureHandle &final_color_target_id
+            Engine::RGTextureHandle &final_color_target_id,
+            const Engine::ComputeBuffer *model_matrices_buffer = nullptr
         );
 
     protected:

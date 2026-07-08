@@ -86,6 +86,54 @@ namespace Engine {
         TryAttachToAncestorRigidBody();
     }
 
+    void CollisionShapeComponent::Init() {
+        auto *scene = GetScene();
+        auto *owner = GetParentGameObject();
+        if (scene == nullptr || owner == nullptr) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent init failed: missing scene or owner");
+            return;
+        }
+
+        auto *physics_scene = scene->GetPhysicsScene();
+        if (physics_scene == nullptr) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent init failed: physics scene missing");
+            return;
+        }
+
+        if (m_shape_index == PhysicsScene::INVALID_INDEX) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "CollisionShapeComponent init failed: shape not registered (Awake may have failed)"
+            );
+            return;
+        }
+
+        Transform world_transform = owner->GetWorldTransform();
+        glm::vec3 world_center = world_transform.GetPosition() + world_transform.GetRotation() * m_center;
+        glm::quat world_rotation = glm::normalize(world_transform.GetRotation() * m_rotation);
+
+        CollisionShapeType effective_type = m_shape_type;
+        glm::vec3 effective_feature = m_feature;
+
+        if (m_shape_type == CollisionShapeType::Cylinder) {
+            const glm::vec3 world_scale = world_transform.GetScale();
+            if (glm::abs(world_scale.x - world_scale.y) > 1e-4f) {
+                const float r = m_feature.x;
+                const float half_h = m_feature.y;
+                effective_type = CollisionShapeType::Box;
+                effective_feature = glm::vec3(
+                    r * glm::abs(world_scale.x), r * glm::abs(world_scale.y), half_h * glm::abs(world_scale.z)
+                );
+            }
+        }
+
+        physics_scene->UpdateCollisionShapeGeometry(
+            m_shape_index, effective_type, effective_feature, world_center, world_rotation, m_ignore_collision_objects
+        );
+
+        TryAttachToAncestorRigidBody();
+    }
+
     bool CollisionShapeComponent::IsRegisteredInPhysicsScene() const noexcept {
         return m_shape_index != PhysicsScene::INVALID_INDEX;
     }
