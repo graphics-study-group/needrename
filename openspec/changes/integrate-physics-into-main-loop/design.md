@@ -86,9 +86,7 @@ PhysicsSystem::InitializePendingRigidBodies(renderer)  ← Creates SSBO, uploads
 UpdateRendererData()                       ← PreRenderUpdate reads model_mat_index
 ```
 
-In both `MainClass::RunOneFrame` and the editor loop.
-
-**Rationale**: Ensures the SSBO model matrices buffer is GPU-ready before renderers query their `model_mat_index`. The `SubmitAndWait` inside `InitializePendingRigidBodies` is safe because it runs before `StartFrame()` (no in-flight GPU work). The call is idempotent — if `m_rigid_body_init_queue` is empty, it's a fast no-op.
+**Rationale**: Ensures the SSBO model matrices buffer is GPU-ready before renderers query their `model_mat_index`. The call includes an early return when `m_rigid_body_init_queue` is empty, making idle frames a fast no-op (single `deque::empty()` check). Only frames where `Init` has enqueued new work trigger `RefreshGpuBuffers` and GPU submission. The `SubmitAndWait` inside `InitializePendingRigidBodies` is safe because it runs before `StartFrame()` (no in-flight GPU work).
 
 ### 4. Model Matrix SSBO Toggle
 

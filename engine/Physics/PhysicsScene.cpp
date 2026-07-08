@@ -622,6 +622,10 @@ namespace Engine {
     }
 
     void PhysicsScene::InitializePendingRigidBodies(RenderSystem &render_system) {
+        if (m_rigid_body_init_queue.empty()) {
+            return;
+        }
+
         while (!m_rigid_body_init_queue.empty()) {
             const uint32_t rigid_body_index = m_rigid_body_init_queue.front();
             m_rigid_body_init_queue.pop_front();
@@ -643,12 +647,6 @@ namespace Engine {
         // Notify SceneDataManager about the model matrices buffer so it can
         // be included in the scene descriptor set (set 0, binding 2).
         render_system.GetSceneDataManager().SetModelMatricesBuffer(m_gpu_model_matrices.get());
-
-        SDL_LogWarn(
-            SDL_LOG_CATEGORY_APPLICATION,
-            "PhysicsScene::InitializePendingRigidBodies currently performs full CPU->GPU SoA refresh. scene=%u",
-            m_scene_id
-        );
     }
 
     PhysicsScene::PhysicsGpuBuffers PhysicsScene::GetGpuBuffers() const noexcept {

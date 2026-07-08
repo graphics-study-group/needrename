@@ -65,7 +65,6 @@ namespace Engine {
         level_asset->LoadToWorld();
 
         auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene();
-        if (phys_scene->GetGpuBuffers().rigid_body_slot_count == 0) return;
         auto solver = std::make_unique<XpbdGpuSolver>(*renderer);
         XpbdConfig config{};
         config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
