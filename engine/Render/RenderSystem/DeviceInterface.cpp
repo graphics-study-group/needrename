@@ -10,10 +10,11 @@ namespace Engine::RenderSystemState {
     struct DeviceInterface::impl {
 
         static constexpr const char *VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
-        static constexpr std::array<const char *, 3> DEVICE_EXTENSION_NAMES{
+        static constexpr std::array<const char *, 4> DEVICE_EXTENSION_NAMES{
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
+            VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME
         };
 
         vk::UniqueInstance instance{};
@@ -399,6 +400,10 @@ namespace Engine::RenderSystemState {
             vk::PhysicalDeviceVulkan12Features features12{};
             features12.timelineSemaphore = true;
 
+            vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT atomic_float_features{};
+            atomic_float_features.shaderBufferFloat32AtomicAdd = VK_TRUE;
+
+            features12.pNext = &atomic_float_features;
             features13.pNext = &features12;
             pdf.pNext = &features13;
             dci.pNext = &pdf;
