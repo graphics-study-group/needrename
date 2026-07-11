@@ -430,11 +430,9 @@ namespace Engine {
                 hinge.m_compliance = 0.0f;
 
                 const glm::vec3 eng_axis = UrdfAxisToEngine(joint.axis);
-                hinge.m_obj1_local_aligned_axis = eng_axis;
-                hinge.m_obj2_local_aligned_axis = eng_axis;
+                hinge.m_hinge_axis_obj1 = eng_axis;
 
-                hinge.m_obj1_local_attach_point = UrdfToEnginePos(joint.origin_xyz);
-                hinge.m_obj2_local_attach_point = glm::vec3(0.0f);
+                hinge.m_hinge_anchor_obj1 = UrdfToEnginePos(joint.origin_xyz);
 
                 constraint->m_joints.push_back(hinge);
             } else if (joint.type == UrdfJointType::Prismatic || joint.type == UrdfJointType::Floating) {

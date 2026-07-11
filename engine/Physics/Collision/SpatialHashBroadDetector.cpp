@@ -997,7 +997,7 @@ namespace Engine {
     ) {
         m_impl->cached_scene = &scene;
         if (shape_count <= 1u) {
-            m_impl->max_pairs = 0;
+            m_impl->max_assignment_pairs = 0;
             return;
         }
         m_impl->cached_shape_count = shape_count;

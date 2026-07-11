@@ -81,7 +81,6 @@ namespace Engine {
             }
 
             uint32_t joint_idx = m_joint_indices[i].first;
-            bool is_hinge = m_joint_indices[i].second;
 
             std::visit(
                 [&](const auto &joint_def) {
@@ -201,25 +200,9 @@ namespace Engine {
                         j["type"] = "hinge";
                         j["obj2_handle"] = def.m_obj2_handle.GetID();
                         j["compliance"] = def.m_compliance;
-                        j["obj1_axis"] = {
-                            def.m_obj1_local_aligned_axis.x,
-                            def.m_obj1_local_aligned_axis.y,
-                            def.m_obj1_local_aligned_axis.z
-                        };
-                        j["obj2_axis"] = {
-                            def.m_obj2_local_aligned_axis.x,
-                            def.m_obj2_local_aligned_axis.y,
-                            def.m_obj2_local_aligned_axis.z
-                        };
-                        j["obj1_attach"] = {
-                            def.m_obj1_local_attach_point.x,
-                            def.m_obj1_local_attach_point.y,
-                            def.m_obj1_local_attach_point.z
-                        };
-                        j["obj2_attach"] = {
-                            def.m_obj2_local_attach_point.x,
-                            def.m_obj2_local_attach_point.y,
-                            def.m_obj2_local_attach_point.z
+                        j["hinge_axis"] = {def.m_hinge_axis_obj1.x, def.m_hinge_axis_obj1.y, def.m_hinge_axis_obj1.z};
+                        j["hinge_anchor"] = {
+                            def.m_hinge_anchor_obj1.x, def.m_hinge_anchor_obj1.y, def.m_hinge_anchor_obj1.z
                         };
                     }
                 },
@@ -251,28 +234,18 @@ namespace Engine {
                 HingeJointDef def;
                 def.m_obj2_handle = ObjectHandle(j.value("obj2_handle", 0u));
                 def.m_compliance = j.value("compliance", 0.0f);
-                if (j.contains("obj1_axis") && j["obj1_axis"].is_array() && j["obj1_axis"].size() >= 3) {
-                    def.m_obj1_local_aligned_axis = glm::vec3(
-                        j["obj1_axis"][0].get<float>(), j["obj1_axis"][1].get<float>(), j["obj1_axis"][2].get<float>()
+                if (j.contains("hinge_axis") && j["hinge_axis"].is_array() && j["hinge_axis"].size() >= 3) {
+                    def.m_hinge_axis_obj1 = glm::vec3(
+                        j["hinge_axis"][0].get<float>(),
+                        j["hinge_axis"][1].get<float>(),
+                        j["hinge_axis"][2].get<float>()
                     );
                 }
-                if (j.contains("obj2_axis") && j["obj2_axis"].is_array() && j["obj2_axis"].size() >= 3) {
-                    def.m_obj2_local_aligned_axis = glm::vec3(
-                        j["obj2_axis"][0].get<float>(), j["obj2_axis"][1].get<float>(), j["obj2_axis"][2].get<float>()
-                    );
-                }
-                if (j.contains("obj1_attach") && j["obj1_attach"].is_array() && j["obj1_attach"].size() >= 3) {
-                    def.m_obj1_local_attach_point = glm::vec3(
-                        j["obj1_attach"][0].get<float>(),
-                        j["obj1_attach"][1].get<float>(),
-                        j["obj1_attach"][2].get<float>()
-                    );
-                }
-                if (j.contains("obj2_attach") && j["obj2_attach"].is_array() && j["obj2_attach"].size() >= 3) {
-                    def.m_obj2_local_attach_point = glm::vec3(
-                        j["obj2_attach"][0].get<float>(),
-                        j["obj2_attach"][1].get<float>(),
-                        j["obj2_attach"][2].get<float>()
+                if (j.contains("hinge_anchor") && j["hinge_anchor"].is_array() && j["hinge_anchor"].size() >= 3) {
+                    def.m_hinge_anchor_obj1 = glm::vec3(
+                        j["hinge_anchor"][0].get<float>(),
+                        j["hinge_anchor"][1].get<float>(),
+                        j["hinge_anchor"][2].get<float>()
                     );
                 }
                 m_joints.push_back(def);

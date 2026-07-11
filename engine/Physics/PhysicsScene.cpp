@@ -497,10 +497,10 @@ namespace Engine {
         uint32_t obj1_index,
         uint32_t obj2_index,
         float compliance,
-        const glm::vec3 &obj1_local_aligned_axis,
-        const glm::vec3 &obj2_local_aligned_axis,
-        const glm::vec3 &obj1_local_attach_point,
-        const glm::vec3 &obj2_local_attach_point
+        const glm::vec3 &hinge_axis_obj1,
+        const glm::vec3 &hinge_anchor_obj1,
+        const glm::vec3 &initial_rel_pos_local,
+        const glm::quat &initial_rel_rotation
     ) {
         if (joint_idx >= m_hinge_joints.size()) {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "UpdateHingeJoint: joint index %u out of range", joint_idx);
@@ -510,14 +510,12 @@ namespace Engine {
         joint.obj1_index = obj1_index;
         joint.obj2_index = obj2_index;
         joint.compliance = compliance;
-        joint.obj1_local_aligned_axis =
-            glm::vec4(obj1_local_aligned_axis.x, obj1_local_aligned_axis.y, obj1_local_aligned_axis.z, 0.0f);
-        joint.obj2_local_aligned_axis =
-            glm::vec4(obj2_local_aligned_axis.x, obj2_local_aligned_axis.y, obj2_local_aligned_axis.z, 0.0f);
-        joint.obj1_local_attach_point =
-            glm::vec4(obj1_local_attach_point.x, obj1_local_attach_point.y, obj1_local_attach_point.z, 0.0f);
-        joint.obj2_local_attach_point =
-            glm::vec4(obj2_local_attach_point.x, obj2_local_attach_point.y, obj2_local_attach_point.z, 0.0f);
+        joint.hinge_axis_obj1 = glm::vec4(hinge_axis_obj1.x, hinge_axis_obj1.y, hinge_axis_obj1.z, 0.0f);
+        joint.hinge_anchor_obj1 = glm::vec4(hinge_anchor_obj1.x, hinge_anchor_obj1.y, hinge_anchor_obj1.z, 0.0f);
+        joint.initial_rel_pos_local =
+            glm::vec4(initial_rel_pos_local.x, initial_rel_pos_local.y, initial_rel_pos_local.z, 0.0f);
+        joint.initial_rel_rotation =
+            glm::vec4(initial_rel_rotation.x, initial_rel_rotation.y, initial_rel_rotation.z, initial_rel_rotation.w);
     }
 
     void PhysicsScene::SetCollisionShapeRigidBody(uint32_t shape_index, uint32_t rigid_body_index) {
