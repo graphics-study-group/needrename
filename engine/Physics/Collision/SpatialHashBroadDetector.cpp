@@ -996,6 +996,10 @@ namespace Engine {
         uint32_t max_global_shape_count
     ) {
         m_impl->cached_scene = &scene;
+        if (shape_count <= 1u) {
+            m_impl->max_pairs = 0;
+            return;
+        }
         m_impl->cached_shape_count = shape_count;
         m_impl->grid_config = grid_config;
         m_impl->fallback_threshold = fallback_all_pairs_threshold;
