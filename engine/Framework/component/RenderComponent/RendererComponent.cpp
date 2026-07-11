@@ -58,7 +58,9 @@ namespace Engine {
                             model_mat_index = static_cast<int32_t>(rigid_idx);
                             // Compute local transform relative to the rigid body's GO.
                             // The shader will compose: model_matrices[index] * pc.model.
-                            glm::mat4 rb_world = currentObj->GetWorldTransform().GetTransformMatrix();
+                            Transform rb_tr = currentObj->GetWorldTransform();
+                            rb_tr.SetScale(glm::vec3(1.0f)); // The solver does not apply scaling, so we ignore it
+                            glm::mat4 rb_world = rb_tr.GetTransformMatrix();
                             model = glm::inverse(rb_world) * model;
                             break;
                         }
