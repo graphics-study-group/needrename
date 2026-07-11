@@ -35,6 +35,9 @@ namespace Engine {
      * Static input data only — no runtime state. Lagrange multipliers are
      * managed separately by XPBDGpuSolver as SoA buffers.
      *
+     * All spatial values are in COM-local space (converted from GO-local
+     * by ConvertPendingJointUpdates).
+     *
      * std430 layout: 48 bytes (3 × vec4 equivalent).
      */
     struct GpuFixedJoint {
@@ -42,8 +45,8 @@ namespace Engine {
         uint32_t obj2_index;
         float compliance;
         float _pad;
-        glm::vec4 initial_rel_pos_local; ///< q1_init⁻¹ * (pos2_init - pos1_init)
-        glm::vec4 initial_rel_rotation;  ///< q1_init⁻¹ * q2_init
+        glm::vec4 initial_rel_pos_local; ///< q1_com_init⁻¹ * (pos2_com_init - pos1_com_init), COM-local
+        glm::vec4 initial_rel_rotation;  ///< q1_com_init⁻¹ * q2_com_init
     };
 
     /**
@@ -52,6 +55,9 @@ namespace Engine {
      * Static input data only — no runtime state. Lagrange multipliers are
      * managed separately by XPBDGpuSolver as SoA buffers.
      *
+     * All spatial values are in COM-local space (converted from GO-local
+     * by ConvertPendingJointUpdates).
+     *
      * std430 layout: 80 bytes (5 × vec4 equivalent).
      */
     struct GpuHingeJoint {
@@ -59,10 +65,10 @@ namespace Engine {
         uint32_t obj2_index;
         float compliance;
         float _pad;
-        glm::vec4 hinge_axis_obj1;       ///< Hinge axis in obj1's local frame.
-        glm::vec4 hinge_anchor_obj1;     ///< Hinge anchor point in obj1's local frame.
-        glm::vec4 initial_rel_pos_local; ///< q1_init⁻¹ * (pos2_init - pos1_init)
-        glm::vec4 initial_rel_rotation;  ///< q1_init⁻¹ * q2_init
+        glm::vec4 hinge_axis_obj1;       ///< Hinge axis in obj1's COM-local frame.
+        glm::vec4 hinge_anchor_obj1;     ///< Hinge anchor point in obj1's COM-local frame.
+        glm::vec4 initial_rel_pos_local; ///< q1_com_init⁻¹ * (pos2_com_init - pos1_com_init), COM-local
+        glm::vec4 initial_rel_rotation;  ///< q1_com_init⁻¹ * q2_com_init
     };
 
     static_assert(sizeof(GpuFixedJoint) == 48, "GpuFixedJoint must be 48 bytes (std430)");
@@ -272,42 +278,26 @@ namespace Engine {
         void SetRigidBodyManualInertia(uint32_t rigid_body_index, const glm::mat3 &inertia);
 
         /**
-         * @brief Register a FixedJoint constraint.
+         * @brief Set a manually-defined center-of-mass offset for a rigid body.
          *
-         * @param obj1_index Rigid body index of the owning object.
-         * @param obj2_index Rigid body index of the second object.
-         * @param compliance Joint compliance parameter.
-         * @param initial_rel_pos_local Initial relative position in obj1's local frame.
-         * @param initial_rel_rotation Initial relative rotation quaternion.
+         * The offset is expressed in GO-local space. Only applied when
+         * manual inertia is also enabled (m_use_manual_inertia_com).
+         *
+         * @param rigid_body_index Rigid body index.
+         * @param com_offset COM offset in GO-local space.
          */
-        void RegisterFixedJoint(
-            uint32_t obj1_index,
-            uint32_t obj2_index,
-            float compliance,
-            const glm::vec3 &initial_rel_pos_local,
-            const glm::quat &initial_rel_rotation
-        );
+        void SetRigidBodyManualCenterOfMass(uint32_t rigid_body_index, const glm::vec3 &com_offset);
 
         /**
-         * @brief Register a HingeJoint constraint.
+         * @brief Get the center-of-mass offset for a rigid body.
          *
-         * @param obj1_index Rigid body index of the owning object.
-         * @param obj2_index Rigid body index of the second object.
-         * @param compliance Joint compliance parameter.
-         * @param hinge_axis_obj1 Hinge axis in obj1's local frame.
-         * @param hinge_anchor_obj1 Hinge anchor point in obj1's local frame.
-         * @param initial_rel_pos_local q1_init⁻¹ * (pos2_init - pos1_init).
-         * @param initial_rel_rotation q1_init⁻¹ * q2_init.
+         * The offset is expressed in GO-local space: COM_world =
+         * GO_world + rot(GO_rot, offset).
+         *
+         * @param rigid_body_index Rigid body index.
+         * @return COM offset in GO-local space, or zero vector if invalid.
          */
-        void RegisterHingeJoint(
-            uint32_t obj1_index,
-            uint32_t obj2_index,
-            float compliance,
-            const glm::vec3 &hinge_axis_obj1,
-            const glm::vec3 &hinge_anchor_obj1,
-            const glm::vec3 &initial_rel_pos_local,
-            const glm::quat &initial_rel_rotation
-        );
+        glm::vec3 GetRigidBodyCenterOffsetLocal(uint32_t rigid_body_index) const;
 
         /**
          * @brief Allocate an empty FixedJoint slot in the joints vector.
@@ -323,11 +313,15 @@ namespace Engine {
         /**
          * @brief Fill an allocated FixedJoint slot with resolved data.
          *
+         * The passed values are in GO-local space when called from
+         * PhysicsConstraintComponent::Init. Conversion to COM-local space is
+         * deferred to InitializePendingRigidBodies.
+         *
          * @param joint_idx Joint index returned by AllocateFixedJoint.
          * @param obj1_index Rigid body index of the owning object.
          * @param obj2_index Rigid body index of the second object.
          * @param compliance Joint compliance parameter.
-         * @param initial_rel_pos_local Initial relative position in obj1's local frame.
+         * @param initial_rel_pos_local Initial relative position in obj1's GO-local frame.
          * @param initial_rel_rotation Initial relative rotation quaternion.
          */
         void UpdateFixedJoint(
@@ -351,13 +345,17 @@ namespace Engine {
         /**
          * @brief Fill an allocated HingeJoint slot with resolved data.
          *
+         * The passed values are in GO-local space when called from
+         * PhysicsConstraintComponent::Init. Conversion to COM-local space is
+         * deferred to InitializePendingRigidBodies.
+         *
          * @param joint_idx Joint index returned by AllocateHingeJoint.
          * @param obj1_index Rigid body index of the owning object.
          * @param obj2_index Rigid body index of the second object.
          * @param compliance Joint compliance parameter.
-         * @param hinge_axis_obj1 Hinge axis in obj1's local frame.
-         * @param hinge_anchor_obj1 Hinge anchor point in obj1's local frame.
-         * @param initial_rel_pos_local q1_init⁻¹ * (pos2_init - pos1_init).
+         * @param hinge_axis_obj1 Hinge axis in obj1's GO-local frame.
+         * @param hinge_anchor_obj1 Hinge anchor point in obj1's GO-local frame.
+         * @param initial_rel_pos_local q1_init⁻¹ * (pos2_init - pos1_init) in GO-local.
          * @param initial_rel_rotation q1_init⁻¹ * q2_init.
          */
         void UpdateHingeJoint(
@@ -464,14 +462,16 @@ namespace Engine {
         void DebugPrint() const;
 
         /**
-         * @brief Upload current world transform for an existing rigid body.
+         * @brief Upload current GameObject world transform for a rigid body.
          *
-         * This is used by RigidBodyComponent::Init to refresh initial pose
-         * from the current GameObject transform before re-enqueuing init.
+         * This stores a temporary GO-world placeholder in center_world_position.
+         * It is overwritten by RecalculateRigidBodyState during the next
+         * InitializePendingRigidBodies call, which computes the actual COM
+         * position and center offset.
          *
          * @param rigid_body_index Rigid body index.
-         * @param world_position Current world position.
-         * @param world_rotation Current world rotation.
+         * @param world_position Current GO world position (temporary; will be replaced by COM).
+         * @param world_rotation Current GO world rotation.
          */
         void SetRigidBodyTransform(
             uint32_t rigid_body_index, const glm::vec3 &world_position, const glm::quat &world_rotation
@@ -531,6 +531,7 @@ namespace Engine {
         void RemoveShapeFromRigidBodyMap(uint32_t rigid_body_index, uint32_t shape_index);
         void RecalculateRigidBodyState(uint32_t rigid_body_index);
         void RefreshGpuBuffers(RenderSystem &render_system);
+        void ConvertPendingJointUpdates();
 
         uint32_t m_scene_id{0};
 
@@ -555,9 +556,10 @@ namespace Engine {
         std::vector<glm::vec4> m_rigid_body_center_offset_local_position{};
         std::vector<glm::mat4> m_rigid_body_inertia{};
         std::vector<glm::mat4> m_rigid_body_inverse_inertia{};
-        // Manual inertia override (not GPU-synced — used in RecalculateRigidBodyState)
-        std::vector<bool> m_rigid_body_use_manual_inertia{};
+        // Manual inertia/COM override (not GPU-synced — used in RecalculateRigidBodyState)
+        std::vector<bool> m_rigid_body_use_manual_inertia_com{};
         std::vector<glm::mat3> m_rigid_body_manual_inertia{};
+        std::vector<glm::vec3> m_rigid_body_manual_center_of_mass{};
         std::vector<glm::vec4> m_rigid_body_linear_velocity{};
         std::vector<glm::vec4> m_rigid_body_angular_velocity{};
         std::vector<glm::vec4> m_rigid_body_external_force{};
@@ -615,6 +617,30 @@ namespace Engine {
         std::vector<GpuHingeJoint> m_hinge_joints{};
         std::unique_ptr<ComputeBuffer> m_gpu_fixed_joints{};
         std::unique_ptr<ComputeBuffer> m_gpu_hinge_joints{};
+
+        // Pending joint updates — stored in GO-local space during Init,
+        // converted to COM-local by ConvertPendingJointUpdates.
+        struct PendingFixedJointUpdate {
+            uint32_t joint_idx;
+            uint32_t obj1_index;
+            uint32_t obj2_index;
+            float compliance;
+            glm::vec3 initial_rel_pos_local; ///< GO-local
+            glm::quat initial_rel_rotation;
+        };
+        std::vector<PendingFixedJointUpdate> m_pending_fixed_joint_updates{};
+
+        struct PendingHingeJointUpdate {
+            uint32_t joint_idx;
+            uint32_t obj1_index;
+            uint32_t obj2_index;
+            float compliance;
+            glm::vec3 hinge_axis_obj1;      ///< GO-local
+            glm::vec3 hinge_anchor_obj1;    ///< GO-local
+            glm::vec3 initial_rel_pos_local; ///< GO-local
+            glm::quat initial_rel_rotation;
+        };
+        std::vector<PendingHingeJointUpdate> m_pending_hinge_joint_updates{};
 
         // Collision filter data — CPU-side.
         std::vector<std::vector<ObjectHandle>> m_pending_filter_handles{};

@@ -117,13 +117,14 @@ namespace Engine {
             m_external_torque
         );
 
-        if (m_use_manual_inertia) {
+        if (m_use_manual_inertia_com) {
             const glm::mat3 inertia(
                 glm::vec3(m_manual_inertia_diag.x, m_manual_inertia_offdiag.x, m_manual_inertia_offdiag.y),
                 glm::vec3(m_manual_inertia_offdiag.x, m_manual_inertia_diag.y, m_manual_inertia_offdiag.z),
                 glm::vec3(m_manual_inertia_offdiag.y, m_manual_inertia_offdiag.z, m_manual_inertia_diag.z)
             );
             physics_scene->SetRigidBodyManualInertia(m_rigid_body_index, inertia);
+            physics_scene->SetRigidBodyManualCenterOfMass(m_rigid_body_index, m_manual_center_of_mass);
         }
 
         physics_scene->EnqueueRigidBodyInitialization(m_rigid_body_index);

@@ -369,7 +369,7 @@ namespace Engine {
             auto &rb = go->AddComponent<RigidBodyComponent>();
             const auto &inertial = *link.inertial;
             rb.m_mass = inertial.mass;
-            rb.m_use_manual_inertia = true;
+            rb.m_use_manual_inertia_com = true;
             rb.m_manual_inertia_diag = glm::vec3(inertial.ixx, inertial.iyy, inertial.izz);
             rb.m_manual_inertia_offdiag = glm::vec3(inertial.ixy, inertial.ixz, inertial.iyz);
         }

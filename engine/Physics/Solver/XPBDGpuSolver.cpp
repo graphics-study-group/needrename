@@ -1121,6 +1121,7 @@ namespace Engine {
         auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, Impl::RR);
         auto pos_h = builder.ImportExternalResource(*gpu.rigid_body_center_world_position, Impl::RR);
         auto rot_h = builder.ImportExternalResource(*gpu.rigid_body_center_world_rotation, Impl::RR);
+        auto off_h = builder.ImportExternalResource(*gpu.rigid_body_center_offset_local_position, Impl::RR);
         auto mm_h = builder.ImportExternalResource(*gpu.model_matrices, Impl::None);
 
         auto *stage = m_impl->model_matrix_stage.get();
@@ -1129,6 +1130,7 @@ namespace Engine {
         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
         srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
         srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+        srb.BindBuffer("RigidBodyCenterOffsetLocal", *gpu.rigid_body_center_offset_local_position);
         srb.BindBuffer("ModelMatrices", *gpu.model_matrices);
 
         builder.AddPass(
@@ -1138,6 +1140,7 @@ namespace Engine {
                 .UseBuffer(alive_h, Impl::RR)
                 .UseBuffer(pos_h, Impl::RR)
                 .UseBuffer(rot_h, Impl::RR)
+                .UseBuffer(off_h, Impl::RR)
                 .UseBuffer(mm_h, Impl::WW)
                 .SetPassFunction([stage, binding, body_wg](CommandBuffer &cb, const RenderGraph &) -> void {
                     cb.BindComputeStage(*stage);

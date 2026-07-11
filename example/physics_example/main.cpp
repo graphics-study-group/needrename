@@ -301,12 +301,12 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
 
     // AddTemplateScene(builder, adb, glm::vec3(0.0f, 5.0f, 0.0f));
-    // int n = 7;
-    // float margin = 8.0f;
-    // for (int i = 0; i < n; ++i)
-    //     for (int j = 0; j < n; ++j)
-    //         AddTemplateScene(builder, adb, glm::vec3((i - n / 2.0f) * margin, (j - n / 2.0f) * margin, 0.0f));
-    AddTemplateScene2(builder, adb, glm::vec3(0.0f, 0.0f, 0.0f));
+    int n = 7;
+    float margin = 8.0f;
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            AddTemplateScene(builder, adb, glm::vec3((i - n / 2.0f) * margin, (j - n / 2.0f) * margin, 0.0f));
+    // AddTemplateScene2(builder, adb, glm::vec3(0.0f, 0.0f, 0.0f));
 
     // --- Camera setup ---
     // Z is up, camera is positioned to the side looking at the falling zone.

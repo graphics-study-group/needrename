@@ -48,6 +48,9 @@ namespace Engine {
     }
 
     void PhysicsConstraintComponent::Init() {
+        // All joint data is passed through in GO-local space. Conversion to
+        // COM-local space is deferred to PhysicsScene::ConvertPendingJointUpdates,
+        // which runs after RecalculateRigidBodyState in InitializePendingRigidBodies.
         Scene *scene = GetScene();
         if (scene == nullptr) {
             return;
