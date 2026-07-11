@@ -27,16 +27,15 @@ namespace Engine {
     /**
      * @brief Hinge joint definition stored on PhysicsConstraintComponent.
      *
-     * obj1 is implicitly the owner of the component. No angle limits or
-     * target angle support in this version.
+     * obj1 is implicitly the owner of the component. Obj2-local values are
+     * derived automatically at Awake() time from the initial relative transform.
+     * No angle limits or target angle support in this version.
      */
     struct HingeJointDef {
-        ObjectHandle m_obj2_handle{};              ///< Handle of the second object.
-        glm::vec3 m_obj1_local_aligned_axis{0.0f}; ///< Aligned axis in obj1's local frame.
-        glm::vec3 m_obj2_local_aligned_axis{0.0f}; ///< Aligned axis in obj2's local frame.
-        glm::vec3 m_obj1_local_attach_point{0.0f}; ///< Attachment point in obj1's local frame.
-        glm::vec3 m_obj2_local_attach_point{0.0f}; ///< Attachment point in obj2's local frame.
-        float m_compliance{0.0f};                  ///< Joint compliance (0 = hard constraint).
+        ObjectHandle m_obj2_handle;    ///< Handle of the second object.
+        glm::vec3 m_hinge_axis_obj1;   ///< Hinge axis in obj1's local frame (will be normalized).
+        glm::vec3 m_hinge_anchor_obj1; ///< Hinge anchor point in obj1's local frame.
+        float m_compliance{0.0f};      ///< Joint compliance (0 = hard constraint).
     };
 
     /// Variant type for storing either joint type.

@@ -1,6 +1,6 @@
 > 🇨🇳 [中文版](./docs/README_CN.md) | 🇺🇸 English
 
-An unnamed game engine with advanced features including Vulkan-based rendering, Python-powered reflection/serialization, and a flexible component-based game framework.
+An unnamed game engine with GPU-accelerated physics simulation, Vulkan-based rendering, Python-powered reflection/serialization, and a flexible component-based game framework.
 
 ![engine_editor](./assets/img/engine_editor.png)
 
@@ -63,10 +63,12 @@ engine/
     Asset/               # Asset management
     Core/                # Core features (Math, Functional)
     Framework/           # GameObject, Component, Scene
+    Physics/             # GPU-accelerated physics engine
     Reflection/          # Reflection and serialization
     Render/              # Vulkan rendering systems
     UserInterface/       # GUI system
 example/                 # Runnable game examples
+    physics_example/     # Physics simulation demo
 projects/                # Example game projects
 reflection_parser/       # Python parser for C++ reflection
 test/                    # Test executables
@@ -82,15 +84,29 @@ third_party/             # External dependencies (glm, SPIRV-Cross)
 
 ## Key Features
 
-### 1. Vulkan Rendering System
+### 1. GPU Physics Simulation
+
+![physics_example1](assets/img/physics_example1.gif) ![physics_example2](assets/img/physics_example2.gif)
+
+- **XPBD Solver** — GPU-accelerated position-based dynamics with sub-step integration, per-step collision detection, and Jacobi position/velocity constraint solving
+- **Collision Detection Pipeline** — Spatial-hash broad-phase with AABB overlap pruning, followed by MPR-based narrow-phase contact generation with plane fitting and rotating calipers manifold reduction
+- **Collision Shapes** — Box, sphere, and cylinder primitives with per-type inertia functions and generic `feature` vec3 interface
+- **Joint Constraints** — Fixed joints (distance-locked relative pose) and hinge joints (single-axis rotation with configurable limits), solved as XPBD constraints on the GPU
+- **Rigid Body Dynamics** — Gravity, force/torque integration, linear/angular damping, dynamic/kinematic types, friction and restitution
+- **GPU Parallel Algorithms** — Reusable compute modules: work-efficient parallel prefix scan, 8-bit LSD radix sort, and deduplication-compaction for sorted arrays
+- **Physics Components** — `RigidBodyComponent`, `CollisionShapeComponent`, and `PhysicsConstraintComponent` integrate with the GameObject framework; shapes auto-attach to ancestor rigid bodies
+- **Scene Builder** — Declarative `SceneBuilder` API (`AddBox`, `AddSphere`, `AddCylinder`, `AddDoublePendulum`) for rapid physics scene construction
+
+### 2. Vulkan Rendering System
 
 - Multi-tier descriptor set architecture for uniforms
 - Frame-in-flight optimized buffer management
 - JSON-defined materials with shader pipeline configuration
 - Automatic descriptor set allocation and binding
 - Push constant support for efficient matrix updates
+- Independent render graphs for physics and rendering subsystems
 
-### 2. Advanced Reflection & Serialization
+### 3. Advanced Reflection & Serialization
 
 - Python-powered C++ header parsing for runtime type information
 - Automatic generation of reflection metadata during compilation
@@ -98,13 +114,13 @@ third_party/             # External dependencies (glm, SPIRV-Cross)
 - Customizable serialization with STL container and smart pointer support
 - JSON-based serialization format with object relationship tracking
 
-### 3. Asset Management
+### 4. Asset Management
 
 - GUID-based asset identification system
 - Custom serialization for specialized asset types
 - External resource import pipeline
 
-### 4. GameObject Framework
+### 5. GameObject Framework
 
 - Hierarchical object system with parent-child relationships
 - Component-based architecture for game logic

@@ -40,6 +40,22 @@
 - 确保 CI 通过后再合并
 - 保持尊重和建设性的讨论
 
+## OpenSpec 工作流
+
+对于重要功能和架构变更，我们采用 **OpenSpec** 规范驱动开发流程：
+
+1. **Explore**（`/openspec-explore`）— 探索问题空间、明确需求、权衡方案
+2. **Propose**（`/openspec-propose`）— 一步生成 proposal、design、specs 和 tasks
+3. **Apply**（`/openspec-apply-change`）— 逐任务实现变更
+4. **Archive**（`/openspec-archive-change`）— 归档已完成的变更
+
+所有 OpenSpec 产物位于 `openspec/` 目录：
+
+- `openspec/specs/` — 已实现功能的单一规范来源
+- `openspec/changes/archive/` — 归档的变更记录，包含 proposal、design、tasks 和 delta specs
+
+简单修复和琐碎修改可跳过 OpenSpec 工作流。
+
 ## 开发流程
 
 ```
@@ -49,7 +65,7 @@ main 分支 (稳定版) <- 功能分支 <- 你的工作
                    Pull Request review
                           |
                           v
-                    合并到 main
+                     合并到 main
 ```
 
 ## 代码标准

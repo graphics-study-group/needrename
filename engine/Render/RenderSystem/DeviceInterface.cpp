@@ -279,9 +279,14 @@ namespace Engine::RenderSystemState {
             }
 
             // Check features
-            auto device_features = pd.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features>();
+            auto device_features = pd.getFeatures2<
+                vk::PhysicalDeviceFeatures2,
+                vk::PhysicalDeviceVulkan13Features,
+                vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
             auto features13 = device_features.get<vk::PhysicalDeviceVulkan13Features>();
-            if (!(features13.dynamicRendering && features13.synchronization2)) {
+            auto atomicFloatFeatures = device_features.get<vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
+            if (!(features13.dynamicRendering && features13.synchronization2
+                  && atomicFloatFeatures.shaderBufferFloat32AtomicAdd)) {
                 SDL_LogInfo(
                     SDL_LOG_CATEGORY_RENDER, "This physical device does not support needed Vulkan 1.3 features."
                 );
@@ -400,11 +405,11 @@ namespace Engine::RenderSystemState {
             vk::PhysicalDeviceVulkan12Features features12{};
             features12.timelineSemaphore = true;
 
-            vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT atomic_float_features{};
-            atomic_float_features.shaderBufferFloat32AtomicAdd = VK_TRUE;
+            vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT atomicFloatFeatures{};
+            atomicFloatFeatures.shaderBufferFloat32AtomicAdd = VK_TRUE;
 
-            features12.pNext = &atomic_float_features;
             features13.pNext = &features12;
+            features12.pNext = &atomicFloatFeatures;
             pdf.pNext = &features13;
             dci.pNext = &pdf;
 

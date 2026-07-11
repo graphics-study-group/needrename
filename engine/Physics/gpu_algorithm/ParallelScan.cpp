@@ -349,9 +349,9 @@ namespace Engine {
                 auto &param = AcquireParamBuffer(2u, data_offset, elem_count, block_offset);
                 AddOffsetPass(
                     builder,
-                    data_input_handle,
                     data_output_handle,
-                    data_input_buf,
+                    data_output_handle,
+                    data_output_buf,
                     data_output_buf,
                     block_sums_handle,
                     block_sums_buf,

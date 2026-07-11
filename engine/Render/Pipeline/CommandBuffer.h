@@ -263,9 +263,14 @@ namespace Engine {
          *                     and vertex attribute layout).
          * @param model_matrix World-space model transform.
          * @param camera_index Camera index passed to the shader via push constants.
-         * @param model_mat_index Index of the model matrix in the SSBO (physics system use). -1 for not use.
+         * @param model_mat_index Index of the model matrix in the UBO, or -1 to skip.
          */
-        void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index, int32_t model_mat_index = -1);
+        void DrawMesh(
+            const IVertexBasedRenderer &mesh,
+            const glm::mat4 &model_matrix,
+            int32_t camera_index,
+            int32_t model_mat_index = -1
+        );
 
         /**
          * @brief Draw a mesh using the active camera.

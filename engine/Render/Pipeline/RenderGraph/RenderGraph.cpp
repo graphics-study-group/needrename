@@ -111,6 +111,9 @@ namespace Engine {
             bmb.reserve(subpass.buffer_barriers.size());
             for (const auto &[r, b] : subpass.buffer_barriers) {
                 bmb.push_back(vk::MemoryBarrier2{b.srcStageMask, b.srcAccessMask, b.dstStageMask, b.dstAccessMask});
+                // TODO: Use BufferMemoryBarrier2.
+                // for now, we only need one MemoryBarrier2
+                break;
             }
 
             cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, bmb, {}, imb});

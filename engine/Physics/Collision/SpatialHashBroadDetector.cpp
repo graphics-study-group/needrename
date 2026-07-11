@@ -65,7 +65,7 @@ namespace Engine {
         // Cached from Configure.
         PhysicsScene *cached_scene = nullptr;
         uint32_t cached_shape_count = 0;
-        uint32_t max_pairs = 0;
+        uint32_t max_assignment_pairs = 0;
 
         bool shaders_loaded = false;
 
@@ -192,19 +192,23 @@ namespace Engine {
 
             EnsureBuffer(gpu_total_assignments, sizeof(uint32_t), "BH TotalAssign", true);
 
-            uint32_t max_assignments = shape_count * std::max(1u, grid_config.max_cells_per_shape);
             EnsureBuffer(
-                gpu_cell_shape_pairs, static_cast<size_t>(max_assignments) * sizeof(glm::uvec2), "BH CellShapePairs"
+                gpu_cell_shape_pairs,
+                static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2),
+                "BH CellShapePairs"
             );
-            EnsureBuffer(gpu_sorted_pairs, static_cast<size_t>(max_assignments) * sizeof(glm::uvec2), "BH SortedPairs");
+            EnsureBuffer(
+                gpu_sorted_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH SortedPairs"
+            );
 
             size_t cell_uint1 = static_cast<size_t>(grid_total_cells + 1u) * sizeof(uint32_t);
             EnsureBuffer(gpu_cell_histogram, cell_uint1, "BH CellHist");
             EnsureBuffer(gpu_cell_offsets, cell_uint1, "BH CellOffsets");
             EnsureBuffer(gpu_cell_scratch, cell_uint1, "BH CellScratch");
 
-            size_t pair_bytes = static_cast<size_t>(std::max(1u, max_pairs)) * sizeof(glm::uvec2);
-            EnsureBuffer(gpu_collision_pairs, pair_bytes, "BH CollisionPairs");
+            EnsureBuffer(
+                gpu_collision_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH CollisionPairs"
+            );
             EnsureBuffer(gpu_pair_count, sizeof(uint32_t), "BH PairCount", true);
 
             {
@@ -227,12 +231,12 @@ namespace Engine {
 
             // Dedup buffers.
             {
-                const size_t temp_bytes = static_cast<size_t>(max_pairs) * sizeof(glm::uvec2);
+                const size_t temp_bytes = static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2);
                 EnsureBuffer(gpu_pairs_temp, temp_bytes, "BH PairsTemp");
             }
             EnsureBuffer(gpu_radix_scratch, RadixSort::GetRequiredScratchBytes(), "BH RadixScratch");
             {
-                const size_t flags_bytes = CompactUnique::GetRequiredFlagBytes(max_pairs);
+                const size_t flags_bytes = CompactUnique::GetRequiredFlagBytes(max_assignment_pairs);
                 EnsureBuffer(gpu_unique_flags, flags_bytes, "BH UniqueFlags");
                 EnsureBuffer(gpu_unique_offsets, flags_bytes, "BH UniqueOffsets");
             }
@@ -251,8 +255,7 @@ namespace Engine {
             EnsureBuffer(gpu_grid_config, sizeof(GridConfigGpu), "BH GridConfig", true);
 
             {
-                uint32_t max_scan_elems = std::max(shape_count, grid_total_cells + 1u);
-                size_t scratch_bytes = ParallelScan::GetRequiredBlockSumsBytes(max_scan_elems);
+                size_t scratch_bytes = ParallelScan::GetRequiredBlockSumsBytes(max_assignment_pairs);
                 EnsureBuffer(gpu_scan_scratch, scratch_bytes, "BH ScanScratch");
             }
         }
@@ -582,9 +585,8 @@ namespace Engine {
 
             // === Prefix sum: shape_cell_count → shape_cell_offset ===
             {
-                uint32_t max_scan_elems = std::max(shape_count, grid_total_cells + 1u);
-                if (!scan || scan->GetMaxElemCount() < max_scan_elems) {
-                    scan = std::make_unique<ParallelScan>(render_system, max_scan_elems);
+                if (!scan || scan->GetMaxElemCount() < max_assignment_pairs) {
+                    scan = std::make_unique<ParallelScan>(render_system, max_assignment_pairs);
                 }
                 scan->AddPasses(
                     builder,
@@ -674,8 +676,7 @@ namespace Engine {
 
                 auto *stage = histogram_stage.get();
                 auto *binding = histogram_binding;
-                uint32_t max_assignments = shape_count * std::max(1u, grid_config.max_cells_per_shape);
-                uint32_t wg = (max_assignments + 63u) / 64u;
+                uint32_t wg = (max_assignment_pairs + 63u) / 64u;
                 auto *scene_ptr = cached_scene;
                 builder.AddPass(
                     RenderGraphPassBuilder{render_system}
@@ -751,8 +752,7 @@ namespace Engine {
 
                 auto *stage = scatter_sort_stage.get();
                 auto *binding = scatter_sort_binding;
-                uint32_t max_assignments = shape_count * std::max(1u, grid_config.max_cells_per_shape);
-                uint32_t wg = (max_assignments + 63u) / 64u;
+                uint32_t wg = (max_assignment_pairs + 63u) / 64u;
                 auto *scene_ptr = cached_scene;
                 builder.AddPass(
                     RenderGraphPassBuilder{render_system}
@@ -885,11 +885,11 @@ namespace Engine {
             // Import dedup buffers and add sort + unique passes after pair generation.
             {
                 // Lazy-create algorithm instances.
-                if (!radix_sort || radix_sort->GetMaxElemCount() < max_pairs) {
-                    radix_sort = std::make_unique<RadixSort>(render_system, max_pairs);
+                if (!radix_sort || radix_sort->GetMaxElemCount() < max_assignment_pairs) {
+                    radix_sort = std::make_unique<RadixSort>(render_system, max_assignment_pairs);
                 }
-                if (!compact_unique || compact_unique->GetMaxElemCount() < max_pairs) {
-                    compact_unique = std::make_unique<CompactUnique>(render_system, max_pairs);
+                if (!compact_unique || compact_unique->GetMaxElemCount() < max_assignment_pairs) {
+                    compact_unique = std::make_unique<CompactUnique>(render_system, max_assignment_pairs);
                 }
 
                 // Sort pairs by (a, b).
@@ -901,10 +901,10 @@ namespace Engine {
                     *gpu_pairs_temp,
                     radix_scratch_h,
                     *gpu_radix_scratch,
-                    max_pairs,         // elem_capacity (buffer size, for dispatch sizing)
-                    pcnt_h,            // pair_count handle (RG tracks dependency)
-                    *gpu_pair_count,   // pair_count buffer (read at GPU execution time)
-                    cached_shape_count // max_shape_count for validation
+                    max_assignment_pairs, // elem_capacity (buffer size, for dispatch sizing)
+                    pcnt_h,               // pair_count handle (RG tracks dependency)
+                    *gpu_pair_count,      // pair_count buffer (read at GPU execution time)
+                    cached_shape_count    // max_shape_count for validation
                 );
 
                 // Compact unique.
@@ -921,9 +921,9 @@ namespace Engine {
                     scan_scratch_h,
                     *gpu_scan_scratch,
                     *scan,
-                    pcnt_h,          // pair_count handle
-                    *gpu_pair_count, // pair_count buffer (read at GPU execution time)
-                    max_pairs        // elem_capacity
+                    pcnt_h,              // pair_count handle
+                    *gpu_pair_count,     // pair_count buffer (read at GPU execution time)
+                    max_assignment_pairs // elem_capacity
                 );
 
                 // Copy unique_count back to pair_count so downstream
@@ -980,12 +980,12 @@ namespace Engine {
         return {
             .pair_buffer = m_impl->gpu_collision_pairs.get(),
             .pair_count_buffer = m_impl->gpu_pair_count.get(),
-            .max_pairs = m_impl->max_pairs
+            .max_pairs = m_impl->max_assignment_pairs
         };
     }
 
     uint32_t SpatialHashBroadDetector::GetMaxPairs() const noexcept {
-        return m_impl->max_pairs;
+        return m_impl->max_assignment_pairs;
     }
 
     void SpatialHashBroadDetector::Configure(
@@ -1004,9 +1004,8 @@ namespace Engine {
         m_impl->grid_config = grid_config;
         m_impl->fallback_threshold = fallback_all_pairs_threshold;
         m_impl->max_global_shape_count = max_global_shape_count;
-        // Compute max_pairs from shape_count: all upper-triangle pairs.
-        uint32_t all_pairs = shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
-        m_impl->max_pairs = std::max(1u, all_pairs);
+        m_impl->max_assignment_pairs =
+            shape_count * std::max(1u, grid_config.max_cells_per_shape + max_global_shape_count);
 
         // Validate and compute grid dimensions.
         glm::vec3 extent = grid_config.world_max - grid_config.world_min;
@@ -1044,7 +1043,7 @@ namespace Engine {
 
         if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || m_impl->cached_shape_count <= 1u) {
             BroadDetectorOutputBuffers empty;
-            empty.max_pairs = m_impl->max_pairs;
+            empty.max_pairs = m_impl->max_assignment_pairs;
             return empty;
         }
 
@@ -1064,7 +1063,7 @@ namespace Engine {
         return {
             .pair_buffer = m_impl->gpu_collision_pairs.get(),
             .pair_count_buffer = m_impl->gpu_pair_count.get(),
-            .max_pairs = m_impl->max_pairs
+            .max_pairs = m_impl->max_assignment_pairs
         };
     }
 } // namespace Engine

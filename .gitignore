@@ -9,5 +9,6 @@ CMakeCache.txt
 .cache/
 
 .claude
-.kilo
 .kilocode
+.kilo
+.agents

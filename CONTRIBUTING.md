@@ -40,6 +40,22 @@
 - Ensure CI passes before merging
 - Be respectful and constructive in discussions
 
+## OpenSpec Workflow
+
+For non-trivial features and architecture changes, we use an **OpenSpec** spec-driven development workflow:
+
+1. **Explore** (`/openspec-explore`) — Investigate the problem space, clarify requirements, think through tradeoffs
+2. **Propose** (`/openspec-propose`) — Generate proposal, design, specs, and tasks in one step
+3. **Apply** (`/openspec-apply-change`) — Implement the change task by task
+4. **Archive** (`/openspec-archive-change`) — Finalize and archive the completed change
+
+All OpenSpec artifacts live under the `openspec/` directory:
+
+- `openspec/specs/` — Single source of truth for implemented features
+- `openspec/changes/archive/` — Archived change records with proposal, design, tasks, and delta specs
+
+Quick fixes and trivial changes may skip the OpenSpec workflow.
+
 ## Development Workflow
 
 ```

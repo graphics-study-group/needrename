@@ -102,8 +102,8 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> gpu_angular_velocity_delta{};
         std::unique_ptr<ComputeBuffer> gpu_velocity_delta_count{};
         std::unique_ptr<ComputeBuffer> gpu_contact_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_hinge_aligned_axis_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_hinge_position_lagrange{};
+        std::unique_ptr<ComputeBuffer> gpu_hinge_axis_lagrange{};
+        std::unique_ptr<ComputeBuffer> gpu_hinge_anchor_lagrange{};
         std::unique_ptr<ComputeBuffer> gpu_fixed_rotation_lagrange{};
         std::unique_ptr<ComputeBuffer> gpu_fixed_position_lagrange{};
         std::unique_ptr<ComputeBuffer> gpu_hinge_joint_count_buffer{};
@@ -152,8 +152,8 @@ namespace Engine {
             EnsureBuffer(gpu_angular_velocity_delta, body_int3, "XPBD AngVelDelta");
             EnsureBuffer(gpu_velocity_delta_count, body_int1, "XPBD VelDeltaCnt");
             EnsureBuffer(gpu_contact_lagrange, contact_lagrange_bytes, "XPBD ContactLagrange");
-            EnsureBuffer(gpu_hinge_aligned_axis_lagrange, hinge_fbytes, "XPBD HingeAlignLagrange");
-            EnsureBuffer(gpu_hinge_position_lagrange, hinge_fbytes, "XPBD HingePosLagrange");
+            EnsureBuffer(gpu_hinge_axis_lagrange, hinge_fbytes, "XPBD HingeAxisLagrange");
+            EnsureBuffer(gpu_hinge_anchor_lagrange, hinge_fbytes, "XPBD HingeAnchorLagrange");
             EnsureBuffer(gpu_fixed_rotation_lagrange, fixed_fbytes, "XPBD FixedRotLagrange");
             EnsureBuffer(gpu_fixed_position_lagrange, fixed_fbytes, "XPBD FixedPosLagrange");
 
@@ -630,14 +630,14 @@ namespace Engine {
 
         // Clear hinge Lagrange (conditional).
         if (gpu.hinge_joint_count > 0) {
-            auto hinge_align_h = builder.ImportExternalResource(*m_impl->gpu_hinge_aligned_axis_lagrange, Impl::None);
-            auto hinge_pos_h = builder.ImportExternalResource(*m_impl->gpu_hinge_position_lagrange, Impl::None);
+            auto hinge_axis_h = builder.ImportExternalResource(*m_impl->gpu_hinge_axis_lagrange, Impl::None);
+            auto hinge_anchor_h = builder.ImportExternalResource(*m_impl->gpu_hinge_anchor_lagrange, Impl::None);
             auto hinge_cnt_h = builder.ImportExternalResource(*m_impl->gpu_hinge_joint_count_buffer, Impl::None);
 
             auto *binding = &m_impl->clear_hinge_lagrange_stage->AllocateResourceBinding();
             auto &srb = binding->GetShaderResourceBinding();
-            srb.BindBuffer("HingeAlignedAxisLagrange", *m_impl->gpu_hinge_aligned_axis_lagrange);
-            srb.BindBuffer("HingePositionLagrange", *m_impl->gpu_hinge_position_lagrange);
+            srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
+            srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
             srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
             auto *stage = m_impl->clear_hinge_lagrange_stage.get();
             uint32_t hinge_wg = (gpu.hinge_joint_count + 255u) / 256u;
@@ -645,8 +645,8 @@ namespace Engine {
                 RenderGraphPassBuilder{m_impl->render_system}
                     .SetName("XPBD Memset Hinge Lagrange")
                     .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(hinge_align_h, Impl::WW)
-                    .UseBuffer(hinge_pos_h, Impl::WW)
+                    .UseBuffer(hinge_axis_h, Impl::WW)
+                    .UseBuffer(hinge_anchor_h, Impl::WW)
                     .UseBuffer(hinge_cnt_h, Impl::RR)
                     .SetPassFunction([stage, binding, hinge_wg](CommandBuffer &cb, const RenderGraph &) -> void {
                         cb.BindComputeStage(*stage);
@@ -783,15 +783,15 @@ namespace Engine {
         if (gpu.hinge_joint_count > 0 && gpu.gpu_hinge_joints != nullptr) {
             auto hinge_joints_h = builder.ImportExternalResource(*gpu.gpu_hinge_joints, Impl::RR);
             auto hinge_cnt_h = builder.ImportExternalResource(*m_impl->gpu_hinge_joint_count_buffer, Impl::RR);
-            auto hinge_align_h = builder.ImportExternalResource(*m_impl->gpu_hinge_aligned_axis_lagrange, Impl::RW);
-            auto hinge_pos_lag_h = builder.ImportExternalResource(*m_impl->gpu_hinge_position_lagrange, Impl::RW);
+            auto hinge_axis_h = builder.ImportExternalResource(*m_impl->gpu_hinge_axis_lagrange, Impl::RW);
+            auto hinge_anchor_h = builder.ImportExternalResource(*m_impl->gpu_hinge_anchor_lagrange, Impl::RW);
 
             auto *binding = &m_impl->accum_hinge_pos_stage->AllocateResourceBinding();
             auto &srb = binding->GetShaderResourceBinding();
             srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
             srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
-            srb.BindBuffer("HingeAlignedAxisLagrange", *m_impl->gpu_hinge_aligned_axis_lagrange);
-            srb.BindBuffer("HingePositionLagrange", *m_impl->gpu_hinge_position_lagrange);
+            srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
+            srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
             srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
             srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
             srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
@@ -810,8 +810,8 @@ namespace Engine {
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(hinge_joints_h, Impl::RR)
                     .UseBuffer(hinge_cnt_h, Impl::RR)
-                    .UseBuffer(hinge_align_h, Impl::RW)
-                    .UseBuffer(hinge_pos_lag_h, Impl::RW)
+                    .UseBuffer(hinge_axis_h, Impl::RW)
+                    .UseBuffer(hinge_anchor_h, Impl::RW)
                     .UseBuffer(pos_h, Impl::RR)
                     .UseBuffer(rot_h, Impl::RR)
                     .UseBuffer(alive_h, Impl::RR)

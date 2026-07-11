@@ -127,15 +127,52 @@ namespace Engine {
                             initial_rel_rotation
                         );
                     } else if constexpr (std::is_same_v<T, HingeJointDef>) {
+                        // Resolve obj2 transform for initial relative transform computation.
+                        GameObject *obj2_go = scene->GetGameObject(joint_def.m_obj2_handle);
+                        if (obj2_go == nullptr) {
+                            SDL_LogError(
+                                SDL_LOG_CATEGORY_APPLICATION,
+                                "[PhysicsConstraintComponent] HingeJoint obj2 (handle %u) not found in scene.",
+                                joint_def.m_obj2_handle.GetID()
+                            );
+                            return;
+                        }
+
+                        const Transform &t2 = obj2_go->GetWorldTransform();
+                        glm::vec3 pos2 = t2.GetPosition();
+                        glm::quat q2 = t2.GetRotation();
+
+                        // Normalize and validate hinge axis.
+                        glm::vec3 axis = joint_def.m_hinge_axis_obj1;
+                        if (glm::length(axis) > 0.0f) {
+                            axis = glm::normalize(axis);
+                        }
+                        if (glm::length(axis) < 1e-6f) {
+                            SDL_LogError(
+                                SDL_LOG_CATEGORY_APPLICATION,
+                                "[PhysicsConstraintComponent] HingeJoint obj2 (handle %u) has a zero-length hinge "
+                                "axis.",
+                                joint_def.m_obj2_handle.GetID()
+                            );
+                            return;
+                        }
+
+                        // Compute initial relative transform (pos before rot, same as FixedJoint).
+                        glm::vec3 pos1 = t1.GetPosition();
+                        glm::quat q1 = t1.GetRotation();
+                        glm::quat q1_inv = glm::inverse(q1);
+                        glm::vec3 initial_rel_pos_local = q1_inv * (pos2 - pos1);
+                        glm::quat initial_rel_rotation = q1_inv * q2;
+
                         physics_scene->UpdateHingeJoint(
                             joint_idx,
                             obj1_index,
                             obj2_index,
                             joint_def.m_compliance,
-                            joint_def.m_obj1_local_aligned_axis,
-                            joint_def.m_obj2_local_aligned_axis,
-                            joint_def.m_obj1_local_attach_point,
-                            joint_def.m_obj2_local_attach_point
+                            axis,
+                            joint_def.m_hinge_anchor_obj1,
+                            initial_rel_pos_local,
+                            initial_rel_rotation
                         );
                     }
                 },
