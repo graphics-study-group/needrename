@@ -3,7 +3,7 @@
     "%main_data": {
         "%type": "Engine::LevelAsset",
         "Asset::m_guid": "ff182376-0000-0000-0000-000000000000",
-        "LevelAsset::m_default_camera": 6,
+        "LevelAsset::m_default_camera": 7,
         "LevelAsset::m_skybox_material": "07bf9f33-f68c-cab1-50a6-078964d33ef1",
         "SceneAsset::components": [
             {
@@ -24,9 +24,9 @@
                         1.0
                     ],
                     "Transform::m_scale": [
-                        1.0,
-                        1.0,
-                        0.009999999776482582
+                        10.0,
+                        10.0,
+                        0.10000000149011612
                     ]
                 }
             },
@@ -79,8 +79,32 @@
                 }
             },
             {
-                "%type": "Engine::StaticMeshComponent",
+                "%type": "Engine::TransformComponent",
                 "Component::m_handle": 4,
+                "Component::m_parentGameObject": 4,
+                "TransformComponent::m_transform": {
+                    "%type": "Engine::Transform",
+                    "Transform::m_position": [
+                        0.0,
+                        0.0,
+                        1.2999999523162842
+                    ],
+                    "Transform::m_rotation": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "Transform::m_scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            {
+                "%type": "Engine::StaticMeshComponent",
+                "Component::m_handle": 5,
                 "Component::m_parentGameObject": 1,
                 "RendererComponent::m_cast_shadow": false,
                 "RendererComponent::m_is_eagerly_loaded": false,
@@ -93,7 +117,7 @@
             },
             {
                 "%type": "Engine::LightComponent",
-                "Component::m_handle": 5,
+                "Component::m_handle": 6,
                 "Component::m_parentGameObject": 2,
                 "LightComponent::m_cast_shadow": true,
                 "LightComponent::m_color": [
@@ -107,38 +131,14 @@
             {
                 "%type": "Engine::CameraComponent",
                 "CameraComponent::m_camera": "&1",
-                "Component::m_handle": 6,
-                "Component::m_parentGameObject": 3
-            },
-            {
-                "%type": "Engine::TransformComponent",
                 "Component::m_handle": 7,
-                "Component::m_parentGameObject": 4,
-                "TransformComponent::m_transform": {
-                    "%type": "Engine::Transform",
-                    "Transform::m_position": [
-                        0.0,
-                        0.0,
-                        0.20000000298023224
-                    ],
-                    "Transform::m_rotation": [
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "Transform::m_scale": [
-                        0.30000001192092896,
-                        0.30000001192092896,
-                        0.30000001192092896
-                    ]
-                }
+                "Component::m_parentGameObject": 3
             },
             {
                 "%type": "Engine::StaticMeshComponent",
                 "Component::m_handle": 8,
                 "Component::m_parentGameObject": 4,
-                "RendererComponent::m_cast_shadow": false,
+                "RendererComponent::m_cast_shadow": true,
                 "RendererComponent::m_is_eagerly_loaded": false,
                 "RendererComponent::m_layer": 4294967295,
                 "RendererComponent::m_material_assets": [
@@ -146,6 +146,134 @@
                 ],
                 "RendererComponent::m_priority": 0,
                 "StaticMeshComponent::m_mesh_asset": "145431a2-3c39-4a30-9088-26a4a1d49b36"
+            },
+            {
+                "%type": "Engine::RigidBodyComponent",
+                "Component::m_handle": 9,
+                "Component::m_parentGameObject": 1,
+                "RigidBodyComponent::m_angular_velocity_axis_angle": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_dynamic_friction": 0.5,
+                "RigidBodyComponent::m_external_force": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_external_torque": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_is_kinematic": true,
+                "RigidBodyComponent::m_linear_velocity": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_manual_inertia_diag": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_manual_inertia_offdiag": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_mass": 1.0,
+                "RigidBodyComponent::m_restitution": 0.5,
+                "RigidBodyComponent::m_static_friction": 0.5,
+                "RigidBodyComponent::m_use_manual_inertia": false
+            },
+            {
+                "%type": "Engine::CollisionShapeComponent",
+                "CollisionShapeComponent::m_center": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "CollisionShapeComponent::m_feature": [
+                    5.0,
+                    5.0,
+                    0.05000000074505806
+                ],
+                "CollisionShapeComponent::m_ignore_collision_objects": [],
+                "CollisionShapeComponent::m_rotation": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "CollisionShapeComponent::m_shape_type": "Box",
+                "Component::m_handle": 10,
+                "Component::m_parentGameObject": 1
+            },
+            {
+                "%type": "Engine::RigidBodyComponent",
+                "Component::m_handle": 11,
+                "Component::m_parentGameObject": 4,
+                "RigidBodyComponent::m_angular_velocity_axis_angle": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_dynamic_friction": 0.5,
+                "RigidBodyComponent::m_external_force": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_external_torque": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_is_kinematic": false,
+                "RigidBodyComponent::m_linear_velocity": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_manual_inertia_diag": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_manual_inertia_offdiag": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "RigidBodyComponent::m_mass": 1.0,
+                "RigidBodyComponent::m_restitution": 0.5,
+                "RigidBodyComponent::m_static_friction": 0.5,
+                "RigidBodyComponent::m_use_manual_inertia": false
+            },
+            {
+                "%type": "Engine::CollisionShapeComponent",
+                "CollisionShapeComponent::m_center": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "CollisionShapeComponent::m_feature": [
+                    0.7,
+                    0.0,
+                    0.0
+                ],
+                "CollisionShapeComponent::m_ignore_collision_objects": [],
+                "CollisionShapeComponent::m_rotation": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "CollisionShapeComponent::m_shape_type": "Sphere",
+                "Component::m_handle": 12,
+                "Component::m_parentGameObject": 4
             }
         ],
         "SceneAsset::objects": [
@@ -154,10 +282,12 @@
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
                     1,
-                    4
+                    5,
+                    9,
+                    10
                 ],
                 "GameObject::m_handle": 1,
-                "GameObject::m_name": "Cube",
+                "GameObject::m_name": "Floor",
                 "GameObject::m_parentGameObject": 0,
                 "GameObject::m_transformComponent": 1
             },
@@ -166,7 +296,7 @@
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
                     2,
-                    5
+                    6
                 ],
                 "GameObject::m_handle": 2,
                 "GameObject::m_name": "Directional Light",
@@ -178,7 +308,7 @@
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
                     3,
-                    6
+                    7
                 ],
                 "GameObject::m_handle": 3,
                 "GameObject::m_name": "Camera",
@@ -189,13 +319,15 @@
                 "%type": "Engine::GameObject",
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
-                    7,
-                    8
+                    4,
+                    8,
+                    11,
+                    12
                 ],
                 "GameObject::m_handle": 4,
                 "GameObject::m_name": "Sphere",
                 "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 7
+                "GameObject::m_transformComponent": 4
             }
         ]
     },
