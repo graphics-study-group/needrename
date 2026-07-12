@@ -117,6 +117,11 @@ namespace Engine {
             return;
         }
 
+        bool has_pending = !m_pending_rigid_bodies.empty() || !m_pending_shapes.empty() || !m_pending_joints.empty();
+        if (!has_pending) {
+            return;
+        }
+
         // Step 1: Resolve collision filters per pending shape
         for (auto &[shape_idx, shape_desc] : m_pending_shapes) {
             if (shape_desc.ignore_collision_objects.empty()) continue;

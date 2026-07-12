@@ -263,9 +263,7 @@ namespace Engine {
     }
 
     void Scene::FlushPhysics(RenderSystem &render_system) {
-        if (m_physics_adaptor) {
-            m_physics_adaptor->Flush(render_system);
-        }
+        GetPhysicsAdaptor().Flush(render_system);
     }
 
     ComponentHandle Scene::NextAvailableComponentHandle() {

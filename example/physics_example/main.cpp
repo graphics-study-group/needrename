@@ -368,15 +368,16 @@ int main(int /*argc*/, char ** /*argv*/) {
     // --- Finalize scene ---
     scene.FlushCmdQueue();
 
-    // Awake mesh components → registers renderers.
-    scene.AddInitEvent();
-    scene.ProcessEvents();
-
     auto *physics_scene = scene.GetPhysicsScene();
     auto &physics_adaptor = scene.GetPhysicsAdaptor();
     physics_scene->DebugPrint();
     physics_scene->SetSimulationEnabled(true);
     physics_adaptor.SetPhysicsActive(true);
+
+    // Awake mesh components → registers renderers.
+    scene.AddInitEvent();
+    scene.ProcessEvents();
+    scene.FlushPhysics(*cmc->GetRenderSystem());
 
     // --- Build the rendering render graph (physics model matrices passed via ComplexRenderGraphBuilder) ---
     ComplexRenderGraphBuilder rg_builder(*cmc->GetRenderSystem());
