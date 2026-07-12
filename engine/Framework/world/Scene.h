@@ -14,6 +14,8 @@ namespace Engine {
     class Component;
     class SceneAsset;
     class PhysicsScene;
+    class PhysicsAdaptor;
+    class RenderSystem;
     namespace Reflection {
         class Type;
     }
@@ -201,6 +203,9 @@ namespace Engine {
         PhysicsScene *GetPhysicsScene();
         const PhysicsScene *GetPhysicsScene() const;
 
+        PhysicsAdaptor &GetPhysicsAdaptor();
+        void FlushPhysics(RenderSystem &render_system);
+
     protected:
         uint32_t m_sceneID;
 
@@ -226,6 +231,8 @@ namespace Engine {
         // Determine whether the components in the scene should be registered to the physics system and processed in the physics simulation.
         // Currently only main scene in WorldSystem can enable physics simulation.
         bool m_enable_physics{false};
+
+        std::unique_ptr<PhysicsAdaptor> m_physics_adaptor{};
 
     protected:
         // GameObject need to access AddComponent function

@@ -173,11 +173,9 @@ public:
     /**
      * @brief Finalize physics scene initialization.
      *
-     * Calls physics_scene.InitializePendingRigidBodies(render_system).
-     *
-     * @param physics_scene The PhysicsScene to finalize.
+     * Calls scene.FlushPhysics(render_system).
      */
-    void Finalize(Engine::PhysicsScene &physics_scene);
+    void Finalize();
 
 private:
     Engine::GameObject &AddRigidBodyObject(

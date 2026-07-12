@@ -18,6 +18,7 @@
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
+#include <Framework/world/physics/PhysicsAdaptor.h>
 #include <MainClass.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
@@ -102,6 +103,7 @@ void Start() {
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     scene.ClearEventQueue();
     scene.AddInitEvent();
+    scene.GetPhysicsAdaptor().SetPhysicsActive(true);
     if (auto *ps = scene.GetPhysicsScene()) {
         ps->SetSimulationEnabled(true);
     }
@@ -110,6 +112,7 @@ void Start() {
 void Stop() {
     auto cmc = MainClass::GetInstance();
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
+    scene.GetPhysicsAdaptor().SetPhysicsActive(false);
     if (auto *ps = scene.GetPhysicsScene()) {
         ps->SetSimulationEnabled(false);
     }
@@ -241,7 +244,7 @@ int main(int argc, char **argv) {
             world->GetMainSceneRef().AddTickEvent();
             world->GetMainSceneRef().ProcessEvents();
         }
-        cmc->GetPhysicsSystem()->InitializePendingRigidBodies(*rsys);
+        world->GetMainSceneRef().FlushPhysics(*rsys);
 
         // Lazily rebuild render graph when physics SSBO first becomes available.
         if (!has_model_matrices_in_graph) {

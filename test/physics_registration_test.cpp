@@ -147,18 +147,15 @@ int main(int argc, char **argv) {
 
     scene.FlushCmdQueue();
 
-    PhysicsScene *physics_scene = scene.GetPhysicsScene();
-    if (physics_scene == nullptr) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "PhysicsScene is null.");
-        return -1;
-    }
-
-    physics_scene->InitializePendingRigidBodies(*cmc->GetRenderSystem());
-    physics_scene->DebugPrint();
-
     // Awake mesh components → registers renderers with RendererManager.
     scene.AddInitEvent();
     scene.ProcessEvents();
+
+    scene.FlushPhysics(*cmc->GetRenderSystem());
+    auto *physics_scene = scene.GetPhysicsScene();
+    if (physics_scene) {
+        physics_scene->DebugPrint();
+    }
 
     // Set model_mat_index for physics-driven renderers.
     root_mesh.PreRenderUpdate();

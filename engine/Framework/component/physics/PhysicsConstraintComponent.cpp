@@ -4,7 +4,7 @@
 #include <Framework/component/physics/RigidBodyComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
-#include <Physics/PhysicsScene.h>
+#include <Framework/world/physics/PhysicsAdaptor.h>
 #include <Reflection/Archive.h>
 
 #include <SDL3/SDL.h>
@@ -27,6 +27,8 @@ namespace Engine {
             return;
         }
 
+        PhysicsAdaptor &adaptor = scene->GetPhysicsAdaptor();
+
         m_joint_indices.clear();
         m_joint_indices.reserve(m_joints.size());
 
@@ -35,10 +37,10 @@ namespace Engine {
                 [&](const auto &joint_def) {
                     using T = std::decay_t<decltype(joint_def)>;
                     if constexpr (std::is_same_v<T, FixedJointDef>) {
-                        uint32_t idx = physics_scene->AllocateFixedJoint();
+                        uint32_t idx = adaptor.AllocateFixedJoint();
                         m_joint_indices.push_back({idx, false});
                     } else if constexpr (std::is_same_v<T, HingeJointDef>) {
-                        uint32_t idx = physics_scene->AllocateHingeJoint();
+                        uint32_t idx = adaptor.AllocateHingeJoint();
                         m_joint_indices.push_back({idx, true});
                     }
                 },
@@ -61,8 +63,10 @@ namespace Engine {
             return;
         }
 
+        PhysicsAdaptor &adaptor = scene->GetPhysicsAdaptor();
+
         ObjectHandle own_handle = GetParentGameObject()->GetHandle();
-        uint32_t obj1_index = physics_scene->FindRigidBodyByObjectHandle(own_handle);
+        uint32_t obj1_index = adaptor.FindRigidBodyByObjectHandle(own_handle);
         if (obj1_index == PhysicsScene::INVALID_INDEX) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_APPLICATION,
@@ -89,7 +93,7 @@ namespace Engine {
                 [&](const auto &joint_def) {
                     using T = std::decay_t<decltype(joint_def)>;
 
-                    uint32_t obj2_index = physics_scene->FindRigidBodyByObjectHandle(joint_def.m_obj2_handle);
+                    uint32_t obj2_index = adaptor.FindRigidBodyByObjectHandle(joint_def.m_obj2_handle);
                     if (obj2_index == PhysicsScene::INVALID_INDEX) {
                         SDL_LogError(
                             SDL_LOG_CATEGORY_APPLICATION,
@@ -120,14 +124,10 @@ namespace Engine {
                         glm::vec3 initial_rel_pos_local = q1_inv * (pos2 - pos1);
                         glm::quat initial_rel_rotation = q1_inv * q2;
 
-                        physics_scene->UpdateFixedJoint(
-                            joint_idx,
-                            obj1_index,
-                            obj2_index,
-                            joint_def.m_compliance,
-                            initial_rel_pos_local,
-                            initial_rel_rotation
-                        );
+                        FixedJointSubmitData submit_data{
+                            obj1_index, obj2_index, joint_def.m_compliance, initial_rel_pos_local, initial_rel_rotation
+                        };
+                        adaptor.SubmitJoint(joint_idx, submit_data);
                     } else if constexpr (std::is_same_v<T, HingeJointDef>) {
                         // Resolve obj2 transform for initial relative transform computation.
                         GameObject *obj2_go = scene->GetGameObject(joint_def.m_obj2_handle);
@@ -166,8 +166,7 @@ namespace Engine {
                         glm::vec3 initial_rel_pos_local = q1_inv * (pos2 - pos1);
                         glm::quat initial_rel_rotation = q1_inv * q2;
 
-                        physics_scene->UpdateHingeJoint(
-                            joint_idx,
+                        HingeJointSubmitData submit_data{
                             obj1_index,
                             obj2_index,
                             joint_def.m_compliance,
@@ -175,7 +174,8 @@ namespace Engine {
                             joint_def.m_hinge_anchor_obj1,
                             initial_rel_pos_local,
                             initial_rel_rotation
-                        );
+                        };
+                        adaptor.SubmitJoint(joint_idx, submit_data);
                     }
                 },
                 m_joints[i]

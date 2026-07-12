@@ -585,8 +585,9 @@ namespace Engine {
 
             // === Prefix sum: shape_cell_count → shape_cell_offset ===
             {
-                if (!scan || scan->GetMaxElemCount() < max_assignment_pairs) {
-                    scan = std::make_unique<ParallelScan>(render_system, max_assignment_pairs);
+                uint32_t scan_element = std::max(max_assignment_pairs, grid_total_cells + 1u);
+                if (!scan || scan->GetMaxElemCount() < scan_element) {
+                    scan = std::make_unique<ParallelScan>(render_system, scan_element);
                 }
                 scan->AddPasses(
                     builder,

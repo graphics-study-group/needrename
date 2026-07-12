@@ -206,7 +206,7 @@ namespace Engine {
         // this->gui->PrepareGUI();
 
         this->world->GetMainSceneRef().ProcessEvents();
-        this->physics->InitializePendingRigidBodies(*this->renderer);
+        this->world->GetMainSceneRef().FlushPhysics(*this->renderer);
         this->world->UpdateRendererData(*this->renderer);
 
         this->renderer->StartFrame();

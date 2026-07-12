@@ -5,6 +5,7 @@
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
+#include <Framework/world/physics/PhysicsAdaptor.h>
 #include <MainClass.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
@@ -251,6 +252,20 @@ namespace Engine {
             }
         }
         return nullptr;
+    }
+
+    PhysicsAdaptor &Scene::GetPhysicsAdaptor() {
+        if (!m_physics_adaptor) {
+            auto *physics_scene = GetPhysicsScene();
+            m_physics_adaptor = std::make_unique<PhysicsAdaptor>(*physics_scene, *this);
+        }
+        return *m_physics_adaptor;
+    }
+
+    void Scene::FlushPhysics(RenderSystem &render_system) {
+        if (m_physics_adaptor) {
+            m_physics_adaptor->Flush(render_system);
+        }
     }
 
     ComponentHandle Scene::NextAvailableComponentHandle() {

@@ -314,6 +314,6 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
     return sphere;
 }
 
-void SceneBuilder::Finalize(PhysicsScene &physics_scene) {
-    physics_scene.InitializePendingRigidBodies(m_render_system);
+void SceneBuilder::Finalize() {
+    m_scene.FlushPhysics(m_render_system);
 }

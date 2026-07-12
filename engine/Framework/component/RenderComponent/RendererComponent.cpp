@@ -2,6 +2,7 @@
 
 #include "Framework/object/GameObject.h"
 #include "Framework/world/Scene.h"
+#include "Framework/world/physics/PhysicsAdaptor.h"
 #include "MainClass.h"
 #include "Physics/PhysicsScene.h"
 #include "Render/RenderSystem.h"
@@ -50,18 +51,19 @@ namespace Engine {
         if (currentObj) {
             auto *scene = currentObj->GetScene();
             if (scene) {
-                auto *physicsScene = scene->GetPhysicsScene();
-                if (physicsScene) {
+                auto &adaptor = scene->GetPhysicsAdaptor();
+                if (adaptor.IsPhysicsActive()) {
                     while (currentObj) {
-                        auto rigid_idx = physicsScene->FindRigidBodyByObjectHandle(currentObj->GetHandle());
-                        if (rigid_idx != PhysicsScene::INVALID_INDEX && physicsScene->IsModelMatrixActive(rigid_idx)) {
+                        auto rigid_idx = adaptor.FindRigidBodyByObjectHandle(currentObj->GetHandle());
+                        if (rigid_idx != PhysicsScene::INVALID_INDEX) {
                             model_mat_index = static_cast<int32_t>(rigid_idx);
-                            // Compute local transform relative to the rigid body's GO.
+                            // Compute local transform relative to the rigid body's COM.
                             // The shader will compose: model_matrices[index] * pc.model.
+                            glm::vec3 com_offset = adaptor.GetComOffsetLocal(rigid_idx);
                             Transform rb_tr = currentObj->GetWorldTransform();
                             rb_tr.SetScale(glm::vec3(1.0f)); // The solver does not apply scaling, so we ignore it
                             glm::mat4 rb_world = rb_tr.GetTransformMatrix();
-                            model = glm::inverse(rb_world) * model;
+                            model = glm::translate(glm::mat4(1.0f), -com_offset) * glm::inverse(rb_world) * model;
                             break;
                         }
                         // Move up to parent.
