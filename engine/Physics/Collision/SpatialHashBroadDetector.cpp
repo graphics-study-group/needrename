@@ -298,7 +298,7 @@ namespace Engine {
             srb.BindBuffer("ElemCount", elem_count);
             cb.BindComputeStage(*copy_stage);
             cb.BindComputeResource(*copy_binding);
-            uint32_t wg = (elem_count.GetSize() / sizeof(uint32_t) + 63u) / 64u;
+            uint32_t wg = (dst.GetSize() / sizeof(uint32_t) + 63u) / 64u;
             if (wg == 0) wg = 1;
             cb.DispatchCompute(wg, 1, 1);
         }
