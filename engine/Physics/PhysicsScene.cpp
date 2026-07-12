@@ -38,14 +38,6 @@ namespace {
             buffer = Engine::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
         }
     }
-
-    glm::vec4 ToVec4(const glm::vec3 &v) {
-        return glm::vec4(v.x, v.y, v.z, 0.0f);
-    }
-
-    glm::vec4 ToVec4(const glm::quat &q) {
-        return glm::vec4(q.x, q.y, q.z, q.w);
-    }
 } // namespace
 
 namespace Engine {
@@ -70,7 +62,6 @@ namespace Engine {
         m_rigid_body_is_kinematic.clear();
         m_rigid_body_center_world_position.clear();
         m_rigid_body_center_world_rotation.clear();
-        m_rigid_body_center_offset_local_position.clear();
         m_rigid_body_inertia.clear();
         m_rigid_body_inverse_inertia.clear();
         m_rigid_body_linear_velocity.clear();
@@ -94,7 +85,9 @@ namespace Engine {
         m_hinge_joints.clear();
         m_hinge_joint_alive.clear();
         m_gpu_fixed_joints.reset();
+        m_gpu_fixed_joint_alive.reset();
         m_gpu_hinge_joints.reset();
+        m_gpu_hinge_joint_alive.reset();
 
         m_shape_filter_offset.clear();
         m_shape_filter_count.clear();
@@ -108,7 +101,6 @@ namespace Engine {
         m_gpu_rigid_body_is_kinematic.reset();
         m_gpu_rigid_body_center_world_position.reset();
         m_gpu_rigid_body_center_world_rotation.reset();
-        m_gpu_rigid_body_center_offset_local_position.reset();
         m_gpu_rigid_body_inertia.reset();
         m_gpu_rigid_body_inverse_inertia.reset();
         m_gpu_rigid_body_linear_velocity.reset();
@@ -142,7 +134,6 @@ namespace Engine {
         m_rigid_body_is_kinematic.push_back(0u);
         m_rigid_body_center_world_position.push_back(glm::vec4(0.0f));
         m_rigid_body_center_world_rotation.push_back(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-        m_rigid_body_center_offset_local_position.push_back(glm::vec4(0.0f));
         m_rigid_body_inertia.push_back(glm::mat4(0.0f));
         m_rigid_body_inverse_inertia.push_back(glm::mat4(0.0f));
         m_rigid_body_linear_velocity.push_back(glm::vec4(0.0f));
@@ -189,16 +180,12 @@ namespace Engine {
     }
 
     void PhysicsScene::UnregisterRigidBody(uint32_t rigid_body_index) {
-        if (!IsRigidBodyIndexValid(rigid_body_index)) {
-            return;
-        }
+        if (!IsRigidBodyIndexValid(rigid_body_index)) return;
         m_rigid_body_alive[rigid_body_index] = 0u;
     }
 
     void PhysicsScene::UnregisterCollisionShape(uint32_t shape_index) {
-        if (!IsShapeIndexValid(shape_index)) {
-            return;
-        }
+        if (!IsShapeIndexValid(shape_index)) return;
         m_shape_alive[shape_index] = 0u;
     }
 
@@ -221,7 +208,6 @@ namespace Engine {
         m_rigid_body_is_kinematic[rigid_body_index] = desc.is_kinematic ? 1u : 0u;
         m_rigid_body_center_world_position[rigid_body_index] = desc.center_world_position;
         m_rigid_body_center_world_rotation[rigid_body_index] = desc.center_world_rotation;
-        m_rigid_body_center_offset_local_position[rigid_body_index] = desc.center_offset_local_position;
         m_rigid_body_inertia[rigid_body_index] = desc.inertia;
         m_rigid_body_inverse_inertia[rigid_body_index] = desc.inverse_inertia;
         m_rigid_body_linear_velocity[rigid_body_index] = desc.linear_velocity;
@@ -275,7 +261,6 @@ namespace Engine {
             m_gpu_rigid_body_is_kinematic.get(),
             m_gpu_rigid_body_center_world_position.get(),
             m_gpu_rigid_body_center_world_rotation.get(),
-            m_gpu_rigid_body_center_offset_local_position.get(),
             m_gpu_rigid_body_inertia.get(),
             m_gpu_rigid_body_inverse_inertia.get(),
             m_gpu_rigid_body_linear_velocity.get(),
@@ -295,7 +280,9 @@ namespace Engine {
             m_gpu_shape_filter_count.get(),
             m_gpu_shape_filter_data.get(),
             m_gpu_fixed_joints.get(),
+            m_gpu_fixed_joint_alive.get(),
             m_gpu_hinge_joints.get(),
+            m_gpu_hinge_joint_alive.get(),
             m_gpu_rigid_body_slot_count,
             m_gpu_shape_slot_count,
             static_cast<uint32_t>(m_fixed_joints.size()),
@@ -344,12 +331,6 @@ namespace Engine {
         EnsureBuffer<glm::vec4>(
             m_gpu_rigid_body_center_world_rotation, allocator, m_gpu_rigid_body_slot_count, "Physics RB CenterRot"
         );
-        EnsureBuffer<glm::vec4>(
-            m_gpu_rigid_body_center_offset_local_position,
-            allocator,
-            m_gpu_rigid_body_slot_count,
-            "Physics RB CenterOff"
-        );
         EnsureBuffer<glm::mat4>(m_gpu_rigid_body_inertia, allocator, m_gpu_rigid_body_slot_count, "Physics RB Inertia");
         EnsureBuffer<glm::mat4>(
             m_gpu_rigid_body_inverse_inertia, allocator, m_gpu_rigid_body_slot_count, "Physics RB InvInertia"
@@ -394,6 +375,13 @@ namespace Engine {
             m_gpu_shape_filter_data, allocator, m_shape_filter_data.size(), "Physics ShapeFilterData"
         );
 
+        const uint32_t fixed_joint_count = static_cast<uint32_t>(m_fixed_joints.size());
+        const uint32_t hinge_joint_count = static_cast<uint32_t>(m_hinge_joints.size());
+        EnsureBuffer<GpuFixedJoint>(m_gpu_fixed_joints, allocator, fixed_joint_count, "Physics FixedJoints");
+        EnsureBuffer<uint32_t>(m_gpu_fixed_joint_alive, allocator, fixed_joint_count, "Physics FixedJoint Alive");
+        EnsureBuffer<GpuHingeJoint>(m_gpu_hinge_joints, allocator, hinge_joint_count, "Physics HingeJoints");
+        EnsureBuffer<uint32_t>(m_gpu_hinge_joint_alive, allocator, hinge_joint_count, "Physics HingeJoint Alive");
+
         auto &submission = render_system.GetFrameManager().GetSubmissionHelper();
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_alive, MakeSpan(m_rigid_body_alive));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_mass, MakeSpan(m_rigid_body_mass));
@@ -406,9 +394,6 @@ namespace Engine {
         );
         submission.EnqueueBufferSubmission(
             *m_gpu_rigid_body_center_world_rotation, MakeSpan(m_rigid_body_center_world_rotation)
-        );
-        submission.EnqueueBufferSubmission(
-            *m_gpu_rigid_body_center_offset_local_position, MakeSpan(m_rigid_body_center_offset_local_position)
         );
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_inertia, MakeSpan(m_rigid_body_inertia));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_inverse_inertia, MakeSpan(m_rigid_body_inverse_inertia));
@@ -430,15 +415,13 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_shape_filter_count, MakeSpan(m_shape_filter_count));
         submission.EnqueueBufferSubmission(*m_gpu_shape_filter_data, MakeSpan(m_shape_filter_data));
 
-        const uint32_t fixed_joint_count = static_cast<uint32_t>(m_fixed_joints.size());
-        const uint32_t hinge_joint_count = static_cast<uint32_t>(m_hinge_joints.size());
-        EnsureBuffer<GpuFixedJoint>(m_gpu_fixed_joints, allocator, fixed_joint_count, "Physics FixedJoints");
-        EnsureBuffer<GpuHingeJoint>(m_gpu_hinge_joints, allocator, hinge_joint_count, "Physics HingeJoints");
         if (fixed_joint_count > 0) {
             submission.EnqueueBufferSubmission(*m_gpu_fixed_joints, MakeSpan(m_fixed_joints));
+            submission.EnqueueBufferSubmission(*m_gpu_fixed_joint_alive, MakeSpan(m_fixed_joint_alive));
         }
         if (hinge_joint_count > 0) {
             submission.EnqueueBufferSubmission(*m_gpu_hinge_joints, MakeSpan(m_hinge_joints));
+            submission.EnqueueBufferSubmission(*m_gpu_hinge_joint_alive, MakeSpan(m_hinge_joint_alive));
         }
     }
 

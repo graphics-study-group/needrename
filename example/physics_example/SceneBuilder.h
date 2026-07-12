@@ -170,13 +170,6 @@ public:
      */
     Engine::GameObject &AddDoublePendulum(const glm::vec3 &anchor_position);
 
-    /**
-     * @brief Finalize physics scene initialization.
-     *
-     * Calls scene.FlushPhysics(render_system).
-     */
-    void Finalize();
-
 private:
     Engine::GameObject &AddRigidBodyObject(
         const glm::vec3 &position,

@@ -10,8 +10,26 @@
 namespace Engine {
     namespace detail {
 
+        /**
+         * @brief Pure-function module that converts GO-space joint submit data
+         *        to COM-space GPU-ready joint structures.
+         *
+         * Conversion formulas follow ADR-0003: COM offset vectors c1 and c2
+         * (in GO-local space) are applied to transform GO-local positions into
+         * COM-local positions.
+         */
         class JointConverter {
         public:
+            /**
+             * @brief Convert fixed joint submit data to a GPU-ready GpuFixedJoint.
+             *
+             * Formula: com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1
+             *
+             * @param data The GO-space fixed joint submit data.
+             * @param c1   COM offset of obj1 in GO-local space.
+             * @param c2   COM offset of obj2 in GO-local space.
+             * @return GPU-ready fixed joint with COM-local relative transform.
+             */
             static GpuFixedJoint ConvertFixed(
                 const FixedJointSubmitData &data, const glm::vec3 &c1, const glm::vec3 &c2
             ) {
@@ -32,6 +50,17 @@ namespace Engine {
                 return joint;
             }
 
+            /**
+             * @brief Convert hinge joint submit data to a GPU-ready GpuHingeJoint.
+             *
+             * Formulas: anchor_com = anchor_go - c1; com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1.
+             * The hinge axis is a direction vector unaffected by COM offset translation.
+             *
+             * @param data The GO-space hinge joint submit data.
+             * @param c1   COM offset of obj1 in GO-local space.
+             * @param c2   COM offset of obj2 in GO-local space.
+             * @return GPU-ready hinge joint with COM-local anchor point and relative transform.
+             */
             static GpuHingeJoint ConvertHinge(
                 const HingeJointSubmitData &data, const glm::vec3 &c1, const glm::vec3 &c2
             ) {

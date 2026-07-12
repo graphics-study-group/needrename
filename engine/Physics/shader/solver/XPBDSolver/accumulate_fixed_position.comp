@@ -46,10 +46,13 @@ layout(set = 0, binding = 10) readonly buffer XpbdUniforms { vec4 v; } uniforms;
 layout(set = 0, binding = 11) buffer LinearPositionDelta  { float v[]; } lin_delta;
 layout(set = 0, binding = 12) buffer AngularPositionDelta { float v[]; } ang_delta;
 layout(set = 0, binding = 13) buffer PositionDeltaCount    { float v[]; } delta_count;
+layout(set = 0, binding = 14) readonly buffer FixedJointAlive { uint v[]; } fixed_joint_alive;
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
     if (cidx >= fixed_joint_count.count) return;
+
+    if (fixed_joint_alive.v[cidx] == 0u) return;
 
     GpuFixedJoint constraint = fixed_joints.v[cidx];
     uint obj1_idx = constraint.obj1_index;

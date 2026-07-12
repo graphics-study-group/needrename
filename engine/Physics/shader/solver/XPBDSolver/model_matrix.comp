@@ -15,11 +15,7 @@ layout(set = 0, binding = 2) readonly buffer RigidBodyCenterRotation {
     vec4 v[];
 } rigid_body_center_rotation;
 
-layout(set = 0, binding = 3) readonly buffer RigidBodyCenterOffsetLocal {
-    vec4 v[];
-} rigid_body_center_offset;
-
-layout(set = 0, binding = 4) writeonly buffer ModelMatrices {
+layout(set = 0, binding = 3) writeonly buffer ModelMatrices {
     mat4 v[];
 } model_matrices;
 
@@ -50,17 +46,12 @@ void main() {
 
     vec3 com_pos = rigid_body_center_position.v[index].xyz;
     vec4 com_quat = rigid_body_center_rotation.v[index];
-    vec3 center_offset = rigid_body_center_offset.v[index].xyz;
     mat4 rot = quaternion_to_mat4(com_quat);
-
-    // Convert COM world position to GO world position:
-    // GO_pos = COM_pos - rotate(COM_rot, center_offset_local)
-    vec3 go_pos = com_pos - quat_rotate(com_quat, center_offset);
 
     model_matrices.v[index] = mat4(
         rot[0],
         rot[1],
         rot[2],
-        vec4(go_pos, 1.0)
+        vec4(com_pos, 1.0)
     );
 }

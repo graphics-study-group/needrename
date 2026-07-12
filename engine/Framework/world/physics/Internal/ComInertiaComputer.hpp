@@ -13,6 +13,12 @@
 namespace Engine {
     namespace detail {
 
+        /**
+         * @brief Per-shape input data for center-of-mass and inertia computation.
+         *
+         * Carries the shape's world pose and geometry, extracted from the pending
+         * GO-space CollisionShapeDescriptor during Flush.
+         */
         struct ShapeComputationData {
             uint32_t shape_index{0};
             CollisionShapeType type{CollisionShapeType::Box};
@@ -21,11 +27,20 @@ namespace Engine {
             glm::quat world_rotation{1.0f, 0.0f, 0.0f, 0.0f};
         };
 
+        /**
+         * @brief COM-local pose of a shape after center-of-mass computation.
+         */
         struct ShapePose {
             glm::vec4 position;
             glm::vec4 rotation;
         };
 
+        /**
+         * @brief Output of center-of-mass and inertia tensor computation.
+         *
+         * center_offset_local is the vector from GO origin to COM in GO-local space.
+         * shape_poses maps each shape index to its COM-local pose.
+         */
         struct ComInertiaOutput {
             glm::vec4 center_world_position{0.0f};
             glm::vec4 center_world_rotation{0.0f};
@@ -94,8 +109,28 @@ namespace Engine {
             return inertia;
         }
 
+        /**
+         * @brief Pure-function module that computes the center of mass and inertia tensor
+         *        for a rigid body from its attached collision shapes.
+         *
+         * Supports volume-weighted automatic COM, manual inertia/COM override,
+         * parallel-axis theorem for inertia tensor accumulation, and shape COM-local
+         * pose recomputation.
+         */
         class ComInertiaComputer {
         public:
+            /**
+             * @brief Compute center of mass, inertia, and shape local poses.
+             *
+             * If the rigid body has manual inertia enabled, the manual values are used
+             * directly. Otherwise, COM is computed by volume-weighted average of shape
+             * world positions, and the inertia tensor is accumulated using the parallel
+             * axis theorem.
+             *
+             * @param rb_desc The GO-space rigid body descriptor containing mass, manual inertia override, and GO-world pose.
+             * @param shapes  The list of collision shapes attached to this rigid body, with GO-world poses.
+             * @return Computed COM position/rotation, GO→COM offset, inertia tensor, inverse inertia, and per-shape COM-local poses.
+             */
             static ComInertiaOutput Compute(
                 const RigidBodyDescriptor &rb_desc, const std::vector<ShapeComputationData> &shapes
             ) {

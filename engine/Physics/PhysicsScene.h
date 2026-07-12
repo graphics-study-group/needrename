@@ -7,9 +7,7 @@
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
-#include <deque>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 namespace Engine {
@@ -89,7 +87,6 @@ namespace Engine {
             const ComputeBuffer *rigid_body_is_kinematic{};
             const ComputeBuffer *rigid_body_center_world_position{};
             const ComputeBuffer *rigid_body_center_world_rotation{};
-            const ComputeBuffer *rigid_body_center_offset_local_position{};
             const ComputeBuffer *rigid_body_inertia{};
             const ComputeBuffer *rigid_body_inverse_inertia{};
             const ComputeBuffer *rigid_body_linear_velocity{};
@@ -113,7 +110,9 @@ namespace Engine {
             const ComputeBuffer *shape_filter_data{};
 
             const ComputeBuffer *gpu_fixed_joints{};
+            const ComputeBuffer *gpu_fixed_joint_alive{};
             const ComputeBuffer *gpu_hinge_joints{};
+            const ComputeBuffer *gpu_hinge_joint_alive{};
 
             uint32_t rigid_body_slot_count{0};
             uint32_t shape_slot_count{0};
@@ -146,7 +145,6 @@ namespace Engine {
         std::vector<uint32_t> m_rigid_body_is_kinematic{};
         std::vector<glm::vec4> m_rigid_body_center_world_position{};
         std::vector<glm::vec4> m_rigid_body_center_world_rotation{};
-        std::vector<glm::vec4> m_rigid_body_center_offset_local_position{};
         std::vector<glm::mat4> m_rigid_body_inertia{};
         std::vector<glm::mat4> m_rigid_body_inverse_inertia{};
         std::vector<glm::vec4> m_rigid_body_linear_velocity{};
@@ -174,7 +172,6 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_is_kinematic{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_world_position{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_world_rotation{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_offset_local_position{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_inertia{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_inverse_inertia{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_linear_velocity{};
@@ -198,7 +195,9 @@ namespace Engine {
         std::vector<GpuHingeJoint> m_hinge_joints{};
         std::vector<uint32_t> m_hinge_joint_alive{};
         std::unique_ptr<ComputeBuffer> m_gpu_fixed_joints{};
+        std::unique_ptr<ComputeBuffer> m_gpu_fixed_joint_alive{};
         std::unique_ptr<ComputeBuffer> m_gpu_hinge_joints{};
+        std::unique_ptr<ComputeBuffer> m_gpu_hinge_joint_alive{};
 
         std::vector<uint32_t> m_shape_filter_offset{};
         std::vector<uint32_t> m_shape_filter_count{};

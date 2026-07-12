@@ -783,6 +783,7 @@ namespace Engine {
         if (gpu.hinge_joint_count > 0 && gpu.gpu_hinge_joints != nullptr) {
             auto hinge_joints_h = builder.ImportExternalResource(*gpu.gpu_hinge_joints, Impl::RR);
             auto hinge_cnt_h = builder.ImportExternalResource(*m_impl->gpu_hinge_joint_count_buffer, Impl::RR);
+            auto hinge_alive_h = builder.ImportExternalResource(*gpu.gpu_hinge_joint_alive, Impl::RR);
             auto hinge_axis_h = builder.ImportExternalResource(*m_impl->gpu_hinge_axis_lagrange, Impl::RW);
             auto hinge_anchor_h = builder.ImportExternalResource(*m_impl->gpu_hinge_anchor_lagrange, Impl::RW);
 
@@ -790,6 +791,7 @@ namespace Engine {
             auto &srb = binding->GetShaderResourceBinding();
             srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
             srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
+            srb.BindBuffer("HingeJointAlive", *gpu.gpu_hinge_joint_alive);
             srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
             srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
             srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
@@ -810,6 +812,7 @@ namespace Engine {
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(hinge_joints_h, Impl::RR)
                     .UseBuffer(hinge_cnt_h, Impl::RR)
+                    .UseBuffer(hinge_alive_h, Impl::RR)
                     .UseBuffer(hinge_axis_h, Impl::RW)
                     .UseBuffer(hinge_anchor_h, Impl::RW)
                     .UseBuffer(pos_h, Impl::RR)
@@ -835,6 +838,7 @@ namespace Engine {
         if (gpu.fixed_joint_count > 0 && gpu.gpu_fixed_joints != nullptr) {
             auto fixed_joints_h = builder.ImportExternalResource(*gpu.gpu_fixed_joints, Impl::RR);
             auto fixed_cnt_h = builder.ImportExternalResource(*m_impl->gpu_fixed_joint_count_buffer, Impl::RR);
+            auto fixed_alive_h = builder.ImportExternalResource(*gpu.gpu_fixed_joint_alive, Impl::RR);
             auto fixed_rot_h = builder.ImportExternalResource(*m_impl->gpu_fixed_rotation_lagrange, Impl::RW);
             auto fixed_pos_lag_h = builder.ImportExternalResource(*m_impl->gpu_fixed_position_lagrange, Impl::RW);
 
@@ -842,6 +846,7 @@ namespace Engine {
             auto &srb = binding->GetShaderResourceBinding();
             srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
             srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
+            srb.BindBuffer("FixedJointAlive", *gpu.gpu_fixed_joint_alive);
             srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
             srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
             srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
@@ -862,6 +867,7 @@ namespace Engine {
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(fixed_joints_h, Impl::RR)
                     .UseBuffer(fixed_cnt_h, Impl::RR)
+                    .UseBuffer(fixed_alive_h, Impl::RR)
                     .UseBuffer(fixed_rot_h, Impl::RW)
                     .UseBuffer(fixed_pos_lag_h, Impl::RW)
                     .UseBuffer(pos_h, Impl::RR)
@@ -1121,7 +1127,6 @@ namespace Engine {
         auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, Impl::RR);
         auto pos_h = builder.ImportExternalResource(*gpu.rigid_body_center_world_position, Impl::RR);
         auto rot_h = builder.ImportExternalResource(*gpu.rigid_body_center_world_rotation, Impl::RR);
-        auto off_h = builder.ImportExternalResource(*gpu.rigid_body_center_offset_local_position, Impl::RR);
         auto mm_h = builder.ImportExternalResource(*gpu.model_matrices, Impl::None);
 
         auto *stage = m_impl->model_matrix_stage.get();
@@ -1130,7 +1135,6 @@ namespace Engine {
         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
         srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
         srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-        srb.BindBuffer("RigidBodyCenterOffsetLocal", *gpu.rigid_body_center_offset_local_position);
         srb.BindBuffer("ModelMatrices", *gpu.model_matrices);
 
         builder.AddPass(
@@ -1140,7 +1144,6 @@ namespace Engine {
                 .UseBuffer(alive_h, Impl::RR)
                 .UseBuffer(pos_h, Impl::RR)
                 .UseBuffer(rot_h, Impl::RR)
-                .UseBuffer(off_h, Impl::RR)
                 .UseBuffer(mm_h, Impl::WW)
                 .SetPassFunction([stage, binding, body_wg](CommandBuffer &cb, const RenderGraph &) -> void {
                     cb.BindComputeStage(*stage);

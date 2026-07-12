@@ -172,7 +172,6 @@ namespace Engine {
             com_desc.is_kinematic = rb_desc.is_kinematic;
             com_desc.center_world_position = output.center_world_position;
             com_desc.center_world_rotation = output.center_world_rotation;
-            com_desc.center_offset_local_position = output.center_offset_local;
             com_desc.inertia = output.inertia;
             com_desc.inverse_inertia = output.inverse_inertia;
             com_desc.linear_velocity = detail::ToVec4(rb_desc.linear_velocity);

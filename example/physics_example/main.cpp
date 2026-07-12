@@ -10,6 +10,7 @@
 #include "Framework/object/GameObject.h"
 #include "Framework/world/Scene.h"
 #include "Framework/world/WorldSystem.h"
+#include "Framework/world/physics/PhysicsAdaptor.h"
 #include "MainClass.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/PhysicsSystem.h"
@@ -110,24 +111,24 @@ void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb, glm::vec3 
         .material = orange_mat,
     });
 
-    // rigid bricks
-    int n = 6;
-    glm::vec3 brick_size(0.5f, 0.8f, 0.5f);
-    glm::vec3 offset(5.0f, 0.7f, 0.0f);
-    offset += global_offset;
-    for (int i = 0; i < n; ++i) {
-        glm::vec3 start_pos = glm::vec3(0.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f)) + offset;
-        for (int j = 0; j < n - i; ++j)
-            builder.AddBox({
-                .position = start_pos + glm::vec3(0.0f, brick_size.y * (j + 0.5f * i), 0.0f),
-                .half_extents = brick_size * 0.5f,
-                .mass = 0.2f,
-                .material = blue_mat,
-            });
-    }
+    // // rigid bricks
+    // int n = 6;
+    // glm::vec3 brick_size(0.5f, 0.8f, 0.5f);
+    // glm::vec3 offset(5.0f, 0.7f, 0.0f);
+    // offset += global_offset;
+    // for (int i = 0; i < n; ++i) {
+    //     glm::vec3 start_pos = glm::vec3(0.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f)) + offset;
+    //     for (int j = 0; j < n - i; ++j)
+    //         builder.AddBox({
+    //             .position = start_pos + glm::vec3(0.0f, brick_size.y * (j + 0.5f * i), 0.0f),
+    //             .half_extents = brick_size * 0.5f,
+    //             .mass = 0.2f,
+    //             .material = blue_mat,
+    //         });
+    // }
 
-    // Double pendulum demo — hinge + fixed joint test.
-    builder.AddDoublePendulum(glm::vec3(6.5f, 0.0f, 4.5f) + global_offset);
+    // // Double pendulum demo — hinge + fixed joint test.
+    // builder.AddDoublePendulum(glm::vec3(6.5f, 0.0f, 4.5f) + global_offset);
 }
 
 void AddTemplateScene2(SceneBuilder &builder, FileSystemDatabase &adb, glm::vec3 global_offset) {
@@ -301,7 +302,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
 
     // AddTemplateScene(builder, adb, glm::vec3(0.0f, 5.0f, 0.0f));
-    int n = 7;
+    int n = 1;
     float margin = 8.0f;
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j)
@@ -367,47 +368,15 @@ int main(int /*argc*/, char ** /*argv*/) {
     // --- Finalize scene ---
     scene.FlushCmdQueue();
 
-    PhysicsScene *physics_scene = scene.GetPhysicsScene();
-    if (physics_scene == nullptr) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "PhysicsScene is null.");
-        return -1;
-    }
-
-    builder.Finalize(*physics_scene);
-    physics_scene->DebugPrint();
-
-    // Disable simulation from the start.
-    physics_scene->SetSimulationEnabled(false);
-
     // Awake mesh components → registers renderers.
     scene.AddInitEvent();
     scene.ProcessEvents();
 
-    // Set model_mat_index for physics-driven renderers.
-    for (auto *mc : builder.GetMeshComponents()) {
-        mc->PreRenderUpdate();
-    }
-
-    // --- Create and register the XPBD GPU physics solver ---
-    auto xpbd_solver = std::make_unique<XpbdGpuSolver>(*cmc->GetRenderSystem());
-    XpbdConfig xpbd_config{};
-    xpbd_config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
-    xpbd_config.time_step = 1.0f / 60.0f;
-    xpbd_config.num_substep_perstep = 1;
-    xpbd_config.num_iter_persubstep = 40;
-    xpbd_config.num_velocity_iters = 40;
-    xpbd_config.max_contact_points = 50000u;
-    xpbd_config.contact_margin = 0.001f;
-    xpbd_config.grid_cell_size = 2.0f;
-    xpbd_config.grid_world_min = glm::vec3(-100.0f, -100.0f, -5.0f);
-    xpbd_config.grid_world_max = glm::vec3(100.0f, 100.0f, 20.0f);
-    // xpbd_config.grid_world_min = glm::vec3(-30.0f, -30.0f, -5.0f);
-    // xpbd_config.grid_world_max = glm::vec3(30.0f, 30.0f, 50.0f);
-    xpbd_config.max_cells_per_shape = 8;
-    xpbd_config.max_global_shape_count = 128;
-    xpbd_config.fallback_all_pairs_threshold = 128;
-    xpbd_solver->SetConfig(xpbd_config);
-    cmc->GetPhysicsSystem()->RegisterSolver(physics_scene->GetSceneID(), std::move(xpbd_solver));
+    auto *physics_scene = scene.GetPhysicsScene();
+    auto &physics_adaptor = scene.GetPhysicsAdaptor();
+    physics_scene->DebugPrint();
+    physics_scene->SetSimulationEnabled(true);
+    physics_adaptor.SetPhysicsActive(true);
 
     // --- Build the rendering render graph (physics model matrices passed via ComplexRenderGraphBuilder) ---
     ComplexRenderGraphBuilder rg_builder(*cmc->GetRenderSystem());
