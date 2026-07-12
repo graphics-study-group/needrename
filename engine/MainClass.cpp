@@ -76,7 +76,7 @@ namespace Engine {
         config.contact_margin = 0.001f;
         config.grid_cell_size = 2.0f;
         config.grid_world_min = glm::vec3(-100.0f, -100.0f, -5.0f);
-        config.grid_world_max = glm::vec3(100.0f, 100.0f, 20.0f);
+        config.grid_world_max = glm::vec3(100.0f, 100.0f, 50.0f);
         config.max_cells_per_shape = 8;
         config.max_global_shape_count = 128;
         config.fallback_all_pairs_threshold = 8;

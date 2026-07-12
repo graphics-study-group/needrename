@@ -50,6 +50,7 @@ namespace Engine {
 
         bool shaders_loaded = false;
         XpbdConfig config{};
+        uint32_t max_contact_point = 0u;
 
         std::unique_ptr<SpatialHashBroadDetector> broad_detector{};
         std::unique_ptr<ConvexCollisionDetector> narrow_detector{};
@@ -312,6 +313,7 @@ namespace Engine {
         const uint32_t shape_count = gpu.shape_slot_count;
         const uint32_t all_pairs = shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
         const uint32_t max_contacts = std::max(1u, std::min(all_pairs * 5u, m_impl->config.max_contact_points));
+        m_impl->max_contact_point = max_contacts;
 
         m_impl->EnsureIntermediateBuffers(body_count, max_contacts, gpu.hinge_joint_count, gpu.fixed_joint_count);
 
@@ -477,7 +479,7 @@ namespace Engine {
                 barrier();
 
                 dispatch_clear(
-                    *m_impl->gpu_position_delta_count, *m_impl->gpu_body_count_buffer, (body_count + 63u) / 64u
+                    *m_impl->gpu_position_delta_count, *m_impl->gpu_body_count_buffer, body_wg
                 );
                 barrier();
 
@@ -546,7 +548,7 @@ namespace Engine {
                         srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
                         srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
                         srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-                        dispatch(*m_impl->accum_pos_stage, *m_impl->accum_pos_binding, (body_count + 63u) / 64u);
+                        dispatch(*m_impl->accum_pos_stage, *m_impl->accum_pos_binding, (m_impl->max_contact_point + 63u) / 64u);
                     }
                     barrier();
 
@@ -670,7 +672,7 @@ namespace Engine {
                         srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
                         srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
                         srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-                        dispatch(*m_impl->accum_vel_stage, *m_impl->accum_vel_binding, (body_count + 63u) / 64u);
+                        dispatch(*m_impl->accum_vel_stage, *m_impl->accum_vel_binding, (m_impl->max_contact_point + 63u) / 64u);
                     }
                     barrier();
 

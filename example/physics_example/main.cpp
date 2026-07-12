@@ -302,7 +302,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
 
     // AddTemplateScene(builder, adb, glm::vec3(0.0f, 5.0f, 0.0f));
-    int n = 1;
+    int n = 7;
     float margin = 8.0f;
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j)
