@@ -8,7 +8,6 @@
 #include <gtc/quaternion.hpp>
 
 #include <cstdint>
-#include <variant>
 #include <vector>
 
 namespace Engine {
@@ -79,8 +78,6 @@ namespace Engine {
         glm::vec3 initial_rel_pos_local{0.0f, 0.0f, 0.0f};
         glm::quat initial_rel_rotation{1.0f, 0.0f, 0.0f, 0.0f};
     };
-
-    using JointSubmitData = std::variant<FixedJointSubmitData, HingeJointSubmitData>;
 
     /**
      * @brief COM-space rigid body descriptor submitted from PhysicsAdaptor to PhysicsScene during Flush.

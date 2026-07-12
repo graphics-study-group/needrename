@@ -103,12 +103,20 @@ namespace Engine {
         void SubmitShape(uint32_t index, const CollisionShapeDescriptor &desc);
 
         /**
-         * @brief Submit joint submit data for deferred processing.
+         * @brief Submit fixed joint data for deferred processing.
          *
-         * @param joint_idx The joint slot index.
-         * @param data      The joint submit data (fixed or hinge).
+         * @param joint_idx The joint slot index (from AllocateFixedJoint).
+         * @param data      The GO-space fixed joint submit data.
          */
-        void SubmitJoint(uint32_t joint_idx, const JointSubmitData &data);
+        void SubmitFixedJoint(uint32_t joint_idx, const FixedJointSubmitData &data);
+
+        /**
+         * @brief Submit hinge joint data for deferred processing.
+         *
+         * @param joint_idx The joint slot index (from AllocateHingeJoint).
+         * @param data      The GO-space hinge joint submit data.
+         */
+        void SubmitHingeJoint(uint32_t joint_idx, const HingeJointSubmitData &data);
 
         /**
          * @brief Bind a collision shape to a rigid body.
@@ -189,7 +197,8 @@ namespace Engine {
 
         std::unordered_map<uint32_t, RigidBodyDescriptor> m_pending_rigid_bodies{};
         std::unordered_map<uint32_t, CollisionShapeDescriptor> m_pending_shapes{};
-        std::unordered_map<uint32_t, JointSubmitData> m_pending_joints{};
+        std::unordered_map<uint32_t, FixedJointSubmitData> m_pending_fixed_joints{};
+        std::unordered_map<uint32_t, HingeJointSubmitData> m_pending_hinge_joints{};
 
         std::unordered_map<uint32_t, glm::vec3> m_com_offsets{};
 

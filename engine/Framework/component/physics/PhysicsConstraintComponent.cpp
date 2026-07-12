@@ -127,7 +127,7 @@ namespace Engine {
                         FixedJointSubmitData submit_data{
                             obj1_index, obj2_index, joint_def.m_compliance, initial_rel_pos_local, initial_rel_rotation
                         };
-                        adaptor.SubmitJoint(joint_idx, submit_data);
+                        adaptor.SubmitFixedJoint(joint_idx, submit_data);
                     } else if constexpr (std::is_same_v<T, HingeJointDef>) {
                         // Resolve obj2 transform for initial relative transform computation.
                         GameObject *obj2_go = scene->GetGameObject(joint_def.m_obj2_handle);
@@ -175,7 +175,7 @@ namespace Engine {
                             initial_rel_pos_local,
                             initial_rel_rotation
                         };
-                        adaptor.SubmitJoint(joint_idx, submit_data);
+                        adaptor.SubmitHingeJoint(joint_idx, submit_data);
                     }
                 },
                 m_joints[i]

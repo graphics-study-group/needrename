@@ -60,8 +60,12 @@ namespace Engine {
         m_pending_shapes[index] = desc;
     }
 
-    void PhysicsAdaptor::SubmitJoint(uint32_t joint_idx, const JointSubmitData &data) {
-        m_pending_joints[joint_idx] = data;
+    void PhysicsAdaptor::SubmitFixedJoint(uint32_t joint_idx, const FixedJointSubmitData &data) {
+        m_pending_fixed_joints[joint_idx] = data;
+    }
+
+    void PhysicsAdaptor::SubmitHingeJoint(uint32_t joint_idx, const HingeJointSubmitData &data) {
+        m_pending_hinge_joints[joint_idx] = data;
     }
 
     void PhysicsAdaptor::BindShapeToRigidBody(uint32_t shape_idx, uint32_t rb_idx) {
@@ -112,12 +116,13 @@ namespace Engine {
     }
 
     void PhysicsAdaptor::Flush(RenderSystem &render_system) {
-        if (m_pending_rigid_bodies.empty() && m_pending_shapes.empty() && m_pending_joints.empty()
-            && m_resolved_filters.empty()) {
+        if (m_pending_rigid_bodies.empty() && m_pending_shapes.empty() && m_pending_fixed_joints.empty()
+            && m_pending_hinge_joints.empty() && m_resolved_filters.empty()) {
             return;
         }
 
-        bool has_pending = !m_pending_rigid_bodies.empty() || !m_pending_shapes.empty() || !m_pending_joints.empty();
+        bool has_pending = !m_pending_rigid_bodies.empty() || !m_pending_shapes.empty()
+                           || !m_pending_fixed_joints.empty() || !m_pending_hinge_joints.empty();
         if (!has_pending) {
             return;
         }
@@ -215,35 +220,34 @@ namespace Engine {
             m_physics_scene.SubmitCollisionShape(shape_idx, com_desc);
         }
 
-        // Step 4: Joint conversion
-        for (auto &[joint_idx, data] : m_pending_joints) {
-            const uint32_t jidx = joint_idx;
-            std::visit(
-                [this, jidx](const auto &d) {
-                    using T = std::decay_t<decltype(d)>;
-                    auto c1_it = m_com_offsets.find(d.obj1_index);
-                    auto c2_it = m_com_offsets.find(d.obj2_index);
-                    glm::vec3 c1 = (c1_it != m_com_offsets.end()) ? c1_it->second : glm::vec3(0.0f);
-                    glm::vec3 c2 = (c2_it != m_com_offsets.end()) ? c2_it->second : glm::vec3(0.0f);
-                    if constexpr (std::is_same_v<T, FixedJointSubmitData>) {
-                        GpuFixedJoint joint = detail::JointConverter::ConvertFixed(d, c1, c2);
-                        m_physics_scene.SubmitFixedJoint(jidx, joint);
-                    } else if constexpr (std::is_same_v<T, HingeJointSubmitData>) {
-                        GpuHingeJoint joint = detail::JointConverter::ConvertHinge(d, c1, c2);
-                        m_physics_scene.SubmitHingeJoint(jidx, joint);
-                    }
-                },
-                data
-            );
+        // Step 4: Fixed joint conversion
+        for (auto &[joint_idx, data] : m_pending_fixed_joints) {
+            auto c1_it = m_com_offsets.find(data.obj1_index);
+            auto c2_it = m_com_offsets.find(data.obj2_index);
+            glm::vec3 c1 = (c1_it != m_com_offsets.end()) ? c1_it->second : glm::vec3(0.0f);
+            glm::vec3 c2 = (c2_it != m_com_offsets.end()) ? c2_it->second : glm::vec3(0.0f);
+            GpuFixedJoint joint = detail::JointConverter::ConvertFixed(data, c1, c2);
+            m_physics_scene.SubmitFixedJoint(joint_idx, joint);
         }
 
-        // Step 5: Clear pending
+        // Step 5: Hinge joint conversion
+        for (auto &[joint_idx, data] : m_pending_hinge_joints) {
+            auto c1_it = m_com_offsets.find(data.obj1_index);
+            auto c2_it = m_com_offsets.find(data.obj2_index);
+            glm::vec3 c1 = (c1_it != m_com_offsets.end()) ? c1_it->second : glm::vec3(0.0f);
+            glm::vec3 c2 = (c2_it != m_com_offsets.end()) ? c2_it->second : glm::vec3(0.0f);
+            GpuHingeJoint joint = detail::JointConverter::ConvertHinge(data, c1, c2);
+            m_physics_scene.SubmitHingeJoint(joint_idx, joint);
+        }
+
+        // Step 6: Clear pending
         m_pending_rigid_bodies.clear();
         m_pending_shapes.clear();
-        m_pending_joints.clear();
+        m_pending_fixed_joints.clear();
+        m_pending_hinge_joints.clear();
         m_resolved_filters.clear();
 
-        // Step 6: GPU sync
+        // Step 7: GPU sync
         m_physics_scene.SyncGpuBuffers(render_system);
     }
 } // namespace Engine
