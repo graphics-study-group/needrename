@@ -371,7 +371,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     auto *physics_scene = scene.GetPhysicsScene();
     auto &physics_adaptor = scene.GetPhysicsAdaptor();
     physics_scene->DebugPrint();
-    physics_scene->SetSimulationEnabled(true);
+    physics_scene->SetSimulationEnabled(false);
     physics_adaptor.SetPhysicsActive(true);
 
     // Awake mesh components → registers renderers.

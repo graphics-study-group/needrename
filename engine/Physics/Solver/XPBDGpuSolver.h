@@ -58,7 +58,7 @@ namespace Engine {
         XpbdGpuSolver &operator=(XpbdGpuSolver &&) = delete;
 
         void PreGPUStep() override;
-        void GPUStep(vk::CommandBuffer cb) override;
+        void GPUStep(CommandBuffer &command_buffer) override;
         bool IsInitialized() const noexcept override;
 
         void SetConfig(const XpbdConfig &config) noexcept;

@@ -72,7 +72,7 @@ namespace Engine {
         }
     }
 
-    void PhysicsSystem::GPUStep(vk::CommandBuffer cb) {
+    void PhysicsSystem::GPUStep(CommandBuffer &cb) {
         for (auto &[scene_id, scene] : m_scene_map) {
             auto iter = m_solvers_per_scene.find(scene_id);
             if (iter == m_solvers_per_scene.end()) {

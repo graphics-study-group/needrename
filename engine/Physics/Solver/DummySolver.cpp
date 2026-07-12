@@ -10,6 +10,7 @@
 #include <Render/Memory/DeviceBuffer.h>
 #include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
+#include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/Compute/ComputeStage.h>
 #include <Render/RenderSystem.h>
@@ -121,14 +122,14 @@ namespace Engine {
             glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt);
     }
 
-    void DummySolver::GPUStep(vk::CommandBuffer cb) {
+    void DummySolver::GPUStep(CommandBuffer &command_buffer) {
         const auto gpu = m_bound_scene->GetGpuBuffers();
 
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) {
             return;
         }
 
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        command_buffer.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         auto &srb = m_impl->resource_binding->GetShaderResourceBinding();
         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
@@ -139,15 +140,9 @@ namespace Engine {
 
         const uint32_t body_wg = (gpu.rigid_body_slot_count + 63u) / 64u;
 
-        cb.bindPipeline(vk::PipelineBindPoint::eCompute, m_impl->compute_stage->GetPipeline());
-        cb.bindDescriptorSets(
-            vk::PipelineBindPoint::eCompute,
-            m_impl->compute_stage->GetPipelineLayout(),
-            0,
-            {m_impl->resource_binding->GetDescriptorSet(0)},
-            {}
-        );
-        cb.dispatch(body_wg, 1, 1);
+        command_buffer.BindComputeStage(*m_impl->compute_stage);
+        command_buffer.BindComputeResource(*m_impl->resource_binding);
+        command_buffer.DispatchCompute(body_wg, 1, 1);
     }
 
 } // namespace Engine

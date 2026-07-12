@@ -280,15 +280,15 @@ int main(int argc, char **argv) {
             cmc->GetPhysicsSystem()->PreGPUStep();
         }
 
-        auto cb = rsys->GetFrameManager().GetRawMainCommandBuffer();
-        cb.begin(vk::CommandBufferBeginInfo{});
+        auto cb = rsys->GetFrameManager().GetCommandBuffer();
+        cb.GetCommandBuffer().begin(vk::CommandBufferBeginInfo{});
 
         if (main_window.m_is_playing) {
             cmc->GetPhysicsSystem()->GPUStep(cb);
         }
-        rg->RecordAllPasses(cb);
+        rg->RecordAllPasses(cb.GetCommandBuffer());
 
-        cb.end();
+        cb.GetCommandBuffer().end();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
 
         if (main_window.m_is_playing) {

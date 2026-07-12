@@ -6,6 +6,7 @@
 #include <memory>
 
 namespace Engine {
+    class CommandBuffer;
     class ComputeBuffer;
     class ComputeStage;
     class RenderSystem;
@@ -37,7 +38,7 @@ namespace Engine {
         DummySolver &operator=(DummySolver &&) = delete;
 
         void PreGPUStep() override;
-        void GPUStep(vk::CommandBuffer cb) override;
+        void GPUStep(CommandBuffer &command_buffer) override;
 
         [[nodiscard]]
         bool IsInitialized() const noexcept override;

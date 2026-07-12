@@ -8,13 +8,10 @@
 
 #include "Solver/ISolver.h"
 
-namespace vk {
-    struct CommandBuffer;
-}
-
 namespace Engine {
     class PhysicsScene;
     class RenderSystem;
+    class CommandBuffer;
 
     /**
      * @brief Physics scene manager at engine-system scope.
@@ -122,7 +119,7 @@ namespace Engine {
          *
          * @param cb CommandBuffer in Recording state.
          */
-        void GPUStep(vk::CommandBuffer cb);
+        void GPUStep(CommandBuffer &cb);
 
         /**
          * @brief Post-GPU work (readback, cleanup).

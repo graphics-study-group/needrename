@@ -1,12 +1,9 @@
 #ifndef ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 #define ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 
-namespace vk {
-    struct CommandBuffer;
-}
-
 namespace Engine {
     class PhysicsScene;
+    class CommandBuffer;
 
     /**
      * @brief Abstract base class for GPU physics solvers.
@@ -58,9 +55,9 @@ namespace Engine {
          * The solver MUST record its compute dispatches to @p cb before
          * returning. The solver accesses its scene through m_bound_scene.
          *
-         * @param cb CommandBuffer in Recording state (after begin, before end).
+         * @param command_buffer CommandBuffer in Recording state (after begin, before end).
          */
-        virtual void GPUStep(vk::CommandBuffer cb) = 0;
+        virtual void GPUStep(CommandBuffer &command_buffer) = 0;
 
         /**
          * @brief Called AFTER cb.end() + submit each frame.
