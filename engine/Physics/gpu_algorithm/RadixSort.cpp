@@ -294,9 +294,6 @@ namespace Engine {
 
         m_impl->EnsureInitialized();
 
-        m_impl->histogram_param_index = 0;
-        m_impl->scatter_param_index = 0;
-
         for (uint32_t pass = 0; pass < kNumPasses; ++pass) {
             uint32_t byte_shift = (pass % 4u) * 8u;
             uint32_t word_select = pass / 4u;
@@ -316,5 +313,10 @@ namespace Engine {
                 cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
             }
         }
+    }
+
+    void RadixSort::ResetParamPool() {
+        m_impl->histogram_param_index = 0;
+        m_impl->scatter_param_index = 0;
     }
 } // namespace Engine

@@ -256,8 +256,10 @@ namespace Engine {
 
         m_impl->EnsureInitialized();
 
-        m_impl->param_pool_index = 0;
-
         m_impl->RecordScanInternal(cb, input_buf, output_buf, block_sums_buf, elem_count, 0u, 0u);
+    }
+
+    void ParallelScan::ResetParamPool() {
+        m_impl->param_pool_index = 0;
     }
 } // namespace Engine

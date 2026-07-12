@@ -112,6 +112,16 @@ namespace Engine {
 
         uint32_t GetMaxElemCount() const noexcept;
 
+        /**
+         * @brief Reset the per-pass parameter buffer pool.
+         *
+         * Frees all allocated parameter buffers so they can be reused in
+         * subsequent Record calls.  This is typically called after a
+         * Record operation completes to ensure fresh allocation for the next
+         * dispatch.
+         */
+        void ResetParamPool();
+
     private:
         struct Impl;
         std::unique_ptr<Impl> m_impl;

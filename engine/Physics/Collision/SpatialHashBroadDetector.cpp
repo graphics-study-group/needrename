@@ -224,7 +224,7 @@ namespace Engine {
             EnsureBuffer(gpu_grid_config, sizeof(GridConfigGpu), "BH GridConfig", true);
 
             {
-                size_t scratch_bytes = ParallelScan::GetRequiredBlockSumsBytes(max_assignment_pairs);
+                size_t scratch_bytes = ParallelScan::GetRequiredBlockSumsBytes(grid_total_cells);
                 EnsureBuffer(gpu_scan_scratch, scratch_bytes, "BH ScanScratch");
             }
         }
@@ -286,7 +286,7 @@ namespace Engine {
             srb.BindBuffer("ElemCount", elem_count);
             cb.BindComputeStage(*memset_stage);
             cb.BindComputeResource(*memset_binding);
-            uint32_t wg = (elem_count.GetSize() / sizeof(uint32_t) + 63u) / 64u;
+            uint32_t wg = (target.GetSize() / sizeof(uint32_t) + 63u) / 64u;
             if (wg == 0) wg = 1;
             cb.DispatchCompute(wg, 1, 1);
         }
@@ -332,6 +332,8 @@ namespace Engine {
         void RecordFallbackPath(CommandBuffer &cb) {
             const auto gpu = cached_scene->GetGpuBuffers();
 
+            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+
             DispatchClear(cb, *gpu_global_count, *gpu_one);
             cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
@@ -361,6 +363,7 @@ namespace Engine {
 
         void RecordSpatialHashPath(CommandBuffer &cb) {
             const auto gpu = cached_scene->GetGpuBuffers();
+            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             DispatchClear(cb, *gpu_global_count, *gpu_one);
             cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
@@ -390,13 +393,7 @@ namespace Engine {
             cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Prefix sum: shape_cell_count -> shape_cell_offset
-            {
-                uint32_t scan_element = std::max(max_assignment_pairs, grid_total_cells + 1u);
-                if (!scan || scan->GetMaxElemCount() < scan_element) {
-                    scan = std::make_unique<ParallelScan>(render_system, scan_element);
-                }
-                scan->Record(cb, *gpu_shape_cell_count, *gpu_shape_cell_offset, *gpu_scan_scratch, cached_shape_count);
-            }
+            scan->Record(cb, *gpu_shape_cell_count, *gpu_shape_cell_offset, *gpu_scan_scratch, cached_shape_count);
             cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Fill cells
@@ -512,13 +509,6 @@ namespace Engine {
 
             // Dedup: RadixSort + CompactUnique
             {
-                if (!radix_sort || radix_sort->GetMaxElemCount() < max_assignment_pairs) {
-                    radix_sort = std::make_unique<RadixSort>(render_system, max_assignment_pairs);
-                }
-                if (!compact_unique || compact_unique->GetMaxElemCount() < max_assignment_pairs) {
-                    compact_unique = std::make_unique<CompactUnique>(render_system, max_assignment_pairs);
-                }
-
                 radix_sort->Record(
                     cb,
                     *gpu_collision_pairs,
@@ -599,7 +589,7 @@ namespace Engine {
                                    * static_cast<uint32_t>(m_impl->grid_dims.z);
 
         // Compute max pairs.
-        uint32_t cell_capacity = std::max(1u, m_impl->grid_total_cells * grid_config.max_cells_per_shape);
+        uint32_t cell_capacity = std::max(1u, shape_count * grid_config.max_cells_per_shape);
         m_impl->max_assignment_pairs = std::min(cell_capacity, 1u << 20); // cap at 1M to stay within RadixSort limits
         if (m_impl->max_assignment_pairs == 0u) m_impl->max_assignment_pairs = 1u;
 
@@ -619,6 +609,22 @@ namespace Engine {
         }
         auto *slot_addr = reinterpret_cast<uint32_t *>(m_impl->gpu_shape_slot_count->GetVMAddress());
         *slot_addr = shape_count;
+
+        uint32_t scan_element = std::max(m_impl->max_assignment_pairs, m_impl->grid_total_cells + 1u);
+        if (!m_impl->scan || m_impl->scan->GetMaxElemCount() < scan_element) {
+            m_impl->scan = std::make_unique<ParallelScan>(m_impl->render_system, scan_element);
+        }
+        m_impl->scan->ResetParamPool();
+
+        if (!m_impl->radix_sort || m_impl->radix_sort->GetMaxElemCount() < m_impl->max_assignment_pairs) {
+            m_impl->radix_sort = std::make_unique<RadixSort>(m_impl->render_system, m_impl->max_assignment_pairs);
+        }
+        m_impl->radix_sort->ResetParamPool();
+
+        if (!m_impl->compact_unique || m_impl->compact_unique->GetMaxElemCount() < m_impl->max_assignment_pairs) {
+            m_impl->compact_unique =
+                std::make_unique<CompactUnique>(m_impl->render_system, m_impl->max_assignment_pairs);
+        }
     }
 
     void SpatialHashBroadDetector::Record(CommandBuffer &cb) {
