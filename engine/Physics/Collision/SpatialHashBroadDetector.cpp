@@ -63,9 +63,10 @@ namespace Engine {
         uint32_t fallback_threshold = 8;
         uint32_t max_global_shape_count = 100;
 
-        PhysicsScene *cached_scene = nullptr;
-        uint32_t cached_shape_count = 0;
-        uint32_t max_assignment_pairs = 0;
+        PhysicsScene *scene = nullptr;
+        uint32_t shape_count = 0;
+        uint32_t max_cell_shape_pair_count = 0;
+        uint32_t max_output_pair_count = 0;
 
         bool shaders_loaded = false;
 
@@ -106,7 +107,7 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> gpu_cell_histogram{};
         std::unique_ptr<ComputeBuffer> gpu_cell_offsets{};
         std::unique_ptr<ComputeBuffer> gpu_cell_scratch{};
-        std::unique_ptr<ComputeBuffer> gpu_sorted_pairs{};
+        std::unique_ptr<ComputeBuffer> gpu_cell_shape_pairs_sorted{};
         std::unique_ptr<ComputeBuffer> gpu_global_flags{};
         std::unique_ptr<ComputeBuffer> gpu_global_list{};
         std::unique_ptr<ComputeBuffer> gpu_global_count{};
@@ -164,11 +165,11 @@ namespace Engine {
 
             EnsureBuffer(
                 gpu_cell_shape_pairs,
-                static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2),
+                static_cast<size_t>(max_cell_shape_pair_count) * sizeof(glm::uvec2),
                 "BH CellShapePairs"
             );
             EnsureBuffer(
-                gpu_sorted_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH SortedPairs"
+                gpu_cell_shape_pairs_sorted, static_cast<size_t>(max_cell_shape_pair_count) * sizeof(glm::uvec2), "BH CellShapePairsSorted"
             );
 
             size_t cell_uint1 = static_cast<size_t>(grid_total_cells + 1u) * sizeof(uint32_t);
@@ -177,7 +178,7 @@ namespace Engine {
             EnsureBuffer(gpu_cell_scratch, cell_uint1, "BH CellScratch");
 
             EnsureBuffer(
-                gpu_collision_pairs, static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2), "BH CollisionPairs"
+                gpu_collision_pairs, static_cast<size_t>(max_output_pair_count) * sizeof(glm::uvec2), "BH Output CollisionPairs"
             );
             EnsureBuffer(gpu_pair_count, sizeof(uint32_t), "BH PairCount", true);
 
@@ -200,12 +201,12 @@ namespace Engine {
             }
 
             {
-                const size_t temp_bytes = static_cast<size_t>(max_assignment_pairs) * sizeof(glm::uvec2);
+                const size_t temp_bytes = static_cast<size_t>(max_output_pair_count) * sizeof(glm::uvec2);
                 EnsureBuffer(gpu_pairs_temp, temp_bytes, "BH PairsTemp");
             }
             EnsureBuffer(gpu_radix_scratch, RadixSort::GetRequiredScratchBytes(), "BH RadixScratch");
             {
-                const size_t flags_bytes = CompactUnique::GetRequiredFlagBytes(max_assignment_pairs);
+                const size_t flags_bytes = CompactUnique::GetRequiredFlagBytes(max_output_pair_count);
                 EnsureBuffer(gpu_unique_flags, flags_bytes, "BH UniqueFlags");
                 EnsureBuffer(gpu_unique_offsets, flags_bytes, "BH UniqueOffsets");
             }
@@ -308,7 +309,7 @@ namespace Engine {
         // -----------------------------------------------------------------
 
         void RecordAABBPass(CommandBuffer &cb) {
-            const auto gpu = cached_scene->GetGpuBuffers();
+            const auto gpu = scene->GetGpuBuffers();
             auto &srb = aabb_binding->GetShaderResourceBinding();
             srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
             srb.BindBuffer("ShapeType", *gpu.shape_type);
@@ -323,14 +324,14 @@ namespace Engine {
             srb.BindBuffer("GlobalList", *gpu_global_list);
             srb.BindBuffer("GlobalCount", *gpu_global_count);
 
-            uint32_t wg = (cached_shape_count + 63u) / 64u;
+            uint32_t wg = (shape_count + 63u) / 64u;
             cb.BindComputeStage(*aabb_stage);
             cb.BindComputeResource(*aabb_binding);
             cb.DispatchCompute(wg, 1, 1);
         }
 
         void RecordFallbackPath(CommandBuffer &cb) {
-            const auto gpu = cached_scene->GetGpuBuffers();
+            const auto gpu = scene->GetGpuBuffers();
 
             cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
@@ -354,7 +355,7 @@ namespace Engine {
             srb.BindBuffer("AabbMin", *gpu_aabb_min);
             srb.BindBuffer("AabbMax", *gpu_aabb_max);
 
-            uint32_t total_pairs = (cached_shape_count * (cached_shape_count - 1u)) / 2u;
+            uint32_t total_pairs = (shape_count * (shape_count - 1u)) / 2u;
             uint32_t wg = (total_pairs + 63u) / 64u;
             cb.BindComputeStage(*fallback_pairs_stage);
             cb.BindComputeResource(*fallback_pairs_binding);
@@ -362,7 +363,7 @@ namespace Engine {
         }
 
         void RecordSpatialHashPath(CommandBuffer &cb) {
-            const auto gpu = cached_scene->GetGpuBuffers();
+            const auto gpu = scene->GetGpuBuffers();
             cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             DispatchClear(cb, *gpu_global_count, *gpu_one);
@@ -385,7 +386,7 @@ namespace Engine {
                 srb.BindBuffer("ShapeCellCount", *gpu_shape_cell_count);
                 srb.BindBuffer("TotalAssignments", *gpu_total_assignments);
 
-                uint32_t wg = (cached_shape_count + 63u) / 64u;
+                uint32_t wg = (shape_count + 63u) / 64u;
                 cb.BindComputeStage(*count_cells_stage);
                 cb.BindComputeResource(*count_cells_binding);
                 cb.DispatchCompute(wg, 1, 1);
@@ -393,7 +394,7 @@ namespace Engine {
             cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Prefix sum: shape_cell_count -> shape_cell_offset
-            scan->Record(cb, *gpu_shape_cell_count, *gpu_shape_cell_offset, *gpu_scan_scratch, cached_shape_count);
+            scan->Record(cb, *gpu_shape_cell_count, *gpu_shape_cell_offset, *gpu_scan_scratch, shape_count);
             cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Fill cells
@@ -407,7 +408,7 @@ namespace Engine {
                 srb.BindBuffer("ShapeCellOffset", *gpu_shape_cell_offset);
                 srb.BindBuffer("CellShapePairs", *gpu_cell_shape_pairs);
 
-                uint32_t wg = (cached_shape_count + 63u) / 64u;
+                uint32_t wg = (shape_count + 63u) / 64u;
                 cb.BindComputeStage(*fill_cells_stage);
                 cb.BindComputeResource(*fill_cells_binding);
                 cb.DispatchCompute(wg, 1, 1);
@@ -425,7 +426,7 @@ namespace Engine {
                 srb.BindBuffer("CellHistogram", *gpu_cell_histogram);
                 srb.BindBuffer("TotalAssignments", *gpu_total_assignments);
 
-                uint32_t wg = (max_assignment_pairs + 63u) / 64u;
+                uint32_t wg = (max_cell_shape_pair_count + 63u) / 64u;
                 cb.BindComputeStage(*histogram_stage);
                 cb.BindComputeResource(*histogram_binding);
                 cb.DispatchCompute(wg, 1, 1);
@@ -444,11 +445,11 @@ namespace Engine {
             {
                 auto &srb = scatter_sort_binding->GetShaderResourceBinding();
                 srb.BindBuffer("CellShapePairs", *gpu_cell_shape_pairs);
-                srb.BindBuffer("SortedPairs", *gpu_sorted_pairs);
+                srb.BindBuffer("SortedPairs", *gpu_cell_shape_pairs_sorted);
                 srb.BindBuffer("CellScratch", *gpu_cell_scratch);
                 srb.BindBuffer("TotalAssignments", *gpu_total_assignments);
 
-                uint32_t wg = (max_assignment_pairs + 63u) / 64u;
+                uint32_t wg = (max_cell_shape_pair_count + 63u) / 64u;
                 cb.BindComputeStage(*scatter_sort_stage);
                 cb.BindComputeResource(*scatter_sort_binding);
                 cb.DispatchCompute(wg, 1, 1);
@@ -462,7 +463,7 @@ namespace Engine {
             // Generate pairs
             {
                 auto &srb = generate_pairs_binding->GetShaderResourceBinding();
-                srb.BindBuffer("SortedPairs", *gpu_sorted_pairs);
+                srb.BindBuffer("SortedPairs", *gpu_cell_shape_pairs_sorted);
                 srb.BindBuffer("CellOffsets", *gpu_cell_histogram);
                 srb.BindBuffer("GlobalFlags", *gpu_global_flags);
                 srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
@@ -500,7 +501,7 @@ namespace Engine {
                 srb.BindBuffer("AabbMin", *gpu_aabb_min);
                 srb.BindBuffer("AabbMax", *gpu_aabb_max);
 
-                uint32_t n_wg = (cached_shape_count + 63u) / 64u;
+                uint32_t n_wg = (shape_count + 63u) / 64u;
                 cb.BindComputeStage(*global_pairs_stage);
                 cb.BindComputeResource(*global_pairs_binding);
                 cb.DispatchCompute(n_wg, max_global_shape_count, 1);
@@ -514,9 +515,9 @@ namespace Engine {
                     *gpu_collision_pairs,
                     *gpu_pairs_temp,
                     *gpu_radix_scratch,
-                    max_assignment_pairs,
+                    max_output_pair_count,
                     *gpu_pair_count,
-                    cached_shape_count
+                    shape_count
                 );
                 cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
@@ -529,7 +530,7 @@ namespace Engine {
                     *gpu_scan_scratch,
                     *scan,
                     *gpu_pair_count,
-                    max_assignment_pairs
+                    max_output_pair_count
                 );
                 cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
@@ -553,14 +554,14 @@ namespace Engine {
     }
 
     uint32_t SpatialHashBroadDetector::GetMaxPairs() const noexcept {
-        return m_impl->max_assignment_pairs;
+        return m_impl->max_output_pair_count;
     }
 
     BroadDetectorOutputBuffers SpatialHashBroadDetector::GetResultBuffers() const noexcept {
         return {
             .pair_buffer = m_impl->gpu_collision_pairs.get(),
             .pair_count_buffer = m_impl->gpu_pair_count.get(),
-            .max_pairs = m_impl->max_assignment_pairs
+            .max_pairs = m_impl->max_output_pair_count
         };
     }
 
@@ -571,8 +572,8 @@ namespace Engine {
         uint32_t fallback_all_pairs_threshold,
         uint32_t max_global_shape_count
     ) {
-        m_impl->cached_scene = &scene;
-        m_impl->cached_shape_count = shape_count;
+        m_impl->scene = &scene;
+        m_impl->shape_count = shape_count;
         m_impl->grid_config = grid_config;
         m_impl->fallback_threshold = fallback_all_pairs_threshold;
         m_impl->max_global_shape_count = max_global_shape_count;
@@ -590,8 +591,8 @@ namespace Engine {
 
         // Compute max pairs.
         uint32_t cell_capacity = std::max(1u, shape_count * grid_config.max_cells_per_shape);
-        m_impl->max_assignment_pairs = std::min(cell_capacity, 1u << 20); // cap at 1M to stay within RadixSort limits
-        if (m_impl->max_assignment_pairs == 0u) m_impl->max_assignment_pairs = 1u;
+        m_impl->max_cell_shape_pair_count = std::min(cell_capacity, 1u << 20); // cap at 1M to stay within RadixSort limits
+        m_impl->max_output_pair_count = std::max(1u, std::min(shape_count * (shape_count - 1) / 2, 1u << 20)); // cap at 1M
 
         // Allocate buffers.
         m_impl->EnsureAllBuffers(shape_count);
@@ -610,34 +611,34 @@ namespace Engine {
         auto *slot_addr = reinterpret_cast<uint32_t *>(m_impl->gpu_shape_slot_count->GetVMAddress());
         *slot_addr = shape_count;
 
-        uint32_t scan_element = std::max(m_impl->max_assignment_pairs, m_impl->grid_total_cells + 1u);
+        uint32_t scan_element = std::max(m_impl->max_output_pair_count, m_impl->grid_total_cells + 1u);
         if (!m_impl->scan || m_impl->scan->GetMaxElemCount() < scan_element) {
             m_impl->scan = std::make_unique<ParallelScan>(m_impl->render_system, scan_element);
         }
         m_impl->scan->ResetParamPool();
 
-        if (!m_impl->radix_sort || m_impl->radix_sort->GetMaxElemCount() < m_impl->max_assignment_pairs) {
-            m_impl->radix_sort = std::make_unique<RadixSort>(m_impl->render_system, m_impl->max_assignment_pairs);
+        if (!m_impl->radix_sort || m_impl->radix_sort->GetMaxElemCount() < m_impl->max_output_pair_count) {
+            m_impl->radix_sort = std::make_unique<RadixSort>(m_impl->render_system, m_impl->max_output_pair_count);
         }
         m_impl->radix_sort->ResetParamPool();
 
-        if (!m_impl->compact_unique || m_impl->compact_unique->GetMaxElemCount() < m_impl->max_assignment_pairs) {
+        if (!m_impl->compact_unique || m_impl->compact_unique->GetMaxElemCount() < m_impl->max_output_pair_count) {
             m_impl->compact_unique =
-                std::make_unique<CompactUnique>(m_impl->render_system, m_impl->max_assignment_pairs);
+                std::make_unique<CompactUnique>(m_impl->render_system, m_impl->max_output_pair_count);
         }
     }
 
     void SpatialHashBroadDetector::Record(CommandBuffer &cb) {
-        assert(m_impl->cached_scene && "Configure must be called before Record");
-        const auto gpu = m_impl->cached_scene->GetGpuBuffers();
+        assert(m_impl->scene && "Configure must be called before Record");
+        const auto gpu = m_impl->scene->GetGpuBuffers();
 
-        if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || m_impl->cached_shape_count <= 1u) {
+        if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || m_impl->shape_count <= 1u) {
             return;
         }
 
         cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        if (m_impl->cached_shape_count <= m_impl->fallback_threshold) {
+        if (m_impl->shape_count <= m_impl->fallback_threshold) {
             m_impl->RecordFallbackPath(cb);
         } else {
             m_impl->RecordSpatialHashPath(cb);
