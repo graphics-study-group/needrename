@@ -492,7 +492,7 @@ namespace Engine {
                     auto &srb = m_impl->clear_hinge_lagrange_binding->GetShaderResourceBinding();
                     srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
                     srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
-                    srb.BindBuffer("ElemCount", *m_impl->gpu_hinge_joint_count_buffer);
+                    srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
                     dispatch(
                         *m_impl->clear_hinge_lagrange_stage,
                         *m_impl->clear_hinge_lagrange_binding,
@@ -505,7 +505,7 @@ namespace Engine {
                     auto &srb = m_impl->clear_fixed_lagrange_binding->GetShaderResourceBinding();
                     srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
                     srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
-                    srb.BindBuffer("ElemCount", *m_impl->gpu_fixed_joint_count_buffer);
+                    srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
                     dispatch(
                         *m_impl->clear_fixed_lagrange_stage,
                         *m_impl->clear_fixed_lagrange_binding,
@@ -552,8 +552,11 @@ namespace Engine {
 
                     if (g.hinge_joint_count > 0u) {
                         auto &srb = m_impl->accum_hinge_pos_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("HingeJoint", *gpu.gpu_hinge_joints);
-                        srb.BindBuffer("NumHingeJoints", *m_impl->gpu_hinge_joint_count_buffer);
+                        srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
+                        srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
+                        srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
+                        srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
+                        srb.BindBuffer("HingeJointAlive", *gpu.gpu_hinge_joint_alive);
                         srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
                         srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
                         srb.BindBuffer("RigidBodyCenterPosition", *g.rigid_body_center_world_position);
@@ -561,8 +564,6 @@ namespace Engine {
                         srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
                         srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
                         srb.BindBuffer("RigidBodyInertia", *g.rigid_body_inertia);
-                        srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
-                        srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
                         srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
                         srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
                         srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
@@ -577,8 +578,11 @@ namespace Engine {
 
                     if (g.fixed_joint_count > 0u) {
                         auto &srb = m_impl->accum_fixed_pos_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("FixedJoint", *gpu.gpu_fixed_joints);
-                        srb.BindBuffer("NumFixedJoints", *m_impl->gpu_fixed_joint_count_buffer);
+                        srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
+                        srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
+                        srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
+                        srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
+                        srb.BindBuffer("FixedJointAlive", *gpu.gpu_fixed_joint_alive);
                         srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
                         srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
                         srb.BindBuffer("RigidBodyCenterPosition", *g.rigid_body_center_world_position);
@@ -586,8 +590,6 @@ namespace Engine {
                         srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
                         srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
                         srb.BindBuffer("RigidBodyInertia", *g.rigid_body_inertia);
-                        srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
-                        srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
                         srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
                         srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
                         srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
@@ -611,42 +613,6 @@ namespace Engine {
                         srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
                         dispatch(*m_impl->apply_pos_stage, *m_impl->apply_pos_binding, body_wg);
                     }
-                    barrier();
-
-                    dispatch_clear(
-                        *m_impl->gpu_position_delta_count, *m_impl->gpu_body_count_buffer, (body_count + 63u) / 64u
-                    );
-                    barrier();
-
-                    dispatch_clear(
-                        *m_impl->gpu_contact_lagrange,
-                        *m_impl->gpu_contact_count_buffer,
-                        (static_cast<uint32_t>(m_impl->gpu_contact_lagrange->GetSize() / sizeof(float)) + 63u) / 64u
-                    );
-                    if (g.hinge_joint_count > 0u) {
-                        barrier();
-                        auto &srb = m_impl->clear_hinge_lagrange_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
-                        srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
-                        srb.BindBuffer("ElemCount", *m_impl->gpu_hinge_joint_count_buffer);
-                        dispatch(
-                            *m_impl->clear_hinge_lagrange_stage,
-                            *m_impl->clear_hinge_lagrange_binding,
-                            (g.hinge_joint_count + 63u) / 64u
-                        );
-                    }
-                    if (g.fixed_joint_count > 0u) {
-                        barrier();
-                        auto &srb = m_impl->clear_fixed_lagrange_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
-                        srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
-                        srb.BindBuffer("ElemCount", *m_impl->gpu_fixed_joint_count_buffer);
-                        dispatch(
-                            *m_impl->clear_fixed_lagrange_stage,
-                            *m_impl->clear_fixed_lagrange_binding,
-                            (g.fixed_joint_count + 63u) / 64u
-                        );
-                    }
                 }
 
                 // ====== PostPosition ======
@@ -655,12 +621,13 @@ namespace Engine {
                 {
                     auto &srb = m_impl->update_vel_binding->GetShaderResourceBinding();
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
-                    srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
                     srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
                     srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
                     srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
                     srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
+                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+                    srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
+                    srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
                     srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
                     dispatch(*m_impl->update_vel_stage, *m_impl->update_vel_binding, body_wg);
                 }
@@ -677,21 +644,6 @@ namespace Engine {
                     {
                         const auto g = m_bound_scene->GetGpuBuffers();
                         auto &srb = m_impl->accum_vel_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count_buffer);
-                        srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
-                        srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("RigidBodyCenterPosition", *g.rigid_body_center_world_position);
-                        srb.BindBuffer("RigidBodyCenterRotation", *g.rigid_body_center_world_rotation);
-                        srb.BindBuffer("RigidBodyLinearVelocity", *g.rigid_body_linear_velocity);
-                        srb.BindBuffer("RigidBodyAngularVelocity", *g.rigid_body_angular_velocity);
-                        srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
-                        srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
-                        srb.BindBuffer("RigidBodyInertia", *g.rigid_body_inertia);
-                        srb.BindBuffer("ShapeBoundRigidBody", *g.shape_bound_rigid_body);
-                        srb.BindBuffer("ShapeLocalPosition", *g.shape_local_position);
-                        srb.BindBuffer("ShapeLocalRotation", *g.shape_local_rotation);
-                        srb.BindBuffer("ShapeWorldPosition", *g.shape_world_position);
-                        srb.BindBuffer("ShapeWorldRotation", *g.shape_world_rotation);
                         srb.BindBuffer("CollisionIds", *m_impl->narrow_detector->GetResultBuffers().collision_ids);
                         srb.BindBuffer(
                             "CollisionNormals", *m_impl->narrow_detector->GetResultBuffers().collision_normals
@@ -699,11 +651,24 @@ namespace Engine {
                         srb.BindBuffer("ContactPointA", *m_impl->narrow_detector->GetResultBuffers().contact_point_a);
                         srb.BindBuffer("ContactPointB", *m_impl->narrow_detector->GetResultBuffers().contact_point_b);
                         srb.BindBuffer("CollisionCount", *m_impl->narrow_detector->GetResultBuffers().collision_count);
+                        srb.BindBuffer("ShapeBoundRigidBody", *g.shape_bound_rigid_body);
+                        srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
+                        srb.BindBuffer("RigidBodyCenterRotation", *g.rigid_body_center_world_rotation);
+                        srb.BindBuffer("RigidBodyLinearVelocity", *g.rigid_body_linear_velocity);
+                        srb.BindBuffer("RigidBodyAngularVelocity", *g.rigid_body_angular_velocity);
+                        srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
+                        srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
+                        srb.BindBuffer("RigidBodyDynamicFriction", *g.rigid_body_dynamic_friction);
+                        srb.BindBuffer("RigidBodyRestitution", *g.rigid_body_restitution);
+                        srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
                         srb.BindBuffer("PreContactLinearVelocity", *m_impl->gpu_pre_contact_linear_vel);
                         srb.BindBuffer("PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel);
+                        srb.BindBuffer("ShapeLocalPosition", *g.shape_local_position);
+                        srb.BindBuffer("ShapeLocalRotation", *g.shape_local_rotation);
                         srb.BindBuffer("LinearVelocityDelta", *m_impl->gpu_linear_velocity_delta);
                         srb.BindBuffer("AngularVelocityDelta", *m_impl->gpu_angular_velocity_delta);
                         srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
+                        srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
                         srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
                         dispatch(*m_impl->accum_vel_stage, *m_impl->accum_vel_binding, (body_count + 63u) / 64u);
                     }
