@@ -10,22 +10,18 @@ namespace Engine {
     class ComputeStage;
     class RenderSystem;
     class PhysicsScene;
-    class RenderGraph;
-    class RenderGraphBuilder;
-    enum class RGBufferHandle : int32_t;
     struct XpbdConfig;
 
     /**
-     * @brief Minimal GPU solver for validating the separate physics
-     * RenderGraph architecture.
+     * @brief Minimal GPU solver that displaces bodies by gravity and writes
+     * model matrices.
      *
-     * DummySolver displaces all rigid bodies along -Z by
+     * DummySolver displaces all rigid bodies by
      *   delta_z = gravity.z * time_step
      * each frame and writes model matrices from the updated pose.
      *
-     * It owns a single RenderGraph created lazily on the first
-     * GPUStep() call and reused thereafter. The RG is private —
-     * GPUStep() records it to the provided CommandBuffer directly.
+     * Compute dispatch is recorded directly to the command buffer in GPUStep
+     * (no RenderGraph).
      */
     class DummySolver : public ISolver {
         struct Impl;
@@ -40,30 +36,14 @@ namespace Engine {
         DummySolver(DummySolver &&) = delete;
         DummySolver &operator=(DummySolver &&) = delete;
 
-        // ISolver interface
         void PreGPUStep() override;
         void GPUStep(vk::CommandBuffer cb) override;
 
         [[nodiscard]]
         bool IsInitialized() const noexcept override;
 
-        // PostGPUStep uses default no-op implementation.
-
-        /**
-         * @brief Set XPBD configuration parameters.
-         *
-         * Only gravity and time_step are used by DummySolver;
-         * other fields are ignored.
-         */
         void SetConfig(const XpbdConfig &config) noexcept;
-
-        /**
-         * @brief Get current configuration.
-         */
         const XpbdConfig &GetConfig() const noexcept;
-
-    private:
-        std::unique_ptr<RenderGraph> BuildRenderGraph();
     };
 } // namespace Engine
 

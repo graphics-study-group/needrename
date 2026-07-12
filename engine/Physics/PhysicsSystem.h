@@ -115,7 +115,7 @@ namespace Engine {
         void PreGPUStep();
 
         /**
-         * @brief GPU work — solvers record RenderGraph passes to cb.
+         * @brief GPU work — solvers record compute dispatches to cb.
          *
          * Calls GPUStep on each registered solver for every scene.
          * Must be called BETWEEN cb.begin() and cb.end().

@@ -6,14 +6,10 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Render/Memory/ComputeBuffer.h>
-#include <Render/Memory/MemoryAccessTypes.h>
 #include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/Compute/ComputeStage.h>
-#include <Render/Pipeline/RenderGraph/RGAttachmentDesc.h>
-#include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
-#include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
 
 #include <cassert>
@@ -38,6 +34,13 @@ namespace {
         file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
         return words;
     }
+
+    const vk::MemoryBarrier2 kComputeBarrier{
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderStorageWrite,
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite
+    };
 } // namespace
 
 namespace Engine {
@@ -47,21 +50,24 @@ namespace Engine {
         uint32_t max_elem_count = 1u;
         bool initialized = false;
 
-        // ---- Compute stages ----
-        std::unique_ptr<ComputeStage> flag_stage{}; // flag_unique.comp
+        std::unique_ptr<ComputeStage> flag_stage{};
         std::vector<uint32_t> flag_spirv{};
 
-        std::unique_ptr<ComputeStage> scatter_stage{}; // compact_scatter.comp
+        std::unique_ptr<ComputeStage> scatter_stage{};
         std::vector<uint32_t> scatter_spirv{};
 
-        std::unique_ptr<ComputeStage> copy_stage{}; // copy_uint.comp (reused)
+        std::unique_ptr<ComputeStage> copy_stage{};
         std::vector<uint32_t> copy_spirv{};
 
-        std::unique_ptr<ComputeStage> memset_stage{}; // memset_uint.comp (reused)
+        std::unique_ptr<ComputeStage> memset_stage{};
         std::vector<uint32_t> memset_spirv{};
 
-        // ---- Constant buffers ----
         std::unique_ptr<ComputeBuffer> gpu_const_one{};
+
+        ComputeResourceBinding *flag_binding = nullptr;
+        ComputeResourceBinding *scatter_binding = nullptr;
+        ComputeResourceBinding *copy_binding = nullptr;
+        ComputeResourceBinding *memset_binding = nullptr;
 
         explicit Impl(RenderSystem &rs, uint32_t mec) : render_system(rs), max_elem_count(mec) {
             if (max_elem_count == 0u) {
@@ -82,194 +88,104 @@ namespace Engine {
             flag_spirv = LoadPhysicsSpirvBytes(flag_path);
             flag_stage = std::make_unique<ComputeStage>(render_system);
             flag_stage->Instantiate(flag_spirv, "FlagUnique");
+            flag_binding = &flag_stage->AllocateResourceBinding();
 
             const char *scatter_path = "algorithm/compact_scatter.comp.spv";
             scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
             scatter_stage = std::make_unique<ComputeStage>(render_system);
             scatter_stage->Instantiate(scatter_spirv, "CompactScatter");
+            scatter_binding = &scatter_stage->AllocateResourceBinding();
 
             const char *copy_path = "collision/SpatialHashBroadDetector/copy_uint.comp.spv";
             copy_spirv = LoadPhysicsSpirvBytes(copy_path);
             copy_stage = std::make_unique<ComputeStage>(render_system);
             copy_stage->Instantiate(copy_spirv, "CompactUnique Copy");
+            copy_binding = &copy_stage->AllocateResourceBinding();
 
             const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
             memset_stage = std::make_unique<ComputeStage>(render_system);
             memset_stage->Instantiate(memset_spirv, "CompactUnique Memset");
+            memset_binding = &memset_stage->AllocateResourceBinding();
 
-            // Create constant buffers.
             const auto &alloc = render_system.GetAllocatorState();
             gpu_const_one =
                 ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "CompactUnique Const1");
             *reinterpret_cast<uint32_t *>(gpu_const_one->GetVMAddress()) = 1u;
         }
 
-        void AddFlagPass(
-            RenderGraphBuilder &builder,
-            RGBufferHandle pairs_handle,
+        void RecordFlagPass(
+            CommandBuffer &cb,
             ComputeBuffer &pairs_buf,
-            RGBufferHandle flags_handle,
             ComputeBuffer &flags_buf,
-            RGBufferHandle pair_count_handle,
             ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         ) {
-            ComputeResourceBinding &bind = flag_stage->AllocateResourceBinding();
-            auto &srb = bind.GetShaderResourceBinding();
+            auto &srb = flag_binding->GetShaderResourceBinding();
             srb.BindBuffer("SortedPairs", pairs_buf);
             srb.BindBuffer("UniqueFlags", flags_buf);
             srb.BindBuffer("ElemCount", pair_count_buf);
 
-            auto *stage = flag_stage.get();
-            auto *binding_ptr = &bind;
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            using AT = MemoryAccessTypeBufferBits;
-            const MemoryAccessTypeBuffer RR{AT::ShaderRandomRead};
-            const MemoryAccessTypeBuffer WW{AT::ShaderRandomWrite};
-            const MemoryAccessTypeBuffer RRWW{AT::ShaderRandomRead, AT::ShaderRandomWrite};
-
-            // ElemCount buffer may alias pairs_handle? No, separate.
-            // But the RG access types for the elem_count buffer: it's read-only here.
-            // We import it via the handle pattern. Since we don't have a separate handle,
-            // gpu_elem_count_buf is bound but not tracked via RG. That's fine for small read-only constants.
-
-            builder.AddPass(
-                RenderGraphPassBuilder{render_system}
-                    .SetName("CompactUnique Flag")
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(pairs_handle, RR)
-                    .UseBuffer(flags_handle, WW)
-                    .UseBuffer(pair_count_handle, RR)
-                    .SetPassFunction([stage, binding_ptr, wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding_ptr);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
-                    .Get()
-            );
+            cb.BindComputeStage(*flag_stage);
+            cb.BindComputeResource(*flag_binding);
+            cb.DispatchCompute(wg, 1, 1);
         }
 
-        void AddCopyPass(
-            RenderGraphBuilder &builder,
-            RGBufferHandle src_handle,
+        void RecordCopyPass(
+            CommandBuffer &cb,
             ComputeBuffer &src_buf,
-            RGBufferHandle dst_handle,
             ComputeBuffer &dst_buf,
-            RGBufferHandle pair_count_handle,
             ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         ) {
-            ComputeResourceBinding &bind = copy_stage->AllocateResourceBinding();
-            auto &srb = bind.GetShaderResourceBinding();
+            auto &srb = copy_binding->GetShaderResourceBinding();
             srb.BindBuffer("SrcBuffer", src_buf);
             srb.BindBuffer("DstBuffer", dst_buf);
             srb.BindBuffer("ElemCount", pair_count_buf);
 
-            auto *stage = copy_stage.get();
-            auto *binding_ptr = &bind;
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            using AT = MemoryAccessTypeBufferBits;
-            const MemoryAccessTypeBuffer RR{AT::ShaderRandomRead};
-            const MemoryAccessTypeBuffer WW{AT::ShaderRandomWrite};
-
-            builder.AddPass(
-                RenderGraphPassBuilder{render_system}
-                    .SetName("CompactUnique Copy Flags")
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(src_handle, RR)
-                    .UseBuffer(dst_handle, WW)
-                    .UseBuffer(pair_count_handle, RR)
-                    .SetPassFunction([stage, binding_ptr, wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding_ptr);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
-                    .Get()
-            );
+            cb.BindComputeStage(*copy_stage);
+            cb.BindComputeResource(*copy_binding);
+            cb.DispatchCompute(wg, 1, 1);
         }
 
-        void AddClearCountPass(RenderGraphBuilder &builder, RGBufferHandle count_handle, ComputeBuffer &count_buf) {
-            ComputeResourceBinding &bind = memset_stage->AllocateResourceBinding();
-            auto &srb = bind.GetShaderResourceBinding();
+        void RecordClearCountPass(CommandBuffer &cb, ComputeBuffer &count_buf) {
+            auto &srb = memset_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", count_buf);
             srb.BindBuffer("ElemCount", *gpu_const_one);
 
-            auto *stage = memset_stage.get();
-            auto *binding_ptr = &bind;
-
-            using AT = MemoryAccessTypeBufferBits;
-            const MemoryAccessTypeBuffer WW{AT::ShaderRandomWrite};
-
-            builder.AddPass(
-                RenderGraphPassBuilder{render_system}
-                    .SetName("CompactUnique Clear Count")
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(count_handle, WW)
-                    .SetPassFunction([stage, binding_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding_ptr);
-                        cb.DispatchCompute(1, 1, 1);
-                    })
-                    .Get()
-            );
+            cb.BindComputeStage(*memset_stage);
+            cb.BindComputeResource(*memset_binding);
+            cb.DispatchCompute(1, 1, 1);
         }
 
-        void AddScatterPass(
-            RenderGraphBuilder &builder,
-            RGBufferHandle pairs_handle,
+        void RecordScatterPass(
+            CommandBuffer &cb,
             ComputeBuffer &pairs_buf,
-            RGBufferHandle flags_handle,
             ComputeBuffer &flags_buf,
-            RGBufferHandle offsets_handle,
             ComputeBuffer &offsets_buf,
-            RGBufferHandle count_handle,
             ComputeBuffer &count_buf,
-            RGBufferHandle pair_count_handle,
             ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         ) {
-            ComputeResourceBinding &bind = scatter_stage->AllocateResourceBinding();
-            auto &srb = bind.GetShaderResourceBinding();
+            auto &srb = scatter_binding->GetShaderResourceBinding();
             srb.BindBuffer("SortedPairs", pairs_buf);
-            srb.BindBuffer("CompactPairs", pairs_buf); // in-place: read and write same buffer
+            srb.BindBuffer("CompactPairs", pairs_buf);
             srb.BindBuffer("OriginalFlags", flags_buf);
             srb.BindBuffer("FlagOffsets", offsets_buf);
             srb.BindBuffer("UniqueCount", count_buf);
             srb.BindBuffer("ElemCount", pair_count_buf);
 
-            auto *stage = scatter_stage.get();
-            auto *binding_ptr = &bind;
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            using AT = MemoryAccessTypeBufferBits;
-            const MemoryAccessTypeBuffer RR{AT::ShaderRandomRead};
-            const MemoryAccessTypeBuffer RW{AT::ShaderRandomRead, AT::ShaderRandomWrite};
-
-            builder.AddPass(
-                RenderGraphPassBuilder{render_system}
-                    .SetName("CompactUnique Scatter")
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(pairs_handle, RW) // read + write (in-place compact)
-                    .UseBuffer(flags_handle, RR)
-                    .UseBuffer(offsets_handle, RR)
-                    .UseBuffer(count_handle, RW)
-                    .UseBuffer(pair_count_handle, RR)
-                    .SetPassFunction([stage, binding_ptr, wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding_ptr);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
-                    .Get()
-            );
+            cb.BindComputeStage(*scatter_stage);
+            cb.BindComputeResource(*scatter_binding);
+            cb.DispatchCompute(wg, 1, 1);
         }
     };
-
-    // ===================================================================
-    // Public API
-    // ===================================================================
 
     CompactUnique::CompactUnique(RenderSystem &render_system, uint32_t max_elem_count) :
         m_impl(std::make_unique<Impl>(render_system, max_elem_count)) {
@@ -285,20 +201,14 @@ namespace Engine {
         return m_impl->max_elem_count;
     }
 
-    void CompactUnique::AddPasses(
-        RenderGraphBuilder &builder,
-        RGBufferHandle pairs_handle,
+    void CompactUnique::Record(
+        CommandBuffer &cb,
         ComputeBuffer &pairs_buf,
-        RGBufferHandle flags_handle,
         ComputeBuffer &flags_buf,
-        RGBufferHandle offsets_handle,
         ComputeBuffer &offsets_buf,
-        RGBufferHandle count_handle,
         ComputeBuffer &count_buf,
-        RGBufferHandle scan_scratch_handle,
         ComputeBuffer &scan_scratch_buf,
         ParallelScan &scan,
-        RGBufferHandle pair_count_handle,
         ComputeBuffer &pair_count_buf,
         uint32_t elem_capacity
     ) {
@@ -307,61 +217,25 @@ namespace Engine {
         }
         if (elem_capacity > m_impl->max_elem_count) {
             throw std::runtime_error(
-                "CompactUnique::AddPasses: elem_capacity " + std::to_string(elem_capacity) + " exceeds max_elem_count "
+                "CompactUnique::Record: elem_capacity " + std::to_string(elem_capacity) + " exceeds max_elem_count "
                 + std::to_string(m_impl->max_elem_count)
             );
         }
 
         m_impl->EnsureInitialized();
 
-        // Step 1: Flag unique entries → flags_buf.
-        // Binds pair_count_buf to ElemCount — shader reads actual count at GPU execution time.
-        m_impl->AddFlagPass(
-            builder, pairs_handle, pairs_buf, flags_handle, flags_buf, pair_count_handle, pair_count_buf, elem_capacity
-        );
+        m_impl->RecordFlagPass(cb, pairs_buf, flags_buf, pair_count_buf, elem_capacity);
+        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        // Step 2: Copy flags → offsets for scan input.
-        m_impl->AddCopyPass(
-            builder,
-            flags_handle,
-            flags_buf,
-            offsets_handle,
-            offsets_buf,
-            pair_count_handle,
-            pair_count_buf,
-            elem_capacity
-        );
+        m_impl->RecordCopyPass(cb, flags_buf, offsets_buf, pair_count_buf, elem_capacity);
+        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        // Step 3: Exclusive prefix sum on offsets (in-place) via external ParallelScan.
-        // Scans full elem_capacity; zeros beyond pair_count don't affect the prefix sum result.
-        scan.AddPasses(
-            builder,
-            offsets_handle,
-            offsets_handle, // in-place scan
-            offsets_buf,
-            offsets_buf,
-            scan_scratch_handle,
-            scan_scratch_buf,
-            elem_capacity
-        );
+        scan.Record(cb, offsets_buf, offsets_buf, scan_scratch_buf, elem_capacity);
+        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        // Step 4: Clear unique count to zero before scatter.
-        m_impl->AddClearCountPass(builder, count_handle, count_buf);
+        m_impl->RecordClearCountPass(cb, count_buf);
+        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        // Step 5: Scatter unique entries → pairs_buf (in-place compact).
-        m_impl->AddScatterPass(
-            builder,
-            pairs_handle,
-            pairs_buf,
-            flags_handle,
-            flags_buf,
-            offsets_handle,
-            offsets_buf,
-            count_handle,
-            count_buf,
-            pair_count_handle,
-            pair_count_buf,
-            elem_capacity
-        );
+        m_impl->RecordScatterPass(cb, pairs_buf, flags_buf, offsets_buf, count_buf, pair_count_buf, elem_capacity);
     }
 } // namespace Engine
