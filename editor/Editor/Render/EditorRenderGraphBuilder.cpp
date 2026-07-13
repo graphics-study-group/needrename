@@ -63,10 +63,12 @@ namespace Editor {
         final_color_target_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Final Color");
 
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat;
-        auto hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "HDR Color");
+        auto scene_hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Scene HDR Color");
+        auto game_hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Game HDR Color");
 
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-        auto depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Depth");
+        auto scene_depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Scene Depth");
+        auto game_depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Game Depth");
 
         // Shadow map targets
         RenderTargetTexture::RenderTargetTextureDesc shadow_desc{
@@ -169,10 +171,13 @@ namespace Editor {
             }
             builder
                 .AppendColorAttachment(
-                    {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                    {scene_hdr_color_id,
+                     {},
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::Store}
                 )
                 .SetDepthStencilAttachment(
-                    {depth_id,
+                    {scene_depth_id,
                      {},
                      AttachmentUtils::LoadOperation::Clear,
                      AttachmentUtils::StoreOperation::DontCare,
@@ -210,17 +215,17 @@ namespace Editor {
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Scene Bloom FX pass")
-                .UseImage(hdr_color_id, IAT::ShaderRandomRead)
+                .UseImage(scene_hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(scene_widget_color_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
                 .SetPassFunction([&scene_bloom,
                                   texture_width,
                                   texture_height,
                                   &scene_bloom_binding,
-                                  hdr_color_id,
+                                  scene_hdr_color_id,
                                   scene_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
                     scene_bloom_binding.GetShaderResourceBinding().BindTexture(
-                        "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
+                        "inputImage", *rg.GetInternalTextureResource(scene_hdr_color_id)
                     );
                     scene_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "outputImage", *rg.GetInternalTextureResource(scene_widget_color_id)
@@ -245,10 +250,13 @@ namespace Editor {
             }
             builder
                 .AppendColorAttachment(
-                    {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                    {game_hdr_color_id,
+                     {},
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::Store}
                 )
                 .SetDepthStencilAttachment(
-                    {depth_id,
+                    {game_depth_id,
                      {},
                      AttachmentUtils::LoadOperation::Clear,
                      AttachmentUtils::StoreOperation::DontCare,
@@ -290,17 +298,17 @@ namespace Editor {
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Game Bloom FX pass")
-                .UseImage(hdr_color_id, IAT::ShaderRandomRead)
+                .UseImage(game_hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(game_widget_color_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
                 .SetPassFunction([&game_bloom,
                                   texture_width,
                                   texture_height,
                                   &game_bloom_binding,
-                                  hdr_color_id,
+                                  game_hdr_color_id,
                                   game_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
                     game_bloom_binding.GetShaderResourceBinding().BindTexture(
-                        "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
+                        "inputImage", *rg.GetInternalTextureResource(game_hdr_color_id)
                     );
                     game_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "outputImage", *rg.GetInternalTextureResource(game_widget_color_id)

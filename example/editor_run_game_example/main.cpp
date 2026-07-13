@@ -184,8 +184,16 @@ int main(int argc, char **argv) {
     );
 
     auto scene_texture = rg->GetInternalTextureResource(scene_color_id);
-    scene_widget->SetDisplayTexture(*scene_texture);
     auto game_texture = rg->GetInternalTextureResource(game_color_id);
+    SDL_LogInfo(
+        SDL_LOG_CATEGORY_APPLICATION,
+        "[main] Init: scene_handle=%d game_handle=%d scene_tex=%p game_tex=%p",
+        static_cast<int32_t>(scene_color_id),
+        static_cast<int32_t>(game_color_id),
+        static_cast<const void *>(scene_texture),
+        static_cast<const void *>(game_texture)
+    );
+    scene_widget->SetDisplayTexture(*scene_texture);
     game_widget->SetDisplayTexture(*game_texture);
 
     // Track whether the render graph has been built with the physics SSBO.
@@ -263,8 +271,18 @@ int main(int argc, char **argv) {
                         final_color_id,
                         mm_buf
                     );
-                    scene_widget->SetDisplayTexture(*rg->GetInternalTextureResource(scene_color_id));
-                    game_widget->SetDisplayTexture(*rg->GetInternalTextureResource(game_color_id));
+                    auto *scene_tex2 = rg->GetInternalTextureResource(scene_color_id);
+                    auto *game_tex2 = rg->GetInternalTextureResource(game_color_id);
+                    SDL_LogInfo(
+                        SDL_LOG_CATEGORY_APPLICATION,
+                        "[main] Rebuild: scene_handle=%d game_handle=%d scene_tex=%p game_tex=%p",
+                        static_cast<int32_t>(scene_color_id),
+                        static_cast<int32_t>(game_color_id),
+                        static_cast<const void *>(scene_tex2),
+                        static_cast<const void *>(game_tex2)
+                    );
+                    scene_widget->SetDisplayTexture(*scene_tex2);
+                    game_widget->SetDisplayTexture(*game_tex2);
                 }
             }
         }
