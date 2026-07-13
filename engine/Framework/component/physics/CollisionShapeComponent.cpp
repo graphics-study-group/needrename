@@ -29,12 +29,7 @@ namespace Engine {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent awake failed: missing scene or owner");
             return;
         }
-
-        auto *physics_scene = scene->GetPhysicsScene();
-        if (physics_scene == nullptr) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent awake failed: physics scene missing");
-            return;
-        }
+        if (scene->GetPhysicsScene() == nullptr) return; // scene physics not enabled
 
         auto &adaptor = scene->GetPhysicsAdaptor();
         m_shape_index = adaptor.AllocateShapeSlot(GetHandle());
@@ -47,12 +42,7 @@ namespace Engine {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent init failed: missing scene or owner");
             return;
         }
-
-        auto *physics_scene = scene->GetPhysicsScene();
-        if (physics_scene == nullptr) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent init failed: physics scene missing");
-            return;
-        }
+        if (scene->GetPhysicsScene() == nullptr) return; // scene physics not enabled
 
         if (m_shape_index == PhysicsScene::INVALID_INDEX) {
             SDL_LogWarn(

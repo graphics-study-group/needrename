@@ -21,11 +21,7 @@ namespace Engine {
         if (scene == nullptr) {
             return;
         }
-
-        PhysicsScene *physics_scene = scene->GetPhysicsScene();
-        if (physics_scene == nullptr) {
-            return;
-        }
+        if (scene->GetPhysicsScene() == nullptr) return; // scene physics not enabled
 
         PhysicsAdaptor &adaptor = scene->GetPhysicsAdaptor();
 
@@ -57,11 +53,7 @@ namespace Engine {
         if (scene == nullptr) {
             return;
         }
-
-        PhysicsScene *physics_scene = scene->GetPhysicsScene();
-        if (physics_scene == nullptr) {
-            return;
-        }
+        if (scene->GetPhysicsScene() == nullptr) return; // scene physics not enabled
 
         PhysicsAdaptor &adaptor = scene->GetPhysicsAdaptor();
 

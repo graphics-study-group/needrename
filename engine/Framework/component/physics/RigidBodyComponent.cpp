@@ -30,6 +30,7 @@ namespace Engine {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "RigidBodyComponent awake failed: missing scene or root object");
             return;
         }
+        if (scene->GetPhysicsScene() == nullptr) return; // scene physics not enabled
 
         auto &adaptor = scene->GetPhysicsAdaptor();
         m_rigid_body_index = adaptor.AllocateSlot(root->GetHandle());
@@ -42,6 +43,7 @@ namespace Engine {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "RigidBodyComponent init failed: missing scene or object");
             return;
         }
+        if (scene->GetPhysicsScene() == nullptr) return; // scene physics not enabled
 
         if (m_rigid_body_index == PhysicsScene::INVALID_INDEX) {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "RigidBodyComponent init failed: not registered");
