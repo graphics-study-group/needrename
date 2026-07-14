@@ -2,6 +2,7 @@
 #include <Core/guid.h>
 #include <Framework/component/Component.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/Handle.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
@@ -141,12 +142,32 @@ namespace Editor {
             glm::quat value = var.Get<glm::quat>();
             ImGui::DragFloat4(name.c_str(), &value[0], 0.01f);
             var.Set(glm::normalize(value));
-        } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Pointer) {
-            auto pointer_type = std::dynamic_pointer_cast<const Engine::Reflection::PointerType>(var.GetType());
-            if (pointer_type && pointer_type->GetPointedType()->GetName() == "Engine::AssetRef") {
-                Engine::GUID asset_guid = var.GetPointedVar().InvokeMethod("GetGUID").Get<Engine::GUID>();
-                ImGui::Text("%s: Asset GUID: %s", name.c_str(), asset_guid.string().c_str());
+        } else if (var.GetType()->GetName() == "Engine::ObjectHandle") {
+            const Engine::ObjectHandle &handle = var.Get<Engine::ObjectHandle>();
+            const auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
+            ImGui::Text(
+                "%s: [GameObject]%s",
+                name.c_str(),
+                handle.IsValid() ? scene.GetGameObject(handle)->m_name.c_str() : "Invalid"
+            );
+        } else if (var.GetType()->GetName() == "Engine::ComponentHandle") {
+            const Engine::ComponentHandle &handle = var.Get<Engine::ComponentHandle>();
+            const auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
+            std::string display_text = "Invalid";
+            if (handle.IsValid()) {
+                const auto *component = scene.GetComponent(handle);
+                if (component) {
+                    const auto *go = component->GetParentGameObject();
+                    if (go) {
+                        display_text =
+                            go->m_name + " -> " + Engine::Reflection::GetTypeFromObject(*component)->GetName();
+                    }
+                }
             }
+            ImGui::Text("%s: [Component]%s", name.c_str(), display_text.c_str());
+        } else if (var.GetType()->GetName() == "Engine::AssetRef") {
+            Engine::GUID asset_guid = var.InvokeMethod("GetGUID").Get<Engine::GUID>();
+            ImGui::Text("%s: [Asset]%s", name.c_str(), asset_guid.string().c_str());
         } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum) {
             auto enum_type = std::dynamic_pointer_cast<const Engine::Reflection::EnumType>(var.GetType());
             if (enum_type) {
