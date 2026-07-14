@@ -21,21 +21,25 @@
 #include <functional>
 #include <unordered_set>
 
-namespace Engine {
+namespace {
 
     // ══════════════════════════════════════════════════════════
     //  Coordinate system conversion
     // ══════════════════════════════════════════════════════════
 
-    glm::vec3 UrdfLoader::UrdfToEnginePos(const glm::vec3 &urdf) {
+    glm::vec3 UrdfToEnginePos(const glm::vec3 &urdf) {
         return {-urdf.y, urdf.x, urdf.z};
     }
 
-    glm::vec3 UrdfLoader::UrdfAxisToEngine(const glm::vec3 &urdf_axis) {
+    glm::vec3 UrdfAxisToEngine(const glm::vec3 &urdf_axis) {
         return {-urdf_axis.y, urdf_axis.x, urdf_axis.z};
     }
 
-    glm::quat UrdfLoader::UrdfRpyToEngineQuat(const glm::vec3 &rpy) {
+    glm::vec3 UrdfSizeToEngine(const glm::vec3 &urdf_size) {
+        return {urdf_size.y, urdf_size.x, urdf_size.z};
+    }
+
+    glm::quat UrdfRpyToEngineQuat(const glm::vec3 &rpy) {
         // URDF fixed-axis RPY: X→Y→Z order
         const glm::quat qx = glm::angleAxis(rpy.x, glm::vec3(1, 0, 0));
         const glm::quat qy = glm::angleAxis(rpy.y, glm::vec3(0, 1, 0));
@@ -43,8 +47,11 @@ namespace Engine {
         const glm::quat q_urdf = qz * qy * qx;
         // Basis change: URDF frame → Engine frame (rotate +90° around Z)
         static const glm::quat q_convert = glm::angleAxis(glm::radians(90.0f), glm::vec3(0, 0, 1));
-        return q_convert * q_urdf;
+        return q_convert * q_urdf * glm::conjugate(q_convert);
     }
+} // namespace
+
+namespace Engine {
 
     // ══════════════════════════════════════════════════════════
     //  Package URL resolution
@@ -77,6 +84,7 @@ namespace Engine {
             if (size_str) {
                 sscanf_s(size_str, "%f %f %f", &geom.box_size.x, &geom.box_size.y, &geom.box_size.z);
             }
+            geom.box_size = UrdfSizeToEngine(geom.box_size);
         } else if (auto *sphere = geom_elem->FirstChildElement("sphere")) {
             geom.type = UrdfGeometryType::Sphere;
             sphere->QueryFloatAttribute("radius", &geom.sphere_radius);
@@ -94,6 +102,7 @@ namespace Engine {
             } else {
                 geom.mesh_scale = glm::vec3(1.0f);
             }
+            geom.mesh_scale = UrdfSizeToEngine(geom.box_size);
         }
         return geom;
     }

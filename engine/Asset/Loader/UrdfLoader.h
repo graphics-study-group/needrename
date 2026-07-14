@@ -42,13 +42,6 @@ namespace Engine {
         /// Resolve a package:// URI to an absolute filesystem path.
         std::filesystem::path ResolvePackageUrl(const std::string &url, const std::filesystem::path &urdf_dir);
 
-        /// Convert a URDF position vector to engine coordinates.
-        static glm::vec3 UrdfToEnginePos(const glm::vec3 &urdf);
-        /// Convert a URDF axis/direction vector to engine coordinates.
-        static glm::vec3 UrdfAxisToEngine(const glm::vec3 &urdf_axis);
-        /// Convert URDF RPY Euler angles to an engine-frame quaternion.
-        static glm::quat UrdfRpyToEngineQuat(const glm::vec3 &rpy);
-
         /// Build the full GameObject hierarchy from parsed URDF data and save as SceneAsset.
         void BuildAndSaveSceneAsset(
             const UrdfRobot &robot,
