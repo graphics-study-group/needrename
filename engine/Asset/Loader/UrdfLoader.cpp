@@ -370,71 +370,86 @@ namespace Engine {
             const auto &inertial = *link.inertial;
             rb.m_mass = inertial.mass;
             rb.m_use_manual_inertia_com = true;
-            rb.m_manual_inertia_diag = glm::vec3(inertial.ixx, inertial.iyy, inertial.izz);
-            rb.m_manual_inertia_offdiag = glm::vec3(inertial.ixy, inertial.ixz, inertial.iyz);
+            rb.m_manual_center_of_mass = UrdfToEnginePos(inertial.origin_xyz);
+
+            glm::mat3 I(
+                glm::vec3(inertial.ixx, inertial.ixy, inertial.ixz),
+                glm::vec3(inertial.ixy, inertial.iyy, inertial.iyz),
+                glm::vec3(inertial.ixz, inertial.iyz, inertial.izz)
+            );
+
+            if (glm::length(inertial.origin_rpy) > 1e-6f) {
+                const glm::mat3 R = glm::mat3_cast(UrdfRpyToEngineQuat(inertial.origin_rpy));
+                I = glm::transpose(R) * I * R;
+            }
+
+            rb.m_manual_inertia_diag = glm::vec3(I[0][0], I[1][1], I[2][2]);
+            rb.m_manual_inertia_offdiag = glm::vec3(I[0][1], I[0][2], I[1][2]);
         }
 
-        // ── 4. CollisionShapeComponent ──
+        // ── 4. CollisionShapeComponent (always on child GOs) ──
         for (const auto &link : robot.links) {
             auto *go = name_to_go[link.name];
             if (!go) continue;
 
-            for (const auto &col : link.collisions) {
-                bool has_offset = glm::length(col.origin_xyz) > 1e-6f || glm::length(col.origin_rpy) > 1e-6f;
-                if (has_offset) {
-                    auto &sub_go = temp_scene.CreateGameObject();
-                    sub_go.m_name = link.name + "_collision";
-                    Transform local;
-                    local.SetPosition(UrdfToEnginePos(col.origin_xyz));
-                    local.SetRotation(UrdfRpyToEngineQuat(col.origin_rpy));
-                    sub_go.SetTransform(local);
-                    sub_go.SetParent(go->GetHandle());
-
-                    auto &shape = sub_go.AddComponent<CollisionShapeComponent>();
-                    shape.m_center = glm::vec3(0.0f);
-                    shape.m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-                    ApplyGeometryToShape(shape, col.geometry);
-                } else {
-                    auto &shape = go->AddComponent<CollisionShapeComponent>();
-                    shape.m_center = UrdfToEnginePos(col.origin_xyz);
-                    shape.m_rotation = UrdfRpyToEngineQuat(col.origin_rpy);
-                    ApplyGeometryToShape(shape, col.geometry);
+            for (size_t i = 0; i < link.collisions.size(); ++i) {
+                const auto &col = link.collisions[i];
+                if (col.geometry.type == UrdfGeometryType::Mesh) {
+                    SDL_LogInfo(
+                        SDL_LOG_CATEGORY_APPLICATION,
+                        "UrdfLoader: Skipping mesh collision for link '%s' (Phase 2)",
+                        link.name.c_str()
+                    );
+                    continue;
                 }
+
+                auto &sub_go = temp_scene.CreateGameObject();
+                sub_go.m_name = link.name + "_collision_" + std::to_string(i);
+                Transform local;
+                local.SetPosition(UrdfToEnginePos(col.origin_xyz));
+                local.SetRotation(UrdfRpyToEngineQuat(col.origin_rpy));
+                sub_go.SetTransform(local);
+                sub_go.SetParent(go->GetHandle());
+
+                auto &shape = sub_go.AddComponent<CollisionShapeComponent>();
+                shape.m_center = glm::vec3(0.0f);
+                shape.m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+                ApplyGeometryToShape(shape, col.geometry);
             }
         }
 
-        // ── 5. PhysicsConstraintComponent (one per parent link) ──
-        // Collect all joints per parent link into a single component.
-        std::unordered_map<GameObject *, PhysicsConstraintComponent *> parent_constraints;
+        // ── 5. PhysicsConstraintComponent (one per child link) ──
+        // Build lookup: which links have RigidBodyComponent (have <inertial>)
+        std::unordered_set<std::string> links_with_inertial;
+        for (const auto &link : robot.links) {
+            if (link.inertial.has_value()) {
+                links_with_inertial.insert(link.name);
+            }
+        }
+
         for (const auto &joint : robot.joints) {
             auto *parent_go = name_to_go[joint.parent_link];
             auto *child_go = name_to_go[joint.child_link];
             if (!parent_go || !child_go) continue;
 
+            const bool parent_has_rb = links_with_inertial.count(joint.parent_link) > 0;
+            const bool child_has_rb = links_with_inertial.count(joint.child_link) > 0;
+            if (!parent_has_rb || !child_has_rb) continue;
+
             if (joint.type == UrdfJointType::Fixed) {
-                auto *&constraint = parent_constraints[parent_go];
-                if (!constraint) {
-                    constraint = &parent_go->AddComponent<PhysicsConstraintComponent>();
-                }
+                auto &constraint = child_go->AddComponent<PhysicsConstraintComponent>();
                 FixedJointDef fixed;
-                fixed.m_obj2_handle = child_go->GetHandle();
+                fixed.m_obj2_handle = parent_go->GetHandle();
                 fixed.m_compliance = 0.0f;
-                constraint->m_joints.push_back(fixed);
+                constraint.m_joints.push_back(fixed);
             } else if (joint.type == UrdfJointType::Revolute || joint.type == UrdfJointType::Continuous) {
-                auto *&constraint = parent_constraints[parent_go];
-                if (!constraint) {
-                    constraint = &parent_go->AddComponent<PhysicsConstraintComponent>();
-                }
+                auto &constraint = child_go->AddComponent<PhysicsConstraintComponent>();
                 HingeJointDef hinge;
-                hinge.m_obj2_handle = child_go->GetHandle();
+                hinge.m_obj2_handle = parent_go->GetHandle();
                 hinge.m_compliance = 0.0f;
-
-                const glm::vec3 eng_axis = UrdfAxisToEngine(joint.axis);
-                hinge.m_hinge_axis_obj1 = eng_axis;
-
-                hinge.m_hinge_anchor_obj1 = UrdfToEnginePos(joint.origin_xyz);
-
-                constraint->m_joints.push_back(hinge);
+                hinge.m_hinge_axis_obj1 = UrdfAxisToEngine(joint.axis);
+                hinge.m_hinge_anchor_obj1 = glm::vec3(0.0f);
+                constraint.m_joints.push_back(hinge);
             } else if (joint.type == UrdfJointType::Prismatic || joint.type == UrdfJointType::Floating) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_APPLICATION,
@@ -473,13 +488,7 @@ namespace Engine {
             add_ignores(*child_go, parent_collision_gos);
         }
 
-        // ── 7. StaticMeshComponent (render via collision geometry) ──
-        // Since DAE/STL mesh import is not yet implemented, we render using
-        // <collision> geometry so that robot shapes are always visible.
-        // Builtin mesh base sizes:
-        //   cube:     2×2×2 centered  → scale = half_extents
-        //   sphere:   radius 1m       → scale = (r, r, r)
-        //   cylinder: radius 1m, h=2m, Z-up → scale = (r, r, half_h)
+        // ── 7. StaticMeshComponent (render via collision geometry, on visual child GOs) ──
         for (const auto &link : robot.links) {
             auto *go = name_to_go[link.name];
             if (!go || link.collisions.empty()) continue;
@@ -488,7 +497,8 @@ namespace Engine {
             const char *mat_path = kBuiltinMaterials[hash % kBuiltinMaterials.size()];
             auto mat_ref = db.GetNewAssetRef(AssetPath(db, mat_path));
 
-            for (const auto &col : link.collisions) {
+            for (size_t i = 0; i < link.collisions.size(); ++i) {
+                const auto &col = link.collisions[i];
                 AssetPath mesh_path(db, "");
                 glm::vec3 mesh_scale(1.0f);
                 switch (col.geometry.type) {
@@ -511,8 +521,7 @@ namespace Engine {
                 case UrdfGeometryType::Mesh:
                     SDL_LogInfo(
                         SDL_LOG_CATEGORY_APPLICATION,
-                        "UrdfLoader: Skipping mesh collision '%s' for link '%s' (Phase 2)",
-                        col.geometry.mesh_filename.c_str(),
+                        "UrdfLoader: Skipping mesh visual for link '%s' (Phase 2)",
                         link.name.c_str()
                     );
                     continue;
@@ -520,18 +529,17 @@ namespace Engine {
 
                 auto mesh_ref = db.GetNewAssetRef(mesh_path);
 
-                // Always place render geometry on a child GO so scale applies independently.
-                auto &render_go = temp_scene.CreateGameObject();
-                render_go.m_name = link.name + "_render";
+                auto &visual_go = temp_scene.CreateGameObject();
+                visual_go.m_name = link.name + "_visual_" + std::to_string(i);
 
                 Transform local;
                 local.SetPosition(UrdfToEnginePos(col.origin_xyz));
                 local.SetRotation(UrdfRpyToEngineQuat(col.origin_rpy));
                 local.SetScale(mesh_scale);
-                render_go.SetTransform(local);
-                render_go.SetParent(go->GetHandle());
+                visual_go.SetTransform(local);
+                visual_go.SetParent(go->GetHandle());
 
-                auto &mc = render_go.AddComponent<StaticMeshComponent>();
+                auto &mc = visual_go.AddComponent<StaticMeshComponent>();
                 mc.m_mesh_asset = mesh_ref;
                 mc.m_material_assets = {mat_ref};
                 mc.m_is_eagerly_loaded = true;

@@ -50,6 +50,28 @@
 - **GPU buffer** → COM-local values uploaded by `PhysicsScene::SyncGpuBuffers`,
   consumed by solvers
 
+## URDF Import Hierarchy
+
+- **Link GO** — A GameObject representing one URDF `<link>`. Positioned at the
+  URDF link frame (set by the incoming joint's `<origin>`, or world origin for
+  the root link). Carries `RigidBodyComponent` when the link has `<inertial>`.
+  `m_manual_center_of_mass` stores the COM offset from `<inertial>/<origin>` in
+  GO-local space. Inertia tensor is rotated from the inertial frame to the link
+  frame when `<inertial>/<origin>` has non-zero `rpy`: `I_link = Rᵀ * I * R`.
+- **Collision child GO** — A direct child of the link GO, one per `<collision>`
+  element. Carries `CollisionShapeComponent` with `m_center = 0,
+  m_rotation = 0` — the collision offset is encoded in the child GO's
+  `Transform`. Scale is always identity.
+- **Visual child GO** — A direct child of the link GO, one per `<collision>`
+  element (Phase 1: visual geometry data is sourced from `<collision>` until
+  DAE/STL mesh import is implemented). Carries `StaticMeshComponent`. Mesh
+  scale is encoded in the child GO's `Transform` scale component.
+- **Constraint on child rule** — `PhysicsConstraintComponent` for a URDF joint
+  is placed on the **child** link GO (not parent). `HingeJointDef::m_obj2_handle`
+  references the parent link GO. This eliminates the need to transform the
+  joint axis through `joint.origin.rpy` — the axis is already in the child link
+  frame.
+
 ## Physics Descriptors
 
 - **GO-space Descriptor** — `RigidBodyDescriptor`, `CollisionShapeDescriptor`,
