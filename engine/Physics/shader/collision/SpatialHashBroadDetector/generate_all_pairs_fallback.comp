@@ -8,20 +8,21 @@
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
+#define MAX_FILTER_ENTRIES 8
+#define INVALID_INDEX 0xFFFFFFFFu
+
 layout(set = 0, binding = 0) readonly buffer ShapeAlive     { uint v[]; } shape_alive;
 layout(set = 0, binding = 1) readonly buffer ShapeSlotCount  { uint count; } shape_slot_count;
 
 layout(set = 0, binding = 2) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
 layout(set = 0, binding = 3) buffer PairCount                { uint v[]; } pair_count;
 
-// Filter buffers.
-layout(set = 0, binding = 4) readonly buffer ShapeFilterOffset { uint v[]; } filter_offset;
-layout(set = 0, binding = 5) readonly buffer ShapeFilterCount  { uint v[]; } filter_count;
-layout(set = 0, binding = 6) readonly buffer ShapeFilterData   { uint v[]; } filter_data;
+// Collision filter: fixed-stride array, shape i at [i*MAX_FILTER_ENTRIES .. i*MAX_FILTER_ENTRIES+MAX_FILTER_ENTRIES).
+layout(set = 0, binding = 4) readonly buffer ShapeFilterData { uint v[]; } filter_data;
 
 // AABB buffers (produced by compute_aabbs.comp).
-layout(set = 0, binding = 7) readonly buffer AabbMin { vec4 v[]; } aabb_min;
-layout(set = 0, binding = 8) readonly buffer AabbMax { vec4 v[]; } aabb_max;
+layout(set = 0, binding = 5) readonly buffer AabbMin { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 6) readonly buffer AabbMax { vec4 v[]; } aabb_max;
 
 bool aabb_overlap(uint a, uint b) {
     return all(greaterThanEqual(aabb_max.v[a].xyz, aabb_min.v[b].xyz))
@@ -29,14 +30,11 @@ bool aabb_overlap(uint a, uint b) {
 }
 
 bool is_filtered(uint shape_a, uint shape_b) {
-    uint lo = filter_offset.v[shape_a];
-    uint hi = lo + filter_count.v[shape_a];
-    while (lo < hi) {
-        uint mid = (lo + hi) / 2u;
-        uint val = filter_data.v[mid];
+    uint base = shape_a * MAX_FILTER_ENTRIES;
+    for (uint i = 0u; i < MAX_FILTER_ENTRIES; ++i) {
+        uint val = filter_data.v[base + i];
+        if (val == INVALID_INDEX) return false;
         if (val == shape_b) return true;
-        if (val < shape_b) lo = mid + 1u;
-        else hi = mid;
     }
     return false;
 }

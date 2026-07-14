@@ -169,7 +169,9 @@ namespace Engine {
                 "BH CellShapePairs"
             );
             EnsureBuffer(
-                gpu_cell_shape_pairs_sorted, static_cast<size_t>(max_cell_shape_pair_count) * sizeof(glm::uvec2), "BH CellShapePairsSorted"
+                gpu_cell_shape_pairs_sorted,
+                static_cast<size_t>(max_cell_shape_pair_count) * sizeof(glm::uvec2),
+                "BH CellShapePairsSorted"
             );
 
             size_t cell_uint1 = static_cast<size_t>(grid_total_cells + 1u) * sizeof(uint32_t);
@@ -178,7 +180,9 @@ namespace Engine {
             EnsureBuffer(gpu_cell_scratch, cell_uint1, "BH CellScratch");
 
             EnsureBuffer(
-                gpu_collision_pairs, static_cast<size_t>(max_output_pair_count) * sizeof(glm::uvec2), "BH Output CollisionPairs"
+                gpu_collision_pairs,
+                static_cast<size_t>(max_output_pair_count) * sizeof(glm::uvec2),
+                "BH Output CollisionPairs"
             );
             EnsureBuffer(gpu_pair_count, sizeof(uint32_t), "BH PairCount", true);
 
@@ -349,8 +353,6 @@ namespace Engine {
             srb.BindBuffer("ShapeSlotCount", *gpu_shape_slot_count);
             srb.BindBuffer("CollisionPairs", *gpu_collision_pairs);
             srb.BindBuffer("PairCount", *gpu_pair_count);
-            srb.BindBuffer("ShapeFilterOffset", *gpu.shape_filter_offset);
-            srb.BindBuffer("ShapeFilterCount", *gpu.shape_filter_count);
             srb.BindBuffer("ShapeFilterData", *gpu.shape_filter_data);
             srb.BindBuffer("AabbMin", *gpu_aabb_min);
             srb.BindBuffer("AabbMax", *gpu_aabb_max);
@@ -472,8 +474,6 @@ namespace Engine {
                 srb.BindBuffer("PairCount", *gpu_pair_count);
                 srb.BindBuffer("GridConfig", *gpu_grid_config);
                 srb.BindBuffer("TotalAssignments", *gpu_total_assignments);
-                srb.BindBuffer("ShapeFilterOffset", *gpu.shape_filter_offset);
-                srb.BindBuffer("ShapeFilterCount", *gpu.shape_filter_count);
                 srb.BindBuffer("ShapeFilterData", *gpu.shape_filter_data);
                 srb.BindBuffer("AabbMin", *gpu_aabb_min);
                 srb.BindBuffer("AabbMax", *gpu_aabb_max);
@@ -495,8 +495,6 @@ namespace Engine {
                 srb.BindBuffer("ShapeSlotCount", *gpu_shape_slot_count);
                 srb.BindBuffer("CollisionPairs", *gpu_collision_pairs);
                 srb.BindBuffer("PairCount", *gpu_pair_count);
-                srb.BindBuffer("ShapeFilterOffset", *gpu.shape_filter_offset);
-                srb.BindBuffer("ShapeFilterCount", *gpu.shape_filter_count);
                 srb.BindBuffer("ShapeFilterData", *gpu.shape_filter_data);
                 srb.BindBuffer("AabbMin", *gpu_aabb_min);
                 srb.BindBuffer("AabbMax", *gpu_aabb_max);
@@ -591,8 +589,10 @@ namespace Engine {
 
         // Compute max pairs.
         uint32_t cell_capacity = std::max(1u, shape_count * grid_config.max_cells_per_shape);
-        m_impl->max_cell_shape_pair_count = std::min(cell_capacity, 1u << 20); // cap at 1M to stay within RadixSort limits
-        m_impl->max_output_pair_count = std::max(1u, std::min(shape_count * (shape_count - 1) / 2, 1u << 20)); // cap at 1M
+        m_impl->max_cell_shape_pair_count =
+            std::min(cell_capacity, 1u << 20); // cap at 1M to stay within RadixSort limits
+        m_impl->max_output_pair_count =
+            std::max(1u, std::min(shape_count * (shape_count - 1) / 2, 1u << 20)); // cap at 1M
 
         // Allocate buffers.
         m_impl->EnsureAllBuffers(shape_count);

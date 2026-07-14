@@ -89,8 +89,6 @@ namespace Engine {
         m_gpu_hinge_joints.reset();
         m_gpu_hinge_joint_alive.reset();
 
-        m_shape_filter_offset.clear();
-        m_shape_filter_count.clear();
         m_shape_filter_data.clear();
 
         m_gpu_rigid_body_alive.reset();
@@ -119,8 +117,6 @@ namespace Engine {
 
         m_gpu_model_matrices.reset();
 
-        m_gpu_shape_filter_offset.reset();
-        m_gpu_shape_filter_count.reset();
         m_gpu_shape_filter_data.reset();
     }
 
@@ -154,8 +150,9 @@ namespace Engine {
         m_shape_world_position.push_back(glm::vec4(0.0f));
         m_shape_world_rotation.push_back(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-        m_shape_filter_offset.push_back(0u);
-        m_shape_filter_count.push_back(0u);
+        for (uint32_t i = 0; i < MAX_FILTER_ENTRIES; ++i) {
+            m_shape_filter_data.push_back(INVALID_INDEX);
+        }
         return new_index;
     }
 
@@ -225,12 +222,11 @@ namespace Engine {
         m_shape_world_position[shape_index] = desc.world_position;
         m_shape_world_rotation[shape_index] = desc.world_rotation;
         m_shape_to_rigid_body[shape_index] = desc.bound_rigid_body;
+    }
 
-        m_shape_filter_offset[shape_index] = static_cast<uint32_t>(m_shape_filter_data.size());
-        m_shape_filter_count[shape_index] = static_cast<uint32_t>(desc.ignore_shape_indices.size());
-        m_shape_filter_data.insert(
-            m_shape_filter_data.end(), desc.ignore_shape_indices.begin(), desc.ignore_shape_indices.end()
-        );
+    void PhysicsScene::SetShapeFilters(const std::vector<uint32_t> &filter_data, uint32_t shape_count) {
+        assert(filter_data.size() == shape_count * MAX_FILTER_ENTRIES);
+        m_shape_filter_data = filter_data;
     }
 
     void PhysicsScene::SubmitFixedJoint(uint32_t joint_idx, const GpuFixedJoint &joint) {
@@ -276,8 +272,6 @@ namespace Engine {
             m_gpu_shape_world_position.get(),
             m_gpu_shape_world_rotation.get(),
             m_gpu_model_matrices.get(),
-            m_gpu_shape_filter_offset.get(),
-            m_gpu_shape_filter_count.get(),
             m_gpu_shape_filter_data.get(),
             m_gpu_fixed_joints.get(),
             m_gpu_fixed_joint_alive.get(),
@@ -369,10 +363,8 @@ namespace Engine {
 
         EnsureBuffer<glm::mat4>(m_gpu_model_matrices, allocator, m_gpu_rigid_body_slot_count, "Physics ModelMatrices");
 
-        EnsureBuffer<uint32_t>(m_gpu_shape_filter_offset, allocator, m_gpu_shape_slot_count, "Physics ShapeFilterOff");
-        EnsureBuffer<uint32_t>(m_gpu_shape_filter_count, allocator, m_gpu_shape_slot_count, "Physics ShapeFilterCnt");
         EnsureBuffer<uint32_t>(
-            m_gpu_shape_filter_data, allocator, m_shape_filter_data.size(), "Physics ShapeFilterData"
+            m_gpu_shape_filter_data, allocator, m_gpu_shape_slot_count * MAX_FILTER_ENTRIES, "Physics ShapeFilterData"
         );
 
         const uint32_t fixed_joint_count = static_cast<uint32_t>(m_fixed_joints.size());
@@ -411,8 +403,6 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_shape_world_position, MakeSpan(m_shape_world_position));
         submission.EnqueueBufferSubmission(*m_gpu_shape_world_rotation, MakeSpan(m_shape_world_rotation));
 
-        submission.EnqueueBufferSubmission(*m_gpu_shape_filter_offset, MakeSpan(m_shape_filter_offset));
-        submission.EnqueueBufferSubmission(*m_gpu_shape_filter_count, MakeSpan(m_shape_filter_count));
         submission.EnqueueBufferSubmission(*m_gpu_shape_filter_data, MakeSpan(m_shape_filter_data));
 
         if (fixed_joint_count > 0) {

@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace Engine {
@@ -202,7 +203,7 @@ namespace Engine {
 
         std::unordered_map<uint32_t, glm::vec3> m_com_offsets{};
 
-        std::unordered_map<uint32_t, std::vector<uint32_t>> m_resolved_filters{};
+        std::unordered_map<ComponentHandle, std::unordered_set<ComponentHandle>> m_filter_map{};
 
         bool m_physics_active{false};
     };

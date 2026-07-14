@@ -50,9 +50,9 @@ namespace Engine {
             FileSystemDatabase &db
         );
 
-        /// Collect all ObjectHandles of GameObjects that carry CollisionShapeComponents
-        /// in the given GameObject's subtree.
-        static std::vector<ObjectHandle> CollectCollisionObjectHandles(GameObject &root, Scene &scene);
+        /// Collect all ComponentHandles of CollisionShapeComponents in the given
+        /// GameObject's subtree.
+        static std::vector<ComponentHandle> CollectCollisionComponentHandles(GameObject &root, Scene &scene);
 
         std::weak_ptr<AssetManager> m_asset_manager{};
         std::weak_ptr<FileSystemDatabase> m_database{};

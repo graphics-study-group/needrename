@@ -12,6 +12,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <unordered_set>
 #include <vector>
 
 namespace Engine {
@@ -117,7 +118,7 @@ namespace Engine {
 
     void PhysicsAdaptor::Flush(RenderSystem &render_system) {
         if (m_pending_rigid_bodies.empty() && m_pending_shapes.empty() && m_pending_fixed_joints.empty()
-            && m_pending_hinge_joints.empty() && m_resolved_filters.empty()) {
+            && m_pending_hinge_joints.empty()) {
             return;
         }
 
@@ -127,30 +128,26 @@ namespace Engine {
             return;
         }
 
-        // Step 1: Resolve collision filters per pending shape
+        // Step 0: Update collision filter declarations from pending shapes
         for (auto &[shape_idx, shape_desc] : m_pending_shapes) {
-            if (shape_desc.ignore_collision_objects.empty()) continue;
-
-            std::vector<uint32_t> resolved;
-            for (ObjectHandle obj_handle : shape_desc.ignore_collision_objects) {
-                GameObject *target_go = m_scene.GetGameObject(obj_handle);
-                if (!target_go) continue;
-
-                for (ComponentHandle comp_handle : target_go->m_components) {
-                    auto *shape_comp = m_scene.GetComponent<CollisionShapeComponent>(comp_handle);
-                    if (!shape_comp) continue;
-                    uint32_t target_shape = shape_comp->GetPhysicsShapeIndex();
-                    if (target_shape != PhysicsScene::INVALID_INDEX) {
-                        resolved.push_back(target_shape);
-                    }
+            ComponentHandle src_handle;
+            for (auto &[ch, idx] : m_shape_component_to_index) {
+                if (idx == shape_idx) {
+                    src_handle = ch;
+                    break;
                 }
             }
-            std::sort(resolved.begin(), resolved.end());
-            resolved.erase(std::unique(resolved.begin(), resolved.end()), resolved.end());
-            m_resolved_filters[shape_idx] = std::move(resolved);
+            if (!src_handle.IsValid()) continue;
+
+            m_filter_map[src_handle] = {};
+            for (ComponentHandle tgt_handle : shape_desc.ignore_collision_shapes) {
+                if (!tgt_handle.IsValid()) continue;
+                if (tgt_handle == src_handle) continue;
+                m_filter_map[src_handle].insert(tgt_handle);
+            }
         }
 
-        // Step 2: COM + inertia computation
+        // Step 1: COM + inertia computation
         std::unordered_map<uint32_t, detail::ShapePose> shape_poses;
         for (auto &[rb_idx, rb_desc] : m_pending_rigid_bodies) {
             std::vector<detail::ShapeComputationData> shape_data;
@@ -212,12 +209,86 @@ namespace Engine {
             com_desc.bound_rigid_body =
                 (bind_it != m_shape_to_rigid_body.end()) ? bind_it->second : PhysicsScene::INVALID_INDEX;
 
-            auto filter_it = m_resolved_filters.find(shape_idx);
-            if (filter_it != m_resolved_filters.end()) {
-                com_desc.ignore_shape_indices = filter_it->second;
+            m_physics_scene.SubmitCollisionShape(shape_idx, com_desc);
+        }
+
+        // Step 3: Collision filter resolution
+        uint32_t shape_count = static_cast<uint32_t>(m_shape_component_to_index.size());
+        if (shape_count > 0) {
+            std::unordered_set<uint64_t> pair_set;
+            uint32_t invalid_warnings = 0;
+
+            for (auto &[src_ch, target_set] : m_filter_map) {
+                auto src_it = m_shape_component_to_index.find(src_ch);
+                if (src_it == m_shape_component_to_index.end()) {
+                    ++invalid_warnings;
+                    continue;
+                }
+                uint32_t src_idx = src_it->second;
+
+                for (ComponentHandle tgt_ch : target_set) {
+                    auto tgt_it = m_shape_component_to_index.find(tgt_ch);
+                    if (tgt_it == m_shape_component_to_index.end()) {
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_APPLICATION,
+                            "PhysicsAdaptor: filter target ComponentHandle %u not registered",
+                            tgt_ch.GetID()
+                        );
+                        continue;
+                    }
+                    uint32_t tgt_idx = tgt_it->second;
+
+                    if (src_idx == tgt_idx) continue;
+
+                    uint32_t a = src_idx < tgt_idx ? src_idx : tgt_idx;
+                    uint32_t b = src_idx > tgt_idx ? src_idx : tgt_idx;
+                    uint64_t pair_key = (static_cast<uint64_t>(a) << 32) | b;
+                    pair_set.insert(pair_key);
+                }
             }
 
-            m_physics_scene.SubmitCollisionShape(shape_idx, com_desc);
+            std::vector<uint64_t> pairs(pair_set.begin(), pair_set.end());
+            std::sort(pairs.begin(), pairs.end());
+
+            std::vector<std::vector<uint32_t>> per_shape(shape_count);
+            uint32_t skipped = 0;
+
+            for (uint64_t pk : pairs) {
+                uint32_t a = static_cast<uint32_t>(pk >> 32);
+                uint32_t b = static_cast<uint32_t>(pk & 0xFFFFFFFFu);
+
+                if (per_shape[a].size() >= PhysicsScene::MAX_FILTER_ENTRIES
+                    || per_shape[b].size() >= PhysicsScene::MAX_FILTER_ENTRIES) {
+                    ++skipped;
+                    continue;
+                }
+
+                per_shape[a].push_back(b);
+                per_shape[b].push_back(a);
+            }
+
+            if (skipped > 0) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "PhysicsAdaptor: %u filter pairs skipped due to MAX_FILTER_ENTRIES=%u capacity",
+                    skipped,
+                    PhysicsScene::MAX_FILTER_ENTRIES
+                );
+            }
+
+            std::vector<uint32_t> filter_data(
+                shape_count * PhysicsScene::MAX_FILTER_ENTRIES, PhysicsScene::INVALID_INDEX
+            );
+
+            for (uint32_t i = 0; i < shape_count; ++i) {
+                std::sort(per_shape[i].begin(), per_shape[i].end());
+                auto &list = per_shape[i];
+                for (uint32_t k = 0; k < list.size() && k < PhysicsScene::MAX_FILTER_ENTRIES; ++k) {
+                    filter_data[i * PhysicsScene::MAX_FILTER_ENTRIES + k] = list[k];
+                }
+            }
+
+            m_physics_scene.SetShapeFilters(filter_data, shape_count);
         }
 
         // Step 4: Fixed joint conversion
@@ -245,7 +316,6 @@ namespace Engine {
         m_pending_shapes.clear();
         m_pending_fixed_joints.clear();
         m_pending_hinge_joints.clear();
-        m_resolved_filters.clear();
 
         // Step 7: GPU sync
         m_physics_scene.SyncGpuBuffers(render_system);

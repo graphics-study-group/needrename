@@ -107,7 +107,7 @@ namespace Engine {
         desc.feature = effective_feature;
         desc.world_position = world_center;
         desc.world_rotation = world_rotation;
-        desc.ignore_collision_objects = m_ignore_collision_objects;
+        desc.ignore_collision_shapes = m_ignore_collision_shapes;
         return desc;
     }
 

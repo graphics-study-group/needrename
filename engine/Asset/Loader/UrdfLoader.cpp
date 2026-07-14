@@ -284,19 +284,29 @@ namespace Engine {
     //  Collision object handle collection
     // ══════════════════════════════════════════════════════════
 
-    std::vector<ObjectHandle> UrdfLoader::CollectCollisionObjectHandles(GameObject &root, Scene &scene) {
-        std::vector<ObjectHandle> result;
+    std::vector<ComponentHandle> UrdfLoader::CollectCollisionComponentHandles(GameObject &root, Scene &scene) {
+        std::vector<ComponentHandle> result;
         std::function<void(GameObject &)> collect = [&](GameObject &go) {
             for (ComponentHandle ch : go.m_components) {
                 if (dynamic_cast<CollisionShapeComponent *>(scene.GetComponent(ch))) {
-                    result.push_back(go.GetHandle());
-                    break;
+                    result.push_back(ch);
                 }
             }
             for (ObjectHandle child_h : go.GetChildren()) {
-                if (auto *child = scene.GetGameObject(child_h)) {
-                    collect(*child);
+                auto *child = scene.GetGameObject(child_h);
+                if (!child) continue;
+                // Stop at child link boundaries: if the child GO has its own
+                // RigidBodyComponent, it is another link whose collision shapes
+                // belong to a different joint and should not be collected here.
+                bool is_link_go = false;
+                for (ComponentHandle ch : child->m_components) {
+                    if (dynamic_cast<RigidBodyComponent *>(scene.GetComponent(ch))) {
+                        is_link_go = true;
+                        break;
+                    }
                 }
+                if (is_link_go) continue;
+                collect(*child);
             }
         };
         collect(root);
@@ -474,27 +484,36 @@ namespace Engine {
             auto *child_go = name_to_go[joint.child_link];
             if (!parent_go || !child_go) continue;
 
-            auto parent_collision_gos = CollectCollisionObjectHandles(*parent_go, temp_scene);
-            auto child_collision_gos = CollectCollisionObjectHandles(*child_go, temp_scene);
+            auto parent_collision_comps = CollectCollisionComponentHandles(*parent_go, temp_scene);
+            if (parent_collision_comps.empty()) continue;
 
-            std::function<void(GameObject &, const std::vector<ObjectHandle> &)> add_ignores =
-                [&](GameObject &go, const std::vector<ObjectHandle> &handles) {
-                    for (ComponentHandle ch : go.m_components) {
-                        if (auto *shape = dynamic_cast<CollisionShapeComponent *>(temp_scene.GetComponent(ch))) {
-                            for (ObjectHandle h : handles) {
-                                shape->m_ignore_collision_objects.push_back(h);
-                            }
+            // Recursively add ignore entries to all CollisionShapeComponents in
+            // the child link's subtree, stopping at child link GO boundaries.
+            std::function<void(GameObject &)> add_ignores = [&](GameObject &go) {
+                for (ComponentHandle ch : go.m_components) {
+                    if (auto *shape = dynamic_cast<CollisionShapeComponent *>(temp_scene.GetComponent(ch))) {
+                        for (ComponentHandle h : parent_collision_comps) {
+                            shape->m_ignore_collision_shapes.push_back(h);
                         }
                     }
-                    for (ObjectHandle child_h : go.GetChildren()) {
-                        if (auto *cgo = temp_scene.GetGameObject(child_h)) {
-                            add_ignores(*cgo, handles);
+                }
+                for (ObjectHandle child_h : go.GetChildren()) {
+                    auto *sub = temp_scene.GetGameObject(child_h);
+                    if (!sub) continue;
+                    bool is_link_go = false;
+                    for (ComponentHandle ch : sub->m_components) {
+                        if (dynamic_cast<RigidBodyComponent *>(temp_scene.GetComponent(ch))) {
+                            is_link_go = true;
+                            break;
                         }
                     }
-                };
+                    if (is_link_go) continue;
+                    add_ignores(*sub);
+                }
+            };
 
-            add_ignores(*parent_go, child_collision_gos);
-            add_ignores(*child_go, parent_collision_gos);
+            // Only set child ignoring parent; symmetry is guaranteed by PhysicsAdaptor.
+            add_ignores(*child_go);
         }
 
         // ── 7. StaticMeshComponent (render via collision geometry, on visual child GOs) ──

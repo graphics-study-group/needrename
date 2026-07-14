@@ -49,6 +49,7 @@ namespace Engine {
     class PhysicsScene {
     public:
         static constexpr uint32_t INVALID_INDEX = 0xFFFFFFFFu;
+        static constexpr uint32_t MAX_FILTER_ENTRIES = 8;
 
         explicit PhysicsScene(uint32_t scene_id);
         ~PhysicsScene();
@@ -73,6 +74,7 @@ namespace Engine {
 
         void SubmitRigidBody(uint32_t rigid_body_index, const RigidBodyComDescriptor &desc);
         void SubmitCollisionShape(uint32_t shape_index, const CollisionShapeComDescriptor &desc);
+        void SetShapeFilters(const std::vector<uint32_t> &filter_data, uint32_t shape_count);
         void SubmitFixedJoint(uint32_t joint_idx, const GpuFixedJoint &joint);
         void SubmitHingeJoint(uint32_t joint_idx, const GpuHingeJoint &joint);
 
@@ -105,8 +107,6 @@ namespace Engine {
 
             const ComputeBuffer *model_matrices{};
 
-            const ComputeBuffer *shape_filter_offset{};
-            const ComputeBuffer *shape_filter_count{};
             const ComputeBuffer *shape_filter_data{};
 
             const ComputeBuffer *gpu_fixed_joints{};
@@ -199,12 +199,8 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> m_gpu_hinge_joints{};
         std::unique_ptr<ComputeBuffer> m_gpu_hinge_joint_alive{};
 
-        std::vector<uint32_t> m_shape_filter_offset{};
-        std::vector<uint32_t> m_shape_filter_count{};
         std::vector<uint32_t> m_shape_filter_data{};
 
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_offset{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_count{};
         std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_data{};
     };
 } // namespace Engine

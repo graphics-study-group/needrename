@@ -478,9 +478,7 @@ namespace Engine {
                 // ====== PostCollision PreIter ======
                 barrier();
 
-                dispatch_clear(
-                    *m_impl->gpu_position_delta_count, *m_impl->gpu_body_count_buffer, body_wg
-                );
+                dispatch_clear(*m_impl->gpu_position_delta_count, *m_impl->gpu_body_count_buffer, body_wg);
                 barrier();
 
                 dispatch_clear(
@@ -548,7 +546,11 @@ namespace Engine {
                         srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
                         srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
                         srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-                        dispatch(*m_impl->accum_pos_stage, *m_impl->accum_pos_binding, (m_impl->max_contact_point + 63u) / 64u);
+                        dispatch(
+                            *m_impl->accum_pos_stage,
+                            *m_impl->accum_pos_binding,
+                            (m_impl->max_contact_point + 63u) / 64u
+                        );
                     }
                     barrier();
 
@@ -672,7 +674,11 @@ namespace Engine {
                         srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
                         srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
                         srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
-                        dispatch(*m_impl->accum_vel_stage, *m_impl->accum_vel_binding, (m_impl->max_contact_point + 63u) / 64u);
+                        dispatch(
+                            *m_impl->accum_vel_stage,
+                            *m_impl->accum_vel_binding,
+                            (m_impl->max_contact_point + 63u) / 64u
+                        );
                     }
                     barrier();
 

@@ -38,7 +38,7 @@ namespace Engine {
     /**
      * @brief GO-space collision shape descriptor submitted from component to PhysicsAdaptor during Init.
      *
-     * Carries shape type, feature, GO-world pose, and unresolved collision filter ObjectHandles.
+     * Carries shape type, feature, GO-world pose, and unresolved collision filter ComponentHandles.
      * The Adaptor resolves filters and converts to COM-local pose during Flush.
      */
     struct CollisionShapeDescriptor {
@@ -46,7 +46,7 @@ namespace Engine {
         glm::vec3 feature{0.5f, 0.5f, 0.5f};
         glm::vec3 world_position{0.0f, 0.0f, 0.0f};
         glm::quat world_rotation{1.0f, 0.0f, 0.0f, 0.0f};
-        std::vector<ObjectHandle> ignore_collision_objects{};
+        std::vector<ComponentHandle> ignore_collision_shapes{};
     };
 
     /**
@@ -108,7 +108,6 @@ namespace Engine {
      * local_position and local_rotation are COM-local values computed by the Adaptor.
      * world_position and world_rotation are GO-world values for GPU collision detection.
      * bound_rigid_body links the shape to its owning rigid body (INVALID_INDEX if unbound).
-     * ignore_shape_indices are resolved from ObjectHandles by the Adaptor.
      */
     struct CollisionShapeComDescriptor {
         uint32_t type{0};
@@ -118,7 +117,6 @@ namespace Engine {
         glm::vec4 world_position{0.0f, 0.0f, 0.0f, 0.0f};
         glm::vec4 world_rotation{0.0f, 0.0f, 0.0f, 0.0f};
         uint32_t bound_rigid_body{PhysicsScene::INVALID_INDEX};
-        std::vector<uint32_t> ignore_shape_indices{};
     };
 
 } // namespace Engine

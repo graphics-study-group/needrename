@@ -43,8 +43,9 @@
 - **Init** → Component builds GO-space Descriptor from its fields + GO world
   transform, calls `Adaptor::Submit*(idx, desc)`
 - **Scene::FlushPhysics** → Adaptor processes all pending:
-  - Resolves collision filters (ObjectHandle → shape indices)
   - Computes COM and inertia tensor (volume-weighted, parallel axis theorem)
+  - Resolves collision filters (ComponentHandle → shape indices, derives symmetry)
+  - Builds fixed-capacity GPU filter layout and submits via `SetShapeFilters`
   - Converts joints from GO-local to COM-local (pure function)
   - Builds COM-space Descriptors and submits to PhysicsScene
 - **GPU buffer** → COM-local values uploaded by `PhysicsScene::SyncGpuBuffers`,
@@ -71,6 +72,35 @@
   references the parent link GO. This eliminates the need to transform the
   joint axis through `joint.origin.rpy` — the axis is already in the child link
   frame.
+
+## Collision Filter System
+
+- **Collision filter** — A mechanism to prevent collision detection between specific
+  pairs of `CollisionShapeComponent`s. Each component declares `m_ignore_collision_shapes:
+  vector<ComponentHandle>`, targeting specific shape components to ignore.
+- **Filter symmetry** — If shape A ignores shape B, then B must also ignore A.
+  Symmetry is not stored in the filter map; it is derived at flush time by
+  `PhysicsAdaptor`. The invariant is: A is in B's GPU filter list if and only if
+  B is in A's.
+- **Filter declaration vs. symmetry** — `m_filter_map` in `PhysicsAdaptor` stores
+  only each component's own declarations (single direction). Symmetry is computed
+  during `Flush` by emitting unordered pairs `{min(a,b), max(a,b)}` and performing
+  greedy allocation.
+- **Fixed-capacity GPU layout** — Each shape has exactly `MAX_FILTER_ENTRIES = 8`
+  filter slots on the GPU, stored as a flat stride array: `filter_data[shape * 8 + k]`.
+  Unused slots hold `INVALID_INDEX (0xFFFFFFFF)`. This eliminates `filter_offset`
+  and `filter_count` buffers, replacing O(log n) binary search with a linear scan
+  over at most 8 entries.
+- **Greedy allocation with symmetry** — When filling per-shape filter slots,
+  pairs `(a, b)` are processed in sorted order. A pair is accepted only if both
+  `a` and `b` have remaining capacity. Otherwise the entire pair is skipped,
+  preserving symmetry.
+- **Full rebuild per frame** — `PhysicsScene::SetShapeFilters` replaces the entire
+  filter data array each frame. No append, no accumulation. Invalid or non-alive
+  shape references are filtered out during flush.
+- **URDF parent-child filtering** — Only the child link declares
+  `m_ignore_collision_shapes` targeting the parent link's collision components.
+  Symmetry is the Adaptor's responsibility; the loader does not mirror declarations.
 
 ## Physics Descriptors
 
