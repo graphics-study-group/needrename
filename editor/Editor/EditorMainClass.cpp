@@ -13,8 +13,8 @@ namespace Editor {
         std::shared_ptr<EditorMainClass> sptr{nullptr};
         // XXX: editor.dll crash when using this
         // std::call_once(m_instance_ready, [&] {
-            sptr = std::make_shared<EditorMainClass>();
-            m_instance = sptr;
+        sptr = std::make_shared<EditorMainClass>();
+        m_instance = sptr;
         // });
         return sptr;
     }
