@@ -33,6 +33,7 @@
 #include <Editor/Widget/ProjectWidget.h>
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
+#include <Editor/EditorMainClass.h>
 
 #include "CustomComponent.h"
 #include "meta_editor_run_game_example/reflection_init.inc"
@@ -143,7 +144,10 @@ int main(int argc, char **argv) {
 
     ResetExampleProject(project_template_path, project_path);
 
+    
+    auto emc = Editor::EditorMainClass::GetInstance();
     auto cmc = MainClass::GetInstance();
+
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     RegisterAllTypes();
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
@@ -155,6 +159,7 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
+    emc->Initialize();
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Add extra objects");
     auto input = MainClass::GetInstance()->GetInputSystem();

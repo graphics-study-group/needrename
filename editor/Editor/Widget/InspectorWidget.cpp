@@ -1,5 +1,7 @@
 #include "InspectorWidget.h"
 #include <Core/guid.h>
+#include <Editor/Inspector/DefaultComponentInspector.h>
+#include <Editor/Inspector/DefaultVarInspector.h>
 #include <Framework/component/Component.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Handle.h>
@@ -35,31 +37,7 @@ namespace Editor {
                 for (auto component_handle : game_object->m_components) {
                     auto component = scene.GetComponent(component_handle);
                     ImGui::PushID(component_idx++);
-                    auto component_type = Engine::Reflection::GetTypeFromObject(*component);
-                    if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, "<%s>", component_type->GetName().c_str())) {
-                        Engine::Reflection::Var component_var(component_type, component);
-                        unsigned int field_idx = 0;
-                        for (auto &[name, field] : component_type->GetAllFields()) {
-                            ImGui::PushID(field_idx++);
-                            this->InspectVar(name, field->GetVar(component_var.GetDataPtr()));
-                            ImGui::PopID();
-                        }
-                        for (auto &[name, array_field] : component_type->GetAllArrayFields()) {
-                            ImGui::PushID(field_idx++);
-                            auto array_var = component_var.GetArrayMember(name);
-                            if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
-                                size_t array_size = array_var.GetSize();
-                                for (unsigned int i = 0; i < array_size; ++i) {
-                                    ImGui::PushID(i);
-                                    this->InspectVar("[" + std::to_string(i) + "]", array_var.GetElement(i));
-                                    ImGui::PopID();
-                                }
-                                ImGui::TreePop();
-                            }
-                            ImGui::PopID();
-                        }
-                        ImGui::TreePop();
-                    }
+                    InspectComponent(*component);
                     ImGui::Separator();
                     ImGui::PopID();
                 }
@@ -111,107 +89,6 @@ namespace Editor {
             auto type = Engine::Reflection::GetType(type_name);
             if (type->IsDerivedFrom(component_type)) {
                 m_component_types.push_back(type->GetName());
-            }
-        }
-    }
-
-    void InspectorWidget::InspectVar(const std::string &name, Engine::Reflection::Var var) {
-        if (var.GetType()->GetName() == "int") {
-            int value = var.Get<int>();
-            ImGui::InputInt(name.c_str(), &value);
-            var.Set(value);
-        } else if (var.GetType()->GetName() == "float") {
-            float value = var.Get<float>();
-            ImGui::InputFloat(name.c_str(), &value);
-            var.Set(value);
-        } else if (var.GetType()->GetName() == "std::string") {
-            std::string value = var.Get<std::string>();
-            char buffer[256];
-            strncpy(buffer, value.c_str(), sizeof(buffer));
-            ImGui::InputText(name.c_str(), buffer, sizeof(buffer));
-            var.Set(std::string(buffer));
-        } else if (var.GetType()->GetName() == "bool") {
-            bool value = var.Get<bool>();
-            ImGui::Checkbox(name.c_str(), &value);
-            var.Set(value);
-        } else if (var.GetType()->GetName() == "glm::vec3") {
-            glm::vec3 value = var.Get<glm::vec3>();
-            ImGui::DragFloat3(name.c_str(), &value[0], 0.1f);
-            var.Set(value);
-        } else if (var.GetType()->GetName() == "glm::quat") {
-            glm::quat value = var.Get<glm::quat>();
-            ImGui::DragFloat4(name.c_str(), &value[0], 0.01f);
-            var.Set(glm::normalize(value));
-        } else if (var.GetType()->GetName() == "Engine::ObjectHandle") {
-            const Engine::ObjectHandle &handle = var.Get<Engine::ObjectHandle>();
-            const auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
-            ImGui::Text(
-                "%s: [GameObject]%s",
-                name.c_str(),
-                handle.IsValid() ? scene.GetGameObject(handle)->m_name.c_str() : "Invalid"
-            );
-        } else if (var.GetType()->GetName() == "Engine::ComponentHandle") {
-            const Engine::ComponentHandle &handle = var.Get<Engine::ComponentHandle>();
-            const auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
-            std::string display_text = "Invalid";
-            if (handle.IsValid()) {
-                const auto *component = scene.GetComponent(handle);
-                if (component) {
-                    const auto *go = component->GetParentGameObject();
-                    if (go) {
-                        display_text =
-                            go->m_name + " -> " + Engine::Reflection::GetTypeFromObject(*component)->GetName();
-                    }
-                }
-            }
-            ImGui::Text("%s: [Component]%s", name.c_str(), display_text.c_str());
-        } else if (var.GetType()->GetName() == "Engine::AssetRef") {
-            Engine::GUID asset_guid = var.InvokeMethod("GetGUID").Get<Engine::GUID>();
-            ImGui::Text("%s: [Asset]%s", name.c_str(), asset_guid.string().c_str());
-        } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum) {
-            auto enum_type = std::dynamic_pointer_cast<const Engine::Reflection::EnumType>(var.GetType());
-            if (enum_type) {
-                std::string current_value = std::string(var.GetEnumString());
-                if (ImGui::BeginCombo(name.c_str(), current_value.c_str())) {
-                    for (auto value : enum_type->GetEnumValues()) {
-                        std::string item_text = std::string(enum_type->to_string(value));
-                        bool is_selected = (item_text == current_value);
-                        if (ImGui::Selectable(item_text.c_str(), is_selected)) {
-                            var.SetEnumFromString(item_text);
-                            current_value = item_text;
-                        }
-                        if (is_selected) {
-                            ImGui::SetItemDefaultFocus();
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-            } else {
-                ImGui::Text("%s: <Invalid Enum Type>", name.c_str());
-            }
-        } else if (var.GetType()->IsReflectable()) {
-            if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, name.c_str())) {
-                unsigned int field_idx = 0;
-                for (auto &[name, field] : var.GetType()->GetAllFields()) {
-                    ImGui::PushID(field_idx++);
-                    this->InspectVar(name, field->GetVar(var.GetDataPtr()));
-                    ImGui::PopID();
-                }
-                for (auto &[name, array_field] : var.GetType()->GetAllArrayFields()) {
-                    ImGui::PushID(field_idx++);
-                    auto array_var = var.GetArrayMember(name);
-                    if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
-                        size_t array_size = array_var.GetSize();
-                        for (unsigned int i = 0; i < array_size; ++i) {
-                            ImGui::PushID(i);
-                            this->InspectVar("[" + std::to_string(i) + "]", array_var.GetElement(i));
-                            ImGui::PopID();
-                        }
-                        ImGui::TreePop();
-                    }
-                    ImGui::PopID();
-                }
-                ImGui::TreePop();
             }
         }
     }
