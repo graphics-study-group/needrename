@@ -11,6 +11,7 @@
 #include <Physics/PhysicsSystem.h>
 #include <Reflection/Type.h>
 #include <algorithm>
+#include <unordered_set>
 
 namespace Engine {
     Scene::Scene(uint32_t sceneID, bool enable_rendering, bool enable_physics) :
@@ -91,24 +92,33 @@ namespace Engine {
             m_game_objects.push_back(std::move(go_ptr));
         }
         m_go_add_queue.clear();
+        // Expand removal queue to include all descendants for recursive subtree deletion.
+        {
+            std::unordered_set<uint32_t> queued;
+            for (auto handle : m_go_remove_queue) {
+                queued.insert(handle.GetID());
+            }
+            for (size_t i = 0; i < m_go_remove_queue.size(); ++i) {
+                auto *go_ptr = this->GetGameObject(m_go_remove_queue[i]);
+                if (go_ptr == nullptr) continue;
+                for (auto child_handle : go_ptr->m_childGameObject) {
+                    if (queued.insert(child_handle.GetID()).second) {
+                        m_go_remove_queue.push_back(child_handle);
+                    }
+                }
+            }
+        }
+
         for (auto handle : m_go_remove_queue) {
             auto go_ptr = this->GetGameObject(handle);
             if (go_ptr == nullptr) {
                 continue;
             }
 
-            // Remove deleted node from its parent's child list.
             if (go_ptr->m_parentGameObject.IsValid()) {
                 if (auto *parent_go = this->GetGameObject(go_ptr->m_parentGameObject)) {
                     auto &children = parent_go->m_childGameObject;
                     children.erase(std::remove(children.begin(), children.end(), handle), children.end());
-                }
-            }
-
-            // Promote direct children to roots when parent is removed.
-            for (auto child_handle : go_ptr->m_childGameObject) {
-                if (auto *child_go = this->GetGameObject(child_handle)) {
-                    child_go->m_parentGameObject.Reset();
                 }
             }
 

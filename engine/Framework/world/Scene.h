@@ -96,9 +96,13 @@ namespace Engine {
         }
 
         /**
-         * @brief Remove a GameObject from the scene.
+         * @brief Remove a GameObject and all its descendants from the scene.
+         *
          * The remove operation is queued and processed via Scene::FlushCmdQueue().
-         * @param handle The GameObject handle to remove.
+         * All child GameObjects in the subtree rooted at the given handle will
+         * also be removed recursively.
+         *
+         * @param handle The root GameObject handle to remove.
          */
         void RemoveGameObject(ObjectHandle handle);
 
