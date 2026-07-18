@@ -90,12 +90,12 @@ namespace Engine {
          * The reflection system cannot handle std::variant, so we manually
          * write each joint as a tagged JSON object.
          */
-        void save_to_archive(Serialization::Archive &archive) const;
+        virtual void save_to_archive(Serialization::Archive &archive) const override;
 
         /**
          * @brief Custom deserialization for m_joints variant vector.
          */
-        void load_from_archive(Serialization::Archive &archive);
+        virtual void load_from_archive(Serialization::Archive &archive) override;
 
     public:
         /// Joint definitions.
