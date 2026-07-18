@@ -3,6 +3,7 @@
 #include <Framework/component/Component.h>
 #include <Framework/component/physics/RigidBodyComponent.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/HandleResolver.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/physics/PhysicsAdaptor.h>
 #include <Reflection/Archive.h>
@@ -217,17 +218,18 @@ namespace Engine {
             return;
         }
 
+        auto &resolver = archive.GetOrCreateResolver<HandleResolver>();
         m_joints.clear();
         for (const auto &j : json["m_joints"]) {
             const std::string type = j.value("type", "");
             if (type == "fixed") {
                 FixedJointDef def;
-                def.m_obj2_handle = ObjectHandle(j.value("obj2_handle", 0u));
+                def.m_obj2_handle = resolver.m_obj_map[j.value("obj2_handle", 0u)];
                 def.m_compliance = j.value("compliance", 0.0f);
                 m_joints.push_back(def);
             } else if (type == "hinge") {
                 HingeJointDef def;
-                def.m_obj2_handle = ObjectHandle(j.value("obj2_handle", 0u));
+                def.m_obj2_handle = resolver.m_obj_map[j.value("obj2_handle", 0u)];
                 def.m_compliance = j.value("compliance", 0.0f);
                 if (j.contains("hinge_axis") && j["hinge_axis"].is_array() && j["hinge_axis"].size() >= 3) {
                     def.m_hinge_axis_obj1 = glm::vec3(
