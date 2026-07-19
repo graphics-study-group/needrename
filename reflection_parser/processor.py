@@ -113,7 +113,10 @@ class ReflectionParser:
                 current_type.fields.append(field)
                 flag = True
             elif child.kind == CX.CursorKind.CONSTRUCTOR:
-                current_type.constructors.append(Method(child))
+                constructor = Method(child)
+                current_type.constructors.append(constructor)
+                if constructor.is_backdoor_constructor:
+                    current_type.has_backdoor_constructor = True
                 flag = True
             elif child.kind == CX.CursorKind.CXX_METHOD:
                 current_type.methods.append(Method(child))

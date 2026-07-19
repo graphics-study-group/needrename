@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
     camera_go.SetTransform(transform);
     auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
     camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    auto &control_comp = camera_go.template AddComponent<ControlComponent>();
+    camera_go.template AddComponent<ControlComponent>();
     cmc->GetWorldSystem()->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");

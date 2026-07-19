@@ -14,7 +14,7 @@ namespace Engine {
      * share their memory for vertex and index buffers.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) StaticMeshComponent : public RendererComponent {
-        REFL_SER_BODY(StaticMeshComponent)
+        REFL_SER_BODY_OVERRIDE(StaticMeshComponent)
     public:
         REFL_ENABLE StaticMeshComponent(const GameObject &parent) : RendererComponent(parent) {};
         virtual ~StaticMeshComponent() = default;

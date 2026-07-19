@@ -17,7 +17,7 @@ namespace Engine {
      * The data should be deserialized into Scene directly
      */
     class REFL_SER_CLASS(REFL_WHITELIST) SceneAsset : public Asset {
-        REFL_SER_BODY(SceneAsset)
+        REFL_SER_BODY_OVERRIDE(SceneAsset)
     public:
         SceneAsset() = default;
         virtual ~SceneAsset();

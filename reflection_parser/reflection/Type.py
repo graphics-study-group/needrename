@@ -12,6 +12,7 @@ class Type:
         self.serialized_fields = []
         self.constructors = []
         self.methods = []
+        self.has_backdoor_constructor = False
 
 
 class Enum:
@@ -30,12 +31,15 @@ class Method:
         self.return_type = Type(cx_method.result_type)
         self.return_type_is_reference = cx_method.result_type.get_canonical().kind in [CX.TypeKind.LVALUEREFERENCE, CX.TypeKind.RVALUEREFERENCE]
         self.is_const = cx_method.is_const_method()
+        self.is_backdoor_constructor = False
         
         self.arg_types = []
         for method_child in cx_method.get_children():
             if method_child.kind == CX.CursorKind.PARM_DECL:
                 self.arg_types.append(Type(method_child.type))
-    
+        if len(self.arg_types) == 1 and self.arg_types[0].full_name == "Engine::Serialization::SerializationMarker":
+            self.is_backdoor_constructor = True
+
 
 class Field:
     def __init__(self, cx_field: CX.Cursor):
@@ -48,9 +52,11 @@ class Field:
         if self.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
             self.array_type = "ConstArray"
             self.element_type_full_name =  get_type_full_name(self.type.cx_type.get_array_element_type())
-        elif self.type.cx_type.kind == CX.TypeKind.ELABORATED and self.type.full_name.startswith("std::vector<"):
+        elif (self.type.cx_type.kind == CX.TypeKind.ELABORATED or self.type.cx_type.kind == CX.TypeKind.UNEXPOSED) \
+                and (self.type.full_name.startswith("std::vector<") or self.type.full_name.startswith("std::__1::vector<")):
             self.array_type = "StdVector"
             self.element_type_full_name = get_type_full_name(self.type.cx_type.get_template_argument_type(0))
-        elif self.type.cx_type.kind == CX.TypeKind.ELABORATED and self.type.full_name.startswith("std::array<"):
+        elif (self.type.cx_type.kind == CX.TypeKind.ELABORATED or self.type.cx_type.kind == CX.TypeKind.UNEXPOSED) \
+                and (self.type.full_name.startswith("std::array<") or self.type.full_name.startswith("std::__1::array<")):
             self.array_type = "StdArray"
             self.element_type_full_name = get_type_full_name(self.type.cx_type.get_template_argument_type(0))

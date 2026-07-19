@@ -71,45 +71,37 @@ namespace {
             || desc.extent.depth > max_extent.depth) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image extent exceeded capability: {}x{}x{} > {}x{}x{}",
-                    desc.extent.width,
-                    desc.extent.height,
-                    desc.extent.depth,
-                    max_extent.width,
-                    max_extent.height,
-                    max_extent.depth
-                )
-                    .c_str()
+                "Image extent exceeded capability: %ux%ux%u > %ux%ux%u",
+                desc.extent.width,
+                desc.extent.height,
+                desc.extent.depth,
+                max_extent.width,
+                max_extent.height,
+                max_extent.depth
             );
             return false;
         }
         if (desc.miplevel > ifp.imageFormatProperties.maxMipLevels) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image miplevel exceeded capability: {} > {}", desc.miplevel, ifp.imageFormatProperties.maxMipLevels
-                )
-                    .c_str()
+                "Image miplevel exceeded capability: %u > %u",
+                desc.miplevel,
+                ifp.imageFormatProperties.maxMipLevels
             );
             return false;
         }
         if (desc.array_layers > ifp.imageFormatProperties.maxArrayLayers) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image array layer exceeded capability: {} > {}",
-                    desc.array_layers,
-                    ifp.imageFormatProperties.maxArrayLayers
-                )
-                    .c_str()
+                "Image array layer exceeded capability: %u > %u",
+                desc.array_layers,
+                ifp.imageFormatProperties.maxArrayLayers
             );
             return false;
         }
         if (!(desc.samples & ifp.imageFormatProperties.sampleCounts)) {
             SDL_LogError(
-                SDL_LOG_CATEGORY_RENDER,
-                std::format("Requested multisample not supported: {}", to_string(desc.samples)).c_str()
+                SDL_LOG_CATEGORY_RENDER, "Requested multisample not supported: %s", to_string(desc.samples).c_str()
             );
             return false;
         }
@@ -163,6 +155,7 @@ namespace Engine::RenderSystemState {
                 image_prop_itr = m_format_properties.insert(std::make_pair(format, fp)).first;
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
+                    "%s",
                     std::format(
                         R"(Querying format capability for {}:
     Linear tiling:  {}
@@ -194,6 +187,7 @@ namespace Engine::RenderSystemState {
                 image_format_prop_itr = m_image_format_properties.insert(std::make_pair(pdifi, ifp)).first;
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
+                    "%s",
                     std::format(
                         R"(Querying image capability for {}:
     Max extent:         {}x{}x{}
@@ -239,7 +233,7 @@ namespace Engine::RenderSystemState {
         }
     };
 
-    AllocatorState::AllocatorState(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
+    AllocatorState::AllocatorState(RenderSystem &system) : pimpl(std::make_unique<impl>()), m_system(system) {
     }
     AllocatorState::~AllocatorState() {
         vmaDestroyAllocator(pimpl->m_allocator);
@@ -288,7 +282,7 @@ namespace Engine::RenderSystemState {
     ) const noexcept try {
         return std::make_unique<BufferAllocation>(AllocateBuffer(type, size, name));
     } catch (std::exception &e) {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER, e.what());
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, "%s", e.what());
         return nullptr;
     }
 
@@ -297,7 +291,7 @@ namespace Engine::RenderSystemState {
     ) const noexcept try {
         return std::make_unique<ImageAllocation>(AllocateImage(desc, name));
     } catch (std::exception &e) {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER, e.what());
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, "%s", e.what());
         return nullptr;
     }
 
@@ -315,6 +309,7 @@ namespace Engine::RenderSystemState {
         if (fsupport.first <= 0) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
+                "%s",
                 std::format(
                     "Format {} does not support requested features. We requested: {} but only {} are supported.",
                     to_string(desc.format),

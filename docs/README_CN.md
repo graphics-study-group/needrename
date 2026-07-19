@@ -6,50 +6,115 @@
 
 ## 构建引擎
 
+我们建议使用 **MSYS2 CLANG64** 子系统构建项目并管理依赖包。
+
 ### 依赖项
 
-- GCC 14 或更高版本
-- CMake
-- Python 3
-- Vulkan SDK 1.3 或更高版本（已在 1.4.313 上测试）
-- SDL3（已在 3.2.18 上测试）
+| 依赖 | MSYS2 软件包 |
+|---|---|
+| Clang 22（工具链） | `mingw-w64-clang-x86_64-toolchain` |
+| CMake | `mingw-w64-clang-x86_64-cmake` |
+| Ninja | （随 CMake 附带） |
+| Python 3 | `mingw-w64-clang-x86_64-python` |
+| Vulkan 加载器 + 头文件 | `mingw-w64-clang-x86_64-vulkan-loader` `mingw-w64-clang-x86_64-vulkan-headers` |
+| Vulkan 验证层 | `mingw-w64-clang-x86_64-vulkan-validation-layers` |
+| glslang（着色器编译器） | `mingw-w64-clang-x86_64-glslang` |
+| SDL3 | `mingw-w64-clang-x86_64-sdl3` |
+| LLDB（调试器） | `mingw-w64-clang-x86_64-lldb` `mingw-w64-clang-x86_64-lldb-mi` |
+| Doxygen（可选） | `mingw-w64-clang-x86_64-doxygen` |
 
-其他第三方依赖可在 `third_party` 目录中找到。
+其他第三方依赖（glm、SPIRV-Cross、imgui 等）位于 `third_party` 目录，由 CMake 自动构建。
 
-在 Windows 环境下，建议使用 MSYS2。可通过以下命令配置环境：
+#### 一键安装
 
 ```sh
-pacman -S mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake
+pacman -S \
+  mingw-w64-clang-x86_64-toolchain \
+  mingw-w64-clang-x86_64-cmake \
+  mingw-w64-clang-x86_64-python \
+  mingw-w64-clang-x86_64-vulkan-loader \
+  mingw-w64-clang-x86_64-vulkan-headers \
+  mingw-w64-clang-x86_64-vulkan-validation-layers \
+  mingw-w64-clang-x86_64-glslang \
+  mingw-w64-clang-x86_64-sdl3 \
+  mingw-w64-clang-x86_64-lldb \
+  mingw-w64-clang-x86_64-lldb-mi
 ```
-
-这会为 UCRT64 子系统安装 GCC 和 CMake。
-
-Vulkan SDK 应从 LunarG 下载安装，**不要**从 MSYS2 的 `pacman` 仓库安装，因为后者缺少一些组件，且与 CMake 集成困难。
-
-SDL3 也建议手动安装。
-可以从 [其发布页面](https://github.com/libsdl-org/SDL/releases/) 获取。
-选择 `SDL3-devel-3.X.XX-mingw.tar.gz`，解压到某处后：
-
-- 新增环境变量 `SDL3_DIR`，指向 `SDL3-3.X.XX\cmake`
-- 在 `PATH` 中添加 `SDL3-3.X.XX\x86_64-w64-mingw32\bin`
-
-CMake 应能自动检测。
 
 ### 构建步骤
 
-1. `git clone` 本仓库（带 `--recursive` 参数）
-2. 配置并构建项目（需安装 Vulkan SDK）：
+1. 克隆仓库（含子模块）：
 
 ```sh
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -G "MinGW Makefiles"
-mingw32-make
+git clone --recursive <仓库地址>
 ```
 
-也可以使用你喜欢的 IDE。
-如果在 Windows 上使用 Visual Studio Code，更新环境变量后，集成终端和 CMake 可能不会使用更新后的值。
-确保在重启前杀死所有后台 VSCode 进程，或直接[重新登录/重启电脑](https://github.com/microsoft/vscode/issues/69289#issuecomment-467595799)。
+2. 使用 CMake 配置。确保 Shell 已激活 CLANG64 环境（`MSYSTEM=CLANG64`，且 `clang64/bin`、`usr/bin` 在 `PATH` 中）：
+
+```sh
+cmake --preset debug
+```
+
+3. 构建：
+
+```sh
+cmake --build --preset debug
+```
+
+也提供了 `release` preset，详见 `CMakePresets.json`。
+
+### 运行时环境
+
+运行本项目构建的任何可执行文件前，需要设置以下环境变量：
+
+| 变量 | 值 | 用途 |
+|---|---|---|
+| `PATH` | 前置 `<msys2>/clang64/bin` 和 `<msys2>/usr/bin` | 查找运行时 DLL（SDL3、Vulkan 加载器、libc++ 等） |
+| `VK_LAYER_PATH` | `<msys2>/clang64/bin` | 查找 Vulkan 验证层（Debug 构建） |
+
+其中 `<msys2>` 是你的 MSYS2 安装根目录（例如 `C:\msys2`）。
+
+在 PowerShell 中：
+
+```powershell
+$env:Path = "C:\msys2\clang64\bin;C:\msys2\usr\bin;$env:Path"
+$env:VK_LAYER_PATH = "C:\msys2\clang64\bin"
+./build/debug/test/project_loading_test.exe
+```
+
+### VS Code 配置
+
+推荐安装以下 VS Code 扩展：
+
+- **CMake Tools** (`ms-vscode.cmake-tools`)
+- **C/C++** (`ms-vscode.cpptools`)
+- **CodeLLDB** (`vadimcn.vscode-lldb`) — 用于 LLDB 调试
+
+在 `.vscode/settings.json` 中创建以下内容，将路径替换为你的 MSYS2 实际安装路径：
+
+```jsonc
+{
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "cmake.environment": {
+        "MSYSTEM": "CLANG64",
+        "PATH": "<msys2>\\clang64\\bin;<msys2>\\usr\\bin;${env:Path}",
+        "VK_LAYER_PATH": "<msys2>\\clang64\\bin"
+    },
+    "cmake.generator": "Ninja",
+    "C_Cpp.default.compilerPath": "<msys2>\\clang64\\bin\\clang++.exe",
+    "cmake.debugConfig": {
+        "type": "lldb",
+        "program": "${command:cmake.launchTargetPath}",
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PATH": "<msys2>\\clang64\\bin;<msys2>\\usr\\bin;${env:Path}",
+            "VK_LAYER_PATH": "<msys2>\\clang64\\bin"
+        }
+    }
+}
+```
+
+将 `<msys2>` 替换为你的 MSYS2 实际路径（例如 `C:\msys2`）。
 
 ## 项目结构
 

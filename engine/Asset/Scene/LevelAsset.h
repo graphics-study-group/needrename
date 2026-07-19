@@ -21,7 +21,7 @@ namespace Engine {
      * Note 2: ObjectHandle and ComponentHandle can not be serialized out of m_archive in SceneAsset.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) LevelAsset : public SceneAsset {
-        REFL_SER_BODY(LevelAsset)
+        REFL_SER_BODY_OVERRIDE(LevelAsset)
     public:
         REFL_ENABLE LevelAsset() = default;
         ~LevelAsset() = default;

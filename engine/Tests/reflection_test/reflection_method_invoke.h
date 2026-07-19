@@ -38,7 +38,7 @@ protected:
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) FooA : public FooBase, public BBase {
-    REFL_SER_BODY(FooA)
+    REFL_SER_BODY_OVERRIDE(FooA)
 public:
     REFL_ENABLE FooA(int a, int b);
     virtual ~FooA() = default;
@@ -49,7 +49,7 @@ public:
     REFL_ENABLE void PrintInfo();
     REFL_ENABLE int Add(int a, int b);
     REFL_ENABLE int Add(int a, int b, int c);
-    REFL_ENABLE virtual void PrintHelloWorld() const;
+    REFL_ENABLE virtual void PrintHelloWorld() const override;
 };
 
 inline void FooBase::PrintHelloWorld() const {

@@ -14,13 +14,14 @@
 #include "MainClass.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/PhysicsSystem.h"
-#include "Physics/Solver/XpbdGpuSolver.h"
+#include "Physics/Solver/XPBDGpuSolver.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "UserInterface/Input.h"
 #include "cmake_config.h"
+#include <Framework/component/physics/PhysicsConstraintComponent.h>
 
 #include <Framework/component/physics/RigidBodyComponent.h>
 
@@ -289,7 +290,7 @@ int main(int /*argc*/, char ** /*argv*/) {
         root.SetTransform(t);
     }
 
-    SceneBuilder builder(scene, adb, root, *cmc->GetRenderSystem());
+    SceneBuilder builder(scene, adb, root);
 
     // ---- Ground plane (kinematic, large flat box in XY, thin in Z) ----
     // Z is up, so the floor extends in X and Y, centered at z = -0.5.
@@ -308,6 +309,31 @@ int main(int /*argc*/, char ** /*argv*/) {
         for (int j = 0; j < n; ++j)
             AddTemplateScene(builder, adb, glm::vec3((i - n / 2.0f) * margin, (j - n / 2.0f) * margin, 0.0f));
     // AddTemplateScene2(builder, adb, glm::vec3(0.0f, 0.0f, 0.0f));
+
+    // {
+    //     auto &box1 = builder.AddBox({
+    //         .position = {0.0f, 0.0f, 3.0f},
+    //         .half_extents = {2.0f, 0.5f, 0.5f},
+    //         .mass = 6.0f,
+    //         .kinematic = false,
+    //         .material = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"}),
+    //     });
+
+    //     auto &box2 = builder.AddCylinder({
+    //         .position = {2.6f, 0.0f, 3.0f},
+    //         .radius = 0.5f,
+    //         .half_height = 2.0f,
+    //         .mass = 0.1f,
+    //         .kinematic = false,
+    //         .material = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"}),
+    //     });
+
+    //     auto &constraint = box2.AddComponent<PhysicsConstraintComponent>();
+    //     FixedJointDef fixed{};
+    //     fixed.m_obj2_handle = box1.GetHandle();
+    //     fixed.m_compliance = 0.0f;
+    //     constraint.m_joints.push_back(fixed);
+    // }
 
     // --- Camera setup ---
     // Z is up, camera is positioned to the side looking at the falling zone.

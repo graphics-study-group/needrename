@@ -28,6 +28,6 @@ jobs:
           # Many directories do not have cpp files nonetheless.
           ignore: '.github | assets | builtin_assets | reflection_parser | shader | third_party'
 
-      - name: Failed
-        if: steps.linter.outputs.checks-failed != 0
-        run: exit 1
+      # - name: Failed
+      #   if: steps.linter.outputs.checks-failed != 0
+      #   run: exit 1

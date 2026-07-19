@@ -5,7 +5,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsScene.h>
-#include <Physics/Solver/XpbdGpuSolver.h>
+#include <Physics/Solver/XPBDGpuSolver.h>
 #include <Render/Memory/ComputeBuffer.h>
 #include <Render/Memory/DeviceBuffer.h>
 #include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>

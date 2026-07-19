@@ -18,7 +18,7 @@ namespace Engine {
      * of the mesh to be drawn.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialLibraryAsset : public Asset {
-        REFL_SER_BODY(MaterialLibraryAsset)
+        REFL_SER_BODY_OVERRIDE(MaterialLibraryAsset)
     public:
         struct REFL_SER_CLASS(REFL_BLACKLIST) MaterialTemplateReference {
             REFL_SER_SIMPLE_STRUCT(MaterialTemplateReference)

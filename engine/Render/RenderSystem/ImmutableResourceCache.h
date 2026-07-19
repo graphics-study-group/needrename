@@ -12,7 +12,7 @@ namespace vk {
 
 namespace Engine {
     namespace ImageUtils {
-        class SamplerDesc;
+        struct SamplerDesc;
     }
 
     namespace RenderSystemState {

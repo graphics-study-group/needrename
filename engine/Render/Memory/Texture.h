@@ -2,7 +2,9 @@
 #define RENDER_MEMORY_TEXTURE_INCLUDED
 
 #include "Render/ImageUtils.h"
+
 #include <memory>
+#include <string>
 
 namespace vk {
     class Image;
@@ -14,7 +16,7 @@ namespace Engine {
     class RenderSystem;
     class AllocatedMemory;
     class DeviceBuffer;
-    class TextureSubresourceRange;
+    struct TextureSubresourceRange;
 
     namespace RenderSystemState {
         class AllocatorState;

@@ -36,7 +36,7 @@ public:
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) VirtualDerived1 : virtual public VirtualBase {
-    REFL_SER_BODY(VirtualDerived1)
+    REFL_SER_BODY_OVERRIDE(VirtualDerived1)
 public:
     REFL_ENABLE VirtualDerived1() = default;
     virtual ~VirtualDerived1() = default;
@@ -45,7 +45,7 @@ public:
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) VirtualDerived2 : virtual public VirtualBase {
-    REFL_SER_BODY(VirtualDerived2)
+    REFL_SER_BODY_OVERRIDE(VirtualDerived2)
 public:
     REFL_ENABLE VirtualDerived2() = default;
     virtual ~VirtualDerived2() = default;
@@ -54,7 +54,7 @@ public:
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) VirtualDiamond : public VirtualDerived1, public VirtualDerived2 {
-    REFL_SER_BODY(VirtualDiamond)
+    REFL_SER_BODY_OVERRIDE(VirtualDiamond)
 public:
     REFL_ENABLE VirtualDiamond() = default;
     virtual ~VirtualDiamond() = default;
@@ -72,7 +72,7 @@ public:
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) NonVirtualDerived : public NonVirtualBase {
-    REFL_SER_BODY(NonVirtualDerived)
+    REFL_SER_BODY_OVERRIDE(NonVirtualDerived)
 public:
     REFL_ENABLE NonVirtualDerived() = default;
     virtual ~NonVirtualDerived() = default;

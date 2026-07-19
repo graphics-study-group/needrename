@@ -12,7 +12,7 @@ public:
     virtual ~ArrayTest() = default;
 
     REFL_SER_ENABLE int m_array_int[5] = {0};
-    REFL_SER_ENABLE int m_array_int2[9][10] = {0};
+    REFL_SER_ENABLE int m_array_int2[9][10] = {};
     REFL_ENABLE std::vector<float> m_vector_float{};
     REFL_ENABLE std::array<double, 12> m_array_double{};
 };

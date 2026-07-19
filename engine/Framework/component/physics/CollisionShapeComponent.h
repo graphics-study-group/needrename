@@ -16,7 +16,7 @@ namespace Engine {
      * one shape record into PhysicsScene during Awake.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) CollisionShapeComponent : public Component {
-        REFL_SER_BODY(CollisionShapeComponent)
+        REFL_SER_BODY_OVERRIDE(CollisionShapeComponent)
     public:
         /**
          * @brief Construct a collision shape component.

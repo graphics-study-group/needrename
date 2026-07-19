@@ -6,7 +6,7 @@
 #include <string>
 
 namespace vk {
-    class Extent2D;
+    struct Extent2D;
 }
 
 namespace Engine {

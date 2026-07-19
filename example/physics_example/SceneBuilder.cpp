@@ -14,8 +14,8 @@
 
 using namespace Engine;
 
-SceneBuilder::SceneBuilder(Scene &scene, FileSystemDatabase &adb, GameObject &root, RenderSystem &render_system) :
-    m_scene(scene), m_adb(adb), m_root(root), m_render_system(render_system) {
+SceneBuilder::SceneBuilder(Scene &scene, FileSystemDatabase &adb, GameObject &root) :
+    m_scene(scene), m_adb(adb), m_root(root) {
     // Load the builtin meshes once — all instances share them.
     m_cube_mesh = adb.GetNewAssetRef(AssetPath{adb, "~/mesh/cube.asset"});
     m_sphere_mesh = adb.GetNewAssetRef(AssetPath{adb, "~/mesh/sphere.asset"});

@@ -83,6 +83,7 @@ void ${class_type.full_name}::_SERIALIZATION_LOAD_(Engine::Serialization::Archiv
     Engine::Serialization::Json &json = *archive.m_cursor;
     ${generate_type_load(class_type)}
 }
+% if class_type.has_backdoor_constructor:
 ${class_type.full_name}::${class_type.name}(Engine::Serialization::SerializationMarker marker) \
 <%
 base_type_name_list = []
@@ -103,6 +104,7 @@ ${base_type_name}(marker)\
 % endfor
 {
 }
+% endif
 % endfor
 
 #pragma GCC diagnostic pop

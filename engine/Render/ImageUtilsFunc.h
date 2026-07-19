@@ -135,7 +135,7 @@ namespace Engine {
         }
 
         constexpr vk::ImageViewType InferImageViewType(const TextureDesc &desc) {
-            vk::ImageViewType view_type;
+            vk::ImageViewType view_type{};
             if (desc.is_cube_map) {
                 assert(desc.array_layers > 0 && desc.array_layers % 6 == 0);
                 view_type = desc.array_layers > 6 ? vk::ImageViewType::eCubeArray : vk::ImageViewType::eCube;
@@ -152,6 +152,7 @@ namespace Engine {
                     view_type = vk::ImageViewType::e3D;
                     break;
                 default:
+                    (void)view_type;
                     assert(!"Cannot construct an texture image on spaces that cannot be embedded into 3D Riemmanian "
                             "manifolds.");
                 }

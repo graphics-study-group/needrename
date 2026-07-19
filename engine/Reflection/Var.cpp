@@ -204,7 +204,7 @@ namespace Engine {
             if (index >= GetSize()) throw std::runtime_error("Index out of range");
             auto ret = m_field->GetElementVar(m_data, index);
             if (m_is_const) {
-                ret = std::move(ret.GetConstVar());
+                ret = ret.GetConstVar();
             }
             return ret;
         }

@@ -17,7 +17,7 @@ namespace Engine {
      * @brief An asset for a cubemap
      */
     class REFL_SER_CLASS(REFL_WHITELIST) ImageCubemapAsset : public TextureAsset {
-        REFL_SER_BODY(ImageCubemapAsset)
+        REFL_SER_BODY_OVERRIDE(ImageCubemapAsset)
     public:
         REFL_ENABLE ImageCubemapAsset();
         virtual ~ImageCubemapAsset() override;

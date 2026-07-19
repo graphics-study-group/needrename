@@ -32,7 +32,7 @@ namespace Engine {
             }
         }
 
-        bool IsValid() const {
+        bool IsValid() const override {
             return !m_object.expired();
         }
 

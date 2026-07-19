@@ -1,72 +1,54 @@
 ## Project Overview
 
-This project is a C++ game engine with:
+C++20 game engine: Vulkan rendering, GPU physics, Python/libclang reflection, component-based framework.
 
-- **Vulkan-based rendering** with multi-tier descriptor set architecture
-- **Python-powered reflection/serialization** via libclang parsing at compile time
-- **Component-based game framework** with World → Scene → GameObject/Component hierarchy
+## Build
 
-## Build Requirements
+**Toolchain**: MSYS2 CLANG64, Clang 22, target `x86_64-w64-windows-gnu`, Ninja generator. See `README.md` for dependencies.
+If you can't find MSYS2, try to find clues from the configuration in the `.vscode` folder.
 
-- **Compiler**: GCC only (not Clang/MSVC)
-- **Standard**: C++20
-- **Dependencies**: CMake, Python 3, Vulkan SDK 1.3+, SDL3
-- **Build**: Out-of-source `mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug -G "MinGW Makefiles"`
+```sh
+# Configure (debug or release)
+cmake --preset debug
 
-## Core Architecture
+# Build
+cmake --build --preset debug
 
-### World / Scene / GameObject / Component
+# Test
+ctest --preset debug
+```
+
+**Env vars for building/running**: `MSYSTEM=CLANG64`, `PATH` prepended with `<msys2>/clang64/bin;<msys2>/usr/bin`. Debug builds need `VK_LAYER_PATH=<msys2>/clang64/bin` (gracefully skips if missing).
+
+Reflection parser uses a virtualenv at `reflection_parser/parser_env/`.
+
+## Architecture
 
 ```
 World (WorldSystem)
-└── Scene (multiple, accessed via uint32_t ID)
-    ├── GameObject (unique_ptr, created via Scene::CreateGameObject)
-    │   └── Component (unique_ptr, created via Scene::CreateComponent)
+└── Scene (multiple, uint32_t ID)
+    ├── GameObject (unique_ptr, via Scene::CreateGameObject)
+    │   └── Component (unique_ptr, via Scene::CreateComponent)
     └── ...
 ```
 
-- All objects use **Handles** (`ObjectHandle`, `ComponentHandle`) for references
-- Handles store scene ID + object ID for safe cross-scene references
-- Creation/deletion is **queued** and processed via `FlushCmdQueue()`
-
-### Handles
-
-- `ObjectHandle` / `ComponentHandle` contain `m_sceneID` + `m_ID`
-- Resolve via `HandleResolver` to get actual pointers
-- Never store raw pointers across Scene boundaries
-
-### Asset System
-
-- Assets identified by **GUID** (stored in asset files)
-- `AssetRef` for runtime referencing with explicit acquire/release
-- `AssetManager` handles loading/unloading with reference counting
-- Serialization via `save_asset_to_archive` / `load_asset_from_archive`
-
-### Reflection System
-
-- Python parser (libclang) runs at **compile time**
-- Generates code in `__generated__/meta_${target}` folders
-- Macros: `REFL_SER_CLASS`, `REFL_ENABLE`, `SER_ENABLE`, etc.
-- Whitelist mode: `REFL_SER_CLASS(REFL_WHITELIST)` - only annotated members
-- Blacklist mode: `REFL_SER_CLASS(REFL_BLACKLIST)` - exclude marked members
+- **Handles** (`ObjectHandle`/`ComponentHandle`): store `m_sceneID` + `m_ID`, resolve via `HandleResolver`. Never cache raw pointers across scenes.
+- **Creation/deletion** queued, processed via `FlushCmdQueue()`.
+- **Assets**: GUID-based, `AssetRef` with acquire/release, `AssetManager` with refcounting.
+- **Reflection**: compile-time Python/libclang parser, generates code in `__generated__/meta_*`. Macros: `REFL_SER_CLASS`, `REFL_ENABLE`, `SER_ENABLE`. Whitelist (`REFL_WHITELIST`) / blacklist (`REFL_BLACKLIST`) modes.
 
 ## Code Style
 
-- **Primary references**: Always follow `CODE_STYLE.md` and `docs/CODE_STYLE_CN.md` when writing or updating code/comments.
-- **Format**: Use `.clang-format` (run `clang-format -i <file>` before commit)
-- **Naming**:
-  - Types/Functions: PascalCase (`GameObject`, `GetTransform`)
-  - Member variables: `m_` prefix + snake\_case (`m_position`)
-  - Local variables: snake\_case (`delta_time`)
-  - Constants/Macros: ALL\_CAPS
-- **Namespace**: PascalCase (`Engine`, `Serialization`) except `detail` (lowercase, internal)
-- **Anonymous namespace**: file-local symbols via `namespace { ... }`
-- **Order**: public → protected → private
-- **Doxygen order**: Use `@brief` + blank line + detailed text, then `@param`, then `@return`; avoid `@details`.
+Follow `CODE_STYLE.md` and `docs/CODE_STYLE_CN.md`. Format with `.clang-format`.
+
+- Types/Functions: `PascalCase` · members: `m_snake_case` · locals: `snake_case` · constants: `ALL_CAPS`
+- Namespace: `PascalCase` (except `detail`), anonymous namespace for file-local symbols
+- Order: `public → protected → private`
+- Doxygen: `@brief` + blank line + detail, then `@param`, then `@return`. No `@details`.
 
 ## Serialization Format
 
-JSON-based with type tracking:
+JSON with type tracking:
 
 ```json
 {

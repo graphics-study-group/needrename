@@ -128,8 +128,13 @@ namespace Engine {
 
         template <typename T>
         void DefaultDeleter(void *obj) {
-            static_assert(!std::is_void_v<T>);
-            delete static_cast<std::add_pointer_t<T>>(obj);
+            if constexpr (std::is_void_v<T> || std::is_reference_v<T>) {
+                return;
+            } else if constexpr (std::is_array_v<T>) {
+                delete[] static_cast<std::remove_extent_t<T> *>(obj);
+            } else {
+                delete static_cast<T *>(obj);
+            }
         }
 
         template <typename T>

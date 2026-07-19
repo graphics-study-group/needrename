@@ -18,7 +18,7 @@ namespace Engine {
      * @brief An asset for a 2D texture.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset {
-        REFL_SER_BODY(Image2DTextureAsset)
+        REFL_SER_BODY_OVERRIDE(Image2DTextureAsset)
     public:
         REFL_ENABLE Image2DTextureAsset();
         virtual ~Image2DTextureAsset() override;

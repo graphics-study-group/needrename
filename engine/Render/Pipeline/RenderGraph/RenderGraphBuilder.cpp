@@ -217,12 +217,9 @@ namespace Engine {
                             if (HasReadAccess({prev.second}) && HasWriteAccess({next.second})) {
                                 SDL_LogInfo(
                                     SDL_LOG_CATEGORY_RENDER,
-                                    std::format(
-                                        "Transient render target {} has read access before write access. "
-                                        "Dependency chain is reversed for this access.",
-                                        rid
-                                    )
-                                        .c_str()
+                                    "Transient render target %d has read access before write access. "
+                                    "Dependency chain is reversed for this access.",
+                                    rid
                                 );
                                 std::swap(prev, next);
                             }
@@ -250,12 +247,9 @@ namespace Engine {
                             if (HasReadAccess({prev.second}) && HasWriteAccess({next.second})) {
                                 SDL_LogWarn(
                                     SDL_LOG_CATEGORY_RENDER,
-                                    std::format(
-                                        "Transient buffer {} has read access before write access. "
-                                        "Dependency chain is reversed for this access.",
-                                        rid
-                                    )
-                                        .c_str()
+                                    "Transient buffer %d has read access before write access. "
+                                    "Dependency chain is reversed for this access.",
+                                    rid
                                 );
                                 std::swap(prev, next);
                             }
@@ -274,8 +268,7 @@ namespace Engine {
             PipelineRuntimeInfoPerRendering ret{};
 
             std::fill(ret.color_attachment_format, ret.color_attachment_format + 8, ImageUtils::ImageFormat::UNDEFINED);
-            uint8_t multisample_count{0};
-            for (int i = 0; i < subpass.color_attachments.size(); i++) {
+            for (size_t i = 0; i < subpass.color_attachments.size(); i++) {
                 ImageUtils::ImageFormat format;
                 auto rth = subpass.color_attachments[i].rt_handle;
                 // Imported external resource
@@ -438,14 +431,11 @@ namespace Engine {
                     if (pimpl->passes[pass_order[usage.first]].affinity != last_affinity) {
                         SDL_LogInfo(
                             SDL_LOG_CATEGORY_RENDER,
-                            std::format(
-                                "Found cross-queue dependency from pass {} to "
-                                "{} incurred by resource {}",
-                                pimpl->passes[pass_order[last_affinity_pass]].name,
-                                pimpl->passes[pass_order[usage.first]].name,
-                                rid
-                            )
-                                .c_str()
+                            "Found cross-queue dependency from pass %s to "
+                            "%s incurred by resource %d",
+                            pimpl->passes[pass_order[last_affinity_pass]].name.c_str(),
+                            pimpl->passes[pass_order[usage.first]].name.c_str(),
+                            rid
                         );
                         auto new_affinity = pimpl->passes[pass_order[usage.first]].affinity;
 
@@ -522,10 +512,10 @@ namespace Engine {
 #ifndef NDEBUG
             SDL_LogDebug(
                 SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Pass {}: Wait {}, Signal {}", i, vk::to_string(wait_stage[i]), vk::to_string(signal_stage[i])
-                )
-                    .c_str()
+                "Pass %d: Wait %s, Signal %s",
+                static_cast<int32_t>(i),
+                vk::to_string(wait_stage[i]).c_str(),
+                vk::to_string(signal_stage[i]).c_str()
             );
 #endif
             for (auto subpass_id : merged_passes[i]) {
@@ -535,7 +525,9 @@ namespace Engine {
 #ifndef NDEBUG
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
-                    std::format("Processing subpass \"{}\" (merged into pass {})", old_p.name, i).c_str()
+                    "Processing subpass \"%s\" (merged into pass %d)",
+                    old_p.name.c_str(),
+                    static_cast<int32_t>(i)
                 );
 #endif
                 // Build barriers for textures.
@@ -588,21 +580,19 @@ namespace Engine {
 #ifndef NDEBUG
                     SDL_LogDebug(
                         SDL_LOG_CATEGORY_RENDER,
-                        std::format(
-                            "  Inserting image barrier for resource {}: "
-                            "subpass \"{}\" ({}, {}, {}) "
-                            "-> subpass \"{}\" ({}, {}, {})",
-                            static_cast<int32_t>(r),
-                            pimpl->passes[pass_order[itr->first]].name,
-                            vk::to_string(src_stage),
-                            vk::to_string(src_access),
-                            vk::to_string(src_layout),
-                            old_p.name,
-                            vk::to_string(dst_stage),
-                            vk::to_string(dst_access),
-                            vk::to_string(dst_layout)
-                        )
-                            .c_str()
+
+                        "  Inserting image barrier for resource %d: "
+                        "subpass \"%s\" (%s, %s, %s) "
+                        "-> subpass \"%s\" (%s, %s, %s)",
+                        static_cast<int32_t>(r),
+                        pimpl->passes[pass_order[itr->first]].name.c_str(),
+                        vk::to_string(src_stage).c_str(),
+                        vk::to_string(src_access).c_str(),
+                        vk::to_string(src_layout).c_str(),
+                        old_p.name.c_str(),
+                        vk::to_string(dst_stage).c_str(),
+                        vk::to_string(dst_access).c_str(),
+                        vk::to_string(dst_layout).c_str()
                     );
 #endif
                     subpass.image_barriers.push_back(
@@ -655,19 +645,16 @@ namespace Engine {
 #ifndef NDEBUG
                     SDL_LogDebug(
                         SDL_LOG_CATEGORY_RENDER,
-                        std::format(
-                            "  Inserting buffer barrier for resource {}: "
-                            "subpass \"{}\" ({}, {}) "
-                            "-> subpass \"{}\" ({}, {})",
-                            static_cast<int32_t>(r),
-                            pimpl->passes[pass_order[itr->first]].name,
-                            vk::to_string(src_stage),
-                            vk::to_string(src_access),
-                            old_p.name,
-                            vk::to_string(dst_stage),
-                            vk::to_string(dst_access)
-                        )
-                            .c_str()
+                        "  Inserting buffer barrier for resource %d: "
+                        "subpass \"%s\" (%s, %s) "
+                        "-> subpass \"%s\" (%s, %s)",
+                        static_cast<int32_t>(r),
+                        pimpl->passes[pass_order[itr->first]].name.c_str(),
+                        vk::to_string(src_stage).c_str(),
+                        vk::to_string(src_access).c_str(),
+                        old_p.name.c_str(),
+                        vk::to_string(dst_stage).c_str(),
+                        vk::to_string(dst_access).c_str()
                     );
 #endif
 
@@ -699,7 +686,7 @@ namespace Engine {
         RenderGraph2ExtraInfo e{};
         e.buffer_mapping = std::move(pimpl->rs.buffer_mapping);
         e.texture_mapping = std::move(pimpl->rs.texture_mapping);
-        e.transient_texture_storage = std::move(pimpl->rs.MaterializeRenderTargetTextures(system));
+        e.transient_texture_storage = pimpl->rs.MaterializeRenderTargetTextures(system);
         for (const auto &[k, v] : e.transient_texture_storage) {
             assert(!e.texture_mapping.contains(k));
 

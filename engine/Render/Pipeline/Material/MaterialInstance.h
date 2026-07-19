@@ -14,8 +14,8 @@ namespace Engine {
     class DeviceBuffer;
     class MaterialAsset;
     class MaterialLibrary;
-    class VertexAttribute;
-    class TextureSubresourceRange;
+    struct VertexAttribute;
+    struct TextureSubresourceRange;
 
     /**
      * @brief A light-weight instance of a given material library.

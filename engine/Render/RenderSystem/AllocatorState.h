@@ -33,7 +33,6 @@ namespace Engine {
             AllocatorState &operator=(const AllocatorState &) = delete;
 
             AllocatorState(AllocatorState &&) = default;
-            AllocatorState &operator=(AllocatorState &&) = default;
 
             ~AllocatorState();
             /// @brief Create the allocator state by initializing the VMA library.

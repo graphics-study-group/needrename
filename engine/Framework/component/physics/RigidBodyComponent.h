@@ -18,7 +18,7 @@ namespace Engine {
      * aggregates collision shapes from an object hierarchy via PhysicsAdaptor.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) RigidBodyComponent : public Component {
-        REFL_SER_BODY(RigidBodyComponent)
+        REFL_SER_BODY_OVERRIDE(RigidBodyComponent)
     public:
         /**
          * @brief Construct a rigid body component.

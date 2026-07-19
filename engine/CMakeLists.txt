@@ -49,9 +49,16 @@ add_library(engine SHARED
 
 add_dependencies(engine shader)
 add_dependencies(engine physics_shader)
-add_dependencies(engine meta_engine)
 
-find_package(doxygen)
+add_dependencies(EngineLibAsset meta_engine)
+add_dependencies(EngineLibCore meta_engine)
+add_dependencies(EngineLibFramework meta_engine)
+add_dependencies(EngineLibPhysics meta_engine)
+add_dependencies(EngineLibReflection meta_engine)
+add_dependencies(EngineLibRender meta_engine)
+add_dependencies(EngineLibUserInterface meta_engine)
+
+find_package(Doxygen)
 if(Doxygen_FOUND)
     set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
     # Only *.h files contain public interfaces
@@ -64,6 +71,8 @@ if(Doxygen_FOUND)
         "__attribute__(x)="
         "REFL_SER_CLASS(...)="
         "REFL_SER_BODY(...)="
+        "REFL_SER_BODY_OVERRIDE(...)="
+        "REFL_SER_BODY_FINAL(...)="
         "REFL_SER_SIMPLE_STRUCT(...)="
     )
     set(DOXYGEN_EXPAND_AS_DEFINED

@@ -109,10 +109,41 @@ function(add_reflection_parser)
     endif()
 
     if(WIN32)
-        # On Windows we have to force clang to use MinGW, since it defaults to MSVC.
-        set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+            # --- Clang on Windows ---
+            # Try to use the system's libclang DLL.
+            get_filename_component(_CLANG_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+            if(EXISTS "${_CLANG_BIN_DIR}/libclang.dll")
+                set(ENV{LIBCLANG_LIBRARY_PATH} "${_CLANG_BIN_DIR}")
+
+                # Explicit paths: the C API doesn't auto-detect them.
+                set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu")
+
+                execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -print-resource-dir
+                                OUTPUT_VARIABLE _RD OUTPUT_STRIP_TRAILING_WHITESPACE
+                                ERROR_QUIET RESULT_VARIABLE _RC)
+                if(_RC EQUAL 0 AND EXISTS "${_RD}")
+                    set(EXTRA_ARGS "${EXTRA_ARGS} -resource-dir ${_RD}")
+                endif()
+
+                get_filename_component(_PREFIX "${_CLANG_BIN_DIR}" DIRECTORY)
+                if(EXISTS "${_PREFIX}/include/c++/v1")
+                    set(EXTRA_ARGS "${EXTRA_ARGS} -I ${_PREFIX}/include/c++/v1")
+                endif()
+                if(EXISTS "${_PREFIX}/include")
+                    set(EXTRA_ARGS "${EXTRA_ARGS} -I ${_PREFIX}/include")
+                endif()
+            else()
+                # System libclang not found — fall back to old pip-bundled approach.
+                set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
+            endif()
+        else()
+            # --- GCC / MinGW on Windows ---
+            # Pip-bundled libclang can find MinGW headers with this target.
+            set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
+        endif()
     else()
-        # On other platforms we leave it as default.
+        # On other platforms we leave it as default.    
         set(EXTRA_ARGS "")
     endif()
     # Define FLT_MAX and FLT_MIN to work around float.h inclusion
@@ -147,12 +178,18 @@ function(add_reflection_parser)
 
     file(GLOB_RECURSE template_files ${REFLECTION_PARSER_DIR}/template/*.template)
 
+    if(DEFINED ENV{LIBCLANG_LIBRARY_PATH})
+        set(PARSER_ENV_CMD ${CMAKE_COMMAND} -E env "LIBCLANG_LIBRARY_PATH=$ENV{LIBCLANG_LIBRARY_PATH}")
+    else()
+        set(PARSER_ENV_CMD)
+    endif()
+
     add_custom_command(
         OUTPUT ${TASK_STAMPED_FILE}
 
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile started ********** "
         COMMAND ${CMAKE_COMMAND} -E echo "[Precompile]: run parser python script"
-        COMMAND ${Python3_EXECUTABLE} ${REFLECTION_PARSER_DIR}/parser_main.py
+        COMMAND ${PARSER_ENV_CMD} ${Python3_EXECUTABLE} ${REFLECTION_PARSER_DIR}/parser_main.py
                     --config ${generated_code_dir}/config.json
                     ${REFLECTION_VERBOSE}
         COMMAND ${CMAKE_COMMAND} -E touch ${TASK_STAMPED_FILE}

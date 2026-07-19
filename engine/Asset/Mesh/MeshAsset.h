@@ -10,7 +10,7 @@
 
 namespace Engine {
     class ObjLoader;
-    class VertexAttribute;
+    struct VertexAttribute;
 
     /**
      * @brief An asset containing a mesh to be rendered.
@@ -19,7 +19,7 @@ namespace Engine {
      * buffer that contains all vertex information.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset {
-        REFL_SER_BODY(MeshAsset)
+        REFL_SER_BODY_OVERRIDE(MeshAsset)
 
     public:
         REFL_ENABLE MeshAsset();

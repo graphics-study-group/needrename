@@ -17,7 +17,7 @@ namespace Engine {
     class MaterialTemplate;
     class MaterialInstance;
     class DeviceBuffer;
-    class VertexAttribute;
+    struct VertexAttribute;
     class IVertexBasedRenderer;
     class Texture;
 
@@ -27,7 +27,7 @@ namespace Engine {
     }; // namespace RenderSystemState
 
     namespace AttachmentUtils {
-        class AttachmentDescription;
+        struct AttachmentDescription;
     };
 
     /**
@@ -71,7 +71,6 @@ namespace Engine {
         CommandBuffer(const CommandBuffer &) = delete;
         CommandBuffer(CommandBuffer &&) = default;
         CommandBuffer &operator=(const CommandBuffer &) = delete;
-        CommandBuffer &operator=(CommandBuffer &&) = default;
 
         /**
          * @brief Get the raw Vulkan command buffer handle.

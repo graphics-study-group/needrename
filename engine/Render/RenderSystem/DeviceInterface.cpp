@@ -1,4 +1,5 @@
 #include "DeviceInterface.h"
+#include "Render/DebugUtils.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <unordered_set>
@@ -99,14 +100,24 @@ namespace Engine::RenderSystemState {
             for (uint32_t i = 0; i < extCount; i++) {
                 extensions.push_back(pExt[i]);
             }
+
 #ifndef NDEBUG
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+            // Check validation layer availability before requesting debug extensions.
+            // VK_EXT_debug_utils and VK_EXT_validation_features are only provided by
+            // the validation layer; requesting them when the layer is unavailable causes
+            // vkCreateInstance to fail with VK_ERROR_EXTENSION_NOT_PRESENT.
+            const bool validation_layer_available = InstanceCheckValidationLayer();
+            if (validation_layer_available) {
+                extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+                extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+            }
 #endif
 
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "%u vulkan extensions requested.", extCount);
-            for (uint32_t i = 0; i < extCount; i++) {
-                SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", pExt[i]);
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_RENDER, "%u vulkan extensions requested.", static_cast<uint32_t>(extensions.size())
+            );
+            for (const auto *ext : extensions) {
+                SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", ext);
             }
 
             vk::InstanceCreateInfo instInfo{vk::InstanceCreateFlags{}, &appInfo, {}, extensions};
@@ -116,11 +127,10 @@ namespace Engine::RenderSystemState {
             std::array<vk::ValidationFeatureEnableEXT, 1> enabled_features{
                 vk::ValidationFeatureEnableEXT::eDebugPrintf
             };
-            validation_features.enabledValidationFeatureCount = static_cast<uint32_t>(enabled_features.size());
-            validation_features.pEnabledValidationFeatures = enabled_features.data();
-            instInfo.pNext = &validation_features;
-
-            if (InstanceCheckValidationLayer()) {
+            if (validation_layer_available) {
+                validation_features.enabledValidationFeatureCount = static_cast<uint32_t>(enabled_features.size());
+                validation_features.pEnabledValidationFeatures = enabled_features.data();
+                instInfo.pNext = &validation_features;
                 instInfo.enabledLayerCount = 1;
                 instInfo.ppEnabledLayerNames = &(VALIDATION_LAYER_NAME);
             } else {
@@ -137,7 +147,15 @@ namespace Engine::RenderSystemState {
             }
 
 #ifndef NDEBUG
-            {
+            // Enable debug utils (setName, label regions) only when validation layer is loaded,
+            // because VK_EXT_debug_utils is provided by the validation layer on most drivers.
+            if (validation_layer_available) {
+                Engine::RenderDebugUtils::g_debug_utils_available = true;
+            }
+#endif
+
+#ifndef NDEBUG
+            if (validation_layer_available) {
                 vk::DebugUtilsMessengerCreateInfoEXT messenger_info{};
                 messenger_info.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo
                                                  | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
@@ -200,6 +218,7 @@ namespace Engine::RenderSystemState {
                 bool supportPresenting = pd.getSurfaceSupportKHR(i, surface.get());
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
+                    "%s",
                     std::format(
                         "\t\tQueue family {} {}{}{}({} present)",
                         i,

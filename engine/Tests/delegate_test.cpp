@@ -52,8 +52,8 @@ int main() {
     auto testObject = std::make_shared<TestClass>();
     Delegate<int, float> delegate1(
         testObject,
-        (Delegate<int, float>::FunctionType
-        )std::bind(&TestClass::PrintInfo, testObject.get(), std::placeholders::_1, std::placeholders::_2)
+        (Delegate<int, float>::FunctionType)
+            std::bind(&TestClass::PrintInfo, testObject.get(), std::placeholders::_1, std::placeholders::_2)
     );
     delegate1.Invoke(42, 3.14f);
     assert(checked == 1); // Check if PrintInfo was called
@@ -63,8 +63,8 @@ int main() {
     assert(delegate1.IsValid() == false); // Check if delegate is invalid after object reset
 
     auto testObject2 = std::make_shared<TestClass>();
-    Delegate<int, float> delegate2(testObject2, TestClass::PrintInfo);
-    Delegate<int, float> delegate3(std::weak_ptr<TestClass>(testObject2), TestClass::PrintInfo);
+    Delegate<int, float> delegate2(testObject2, &TestClass::PrintInfo);
+    Delegate<int, float> delegate3(std::weak_ptr<TestClass>(testObject2), &TestClass::PrintInfo);
     delegate2.Invoke(100, 1.23f);
     assert(checked == 2); // Check if PrintInfo was called again
     delegate3.Invoke(200, 4.56f);

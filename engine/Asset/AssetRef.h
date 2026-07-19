@@ -20,7 +20,7 @@ namespace Engine {
      * And The asset will be loaded eagerly or asynchronously in the asset manager.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) AssetRef final {
-        REFL_SER_BODY(AssetRef)
+        REFL_SER_BODY_FINAL(AssetRef)
     public:
         REFL_ENABLE AssetRef();
         REFL_ENABLE AssetRef(GUID guid);

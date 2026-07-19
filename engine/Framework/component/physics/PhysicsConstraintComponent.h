@@ -51,7 +51,7 @@ namespace Engine {
      * registers joints with PhysicsScene.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) PhysicsConstraintComponent : public Component {
-        REFL_SER_BODY(PhysicsConstraintComponent)
+        REFL_SER_BODY_OVERRIDE(PhysicsConstraintComponent)
     public:
         /**
          * @brief Construct a constraint component.

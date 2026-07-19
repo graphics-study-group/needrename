@@ -168,7 +168,7 @@ namespace Engine::RenderSystemState {
         std::memcpy(staging_buffer->GetVMAddress(), data.data(), buffer.GetSize());
         staging_buffer->Flush();
 
-        auto enqueued = [data, &buffer, this, pbuf = staging_buffer.get(), buffer_offset](vk::CommandBuffer cb) {
+        auto enqueued = [data, &buffer, pbuf = staging_buffer.get(), buffer_offset](vk::CommandBuffer cb) {
             auto mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferBefore);
             std::array<vk::BufferMemoryBarrier2, 1> barriers{};
             barriers[0] = {
@@ -223,7 +223,7 @@ namespace Engine::RenderSystemState {
         std::memcpy(mapped_ptr, data.data(), data.size_bytes());
         staging_buffer->Flush();
 
-        auto enqueued = [&texture, pbuf = staging_buffer.get(), data, this](vk::CommandBuffer cb) {
+        auto enqueued = [&texture, pbuf = staging_buffer.get()](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
                 TextureTransferType::TextureUploadBefore,
@@ -271,7 +271,7 @@ namespace Engine::RenderSystemState {
             throw std::invalid_argument("Selected texture does not contain color aspect.");
         }
 
-        auto enqueued = [&texture, color, this](vk::CommandBuffer cb) {
+        auto enqueued = [&texture, color](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
                 TextureTransferType::TextureClearBefore, texture.GetImage(), vk::ImageAspectFlagBits::eColor
@@ -306,7 +306,7 @@ namespace Engine::RenderSystemState {
             throw std::invalid_argument("Selected texture does not contain depth aspect.");
         }
 
-        auto enqueued = [&texture, depth, this](vk::CommandBuffer cb) {
+        auto enqueued = [&texture, depth](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
                 TextureTransferType::TextureClearBefore, texture.GetImage(), vk::ImageAspectFlagBits::eDepth

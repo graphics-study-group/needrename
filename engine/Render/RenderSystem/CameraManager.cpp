@@ -55,7 +55,7 @@ namespace Engine::RenderSystemState {
         auto device = m_system.GetDevice();
 
         vk::DescriptorPoolCreateInfo dpci{
-            vk::DescriptorPoolCreateFlagBits{}, pimpl->descriptors.size(), impl::CAMERA_DESCRIPTOR_POOL_SIZE
+            vk::DescriptorPoolCreateFlagBits{}, (uint32_t)pimpl->descriptors.size(), impl::CAMERA_DESCRIPTOR_POOL_SIZE
         };
         pimpl->camera_descriptor_pool = device.createDescriptorPoolUnique(dpci);
         DEBUG_SET_NAME_TEMPLATE(device, pimpl->camera_descriptor_pool.get(), "Camera Descriptor Pool");
@@ -177,6 +177,7 @@ namespace Engine::RenderSystemState {
         if (pimpl->registered_cameras[index].expired()) {
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_RENDER,
+                "%s",
                 std::format(
                     "Camera {} is expired or not registered, but is set to be the active camera.", m_active_camera_index
                 )
@@ -189,6 +190,7 @@ namespace Engine::RenderSystemState {
         if (pimpl->registered_cameras[m_active_camera_index].expired()) {
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_RENDER,
+                "%s",
                 std::format("Currently active camera {} is expired or not registered.", m_active_camera_index).c_str()
             );
         }

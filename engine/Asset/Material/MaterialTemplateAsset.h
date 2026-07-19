@@ -34,7 +34,7 @@ namespace Engine {
     /// 7th, which is always determined by attachment samples at runtime;
     /// 10th, which is always fixed to be viewports and scissors.
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateSinglePassProperties {
-        REFL_SER_BODY(MaterialTemplateSinglePassProperties)
+        REFL_SER_SIMPLE_STRUCT(MaterialTemplateSinglePassProperties)
 
         REFL_ENABLE MaterialTemplateSinglePassProperties() = default;
         virtual ~MaterialTemplateSinglePassProperties() = default;
@@ -79,7 +79,7 @@ namespace Engine {
      * `MaterialTemplateSinglePassProperties` for more details.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateAsset : public Asset {
-        REFL_SER_BODY(MaterialTemplateAsset)
+        REFL_SER_BODY_OVERRIDE(MaterialTemplateAsset)
     public:
         REFL_ENABLE MaterialTemplateAsset() = default;
         virtual ~MaterialTemplateAsset() = default;

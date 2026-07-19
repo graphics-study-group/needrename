@@ -18,7 +18,7 @@ using ObjectHandle = Engine::ObjectHandle;
 using ComponentHandle = Engine::ComponentHandle;
 
 class REFL_SER_CLASS(REFL_WHITELIST) SpinningComponent : public Engine::Component {
-    REFL_SER_BODY(SpinningComponent)
+    REFL_SER_BODY_OVERRIDE(SpinningComponent)
 public:
     REFL_ENABLE SpinningComponent(const Engine::GameObject &parent);
 
@@ -34,7 +34,7 @@ public:
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) ControlComponent : public Engine::Component {
-    REFL_SER_BODY(ControlComponent)
+    REFL_SER_BODY_OVERRIDE(ControlComponent)
 public:
     REFL_ENABLE ControlComponent(const Engine::GameObject &parent);
 
