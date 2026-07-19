@@ -92,7 +92,7 @@ namespace Engine::RenderSystemState {
     Swapchain::Swapchain() noexcept : pimpl(std::make_unique<impl>()) {
     }
 
-    Swapchain::~Swapchain() = default;
+    Swapchain::~Swapchain() noexcept = default;
 
     void Swapchain::CreateSwapchain(const DeviceInterface &interface, vk::Extent2D expected_extent) {
         const auto swapchain_support = interface.GetSwapchainSupport();

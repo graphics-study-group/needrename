@@ -32,7 +32,7 @@ namespace Editor {
                     break;
                 }
                 auto text = std::string("<GameObject>") + game_object->m_name;
-                ImGui::Text(text.c_str());
+                ImGui::Text("%s", text.c_str());
                 ImGui::Separator();
                 unsigned int component_idx = 0;
                 for (auto component_handle : game_object->m_components) {

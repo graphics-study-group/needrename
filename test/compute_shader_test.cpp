@@ -31,7 +31,7 @@ auto BuildRenderGraph(
             .UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite)
             .UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite)
             .SetAffinity(RenderGraphPassAffinity::Compute)
-            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &rg) -> void {
+            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &) -> void {
                 cb.BindComputeStage(compute);
                 cb.BindComputeResource(cbinding);
                 cb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 
     uint64_t frame_count = 0;
     while (++frame_count) {
-        if (frame_count > max_frame_count) break;
+        if (frame_count > static_cast<uint64_t>(max_frame_count)) break;
 
         SDL_Event event;
         while (SDL_PollEvent(&event) != 0) {

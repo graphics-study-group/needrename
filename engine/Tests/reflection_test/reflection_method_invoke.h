@@ -49,7 +49,7 @@ public:
     REFL_ENABLE void PrintInfo();
     REFL_ENABLE int Add(int a, int b);
     REFL_ENABLE int Add(int a, int b, int c);
-    REFL_ENABLE virtual void PrintHelloWorld() const;
+    REFL_ENABLE virtual void PrintHelloWorld() const override;
 };
 
 inline void FooBase::PrintHelloWorld() const {

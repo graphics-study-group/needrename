@@ -157,7 +157,11 @@ namespace Engine {
             vk::PipelineRenderingCreateInfo{0, {format}, vk::Format::eUndefined, vk::Format::eUndefined}
         )};
         ImGui_ImplVulkan_PipelineInfo pi{
-            .RenderPass = nullptr, .MSAASamples = VK_SAMPLE_COUNT_1_BIT, .PipelineRenderingCreateInfo = prci
+            .RenderPass = nullptr,
+            .Subpass = 0,
+            .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+            .PipelineRenderingCreateInfo = prci,
+            .SwapChainImageUsage = 0
         };
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }

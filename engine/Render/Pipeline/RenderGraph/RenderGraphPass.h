@@ -8,7 +8,7 @@
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 
 namespace vk {
-    class CommandBuffer;
+    struct CommandBuffer;
 }
 
 namespace Engine {

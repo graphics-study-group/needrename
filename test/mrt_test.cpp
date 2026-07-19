@@ -100,7 +100,6 @@ auto BuildRenderGraph(
     MaterialInstance *material,
     IVertexBasedRenderer *mesh
 ) {
-    using IAT = Engine::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
     auto c1 = rgb.ImportExternalResource(*color_1);
     auto c2 = rgb.ImportExternalResource(*color_2);

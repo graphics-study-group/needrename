@@ -100,8 +100,7 @@ public:
     SceneBuilder(
         Engine::Scene &scene,
         Engine::FileSystemDatabase &adb,
-        Engine::GameObject &root,
-        Engine::RenderSystem &render_system
+        Engine::GameObject &root
     );
 
     /**
@@ -184,7 +183,6 @@ private:
     Engine::Scene &m_scene;
     Engine::FileSystemDatabase &m_adb;
     Engine::GameObject &m_root;
-    Engine::RenderSystem &m_render_system;
     Engine::AssetRef m_cube_mesh;
     Engine::AssetRef m_sphere_mesh;
     Engine::AssetRef m_cylinder_mesh;

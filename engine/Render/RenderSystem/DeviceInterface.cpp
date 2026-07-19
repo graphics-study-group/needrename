@@ -218,6 +218,7 @@ namespace Engine::RenderSystemState {
                 bool supportPresenting = pd.getSurfaceSupportKHR(i, surface.get());
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
+                    "%s",
                     std::format(
                         "\t\tQueue family {} {}{}{}({} present)",
                         i,

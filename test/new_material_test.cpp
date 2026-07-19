@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
     auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>();
 
     auto test_library_handle = ml_mng.CreateOrReuseFromAsset(test_library_asset->GetGUID());
-    auto test_library = ml_mng.Resolve(test_library_handle);
+    ml_mng.Resolve(test_library_handle);
     auto test_material_instance = std::make_unique<MaterialInstance>(*rsys, test_library_handle);
     test_material_instance->AssignVectorVariable("Material::ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->AssignVectorVariable("Material::specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));

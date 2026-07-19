@@ -14,7 +14,7 @@
 #include "MainClass.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/PhysicsSystem.h"
-#include "Physics/Solver/XpbdGpuSolver.h"
+#include "Physics/Solver/XPBDGpuSolver.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
@@ -290,7 +290,7 @@ int main(int /*argc*/, char ** /*argv*/) {
         root.SetTransform(t);
     }
 
-    SceneBuilder builder(scene, adb, root, *cmc->GetRenderSystem());
+    SceneBuilder builder(scene, adb, root);
 
     // ---- Ground plane (kinematic, large flat box in XY, thin in Z) ----
     // Z is up, so the floor extends in X and Y, centered at z = -0.5.

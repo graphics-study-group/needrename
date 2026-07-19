@@ -273,15 +273,11 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.shadow_casting.light_matrices[index] = proj * view;
     }
 
-    void SceneDataManager::SetLightPoint(
-        uint32_t index, glm::vec3 direction, glm::vec3 intensity, float radius
-    ) noexcept {
+    void SceneDataManager::SetLightPoint(uint32_t, glm::vec3, glm::vec3, float) noexcept {
         assert(!"Unimplemented");
     }
 
-    void SceneDataManager::SetLightCone(
-        uint32_t index, glm::vec3 direction, glm::vec3 intensity, float inner_angle, float outer_angle
-    ) noexcept {
+    void SceneDataManager::SetLightCone(uint32_t, glm::vec3, glm::vec3, float, float) noexcept {
         assert(!"Unimplemented");
     }
 
@@ -458,7 +454,7 @@ namespace Engine::RenderSystemState {
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof(glm::mat4),
-            {reinterpret_cast<const void *>(&pv_mat)}
+            reinterpret_cast<const void *>(&pv_mat)
         );
         // Vertex info is embedded in the skybox.vert shader.
         rcb.draw(36, 1, 0, 0);

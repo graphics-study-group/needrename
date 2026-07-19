@@ -28,12 +28,12 @@
 #include <UserInterface/Input.h>
 #include <cmake_config.h>
 
+#include <Editor/EditorMainClass.h>
 #include <Editor/Render/EditorRenderGraphBuilder.h>
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/ProjectWidget.h>
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
-#include <Editor/EditorMainClass.h>
 
 #include "CustomComponent.h"
 #include "meta_editor_run_game_example/reflection_init.inc"
@@ -144,7 +144,6 @@ int main(int argc, char **argv) {
 
     ResetExampleProject(project_template_path, project_path);
 
-    
     auto emc = Editor::EditorMainClass::GetInstance();
     auto cmc = MainClass::GetInstance();
 

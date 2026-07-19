@@ -1,4 +1,4 @@
-#include "XpbdGpuSolver.h"
+#include "XPBDGpuSolver.h"
 
 #include <cmake_config.h>
 

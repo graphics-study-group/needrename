@@ -7,7 +7,7 @@
 
 namespace vk {
     struct Extent2D;
-    class CommandBuffer;
+    struct CommandBuffer;
     enum class Format;
 } // namespace vk
 
