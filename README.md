@@ -6,50 +6,113 @@ An unnamed game engine with GPU-accelerated physics simulation, Vulkan-based ren
 
 ## Building the Engine
 
+We recommend using **MSYS2 CLANG64** subsystem to build projects and manage dependency packages.
+
 ### Dependencies
 
-- GCC 14 or greater
-- CMake
-- Python 3
-- Vulkan SDK 1.3 or greater (Tested on 1.4.313)
-- SDL3 (Tested on 3.2.18)
+| Dependency | MSYS2 Package |
+|---|---|
+| Clang 22 (toolchain) | `mingw-w64-clang-x86_64-toolchain` |
+| CMake | `mingw-w64-clang-x86_64-cmake` |
+| Ninja | (included with CMake) |
+| Python 3 | `mingw-w64-clang-x86_64-python` |
+| Vulkan loader + headers | `mingw-w64-clang-x86_64-vulkan-loader` `mingw-w64-clang-x86_64-vulkan-headers` |
+| Vulkan validation layers | `mingw-w64-clang-x86_64-vulkan-validation-layers` |
+| glslang (shader compiler) | `mingw-w64-clang-x86_64-glslang` |
+| SDL3 | `mingw-w64-clang-x86_64-sdl3` |
+| LLDB (debugger) | `mingw-w64-clang-x86_64-lldb` `mingw-w64-clang-x86_64-lldb-mi` |
+| Doxygen (optional) | `mingw-w64-clang-x86_64-doxygen` |
 
-Other vendored dependencies can be found in the `third_party` directory.
+Other vendored dependencies (glm, SPIRV-Cross, imgui, etc.) are in the `third_party` directory and built automatically by CMake.
 
-When working on Windows, use of MSYS2 is suggested. You can set up the environment with
+#### One-Command Setup
 
 ```sh
-pacman -S mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake
+pacman -S \
+  mingw-w64-clang-x86_64-toolchain \
+  mingw-w64-clang-x86_64-cmake \
+  mingw-w64-clang-x86_64-python \
+  mingw-w64-clang-x86_64-vulkan-loader \
+  mingw-w64-clang-x86_64-vulkan-headers \
+  mingw-w64-clang-x86_64-vulkan-validation-layers \
+  mingw-w64-clang-x86_64-glslang \
+  mingw-w64-clang-x86_64-sdl3 \
+  mingw-w64-clang-x86_64-lldb \
+  mingw-w64-clang-x86_64-lldb-mi
 ```
-
-which installs GCC and CMake for the UCRT64 subsystem.
-
-Vulkan SDK should be downloaded and installed from LunarG, but *not* from MSYS2 repo with `pacman`, which misses some components and is difficult to integrate with CMake.
-
-It is suggested that SDL3 should also be installed manually.
-You can fetch it from [its release page](https://github.com/libsdl-org/SDL/releases/).
-Pick `SDL3-devel-3.X.XX-mingw.tar.gz`, extract it somewhere, and:
-
-- Add a new environment variable `SDL3_DIR` pointing to `SDL3-3.X.XX\cmake`.
-- Add a `PATH` entry pointing to `SDL3-3.X.XX\x86_64-w64-mingw32\bin`.
-
-CMake should be able to detect it automatically.
 
 ### Build Steps
 
-1. `git clone` this repository (with `--recursive` flag)
-2. Configure and build project (with Vulkan SDK installed) using cmake. Out-of-source build is preferred:
+1. Clone the repository with submodules:
 
 ```sh
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -G "MinGW Makefiles"
-mingw32-make
+git clone --recursive <repo-url>
 ```
 
-Or you can use your favorite IDE to do so.
-If you are using Visual Studio Code on Windows, after updating environment variables, the integrated terminal and CMake might not use updated values even after restarting VSCode.
-Ensure that you have killed all background VSCode processes before restarting, or simply [re-logging or restart your computer](https://github.com/microsoft/vscode/issues/69289#issuecomment-467595799) to solve this issue.
+2. Configure with CMake. Make sure your shell has the CLANG64 environment active (`MSYSTEM=CLANG64`, and `clang64/bin` + `usr/bin` in `PATH`):
+
+```sh
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++
+```
+
+3. Build:
+
+```sh
+cmake --build build
+```
+
+### Runtime Environment
+
+Before running any executable built from this project, the following environment variables are required:
+
+| Variable | Value | Purpose |
+|---|---|---|
+| `PATH` | prepend `<msys2>/clang64/bin` and `<msys2>/usr/bin` | Find runtime DLLs (SDL3, Vulkan loader, libc++, etc.) |
+| `VK_LAYER_PATH` | `<msys2>/clang64/bin` | Find Vulkan validation layers (Debug builds) |
+
+Where `<msys2>` is your MSYS2 installation root (e.g. `C:\msys2`).
+
+From PowerShell:
+
+```powershell
+$env:Path = "C:\msys2\clang64\bin;C:\msys2\usr\bin;$env:Path"
+$env:VK_LAYER_PATH = "C:\msys2\clang64\bin"
+./build/test/project_loading_test.exe
+```
+
+### VS Code Setup
+
+The recommended VS Code extensions are:
+
+- **CMake Tools** (`ms-vscode.cmake-tools`)
+- **C/C++** (`ms-vscode.cpptools`)
+- **CodeLLDB** (`vadimcn.vscode-lldb`) — for debugging with LLDB
+
+Create `.vscode/settings.json` with the following content, adjusting paths to match your MSYS2 installation:
+
+```jsonc
+{
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "cmake.environment": {
+        "MSYSTEM": "CLANG64",
+        "PATH": "<msys2>\\clang64\\bin;<msys2>\\usr\\bin;${env:Path}",
+        "VK_LAYER_PATH": "<msys2>\\clang64\\bin"
+    },
+    "cmake.generator": "Ninja",
+    "C_Cpp.default.compilerPath": "<msys2>\\clang64\\bin\\clang++.exe",
+    "cmake.debugConfig": {
+        "type": "lldb",
+        "program": "${command:cmake.launchTargetPath}",
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PATH": "<msys2>\\clang64\\bin;<msys2>\\usr\\bin;${env:Path}",
+            "VK_LAYER_PATH": "<msys2>\\clang64\\bin"
+        }
+    }
+}
+```
+
+Replace `<msys2>` with your actual MSYS2 path (e.g. `C:\msys2`).
 
 ## Project Structure
 
