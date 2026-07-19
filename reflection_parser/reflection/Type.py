@@ -52,9 +52,11 @@ class Field:
         if self.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
             self.array_type = "ConstArray"
             self.element_type_full_name =  get_type_full_name(self.type.cx_type.get_array_element_type())
-        elif self.type.cx_type.kind == CX.TypeKind.ELABORATED and self.type.full_name.startswith("std::vector<"):
+        elif (self.type.cx_type.kind == CX.TypeKind.ELABORATED or self.type.cx_type.kind == CX.TypeKind.UNEXPOSED) \
+                and (self.type.full_name.startswith("std::vector<") or self.type.full_name.startswith("std::__1::vector<")):
             self.array_type = "StdVector"
             self.element_type_full_name = get_type_full_name(self.type.cx_type.get_template_argument_type(0))
-        elif self.type.cx_type.kind == CX.TypeKind.ELABORATED and self.type.full_name.startswith("std::array<"):
+        elif (self.type.cx_type.kind == CX.TypeKind.ELABORATED or self.type.cx_type.kind == CX.TypeKind.UNEXPOSED) \
+                and (self.type.full_name.startswith("std::array<") or self.type.full_name.startswith("std::__1::array<")):
             self.array_type = "StdArray"
             self.element_type_full_name = get_type_full_name(self.type.cx_type.get_template_argument_type(0))
