@@ -52,14 +52,16 @@ git clone --recursive <仓库地址>
 2. 使用 CMake 配置。确保 Shell 已激活 CLANG64 环境（`MSYSTEM=CLANG64`，且 `clang64/bin`、`usr/bin` 在 `PATH` 中）：
 
 ```sh
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++
+cmake --preset debug
 ```
 
 3. 构建：
 
 ```sh
-cmake --build build
+cmake --build --preset debug
 ```
+
+也提供了 `release` preset，详见 `CMakePresets.json`。
 
 ### 运行时环境
 
@@ -77,7 +79,7 @@ cmake --build build
 ```powershell
 $env:Path = "C:\msys2\clang64\bin;C:\msys2\usr\bin;$env:Path"
 $env:VK_LAYER_PATH = "C:\msys2\clang64\bin"
-./build/test/project_loading_test.exe
+./build/debug/test/project_loading_test.exe
 ```
 
 ### VS Code 配置

@@ -8,14 +8,14 @@ C++20 game engine: Vulkan rendering, GPU physics, Python/libclang reflection, co
 If you can't find MSYS2, try to find clues from the configuration in the `.vscode` folder.
 
 ```sh
-# Configure
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++
+# Configure (debug or release)
+cmake --preset debug
 
 # Build
-cmake --build build
+cmake --build --preset debug
 
 # Test
-cd build && ctest
+ctest --preset debug
 ```
 
 **Env vars for building/running**: `MSYSTEM=CLANG64`, `PATH` prepended with `<msys2>/clang64/bin;<msys2>/usr/bin`. Debug builds need `VK_LAYER_PATH=<msys2>/clang64/bin` (gracefully skips if missing).

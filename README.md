@@ -52,14 +52,16 @@ git clone --recursive <repo-url>
 2. Configure with CMake. Make sure your shell has the CLANG64 environment active (`MSYSTEM=CLANG64`, and `clang64/bin` + `usr/bin` in `PATH`):
 
 ```sh
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++
+cmake --preset debug
 ```
 
 3. Build:
 
 ```sh
-cmake --build build
+cmake --build --preset debug
 ```
+
+A `release` preset is also available. See `CMakePresets.json` for details.
 
 ### Runtime Environment
 
@@ -77,7 +79,7 @@ From PowerShell:
 ```powershell
 $env:Path = "C:\msys2\clang64\bin;C:\msys2\usr\bin;$env:Path"
 $env:VK_LAYER_PATH = "C:\msys2\clang64\bin"
-./build/test/project_loading_test.exe
+./build/debug/test/project_loading_test.exe
 ```
 
 ### VS Code Setup
