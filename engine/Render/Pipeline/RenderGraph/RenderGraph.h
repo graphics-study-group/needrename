@@ -11,7 +11,7 @@ namespace Engine {
 
     class RenderGraphCompiledPass;
     class RenderGraph2ExtraInfo;
-    class PipelineRuntimeInfoPerRendering;
+    struct PipelineRuntimeInfoPerRendering;
 
     enum class RGTextureHandle : int32_t;
     enum class RGBufferHandle : int32_t;

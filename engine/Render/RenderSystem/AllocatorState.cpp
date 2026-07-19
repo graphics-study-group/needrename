@@ -71,45 +71,37 @@ namespace {
             || desc.extent.depth > max_extent.depth) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image extent exceeded capability: {}x{}x{} > {}x{}x{}",
-                    desc.extent.width,
-                    desc.extent.height,
-                    desc.extent.depth,
-                    max_extent.width,
-                    max_extent.height,
-                    max_extent.depth
-                )
-                    .c_str()
+                "Image extent exceeded capability: %ux%ux%u > %ux%ux%u",
+                desc.extent.width,
+                desc.extent.height,
+                desc.extent.depth,
+                max_extent.width,
+                max_extent.height,
+                max_extent.depth
             );
             return false;
         }
         if (desc.miplevel > ifp.imageFormatProperties.maxMipLevels) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image miplevel exceeded capability: {} > {}", desc.miplevel, ifp.imageFormatProperties.maxMipLevels
-                )
-                    .c_str()
+                "Image miplevel exceeded capability: %u > %u",
+                desc.miplevel,
+                ifp.imageFormatProperties.maxMipLevels
             );
             return false;
         }
         if (desc.array_layers > ifp.imageFormatProperties.maxArrayLayers) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image array layer exceeded capability: {} > {}",
-                    desc.array_layers,
-                    ifp.imageFormatProperties.maxArrayLayers
-                )
-                    .c_str()
+                "Image array layer exceeded capability: %u > %u",
+                desc.array_layers,
+                ifp.imageFormatProperties.maxArrayLayers
             );
             return false;
         }
         if (!(desc.samples & ifp.imageFormatProperties.sampleCounts)) {
             SDL_LogError(
-                SDL_LOG_CATEGORY_RENDER,
-                std::format("Requested multisample not supported: {}", to_string(desc.samples)).c_str()
+                SDL_LOG_CATEGORY_RENDER, "Requested multisample not supported: %s", to_string(desc.samples).c_str()
             );
             return false;
         }

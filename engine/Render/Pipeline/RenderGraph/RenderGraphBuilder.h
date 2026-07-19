@@ -9,7 +9,7 @@ namespace Engine {
     class RenderGraphPass;
     class RenderSystem;
     class DeviceBuffer;
-    class RRTTHandle;
+    struct RRTTHandle;
 
     class RenderGraphBuilder {
         struct impl;

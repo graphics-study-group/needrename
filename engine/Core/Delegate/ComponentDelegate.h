@@ -28,7 +28,7 @@ namespace Engine {
             }
         }
 
-        bool IsValid() const {
+        virtual bool IsValid() const override {
             return m_scene.GetComponent(m_comp) != nullptr;
         }
 

@@ -17,7 +17,7 @@ namespace Engine {
 
     /// @brief A perspective camera component
     class REFL_SER_CLASS(REFL_WHITELIST) LightComponent : public Component {
-        REFL_SER_BODY(LightComponent)
+        REFL_SER_BODY_OVERRIDE(LightComponent)
     public:
         REFL_ENABLE LightComponent(const GameObject &parent);
         virtual ~LightComponent() = default;

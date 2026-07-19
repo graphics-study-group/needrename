@@ -6,7 +6,7 @@
 #include <memory>
 
 namespace vk {
-    class Extent2D;
+    struct Extent2D;
     class CommandBuffer;
     enum class Format;
 } // namespace vk
@@ -14,7 +14,7 @@ namespace vk {
 namespace Engine {
     class RenderSystem;
     namespace AttachmentUtils {
-        class AttachmentDescription;
+        struct AttachmentDescription;
     }
     class CommandBuffer;
 

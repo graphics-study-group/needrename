@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace Engine {
-    class VertexAttribute;
+    struct VertexAttribute;
     class DeviceBuffer;
 
     /**

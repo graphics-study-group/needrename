@@ -6,7 +6,7 @@
 
 namespace vk {
     struct SwapchainKHR;
-    struct Image;
+    class Image;
     struct SurfaceFormatKHR;
     struct Extent2D;
     struct ImageMemoryBarrier2;

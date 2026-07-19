@@ -3,6 +3,8 @@
 
 #include "Texture.h"
 
+#include <string>
+
 namespace Engine {
 
     /**

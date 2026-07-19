@@ -14,7 +14,7 @@ namespace SerializationTest {
     };
 
     class REFL_SER_CLASS(REFL_BLACKLIST) InheritTest : public BaseData {
-        REFL_SER_BODY(InheritTest)
+        REFL_SER_BODY_OVERRIDE(InheritTest)
     public:
         InheritTest() = default;
         virtual ~InheritTest() = default;

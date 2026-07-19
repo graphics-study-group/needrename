@@ -9,7 +9,7 @@ namespace Engine {
     class Camera;
     /// @brief A perspective camera component
     class REFL_SER_CLASS(REFL_WHITELIST) CameraComponent : public Component {
-        REFL_SER_BODY(CameraComponent)
+        REFL_SER_BODY_OVERRIDE(CameraComponent)
     public:
         REFL_ENABLE CameraComponent(const GameObject &parent);
         virtual ~CameraComponent() = default;

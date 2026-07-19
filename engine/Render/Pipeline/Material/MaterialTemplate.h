@@ -23,12 +23,12 @@ namespace Engine {
     class PipelineLayout;
     class MaterialTemplateAsset;
     class MaterialTemplateProperties;
-    class MaterialTemplateSinglePassProperties;
-    class PipelineRuntimeInfo;
+    struct MaterialTemplateSinglePassProperties;
+    struct PipelineRuntimeInfo;
 
     namespace PipelineInfo {
         class MaterialPassInfo;
-        class MaterialPoolInfo;
+        struct MaterialPoolInfo;
     } // namespace PipelineInfo
 
     namespace ShdrRfl {

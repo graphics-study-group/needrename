@@ -107,7 +107,8 @@ namespace Engine {
         } else {
             SDL_LogError(
                 SDL_LOG_CATEGORY_APPLICATION,
-                std::format("Failed to infer shader type for shader {}", shader_abs_path.generic_string()).c_str()
+                "Failed to infer shader type for shader %s",
+                shader_abs_path.generic_string().c_str()
             );
             return false;
         }

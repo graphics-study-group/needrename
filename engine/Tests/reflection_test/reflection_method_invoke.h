@@ -38,7 +38,7 @@ protected:
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) FooA : public FooBase, public BBase {
-    REFL_SER_BODY(FooA)
+    REFL_SER_BODY_OVERRIDE(FooA)
 public:
     REFL_ENABLE FooA(int a, int b);
     virtual ~FooA() = default;

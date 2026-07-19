@@ -74,7 +74,7 @@ namespace Engine {
         // ButtonAxis is a virtual axis that is controlled by a positive and negative button such as keyboard, mouse and
         // gamepad button. It will be clamped to -1.0f or 1.0f.
         class REFL_SER_CLASS(REFL_BLACKLIST) ButtonAxis : public InputAxis {
-            REFL_SER_BODY(ButtonAxis)
+            REFL_SER_BODY_OVERRIDE(ButtonAxis)
         public:
             ButtonAxis() = default;
             ButtonAxis(
@@ -99,7 +99,7 @@ namespace Engine {
         // MotionAxis is a virtual axis that will aggregate control signals during one frame. It is used for mouse
         // movement and mouse wheel.
         class REFL_SER_CLASS(REFL_BLACKLIST) MotionAxis : public InputAxis {
-            REFL_SER_BODY(MotionAxis)
+            REFL_SER_BODY_OVERRIDE(MotionAxis)
         public:
             MotionAxis() = default;
             MotionAxis(
@@ -125,7 +125,7 @@ namespace Engine {
 
         // GamepadAxis is a virtual axis that is controlled by a gamepad axis or trigger.
         class REFL_SER_CLASS(REFL_BLACKLIST) GamepadAxis : public InputAxis {
-            REFL_SER_BODY(GamepadAxis)
+            REFL_SER_BODY_OVERRIDE(GamepadAxis)
         public:
             GamepadAxis() = default;
             GamepadAxis(

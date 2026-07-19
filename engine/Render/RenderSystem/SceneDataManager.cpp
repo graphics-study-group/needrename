@@ -239,7 +239,9 @@ namespace Engine::RenderSystemState {
 
             // Create dedicated descriptor pool
             vk::DescriptorPoolCreateInfo dpci{
-                vk::DescriptorPoolCreateFlagBits{}, scene.scene_descriptor_sets.size(), impl::SCENE_DESCRIPTOR_POOL_SIZE
+                vk::DescriptorPoolCreateFlagBits{},
+                (uint32_t)scene.scene_descriptor_sets.size(),
+                impl::SCENE_DESCRIPTOR_POOL_SIZE
             };
             scene_descriptor_pool = device.createDescriptorPoolUnique(dpci);
             DEBUG_SET_NAME_TEMPLATE(device, scene_descriptor_pool.get(), "Scene Descriptor Pool");

@@ -31,7 +31,8 @@ namespace Editor {
                     ImGui::Text("No GameObject selected");
                     break;
                 }
-                ImGui::Text((std::string("<GameObject>") + game_object->m_name).c_str());
+                auto text = std::string("<GameObject>") + game_object->m_name;
+                ImGui::Text(text.c_str());
                 ImGui::Separator();
                 unsigned int component_idx = 0;
                 for (auto component_handle : game_object->m_components) {

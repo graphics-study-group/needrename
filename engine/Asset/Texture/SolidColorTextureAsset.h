@@ -8,7 +8,7 @@
 
 namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) SolidColorTextureAsset : public TextureAsset {
-        REFL_SER_BODY(SolidColorTextureAsset)
+        REFL_SER_BODY_OVERRIDE(SolidColorTextureAsset)
     public:
         REFL_ENABLE SolidColorTextureAsset() = default;
         virtual ~SolidColorTextureAsset() = default;

@@ -11,6 +11,8 @@
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
+#include <string>
+
 namespace Engine::ShdrRfl {
     // Types are only added and never removed.
     // We will have no more than ~100 shaders, so this
@@ -153,8 +155,8 @@ namespace Engine::ShdrRfl {
         interface.buffer_placer->WriteBuffer(sb, buffer);
     }
 
-    std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::GenerateAllLayoutBindings(
-    ) const {
+    std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::
+        GenerateAllLayoutBindings() const {
         std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> sets;
 
         for (const auto &interface : this->interfaces) {

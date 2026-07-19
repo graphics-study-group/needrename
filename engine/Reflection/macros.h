@@ -35,15 +35,30 @@ public:                                                                         
     REFL_DISABLE virtual void _SERIALIZATION_LOAD_(Engine::Serialization::Archive &buffer);                            \
     REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker);
 
-/// Serialization body for simple struct. Declare non-virtual serialization functions, backdoor constructor and default
-/// constructor.
-#define REFL_SER_SIMPLE_STRUCT(class_name, ...)                                                                        \
+/// Serialization body for regular class. Declare some virtual **override** serialization functions and backdoor constructor.
+/// Use this when the base class has these functions to avoid warnings.
+#define REFL_SER_BODY_OVERRIDE(class_name, ...)                                                                        \
+public:                                                                                                                \
+    friend class Engine::Reflection::Registrar;                                                                        \
+    REFL_DISABLE virtual void _SERIALIZATION_SAVE_(Engine::Serialization::Archive &buffer) const override;             \
+    REFL_DISABLE virtual void _SERIALIZATION_LOAD_(Engine::Serialization::Archive &buffer) override;                   \
+    REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker);
+
+/// Serialization body for regular class. Declare some non-virtual serialization functions and backdoor constructor.
+/// Use this when the class is 'final' to avoid warnings.
+#define REFL_SER_BODY_FINAL(class_name, ...)                                                                           \
 public:                                                                                                                \
     friend class Engine::Reflection::Registrar;                                                                        \
     REFL_DISABLE void _SERIALIZATION_SAVE_(Engine::Serialization::Archive &buffer) const;                              \
     REFL_DISABLE void _SERIALIZATION_LOAD_(Engine::Serialization::Archive &buffer);                                    \
-    REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker);                                         \
-    REFL_ENABLE class_name() = default;
+    REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker);
+
+/// Serialization body for simple struct. Declare non-virtual serialization functions. No construtor.
+#define REFL_SER_SIMPLE_STRUCT(class_name, ...)                                                                        \
+public:                                                                                                                \
+    friend class Engine::Reflection::Registrar;                                                                        \
+    REFL_DISABLE void _SERIALIZATION_SAVE_(Engine::Serialization::Archive &buffer) const;                              \
+    REFL_DISABLE void _SERIALIZATION_LOAD_(Engine::Serialization::Archive &buffer);
 
 namespace Engine {
     namespace Reflection {

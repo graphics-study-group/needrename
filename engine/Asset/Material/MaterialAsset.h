@@ -72,7 +72,7 @@ namespace Engine {
      * Contains a mapping from name to properties.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialAsset : public Asset {
-        REFL_SER_BODY(MaterialAsset)
+        REFL_SER_BODY_OVERRIDE(MaterialAsset)
     public:
         REFL_ENABLE MaterialAsset() = default;
         virtual ~MaterialAsset() = default;

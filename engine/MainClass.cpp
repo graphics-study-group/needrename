@@ -11,7 +11,7 @@
 #include <Framework/world/WorldSystem.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
-#include <Physics/Solver/XpbdGpuSolver.h>
+#include <Physics/Solver/XPBDGpuSolver.h>
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>

@@ -19,10 +19,6 @@ find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
 message(STATUS "Vulkan version: ${Vulkan_VERSION}")
 
-if (NOT(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-    Message(FATAL_ERROR "This project supports GCC only.")
-endif()
-
 add_subdirectory(third_party)
 
 # Debug options

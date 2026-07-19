@@ -9,7 +9,7 @@
 namespace vk {
     class DescriptorSet;
     class DescriptorSetLayout;
-    class Extent2D;
+    struct Extent2D;
 } // namespace vk
 
 namespace Engine {

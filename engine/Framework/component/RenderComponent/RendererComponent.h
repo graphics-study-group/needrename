@@ -11,7 +11,7 @@
 
 namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) RendererComponent : public Component {
-        REFL_SER_BODY(RendererComponent)
+        REFL_SER_BODY_OVERRIDE(RendererComponent)
     protected:
         RendererList m_renderer_handles{};
 

@@ -11,7 +11,7 @@ namespace Engine {
      * @brief An asset that refers to a shader.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) ShaderAsset : public Asset {
-        REFL_SER_BODY(ShaderAsset)
+        REFL_SER_BODY_OVERRIDE(ShaderAsset)
     public:
         REFL_ENABLE ShaderAsset() = default;
 

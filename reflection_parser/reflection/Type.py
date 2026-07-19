@@ -12,6 +12,7 @@ class Type:
         self.serialized_fields = []
         self.constructors = []
         self.methods = []
+        self.has_backdoor_constructor = False
 
 
 class Enum:
@@ -30,12 +31,15 @@ class Method:
         self.return_type = Type(cx_method.result_type)
         self.return_type_is_reference = cx_method.result_type.get_canonical().kind in [CX.TypeKind.LVALUEREFERENCE, CX.TypeKind.RVALUEREFERENCE]
         self.is_const = cx_method.is_const_method()
+        self.is_backdoor_constructor = False
         
         self.arg_types = []
         for method_child in cx_method.get_children():
             if method_child.kind == CX.CursorKind.PARM_DECL:
                 self.arg_types.append(Type(method_child.type))
-    
+        if len(self.arg_types) == 1 and self.arg_types[0].full_name == "Engine::Serialization::SerializationMarker":
+            self.is_backdoor_constructor = True
+
 
 class Field:
     def __init__(self, cx_field: CX.Cursor):

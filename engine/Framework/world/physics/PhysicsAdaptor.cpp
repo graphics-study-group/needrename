@@ -216,14 +216,9 @@ namespace Engine {
         uint32_t shape_count = static_cast<uint32_t>(m_shape_component_to_index.size());
         if (shape_count > 0) {
             std::unordered_set<uint64_t> pair_set;
-            uint32_t invalid_warnings = 0;
-
             for (auto &[src_ch, target_set] : m_filter_map) {
                 auto src_it = m_shape_component_to_index.find(src_ch);
-                if (src_it == m_shape_component_to_index.end()) {
-                    ++invalid_warnings;
-                    continue;
-                }
+                if (src_it == m_shape_component_to_index.end()) continue;
                 uint32_t src_idx = src_it->second;
 
                 for (ComponentHandle tgt_ch : target_set) {

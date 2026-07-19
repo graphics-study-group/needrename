@@ -8,7 +8,7 @@
 namespace Engine {
     /// @brief Base class of all texture assets.
     class REFL_SER_CLASS(REFL_WHITELIST) TextureAsset : public Asset {
-        REFL_SER_BODY(TextureAsset)
+        REFL_SER_BODY_OVERRIDE(TextureAsset)
     public:
         REFL_ENABLE TextureAsset() = default;
         virtual ~TextureAsset() = default;

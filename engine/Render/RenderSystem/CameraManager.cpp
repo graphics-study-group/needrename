@@ -55,7 +55,7 @@ namespace Engine::RenderSystemState {
         auto device = m_system.GetDevice();
 
         vk::DescriptorPoolCreateInfo dpci{
-            vk::DescriptorPoolCreateFlagBits{}, pimpl->descriptors.size(), impl::CAMERA_DESCRIPTOR_POOL_SIZE
+            vk::DescriptorPoolCreateFlagBits{}, (uint32_t)pimpl->descriptors.size(), impl::CAMERA_DESCRIPTOR_POOL_SIZE
         };
         pimpl->camera_descriptor_pool = device.createDescriptorPoolUnique(dpci);
         DEBUG_SET_NAME_TEMPLATE(device, pimpl->camera_descriptor_pool.get(), "Camera Descriptor Pool");

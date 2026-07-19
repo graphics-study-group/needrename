@@ -92,11 +92,11 @@ namespace Engine {
 
     constexpr vk::ImageLayout GetImageLayout(MemoryAccessTypeImage a) noexcept {
         if (a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead)
-            | a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite)) {
+            || a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite)) {
             return vk::ImageLayout::eColorAttachmentOptimal;
         }
         if (a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead)
-            | a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)) {
+            || a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)) {
             return vk::ImageLayout::eDepthStencilAttachmentOptimal;
         }
         if (a.Test(MemoryAccessTypeImageBits::TransferRead)) {
@@ -109,7 +109,7 @@ namespace Engine {
             return vk::ImageLayout::eReadOnlyOptimal;
         }
         if (a.Test(MemoryAccessTypeImageBits::ShaderRandomRead)
-            | a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)) {
+            || a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)) {
             return vk::ImageLayout::eGeneral;
         }
         return vk::ImageLayout::eUndefined;
