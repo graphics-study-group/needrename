@@ -170,15 +170,6 @@ public:
      */
     Engine::GameObject &AddDoublePendulum(const glm::vec3 &anchor_position);
 
-    /**
-     * @brief Finalize physics scene initialization.
-     *
-     * Calls physics_scene.InitializePendingRigidBodies(render_system).
-     *
-     * @param physics_scene The PhysicsScene to finalize.
-     */
-    void Finalize(Engine::PhysicsScene &physics_scene);
-
 private:
     Engine::GameObject &AddRigidBodyObject(
         const glm::vec3 &position,

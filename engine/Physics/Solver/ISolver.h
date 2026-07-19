@@ -1,23 +1,20 @@
 #ifndef ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 #define ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 
-namespace vk {
-    struct CommandBuffer;
-}
-
 namespace Engine {
     class PhysicsScene;
+    class CommandBuffer;
 
     /**
      * @brief Abstract base class for GPU physics solvers.
      *
-     * Solvers own their RenderGraph instances internally and are driven
-     * by PhysicsSystem via the three-phase PreGPUStep → GPUStep →
-     * PostGPUStep lifecycle.
+     * Solvers own their compute pipelines and resource bindings internally
+     * and are driven by PhysicsSystem via the three-phase PreGPUStep →
+     * GPUStep → PostGPUStep lifecycle.
      *
      * PreGPUStep / PostGPUStep run outside the CommandBuffer scope.
-     * GPUStep receives the CommandBuffer and records its RenderGraph
-     * passes directly — callers never access the solver's RG.
+     * GPUStep receives the CommandBuffer and records compute dispatches
+     * directly — callers never access the solver's internal resources.
      *
      * Each solver is bound to a specific PhysicsScene at registration
      * time via OnBindToScene(). The bound scene is accessible through
@@ -55,13 +52,12 @@ namespace Engine {
         /**
          * @brief Called BETWEEN cb.begin() and cb.end() each frame.
          *
-         * The solver may lazily create its RenderGraph on the first
-         * call. It MUST record its passes to @p cb before returning.
-         * The solver accesses its scene through m_bound_scene.
+         * The solver MUST record its compute dispatches to @p cb before
+         * returning. The solver accesses its scene through m_bound_scene.
          *
-         * @param cb CommandBuffer in Recording state (after begin, before end).
+         * @param command_buffer CommandBuffer in Recording state (after begin, before end).
          */
-        virtual void GPUStep(vk::CommandBuffer cb) = 0;
+        virtual void GPUStep(CommandBuffer &command_buffer) = 0;
 
         /**
          * @brief Called AFTER cb.end() + submit each frame.

@@ -7,7 +7,9 @@
 //
 // Solves two constraints per fixed joint:
 //   1. Rotation: drive relative rotation toward initial snapshot
-//   2. Position: drive relative position toward initial snapshot in obj1's local frame
+//   2. Position: constrain two symmetric attachment points (midpoint
+//      of the COM line) to coincide in world space, giving non-zero
+//      lever arms on both bodies.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -30,26 +32,29 @@ layout(set = 0, binding = 1)  readonly buffer FixedJointCount     { uint count; 
 // ---- Lagrange multiplier SoA buffers (solver-owned, read-write) ----
 layout(set = 0, binding = 2)  buffer FixedRotationLagrange { float v[]; } rotation_lagrange;
 layout(set = 0, binding = 3)  buffer FixedPositionLagrange { float v[]; } position_lagrange;
+layout(set = 0, binding = 4) readonly buffer FixedJointAlive { uint v[]; } fixed_joint_alive;
 
 // ---- Body state (read-only) ----
-layout(set = 0, binding = 4)  readonly buffer RigidBodyAlive         { uint v[]; } rigid_body_alive;
-layout(set = 0, binding = 5)  readonly buffer RigidBodyCenterPosition { vec4 v[]; } rigid_body_center_position;
-layout(set = 0, binding = 6)  readonly buffer RigidBodyCenterRotation { vec4 v[]; } rigid_body_center_rotation;
-layout(set = 0, binding = 7)  readonly buffer RigidBodyMass           { float v[]; } rigid_body_mass;
-layout(set = 0, binding = 8)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
-layout(set = 0, binding = 9)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
+layout(set = 0, binding = 5)  readonly buffer RigidBodyAlive         { uint v[]; } rigid_body_alive;
+layout(set = 0, binding = 6)  readonly buffer RigidBodyCenterPosition { vec4 v[]; } rigid_body_center_position;
+layout(set = 0, binding = 7)  readonly buffer RigidBodyCenterRotation { vec4 v[]; } rigid_body_center_rotation;
+layout(set = 0, binding = 8)  readonly buffer RigidBodyMass           { float v[]; } rigid_body_mass;
+layout(set = 0, binding = 9)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
+layout(set = 0, binding = 10)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
 
 // ---- Uniforms (dt) ----
-layout(set = 0, binding = 10) readonly buffer XpbdUniforms { vec4 v; } uniforms;  // xyz = gravity, w = substep_dt
+layout(set = 0, binding = 11) readonly buffer XpbdUniforms { vec4 v; } uniforms;  // xyz = gravity, w = substep_dt
 
 // ---- Jacobi accumulators (shared with contact and hinge solvers) ----
-layout(set = 0, binding = 11) buffer LinearPositionDelta  { float v[]; } lin_delta;
-layout(set = 0, binding = 12) buffer AngularPositionDelta { float v[]; } ang_delta;
-layout(set = 0, binding = 13) buffer PositionDeltaCount    { float v[]; } delta_count;
+layout(set = 0, binding = 12) buffer LinearPositionDelta  { float v[]; } lin_delta;
+layout(set = 0, binding = 13) buffer AngularPositionDelta { float v[]; } ang_delta;
+layout(set = 0, binding = 14) buffer PositionDeltaCount    { float v[]; } delta_count;
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
     if (cidx >= fixed_joint_count.count) return;
+
+    if (fixed_joint_alive.v[cidx] == 0u) return;
 
     GpuFixedJoint constraint = fixed_joints.v[cidx];
     uint obj1_idx = constraint.obj1_index;
@@ -122,22 +127,28 @@ void main() {
 
     // =====================================================================
     // Constraint 2: Position constraint
-    // Drive obj2 COM in obj1's local frame toward its initial value.
-    // target_pos_world = pos1 + quat_rotate(q1, initial_rel_pos_local)
-    // C_pos = |pos2 - target_pos_world|
+    //
+    // Use the midpoint of the two COMs as a symmetric attachment point.
+    // This gives non-zero lever arms on BOTH bodies, allowing the position
+    // constraint to transmit torque to both obj1 and obj2.
     // =====================================================================
-    vec3 target_pos_world = pos1 + quat_rotate(ori1, constraint.initial_rel_pos_local.xyz);
-    vec3 positional_correction = pos2 - target_pos_world;
+    vec3 anchor_obj1_local = constraint.initial_rel_pos_local.xyz * 0.5;
+    vec3 anchor_obj2_local = quat_rotate(
+        quat_inverse(constraint.initial_rel_rotation),
+        -constraint.initial_rel_pos_local.xyz * 0.5
+    );
+
+    vec3 r1 = quat_rotate(ori1, anchor_obj1_local);
+    vec3 r2 = quat_rotate(ori2, anchor_obj2_local);
+
+    vec3 attach1_world = pos1 + r1;
+    vec3 attach2_world = pos2 + r2;
+
+    vec3 positional_correction = attach2_world - attach1_world;
     float positional_norm = length(positional_correction);
 
     if (positional_norm > kEpsilon) {
         vec3 n = positional_correction / positional_norm;
-
-        // r1 is the lever arm from pos1 to the attachment point.
-        // The attachment point is at target_pos_world, so r1 = target_pos_world - pos1.
-        vec3 r1 = target_pos_world - pos1;
-        // r2 = 0 because we attach at obj2's COM (pos2 is the attachment point).
-        vec3 r2 = vec3(0.0);
 
         vec3 r1_n = cross(r1, n);
         vec3 r2_n = cross(r2, n);

@@ -3,6 +3,7 @@
 
 #include <Core/Math/Transform.h>
 #include <Framework/component/Component.h>
+#include <Framework/world/physics/PhysicsDescriptors.h>
 #include <Physics/PhysicsScene.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_glm.h>
@@ -38,6 +39,14 @@ namespace Engine {
          * rigid body if one is already registered.
          */
         void Awake() override;
+
+        /**
+         * @brief Upload current geometry to PhysicsScene.
+         *
+         * Init refreshes the shape world position, rotation, type, feature,
+         * and ignore list, then re-attempts attachment to an ancestor rigid body.
+         */
+        void Init() override;
 
         /**
          * @brief Check whether this shape has a valid physics registration.
@@ -76,13 +85,23 @@ namespace Engine {
         REFL_SER_ENABLE glm::vec3 m_feature{0.5f, 0.5f, 0.5f};
         REFL_SER_ENABLE glm::vec3 m_center{0.0f, 0.0f, 0.0f};
         REFL_SER_ENABLE glm::quat m_rotation{1.0f, 0.0f, 0.0f, 0.0f};
-        /// ObjectHandles of GameObjects whose CollisionShapeComponents should be
-        /// ignored during collision detection.  Each ObjectHandle must refer to a
-        /// GameObject that has a CollisionShapeComponent directly attached.
-        REFL_SER_ENABLE std::vector<ObjectHandle> m_ignore_collision_objects{};
+        /// ComponentHandles of CollisionShapeComponents to ignore during collision
+        /// detection. Each ComponentHandle must refer to a CollisionShapeComponent.
+        REFL_SER_ENABLE std::vector<ComponentHandle> m_ignore_collision_shapes{};
 
     private:
         uint32_t m_shape_index{PhysicsScene::INVALID_INDEX};
+
+        /**
+         * @brief Build a CollisionShapeDescriptor from current member state.
+         *
+         * Computes world-space center and rotation from the owner's transform.
+         * Handles cylinder non-uniform-scale fallback to box.
+         *
+         * @param owner Parent game object.
+         * @return Fully populated descriptor ready for submission.
+         */
+        CollisionShapeDescriptor BuildDescriptor(GameObject *owner);
 
         bool TryAttachToAncestorRigidBody();
     };

@@ -4,8 +4,8 @@ add_library(EngineLibAsset
     OBJECT
     ${SOURCE}
 )
-target_link_libraries(EngineLibAsset 
-    PRIVATE 
+target_link_libraries(EngineLibAsset
+    PRIVATE
     EngineLibHeaderInterface
     EngineLibExternalDependency
 )
@@ -15,4 +15,5 @@ target_link_libraries(EngineLibAsset
     stb
     ktx
     fastgltf::fastgltf
+    tinyxml2
 )

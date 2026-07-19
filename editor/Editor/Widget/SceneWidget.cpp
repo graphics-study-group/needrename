@@ -105,10 +105,22 @@ namespace Editor {
     }
 
     void SceneWidget::SetDisplayTexture(const Engine::RenderTargetTexture &texture) {
+        // Free previous descriptor set to avoid pool exhaustion.
+        if (m_color_att_id) {
+            ImGui_ImplVulkan_RemoveTexture(reinterpret_cast<VkDescriptorSet>(m_color_att_id));
+        }
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
             texture.GetSampler(), texture.GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         ));
         m_texture_size = ImVec2(texture.GetTextureDescription().width, texture.GetTextureDescription().height);
+        SDL_LogInfo(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "[SceneWidget::SetDisplayTexture] texture=%p size=(%u,%u) ds=%llu",
+            static_cast<const void *>(&texture),
+            texture.GetTextureDescription().width,
+            texture.GetTextureDescription().height,
+            static_cast<unsigned long long>(m_color_att_id)
+        );
     }
 
     uint8_t SceneWidget::GetCameraIndex() const {

@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vulkan/vulkan.hpp>
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
@@ -17,13 +18,17 @@
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
+#include <Framework/world/physics/PhysicsAdaptor.h>
 #include <MainClass.h>
+#include <Physics/PhysicsScene.h>
+#include <Physics/PhysicsSystem.h>
 #include <Render/FullRenderSystem.h>
 #include <SDL3/SDL.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
 #include <cmake_config.h>
 
+#include <Editor/EditorMainClass.h>
 #include <Editor/Render/EditorRenderGraphBuilder.h>
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/ProjectWidget.h>
@@ -99,6 +104,19 @@ void Start() {
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     scene.ClearEventQueue();
     scene.AddInitEvent();
+    scene.GetPhysicsAdaptor().SetPhysicsActive(true);
+    if (auto *ps = scene.GetPhysicsScene()) {
+        ps->SetSimulationEnabled(true);
+    }
+}
+
+void Stop() {
+    auto cmc = MainClass::GetInstance();
+    auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
+    scene.GetPhysicsAdaptor().SetPhysicsActive(false);
+    if (auto *ps = scene.GetPhysicsScene()) {
+        ps->SetSimulationEnabled(false);
+    }
 }
 
 int main(int argc, char **argv) {
@@ -126,7 +144,9 @@ int main(int argc, char **argv) {
 
     ResetExampleProject(project_template_path, project_path);
 
+    auto emc = Editor::EditorMainClass::GetInstance();
     auto cmc = MainClass::GetInstance();
+
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     RegisterAllTypes();
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
@@ -138,6 +158,7 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
+    emc->Initialize();
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Add extra objects");
     auto input = MainClass::GetInstance()->GetInputSystem();
@@ -167,11 +188,23 @@ int main(int argc, char **argv) {
     );
 
     auto scene_texture = rg->GetInternalTextureResource(scene_color_id);
-    scene_widget->SetDisplayTexture(*scene_texture);
     auto game_texture = rg->GetInternalTextureResource(game_color_id);
+    SDL_LogInfo(
+        SDL_LOG_CATEGORY_APPLICATION,
+        "[main] Init: scene_handle=%d game_handle=%d scene_tex=%p game_tex=%p",
+        static_cast<int32_t>(scene_color_id),
+        static_cast<int32_t>(game_color_id),
+        static_cast<const void *>(scene_texture),
+        static_cast<const void *>(game_texture)
+    );
+    scene_widget->SetDisplayTexture(*scene_texture);
     game_widget->SetDisplayTexture(*game_texture);
 
+    // Track whether the render graph has been built with the physics SSBO.
+    bool has_model_matrices_in_graph = false;
+
     main_window.m_OnStart.AddDelegate(std::make_unique<FuncDelegate<>>(Start));
+    main_window.m_OnStop.AddDelegate(std::make_unique<FuncDelegate<>>(Stop));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
@@ -223,13 +256,67 @@ int main(int argc, char **argv) {
             world->GetMainSceneRef().AddTickEvent();
             world->GetMainSceneRef().ProcessEvents();
         }
+        world->GetMainSceneRef().FlushPhysics(*rsys);
+
+        // Lazily rebuild render graph when physics SSBO first becomes available.
+        if (!has_model_matrices_in_graph) {
+            auto *physics_scene = world->GetMainSceneRef().GetPhysicsScene();
+            if (physics_scene) {
+                const auto *mm_buf = physics_scene->GetGpuBuffers().model_matrices;
+                if (mm_buf) {
+                    has_model_matrices_in_graph = true;
+                    rg = rgb->BuildEditorRenderGraph(
+                        screenWidth,
+                        screenHeight,
+                        scene_widget.get(),
+                        game_widget.get(),
+                        scene_color_id,
+                        game_color_id,
+                        final_color_id,
+                        mm_buf
+                    );
+                    auto *scene_tex2 = rg->GetInternalTextureResource(scene_color_id);
+                    auto *game_tex2 = rg->GetInternalTextureResource(game_color_id);
+                    SDL_LogInfo(
+                        SDL_LOG_CATEGORY_APPLICATION,
+                        "[main] Rebuild: scene_handle=%d game_handle=%d scene_tex=%p game_tex=%p",
+                        static_cast<int32_t>(scene_color_id),
+                        static_cast<int32_t>(game_color_id),
+                        static_cast<const void *>(scene_tex2),
+                        static_cast<const void *>(game_tex2)
+                    );
+                    scene_widget->SetDisplayTexture(*scene_tex2);
+                    game_widget->SetDisplayTexture(*game_tex2);
+                }
+            }
+        }
+
         world->UpdateRendererData(*rsys);
 
         gui->PrepareGUI();
         main_window.Render();
 
         rsys->StartFrame();
-        rg->Execute(*rsys);
+
+        if (main_window.m_is_playing) {
+            cmc->GetPhysicsSystem()->PreGPUStep();
+        }
+
+        auto cb = rsys->GetFrameManager().GetCommandBuffer();
+        cb.GetCommandBuffer().begin(vk::CommandBufferBeginInfo{});
+
+        if (main_window.m_is_playing) {
+            cmc->GetPhysicsSystem()->GPUStep(cb);
+        }
+        rg->RecordAllPasses(cb.GetCommandBuffer());
+
+        cb.GetCommandBuffer().end();
+        rsys->GetFrameManager().SubmitMainCommandBuffer();
+
+        if (main_window.m_is_playing) {
+            cmc->GetPhysicsSystem()->PostGPUStep();
+        }
+
         auto [w, h] = cmc->GetWindow()->GetSize();
         rsys->CompleteFrame(*rg->GetInternalTextureResource(final_color_id), w, h);
     }

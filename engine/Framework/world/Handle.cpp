@@ -76,3 +76,5 @@ namespace Engine {
         *this = resolver.m_comp_map[json.get<uint32_t>()];
     }
 } // namespace Engine
+
+#include "__generated__/Handle.h.inc"

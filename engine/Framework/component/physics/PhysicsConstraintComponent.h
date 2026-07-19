@@ -20,8 +20,8 @@ namespace Engine {
      * transform is computed at Awake() time from current world transforms.
      */
     struct FixedJointDef {
-        ObjectHandle m_obj2_handle; ///< Handle of the second object.
-        float m_compliance{0.0f};   ///< Joint compliance (0 = hard constraint).
+        ObjectHandle m_obj2_handle{}; ///< Handle of the second object.
+        float m_compliance{0.0f};     ///< Joint compliance (0 = hard constraint).
     };
 
     /**
@@ -32,10 +32,10 @@ namespace Engine {
      * No angle limits or target angle support in this version.
      */
     struct HingeJointDef {
-        ObjectHandle m_obj2_handle;    ///< Handle of the second object.
-        glm::vec3 m_hinge_axis_obj1;   ///< Hinge axis in obj1's local frame (will be normalized).
-        glm::vec3 m_hinge_anchor_obj1; ///< Hinge anchor point in obj1's local frame.
-        float m_compliance{0.0f};      ///< Joint compliance (0 = hard constraint).
+        ObjectHandle m_obj2_handle{};    ///< Handle of the second object.
+        glm::vec3 m_hinge_axis_obj1{};   ///< Hinge axis in obj1's local frame (will be normalized).
+        glm::vec3 m_hinge_anchor_obj1{}; ///< Hinge anchor point in obj1's local frame.
+        float m_compliance{0.0f};        ///< Joint compliance (0 = hard constraint).
     };
 
     /// Variant type for storing either joint type.
@@ -74,9 +74,36 @@ namespace Engine {
          */
         void Awake() override;
 
+        /**
+         * @brief Resolve handles and upload joint data to PhysicsScene.
+         *
+         * Init resolves ObjectHandles to rigid body indices (guaranteed
+         * available since all RigidBody Awake callbacks have completed),
+         * recomputes FixedJoint initial relative transforms from current
+         * world poses, and fills the allocated joint slots.
+         */
+        void Init() override;
+
+        /**
+         * @brief Custom serialization for m_joints variant vector.
+         *
+         * The reflection system cannot handle std::variant, so we manually
+         * write each joint as a tagged JSON object.
+         */
+        virtual void save_to_archive(Serialization::Archive &archive) const override;
+
+        /**
+         * @brief Custom deserialization for m_joints variant vector.
+         */
+        virtual void load_from_archive(Serialization::Archive &archive) override;
+
     public:
-        /// Joint definitions (editable at construction time, not serialized).
+        /// Joint definitions.
         std::vector<JointVariant> m_joints{};
+
+    private:
+        /// Cached joint indices from Awake allocation, parallel to m_joints.
+        std::vector<std::pair<uint32_t, bool>> m_joint_indices{};
     };
 } // namespace Engine
 

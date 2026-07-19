@@ -4,6 +4,7 @@
 #include <Asset/Shader/ShaderAsset.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
+#include <Render/Memory/ComputeBuffer.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
@@ -40,7 +41,8 @@ namespace Editor {
         GameWidget *game_widget,
         RGTextureHandle &scene_widget_color_id,
         RGTextureHandle &game_widget_color_id,
-        RGTextureHandle &final_color_target_id
+        RGTextureHandle &final_color_target_id,
+        const ComputeBuffer *model_matrices_buffer
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -61,10 +63,12 @@ namespace Editor {
         final_color_target_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Final Color");
 
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat;
-        auto hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "HDR Color");
+        auto scene_hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Scene HDR Color");
+        auto game_hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Game HDR Color");
 
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-        auto depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Depth");
+        auto scene_depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Scene Depth");
+        auto game_depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Game Depth");
 
         // Shadow map targets
         RenderTargetTexture::RenderTargetTextureDesc shadow_desc{
@@ -91,6 +95,14 @@ namespace Editor {
         m_scene_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
         m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
 
+        using IBT = MemoryAccessTypeBufferBits;
+        RGBufferHandle mm_handle{};
+        bool has_model_matrices = (model_matrices_buffer != nullptr);
+        if (has_model_matrices) {
+            mm_handle =
+                rgb.ImportExternalResource(*model_matrices_buffer, MemoryAccessTypeBuffer(IBT::ShaderRandomWrite));
+        }
+
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
         auto gui_system = MainClass::GetInstance()->GetGUISystem().get();
@@ -103,16 +115,20 @@ namespace Editor {
          * Shadowmap passes — one per shadow-casting light.
          */
         for (size_t i = 0; i < shadow_ids.size(); i++) {
-            rgb.AddPass(
-                RenderGraphPassBuilder{m_system}
-                    .SetName("Shadowmap Pass " + std::to_string(i))
-                    .SetDepthStencilAttachment(
-                        {shadow_ids[i],
-                         {},
-                         AttachmentUtils::LoadOperation::Clear,
-                         AttachmentUtils::StoreOperation::Store,
-                         AttachmentUtils::DepthClearValue{1.0f, 0U}}
-                    )
+            auto shadow_builder = RenderGraphPassBuilder{m_system}
+                                      .SetName("Shadowmap Pass " + std::to_string(i))
+                                      .SetDepthStencilAttachment(
+                                          {shadow_ids[i],
+                                           {},
+                                           AttachmentUtils::LoadOperation::Clear,
+                                           AttachmentUtils::StoreOperation::Store,
+                                           AttachmentUtils::DepthClearValue{1.0f, 0U}}
+                                      );
+            if (has_model_matrices) {
+                shadow_builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
+            }
+            auto shadow_pass =
+                shadow_builder
                     .SetPassFunction([&system, shadow_ids, i](CommandBuffer &cb, const RenderGraph &rg) {
                         vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
                         vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
@@ -138,9 +154,8 @@ namespace Editor {
                             cb.EndRendering();
                         }
                     })
-                    .Get()
-                // No WrapRenderPass — manual rendering
-            );
+                    .Get();
+            rgb.AddPass(std::move(shadow_pass));
         }
 
         /**
@@ -151,12 +166,18 @@ namespace Editor {
             for (size_t i = 0; i < shadow_ids.size(); i++) {
                 builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
             }
+            if (has_model_matrices) {
+                builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
+            }
             builder
                 .AppendColorAttachment(
-                    {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                    {scene_hdr_color_id,
+                     {},
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::Store}
                 )
                 .SetDepthStencilAttachment(
-                    {depth_id,
+                    {scene_depth_id,
                      {},
                      AttachmentUtils::LoadOperation::Clear,
                      AttachmentUtils::StoreOperation::DontCare,
@@ -194,17 +215,17 @@ namespace Editor {
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Scene Bloom FX pass")
-                .UseImage(hdr_color_id, IAT::ShaderRandomRead)
+                .UseImage(scene_hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(scene_widget_color_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
                 .SetPassFunction([&scene_bloom,
                                   texture_width,
                                   texture_height,
                                   &scene_bloom_binding,
-                                  hdr_color_id,
+                                  scene_hdr_color_id,
                                   scene_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
                     scene_bloom_binding.GetShaderResourceBinding().BindTexture(
-                        "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
+                        "inputImage", *rg.GetInternalTextureResource(scene_hdr_color_id)
                     );
                     scene_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "outputImage", *rg.GetInternalTextureResource(scene_widget_color_id)
@@ -224,12 +245,18 @@ namespace Editor {
             for (size_t i = 0; i < shadow_ids.size(); i++) {
                 builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
             }
+            if (has_model_matrices) {
+                builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
+            }
             builder
                 .AppendColorAttachment(
-                    {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                    {game_hdr_color_id,
+                     {},
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::Store}
                 )
                 .SetDepthStencilAttachment(
-                    {depth_id,
+                    {game_depth_id,
                      {},
                      AttachmentUtils::LoadOperation::Clear,
                      AttachmentUtils::StoreOperation::DontCare,
@@ -271,17 +298,17 @@ namespace Editor {
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Game Bloom FX pass")
-                .UseImage(hdr_color_id, IAT::ShaderRandomRead)
+                .UseImage(game_hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(game_widget_color_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
                 .SetPassFunction([&game_bloom,
                                   texture_width,
                                   texture_height,
                                   &game_bloom_binding,
-                                  hdr_color_id,
+                                  game_hdr_color_id,
                                   game_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
                     game_bloom_binding.GetShaderResourceBinding().BindTexture(
-                        "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
+                        "inputImage", *rg.GetInternalTextureResource(game_hdr_color_id)
                     );
                     game_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "outputImage", *rg.GetInternalTextureResource(game_widget_color_id)

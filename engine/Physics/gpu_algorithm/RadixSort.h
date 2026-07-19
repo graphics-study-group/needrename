@@ -5,10 +5,9 @@
 #include <memory>
 
 namespace Engine {
+    class CommandBuffer;
     class ComputeBuffer;
-    class RenderGraphBuilder;
     class RenderSystem;
-    enum class RGBufferHandle : int32_t;
 
     /**
      * @brief GPU 8-bit LSD radix sort for uvec2 pairs.
@@ -86,36 +85,30 @@ namespace Engine {
         }
 
         /**
-         * @brief Add 8-pass radix sort to the render graph.
+         * @brief Record 8-pass radix sort dispatches to the command buffer.
          *
          * Sorts uvec2 pairs by (.x, .y) ascending.  After execution the sorted
          * result is in @p pairs_buf_a.
          *
-         * @param builder            Render graph builder to populate.
-         * @param pairs_handle_a     Handle for the ping pairs buffer (input, becomes output).
-         * @param pairs_handle_b     Handle for the pong pairs buffer (temp, same size).
-         * @param pairs_buf_a        Ping pairs buffer.
-         * @param pairs_buf_b        Pong pairs buffer.
-         * @param scratch_handle     Handle for the 256-uint histogram scratch buffer.
-         * @param scratch_buf        Histogram scratch buffer (≥ 1 KB).
-         * @param elem_capacity      Buffer capacity in pairs (for dispatch sizing, bounds check).
-         * @param pair_count_handle  Handle for the pair count buffer (GPU-side uint, actual count at execution time).
-         * @param pair_count_buf     Pair count buffer (1 uint, written by upstream passes before sort runs).
-         * @param max_shape_count    Max shape index, used for validation (must ≤ 2^20).
+         * Inserts barriers between internal passes.
+         *
+         * @param cb               Command buffer in recording state.
+         * @param pairs_buf_a      Ping pairs buffer (input, becomes output).
+         * @param pairs_buf_b      Pong pairs buffer (temp, same size).
+         * @param scratch_buf      Histogram scratch buffer (>= 1 KB).
+         * @param elem_capacity    Buffer capacity in pairs (for dispatch sizing).
+         * @param pair_count_buf   Pair count buffer (1 uint, read at GPU execution time).
+         * @param max_shape_count  Max shape index, for validation (must <= 2^20).
          *
          * @pre elem_capacity <= max_elem_count
          * @throws std::runtime_error if max_shape_count > kMaxShapeCount
          */
-        void AddPasses(
-            RenderGraphBuilder &builder,
-            RGBufferHandle pairs_handle_a,
-            RGBufferHandle pairs_handle_b,
+        void Record(
+            CommandBuffer &cb,
             ComputeBuffer &pairs_buf_a,
             ComputeBuffer &pairs_buf_b,
-            RGBufferHandle scratch_handle,
             ComputeBuffer &scratch_buf,
             uint32_t elem_capacity,
-            RGBufferHandle pair_count_handle,
             ComputeBuffer &pair_count_buf,
             uint32_t max_shape_count
         );
@@ -125,7 +118,15 @@ namespace Engine {
         /// Get the maximum element count this instance was configured for.
         uint32_t GetMaxElemCount() const noexcept;
 
-        void ResetGraph() noexcept;
+        /**
+         * @brief Reset the per-pass parameter buffer pool.
+         *
+         * Frees all allocated parameter buffers so they can be reused in
+         * subsequent Record calls.  This is typically called after a
+         * Record operation completes to ensure fresh allocation for the next
+         * dispatch.
+         */
+        void ResetParamPool();
 
     private:
         struct Impl;

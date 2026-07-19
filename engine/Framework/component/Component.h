@@ -81,13 +81,13 @@ namespace Engine {
          * @brief Custom serialization function.
          * Save the handle and other automatically serialized fields in DerivedClass.
          */
-        void save_to_archive(Serialization::Archive &archive) const;
+        virtual void save_to_archive(Serialization::Archive &archive) const;
 
         /**
          * @brief Custom deserialization function.
          * Load the handle and other automatically serialized fields in DerivedClass.
          */
-        void load_from_archive(Serialization::Archive &archive);
+        virtual void load_from_archive(Serialization::Archive &archive);
 
     public:
         REFL_SER_ENABLE ObjectHandle m_parentGameObject{};

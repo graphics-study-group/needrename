@@ -1,4 +1,5 @@
 #version 450 core
+#extension GL_GOOGLE_include_directive : require
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -17,6 +18,8 @@ layout(set = 0, binding = 2) readonly buffer RigidBodyCenterRotation {
 layout(set = 0, binding = 3) writeonly buffer ModelMatrices {
     mat4 v[];
 } model_matrices;
+
+#include "common/xpbd_math.glsl"
 
 mat4 quaternion_to_mat4(vec4 q) {
     float x = q.x, y = q.y, z = q.z, w = q.w;
@@ -41,14 +44,14 @@ void main() {
         return;
     }
 
-    vec3 pos = rigid_body_center_position.v[index].xyz;
-    vec4 quat = rigid_body_center_rotation.v[index];
-    mat4 rot = quaternion_to_mat4(quat);
+    vec3 com_pos = rigid_body_center_position.v[index].xyz;
+    vec4 com_quat = rigid_body_center_rotation.v[index];
+    mat4 rot = quaternion_to_mat4(com_quat);
 
     model_matrices.v[index] = mat4(
         rot[0],
         rot[1],
         rot[2],
-        vec4(pos, 1.0)
+        vec4(com_pos, 1.0)
     );
 }

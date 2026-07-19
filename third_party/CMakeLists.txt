@@ -13,6 +13,13 @@ set_target_properties(vma PROPERTIES FOLDER third_party)
 add_subdirectory(tinyobjloader EXCLUDE_FROM_ALL)
 set_target_properties(tinyobjloader PROPERTIES FOLDER third_party)
 
+# tinyxml2: lightweight XML parser (2 source files)
+add_library(tinyxml2 STATIC EXCLUDE_FROM_ALL
+    "${THIRD_PARTY_DIR}/tinyxml2/tinyxml2.cpp"
+)
+set_target_properties(tinyxml2 PROPERTIES FOLDER third_party)
+target_include_directories(tinyxml2 SYSTEM PUBLIC "${THIRD_PARTY_DIR}/tinyxml2/")
+
 set(FASTGLTF_COMPILE_AS_CPP20 ON CACHE BOOL "Compile fastgltf as C++20" FORCE)
 set(FASTGLTF_ENABLE_TESTS OFF CACHE BOOL "Disable fastgltf tests" FORCE)
 set(FASTGLTF_ENABLE_EXAMPLES OFF CACHE BOOL "Disable fastgltf examples" FORCE)

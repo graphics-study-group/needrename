@@ -11,10 +11,8 @@ namespace Engine {
     class ComputeStage;
     class ConvexCollisionDetector;
     class PhysicsScene;
-    class RenderGraph;
     class RenderSystem;
     class SpatialHashBroadDetector;
-    enum class RGBufferHandle : int32_t;
 
     /**
      * @brief XPBD configuration parameters.
@@ -28,7 +26,6 @@ namespace Engine {
         uint32_t max_contact_points = 100000u;
         float contact_margin = 0.001f;
 
-        // Broad-phase spatial hash grid configuration.
         glm::vec3 grid_world_min{-100.0f, -100.0f, -100.0f};
         glm::vec3 grid_world_max{100.0f, 100.0f, 100.0f};
         float grid_cell_size = 2.0f;
@@ -38,17 +35,17 @@ namespace Engine {
     };
 
     /**
-     * @brief XPBD GPU solver with multi-RenderGraph architecture.
+     * @brief XPBD GPU solver with direct compute dispatch.
      *
-     * Inherits ISolver.  Owns multiple RenderGraphs, each representing a
-     * distinct physics phase.  RGs are built lazily and recorded in sequence
-     * during GPUStep via CPU-side substep / iteration loops.
+     * Inherits ISolver.  Owns compute pipelines, resource bindings, and
+     * intermediate buffers.  All GPU dispatches are recorded directly to the
+     * command buffer in GPUStep.
      *
      * Lifecycle:
      *   1. Construct with RenderSystem&.
-     *   2. OnBindToScene(scene) — called by PhysicsSystem during registration.
-     *   3. PreGPUStep() — shader loading, buffer sizing, CPU uploads, detector Configure.
-     *   4. GPUStep(cb) — lazy-build RGs, record in sequence with loops.
+     *   2. OnBindToScene(scene) -- called by PhysicsSystem during registration.
+     *   3. PreGPUStep() -- shader loading, buffer sizing, CPU uploads, detector Configure.
+     *   4. GPUStep(cb) -- record compute dispatches with manual barriers.
      */
     class XpbdGpuSolver : public ISolver {
     public:
@@ -60,9 +57,8 @@ namespace Engine {
         XpbdGpuSolver(XpbdGpuSolver &&) = delete;
         XpbdGpuSolver &operator=(XpbdGpuSolver &&) = delete;
 
-        // ISolver interface
         void PreGPUStep() override;
-        void GPUStep(vk::CommandBuffer cb) override;
+        void GPUStep(CommandBuffer &command_buffer) override;
         bool IsInitialized() const noexcept override;
 
         void SetConfig(const XpbdConfig &config) noexcept;
@@ -71,14 +67,6 @@ namespace Engine {
     private:
         struct Impl;
         std::unique_ptr<Impl> m_impl;
-
-        // RG build helpers.
-        std::unique_ptr<RenderGraph> BuildPreCollisionRG();
-        std::unique_ptr<RenderGraph> BuildPostCollisionPreIterRG();
-        std::unique_ptr<RenderGraph> BuildPositionIterRG();
-        std::unique_ptr<RenderGraph> BuildPostPositionRG();
-        std::unique_ptr<RenderGraph> BuildVelocityIterRG();
-        std::unique_ptr<RenderGraph> BuildModelMatrixRG();
     };
 } // namespace Engine
 

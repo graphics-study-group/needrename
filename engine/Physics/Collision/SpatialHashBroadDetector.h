@@ -4,15 +4,11 @@
 #include <glm.hpp>
 #include <memory>
 
-namespace vk {
-    struct CommandBuffer;
-} // namespace vk
-
 namespace Engine {
+    class CommandBuffer;
     class ComputeBuffer;
     class PhysicsScene;
     class RenderSystem;
-    enum class RGBufferHandle : int32_t;
 
     /**
      * @brief Spatial hash grid configuration.
@@ -27,8 +23,8 @@ namespace Engine {
     /**
      * @brief Bundled raw output buffers from the broad-phase detector.
      *
-     * Returned by Detect().  References are guaranteed valid for the detector's
-     * lifetime.
+     * Obtained via GetResultBuffers().  References are guaranteed valid for the
+     * detector's lifetime.
      */
     struct BroadDetectorOutputBuffers {
         const ComputeBuffer *pair_buffer{};
@@ -47,8 +43,9 @@ namespace Engine {
      *
      * Lifecycle:
      *   1. Construct with RenderSystem& only (no GPU allocation).
-     *   2. Configure(scene, shape_count, grid_config, threshold) — CPU prep.
-     *   3. Detect(cb) — lazy-build RG, record passes to cb, return output buffers.
+     *   2. Configure(scene, shape_count, grid_config, threshold) -- CPU prep,
+     *      buffer allocation, shader loading, binding creation.
+     *   3. Record(cb) -- dispatch compute passes directly to cb, return void.
      */
     class SpatialHashBroadDetector {
     public:
@@ -60,18 +57,6 @@ namespace Engine {
         SpatialHashBroadDetector(SpatialHashBroadDetector &&) = delete;
         SpatialHashBroadDetector &operator=(SpatialHashBroadDetector &&) = delete;
 
-        /**
-         * @brief CPU-side preparation: cache references, size buffers, upload config.
-         *
-         * Safe to call every frame — no-op when nothing changed.
-         *
-         * @param scene                        Physics scene for GPU buffer access.
-         * @param shape_count                  Number of shapes in the scene.
-         * @param grid_config                  Spatial hash grid configuration.
-         * @param fallback_all_pairs_threshold  Shape count below which all-pairs
-         *                                      fallback is used instead of spatial
-         *                                      hashing.
-         */
         void Configure(
             PhysicsScene &scene,
             uint32_t shape_count,
@@ -81,29 +66,18 @@ namespace Engine {
         );
 
         /**
-         * @brief GPU-side: lazy-build RenderGraph, record passes to cb.
+         * @brief GPU-side: record compute dispatches directly to the command buffer.
          *
-         * Must be called after Configure().  The detector owns its RG and
-         * rebuilds it only when sizing parameters change.  The RG structure
-         * is chosen at build time (fallback vs spatial-hash).
-         *
-         * @return Raw pointers to output buffers (pair buffer, pair count).
+         * Must be called after Configure().  Inserts a MemoryBarrier2 at the start.
+         * The path (fallback vs spatial-hash) is selected via if-else based on the
+         * threshold cached in Configure().
          */
-        BroadDetectorOutputBuffers Detect(vk::CommandBuffer cb);
+        void Record(CommandBuffer &cb);
 
         bool IsInitialized() const noexcept;
 
-        /**
-         * @brief Get max_pairs (output pair buffer capacity).
-         */
         uint32_t GetMaxPairs() const noexcept;
 
-        /**
-         * @brief Get read-only pointers to result buffers.
-         *
-         * Valid after first Configure() (which calls EnsureBuffers).
-         * Pointers are stable for the detector's lifetime.
-         */
         BroadDetectorOutputBuffers GetResultBuffers() const noexcept;
 
     private:

@@ -38,7 +38,6 @@ namespace Editor {
         void LoadAvailableComponentTypes();
 
     private:
-        void InspectVar(const std::string &name, Engine::Reflection::Var var);
     };
 } // namespace Editor
 

@@ -1,10 +1,9 @@
 #include "CollisionShapeComponent.h"
 
-#include "RigidBodyComponent.h"
-
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
+#include <Framework/world/physics/PhysicsAdaptor.h>
 
 #include <SDL3/SDL.h>
 
@@ -30,19 +29,56 @@ namespace Engine {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent awake failed: missing scene or owner");
             return;
         }
+        if (scene->GetPhysicsScene() == nullptr) return; // scene physics not enabled
 
-        auto *physics_scene = scene->GetPhysicsScene();
-        if (physics_scene == nullptr) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent awake failed: physics scene missing");
+        auto &adaptor = scene->GetPhysicsAdaptor();
+        m_shape_index = adaptor.AllocateShapeSlot(GetHandle());
+    }
+
+    void CollisionShapeComponent::Init() {
+        auto *scene = GetScene();
+        auto *owner = GetParentGameObject();
+        if (scene == nullptr || owner == nullptr) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "CollisionShapeComponent init failed: missing scene or owner");
+            return;
+        }
+        if (scene->GetPhysicsScene() == nullptr) return; // scene physics not enabled
+
+        if (m_shape_index == PhysicsScene::INVALID_INDEX) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "CollisionShapeComponent init failed: shape not registered (Awake may have failed)"
+            );
             return;
         }
 
+        auto &adaptor = scene->GetPhysicsAdaptor();
+        CollisionShapeDescriptor desc = BuildDescriptor(owner);
+        adaptor.SubmitShape(m_shape_index, desc);
+        TryAttachToAncestorRigidBody();
+    }
+
+    bool CollisionShapeComponent::IsRegisteredInPhysicsScene() const noexcept {
+        return m_shape_index != PhysicsScene::INVALID_INDEX;
+    }
+
+    uint32_t CollisionShapeComponent::GetPhysicsShapeIndex() const noexcept {
+        return m_shape_index;
+    }
+
+    glm::vec3 CollisionShapeComponent::GetLocalCenterInParentSpace() const {
+        return m_center;
+    }
+
+    glm::quat CollisionShapeComponent::GetLocalRotationInParentSpace() const {
+        return m_rotation;
+    }
+
+    CollisionShapeDescriptor CollisionShapeComponent::BuildDescriptor(GameObject *owner) {
         Transform world_transform = owner->GetWorldTransform();
         glm::vec3 world_center = world_transform.GetPosition() + world_transform.GetRotation() * m_center;
         glm::quat world_rotation = glm::normalize(world_transform.GetRotation() * m_rotation);
 
-        // Determine actual shape type and feature, applying non-uniform-scale
-        // fallback for cylinders if needed.
         CollisionShapeType effective_type = m_shape_type;
         glm::vec3 effective_feature = m_feature;
 
@@ -66,40 +102,13 @@ namespace Engine {
             }
         }
 
-        const uint32_t existing_index = physics_scene->FindShapeByComponentHandle(GetHandle());
-        if (existing_index != PhysicsScene::INVALID_INDEX) {
-            m_shape_index = existing_index;
-            physics_scene->UpdateCollisionShapeGeometry(
-                m_shape_index,
-                effective_type,
-                effective_feature,
-                world_center,
-                world_rotation,
-                m_ignore_collision_objects
-            );
-        } else {
-            m_shape_index = physics_scene->RegisterCollisionShape(
-                GetHandle(), effective_type, effective_feature, world_center, world_rotation, m_ignore_collision_objects
-            );
-        }
-
-        TryAttachToAncestorRigidBody();
-    }
-
-    bool CollisionShapeComponent::IsRegisteredInPhysicsScene() const noexcept {
-        return m_shape_index != PhysicsScene::INVALID_INDEX;
-    }
-
-    uint32_t CollisionShapeComponent::GetPhysicsShapeIndex() const noexcept {
-        return m_shape_index;
-    }
-
-    glm::vec3 CollisionShapeComponent::GetLocalCenterInParentSpace() const {
-        return m_center;
-    }
-
-    glm::quat CollisionShapeComponent::GetLocalRotationInParentSpace() const {
-        return m_rotation;
+        CollisionShapeDescriptor desc;
+        desc.type = effective_type;
+        desc.feature = effective_feature;
+        desc.world_position = world_center;
+        desc.world_rotation = world_rotation;
+        desc.ignore_collision_shapes = m_ignore_collision_shapes;
+        return desc;
     }
 
     bool CollisionShapeComponent::TryAttachToAncestorRigidBody() {
@@ -108,30 +117,23 @@ namespace Engine {
         if (scene == nullptr || owner == nullptr) {
             return false;
         }
-
-        auto *physics_scene = scene->GetPhysicsScene();
-        if (physics_scene == nullptr || m_shape_index == PhysicsScene::INVALID_INDEX) {
+        if (m_shape_index == PhysicsScene::INVALID_INDEX) {
             return false;
         }
 
+        auto &adaptor = scene->GetPhysicsAdaptor();
         ObjectHandle current = owner->GetHandle();
         while (current.IsValid()) {
+            const uint32_t rigid_body_index = adaptor.FindRigidBodyByObjectHandle(current);
+            if (rigid_body_index != PhysicsScene::INVALID_INDEX) {
+                adaptor.BindShapeToRigidBody(m_shape_index, rigid_body_index);
+                return true;
+            }
+
             auto *go = scene->GetGameObject(current);
             if (go == nullptr) {
                 break;
             }
-
-            for (const ComponentHandle &comp_handle : go->m_components) {
-                if (auto *rigid = dynamic_cast<RigidBodyComponent *>(scene->GetComponent(comp_handle))) {
-                    const uint32_t rigid_body_index = rigid->GetPhysicsRigidBodyIndex();
-                    if (rigid_body_index != PhysicsScene::INVALID_INDEX) {
-                        physics_scene->SetCollisionShapeRigidBody(m_shape_index, rigid_body_index);
-                        physics_scene->EnqueueRigidBodyInitialization(rigid_body_index);
-                        return true;
-                    }
-                }
-            }
-
             current = go->GetParent();
         }
 

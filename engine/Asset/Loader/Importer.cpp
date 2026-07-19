@@ -1,6 +1,7 @@
 #include "Importer.h"
 #include "GltfLoader.h"
 #include "ObjLoader.h"
+#include "UrdfLoader.h"
 #include <algorithm>
 #include <cctype>
 #include <memory>
@@ -17,6 +18,9 @@ namespace Engine::Importer {
         } else if (extension == ".gltf" || extension == ".glb") {
             auto loader = std::make_unique<GltfLoader>();
             loader->LoadGltfResource(resourcePath, path_in_project);
+        } else if (extension == ".urdf") {
+            auto loader = std::make_unique<UrdfLoader>();
+            loader->LoadUrdfResource(resourcePath, path_in_project);
         } else {
             throw std::runtime_error("Unsupported file format: " + extension);
         }

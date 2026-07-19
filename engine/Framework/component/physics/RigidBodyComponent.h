@@ -2,21 +2,20 @@
 #define FRAMEWORK_COMPONENT_PHYSICS_RIGIDBODYCOMPONENT_INCLUDED
 
 #include <Framework/component/Component.h>
-#include <Physics/PhysicsScene.h>
+#include <Framework/world/physics/PhysicsDescriptors.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_glm.h>
-
-#include <vector>
 
 namespace Engine {
     class CollisionShapeComponent;
     class GameObject;
+    class PhysicsAdaptor;
 
     /**
      * @brief Physics rigid body component.
      *
      * This component owns rigid body material and motion properties, and
-     * aggregates collision shapes from an object hierarchy in Awake.
+     * aggregates collision shapes from an object hierarchy via PhysicsAdaptor.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) RigidBodyComponent : public Component {
         REFL_SER_BODY(RigidBodyComponent)
@@ -31,18 +30,21 @@ namespace Engine {
         /**
          * @brief Destroy the rigid body component.
          *
-         * The destructor attempts to unregister this rigid body from
-         * PhysicsScene.
+         * The destructor attempts to unregister this rigid body through
+         * PhysicsAdaptor.
          */
         virtual ~RigidBodyComponent();
 
         /**
-         * @brief Register or update the rigid body in PhysicsScene.
-         *
-         * Awake collects valid collision shapes from this object tree,
-         * computes center-of-mass offsets, and updates rigid body mappings.
+         * @brief Allocate a rigid body slot via PhysicsAdaptor.
          */
         void Awake() override;
+
+        /**
+         * @brief Build a RigidBodyDescriptor and submit to PhysicsAdaptor,
+         *        then collect and bind collision shapes.
+         */
+        void Init() override;
 
         /**
          * @brief Get the rigid body index in PhysicsScene.
@@ -62,11 +64,21 @@ namespace Engine {
         REFL_SER_ENABLE glm::vec3 m_external_force{0.0f, 0.0f, 0.0f};
         REFL_SER_ENABLE glm::vec3 m_external_torque{0.0f, 0.0f, 0.0f};
 
+        // Manual inertia/COM override — when enabled, PhysicsScene skips
+        // automatic volume-weighted computation and uses these values directly.
+        // Both inertia tensor and center-of-mass MUST be provided.
+        // COM offset is in GO-local space.
+        // Diagonal: (ixx, iyy, izz).  Off-diagonal: (ixy, ixz, iyz).
+        REFL_SER_ENABLE bool m_use_manual_inertia_com{false};
+        REFL_SER_ENABLE glm::vec3 m_manual_inertia_diag{0.0f, 0.0f, 0.0f};
+        REFL_SER_ENABLE glm::vec3 m_manual_inertia_offdiag{0.0f, 0.0f, 0.0f};
+        REFL_SER_ENABLE glm::vec3 m_manual_center_of_mass{0.0f, 0.0f, 0.0f};
+
     private:
         uint32_t m_rigid_body_index{PhysicsScene::INVALID_INDEX};
 
-        void CollectShapesRecursively(
-            GameObject *node, std::vector<CollisionShapeComponent *> &shapes, bool skip_rigidbody_check_on_node
+        void CollectShapesRecursivelyAndBind(
+            GameObject *node, PhysicsAdaptor &adaptor, bool skip_rigidbody_check_on_node
         );
     };
 } // namespace Engine

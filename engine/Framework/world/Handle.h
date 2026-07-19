@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <functional>
 
+#include <Reflection/macros.h>
+
 namespace Engine {
     namespace Serialization {
         class Archive;
@@ -81,7 +83,8 @@ namespace Engine {
      * It contains the scene ID and the ID of the GameObject.
      * IDs are usually assigned in integer order
      */
-    class ObjectHandle : public detail::HandleBase {
+    class REFL_SER_CLASS(REFL_WHITELIST) ObjectHandle : public detail::HandleBase {
+        REFL_SER_BODY(ObjectHandle)
     public:
         ObjectHandle() = default;
         ObjectHandle(uint32_t ID);
@@ -111,7 +114,8 @@ namespace Engine {
      * It contains the scene ID and the ID of the Component.
      * IDs are usually assigned in integer order
      */
-    class ComponentHandle : public detail::HandleBase {
+    class REFL_SER_CLASS(REFL_WHITELIST) ComponentHandle : public detail::HandleBase {
+        REFL_SER_BODY(ComponentHandle)
     public:
         ComponentHandle() = default;
         ComponentHandle(uint32_t ID);
