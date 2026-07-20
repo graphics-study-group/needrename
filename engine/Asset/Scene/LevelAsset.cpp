@@ -34,7 +34,7 @@ namespace Engine {
         this->AddToScene(world->GetMainSceneRef());
         if (m_skybox_material.IsValid()) {
             auto material_handle =
-                rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>().CreateOrReuseFromAsset(
+                rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>()->CreateOrReuseFromAsset(
                     m_skybox_material.GetGUID()
                 );
             rsys->GetSceneDataManager().SetSkyboxMaterial(material_handle);

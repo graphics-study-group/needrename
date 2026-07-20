@@ -20,10 +20,10 @@ namespace Engine::RenderSystemState {
         auto *mat_asset = mat_ref.as<MaterialAsset>(false);
         assert(mat_asset);
 
-        auto library_handle = m_system.GetRenderResourceManager<MaterialLibraryManager>().CreateOrReuseFromAsset(
+        auto library_handle = m_system.GetRenderResourceManager<MaterialLibraryManager>()->CreateOrReuseFromAsset(
             mat_asset->m_library.GetGUID()
         );
-        auto *library = m_system.GetRenderResourceManager<MaterialLibraryManager>().Resolve(library_handle);
+        auto *library = m_system.GetRenderResourceManager<MaterialLibraryManager>()->Resolve(library_handle);
         assert(library);
 
         auto instance = std::make_unique<MaterialInstance>(m_system, library_handle);

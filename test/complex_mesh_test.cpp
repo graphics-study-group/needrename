@@ -71,10 +71,10 @@ public:
 
         m_uniform_data.specular = glm::vec4{spec_r, spec_g, spec_b, spec_coef};
         auto &rsys = *MainClass::GetInstance()->GetRenderSystem();
-        auto &mat_mng = rsys.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
+        auto *mat_mng = rsys.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         for (auto guid : m_material_guids) {
-            auto handle = mat_mng.CreateOrReuseFromAsset(guid);
-            auto mat_ptr = mat_mng.Resolve(handle);
+            auto handle = mat_mng->CreateOrReuseFromAsset(guid);
+            auto mat_ptr = mat_mng->Resolve(handle);
             if (mat_ptr) {
                 mat_ptr->AssignVectorVariable("Material::ambient_color", m_uniform_data.ambient);
                 mat_ptr->AssignVectorVariable("Material::specular_color", m_uniform_data.specular);

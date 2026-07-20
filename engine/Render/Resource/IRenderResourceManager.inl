@@ -18,7 +18,7 @@ namespace Engine::RenderSystemState {
         auto generation = record.generation + 1;
         record = {};
         record.generation = generation;
-        record.refcount = 1;
+        record.refcount = 0;
         record.pending_deallocation_countdown = -1;
         record.deallocate_after_frames = deallocate_after_frames;
         record.payload = std::move(resource);

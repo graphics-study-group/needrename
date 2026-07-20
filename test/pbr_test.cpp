@@ -79,14 +79,14 @@ public:
 
         auto am = MainClass::GetInstance()->GetAssetManager();
         auto rsys = MainClass::GetInstance()->GetRenderSystem();
-        auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
+        auto *mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         auto masset = m_mesh_asset.as<MeshAsset>();
         this->m_material_assets.clear();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()->GetGUID()));
             this->m_material_assets.back().as<MaterialAsset>()->m_library = lib_asset_ref;
-            auto handle = mi_mng.CreateOrReuseFromAsset(this->m_material_assets.back().GetGUID());
-            auto ptr = mi_mng.Resolve(handle);
+            auto handle = mi_mng->CreateOrReuseFromAsset(this->m_material_assets.back().GetGUID());
+            auto ptr = mi_mng->Resolve(handle);
             ptr->AssignTexture("albedoSampler", albedo);
             ptr->AssignTexture("MRAOSampler", MRAO);
             ptr->AssignTexture("normalSampler", normal);
@@ -109,10 +109,10 @@ public:
         m_uniform_data = {.metalness = metalness, .roughness = roughness, .emissive = emissive};
 
         auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
-        auto &mat_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
+        auto *mat_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         for (auto guid : m_material_guids) {
-            auto handle = mat_mng.CreateOrReuseFromAsset(guid);
-            auto *inst = mat_mng.Resolve(handle);
+            auto handle = mat_mng->CreateOrReuseFromAsset(guid);
+            auto *inst = mat_mng->Resolve(handle);
             inst->AssignScalarVariable("Material::metalnessFactor", metalness);
             inst->AssignScalarVariable("Material::roughnessFactor", roughness);
             inst->AssignVectorVariable("Material::emissiveFactor", emissive);

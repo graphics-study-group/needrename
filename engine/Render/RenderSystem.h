@@ -3,6 +3,7 @@
 
 #include <glm.hpp>
 #include <memory>
+#include <tuple>
 
 #include "Render/Memory/MemoryAccessTypes.h"
 
@@ -161,8 +162,8 @@ namespace Engine {
         RenderSystemState::ResizableRTTManager &GetResizableRTTManager();
 
         template <typename ResourceManagerType>
-        ResourceManagerType &GetRenderResourceManager() {
-            return *std::get<ResourceManagerType *>(m_resource_managers);
+        ResourceManagerType *GetRenderResourceManager() {
+            return std::get<ResourceManagerType *>(m_resource_managers);
         }
     };
 } // namespace Engine

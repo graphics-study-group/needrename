@@ -110,7 +110,6 @@ namespace Engine {
     }
 
     MaterialInstance::~MaterialInstance() {
-        m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>().Release(m_library);
     }
 
     void MaterialInstance::AssignScalarVariable(const std::string &name, std::variant<uint32_t, float> value) {
@@ -323,6 +322,6 @@ namespace Engine {
         }
     }
     MaterialLibrary &MaterialInstance::GetLibrary() const {
-        return *m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>().Resolve(m_library);
+        return *m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>()->Resolve(m_library);
     }
 } // namespace Engine
