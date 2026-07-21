@@ -23,8 +23,3 @@ add_reflection_parser(
 add_dependencies(editor meta_editor)
 target_link_libraries(editor PRIVATE meta_editor)
 
-add_custom_command(TARGET editor POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3>
-    $<TARGET_FILE_DIR:editor>
-)
