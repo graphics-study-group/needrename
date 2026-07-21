@@ -66,8 +66,6 @@ namespace Engine {
         void SetRenderGraph(std::unique_ptr<RenderGraph> render_graph, RGTextureHandle final_color_attachment_id);
 
     protected:
-        // XXX: window must destroyed before renderer. Because the window has some AllocatedImage2D. So the permutation
-        // of renderer and window can not be changed.
         std::shared_ptr<RenderSystem> renderer{};
         std::shared_ptr<SDLWindow> window{};
         std::shared_ptr<TimeSystem> time{};
