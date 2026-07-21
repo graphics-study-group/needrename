@@ -59,8 +59,9 @@ class PBRMeshComponent : public ObjTestMeshComponent {
         float metalness;
         float roughness;
         glm::vec4 emissive;
+        glm::vec4 albedo;
     };
-    UniformData m_uniform_data{1.0, 1.0, glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}};
+    UniformData m_uniform_data{1.0, 1.0, glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}, glm::vec4{1.0f, 0.0f, 0.0f, 1.0f}};
     std::vector<GUID> m_material_guids{};
 
 public:
@@ -101,12 +102,13 @@ public:
         return transform;
     }
 
-    void UpdateUniformData(float metalness, float roughness, glm::vec4 emissive) {
+    void UpdateUniformData(float metalness, float roughness, glm::vec4 emissive, glm::vec4 albedo) {
         uint8_t identity = (fabs(metalness - m_uniform_data.metalness) < 1e-3)
                            + (fabs(roughness - m_uniform_data.roughness) < 1e-3)
-                           + (glm::length(emissive - m_uniform_data.emissive) < 1e-3);
-        if (identity == 3) return;
-        m_uniform_data = {.metalness = metalness, .roughness = roughness, .emissive = emissive};
+                           + (glm::length(emissive - m_uniform_data.emissive) < 1e-3)
+                           + (glm::length(albedo - m_uniform_data.albedo) < 1e-3);
+        if (identity == 4) return;
+        m_uniform_data = {.metalness = metalness, .roughness = roughness, .emissive = emissive, .albedo = albedo};
 
         auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
         auto *mat_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
@@ -116,6 +118,7 @@ public:
             inst->AssignScalarVariable("Material::metalnessFactor", metalness);
             inst->AssignScalarVariable("Material::roughnessFactor", roughness);
             inst->AssignVectorVariable("Material::emissiveFactor", emissive);
+            inst->AssignVectorVariable("Material::albedoFactor", albedo);
         }
     }
 };
@@ -124,7 +127,8 @@ struct {
     float zenith, azimuth;
     float metalness, roughness;
     glm::vec4 emissive;
-} g_SceneData{M_PI_2, M_PI_2 * 3, 0.5f, 0.5f, glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}};
+    glm::vec4 albedo;
+} g_SceneData{M_PI_2, M_PI_2 * 3, 0.5f, 0.5f, glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}, glm::vec4{1.0f, 1.0f, 1.0f, 1.0f}};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;
@@ -146,11 +150,12 @@ void PrepareGui() {
 
     ImGui::SliderFloat("Metalness", &g_SceneData.metalness, 0.0f, 1.0f);
     ImGui::SliderFloat("Roughness", &g_SceneData.roughness, 0.0f, 1.0f);
+    ImGui::ColorEdit3("Albedo", &g_SceneData.albedo[0]);
     ImGui::ColorEdit3("Emissive", &g_SceneData.emissive[0]);
     ImGui::End();
 }
 
-void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
+void SubmitSceneData(std::shared_ptr<RenderSystem> rsys) {
     rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
         0, GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), glm::vec3{2.0, 2.0, 2.0}
     );
@@ -158,7 +163,7 @@ void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
 }
 
 void SubmitMaterialData(PBRMeshComponent *mesh) {
-    mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness, g_SceneData.emissive);
+    mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness, g_SceneData.emissive, g_SceneData.albedo);
 }
 
 int main(int argc, char **argv) {
@@ -170,7 +175,18 @@ int main(int argc, char **argv) {
         if (max_frame_count == 0) return -1;
     }
 
-    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "PBR Test"};
+    int displayIndex = 1;
+    auto displayMode = SDL_GetDesktopDisplayMode(displayIndex);
+    if (displayMode == nullptr) {
+        SDL_Log("Failed to get display mode: %s", SDL_GetError());
+        SDL_Quit();
+        return -1;
+    }
+    int screenWidth = displayMode->w;
+    int screenHeight = displayMode->h;
+    SDL_Log("Screen Resolution: %dx%d @ %fHz", screenWidth, screenHeight, displayMode->refresh_rate);
+
+    StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "PBR Test"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -190,8 +206,8 @@ int main(int argc, char **argv) {
 
     RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
-        .width = 1920,
-        .height = 1080,
+        .width = (uint32_t)screenWidth,
+        .height = (uint32_t)screenHeight,
         .depth = 1,
         .mipmap_levels = 1,
         .array_layers = 1,
@@ -244,7 +260,7 @@ int main(int argc, char **argv) {
     transform.SetPosition({0.0f, 5.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     auto camera = std::make_shared<Camera>();
-    camera->set_aspect_ratio(1920.0 / 1080.0);
+    camera->set_aspect_ratio((double)screenWidth / screenHeight);
     camera->UpdateViewMatrix(transform);
     rsys->GetCameraManager().RegisterCamera(camera);
     rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
@@ -259,8 +275,8 @@ int main(int argc, char **argv) {
     RenderGraphBuilder rgb{*rsys};
     RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
         .dimensions = 2,
-        .width = 1920,
-        .height = 1080,
+        .width = (uint32_t)screenWidth,
+        .height = (uint32_t)screenHeight,
         .depth = 1,
         .mipmap_levels = 1,
         .array_layers = 1,
@@ -302,20 +318,20 @@ int main(int argc, char **argv) {
             .UseImage(hc, IAT::ShaderRandomRead)
             .UseImage(c, IAT::ShaderRandomWrite)
             .SetAffinity(RenderGraphPassAffinity::Compute)
-            .SetPassFunction(
-                [bloom_compute_stage, &bloom_compute_binding, hc, c](CommandBuffer &cb, const RenderGraph &rg) {
-                    // These descriptors should be cached, so there should be only one write.
-                    bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                        "inputImage", *rg.GetInternalTextureResource(hc)
-                    );
-                    bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                        "outputImage", *rg.GetInternalTextureResource(c)
-                    );
-                    cb.BindComputeStage(*bloom_compute_stage);
-                    cb.BindComputeResource(bloom_compute_binding);
-                    cb.DispatchCompute(1920 / 16 + 1, 1080 / 16 + 1, 1);
-                }
-            )
+            .SetPassFunction([bloom_compute_stage, &bloom_compute_binding, hc, c, screenWidth, screenHeight](
+                                 CommandBuffer &cb, const RenderGraph &rg
+                             ) {
+                // These descriptors should be cached, so there should be only one write.
+                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                    "inputImage", *rg.GetInternalTextureResource(hc)
+                );
+                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                    "outputImage", *rg.GetInternalTextureResource(c)
+                );
+                cb.BindComputeStage(*bloom_compute_stage);
+                cb.BindComputeResource(bloom_compute_binding);
+                cb.DispatchCompute(screenWidth / 16 + 1, screenHeight / 16 + 1, 1);
+            })
             .Get()
     );
 
@@ -356,7 +372,7 @@ int main(int argc, char **argv) {
         PrepareGui();
 
         // Submit data
-        SubmitSceneData(rsys, rsys->GetFrameManager().GetFrameInFlight());
+        SubmitSceneData(rsys);
         SubmitMaterialData(tmc);
         tmc->PreRenderUpdate();
 

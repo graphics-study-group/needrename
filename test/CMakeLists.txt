@@ -77,14 +77,3 @@ target_link_libraries(physics_registration_test engine)
 add_test(NAME physics_registration_test COMMAND physics_registration_test)
 set_target_properties(physics_registration_test PROPERTIES FOLDER tests)
 
-# Copy dlls
-add_custom_command(TARGET SDL_init_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3-shared>
-    $<TARGET_FILE:engine>
-    $<TARGET_FILE:glslang>
-    $<TARGET_FILE:ktx>
-    $<TARGET_FILE:fastgltf>
-    $<TARGET_FILE_DIR:SDL_init_test>
-    COMMENT "Copying DLLs"
-)

@@ -23,6 +23,18 @@ namespace Engine {
     }
 
     Scene::~Scene() {
+        // Destroy all game objects and components before PhysicsScene.
+        // Components may access PhysicsScene for unregistration during destruction.
+        ClearEventQueue();
+        m_game_objects.clear();
+        m_components.clear();
+        m_go_map.clear();
+        m_comp_map.clear();
+        m_go_add_queue.clear();
+        m_go_remove_queue.clear();
+        m_comp_add_queue.clear();
+        m_comp_remove_queue.clear();
+
         if (m_enable_physics) {
             auto cmc = MainClass::GetInstance();
             if (cmc) {

@@ -44,13 +44,3 @@ add_subdirectory(serialization_test)
 add_subdirectory(shader_compile_test)
 set_target_properties(shader_compile_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
 
-add_custom_command(TARGET transform_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3-shared>
-    $<TARGET_FILE:engine>
-    $<TARGET_FILE:glslang>
-    $<TARGET_FILE:ktx>
-    $<TARGET_FILE:fastgltf>
-    $<TARGET_FILE_DIR:transform_test>
-    COMMENT "Copying SDL DLLs"
-)
