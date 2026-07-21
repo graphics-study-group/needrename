@@ -344,9 +344,9 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::SetSkyboxMaterial(MaterialInstanceHandle material) noexcept {
-        auto &material_manager = m_system.GetRenderResourceManager<MaterialInstanceManager>();
+        auto *material_manager = m_system.GetRenderResourceManager<MaterialInstanceManager>();
         if (pimpl->skybox.skybox_material.IsValid()) {
-            material_manager.Release(pimpl->skybox.skybox_material);
+            material_manager->Release(pimpl->skybox.skybox_material);
         }
         pimpl->skybox.skybox_material = material;
     }
@@ -432,7 +432,7 @@ namespace Engine::RenderSystemState {
         if (!pimpl->skybox.skybox_material.IsValid()) return;
 
         auto *material =
-            m_system.GetRenderResourceManager<MaterialInstanceManager>().Resolve(pimpl->skybox.skybox_material);
+            m_system.GetRenderResourceManager<MaterialInstanceManager>()->Resolve(pimpl->skybox.skybox_material);
         if (!material) return;
 
         vk::Rect2D scissor{{0, 0}, extent};

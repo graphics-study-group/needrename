@@ -111,6 +111,16 @@ target_link_libraries(engine
     EngineLibUserInterface
 )
 
+# Copy third-party DLLs that are not natively built into the bin directory.
+# SDL3 is an imported target from MSYS2; libktx overrides LIBRARY_OUTPUT_DIRECTORY.
+add_custom_command(TARGET engine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:SDL3::SDL3-shared>
+    $<TARGET_FILE:ktx>
+    $<TARGET_FILE_DIR:engine>
+    COMMENT "Copying SDL3 and libktx DLLs to output directory"
+)
+
 # TODO: Use relative paths when install.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 

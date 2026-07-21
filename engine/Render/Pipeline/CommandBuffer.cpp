@@ -297,7 +297,7 @@ namespace Engine {
         const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
     ) {
         auto &renderer_manager = m_system.GetRendererManager();
-        auto &material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
+        auto *material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
         BindSceneResources(m_system.GetSceneDataManager());
         BindCameraResources(m_system.GetCameraManager());
@@ -306,9 +306,9 @@ namespace Engine {
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
             auto material_handle = renderer_manager.GetMaterialResourceHandle(rid);
-            material_manager.EnsureReady(material_handle);
+            material_manager->EnsureReady(material_handle);
             auto *mesh = renderer_manager.GetRenderer(rid);
-            auto *material_instance = material_manager.Resolve(material_handle);
+            auto *material_instance = material_manager->Resolve(material_handle);
             if (!mesh || !material_instance) continue;
 
             const glm::mat4 &model_matrix = renderer_manager.GetModelMatrix(rid);

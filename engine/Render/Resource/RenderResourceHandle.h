@@ -3,44 +3,13 @@
 
 #include <cstdint>
 #include <typeindex>
+#include <utility>
 
 namespace Engine {
     namespace RenderSystemState {
-        /**
-         * @brief Non-owning typed handle payload for resources managed by render-resource managers.
-         *
-         * A handle is valid only if index/generation matches a live manager record.
-         *
-         * Design rationale:
-         * - index identifies the slot in manager-owned record storage for O(1) lookup.
-         * - generation is a per-slot version to reject stale handles after slot reuse.
-         * - is_acquired tracks whether this handle has participated in manager refcount.
-         *
-         * Why index + generation are both needed:
-         * - Slots are recycled after deferred reclamation.
-         * - A stale handle may still carry a valid historical index.
-         * - generation mismatch lets us distinguish "same slot" from "same resource".
-         */
-        struct RenderResourceHandle {
-            /// Index into resource record storage.
-            uint32_t index{0xFFFFFFFFu};
-            /// Slot version used to detect stale handles after slot reuse.
-            uint32_t generation{0};
-            /// Whether this handle currently contributes one reference in manager refcount.
-            bool is_acquired{false};
-
-            ~RenderResourceHandle() {
-                assert(!is_acquired && "Handle should be released before destruction");
-            }
-
-            bool IsValid() const noexcept {
-                return index != 0xFFFFFFFFu;
-            }
-        };
-
         template <typename ResourceType>
         struct ResourceTraits;
-    } // namespace RenderSystemState
+    }
 
     class MaterialInstance;
     class MaterialLibrary;
@@ -49,7 +18,53 @@ namespace Engine {
     namespace RenderSystemState {
 
         class MaterialInstanceManager;
-        struct MaterialInstanceHandle : public RenderResourceHandle {};
+        class MaterialLibraryManager;
+        class StaticMeshResourceManager;
+
+        template <typename ResourceType>
+        struct RenderResourceHandle {
+            uint32_t index{0xFFFFFFFFu};
+            uint32_t generation{0};
+            bool is_acquired{false};
+
+            RenderResourceHandle() = default;
+
+            RenderResourceHandle(uint32_t idx, uint32_t gen) : index(idx), generation(gen) {
+            }
+
+            RenderResourceHandle(uint32_t idx, uint32_t gen, bool acquired) :
+                index(idx), generation(gen), is_acquired(acquired) {
+            }
+
+            RenderResourceHandle(const RenderResourceHandle &other) :
+                index(other.index), generation(other.generation), is_acquired(false) {
+            }
+
+            RenderResourceHandle(RenderResourceHandle &&other) noexcept :
+                index(other.index), generation(other.generation), is_acquired(other.is_acquired) {
+                other.index = 0xFFFFFFFFu;
+                other.generation = 0;
+                other.is_acquired = false;
+            }
+
+            RenderResourceHandle &operator=(RenderResourceHandle other) noexcept {
+                using std::swap;
+                swap(index, other.index);
+                swap(generation, other.generation);
+                swap(is_acquired, other.is_acquired);
+                return *this;
+            }
+
+            ~RenderResourceHandle();
+
+            bool IsValid() const noexcept {
+                return index != 0xFFFFFFFFu;
+            }
+        };
+
+        struct MaterialInstanceHandle : public RenderResourceHandle<MaterialInstance> {
+            using RenderResourceHandle::RenderResourceHandle;
+        };
 
         template <>
         struct ResourceTraits<MaterialInstance> {
@@ -57,8 +72,9 @@ namespace Engine {
             using ManagerType = MaterialInstanceManager;
         };
 
-        class MaterialLibraryManager;
-        struct MaterialLibraryHandle : public RenderResourceHandle {};
+        struct MaterialLibraryHandle : public RenderResourceHandle<MaterialLibrary> {
+            using RenderResourceHandle::RenderResourceHandle;
+        };
 
         template <>
         struct ResourceTraits<MaterialLibrary> {
@@ -66,8 +82,9 @@ namespace Engine {
             using ManagerType = MaterialLibraryManager;
         };
 
-        class StaticMeshResourceManager;
-        struct StaticMeshResourceHandle : public RenderResourceHandle {};
+        struct StaticMeshResourceHandle : public RenderResourceHandle<StaticMeshResource> {
+            using RenderResourceHandle::RenderResourceHandle;
+        };
 
         template <>
         struct ResourceTraits<StaticMeshResource> {

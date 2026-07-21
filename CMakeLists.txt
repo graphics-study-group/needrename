@@ -15,6 +15,13 @@ set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
 set(BUILD_SHARED_LIBS ON)
 
+# Unified output directories: all executables and shared libraries go to bin/,
+# static/import libraries go to lib/. This keeps .exe and .dll in the same
+# directory so the OS loader can find them without manual copy steps.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
 find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
 message(STATUS "Vulkan version: ${Vulkan_VERSION}")

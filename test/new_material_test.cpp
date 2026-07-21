@@ -209,10 +209,10 @@ int main(int argc, char **argv) {
     // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mta.asset");
     // SDL_Log("Saved MaterialTemplateAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mta.asset").c_str());
 
-    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>();
+    auto *ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>();
 
-    auto test_library_handle = ml_mng.CreateOrReuseFromAsset(test_library_asset->GetGUID());
-    ml_mng.Resolve(test_library_handle);
+    auto test_library_handle = ml_mng->CreateOrReuseFromAsset(test_library_asset->GetGUID());
+    ml_mng->Resolve(test_library_handle);
     auto test_material_instance = std::make_unique<MaterialInstance>(*rsys, test_library_handle);
     test_material_instance->AssignVectorVariable("Material::ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->AssignVectorVariable("Material::specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));

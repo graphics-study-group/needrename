@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
 
     auto rsys = cmc->GetRenderSystem();
     auto am = cmc->GetAssetManager();
-    auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
+    auto *mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
     Transform transform{};
     transform.SetPosition({0.0f, 0.0f, -5.0f}).SetRotationEuler(glm::vec3{M_PI_2, 0.0f, 0.0f});
@@ -174,8 +174,8 @@ int main(int argc, char **argv) {
     floor_mesh_comp.m_material_assets[0] = floor_mat_asset_ref;
     floor_mesh_comp.Awake();
     {
-        auto floor_handle = mi_mng.CreateOrReuseFromAsset(floor_mat_asset_ref.GetGUID());
-        auto floor_inst = mi_mng.Resolve(floor_handle);
+        auto floor_handle = mi_mng->CreateOrReuseFromAsset(floor_mat_asset_ref.GetGUID());
+        auto floor_inst = mi_mng->Resolve(floor_handle);
         floor_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
         floor_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
         floor_inst->AssignTexture("base_tex", blank_color_gray);
@@ -193,8 +193,8 @@ int main(int argc, char **argv) {
     cube_mesh_comp.m_material_assets[0] = cube_mat_asset_ref;
     cube_mesh_comp.Awake();
     {
-        auto cube_handle = mi_mng.CreateOrReuseFromAsset(cube_mat_asset_ref.GetGUID());
-        auto cube_inst = mi_mng.Resolve(cube_handle);
+        auto cube_handle = mi_mng->CreateOrReuseFromAsset(cube_mat_asset_ref.GetGUID());
+        auto cube_inst = mi_mng->Resolve(cube_handle);
         cube_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
         cube_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
         cube_inst->AssignTexture("base_tex", blank_color_red);
@@ -212,8 +212,8 @@ int main(int argc, char **argv) {
     sphere_mesh_comp.m_material_assets[0] = sphere_mat_asset_ref;
     sphere_mesh_comp.Awake();
     {
-        auto sphere_handle = mi_mng.CreateOrReuseFromAsset(sphere_mat_asset_ref.GetGUID());
-        auto sphere_inst = mi_mng.Resolve(sphere_handle);
+        auto sphere_handle = mi_mng->CreateOrReuseFromAsset(sphere_mat_asset_ref.GetGUID());
+        auto sphere_inst = mi_mng->Resolve(sphere_handle);
         sphere_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
         sphere_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
         sphere_inst->AssignTexture("base_tex", blank_color_red);
