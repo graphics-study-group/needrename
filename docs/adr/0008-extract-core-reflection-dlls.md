@@ -40,22 +40,23 @@ The generated type registration code (`reflection_init.inc`) historically lived 
 `Register_Engine6Transform9()` whose definition lives in Core.dll. After the split, this would
 create a circular DLL dependency (Reflection.dll → Core.dll while Core.dll → Reflection.dll).
 
-**Solution**: Each DLL provides its own registration entry point:
+**Solution**: Each DLL provides its own registration entry point. The generated `RegisterAllTypes()`
+function uses `static` linkage, so each DLL has its own copy via its `meta_*` target:
 
 ```cpp
 // Reflection.dll:
 void Initialize() { Registrar::RegisterBasicTypes(); }  // no longer calls RegisterAllTypes()
 
-// Core.dll (new):
-CORE_API void RegisterCoreTypes();  // wraps meta_core/reflection_init.inc
+// Core.dll (CoreReflectionRegistration.cpp):
+CORE_API void RegisterCoreTypes();  // wraps meta_core/reflection_init.inc → calls RegisterAllTypes()
 
-// engine.dll (new):
-void RegisterAllEngineTypes();       // wraps meta_engine/reflection_init.inc
+// engine.dll (MainClass.cpp directly includes meta_engine/reflection_init.inc):
+// RegisterAllTypes() — static, no collision with Core's copy
 
 // MainClass::Initialize() call order:
 Reflection::Initialize();            // 1. basic types (int, float, glm::vec3...)
-Core::RegisterCoreTypes();           // 2. Transform
-RegisterAllEngineTypes();            // 3. Asset, Framework, Physics, etc.
+RegisterCoreTypes();                 // 2. Transform
+RegisterAllTypes();                  // 3. Asset, Framework, Physics, etc. (from meta_engine)
 ```
 
 The `reflection_init.inc` is split into per-module versions emitted by `meta_core` and
@@ -83,8 +84,12 @@ EngineDepSdl. This prevents Vulkan and imgui from leaking into the bottom layers
 
 ### D-5: Per-module code generation targets
 
-`meta_core` (Core types only: Transform) alongside existing `meta_engine` (remaining types).
-No `meta_reflection` target needed — Reflection has zero `REFL_SER_CLASS` annotated types.
+`meta_core` (Core types only: Transform) generates to `engine/Core/__generated__/meta_core/`,
+defined in `engine/Core/CMakeLists.txt`. `meta_engine` (remaining types: Asset, Framework,
+Physics, Render, UI) generates to `engine/__generated__/meta_engine/`, defined in
+`engine/CMakeLists.txt` with `parent_projects meta_core_generation` for cross-DLL base type
+resolution. No `meta_reflection` target needed — Reflection has zero `REFL_SER_CLASS`
+annotated types.
 
 ### D-6: File migrations
 

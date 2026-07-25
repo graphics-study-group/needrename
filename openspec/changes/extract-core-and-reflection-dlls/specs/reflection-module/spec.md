@@ -40,10 +40,6 @@ The build system SHALL support separate `meta_<module>` reflection code generati
 - **WHEN** `meta_core` code generation runs
 - **THEN** only headers under `engine/Core/` SHALL be scanned for reflection annotations
 
-#### Scenario: meta_reflection generates only Reflection types
-- **WHEN** `meta_reflection` code generation runs
-- **THEN** only headers under `engine/Reflection/` SHALL be scanned for reflection annotations (if any Reflection types need registration)
-
 #### Scenario: meta_engine continues generating other module types
 - **WHEN** `meta_engine` code generation runs
 - **THEN** only headers under `engine/Asset/`, `engine/Framework/`, `engine/Physics/`, `engine/Render/`, `engine/UserInterface/` SHALL be scanned

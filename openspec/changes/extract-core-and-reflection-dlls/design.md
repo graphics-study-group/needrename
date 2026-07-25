@@ -72,8 +72,9 @@ This change is **Step 1** of the engine modularization roadmap. It extracts the 
 
 **Target state**:
 ```
-engine/__generated__/
+engine/Core/__generated__/
   meta_core/        # Core types only (Transform)
+engine/__generated__/
   meta_engine/      # Asset, Framework, Physics, Render, UI, UserInterface types
 ```
 
@@ -88,8 +89,27 @@ engine/__generated__/
 add_reflection_parser(
     target_name meta_core
     reflection_search_files "${CORE_REFLECTION_HEADERS}"   # Core headers with REFL_SER_CLASS
-    generated_code_dir "${ENGINE_SOURCE_DIR}/__generated__"
+    generated_code_dir "${CMAKE_CURRENT_SOURCE_DIR}/__generated__"
 )
+```
+
+**meta_engine moved to engine/CMakeLists.txt** (previously in Reflection/CMakeLists.txt):
+```cmake
+file(GLOB_RECURSE HEADERS "./*.h")
+list(FILTER HEADERS EXCLUDE REGEX "__generated__/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Tests/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Core/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Reflection/.*")
+filter_files_with_reflection_macros(HEADERS REFLECTION_SEARCH_HEADERS)
+
+add_reflection_parser(
+    target_name meta_engine
+    reflection_search_files "${REFLECTION_SEARCH_HEADERS}"
+    generated_code_dir "${ENGINE_SOURCE_DIR}/__generated__"
+    parent_projects meta_core_generation
+)
+add_dependencies(engine meta_engine)
+target_link_libraries(engine PRIVATE meta_engine)
 ```
 
 **Rejected**: Continue using a single `meta_engine` target for all modules. Rejected because the registrar code for Core types must be compiled into Core.dll, not engine.dll.
@@ -110,13 +130,13 @@ void Initialize() {
 // Core.dll exports:
 CORE_API void RegisterCoreTypes();   // calls meta_core/reflection_init.inc
 
-// engine.dll internal:
-void RegisterAllEngineTypes();        // calls meta_engine/reflection_init.inc
+// engine.dll internal (MainClass.cpp directly includes meta_engine/reflection_init.inc):
+// RegisterAllTypes() — static linkage, no collision with meta_core's version
 
 // MainClass::Initialize() order:
 Reflection::Initialize();             // 1. Basic types (int, float, glm::vec3...)
 Core::RegisterCoreTypes();            // 2. Transform
-RegisterAllEngineTypes();             // 3. Asset, Framework, Physics types
+RegisterAllTypes();                   // 3. Asset, Framework, Physics types (from meta_engine/reflection_init.inc)
 ```
 
 The `reflection_init.inc` is split into per-module versions emitted by each `meta_*` target.
@@ -179,7 +199,23 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibUserInterface>
     MainClass.cpp                             # ← still in engine.dll
 )
-target_link_libraries(engine PUBLIC Core Reflection EngineDepVulkan EngineDepImgui)
+target_link_libraries(engine PUBLIC Core Reflection EngineLibExternalDependency EngineLibHeaderInterface)
+
+# meta_engine reflection code generation (moved here from Reflection/CMakeLists.txt):
+file(GLOB_RECURSE HEADERS "./*.h")
+list(FILTER HEADERS EXCLUDE REGEX "__generated__/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Tests/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Core/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Reflection/.*")
+filter_files_with_reflection_macros(HEADERS REFLECTION_SEARCH_HEADERS)
+add_reflection_parser(
+    target_name meta_engine
+    reflection_search_files "${REFLECTION_SEARCH_HEADERS}"
+    generated_code_dir "${ENGINE_SOURCE_DIR}/__generated__"
+    parent_projects meta_core_generation
+)
+add_dependencies(engine meta_engine)
+target_link_libraries(engine PRIVATE meta_engine)
 ```
 
 #### D-5a: Granular external dependency INTERFACE targets
