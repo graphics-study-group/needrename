@@ -5,9 +5,9 @@
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Scene/LevelAsset.h>
 #include <Asset/Shader/ShaderCompiler.h>
-#include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
+#include <Framework/world/EventQueue.h>
 #include <Framework/world/WorldSystem.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
@@ -20,6 +20,13 @@
 #include <fstream>
 #include <glslang/Public/ShaderLang.h>
 #include <nlohmann/json.hpp>
+
+#include "meta_engine/reflection_init.inc"
+
+extern "C"
+{
+    void RegisterCoreTypes();
+}
 
 namespace Engine {
     std::weak_ptr<MainClass> MainClass::m_instance;
@@ -107,6 +114,8 @@ namespace Engine {
         this->renderer->Create();
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
+        RegisterCoreTypes();
+        RegisterAllTypes();
 
         // if in editor mode
         this->shader_compiler = std::make_shared<ShaderCompiler>();

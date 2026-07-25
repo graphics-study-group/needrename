@@ -1,6 +1,7 @@
 #ifndef REFLECTION_METHOD_INCLUDED
 #define REFLECTION_METHOD_INCLUDED
 
+#include "reflection_export.h"
 #include "utils.h"
 #include <functional>
 #include <memory>
@@ -12,7 +13,7 @@ namespace Engine {
         class Type;
         class Var;
 
-        class Method {
+        class REFLECTION_API Method {
         protected:
             friend class Type;
             Method() = delete;

@@ -1,6 +1,6 @@
 #include "WorldSystem.h"
 #include <Core/Delegate/Delegate.h>
-#include <Core/Functional/EventQueue.h>
+#include "EventQueue.h"
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/component/RenderComponent/LightComponent.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>

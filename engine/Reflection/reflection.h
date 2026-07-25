@@ -18,7 +18,7 @@
 
 namespace Engine {
     namespace Reflection {
-        class Registrar {
+        class REFLECTION_API Registrar {
         public:
             /// @brief Register a new type.
             static void RegisterNewType(const std::string &name, std::type_index type_index, bool reflectable = false);
@@ -27,7 +27,7 @@ namespace Engine {
         };
 
         /// @brief Initialize the reflection system. Must be called before using any reflection features.
-        void Initialize();
+        REFLECTION_API void Initialize();
 
         /// @brief Get the Reflection::Type class of a template type T. If the type is not registered, it will create a
         /// new Type without registering it.
@@ -47,12 +47,12 @@ namespace Engine {
         /// @brief Get the Reflection::Type from a name. Return nullptr if the type is not found.
         /// @param name the type name
         /// @return the shared pointer to the Type class. nullptr if the type is not found
-        std::shared_ptr<const Type> GetType(const char *name);
+        REFLECTION_API std::shared_ptr<const Type> GetType(const char *name);
 
         /// @brief Get the Reflection::Type from a name. Return nullptr if the type is not found.
         /// @param name the type name
         /// @return the shared pointer to the Type class. nullptr if the type is not found
-        std::shared_ptr<const Type> GetType(const std::string &name);
+        REFLECTION_API std::shared_ptr<const Type> GetType(const std::string &name);
 
         /// @brief Get the Reflection::Var class from an object.
         /// @param obj the object to get the Var of

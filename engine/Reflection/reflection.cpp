@@ -1,6 +1,5 @@
 #include "reflection.h"
 #include "Type.h"
-#include "meta_engine/reflection_init.inc"
 #include <cassert>
 #include <cstdint>
 #include <glm.hpp>
@@ -20,7 +19,6 @@ namespace Engine {
 
         void Initialize() {
             Registrar::RegisterBasicTypes();
-            RegisterAllTypes();
         }
 
         /// @brief Register basic types list in https://en.cppreference.com/w/cpp/language/type and some frequently used

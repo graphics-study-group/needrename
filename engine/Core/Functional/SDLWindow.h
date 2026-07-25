@@ -1,6 +1,8 @@
 #ifndef CORE_FUNCTIONAL_SDLWINDOW_INCLUDED
 #define CORE_FUNCTIONAL_SDLWINDOW_INCLUDED
 
+#include "Core/core_export.h"
+
 #include <SDL3/SDL.h>
 #include <memory>
 #include <string>
@@ -15,7 +17,7 @@ namespace Engine {
 
     /// A wrapper of SDL_Window
     /// Note that memory is managed manually
-    class SDLWindow {
+    class CORE_API SDLWindow {
     public:
         SDLWindow(const char *, int, int, Uint32);
 

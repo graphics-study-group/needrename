@@ -12,7 +12,7 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Loader/Importer.h>
 #include <Core/Delegate/FuncDelegate.h>
-#include <Core/Functional/EventQueue.h>
+#include <Framework/world/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>

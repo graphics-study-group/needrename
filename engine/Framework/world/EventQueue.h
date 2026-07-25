@@ -1,7 +1,7 @@
 #ifndef ENGINE_FUNCTIONAL_EVENTQUEUE_H
 #define ENGINE_FUNCTIONAL_EVENTQUEUE_H
 
-#include <Core/Delegate/ComponentDelegate.h>
+#include <Framework/component/ComponentDelegate.h>
 #include <Framework/world/Scene.h>
 #include <memory>
 #include <queue>

@@ -1,6 +1,7 @@
 #ifndef REFLECTION_ARCHIVE_INCLUDED
 #define REFLECTION_ARCHIVE_INCLUDED
 
+#include "reflection_export.h"
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -17,7 +18,7 @@ namespace Engine {
          * The Archive holds a vector of resolvers.
          * Resolvers can be used when loading custom types such as Pointer or Handle.
          */
-        class Resolver {
+        class REFLECTION_API Resolver {
         public:
             Resolver() = default;
             virtual ~Resolver() = default;
@@ -31,7 +32,7 @@ namespace Engine {
         /// @details An Archive holds a global context and the current state. The global context stores major data
         /// during serialization and deserialization, while the current state tracks the position in the data for
         /// reading or writing.
-        class Archive {
+        class REFLECTION_API Archive {
         public:
             Archive() = default;
             virtual ~Archive() = default;

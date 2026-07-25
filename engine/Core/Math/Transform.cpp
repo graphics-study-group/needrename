@@ -90,4 +90,5 @@ namespace Engine {
     }
 } // namespace Engine
 
+#include <Reflection/serialization_glm.h>
 #include "__generated__/Transform.h.inc"

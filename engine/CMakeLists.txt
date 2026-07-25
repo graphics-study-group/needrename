@@ -1,26 +1,52 @@
-message("COMPILE engine library")
-file(GLOB_RECURSE HEADER "./*.h")
-
-list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
-list(FILTER HEADER EXCLUDE REGEX "Tests/.*")
+###########################################
+# Thirdparty and common interface setting #
+###########################################
 
 # Header files and some deps are shared across these modules, so we use an interface to manage them
 add_library(EngineLibHeaderInterface INTERFACE)
 target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
+
+# Granular external dependency targets — each DLL links only what it needs
+add_library(EngineDepGlm INTERFACE)
+target_link_libraries(EngineDepGlm INTERFACE glm)
+target_compile_definitions(EngineDepGlm INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
+
+add_library(EngineDepJson INTERFACE)
+target_link_libraries(EngineDepJson INTERFACE json)
+
+add_library(EngineDepSdl INTERFACE)
+target_link_libraries(EngineDepSdl INTERFACE SDL3::SDL3)
+
+add_library(EngineDepVulkan INTERFACE)
+target_link_libraries(EngineDepVulkan INTERFACE Vulkan::Vulkan vma glslang)
+target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_STORAGE_SHARED)
+
+add_library(EngineDepImgui INTERFACE)
+target_link_libraries(EngineDepImgui INTERFACE imgui)
+
+# Backward-compatible aggregate for remaining OBJECT libraries still in engine.dll
 add_library(EngineLibExternalDependency INTERFACE)
 target_link_libraries(EngineLibExternalDependency
     INTERFACE
-    SDL3::SDL3
-    Vulkan::Vulkan
-    glm
-    json
-    imgui
-    vma
-    glslang
+    EngineDepGlm
+    EngineDepJson
+    EngineDepSdl
+    EngineDepVulkan
+    EngineDepImgui
 )
-target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
-target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_STORAGE_SHARED)
-target_compile_definitions(EngineLibExternalDependency INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
+
+###########################################
+# The parts that are already separated    #
+###########################################
+
+add_subdirectory(Reflection)
+add_subdirectory(Core)
+
+#################################################
+# The parts that are still mixed in engine      #
+# (needs to be refactored in the future)        #
+#################################################
 
 # Root directory for physics shader SPIR-V artefacts (build tree only).
 # Set before add_subdirectory(Physics) so the Physics subdir and the later
@@ -28,10 +54,8 @@ target_compile_definitions(EngineLibExternalDependency INTERFACE GLM_FORCE_DEPTH
 set(PHYSICS_SPIRV_ROOT "${CMAKE_BINARY_DIR}/engine/Physics/spirv")
 
 add_subdirectory(Asset)
-add_subdirectory(Core)
 add_subdirectory(Framework)
 add_subdirectory(Physics)
-add_subdirectory(Reflection)
 add_subdirectory(Render)
 add_subdirectory(UserInterface)
 
@@ -39,25 +63,79 @@ add_library(engine SHARED
     "MainClass.cpp"
     $<TARGET_OBJECTS:imgui>
     $<TARGET_OBJECTS:EngineLibAsset>
-    $<TARGET_OBJECTS:EngineLibCore>
     $<TARGET_OBJECTS:EngineLibFramework>
     $<TARGET_OBJECTS:EngineLibPhysics>
-    $<TARGET_OBJECTS:EngineLibReflection>
     $<TARGET_OBJECTS:EngineLibRender>
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
+
+# Widely used dependencies such as SDL and Vulkan are marked as public
+target_link_libraries(engine
+    PUBLIC
+    EngineLibHeaderInterface
+    EngineLibExternalDependency
+    Reflection
+    Core
+)
+
+# Dependencies only used in a small module are marked as private to avoid pollution
+target_link_libraries(engine 
+    PRIVATE
+    EngineLibAsset
+    EngineLibFramework
+    EngineLibPhysics
+    EngineLibRender
+    EngineLibUserInterface
+)
+
+# Copy third-party DLLs that are not natively built into the bin directory.
+# SDL3 is an imported target from MSYS2; libktx overrides LIBRARY_OUTPUT_DIRECTORY.
+add_custom_command(TARGET engine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:SDL3::SDL3-shared>
+    $<TARGET_FILE:ktx>
+    $<TARGET_FILE:Reflection>
+    $<TARGET_FILE:Core>
+    $<TARGET_FILE_DIR:engine>
+    COMMENT "Copying SDL3, libktx, Reflection, and Core DLLs to output directory"
+)
+
+# TODO: Use relative paths when install.
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
+
+# Setup meta parser for engine reflection
+include(${REFLECTION_PARSER_DIR}/parser.cmake)
+set(all_include_dirs)
+get_include_directories_for_target(engine all_include_dirs)
+
+file(GLOB_RECURSE HEADERS "./*.h")
+# Exclude the parts that are already separated
+list(FILTER HEADERS EXCLUDE REGEX "__generated__/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Tests/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Core/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Reflection/.*")
+filter_files_with_reflection_macros(HEADERS REFLECTION_SEARCH_HEADERS)
+
+add_reflection_parser(
+    target_name meta_engine
+    reflection_search_files "${REFLECTION_SEARCH_HEADERS}"
+    generated_code_dir "${ENGINE_SOURCE_DIR}/__generated__"
+    reflection_search_include_dirs "${all_include_dirs}" "${all_ext_include_dirs}"
+    parent_projects meta_core_generation
+)
+add_dependencies(engine meta_engine)
+target_link_libraries(engine PRIVATE meta_engine)
 
 add_dependencies(engine shader)
 add_dependencies(engine physics_shader)
 
 add_dependencies(EngineLibAsset meta_engine)
-add_dependencies(EngineLibCore meta_engine)
 add_dependencies(EngineLibFramework meta_engine)
 add_dependencies(EngineLibPhysics meta_engine)
-add_dependencies(EngineLibReflection meta_engine)
 add_dependencies(EngineLibRender meta_engine)
 add_dependencies(EngineLibUserInterface meta_engine)
 
+# Doxygen support
 find_package(Doxygen)
 if(Doxygen_FOUND)
     set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
@@ -92,37 +170,6 @@ else()
     message("Doxygen need to be installed to generate the doxygen documentation")
 endif()
 
-# Widely used dependencies such as SDL and Vulkan are marked as public
-target_link_libraries(engine
-    PUBLIC
-    EngineLibHeaderInterface
-    EngineLibExternalDependency
-)
-
-# Dependencies only used in a small module are marked as private to avoid pollution
-target_link_libraries(engine 
-    PRIVATE
-    EngineLibAsset
-    EngineLibCore
-    EngineLibFramework
-    EngineLibPhysics
-    EngineLibReflection
-    EngineLibRender
-    EngineLibUserInterface
-)
-
-# Copy third-party DLLs that are not natively built into the bin directory.
-# SDL3 is an imported target from MSYS2; libktx overrides LIBRARY_OUTPUT_DIRECTORY.
-add_custom_command(TARGET engine POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3-shared>
-    $<TARGET_FILE:ktx>
-    $<TARGET_FILE_DIR:engine>
-    COMMENT "Copying SDL3 and libktx DLLs to output directory"
-)
-
-# TODO: Use relative paths when install.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
-
+# CTest support
 include(CTest)
 add_subdirectory(Tests)

@@ -1,6 +1,7 @@
 #ifndef REFLECTION_VAR_INCLUDED
 #define REFLECTION_VAR_INCLUDED
 
+#include "reflection_export.h"
 #include <memory>
 #include <string>
 
@@ -9,7 +10,7 @@ namespace Engine {
         class Type;
         class ArrayVar;
 
-        class Var {
+        class REFLECTION_API Var {
         public:
             Var() = default;
             Var(Var &&var);
@@ -99,7 +100,7 @@ namespace Engine {
 
         class ArrayField;
 
-        class ArrayVar {
+        class REFLECTION_API ArrayVar {
         protected:
             friend class Var;
             ArrayVar() = delete;

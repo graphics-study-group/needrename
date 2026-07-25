@@ -1,7 +1,7 @@
-#ifndef CORE_DELEGATE_COMPONENTDELEGATE_H
-#define CORE_DELEGATE_COMPONENTDELEGATE_H
+#ifndef FRAMEWORK_COMPONENT_COMPONENTDELEGATE_H
+#define FRAMEWORK_COMPONENT_COMPONENTDELEGATE_H
 
-#include "DelegateBase.h"
+#include <Core/Delegate/DelegateBase.h>
 #include <Framework/world/Scene.h>
 #include <functional>
 #include <memory>
@@ -39,4 +39,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // CORE_DELEGATE_COMPONENTDELEGATE_H
+#endif // FRAMEWORK_COMPONENT_COMPONENTDELEGATE_H

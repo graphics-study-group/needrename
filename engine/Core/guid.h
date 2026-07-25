@@ -13,6 +13,7 @@
 #ifndef ENGINE_CORE_GUID_INCLUDED
 #define ENGINE_CORE_GUID_INCLUDED
 
+#include "core_export.h"
 #include <array>
 #include <cstdint>
 #include <stdexcept>
@@ -36,7 +37,7 @@ namespace Engine {
         https://en.wikipedia.org/wiki/Universally_unique_identifier
         https://www.ietf.org/rfc/rfc4122.txt
     */
-    class GUID {
+    class CORE_API GUID {
     public:
         //! Default constructor
         constexpr GUID() : _data() {

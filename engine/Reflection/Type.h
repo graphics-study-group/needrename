@@ -1,6 +1,7 @@
 #ifndef REFLECTION_TYPE_INCLUDED
 #define REFLECTION_TYPE_INCLUDED
 
+#include "reflection_export.h"
 #include "utils.h"
 #include <cstddef>
 #include <cstdint>
@@ -28,7 +29,7 @@ namespace Engine {
         /// It contains information about the type such as its name, base types, fields, and methods.
         /// Note that only reflected types and some basic types use their own name. The other types use their type_info
         /// name.
-        class Type : public std::enable_shared_from_this<Type> {
+        class REFLECTION_API Type : public std::enable_shared_from_this<Type> {
         public:
             // The name of the constructor method
             static constexpr const char *k_constructor_name = "$Constructor";
@@ -192,7 +193,7 @@ namespace Engine {
             std::unordered_map<std::string, std::shared_ptr<const ArrayField>> GetAllArrayFields() const;
         };
 
-        class ConstType : public Type {
+        class REFLECTION_API ConstType : public Type {
         public:
             ConstType(std::shared_ptr<const Type> base_type);
             virtual ~ConstType() = default;
@@ -200,7 +201,7 @@ namespace Engine {
             std::shared_ptr<const Type> m_base_type;
         };
 
-        class PointerType : public Type {
+        class REFLECTION_API PointerType : public Type {
         public:
             static std::unordered_map<std::type_index, WrapperSmartPointerGet> s_shared_pointer_getter_map;
             static std::unordered_map<std::type_index, WrapperSmartPointerGet> s_weak_pointer_getter_map;
@@ -243,7 +244,7 @@ namespace Engine {
             PointerTypeKind GetPointerTypeKind() const;
         };
 
-        class EnumType : public Type {
+        class REFLECTION_API EnumType : public Type {
         public:
             EnumType(
                 const std::string &name,

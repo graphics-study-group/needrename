@@ -1,6 +1,7 @@
 #ifndef OPTIONHANDLER_H_INCLUDED
 #define OPTIONHANDLER_H_INCLUDED
 
+#include "../core_export.h"
 #include <cstdlib>
 #include <getopt.h>
 #include <string>
@@ -32,6 +33,6 @@ namespace OptionDeclaration {
 } // namespace OptionDeclaration
 
 /// @note atoi() is used
-StartupOptions *ParseOptions(int argc, char **argv);
+CORE_API StartupOptions *ParseOptions(int argc, char **argv);
 
 #endif // OPTIONHANDLER_H_INCLUDED

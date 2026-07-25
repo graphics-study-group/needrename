@@ -1,10 +1,11 @@
 #ifndef ENGINE_FUNCTIONAL_TIME_H
 #define ENGINE_FUNCTIONAL_TIME_H
 
+#include "../core_export.h"
 #include <cstdint>
 
 namespace Engine {
-    class TimeSystem {
+    class CORE_API TimeSystem {
     public:
         TimeSystem() = default;
         ~TimeSystem() = default;

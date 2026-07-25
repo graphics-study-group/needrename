@@ -1,6 +1,7 @@
 #ifndef REFLECTION_FIELD_INCLUDED
 #define REFLECTION_FIELD_INCLUDED
 
+#include "reflection_export.h"
 #include "utils.h"
 #include <cstdint>
 #include <memory>
@@ -10,7 +11,7 @@ namespace Engine {
         class Type;
         class Var;
 
-        class Field {
+        class REFLECTION_API Field {
         protected:
             friend class Type;
             Field() = delete;
@@ -36,7 +37,7 @@ namespace Engine {
             Var GetVar(void *obj) const;
         };
 
-        class ArrayField {
+        class REFLECTION_API ArrayField {
         protected:
             friend class Type;
             ArrayField() = delete;

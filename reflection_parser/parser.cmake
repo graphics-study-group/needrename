@@ -162,19 +162,19 @@ function(add_reflection_parser)
     set(REFLECTION_PARSER_ARGS "-xc++ -MG -M -ferror-limit=0 -std=c++20 ${EXTRA_ARGS} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
     message(DEBUG "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
-    # set up task stamped file, which is used to check if the parser needs to run
-    set(TASK_STAMPED_FILE "${generated_code_dir}/task_stamped")
-
     # set up the generated filenames of the file to be parsed
     set(CONFIG_GENERATED_CODE_DIR ${generated_code_dir}/${target_name})
     generate_cpp_names("${reflection_search_files}")
+
+    # set up task stamped file, which is used to check if the parser needs to run
+    set(TASK_STAMPED_FILE "${CONFIG_GENERATED_CODE_DIR}/task_stamped")
 
     if (parent_projects)
         generate_pkl_file_list(${parent_projects})
     endif()
 
     # generate config.json
-    configure_file(${REFLECTION_PARSER_DIR}/template/config.json.template ${generated_code_dir}/config.json)
+    configure_file(${REFLECTION_PARSER_DIR}/template/config.json.template ${CONFIG_GENERATED_CODE_DIR}/config.json)
 
     file(GLOB_RECURSE template_files ${REFLECTION_PARSER_DIR}/template/*.template)
 
@@ -190,7 +190,7 @@ function(add_reflection_parser)
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile started ********** "
         COMMAND ${CMAKE_COMMAND} -E echo "[Precompile]: run parser python script"
         COMMAND ${PARSER_ENV_CMD} ${Python3_EXECUTABLE} ${REFLECTION_PARSER_DIR}/parser_main.py
-                    --config ${generated_code_dir}/config.json
+                    --config ${CONFIG_GENERATED_CODE_DIR}/config.json
                     ${REFLECTION_VERBOSE}
         COMMAND ${CMAKE_COMMAND} -E touch ${TASK_STAMPED_FILE}
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile finished ********** "
@@ -206,7 +206,7 @@ function(add_reflection_parser)
     )
 
     # Clean main meta output and all per-header wrapper output folders.
-    set(clean_generated_paths ${generated_code_dir} ${CONFIG_GENERATED_CODE_DIR})
+    set(clean_generated_paths ${CONFIG_GENERATED_CODE_DIR})
     foreach(file ${reflection_search_files})
         get_filename_component(file_dir ${file} DIRECTORY)
         get_filename_component(file_dir ${file_dir} ABSOLUTE)
