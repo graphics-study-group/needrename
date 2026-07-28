@@ -16,6 +16,5 @@ target_link_libraries(AnnoRefl
 
 set(ANROREFL_PARSER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/parser" CACHE STRING "Path to AnnoRefl parser directory")
 
-include(CTest)
 enable_testing()
 add_subdirectory(tests)

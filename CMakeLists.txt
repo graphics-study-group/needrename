@@ -22,6 +22,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+include(CTest)
+
 find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
 message(STATUS "Vulkan version: ${Vulkan_VERSION}")
@@ -47,5 +49,4 @@ add_subdirectory(editor)
 add_subdirectory(example)
 add_subdirectory(shader)
 
-include(CTest)
 add_subdirectory(test)
