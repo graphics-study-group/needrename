@@ -5,8 +5,8 @@
 #include <Framework/component/Component.h>
 #include <Framework/world/physics/PhysicsDescriptors.h>
 #include <Physics/PhysicsScene.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_glm.h>
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_glm.h>
 
 namespace Engine {
     /**

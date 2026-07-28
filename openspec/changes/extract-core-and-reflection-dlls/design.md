@@ -6,7 +6,7 @@ Two specific problems motivate this change:
 1. **Core has a reverse dependency on Framework**: `Core/Delegate/ComponentDelegate.h` and `Core/Functional/EventQueue.h` include `<Framework/world/Scene.h>`. Core cannot be a true leaf.
 2. **No module-level linking**: All modules are fused into one DLL. Changing a single Physics header forces a full `engine.dll` relink. Tests cannot link only the modules they need.
 
-This change is **Step 1** of the engine modularization roadmap. It extracts the two zero-engine-dependency modules (Reflection and Core) into separate DLLs, establishing a clean Layer 0 foundation. All other modules stay in `engine.dll` as OBJECT libraries ‚Äî their internal dependency issues (Framework‚ÜîAsset, Asset‚ÜîRender circular dependencies) are addressed in future steps.
+This change is **Step 1** of the engine modularization roadmap. It extracts the two zero-engine-dependency modules (Reflection and Core) into separate DLLs, establishing a clean Layer 0 foundation. All other modules stay in `engine.dll` as OBJECT libraries ‚Ä?their internal dependency issues (Framework‚ÜîAsset, Asset‚ÜîRender circular dependencies) are addressed in future steps.
 
 ## Goals / Non-Goals
 
@@ -30,7 +30,7 @@ This change is **Step 1** of the engine modularization roadmap. It extracts the 
 
 **Choice**: Separate `Reflection.dll` (zero engine deps) and `Core.dll` (depends on Reflection.dll).
 
-**Rationale**: Reflection is a true leaf ‚Äî it only uses std, glm, and nlohmann/json. Core needs Reflection for type registration (Transform serialization) and glm serialization overloads. If they were merged into one DLL, code that only needs GUID/Delegate would unnecessarily pull in nlohmann/json.
+**Rationale**: Reflection is a true leaf ‚Ä?it only uses std, glm, and nlohmann/json. Core needs Reflection for type registration (Transform serialization) and glm serialization overloads. If they were merged into one DLL, code that only needs GUID/Delegate would unnecessarily pull in nlohmann/json.
 
 **Rejected**: A single `Foundation.dll` containing both. Rejected because Reflection has a distinct responsibility (type system + serialization) from Core (math + callbacks + platform), and the json dependency should not be forced on Core-only consumers.
 
@@ -64,11 +64,11 @@ This change is **Step 1** of the engine modularization roadmap. It extracts the 
 
 **Compile definitions**: The CMake targets set `REFLECTION_DLL_EXPORTS` when building `Reflection.dll` and `CORE_DLL_EXPORTS` when building `Core.dll`. Consumer targets see `dllimport`.
 
-**Rejected**: A single `ENGINE_API` macro. Rejected because there is no single "engine" any more ‚Äî Reflection is imported by Core, Core is imported by engine, and each needs independent import/export control.
+**Rejected**: A single `ENGINE_API` macro. Rejected because there is no single "engine" any more ‚Ä?Reflection is imported by Core, Core is imported by engine, and each needs independent import/export control.
 
 ### D-3: Per-module code generation and type registration
 
-**Choice**: Create `meta_core` code gen target alongside the existing `meta_engine`. No `meta_reflection` target needed ‚Äî Reflection has zero `REFL_SER_CLASS` annotated types.
+**Choice**: Create `meta_core` code gen target alongside the existing `meta_engine`. No `meta_reflection` target needed ‚Ä?Reflection has zero `REFL_SER_CLASS` annotated types.
 
 **Target state**:
 ```
@@ -116,7 +116,7 @@ target_link_libraries(engine PRIVATE meta_engine)
 
 #### D-3a: Type registration init flow
 
-The generated `reflection_init.inc` currently lives in `reflection.cpp` (Reflection module) and calls ALL type registrars including `Register_Engine6Transform9()` which is defined in Core.dll. This would create a circular DLL dependency (Reflection.dll ‚Üí Core.dll).
+The generated `reflection_init.inc` currently lives in `reflection.cpp` (Reflection module) and calls ALL type registrars including `Register_Engine6Transform9()` which is defined in Core.dll. This would create a circular DLL dependency (Reflection.dll ‚Ü?Core.dll).
 
 **Solution**: Each DLL provides its own registration entry point. `Reflection::Initialize()` only calls `RegisterBasicTypes()`. The per-DLL registration functions are called explicitly by `MainClass`:
 
@@ -131,7 +131,7 @@ void Initialize() {
 CORE_API void RegisterCoreTypes();   // calls meta_core/reflection_init.inc
 
 // engine.dll internal (MainClass.cpp directly includes meta_engine/reflection_init.inc):
-// RegisterAllTypes() ‚Äî static linkage, no collision with meta_core's version
+// RegisterAllTypes() ‚Ä?static linkage, no collision with meta_core's version
 
 // MainClass::Initialize() order:
 Reflection::Initialize();             // 1. Basic types (int, float, glm::vec3...)
@@ -144,17 +144,17 @@ The `reflection_init.inc` is split into per-module versions emitted by each `met
 ### D-4: File migrations
 
 **Move**:
-- `engine/Core/Delegate/ComponentDelegate.h` ‚Üí `engine/Framework/component/ComponentDelegate.h`
-- `engine/Core/Functional/EventQueue.h` ‚Üí `engine/Framework/world/EventQueue.h`
-- `engine/Core/Functional/EventQueue.cpp` ‚Üí `engine/Framework/world/EventQueue.cpp`
+- `engine/Core/Delegate/ComponentDelegate.h` ‚Ü?`engine/Framework/component/ComponentDelegate.h`
+- `engine/Core/Functional/EventQueue.h` ‚Ü?`engine/Framework/world/EventQueue.h`
+- `engine/Core/Functional/EventQueue.cpp` ‚Ü?`engine/Framework/world/EventQueue.cpp`
 
 **Delete dead includes** from `engine/Core/Functional/SDLWindow.cpp`:
-- `#include <MainClass.h>` (unused ‚Äî no MainClass types referenced in the file)
+- `#include <MainClass.h>` (unused ‚Ä?no MainClass types referenced in the file)
 - `#include <Render/Memory/RenderTargetTexture.h>` (unused)
 - `#include <vulkan/vulkan.hpp>` (unused)
 
 **Update references** (4 files):
-- `engine/Framework/world/Scene.cpp`: `#include <Core/Functional/EventQueue.h>` ‚Üí `#include "EventQueue.h"`
+- `engine/Framework/world/Scene.cpp`: `#include <Core/Functional/EventQueue.h>` ‚Ü?`#include "EventQueue.h"`
 - `engine/Framework/world/WorldSystem.cpp`: same change
 - `engine/MainClass.cpp`: same change
 - `example/editor_run_game_example/main.cpp`: same change
@@ -164,16 +164,16 @@ The `reflection_init.inc` is split into per-module versions emitted by each `met
 **Before**:
 ```cmake
 # engine/CMakeLists.txt
-add_library(EngineLibReflection OBJECT ${SOURCE})   # ‚Üí engine.dll objects
-add_library(EngineLibCore       OBJECT ${SOURCE})   # ‚Üí engine.dll objects
+add_library(EngineLibReflection OBJECT ${SOURCE})   # ‚Ü?engine.dll objects
+add_library(EngineLibCore       OBJECT ${SOURCE})   # ‚Ü?engine.dll objects
 # ... 5 more OBJECT libs ...
 add_library(engine SHARED
     $<TARGET_OBJECTS:imgui>
     $<TARGET_OBJECTS:EngineLibAsset>
-    $<TARGET_OBJECTS:EngineLibCore>        # ‚Üê removed
+    $<TARGET_OBJECTS:EngineLibCore>        # ‚Ü?removed
     $<TARGET_OBJECTS:EngineLibFramework>
     $<TARGET_OBJECTS:EngineLibPhysics>
-    $<TARGET_OBJECTS:EngineLibReflection>   # ‚Üê removed
+    $<TARGET_OBJECTS:EngineLibReflection>   # ‚Ü?removed
     $<TARGET_OBJECTS:EngineLibRender>
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
@@ -182,11 +182,11 @@ add_library(engine SHARED
 **After**:
 ```cmake
 # In Reflection/CMakeLists.txt:
-add_library(Reflection SHARED ${SOURCE})     # ‚Üê NEW: standalone DLL
+add_library(Reflection SHARED ${SOURCE})     # ‚Ü?NEW: standalone DLL
 target_link_libraries(Reflection PRIVATE EngineDepGlm EngineDepJson)
 
 # In Core/CMakeLists.txt:
-add_library(Core SHARED ${SOURCE})           # ‚Üê NEW: standalone DLL
+add_library(Core SHARED ${SOURCE})           # ‚Ü?NEW: standalone DLL
 target_link_libraries(Core PUBLIC Reflection EngineDepGlm EngineDepSdl)
 
 # In engine/CMakeLists.txt:
@@ -197,7 +197,7 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibPhysics>
     $<TARGET_OBJECTS:EngineLibRender>
     $<TARGET_OBJECTS:EngineLibUserInterface>
-    MainClass.cpp                             # ‚Üê still in engine.dll
+    MainClass.cpp                             # ‚Ü?still in engine.dll
 )
 target_link_libraries(engine PUBLIC Core Reflection EngineLibExternalDependency EngineLibHeaderInterface)
 
@@ -231,11 +231,11 @@ add_library(EngineDepVulkan INTERFACE)  # Vulkan::Vulkan + vma + glslang + VULKA
 add_library(EngineDepImgui  INTERFACE)  # imgui
 
 # Per-DLL dependencies:
-# Reflection ‚Üí EngineDepGlm, EngineDepJson
-# Core       ‚Üí EngineDepGlm, EngineDepSdl
-# Physics    ‚Üí EngineDepGlm, EngineDepVulkan (via engine.dll OBJECT lib, not direct)
-# Render     ‚Üí EngineDepGlm, EngineDepVulkan (via engine.dll OBJECT lib)
-# UI         ‚Üí EngineDepGlm, EngineDepSdl, EngineDepImgui (via engine.dll OBJECT lib)
+# Reflection ‚Ü?EngineDepGlm, EngineDepJson
+# Core       ‚Ü?EngineDepGlm, EngineDepSdl
+# Physics    ‚Ü?EngineDepGlm, EngineDepVulkan (via engine.dll OBJECT lib, not direct)
+# Render     ‚Ü?EngineDepGlm, EngineDepVulkan (via engine.dll OBJECT lib)
+# UI         ‚Ü?EngineDepGlm, EngineDepSdl, EngineDepImgui (via engine.dll OBJECT lib)
 ```
 
 The OBJECT libraries (`EngineLibAsset`, `EngineLibFramework`, etc.) still transitively receive external deps through the `engine` target's PUBLIC link. Only Reflection.dll and Core.dll need explicit per-dep linking.
@@ -285,7 +285,7 @@ Classes and free functions that must be exported from `Reflection.dll`:
 - `Engine::Serialization::save_to_archive<glm::*>()`, `load_from_archive<glm::*>()`
 - Static members: `Type::s_index_type_map`, `Type::s_name_index_map`
 
-Template classes (header-only) do NOT need export annotations ‚Äî they are instantiated in the consuming TU:
+Template classes (header-only) do NOT need export annotations ‚Ä?they are instantiated in the consuming TU:
 - `Engine::Delegate<Args...>`, `Event<Args...>`, `FuncDelegate<Args...>`, `DelegateBase<Args...>` (in Core)
 - `Engine::Flags<T>` (in Core)
 - Serialization templates for std containers (in Reflection)
@@ -296,11 +296,11 @@ For Core.dll, the `Transform` class does NOT need `CORE_API` because it is used 
 
 **Choice**: Move serialization-specific includes from `.h` files to their corresponding `.cpp` or generated `.inc` files.
 
-**Rationale**: Several header files include `<Reflection/serialization_glm.h>` or other serialization headers that are only needed by the generated serialization code, not by the class declaration itself. For example, `Transform.h` includes `<Reflection/serialization_glm.h>` but only uses types already forward-declared in `<Reflection/macros.h>`. The actual `save_to_archive<glm::*>` calls happen in the generated `_serialization_impl_Transform.h.inc` which already includes `<Reflection/serialization.h>` (transitively includes serialization_glm.h).
+**Rationale**: Several header files include `<AnnoRefl/serialization_glm.h>` or other serialization headers that are only needed by the generated serialization code, not by the class declaration itself. For example, `Transform.h` includes `<AnnoRefl/serialization_glm.h>` but only uses types already forward-declared in `<AnnoRefl/macros.h>`. The actual `save_to_archive<glm::*>` calls happen in the generated `_serialization_impl_Transform.h.inc` which already includes `<AnnoRefl/serialization.h>` (transitively includes serialization_glm.h).
 
 **Actions**:
-- Remove `#include <Reflection/serialization_glm.h>` from `engine/Core/Math/Transform.h`
-- Audit other `.h` files for unnecessary serialization includes ‚Äî move to `.cpp` or generated `.inc`
+- Remove `#include <AnnoRefl/serialization_glm.h>` from `engine/Core/Math/Transform.h`
+- Audit other `.h` files for unnecessary serialization includes ‚Ä?move to `.cpp` or generated `.inc`
 
 ### D-9: Include path policy
 
@@ -313,9 +313,9 @@ For Core.dll, the `Transform` class does NOT need `CORE_API` because it is used 
 ## Risks / Trade-offs
 
 ### Risk 1: Type registration across DLL boundaries
-The generated `Register_Engine6Transform9()` function is defined in Core.dll (via `Transform.cpp` ‚Üí generated `.inc`), but called from `reflection_init.inc` which was historically included in `reflection.cpp` (Reflection module). Splitting would create a circular dependency.
+The generated `Register_Engine6Transform9()` function is defined in Core.dll (via `Transform.cpp` ‚Ü?generated `.inc`), but called from `reflection_init.inc` which was historically included in `reflection.cpp` (Reflection module). Splitting would create a circular dependency.
 
-**Mitigation**: The `reflection_init.inc` is split per DLL. `Reflection::Initialize()` calls only `RegisterBasicTypes()`. Each DLL exports a `Register*Types()` function. `MainClass::Initialize()` calls them in order: Reflection ‚Üí Core ‚Üí engine. See D-3a.
+**Mitigation**: The `reflection_init.inc` is split per DLL. `Reflection::Initialize()` calls only `RegisterBasicTypes()`. Each DLL exports a `Register*Types()` function. `MainClass::Initialize()` calls them in order: Reflection ‚Ü?Core ‚Ü?engine. See D-3a.
 
 ### Risk 2: Template instantiation across DLL boundaries
 Some serialization templates (e.g., `serialize<std::vector<T>>`) may need explicit instantiation in Reflection.dll to avoid duplicate symbol errors when Core.dll and engine.dll both instantiate them.
@@ -330,7 +330,7 @@ Going from 1 engine DLL (+ SDL3, ktx) to 3 engine DLLs (+ SDL3, ktx). Deployment
 ### Risk 4: Build time regression from meta_* split
 Running 3 separate reflection parser passes instead of 1 increases total code generation time. The Python parser startup and libclang initialization are not free.
 
-**Mitigation**: The `parser.cmake` infrastructure already supports incremental runs (via `task_stamped` files). Only changed headers trigger re-parsing. The total header count scanned is the same ‚Äî just partitioned by module. The overhead is one extra parser startup per build configuration.
+**Mitigation**: The `parser.cmake` infrastructure already supports incremental runs (via `task_stamped` files). Only changed headers trigger re-parsing. The total header count scanned is the same ‚Ä?just partitioned by module. The overhead is one extra parser startup per build configuration.
 
 ## Migration Plan
 
@@ -365,8 +365,8 @@ Running 3 separate reflection parser passes instead of 1 increases total code ge
 
 ## Open Questions
 
-1. **Should `OptionHandler` stay in Core?** It uses `<getopt.h>` which is Unix-specific and may require a replacement on Windows. It is a small utility and could be moved to a Tools module or removed if unused. *Decision deferred ‚Äî keep in Core for now, mark as deprecated candidate.*
+1. **Should `OptionHandler` stay in Core?** It uses `<getopt.h>` which is Unix-specific and may require a replacement on Windows. It is a small utility and could be moved to a Tools module or removed if unused. *Decision deferred ‚Ä?keep in Core for now, mark as deprecated candidate.*
 
 2. **Should `guid.cpp` use `__declspec(dllexport)` for GUID methods?** GUID is a value type with all methods inline (in `guid.inl`) or defined in the header. Only the static factory methods (`Sequential()`, `Random()`) and `string()` are in the .cpp. These need `CORE_API` annotations. *Yes, annotate the non-inline methods.*
 
-3. **Should the wrapper `.inc` files use relative or absolute paths?** Currently uses absolute paths. Relative paths would be more portable. *Decision deferred ‚Äî keep absolute for consistency with existing pattern, address in future codegen improvement.*
+3. **Should the wrapper `.inc` files use relative or absolute paths?** Currently uses absolute paths. Relative paths would be more portable. *Decision deferred ‚Ä?keep absolute for consistency with existing pattern, address in future codegen improvement.*

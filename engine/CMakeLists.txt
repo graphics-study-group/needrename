@@ -34,13 +34,13 @@ target_link_libraries(EngineLibExternalDependency
     EngineDepSdl
     EngineDepVulkan
     EngineDepImgui
+    AnnoRefl
 )
 
 ###########################################
 # The parts that are already separated    #
 ###########################################
 
-add_subdirectory(Reflection)
 add_subdirectory(Core)
 
 #################################################
@@ -74,7 +74,6 @@ target_link_libraries(engine
     PUBLIC
     EngineLibHeaderInterface
     EngineLibExternalDependency
-    Reflection
     Core
 )
 
@@ -94,17 +93,16 @@ add_custom_command(TARGET engine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3-shared>
     $<TARGET_FILE:ktx>
-    $<TARGET_FILE:Reflection>
     $<TARGET_FILE:Core>
     $<TARGET_FILE_DIR:engine>
-    COMMENT "Copying SDL3, libktx, Reflection, and Core DLLs to output directory"
+    COMMENT "Copying SDL3, libktx, and Core DLLs to output directory"
 )
 
 # TODO: Use relative paths when install.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
 # Setup meta parser for engine reflection
-include(${REFLECTION_PARSER_DIR}/parser.cmake)
+include(${ANROREFL_PARSER_DIR}/parser.cmake)
 set(all_include_dirs)
 get_include_directories_for_target(engine all_include_dirs)
 
@@ -113,7 +111,6 @@ file(GLOB_RECURSE HEADERS "./*.h")
 list(FILTER HEADERS EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Tests/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Core/.*")
-list(FILTER HEADERS EXCLUDE REGEX "Reflection/.*")
 filter_files_with_reflection_macros(HEADERS REFLECTION_SEARCH_HEADERS)
 
 add_reflection_parser(
@@ -162,7 +159,6 @@ if(Doxygen_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/Asset/
         ${CMAKE_CURRENT_SOURCE_DIR}/Core/
         ${CMAKE_CURRENT_SOURCE_DIR}/Framework/
-        ${CMAKE_CURRENT_SOURCE_DIR}/Reflection/
         ${CMAKE_CURRENT_SOURCE_DIR}/Render/
         ${CMAKE_CURRENT_SOURCE_DIR}/UserInterface/
     )

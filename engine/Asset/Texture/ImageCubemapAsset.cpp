@@ -11,7 +11,7 @@
 
 #include <memory>
 
-#include <Reflection/serialization.h>
+#include <AnnoRefl/serialization.h>
 
 namespace {
     /**
@@ -134,7 +134,7 @@ namespace Engine {
         return ktxTexture_GetDataSize(ktxTexture(m_texture));
     }
 
-    void ImageCubemapAsset::save_asset_to_archive(Serialization::Archive &archive) const {
+    void ImageCubemapAsset::save_asset_to_archive(AnnoRefl::Archive &archive) const {
         if (m_texture == nullptr) {
             throw std::runtime_error("Cannot save ImageCubemapAsset: texture data is not set.");
         }
@@ -173,7 +173,7 @@ namespace Engine {
         TextureAsset::save_asset_to_archive(archive);
     }
 
-    void ImageCubemapAsset::load_asset_from_archive(Serialization::Archive &archive) {
+    void ImageCubemapAsset::load_asset_from_archive(AnnoRefl::Archive &archive) {
         auto &json = *archive.m_cursor;
         TextureAsset::load_asset_from_archive(archive);
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];

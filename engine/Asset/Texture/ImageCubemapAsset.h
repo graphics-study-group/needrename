@@ -2,7 +2,7 @@
 #define ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
 
 #include "Asset/Texture/TextureAsset.h"
-#include "Reflection/macros.h"
+#include "AnnoRefl/macros.h"
 #include <Render/ImageUtils.h>
 #include <vector>
 
@@ -47,8 +47,8 @@ namespace Engine {
          */
         REFL_SER_ENABLE ImageUtils::ImageFormat m_format{};
 
-        virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
-        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+        virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const override;
+        virtual void load_asset_from_archive(AnnoRefl::Archive &archive) override;
 
     protected:
         friend struct detail::texture_import::Access;

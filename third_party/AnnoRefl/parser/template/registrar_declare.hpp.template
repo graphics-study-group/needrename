@@ -1,0 +1,22 @@
+#include <memory>
+
+namespace AnnoRefl
+{
+        class Type;
+        class EnumType;
+
+        namespace TypeRegistrar
+        {
+            % for class_type in parser.types.values():
+            std::shared_ptr<Type> Register_${class_type.mangled_name}();
+            % endfor
+
+            % for enum_type in parser.enums.values():
+            std::shared_ptr<EnumType> Register_${enum_type.mangled_name}();
+            % endfor
+
+            % for class_type in parser.types.values():
+            void RegisterMethodField_${class_type.mangled_name}(std::shared_ptr<Type> type);
+            % endfor
+        };
+}

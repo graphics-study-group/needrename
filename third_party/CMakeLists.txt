@@ -1,3 +1,5 @@
+add_subdirectory(AnnoRefl)
+
 # disable warning for third party
 add_compile_options(-w)
 

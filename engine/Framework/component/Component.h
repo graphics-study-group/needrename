@@ -3,8 +3,8 @@
 
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Handle.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_smart_pointer.h>
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_smart_pointer.h>
 #include <memory>
 
 namespace Engine {
@@ -81,13 +81,13 @@ namespace Engine {
          * @brief Custom serialization function.
          * Save the handle and other automatically serialized fields in DerivedClass.
          */
-        virtual void save_to_archive(Serialization::Archive &archive) const;
+        virtual void save_to_archive(AnnoRefl::Archive &archive) const;
 
         /**
          * @brief Custom deserialization function.
          * Load the handle and other automatically serialized fields in DerivedClass.
          */
-        virtual void load_from_archive(Serialization::Archive &archive);
+        virtual void load_from_archive(AnnoRefl::Archive &archive);
 
     public:
         REFL_SER_ENABLE ObjectHandle m_parentGameObject{};

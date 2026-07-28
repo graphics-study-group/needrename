@@ -16,14 +16,14 @@ target_compile_definitions(Core PRIVATE CORE_DLL_EXPORTS)
 target_link_libraries(Core
     PUBLIC
     EngineLibHeaderInterface
-    Reflection
+    AnnoRefl
     EngineDepGlm
     EngineDepSdl
     PRIVATE
     ${UUID_LIBRARIES}
 )
 
-include(${REFLECTION_PARSER_DIR}/parser.cmake)
+include(${ANROREFL_PARSER_DIR}/parser.cmake)
 filter_files_with_reflection_macros(CORE_HEADERS CORE_REFLECTION_HEADERS)
 
 # Set up include dirs needed for parsing Core headers

@@ -2,7 +2,7 @@
 #define ASSET_MESH_PLANEMESHASSET
 
 #include "Asset/Mesh/MeshAsset.h"
-#include "Reflection/macros.h"
+#include "AnnoRefl/macros.h"
 #include <cassert>
 #include <cstring>
 
@@ -104,10 +104,10 @@ namespace Engine {
             );
         }
 
-        virtual void save_asset_to_archive(Serialization::Archive &) const override {
+        virtual void save_asset_to_archive(AnnoRefl::Archive &) const override {
             assert(!"Serializing a run-time only test asset.");
         }
-        virtual void load_asset_from_archive(Serialization::Archive &) override {
+        virtual void load_asset_from_archive(AnnoRefl::Archive &) override {
             assert(!"De-serializing a run-time only test asset.");
         }
     };

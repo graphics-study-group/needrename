@@ -3,7 +3,7 @@
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <Reflection/serialization.h>
+#include <AnnoRefl/serialization.h>
 
 namespace Engine {
     namespace detail {
@@ -33,8 +33,8 @@ namespace Engine {
             return m_ID == other.m_ID;
         }
 
-        void HandleBase::save_to_archive(Engine::Serialization::Archive &archive) const {
-            Engine::Serialization::Json &json = *archive.m_cursor;
+        void HandleBase::save_to_archive(AnnoRefl::Archive &archive) const {
+            AnnoRefl::Json &json = *archive.m_cursor;
             json = m_ID;
         }
     } // namespace detail
@@ -50,8 +50,8 @@ namespace Engine {
         }
         return nullptr;
     }
-    void ObjectHandle::load_from_archive(Engine::Serialization::Archive &archive) {
-        Engine::Serialization::Json &json = *archive.m_cursor;
+    void ObjectHandle::load_from_archive(AnnoRefl::Archive &archive) {
+        AnnoRefl::Json &json = *archive.m_cursor;
         auto &resolver = archive.GetOrCreateResolver<HandleResolver>();
         assert(resolver.m_obj_map.find(json.get<uint32_t>()) != resolver.m_obj_map.end());
         *this = resolver.m_obj_map[json.get<uint32_t>()];
@@ -69,8 +69,8 @@ namespace Engine {
         return nullptr;
     }
 
-    void ComponentHandle::load_from_archive(Engine::Serialization::Archive &archive) {
-        Engine::Serialization::Json &json = *archive.m_cursor;
+    void ComponentHandle::load_from_archive(AnnoRefl::Archive &archive) {
+        AnnoRefl::Json &json = *archive.m_cursor;
         auto &resolver = archive.GetOrCreateResolver<HandleResolver>();
         assert(resolver.m_comp_map.find(json.get<uint32_t>()) != resolver.m_comp_map.end());
         *this = resolver.m_comp_map[json.get<uint32_t>()];

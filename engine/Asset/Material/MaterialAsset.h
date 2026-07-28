@@ -4,9 +4,9 @@
 #include <Asset/Asset.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Shader/ShaderAsset.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_smart_pointer.h>
-#include <Reflection/serialization_unordered_map.h>
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_smart_pointer.h>
+#include <AnnoRefl/serialization_unordered_map.h>
 #include <any>
 #include <glm.hpp>
 #include <memory>
@@ -53,8 +53,8 @@ namespace Engine {
         InBlockVarType m_ubo_type{};
         std::any m_value{};
 
-        void save_to_archive(Serialization::Archive &archive) const;
-        void load_from_archive(Serialization::Archive &archive);
+        void save_to_archive(AnnoRefl::Archive &archive) const;
+        void load_from_archive(AnnoRefl::Archive &archive);
 
         MaterialProperty() = default;
         /// @brief Create the property from a variable

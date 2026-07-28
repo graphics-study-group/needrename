@@ -9,14 +9,14 @@ Proposed
 The engine compiles 7 OBJECT libraries into a single `engine.dll` shared library. This creates three
 problems:
 
-1. **No link-time module boundaries** â€” All headers are globally visible through
+1. **No link-time module boundaries** â€?All headers are globally visible through
    `EngineLibHeaderInterface`. A developer can include any module's header from any other module,
    and the compiler won't catch illegal dependencies until link time (if at all, for header-only
    templates).
-2. **Core has a reverse dependency on Framework** â€” `Core/Delegate/ComponentDelegate.h` and
+2. **Core has a reverse dependency on Framework** â€?`Core/Delegate/ComponentDelegate.h` and
    `Core/Functional/EventQueue.h` include `<Framework/world/Scene.h>`. Core cannot serve as a true
    leaf dependency.
-3. **Reflection has no engine dependencies but is fused into the monolith** â€” The reflection
+3. **Reflection has no engine dependencies but is fused into the monolith** â€?The reflection
    module (`EngineLibReflection`) depends only on std, glm, and nlohmann/json. It is identical in
    character to third-party libraries and yet is compiled into `engine.dll`, making it impossible
    to reuse in tooling or test contexts without linking the entire engine.
@@ -38,7 +38,7 @@ should not be forced on Core-only consumers.
 The generated type registration code (`reflection_init.inc`) historically lived in
 `reflection.cpp` (Reflection module) and called ALL type registrars, including
 `Register_Engine6Transform9()` whose definition lives in Core.dll. After the split, this would
-create a circular DLL dependency (Reflection.dll â†’ Core.dll while Core.dll â†’ Reflection.dll).
+create a circular DLL dependency (Reflection.dll â†?Core.dll while Core.dll â†?Reflection.dll).
 
 **Solution**: Each DLL provides its own registration entry point. The generated `RegisterAllTypes()`
 function uses `static` linkage, so each DLL has its own copy via its `meta_*` target:
@@ -48,10 +48,10 @@ function uses `static` linkage, so each DLL has its own copy via its `meta_*` ta
 void Initialize() { Registrar::RegisterBasicTypes(); }  // no longer calls RegisterAllTypes()
 
 // Core.dll (CoreReflectionRegistration.cpp):
-CORE_API void RegisterCoreTypes();  // wraps meta_core/reflection_init.inc â†’ calls RegisterAllTypes()
+CORE_API void RegisterCoreTypes();  // wraps meta_core/reflection_init.inc â†?calls RegisterAllTypes()
 
 // engine.dll (MainClass.cpp directly includes meta_engine/reflection_init.inc):
-// RegisterAllTypes() â€” static, no collision with Core's copy
+// RegisterAllTypes() â€?static, no collision with Core's copy
 
 // MainClass::Initialize() call order:
 Reflection::Initialize();            // 1. basic types (int, float, glm::vec3...)
@@ -88,14 +88,14 @@ EngineDepSdl. This prevents Vulkan and imgui from leaking into the bottom layers
 defined in `engine/Core/CMakeLists.txt`. `meta_engine` (remaining types: Asset, Framework,
 Physics, Render, UI) generates to `engine/__generated__/meta_engine/`, defined in
 `engine/CMakeLists.txt` with `parent_projects meta_core_generation` for cross-DLL base type
-resolution. No `meta_reflection` target needed â€” Reflection has zero `REFL_SER_CLASS`
+resolution. No `meta_reflection` target needed â€?Reflection has zero `REFL_SER_CLASS`
 annotated types.
 
 ### D-6: File migrations
 
-- `Core/Delegate/ComponentDelegate.h` â†’ `Framework/component/`
-- `Core/Functional/EventQueue.h/.cpp` â†’ `Framework/world/`
-- Remove `#include <Reflection/serialization_glm.h>` from `Transform.h` (only needed in .cpp)
+- `Core/Delegate/ComponentDelegate.h` â†?`Framework/component/`
+- `Core/Functional/EventQueue.h/.cpp` â†?`Framework/world/`
+- Remove `#include <AnnoRefl/serialization_glm.h>` from `Transform.h` (only needed in .cpp)
 - Remove dead includes from `SDLWindow.cpp` (MainClass.h, RenderTargetTexture.h, vulkan.hpp)
 
 ### D-7: Include path policy (temporary)

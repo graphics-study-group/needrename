@@ -1,11 +1,11 @@
 #include "FileSystemDatabase.h"
 #include <Asset/AssetRef.h>
-#include <Reflection/Archive.h>
+#include <AnnoRefl/Archive.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
 namespace {
-    bool GetGUID(const Engine::Serialization::Archive &archive, Engine::GUID &out_guid) {
+    bool GetGUID(const AnnoRefl::Archive &archive, Engine::GUID &out_guid) {
         const nlohmann::json &json_data = archive.m_context->json;
         if (json_data["%main_data"].contains("Asset::m_guid")) {
             out_guid = Engine::GUID(json_data["%main_data"]["Asset::m_guid"].get<std::string>());
@@ -173,15 +173,15 @@ namespace Engine {
         m_path_to_guid[path] = guid;
     }
 
-    void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, GUID guid) {
+    void FileSystemDatabase::SaveArchive(AnnoRefl::Archive &archive, GUID guid) {
         SaveArchive(archive, GetAssetPath(guid));
     }
 
-    void FileSystemDatabase::LoadArchive(Serialization::Archive &archive, GUID guid) {
+    void FileSystemDatabase::LoadArchive(AnnoRefl::Archive &archive, GUID guid) {
         LoadArchive(archive, GetAssetPath(guid));
     }
 
-    void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, const AssetPath &path) {
+    void FileSystemDatabase::SaveArchive(AnnoRefl::Archive &archive, const AssetPath &path) {
         GUID guid;
         if (!GetGUID(archive, guid)) {
             throw std::runtime_error("Failed to get GUID from asset file: " + path.generic_string());
@@ -194,7 +194,7 @@ namespace Engine {
         archive.save_to_file(json_path.replace_extension(""));
     }
 
-    void FileSystemDatabase::LoadArchive(Serialization::Archive &archive, const AssetPath &path) {
+    void FileSystemDatabase::LoadArchive(AnnoRefl::Archive &archive, const AssetPath &path) {
         auto json_path = path.to_absolute_path();
         archive.load_from_file(json_path.replace_extension(""));
     }

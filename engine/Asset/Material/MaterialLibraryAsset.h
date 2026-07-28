@@ -3,9 +3,9 @@
 
 #include <Asset/Asset.h>
 #include <Asset/AssetRef.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_smart_pointer.h>
-#include <Reflection/serialization_unordered_map.h>
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_smart_pointer.h>
+#include <AnnoRefl/serialization_unordered_map.h>
 
 #include <unordered_map>
 

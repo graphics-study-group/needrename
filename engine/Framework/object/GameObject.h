@@ -3,9 +3,9 @@
 
 #include <Core/Math/Transform.h>
 #include <Framework/world/Handle.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_smart_pointer.h>
-#include <Reflection/serialization_vector.h>
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_smart_pointer.h>
+#include <AnnoRefl/serialization_vector.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -113,13 +113,13 @@ namespace Engine {
          * @brief Custom serialization function for GameObject.
          * Save the handle only.
          */
-        void save_to_archive(Serialization::Archive &archive) const;
+        void save_to_archive(AnnoRefl::Archive &archive) const;
 
         /**
          * @brief Custom deserialization function for GameObject.
          * Load the handle only.
          */
-        void load_from_archive(Serialization::Archive &archive);
+        void load_from_archive(AnnoRefl::Archive &archive);
 
     public:
         REFL_SER_ENABLE std::string m_name{};

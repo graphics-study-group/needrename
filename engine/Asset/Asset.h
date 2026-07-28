@@ -2,7 +2,7 @@
 #define ASSET_ASSET_INCLUDED
 
 #include <Core/guid.h>
-#include <Reflection/macros.h>
+#include <AnnoRefl/macros.h>
 #include <filesystem>
 #include <string>
 
@@ -19,16 +19,16 @@ namespace Engine {
         virtual ~Asset();
 
         /// @brief Not allowed
-        virtual void save_to_archive(Serialization::Archive &archive) const;
+        virtual void save_to_archive(AnnoRefl::Archive &archive) const;
         /// @brief Not allowed
-        virtual void load_from_archive(Serialization::Archive &archive);
+        virtual void load_from_archive(AnnoRefl::Archive &archive);
 
         /// @brief Save the asset to the archive. It will call generated save function _SERIALIZATION_SAVE_(). Save all
         /// the data of the asset. Usually called by AssetManager
-        virtual void save_asset_to_archive(Serialization::Archive &archive) const;
+        virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const;
         /// @brief Load the asset from the archive. It will call generated load function _SERIALIZATION_LOAD_(). Load
         /// all the data of the asset. Usually called by AssetManager
-        virtual void load_asset_from_archive(Serialization::Archive &archive);
+        virtual void load_asset_from_archive(AnnoRefl::Archive &archive);
 
         REFL_ENABLE GUID GetGUID() const;
 

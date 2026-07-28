@@ -3,8 +3,8 @@
 
 #include <Framework/component/Component.h>
 #include <Framework/world/Handle.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_glm.h>
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_glm.h>
 
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
@@ -90,12 +90,12 @@ namespace Engine {
          * The reflection system cannot handle std::variant, so we manually
          * write each joint as a tagged JSON object.
          */
-        virtual void save_to_archive(Serialization::Archive &archive) const override;
+        virtual void save_to_archive(AnnoRefl::Archive &archive) const override;
 
         /**
          * @brief Custom deserialization for m_joints variant vector.
          */
-        virtual void load_from_archive(Serialization::Archive &archive) override;
+        virtual void load_from_archive(AnnoRefl::Archive &archive) override;
 
     public:
         /// Joint definitions.

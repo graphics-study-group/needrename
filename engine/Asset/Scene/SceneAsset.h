@@ -2,7 +2,7 @@
 #define ASSET_SCENE_SCENEASSET_H
 
 #include <Asset/Asset.h>
-#include <Reflection/macros.h>
+#include <AnnoRefl/macros.h>
 #include <memory>
 
 namespace Engine {
@@ -22,13 +22,13 @@ namespace Engine {
         SceneAsset() = default;
         virtual ~SceneAsset();
 
-        virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
-        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+        virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const override;
+        virtual void load_asset_from_archive(AnnoRefl::Archive &archive) override;
 
         void SaveFromScene(const Scene &scene);
         void AddToScene(Scene &scene);
 
-        std::unique_ptr<Serialization::Archive> m_archive{};
+        std::unique_ptr<AnnoRefl::Archive> m_archive{};
     };
 } // namespace Engine
 

@@ -1,7 +1,7 @@
 #include "Component.h"
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
-#include <Reflection/serialization.h>
+#include <AnnoRefl/serialization.h>
 
 namespace Engine {
     Component::Component(const GameObject &parent) :
@@ -34,17 +34,17 @@ namespace Engine {
         return this->m_handle == other.m_handle;
     }
 
-    void Component::save_to_archive(Serialization::Archive &archive) const {
-        Serialization::Json &json = *archive.m_cursor;
-        Serialization::Archive temp_archive(archive, &json["Component::m_handle"]);
-        Serialization::serialize(m_handle, temp_archive);
+    void Component::save_to_archive(AnnoRefl::Archive &archive) const {
+        AnnoRefl::Json &json = *archive.m_cursor;
+        AnnoRefl::Archive temp_archive(archive, &json["Component::m_handle"]);
+        AnnoRefl::serialize(m_handle, temp_archive);
         this->_SERIALIZATION_SAVE_(archive);
     }
 
-    void Component::load_from_archive(Serialization::Archive &archive) {
-        Serialization::Json &json = *archive.m_cursor;
-        Serialization::Archive temp_archive(archive, &json["Component::m_handle"]);
-        Serialization::deserialize(m_handle, temp_archive);
+    void Component::load_from_archive(AnnoRefl::Archive &archive) {
+        AnnoRefl::Json &json = *archive.m_cursor;
+        AnnoRefl::Archive temp_archive(archive, &json["Component::m_handle"]);
+        AnnoRefl::deserialize(m_handle, temp_archive);
         this->_SERIALIZATION_LOAD_(archive);
     }
 } // namespace Engine

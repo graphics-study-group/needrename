@@ -7,6 +7,10 @@
 #include <unordered_map>
 #include <vector>
 
+namespace AnnoRefl {
+    class Type;
+}
+
 namespace Engine {
     class WorldSystem;
     class GameObject;
@@ -16,9 +20,6 @@ namespace Engine {
     class PhysicsScene;
     class PhysicsAdaptor;
     class RenderSystem;
-    namespace Reflection {
-        class Type;
-    }
 
     /**
      * @brief Scene is a container for GameObjects and Components.
@@ -80,7 +81,7 @@ namespace Engine {
          * @param type The type of the Component.
          * @return The reference to the created Component.
          */
-        Component &CreateComponent(GameObject &parent, const Reflection::Type &type);
+        Component &CreateComponent(GameObject &parent, const AnnoRefl::Type &type);
 
         /**
          * @brief Create a new Component in the scene.

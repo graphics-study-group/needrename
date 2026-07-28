@@ -2,7 +2,7 @@
 #define FRAMEWORK_WORLD_HANDLERESOLVER_INCLUDED
 
 #include "Handle.h"
-#include <Reflection/serialization.h>
+#include <AnnoRefl/serialization.h>
 #include <unordered_map>
 
 namespace Engine {
@@ -11,7 +11,7 @@ namespace Engine {
      * It is used for load one scene's GameObject to another scene.
      * It will map the ID of ObjectHandle to ComponentHandle from the original scene to the new scene.
      */
-    class HandleResolver : public Engine::Serialization::Resolver {
+    class HandleResolver : public AnnoRefl::Resolver {
     public:
         HandleResolver() = default;
         ~HandleResolver() = default;

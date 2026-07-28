@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
     // cmc->LoopFinite(60, 0.0f);
     // auto level_asset = adb->GetNewAssetRef(AssetPath{*adb, path_in_project / "default_level.asset"}).as<LevelAsset>();
     // cmc->GetWorldSystem()->SaveLevelToAsset(*level_asset);
-    // Serialization::Archive archive;
+    // AnnoRefl::Archive archive;
     // archive.prepare_save();
     // level_asset->save_asset_to_archive(archive);
     // adb->SaveArchive(archive, adb->GetAssetPath(level_asset->GetGUID()));

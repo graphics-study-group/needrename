@@ -6,11 +6,11 @@
 #include <iterator>
 #include <memory>
 
-namespace Engine {
-    namespace Serialization {
-        class Archive;
-    }
+namespace AnnoRefl {
+    class Archive;
+} // namespace AnnoRefl
 
+namespace Engine {
     /**
      * @brief An interface defines a map between asset GUID and asset data storage.
      * This interface provides methods to save and load archives to and from the database.
@@ -23,9 +23,9 @@ namespace Engine {
         virtual ~AssetDatabase() = default;
 
         /// @brief Save the archive.
-        virtual void SaveArchive(Serialization::Archive &archive, GUID guid) = 0;
+        virtual void SaveArchive(AnnoRefl::Archive &archive, GUID guid) = 0;
         /// @brief Load the archive.
-        virtual void LoadArchive(Serialization::Archive &archive, GUID guid) = 0;
+        virtual void LoadArchive(AnnoRefl::Archive &archive, GUID guid) = 0;
     };
 } // namespace Engine
 

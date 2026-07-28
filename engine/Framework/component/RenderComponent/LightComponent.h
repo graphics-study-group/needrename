@@ -2,8 +2,8 @@
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_LIGHTCOMPONENT_INCLUDED
 
 #include <Framework/component/Component.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_glm.h>
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_glm.h>
 #include <glm.hpp>
 
 namespace Engine {

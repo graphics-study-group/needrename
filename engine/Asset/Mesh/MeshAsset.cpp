@@ -1,7 +1,7 @@
 #include "MeshAsset.h"
 
 #include "Render/Renderer/VertexAttribute.h"
-#include <Reflection/serialization.h>
+#include <AnnoRefl/serialization.h>
 
 #include <cassert>
 #include <fstream>
@@ -25,7 +25,7 @@ namespace Engine {
         return m_submeshes[submesh_idx].vertex_count;
     }
 
-    void MeshAsset::save_asset_to_archive(Serialization::Archive &archive) const {
+    void MeshAsset::save_asset_to_archive(AnnoRefl::Archive &archive) const {
         auto &json = *archive.m_cursor;
         size_t extra_data_id = archive.create_new_extra_data_buffer(".mesh");
         json["%extra_data_id"] = extra_data_id;
@@ -91,7 +91,7 @@ namespace Engine {
         Asset::save_asset_to_archive(archive);
     }
 
-    void MeshAsset::load_asset_from_archive(Serialization::Archive &archive) {
+    void MeshAsset::load_asset_from_archive(AnnoRefl::Archive &archive) {
         auto &json = *archive.m_cursor;
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
         size_t offset = 0;

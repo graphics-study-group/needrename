@@ -39,8 +39,6 @@ target_link_libraries(new_rendergraph_test engine)
 add_test(NAME new_rendergraph_test COMMAND new_rendergraph_test)
 set_target_properties(new_rendergraph_test PROPERTIES FOLDER engine_tests)
 
-add_subdirectory(reflection_test)
-add_subdirectory(serialization_test)
 add_subdirectory(shader_compile_test)
 set_target_properties(shader_compile_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
 

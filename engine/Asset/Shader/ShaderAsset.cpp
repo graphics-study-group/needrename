@@ -5,10 +5,10 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/Shader/ShaderCompiler.h>
 #include <MainClass.h>
-#include <Reflection/serialization.h>
+#include <AnnoRefl/serialization.h>
 
 namespace Engine {
-    void ShaderAsset::save_asset_to_archive(Serialization::Archive &archive) const {
+    void ShaderAsset::save_asset_to_archive(AnnoRefl::Archive &archive) const {
         auto &json = *archive.m_cursor;
         size_t glsl_extra_data_id = archive.create_new_extra_data_buffer(".glsl");
         json["glsl_extra_data_id"] = glsl_extra_data_id;
@@ -29,7 +29,7 @@ namespace Engine {
         Asset::save_asset_to_archive(archive);
     }
 
-    void ShaderAsset::load_asset_from_archive(Serialization::Archive &archive) {
+    void ShaderAsset::load_asset_from_archive(AnnoRefl::Archive &archive) {
         Asset::load_asset_from_archive(archive);
         auto &json = *archive.m_cursor;
 

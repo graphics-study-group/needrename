@@ -9,7 +9,9 @@
 #include <MainClass.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
-#include <Reflection/Type.h>
+
+#include <AnnoRefl/Type.h>
+
 #include <algorithm>
 #include <unordered_set>
 
@@ -69,7 +71,7 @@ namespace Engine {
         return ret;
     }
 
-    Component &Scene::CreateComponent(GameObject &parent, const Reflection::Type &type) {
+    Component &Scene::CreateComponent(GameObject &parent, const AnnoRefl::Type &type) {
         auto comp_var = type.CreateInstance(parent);
         comp_var.SetNeedFree(false);
         return AddComponent(parent, static_cast<Component *>(comp_var.GetDataPtr()));

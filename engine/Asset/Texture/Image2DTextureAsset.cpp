@@ -1,6 +1,6 @@
 #include "Image2DTextureAsset.h"
 
-#include <Reflection/serialization.h>
+#include <AnnoRefl/serialization.h>
 #include <Render/ImageUtilsFunc.h>
 #include <SDL3/SDL_log.h>
 #include <ktx.h>
@@ -110,7 +110,7 @@ namespace Engine {
         m_mip_level = mip_level;
     }
 
-    void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const {
+    void Image2DTextureAsset::save_asset_to_archive(AnnoRefl::Archive &archive) const {
         if (m_texture == nullptr) {
             throw std::runtime_error("Cannot save Image2DTextureAsset: texture data is not set.");
         }
@@ -149,7 +149,7 @@ namespace Engine {
         Asset::save_asset_to_archive(archive);
     }
 
-    void Image2DTextureAsset::load_asset_from_archive(Serialization::Archive &archive) {
+    void Image2DTextureAsset::load_asset_from_archive(AnnoRefl::Archive &archive) {
         auto &json = *archive.m_cursor;
         Asset::load_asset_from_archive(archive);
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];

@@ -113,7 +113,7 @@ namespace Engine {
 
         this->renderer->Create();
         this->gui->Create(this->window->GetWindow());
-        Reflection::Initialize();
+        AnnoRefl::Initialize();
         RegisterCoreTypes();
         RegisterAllTypes();
 

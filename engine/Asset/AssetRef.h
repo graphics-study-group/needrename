@@ -2,7 +2,7 @@
 #define ASSET_ASSETREF_INCLUDED
 
 #include <Core/guid.h>
-#include <Reflection/macros.h>
+#include <AnnoRefl/macros.h>
 #include <memory>
 #include <optional>
 
@@ -31,10 +31,10 @@ namespace Engine {
 
         /// @brief Save the asset to the archive. Only used for automatic serialization when it is a member of another
         /// class. Only save the GUID of the asset
-        void save_to_archive(Serialization::Archive &archive) const;
+        void save_to_archive(AnnoRefl::Archive &archive) const;
         /// @brief Load the asset from the archive. Only used for automatic serialization when it is a member of another
         /// class. Only load the GUID of the asset
-        void load_from_archive(Serialization::Archive &archive);
+        void load_from_archive(AnnoRefl::Archive &archive);
 
         /**
          * @brief Acquire the asset (increment reference count).

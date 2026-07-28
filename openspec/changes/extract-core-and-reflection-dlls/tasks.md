@@ -10,7 +10,7 @@
 - [x] 1.8 Update `engine/MainClass.cpp`: `#include <Core/Functional/EventQueue.h>` to `#include <Framework/world/EventQueue.h>`
 - [x] 1.9 Update `example/editor_run_game_example/main.cpp`: `#include <Core/Functional/EventQueue.h>` to `#include <Framework/world/EventQueue.h>`
 - [x] 1.10 Remove dead includes from `engine/Core/Functional/SDLWindow.cpp`: delete `#include <MainClass.h>`, `#include <Render/Memory/RenderTargetTexture.h>`, `#include <vulkan/vulkan.hpp>`
-- [x] 1.11 Clean up serialization includes from Core headers: remove `#include <Reflection/serialization_glm.h>` from `engine/Core/Math/Transform.h` (the generated `.inc` already includes serialization headers transitively; Transform.h only needs forward-declared types from macros.h)
+- [x] 1.11 Clean up serialization includes from Core headers: remove `#include <AnnoRefl/serialization_glm.h>` from `engine/Core/Math/Transform.h` (the generated `.inc` already includes serialization headers transitively; Transform.h only needs forward-declared types from macros.h)
 - [x] 1.12 Build and verify: `cmake --build --preset debug` compiles without errors
 
 ## 2. External Dependency Granularity
@@ -46,7 +46,7 @@
 - [x] 4.[ ] 4.3 Add `RegisterCoreTypes()` function in `engine/Core/` (e.g., in a new `CoreReflectionRegistration.cpp`) that includes `meta_core/reflection_init.inc` and calls its `RegisterAllTypes()`
 - [x] 4.[ ] 4.4 Export `RegisterCoreTypes()` with `CORE_API` from Core.dll
 - [x] 4.[ ] 4.5 In `engine/CMakeLists.txt`: add a `RegisterAllEngineTypes()` function (in `MainClass.cpp` or new file) that includes `meta_engine/reflection_init.inc`
-- [x] 4.[ ] 4.6 Update `MainClass::Initialize()` call order: `Reflection::Initialize()` â†’ `Core::RegisterCoreTypes()` â†’ `RegisterAllEngineTypes()`
+- [x] 4.[ ] 4.6 Update `MainClass::Initialize()` call order: `Reflection::Initialize()` â†?`Core::RegisterCoreTypes()` â†?`RegisterAllEngineTypes()`
 - [x] 4.[ ] 4.7 Verify: all reflection tests pass after type registration order change
 
 ## 5. Core DLL Extraction
@@ -77,8 +77,8 @@
 
 ## 7. Verification
 
-- [x] 7.1 Run `ctest --preset debug` â€” all non-DLL-path tests pass (reflection/serialization test executables need DLL path configured; this is a deployment concern, not a code correctness issue)
-- [ ] 7.2 Run `cmake --build --preset release` â€” release build succeeds
+- [x] 7.1 Run `ctest --preset debug` â€?all non-DLL-path tests pass (reflection/serialization test executables need DLL path configured; this is a deployment concern, not a code correctness issue)
+- [ ] 7.2 Run `cmake --build --preset release` â€?release build succeeds
 - [x] 7.3 Verify `Reflection.dll` has zero dependencies on other engine DLLs: `dumpbin /dependents Reflection.dll` shows only system DLLs, SDL3, and ktx
 - [x] 7.4 Verify `Core.dll` depends only on `Reflection.dll` and external libraries: `dumpbin /dependents Core.dll`
 - [x] 7.5 Verify `engine.dll` depends on `Core.dll` and `Reflection.dll`: `dumpbin /dependents engine.dll`
@@ -91,8 +91,87 @@
 
 - [x] 8.1 Update `reflection_parser/parser.cmake`: ensure `add_reflection_parser()` supports being called multiple times with non-overlapping `reflection_search_files`
 - [x] 8.2 Verify `task_stamped` files do not conflict between `meta_core` and `meta_engine` (each writes to its own `${CONFIG_GENERATED_CODE_DIR}/` directory)
-- [x] 8.3 Clean up old generated files â€” stale `meta_engine` files for Core types removed; wrappers regenerated pointing to correct meta directories
+- [x] 8.3 Clean up old generated files â€?stale `meta_engine` files for Core types removed; wrappers regenerated pointing to correct meta directories
 - [x] 8.4 Rebuild from clean and verify code generation works in parallel (`cmake --build --preset debug -j`)
-- [x] 8.5 Remove empty target directory if `meta_reflection` was partially scaffolded (not needed â€” Reflection has no REFL_SER_CLASS types)
+- [x] 8.5 Remove empty target directory if `meta_reflection` was partially scaffolded (not needed â€?Reflection has no REFL_SER_CLASS types)
+
+## 9. Extract Reflection as AnnoRefl Library (ADR-0009)
+
+### 9.1 Create AnnoRefl Directory Structure
+
+- [ ] 9.1.1 Create `third_party/AnnoRefl/CMakeLists.txt` (SHARED library, links glm+json directly, exports ANROREFL_PARSER_DIR)
+- [ ] 9.1.2 Create `third_party/AnnoRefl/include/AnnoRefl/` directory
+- [ ] 9.1.3 Create `third_party/AnnoRefl/src/` directory
+- [ ] 9.1.4 Create `third_party/AnnoRefl/parser/` directory (from reflection_parser/)
+
+### 9.2 Migrate C++ Library Files
+
+- [ ] 9.2.1 Move and rename all `engine/Reflection/*.h` to `third_party/AnnoRefl/include/AnnoRefl/`
+- [ ] 9.2.2 Move all `engine/Reflection/*.cpp` to `third_party/AnnoRefl/src/`
+- [ ] 9.2.3 Rename `reflection_export.h` to `Export.h`, change macro to `ANROREFL_API`
+- [ ] 9.2.4 Replace namespace `Engine::Reflection` â†?`AnnoRefl` in all headers and sources
+- [ ] 9.2.5 Replace namespace `Engine::Serialization` â†?`AnnoRefl` in all headers and sources
+- [ ] 9.2.6 Update include guards: `ENGINE_REFLECTION_*` / `REFLECTION_*` â†?`ANROREFL_*`
+- [ ] 9.2.7 Update internal includes: `#include "reflection_export.h"` â†?`#include "Export.h"`
+- [ ] 9.2.8 Update macros.h: `Engine::Reflection::Registrar` â†?`AnnoRefl::Registrar`, `Engine::Serialization::Archive` â†?`AnnoRefl::Archive`
+- [ ] 9.2.9 Update REFL_SER_BODY macros: change friend class and Archive references
+- [ ] 9.2.10 Verify all `ANROREFL_API` annotations are correct
+
+### 9.3 Migrate Parser Files
+
+- [ ] 9.3.1 Move all `reflection_parser/*.py` to `third_party/AnnoRefl/parser/`
+- [ ] 9.3.2 Move `reflection_parser/reflection/` to `third_party/AnnoRefl/parser/reflection/`
+- [ ] 9.3.3 Move `reflection_parser/template/` to `third_party/AnnoRefl/parser/template/`
+- [ ] 9.3.4 Move `reflection_parser/requirements.txt` to `third_party/AnnoRefl/parser/`
+- [ ] 9.3.5 Update `parser.cmake`: use `CMAKE_CURRENT_LIST_DIR` for self-location
+- [ ] 9.3.6 Update `parser.cmake`: use `ANROREFL_PARSER_ENV_DIR` for venv path
+- [ ] 9.3.7 Update all templates: `Engine::Reflection::*` â†?`AnnoRefl::*`, `Engine::Serialization::*` â†?`AnnoRefl::*`
+
+### 9.4 Update Build System
+
+- [ ] 9.4.1 Update `third_party/CMakeLists.txt`: add AnnoRefl subdirectory before `add_compile_options(-w)`
+- [ ] 9.4.2 Update root `CMakeLists.txt`: remove `REFLECTION_PARSER_DIR`, add `ANROREFL_PARSER_ENV_DIR`
+- [ ] 9.4.3 Update `engine/CMakeLists.txt`: remove `add_subdirectory(Reflection)`, update parser include path
+- [ ] 9.4.4 Update `engine/CMakeLists.txt`: change `target_link_libraries(engine ... Reflection ...)` â†?`AnnoRefl`
+- [ ] 9.4.5 Update `engine/CMakeLists.txt`: change DLL copy to `AnnoRefl`
+- [ ] 9.4.6 Update `engine/CMakeLists.txt`: remove `Reflection/.*` from header filter (no longer needed)
+- [ ] 9.4.7 Update `engine/Core/CMakeLists.txt`: change `Reflection` â†?`AnnoRefl` in target_link_libraries
+- [ ] 9.4.8 Update `engine/Core/CMakeLists.txt`: update parser include to `ANROREFL_PARSER_DIR`
+- [ ] 9.4.9 Update `editor/CMakeLists.txt`: update parser include to `ANROREFL_PARSER_DIR`
+- [ ] 9.4.10 Update all example CMakeLists.txt using parser
+
+### 9.5 Update Engine-Side Includes
+
+- [ ] 9.5.1 Replace all `#include <AnnoRefl/` â†?`#include <AnnoRefl/` in engine/
+- [ ] 9.5.2 Replace all `#include <AnnoRefl/` â†?`#include <AnnoRefl/` in editor/
+- [ ] 9.5.3 Replace all `#include <AnnoRefl/` â†?`#include <AnnoRefl/` in example/
+- [ ] 9.5.4 Replace `Engine::Reflection::` â†?`AnnoRefl::` in engine source code
+- [ ] 9.5.5 Replace `Engine::Serialization::` â†?`AnnoRefl::` in engine source code
+- [ ] 9.5.6 Update `MainClass.cpp`: `Reflection::Initialize()` â†?`AnnoRefl::Initialize()`
+
+### 9.6 Migrate Tests
+
+- [ ] 9.6.1 Create `third_party/AnnoRefl/tests/reflection/` directory
+- [ ] 9.6.2 Create `third_party/AnnoRefl/tests/serialization/` directory
+- [ ] 9.6.3 Move all 10 reflection test files
+- [ ] 9.6.4 Move all 12 serialization test files
+- [ ] 9.6.5 Create `third_party/AnnoRefl/tests/CMakeLists.txt` (link AnnoRefl instead of engine)
+- [ ] 9.6.6 Update test includes: `<AnnoRefl/` â†?`<AnnoRefl/`
+
+### 9.7 Cleanup
+
+- [ ] 9.7.1 Delete `engine/Reflection/` directory
+- [ ] 9.7.2 Delete `reflection_parser/` directory
+- [ ] 9.7.3 Remove engine/Tests/reflection_test/ and engine/Tests/serialization_test/
+- [ ] 9.7.4 Update `engine/Tests/CMakeLists.txt`: remove reflection_test and serialization_test subdirectories
+
+### 9.8 Verification
+
+- [ ] 9.8.1 Build: `cmake --build --preset debug` compiles without errors
+- [ ] 9.8.2 Build: `cmake --build --preset release` compiles without errors
+- [ ] 9.8.3 Tests: all 22 AnnoRefl tests pass
+- [ ] 9.8.4 Tests: remaining engine tests pass
+- [ ] 9.8.5 Verify `AnnoRefl.dll` has zero engine dependencies
+- [ ] 9.8.6 Verify parser code generation works for meta_core and meta_engine
 
 

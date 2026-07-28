@@ -6,7 +6,7 @@
 #include <Framework/world/HandleResolver.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/physics/PhysicsAdaptor.h>
-#include <Reflection/Archive.h>
+#include <AnnoRefl/Archive.h>
 
 #include <SDL3/SDL.h>
 
@@ -176,15 +176,15 @@ namespace Engine {
         }
     }
 
-    void PhysicsConstraintComponent::save_to_archive(Serialization::Archive &archive) const {
+    void PhysicsConstraintComponent::save_to_archive(AnnoRefl::Archive &archive) const {
         // Let the base class handle Component::m_handle + generated fields.
         Component::save_to_archive(archive);
 
-        Serialization::Json &json = *archive.m_cursor;
-        Serialization::Json joints_array = Serialization::Json::array();
+        AnnoRefl::Json &json = *archive.m_cursor;
+        AnnoRefl::Json joints_array = AnnoRefl::Json::array();
 
         for (const auto &joint_var : m_joints) {
-            Serialization::Json j = Serialization::Json::object();
+            AnnoRefl::Json j = AnnoRefl::Json::object();
             std::visit(
                 [&j](const auto &def) {
                     using T = std::decay_t<decltype(def)>;
@@ -209,11 +209,11 @@ namespace Engine {
         json["m_joints"] = std::move(joints_array);
     }
 
-    void PhysicsConstraintComponent::load_from_archive(Serialization::Archive &archive) {
+    void PhysicsConstraintComponent::load_from_archive(AnnoRefl::Archive &archive) {
         // Let the base class restore Component::m_handle + generated fields.
         Component::load_from_archive(archive);
 
-        Serialization::Json &json = *archive.m_cursor;
+        AnnoRefl::Json &json = *archive.m_cursor;
         if (!json.contains("m_joints") || !json["m_joints"].is_array()) {
             return;
         }

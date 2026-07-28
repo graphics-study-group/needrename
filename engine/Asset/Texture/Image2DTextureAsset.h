@@ -2,7 +2,7 @@
 #define ASSET_TEXTURE_IMAGE2DTEXTUREASSET_INCLUDED
 
 #include "TextureAsset.h"
-#include <Reflection/macros.h>
+#include <AnnoRefl/macros.h>
 #include <Render/ImageUtils.h>
 #include <memory>
 #include <vector>
@@ -23,8 +23,8 @@ namespace Engine {
         REFL_ENABLE Image2DTextureAsset();
         virtual ~Image2DTextureAsset() override;
 
-        virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
-        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+        virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const override;
+        virtual void load_asset_from_archive(AnnoRefl::Archive &archive) override;
 
         /// @brief Width in pixel of the texture.
         REFL_SER_ENABLE int m_width{};

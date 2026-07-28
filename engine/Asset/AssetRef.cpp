@@ -2,7 +2,7 @@
 #include <Asset/Asset.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <MainClass.h>
-#include <Reflection/serialization.h>
+#include <AnnoRefl/serialization.h>
 
 namespace Engine {
     AssetRef::AssetRef() {
@@ -26,8 +26,8 @@ namespace Engine {
         Release();
     }
 
-    void AssetRef::save_to_archive(Serialization::Archive &archive) const {
-        Serialization::Json &json = *archive.m_cursor;
+    void AssetRef::save_to_archive(AnnoRefl::Archive &archive) const {
+        AnnoRefl::Json &json = *archive.m_cursor;
         if (m_guid) {
             json = m_guid.string();
         } else {
@@ -35,8 +35,8 @@ namespace Engine {
         }
     }
 
-    void AssetRef::load_from_archive(Serialization::Archive &archive) {
-        Serialization::Json &json = *archive.m_cursor;
+    void AssetRef::load_from_archive(AnnoRefl::Archive &archive) {
+        AnnoRefl::Json &json = *archive.m_cursor;
         if (json.is_null()) {
             m_guid = GUID::Nil();
         } else {

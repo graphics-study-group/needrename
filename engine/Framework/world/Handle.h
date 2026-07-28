@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <functional>
 
-#include <Reflection/macros.h>
+#include <AnnoRefl/macros.h>
 
 namespace Engine {
     namespace Serialization {
@@ -62,13 +62,13 @@ namespace Engine {
              * @brief Custom serialization function.
              * Save the ID only. Ignore the scene ID.
              */
-            virtual void save_to_archive(Engine::Serialization::Archive &archive) const;
+            virtual void save_to_archive(AnnoRefl::Archive &archive) const;
 
             /**
              * @brief Custom deserialization function.
              * Load the ID only. Ignore the scene ID.
              */
-            virtual void load_from_archive(Engine::Serialization::Archive &) = 0;
+            virtual void load_from_archive(AnnoRefl::Archive &) = 0;
 
         protected:
             uint32_t m_sceneID{};
@@ -102,7 +102,7 @@ namespace Engine {
          * Use HandleResolver to load handle.
          * HandleResolver can manage the ObjectHandle in different scenes.
          */
-        virtual void load_from_archive(Engine::Serialization::Archive &archive) override;
+        virtual void load_from_archive(AnnoRefl::Archive &archive) override;
 
     protected:
         friend class Scene;
@@ -133,7 +133,7 @@ namespace Engine {
          * Use HandleResolver to load handle.
          * HandleResolver can manage the ComponentHandle in different scenes.
          */
-        virtual void load_from_archive(Engine::Serialization::Archive &archive) override;
+        virtual void load_from_archive(AnnoRefl::Archive &archive) override;
 
     protected:
         friend class Scene;

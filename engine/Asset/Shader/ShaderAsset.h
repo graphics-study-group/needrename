@@ -2,7 +2,7 @@
 #define ASSET_MATERIAL_SHADERASSET_INCLUDED
 
 #include <Asset/Asset.h>
-#include <Reflection/macros.h>
+#include <AnnoRefl/macros.h>
 #include <string>
 #include <vector>
 
@@ -41,8 +41,8 @@ namespace Engine {
         std::vector<uint32_t> binary{};
         std::string glsl_code{};
 
-        virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
-        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+        virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const override;
+        virtual void load_asset_from_archive(AnnoRefl::Archive &archive) override;
 
         /**
          * @brief Load a shader from a disk file.

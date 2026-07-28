@@ -1,8 +1,8 @@
 #include "DefaultVarInspector.h"
 #include "VarInspectorRegistry.h"
 #include <Editor/EditorMainClass.h>
-#include <Reflection/Type.h>
-#include <Reflection/reflection.h>
+#include <AnnoRefl/Type.h>
+#include <AnnoRefl/reflection.h>
 #include <cstring>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
@@ -10,7 +10,7 @@
 #include <utility>
 
 namespace Editor {
-    void InspectVar(const std::string &name, Engine::Reflection::Var var) {
+    void InspectVar(const std::string &name, AnnoRefl::Var var) {
         auto &registry = EditorMainClass::GetInstance()->GetVarInspectorRegistry();
         auto *inspector = registry.Find(std::string(var.GetType()->GetName()));
         if (inspector) {
@@ -20,7 +20,7 @@ namespace Editor {
         }
     }
 
-    void DefaultInspectVar(const std::string &name, Engine::Reflection::Var var) {
+    void DefaultInspectVar(const std::string &name, AnnoRefl::Var var) {
         if (var.GetType()->GetName() == "int") {
             int value = var.Get<int>();
             ImGui::InputInt(name.c_str(), &value);
@@ -48,8 +48,8 @@ namespace Editor {
             glm::quat value = var.Get<glm::quat>();
             ImGui::DragFloat4(name.c_str(), &value[0], 0.01f);
             var.Set(glm::normalize(value));
-        } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum) {
-            auto enum_type = std::dynamic_pointer_cast<const Engine::Reflection::EnumType>(var.GetType());
+        } else if (var.GetType()->GetTypeKind() == AnnoRefl::Type::TypeKind::Enum) {
+            auto enum_type = std::dynamic_pointer_cast<const AnnoRefl::EnumType>(var.GetType());
             if (enum_type) {
                 std::string current_value = std::string(var.GetEnumString());
                 if (ImGui::BeginCombo(name.c_str(), current_value.c_str())) {

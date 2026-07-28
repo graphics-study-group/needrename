@@ -83,14 +83,14 @@ namespace Engine {
         AssetRef GetNewAssetRef(const AssetPath &path) const;
 
         /// @brief Save the archive.
-        virtual void SaveArchive(Serialization::Archive &archive, GUID guid) override;
+        virtual void SaveArchive(AnnoRefl::Archive &archive, GUID guid) override;
         /// @brief Load the archive.
-        virtual void LoadArchive(Serialization::Archive &archive, GUID guid) override;
+        virtual void LoadArchive(AnnoRefl::Archive &archive, GUID guid) override;
 
         /// @brief Save the archive.
-        void SaveArchive(Serialization::Archive &archive, const AssetPath &path);
+        void SaveArchive(AnnoRefl::Archive &archive, const AssetPath &path);
         /// @brief Load the archive.
-        void LoadArchive(Serialization::Archive &archive, const AssetPath &path);
+        void LoadArchive(AnnoRefl::Archive &archive, const AssetPath &path);
 
         /**
          * @brief List the assets in a directory.

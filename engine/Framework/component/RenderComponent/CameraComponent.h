@@ -2,7 +2,7 @@
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED
 
 #include <Framework/component/Component.h>
-#include <Reflection/macros.h>
+#include <AnnoRefl/macros.h>
 #include <glm.hpp>
 
 namespace Engine {

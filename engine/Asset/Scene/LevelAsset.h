@@ -1,13 +1,14 @@
 #ifndef ASSET_SCENE_LEVELASSET_H
 #define ASSET_SCENE_LEVELASSET_H
 
+#include <memory>
+#include <vector>
+
+#include <AnnoRefl/macros.h>
+
 #include "SceneAsset.h"
 #include <Asset/AssetRef.h>
 #include <Framework/world/Handle.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_smart_pointer.h>
-#include <memory>
-#include <vector>
 
 namespace Engine {
     class Camera;
@@ -26,8 +27,8 @@ namespace Engine {
         REFL_ENABLE LevelAsset() = default;
         ~LevelAsset() = default;
 
-        virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
-        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+        virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const override;
+        virtual void load_asset_from_archive(AnnoRefl::Archive &archive) override;
 
         void LoadToWorld();
 

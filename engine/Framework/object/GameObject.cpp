@@ -76,17 +76,17 @@ namespace Engine {
         return this->m_handle == other.m_handle;
     }
 
-    void GameObject::save_to_archive(Serialization::Archive &archive) const {
-        Serialization::Json &json = *archive.m_cursor;
-        Serialization::Archive temp_archive(archive, &json["GameObject::m_handle"]);
-        Serialization::serialize(m_handle, temp_archive);
+    void GameObject::save_to_archive(AnnoRefl::Archive &archive) const {
+        AnnoRefl::Json &json = *archive.m_cursor;
+        AnnoRefl::Archive temp_archive(archive, &json["GameObject::m_handle"]);
+        AnnoRefl::serialize(m_handle, temp_archive);
         this->_SERIALIZATION_SAVE_(archive);
     }
 
-    void GameObject::load_from_archive(Serialization::Archive &archive) {
-        Serialization::Json &json = *archive.m_cursor;
-        Serialization::Archive temp_archive(archive, &json["GameObject::m_handle"]);
-        Serialization::deserialize(m_handle, temp_archive);
+    void GameObject::load_from_archive(AnnoRefl::Archive &archive) {
+        AnnoRefl::Json &json = *archive.m_cursor;
+        AnnoRefl::Archive temp_archive(archive, &json["GameObject::m_handle"]);
+        AnnoRefl::deserialize(m_handle, temp_archive);
         this->_SERIALIZATION_LOAD_(archive);
     }
 

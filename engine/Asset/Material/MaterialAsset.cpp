@@ -1,7 +1,7 @@
 #include "MaterialAsset.h"
 #include <Asset/AssetRef.h>
-#include <Reflection/serialization_glm.h>
-#include <Reflection/serialization_smart_pointer.h>
+#include <AnnoRefl/serialization_glm.h>
+#include <AnnoRefl/serialization_smart_pointer.h>
 
 namespace Engine {
     MaterialProperty::MaterialProperty(float value) :
@@ -25,8 +25,8 @@ namespace Engine {
         assert(type == Type::Texture || type == Type::CubeTexture);
     }
 
-    void MaterialProperty::save_to_archive(Serialization::Archive &archive) const {
-        Serialization::Json &json = *archive.m_cursor;
+    void MaterialProperty::save_to_archive(AnnoRefl::Archive &archive) const {
+        AnnoRefl::Json &json = *archive.m_cursor;
         switch (m_type) {
         case Type::UBO:
             // Ignore UBO
@@ -36,23 +36,23 @@ namespace Engine {
             break;
         case Type::Texture: {
             json["m_type"] = "Texture";
-            json["m_value"] = Serialization::Json::object();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::serialize(std::any_cast<AssetRef>(m_value), temp_archive);
+            json["m_value"] = AnnoRefl::Json::object();
+            AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+            AnnoRefl::serialize(std::any_cast<AssetRef>(m_value), temp_archive);
             break;
         }
         case Type::CubeTexture: {
             json["m_type"] = "CubeTexture";
-            json["m_value"] = Serialization::Json::object();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::serialize(std::any_cast<AssetRef>(m_value), temp_archive);
+            json["m_value"] = AnnoRefl::Json::object();
+            AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+            AnnoRefl::serialize(std::any_cast<AssetRef>(m_value), temp_archive);
             break;
         }
         case Type::StorageImage: {
             json["m_type"] = "StorageImage";
-            json["m_value"] = Serialization::Json::object();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::serialize(std::any_cast<AssetRef>(m_value), temp_archive);
+            json["m_value"] = AnnoRefl::Json::object();
+            AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+            AnnoRefl::serialize(std::any_cast<AssetRef>(m_value), temp_archive);
             break;
         }
         case Type::Simple:
@@ -70,16 +70,16 @@ namespace Engine {
             }
             case InBlockVarType::Vec4: {
                 json["m_ubo_type"] = "Vec4";
-                json["m_value"] = Serialization::Json::object();
-                Serialization::Archive temp_archive(archive, &json["m_value"]);
-                Serialization::serialize(std::any_cast<glm::vec4>(m_value), temp_archive);
+                json["m_value"] = AnnoRefl::Json::object();
+                AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+                AnnoRefl::serialize(std::any_cast<glm::vec4>(m_value), temp_archive);
                 break;
             }
             case InBlockVarType::Mat4: {
                 json["m_ubo_type"] = "Mat4";
-                json["m_value"] = Serialization::Json::object();
-                Serialization::Archive temp_archive(archive, &json["m_value"]);
-                Serialization::serialize(std::any_cast<glm::mat4>(m_value), temp_archive);
+                json["m_value"] = AnnoRefl::Json::object();
+                AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+                AnnoRefl::serialize(std::any_cast<glm::mat4>(m_value), temp_archive);
                 break;
             }
             case InBlockVarType::Undefined:
@@ -95,8 +95,8 @@ namespace Engine {
         }
     }
 
-    void MaterialProperty::load_from_archive(Serialization::Archive &archive) {
-        Serialization::Json &json = *archive.m_cursor;
+    void MaterialProperty::load_from_archive(AnnoRefl::Archive &archive) {
+        AnnoRefl::Json &json = *archive.m_cursor;
         std::string type = json["m_type"];
         if (type == "Simple") {
             std::string ubo_type = json["m_ubo_type"];
@@ -110,24 +110,24 @@ namespace Engine {
             } else if (ubo_type == "Mat4") {
                 m_ubo_type = InBlockVarType::Mat4;
                 m_value = glm::mat4{};
-                Serialization::Archive temp_archive(archive, &json["m_value"]);
-                Serialization::deserialize(std::any_cast<glm::mat4 &>(m_value), temp_archive);
+                AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+                AnnoRefl::deserialize(std::any_cast<glm::mat4 &>(m_value), temp_archive);
             } else if (ubo_type == "Vec4") {
                 m_ubo_type = InBlockVarType::Vec4;
                 m_value = glm::vec4{};
-                Serialization::Archive temp_archive(archive, &json["m_value"]);
-                Serialization::deserialize(std::any_cast<glm::vec4 &>(m_value), temp_archive);
+                AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+                AnnoRefl::deserialize(std::any_cast<glm::vec4 &>(m_value), temp_archive);
             }
         } else if (type == "Texture") {
             m_type = Type::Texture;
             m_value = AssetRef();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::deserialize(std::any_cast<AssetRef &>(m_value), temp_archive);
+            AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+            AnnoRefl::deserialize(std::any_cast<AssetRef &>(m_value), temp_archive);
         } else if (type == "CubeTexture") {
             m_type = Type::CubeTexture;
             m_value = AssetRef();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::deserialize(std::any_cast<AssetRef &>(m_value), temp_archive);
+            AnnoRefl::Archive temp_archive(archive, &json["m_value"]);
+            AnnoRefl::deserialize(std::any_cast<AssetRef &>(m_value), temp_archive);
         }
     }
 } // namespace Engine

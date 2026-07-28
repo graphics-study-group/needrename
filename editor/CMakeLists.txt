@@ -9,7 +9,7 @@ add_library(editor SHARED ${SOURCE})
 target_include_directories(editor PUBLIC ${ENGINE_EDITOR_DIR})
 target_link_libraries(editor PUBLIC engine)
 
-include(${REFLECTION_PARSER_DIR}/parser.cmake)
+include(${ANROREFL_PARSER_DIR}/parser.cmake)
 set(all_include_dirs)
 get_include_directories_for_target(editor all_include_dirs)
 filter_files_with_reflection_macros(HEADER REFLECTION_SEARCH_HEADERS)

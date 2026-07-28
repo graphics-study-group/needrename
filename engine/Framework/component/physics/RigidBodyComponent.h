@@ -3,8 +3,8 @@
 
 #include <Framework/component/Component.h>
 #include <Framework/world/physics/PhysicsDescriptors.h>
-#include <Reflection/macros.h>
-#include <Reflection/serialization_glm.h>
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_glm.h>
 
 namespace Engine {
     class CollisionShapeComponent;
@@ -64,7 +64,7 @@ namespace Engine {
         REFL_SER_ENABLE glm::vec3 m_external_force{0.0f, 0.0f, 0.0f};
         REFL_SER_ENABLE glm::vec3 m_external_torque{0.0f, 0.0f, 0.0f};
 
-        // Manual inertia/COM override â€” when enabled, PhysicsScene skips
+        // Manual inertia/COM override â€?when enabled, PhysicsScene skips
         // automatic volume-weighted computation and uses these values directly.
         // Both inertia tensor and center-of-mass MUST be provided.
         // COM offset is in GO-local space.
