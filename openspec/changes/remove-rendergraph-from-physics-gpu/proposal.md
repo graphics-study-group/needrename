@@ -26,4 +26,4 @@ Physics GPU modules (XPBD solver, collision detectors, GPU algorithm primitives)
 - Removed dependencies: `Render/Pipeline/RenderGraph/RenderGraph.h`, `RenderGraphBuilder.h`, `RenderGraphPass.h`, `RGAttachmentDesc.h`
 - Retained dependencies: `ComputeStage`, `ComputeResourceBinding`, `ComputeBuffer`, `MemoryAccessHelper.hpp`, `CommandBuffer`
 - `ISolver` interface and `PhysicsSystem` unchanged
-- See ADR-0005 for design rationale
+

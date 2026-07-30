@@ -2,7 +2,7 @@
 
 `PhysicsScene` currently interleaves GO-space and COM-space logic in a single 1329-line class. Components call it directly via `GetScene()->GetPhysicsScene()`, passing GO-world coordinates and component properties through multi-parameter methods. The class internally computes COM, inertia, and GO→COM conversions, then uploads results to GPU buffers.
 
-The engine architecture has a clear Framework/Physics module boundary, but four reverse `#include`s violate it (`GameObject.h`, `Scene.h`, `CollisionShapeComponent.h`, `Handle.h` from `Physics/` into `Framework/`). Full details in [ADR-0004](../../docs/adr/0004-physics-adaptor-separation.md).
+The engine architecture has a clear Framework/Physics module boundary, but four reverse `#include`s violate it (`GameObject.h`, `Scene.h`, `CollisionShapeComponent.h`, `Handle.h` from `Physics/` into `Framework/`).
 
 ## Goals / Non-Goals
 
@@ -24,7 +24,7 @@ The engine architecture has a clear Framework/Physics module boundary, but four 
 
 ### D-1: Adaptor owns all GO-space state; PhysicsScene owns only COM-space SoA
 
-Adaptor maintains ObjectHandle↔index mappings, pending descriptor storage, COM offset cache, model matrix activation flags. PhysicsScene maintains SoA arrays (15 rigid body columns + 6 shape columns), slot alive flags, `shape_idx→rb_idx` vector, joint definitions, GPU buffers. See ADR-0004 §D-4 for the full list of removals from PhysicsScene.
+Adaptor maintains ObjectHandle↔index mappings, pending descriptor storage, COM offset cache, model matrix activation flags. PhysicsScene maintains SoA arrays (15 rigid body columns + 6 shape columns), slot alive flags, `shape_idx→rb_idx` vector, joint definitions, GPU buffers.
 
 ### D-2: Two-layer Descriptor architecture
 
@@ -42,7 +42,7 @@ Neither module holds internal state. They take inputs, return outputs. This make
 
 The solver continues to run `model_matrix.comp` and write GO-world mat4 to an SSBO (this belongs to PhysicsScene's GpuMirror). Adaptor owns `IsPhysicsActive()` and `SetPhysicsActive(bool)`, set by editor Play/Stop. RendererComponent queries Adaptor for COM offset and computes its own local-to-COM offset matrix, submitted alongside `model_mat_index` to the rendering system's vertex shader composition (`model_matrices[idx] * offset`).
 
-See ADR-0004 §D-9 for the dual-switch design (Adaptor's IsPhysicsActive vs PhysicsScene's SetSimulationEnabled).
+
 
 ### D-6: RB↔Shape binding during Init (not Awake)
 

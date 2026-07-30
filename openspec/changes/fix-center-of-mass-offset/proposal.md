@@ -31,5 +31,5 @@ Multiple physics subsystems incorrectly use GameObject (GO) coordinates where ce
 - **PhysicsConstraintComponent** — Init simplified: passes GO-local data through without conversion.
 - **model_matrix.comp** — new buffer binding for `rigid_body_center_offset_local_position`.
 - **accumulate_hinge_position.comp** / **accumulate_fixed_position.comp** — no shader changes; math correct once input data is COM-local.
-- **ADRs** — new `docs/adr/0003-center-of-mass-offset-handling.md`.
+
 - **CONTEXT.md** — new glossary defining GO-local vs COM-local coordinate spaces.

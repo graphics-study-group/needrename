@@ -7,8 +7,6 @@ Physics GPU modules use `RenderGraph` — a rendering pipeline framework — for
 - Execution is already fully serial — all passes run on the same `vk::CommandBuffer`
 - The lazy RG build → compile → record pipeline adds 3 layers of indirection for what is essentially `cb.DispatchCompute()`
 
-ADR-0005 records the decision to remove RenderGraph from all physics GPU code.
-
 ## Goals / Non-Goals
 
 **Goals:**

@@ -8,7 +8,6 @@ Three subsystems were found to ignore this offset:
 2. **Joints** — `PhysicsConstraintComponent::Init` computes joint data from GO world transforms, but XPBD solvers operate on COM positions. The `center_offset_local_position` buffer is uploaded to GPU but never consumed.
 3. **Manual inertia** — `RecalculateRigidBodyState` forces `center_offset = 0` when manual inertia is enabled, preventing users from specifying a non-zero COM offset.
 
-Full analysis recorded in `docs/adr/0003-center-of-mass-offset-handling.md`.
 
 ## Goals / Non-Goals
 

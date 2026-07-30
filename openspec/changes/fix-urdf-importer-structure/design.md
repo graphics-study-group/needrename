@@ -8,7 +8,7 @@ The current `UrdfLoader::BuildAndSaveSceneAsset` has several structural issues d
 4. `PhysicsConstraintComponent` is placed on the parent link GO, requiring unnecessary computation of anchor position and axis rotation
 5. Visual geometry is ignored; render uses collision geometry but placed on ad-hoc child GOs
 
-The `fix-center-of-mass-offset` change (ADR-0003) has already added `m_manual_center_of_mass` to `RigidBodyComponent` and the GO→COM joint conversion pipeline in `PhysicsScene`. The URDF importer was never updated to use it.
+The `fix-center-of-mass-offset` change has already added `m_manual_center_of_mass` to `RigidBodyComponent` and the GO→COM joint conversion pipeline in `PhysicsAdaptor`. The URDF importer was never updated to use it.
 
 ## Goals / Non-Goals
 
@@ -38,7 +38,7 @@ The `fix-center-of-mass-offset` change (ADR-0003) has already added `m_manual_ce
 
 **Alternatives considered**: Keep on parent — requires computing anchor as `UrdfToEnginePos(joint.origin)` and rotating axis by `UrdfRpyToEngineQuat(joint.origin_rpy)`. More complex, more error-prone.
 
-**Cross-ref**: ADR-0006, CONTEXT.md § URDF Import Hierarchy.
+**Cross-ref**: CONTEXT.md § URDF Import Hierarchy.
 
 ### D-2: Collision shapes always on child GOs
 
@@ -78,6 +78,6 @@ The `m_manual_center_of_mass` position vector is NOT affected by origin_rpy — 
 
 ## Risks / Trade-offs
 
-- **[Risk] Constraint on child changes the constraint data convention** → This is an internal implementation detail of the URDF importer. Other systems creating `PhysicsConstraintComponent` (editor, hand-authored prefabs) are unaffected. The GO→COM conversion in `PhysicsScene` (ADR-0003, D-3) works regardless of which side is obj1.
+- **[Risk] Constraint on child changes the constraint data convention** → This is an internal implementation detail of the URDF importer. Other systems creating `PhysicsConstraintComponent` (editor, hand-authored prefabs) are unaffected. The GO→COM conversion in `PhysicsAdaptor` works regardless of which side is obj1.
 - **[Risk] Inertia tensor rotation is difficult to verify without non-trivial rpy data** → A1 URDF uses `origin_rpy = (0,0,0)` for all inertial elements. Correctness relies on the math `I_link = Rᵀ * I * R` which is standard tensor transformation. When a URDF with non-zero inertial rpy is imported, the rotated values will be in the serialized asset.
 - **[Trade-off] Visual uses collision geometry** → Robot visuals show simple geometric primitives matching collision shapes. Mitigation: Phase 2 switches to `<visual>` data when DAE/STL import is ready, with no structural changes needed.

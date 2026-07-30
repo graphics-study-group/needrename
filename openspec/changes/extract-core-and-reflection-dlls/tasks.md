@@ -95,7 +95,7 @@
 - [x] 8.4 Rebuild from clean and verify code generation works in parallel (`cmake --build --preset debug -j`)
 - [x] 8.5 Remove empty target directory if `meta_reflection` was partially scaffolded (not needed â€?Reflection has no REFL_SER_CLASS types)
 
-## 9. Extract Reflection as AnnoRefl Library (ADR-0009)
+## 9. Extract Reflection as AnnoRefl Library
 
 ### 9.1 Create AnnoRefl Directory Structure
 

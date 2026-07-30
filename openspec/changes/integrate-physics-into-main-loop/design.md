@@ -8,7 +8,6 @@ Physics components (`RigidBodyComponent`, `CollisionShapeComponent`, `PhysicsCon
 
 The renderer determines model matrix source per-frame in `PreRenderUpdate()`: if a `RigidBody` is found in the ancestor chain, `model_mat_index = rigid_idx` (SSBO-driven); otherwise `model_mat_index = -1` (push-constant). There is no mechanism to toggle this based on simulation state.
 
-See ADRs at `docs/adr/0001-physics-component-lifecycle.md` and `docs/adr/0002-physics-main-loop-integration.md` for full decision context.
 
 ## Goals / Non-Goals
 

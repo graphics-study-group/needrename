@@ -14,9 +14,8 @@ namespace Engine {
          * @brief Pure-function module that converts GO-space joint submit data
          *        to COM-space GPU-ready joint structures.
          *
-         * Conversion formulas follow ADR-0003: COM offset vectors c1 and c2
-         * (in GO-local space) are applied to transform GO-local positions into
-         * COM-local positions.
+         * COM offset vectors c1 and c2 (in GO-local space) are applied to
+         * transform GO-local positions into COM-local positions.
          */
         class JointConverter {
         public:

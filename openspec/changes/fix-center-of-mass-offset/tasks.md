@@ -48,7 +48,7 @@
 ## 7. Documentation
 
 - [x] 7.1 Add clarifying comments to `SetRigidBodyTransform`: stores temporary GO-world placeholder overwritten by Recalculate
-- [x] 7.2 Verify ADR `docs/adr/0003-center-of-mass-offset-handling.md` and CONTEXT.md are committed
+- [x] 7.2 Verify CONTEXT.md is committed
 
 ## 8. Verification
 

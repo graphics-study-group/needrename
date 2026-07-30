@@ -37,7 +37,7 @@ This change executes **Step 1** of the engine modularization roadmap: extract th
 - **engine/Tests/CMakeLists.txt**: Add `Core` and `Reflection` to link dependencies for unit tests.
 - **engine/MainClass.cpp**: Update includes that previously referenced `Core/Functional/EventQueue.h` to use new Framework path.
 
-## Phase 2: Extract Reflection as Standalone AnnoRefl Library (ADR-0009)
+## Phase 2: Extract Reflection as Standalone AnnoRefl Library
 
 The Reflection module has been split into `Reflection.dll` (Phase 1), but it remains inside `engine/` with engine namespaces and build dependencies. This phase completes the extraction:
 

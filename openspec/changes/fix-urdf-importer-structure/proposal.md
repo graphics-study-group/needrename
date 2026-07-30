@@ -28,5 +28,5 @@ The URDF importer (`UrdfLoader::BuildAndSaveSceneAsset`) has several structural 
 - **Modified**: `engine/Asset/Loader/UrdfLoader.cpp` — `BuildAndSaveSceneAsset` restructured (steps 2-7 rewritten), `CollectCollisionObjectHandles` unchanged (subtree traversal still works)
 - **Modified**: `engine/Asset/Loader/UrdfLoader.h` — no API changes needed
 - **No changes**: `RigidBodyComponent`, `CollisionShapeComponent`, `PhysicsConstraintComponent`, `PhysicsScene` — these already support the new usage pattern
-- **ADR**: `docs/adr/0006-urdf-constraint-on-child.md` (already written)
+
 - **Glossary**: `CONTEXT.md` § URDF Import Hierarchy (already updated)

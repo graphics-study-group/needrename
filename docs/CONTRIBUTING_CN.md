@@ -46,8 +46,9 @@
 
 1. **Explore**（`/openspec-explore`）— 探索问题空间、明确需求、权衡方案
 2. **Propose**（`/openspec-propose`）— 一步生成 proposal、design、specs 和 tasks
-3. **Apply**（`/openspec-apply-change`）— 逐任务实现变更
-4. **Archive**（`/openspec-archive-change`）— 归档已完成的变更
+3. **Design review**（`/grill-me`）— *（可选项）* 通过穷追猛打的访谈来压力测试提案。请优先使用 `/grill-me` 而非 `/grill-with-docs`——所有决策都应记录在 OpenSpec 产物中，而非独立的 ADR 文档。参见 [grilling skill](https://github.com/mattpocock/skills)。
+4. **Apply**（`/openspec-apply-change`）— 逐任务实现变更
+5. **Archive**（`/openspec-archive-change`）— 归档已完成的变更
 
 所有 OpenSpec 产物位于 `openspec/` 目录：
 

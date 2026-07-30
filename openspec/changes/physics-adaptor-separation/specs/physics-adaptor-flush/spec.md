@@ -41,7 +41,10 @@ For each pending joint descriptor, the Adaptor SHALL convert the GO-local fields
 Fixed joint conversion: `com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1`
 Hinge joint conversion: `anchor_com = anchor_go - c1`; `com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1`
 
-Conversion formulas SHALL follow ADR-0003.
+The conversion SHALL use COM offset vectors c1 (obj1) and c2 (obj2) in GO-local space:
+- Fixed: `com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1`
+- Hinge: `anchor_com = anchor_go - c1`; `com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1`
+Hinge axis is a direction vector invariant under COM offset translation.
 
 #### Scenario: Fixed joint converted
 - **WHEN** a fixed joint has `go_rel_pos = (0, 0, 1)`, `go_rel_rot = identity`, `c1 = (0.2, 0, 0)`, `c2 = (0, 0, 0)`

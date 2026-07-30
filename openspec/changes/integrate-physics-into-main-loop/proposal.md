@@ -37,4 +37,4 @@ Physics simulation currently requires manual setup — components must be create
 - `engine/MainClass.{h,cpp}`: `SetupDefaultPhysics()` in `LoadProject()`, `InitializePendingRigidBodies` in `RunOneFrame`.
 - `editor/Editor/Render/EditorRenderGraphBuilder.{h,cpp}`: Add `model_matrices_buffer` parameter.
 - `example/editor_run_game_example/main.cpp`: Editor loop restructured with physics pipeline and start/stop callbacks.
-- `docs/adr/0001-physics-component-lifecycle.md`, `docs/adr/0002-physics-main-loop-integration.md`: ADRs documenting decisions.
+

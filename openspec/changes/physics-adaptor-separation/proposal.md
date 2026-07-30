@@ -44,5 +44,5 @@ The goal is a clean architectural split: Framework-layer code handles all GO-spa
 - `engine/MainClass.cpp` — replace `physics->InitializePendingRigidBodies()` with `scene.FlushPhysics()`
 - `example/editor_run_game_example/main.cpp` — same replacement
 - `example/physics_example/` — update calls to use new Scene/Adaptor interface
-- `docs/adr/0004-physics-adaptor-separation.md` — reference document (already written)
+
 - `CONTEXT.md` — updated (already done)
