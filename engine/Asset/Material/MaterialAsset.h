@@ -4,9 +4,9 @@
 #include <Asset/Asset.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Shader/ShaderAsset.h>
+
 #include <AnnoRefl/macros.h>
-#include <AnnoRefl/serialization_smart_pointer.h>
-#include <AnnoRefl/serialization_unordered_map.h>
+
 #include <any>
 #include <glm.hpp>
 #include <memory>

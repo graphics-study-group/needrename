@@ -1,9 +1,9 @@
 #ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_LIGHTCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_LIGHTCOMPONENT_INCLUDED
 
-#include <Framework/component/Component.h>
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
+#include <Framework/component/Component.h>
 #include <glm.hpp>
 
 namespace Engine {

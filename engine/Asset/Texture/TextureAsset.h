@@ -1,8 +1,8 @@
 #ifndef ASSET_TEXTURE_TEXTUREASSET_INCLUDED
 #define ASSET_TEXTURE_TEXTUREASSET_INCLUDED
 
-#include <Asset/Asset.h>
 #include <AnnoRefl/macros.h>
+#include <Asset/Asset.h>
 #include <string>
 
 namespace Engine {

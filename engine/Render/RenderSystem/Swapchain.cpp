@@ -1,7 +1,7 @@
 #include "Swapchain.h"
 
+#include "GpuContext/DeviceInterface.h"
 #include "Render/ImageUtils.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>

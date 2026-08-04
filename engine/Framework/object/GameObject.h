@@ -1,11 +1,11 @@
 #ifndef FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED
 #define FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED
 
-#include <Core/Math/Transform.h>
-#include <Framework/world/Handle.h>
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <AnnoRefl/serialization_vector.h>
+#include <Core/Math/Transform.h>
+#include <Framework/world/Handle.h>
 #include <memory>
 #include <string>
 #include <vector>

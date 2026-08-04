@@ -1,7 +1,7 @@
 #include "Component.h"
+#include <AnnoRefl/serialization.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
-#include <AnnoRefl/serialization.h>
 
 namespace Engine {
     Component::Component(const GameObject &parent) :

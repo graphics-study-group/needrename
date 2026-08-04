@@ -20,7 +20,6 @@ target_link_libraries(EngineDepSdl INTERFACE SDL3::SDL3)
 add_library(EngineDepVulkan INTERFACE)
 target_link_libraries(EngineDepVulkan INTERFACE Vulkan::Vulkan vma glslang)
 target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
-target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_STORAGE_SHARED)
 
 add_library(EngineDepImgui INTERFACE)
 target_link_libraries(EngineDepImgui INTERFACE imgui)
@@ -42,6 +41,7 @@ target_link_libraries(EngineLibExternalDependency
 ###########################################
 
 add_subdirectory(Core)
+add_subdirectory(GpuContext)
 
 #################################################
 # The parts that are still mixed in engine      #
@@ -75,6 +75,7 @@ target_link_libraries(engine
     EngineLibHeaderInterface
     EngineLibExternalDependency
     Core
+    GpuContext
 )
 
 # Dependencies only used in a small module are marked as private to avoid pollution
@@ -94,8 +95,9 @@ add_custom_command(TARGET engine POST_BUILD
     $<TARGET_FILE:SDL3::SDL3-shared>
     $<TARGET_FILE:ktx>
     $<TARGET_FILE:Core>
+    $<TARGET_FILE:GpuContext>
     $<TARGET_FILE_DIR:engine>
-    COMMENT "Copying SDL3, libktx, and Core DLLs to output directory"
+    COMMENT "Copying SDL3, libktx, Core, and GpuContext DLLs to output directory"
 )
 
 # TODO: Use relative paths when install.

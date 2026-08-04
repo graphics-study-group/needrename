@@ -1,15 +1,15 @@
 #include "FrameManager.h"
 
-#include "Render/DebugUtils.h"
+#include "GpuContext/DebugUtils.h"
+#include "GpuContext/DeviceInterface.h"
+#include "GpuContext/Structs.h"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/DeviceInterface.h"
-#include "Render/RenderSystem/Structs.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
-#include "Render/RenderSystem/Swapchain.h"
 
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 
@@ -17,72 +17,6 @@
 #include <bitset>
 
 namespace {
-    void RecordCopyCommand(
-        const vk::CommandBuffer &cb,
-        const vk::Image &src,
-        Engine::MemoryAccessTypeImageBits last_access,
-        vk::Extent2D extent_src,
-        vk::Offset2D offset_src,
-        vk::Extent2D extent_dst,
-        vk::Offset2D offset_dst,
-        const Engine::RenderSystemState::Swapchain &swapchain,
-        uint32_t framebuffer,
-        vk::Filter filter
-    ) {
-        std::array<vk::ImageMemoryBarrier2, 2> barriers{};
-
-        cb.begin(vk::CommandBufferBeginInfo{});
-        DEBUG_CMD_START_LABEL(cb, "Final Copy");
-        barriers[0] = vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eAllCommands,
-            Engine::GetAccessFlags({last_access}),
-            vk::PipelineStageFlagBits2::eAllTransfer,
-            vk::AccessFlagBits2::eTransferRead,
-            Engine::GetImageLayout({last_access}),
-            vk::ImageLayout::eTransferSrcOptimal,
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            src,
-            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        };
-        barriers[1] = swapchain.GetPreCopyBarrier(framebuffer);
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, barriers});
-
-        cb.blitImage(
-            src,
-            vk::ImageLayout::eTransferSrcOptimal,
-            swapchain.GetImages()[framebuffer],
-            vk::ImageLayout::eTransferDstOptimal,
-            {vk::ImageBlit{
-                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                {vk::Offset3D{offset_src, 0},
-                 vk::Offset3D{offset_src.x + (int32_t)extent_src.width, offset_src.y + (int32_t)extent_src.height, 1}},
-                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                {vk::Offset3D{offset_dst, 0},
-                 vk::Offset3D{offset_dst.x + (int32_t)extent_dst.width, offset_dst.y + (int32_t)extent_dst.height, 1}}
-            }},
-            filter
-        );
-
-        barriers[0] = vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eAllTransfer,
-            vk::AccessFlagBits2::eTransferRead,
-            vk::PipelineStageFlagBits2::eNone,
-            vk::AccessFlagBits2::eNone,
-            // No layout transitions here.
-            vk::ImageLayout::eTransferSrcOptimal,
-            vk::ImageLayout::eTransferSrcOptimal,
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            src,
-            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        };
-        barriers[1] = swapchain.GetPostCopyBarrier(framebuffer);
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, barriers});
-        DEBUG_CMD_END_LABEL(cb);
-        cb.end();
-    }
-
     void ReadbackCommand(vk::CommandBuffer cb, const Engine::DeviceBuffer &src, const Engine::DeviceBuffer &dst) {
         using namespace Engine;
         assert(src.GetSize() == dst.GetSize());
@@ -103,7 +37,6 @@ namespace Engine::RenderSystemState {
         std::array<vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences{};
 
         std::array<vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers{};
-        std::array<vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> copy_to_swapchain_command_buffers{};
 
         // Data and handles used by readback routines.
         struct {
@@ -152,6 +85,7 @@ namespace Engine::RenderSystemState {
         uint64_t total_frame_count{0};
 
         RenderSystem &m_system;
+        IPresentProvider *m_present_provider = nullptr;
 
         std::unique_ptr<SubmissionHelper> m_submission_helper{};
 
@@ -165,7 +99,7 @@ namespace Engine::RenderSystemState {
         void CompleteFrame();
 
         impl(RenderSystem &sys) : m_system(sys) {};
-        void Create();
+        void Create(IPresentProvider &present_provider);
     };
 
     FrameManager::FrameManager(RenderSystem &sys) : pimpl(std::make_unique<impl>(sys)) {
@@ -173,7 +107,8 @@ namespace Engine::RenderSystemState {
 
     FrameManager::~FrameManager() = default;
 
-    void FrameManager::impl::Create() {
+    void FrameManager::impl::Create(IPresentProvider &present_provider) {
+        m_present_provider = &present_provider;
         auto device = m_system.GetDevice();
 
         vk::SemaphoreCreateInfo scinfo{};
@@ -194,7 +129,7 @@ namespace Engine::RenderSystemState {
                 device, command_executed_fences[i].get(), std::format("Fence - all commands executed {}", i)
             );
         }
-        copy_to_swapchain_completed_semaphores.resize(m_system.GetSwapchain().GetFrameCount());
+        copy_to_swapchain_completed_semaphores.resize(m_present_provider->GetImageCount());
         for (size_t i = 0; i < copy_to_swapchain_completed_semaphores.size(); i++) {
             copy_to_swapchain_completed_semaphores[i] = device.createSemaphoreUnique(scinfo);
             DEBUG_SET_NAME_TEMPLATE(
@@ -226,25 +161,12 @@ namespace Engine::RenderSystemState {
             );
         }
 
-        // Allocate copying and presenting command buffers
-        new_command_buffers = device.allocateCommandBuffersUnique(
-            vk::CommandBufferAllocateInfo{
-                queue_info.presentPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
-            }
-        );
-        for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-            copy_to_swapchain_command_buffers[i] = std::move(new_command_buffers[i]);
-            DEBUG_SET_NAME_TEMPLATE(
-                device, copy_to_swapchain_command_buffers[i].get(), std::format("Command buffer - composition {}", i)
-            );
-        }
-
         current_frame_in_flight = 0;
         m_submission_helper = std::make_unique<SubmissionHelper>(m_system);
     }
 
-    void FrameManager::Create() {
-        pimpl->Create();
+    void FrameManager::Create(IPresentProvider &present_provider) {
+        pimpl->Create(present_provider);
     }
 
     uint32_t FrameManager::GetFrameInFlight() const noexcept {
@@ -291,20 +213,10 @@ namespace Engine::RenderSystemState {
         }
 
         // Acquire new image
-        auto acquire_result = device.acquireNextImageKHR(
-            pimpl->m_system.GetSwapchain().GetSwapchain(), timeout, pimpl->image_acquired_semaphores[fif].get(), nullptr
+        auto result = pimpl->m_present_provider->AcquireNextImage(
+            pimpl->m_system.GetDevice(), pimpl->image_acquired_semaphores[fif].get(), timeout
         );
-        if (acquire_result.result == vk::Result::eTimeout) {
-            SDL_LogError(0, "Timed out waiting for next frame.");
-            return -1;
-        } else if (acquire_result.result != vk::Result::eSuccess) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "AcquireNextImage returned %s other than success.",
-                vk::to_string(acquire_result.result).c_str()
-            );
-        }
-        pimpl->current_framebuffer = acquire_result.value;
+        pimpl->current_framebuffer = result;
 
         return pimpl->current_framebuffer;
     }
@@ -356,83 +268,42 @@ namespace Engine::RenderSystemState {
     }
 
     bool FrameManager::PresentToFramebuffer(
-        vk::Image image,
-        MemoryAccessTypeImageBits last_access,
-        vk::Extent2D extentSrc,
-        vk::Offset2D offsetSrc,
-        vk::Filter filter
+        const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access
     ) {
         pimpl->assert_in_frame();
 
         const auto fif = GetFrameInFlight();
-        const auto &copy_cb = pimpl->copy_to_swapchain_command_buffers[fif].get();
+        const auto framebuffer = GetFramebuffer();
 
-        RecordCopyCommand(
-            copy_cb,
-            image,
-            last_access,
-            extentSrc,
-            offsetSrc,
-            this->pimpl->m_system.GetSwapchain().GetExtent(),
-            {0, 0},
-            this->pimpl->m_system.GetSwapchain(),
-            GetFramebuffer(),
-            filter
-        );
-
-        // Prepare submit info for copy commandbuffer
-        vk::CommandBufferSubmitInfo cbsi{copy_cb};
-        std::array<vk::SemaphoreSubmitInfo, 2> wait_infos{};
-        std::array<vk::SemaphoreSubmitInfo, 2> signal_infos{};
-
-        // Wait for the second-to-last timepoint
+        // Prepare synchronization for the copy-to-swapchain submit.
         auto &this_frame_semaphore = pimpl->timeline_semaphores[fif];
-        wait_infos[0] = this_frame_semaphore.GetSubmitInfo(
+        FrameSyncInfo sync{};
+
+        // Wait for the second-to-last timepoint (main rendering complete).
+        sync.wait[0] = this_frame_semaphore.GetSubmitInfo(
             this_frame_semaphore.GetExpectedTimepoints() - 1, vk::PipelineStageFlagBits2::eAllTransfer
         );
-        // Wait for image acquisition (this is binary).
-        wait_infos[1] = vk::SemaphoreSubmitInfo{
+        // Wait for image acquisition (binary semaphore).
+        sync.wait[1] = vk::SemaphoreSubmitInfo{
             pimpl->image_acquired_semaphores[fif].get(), 0, vk::PipelineStageFlagBits2::eAllTransfer
         };
 
         // Signal ready for presenting.
-        signal_infos[0] = vk::SemaphoreSubmitInfo{
-            pimpl->copy_to_swapchain_completed_semaphores[GetFramebuffer()].get(),
+        sync.signal[0] = vk::SemaphoreSubmitInfo{
+            pimpl->copy_to_swapchain_completed_semaphores[framebuffer].get(),
             0,
             vk::PipelineStageFlagBits2::eAllTransfer
         };
-        signal_infos[1] = this_frame_semaphore.GetSubmitInfo(
+        sync.signal[1] = this_frame_semaphore.GetSubmitInfo(
             this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllTransfer
         );
 
-        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, wait_infos, {cbsi}, signal_infos};
-        const auto &queueInfo = pimpl->m_system.GetDeviceInterface().GetQueueInfo();
-        queueInfo.presentQueue.submit2(sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
+        sync.present_wait_semaphore = pimpl->copy_to_swapchain_completed_semaphores[framebuffer].get();
+        sync.fence = pimpl->command_executed_fences[fif].get();
 
-        // Queue a present directive
-        std::array<vk::SwapchainKHR, 1> swapchains{pimpl->m_system.GetSwapchain().GetSwapchain()};
-        std::array<uint32_t, 1> frame_indices{GetFramebuffer()};
-        // Wait for command buffer before presenting the frame
-        std::array<vk::Semaphore, 1> semaphores{pimpl->copy_to_swapchain_completed_semaphores[GetFramebuffer()].get()};
-
-        bool needs_recreating = false;
-        try {
-            vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
-            vk::Result result = queueInfo.presentQueue.presentKHR(info);
-            if (result != vk::Result::eSuccess) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER, "Presenting returned %s other than success.", vk::to_string(result).c_str()
-                );
-
-                // Suboptimal swapchain should be recreated after presenting.
-                if (result == vk::Result::eSuboptimalKHR) {
-                    needs_recreating = true;
-                }
-            }
-        } catch (vk::OutOfDateKHRError &e) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Swapchain out of date.");
-            needs_recreating = true;
-        }
+        // Delegate blit + submit + present to the present provider.
+        bool needs_recreating =
+            pimpl->m_present_provider->CompleteFrame(pimpl->m_system.GetDevice(), present_texture, framebuffer, sync);
 
         pimpl->CompleteFrame();
         return needs_recreating;

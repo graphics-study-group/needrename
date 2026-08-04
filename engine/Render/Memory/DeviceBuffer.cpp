@@ -1,7 +1,7 @@
 #include "DeviceBuffer.h"
 
+#include "GpuContext/AllocatorState.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/AllocatorState.h"
 
 namespace Engine {
     DeviceBuffer::DeviceBuffer(BufferAllocation &&alloc, size_t size) : m_size(size), allocation(std::move(alloc)) {

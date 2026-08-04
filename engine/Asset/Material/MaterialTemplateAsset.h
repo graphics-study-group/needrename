@@ -1,14 +1,14 @@
 #ifndef ASSET_MATERIAL_MATERIALTEMPLATEASSET_INCLUDED
 #define ASSET_MATERIAL_MATERIALTEMPLATEASSET_INCLUDED
 
-#include <Asset/Asset.h>
-#include <Asset/AssetRef.h>
-#include <Asset/Material/PipelineProperty.h>
-#include <Asset/Shader/ShaderAsset.h>
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <AnnoRefl/serialization_unordered_map.h>
 #include <AnnoRefl/serialization_vector.h>
+#include <Asset/Asset.h>
+#include <Asset/AssetRef.h>
+#include <Asset/Material/PipelineProperty.h>
+#include <Asset/Shader/ShaderAsset.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/ImageUtils.h>
 

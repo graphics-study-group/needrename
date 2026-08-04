@@ -1,10 +1,10 @@
 #ifndef FRAMEWORK_COMPONENT_PHYSICS_RIGIDBODYCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_PHYSICS_RIGIDBODYCOMPONENT_INCLUDED
 
-#include <Framework/component/Component.h>
-#include <Framework/world/physics/PhysicsDescriptors.h>
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
+#include <Framework/component/Component.h>
+#include <Framework/world/physics/PhysicsDescriptors.h>
 
 namespace Engine {
     class CollisionShapeComponent;

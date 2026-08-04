@@ -11,6 +11,7 @@
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
@@ -147,7 +148,7 @@ auto BuildRenderGraph(
             .SetPassFunction([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](
                                  CommandBuffer &cb, const RenderGraph &
                              ) {
-                auto extent = rsys->GetSwapchain().GetExtent();
+                auto extent = rsys->GetPresentProvider().GetExtent();
                 cb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
                 cb.BindSceneResources(rsys->GetSceneDataManager());
                 cb.BindCameraResources(rsys->GetCameraManager());

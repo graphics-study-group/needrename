@@ -1,12 +1,12 @@
 #include "Texture.h"
 
+#include "GpuContext/AllocatorState.h"
+#include "GpuContext/MemoryAllocation.h"
 #include "Render/Hasher.hpp"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Memory/DeviceBuffer.h"
-#include "Render/Memory/MemoryAllocation.h"
 #include "Render/Memory/TextureSubresourceView.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/AllocatorState.h"
 
 #include <vulkan/vulkan.hpp>
 

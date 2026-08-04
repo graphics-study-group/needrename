@@ -2,7 +2,9 @@
 #define ASSET_ASSET_INCLUDED
 
 #include <Core/guid.h>
+
 #include <AnnoRefl/macros.h>
+
 #include <filesystem>
 #include <string>
 

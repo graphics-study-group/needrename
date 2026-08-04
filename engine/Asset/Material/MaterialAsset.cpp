@@ -1,7 +1,9 @@
 #include "MaterialAsset.h"
 #include <Asset/AssetRef.h>
+
 #include <AnnoRefl/serialization_glm.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
+#include <AnnoRefl/serialization_unordered_map.h>
 
 namespace Engine {
     MaterialProperty::MaterialProperty(float value) :

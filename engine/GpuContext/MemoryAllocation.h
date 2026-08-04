@@ -2,7 +2,10 @@
 #define RENDER_MEMORY_MEMORYALLOCATION_INCLUDED
 
 #include "MemoryTypes.h"
+#include "gpu_context_export.h"
 
+#include <cassert>
+#include <memory>
 class VmaAllocation_T;
 class VmaAllocator_T;
 class VmaAllocationInfo;
@@ -72,7 +75,7 @@ namespace Engine {
      * @invariant This class, once created, is guaranteed to hold a vaild image
      * allocation until moved or destructed.
      */
-    class ImageAllocation : private VmaMemoryAllocation {
+    class GPU_CONTEXT_API ImageAllocation : private VmaMemoryAllocation {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
@@ -123,7 +126,7 @@ namespace Engine {
      * @invariant This class, once created, is guaranteed to hold a vaild buffer
      * allocation until moved or destructed.
      */
-    class BufferAllocation : private VmaMemoryAllocation {
+    class GPU_CONTEXT_API BufferAllocation : private VmaMemoryAllocation {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

@@ -1,8 +1,8 @@
 #ifndef ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
 #define ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
 
-#include "Asset/Texture/TextureAsset.h"
 #include "AnnoRefl/macros.h"
+#include "Asset/Texture/TextureAsset.h"
 #include <Render/ImageUtils.h>
 #include <vector>
 

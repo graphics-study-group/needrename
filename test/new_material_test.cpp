@@ -12,6 +12,7 @@
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
@@ -115,7 +116,7 @@ auto BuildRenderGraph(
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
             .SetPassFunction([rsys, color, depth, material, mesh](CommandBuffer &cb, const RenderGraph &) {
-                auto extent = rsys->GetSwapchain().GetExtent();
+                auto extent = rsys->GetPresentProvider().GetExtent();
 
                 PipelineRuntimeInfo pri{};
                 pri.va = mesh->GetVertexAttributeFormat();

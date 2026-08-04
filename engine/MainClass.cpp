@@ -23,6 +23,8 @@
 
 #include "meta_engine/reflection_init.inc"
 
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
 extern "C"
 {
     void RegisterCoreTypes();
@@ -101,18 +103,27 @@ namespace Engine {
         if (sdl_window_flags == 0)
             sdl_window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if (opt->instantQuit) return;
-        this->window = std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, sdl_window_flags);
+
+        const bool is_headless = opt->headless;
+        if (!is_headless) {
+            this->window =
+                std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, sdl_window_flags);
+        }
         this->time = std::make_shared<TimeSystem>();
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->physics = std::make_shared<PhysicsSystem>();
         this->world = std::make_shared<WorldSystem>();
         this->asset_database = std::make_shared<FileSystemDatabase>();
         this->asset_manager = std::make_shared<AssetManager>();
-        this->gui = std::make_shared<GUISystem>();
-        this->input = std::make_shared<Input>();
+        if (!is_headless) {
+            this->gui = std::make_shared<GUISystem>();
+            this->input = std::make_shared<Input>();
+        }
 
         this->renderer->Create();
-        this->gui->Create(this->window->GetWindow());
+        if (!is_headless) {
+            this->gui->Create(this->window->GetWindow());
+        }
         AnnoRefl::Initialize();
         RegisterCoreTypes();
         RegisterAllTypes();

@@ -1,11 +1,10 @@
 #include "AllocatorState.h"
 
-#include "Render/DebugUtils.h"
-#include "Render/ImageUtilsFunc.h"
-#include "Render/RenderSystem.h"
-#include "Render/RenderSystem/DeviceInterface.h"
+#include "DebugUtils.h"
+#include "DeviceInterface.h"
 
 #include <SDL3/SDL.h>
+#include <vk_mem_alloc.h>
 #include <vulkan/vulkan_hash.hpp>
 
 namespace {
@@ -233,16 +232,20 @@ namespace Engine::RenderSystemState {
         }
     };
 
-    AllocatorState::AllocatorState(RenderSystem &system) : pimpl(std::make_unique<impl>()), m_system(system) {
+    AllocatorState::AllocatorState() = default;
+
+    void AllocatorState::SetDeviceInterface(DeviceInterface &device_interface) {
+        m_device_interface = &device_interface;
+        pimpl = std::make_unique<impl>();
     }
     AllocatorState::~AllocatorState() {
-        vmaDestroyAllocator(pimpl->m_allocator);
+        if (pimpl) vmaDestroyAllocator(pimpl->m_allocator);
     }
     void AllocatorState::Create() {
         VmaAllocatorCreateInfo info{};
-        info.device = m_system.GetDevice();
-        info.physicalDevice = m_system.GetDeviceInterface().GetPhysicalDevice();
-        info.instance = m_system.GetDeviceInterface().GetInstance();
+        info.device = m_device_interface->GetDevice();
+        info.physicalDevice = m_device_interface->GetPhysicalDevice();
+        info.instance = m_device_interface->GetInstance();
         info.vulkanApiVersion = vk::ApiVersion13;
 
         vmaDestroyAllocator(pimpl->m_allocator);
@@ -273,7 +276,7 @@ namespace Engine::RenderSystemState {
         VkResult result = vmaCreateBuffer(pimpl->m_allocator, &bcinfo, &ainfo, &buffer, &allocation, nullptr);
         vk::detail::resultCheck(vk::Result{result}, "Failed to create buffer.");
         assert(buffer != nullptr && allocation != nullptr);
-        DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), static_cast<vk::Buffer>(buffer), name);
+        DEBUG_SET_NAME_TEMPLATE(m_device_interface->GetDevice(), static_cast<vk::Buffer>(buffer), name);
         return BufferAllocation(static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator, type);
     }
 
@@ -296,7 +299,7 @@ namespace Engine::RenderSystemState {
     }
 
     bool AllocatorState::QueryFormatFeatures(vk::Format format, vk::FormatFeatureFlagBits feature) const noexcept {
-        auto ret = pimpl->UpdateFormatSupportInfo(m_system.GetDeviceInterface().GetPhysicalDevice(), format);
+        auto ret = pimpl->UpdateFormatSupportInfo(m_device_interface->GetPhysicalDevice(), format);
         return static_cast<bool>(vk::FormatFeatureFlags{ret.formatProperties.optimalTilingFeatures & feature});
     }
 
@@ -304,8 +307,7 @@ namespace Engine::RenderSystemState {
         const ImageAllocationDescription &desc, const std::string &name
     ) const {
         const auto [iusage, musage] = GetImageFlags(desc.type);
-        auto fsupport =
-            pimpl->QueryFormatSupport(m_system.GetDeviceInterface().GetPhysicalDevice(), desc.format, desc.type);
+        auto fsupport = pimpl->QueryFormatSupport(m_device_interface->GetPhysicalDevice(), desc.format, desc.type);
         if (fsupport.first <= 0) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
@@ -322,11 +324,7 @@ namespace Engine::RenderSystemState {
         }
 
         auto ifsupport = pimpl->UpdateImageFormatSupportInfo(
-            m_system.GetDeviceInterface().GetPhysicalDevice(),
-            desc.format,
-            desc.dimension,
-            vk::ImageTiling::eOptimal,
-            iusage
+            m_device_interface->GetPhysicalDevice(), desc.format, desc.dimension, vk::ImageTiling::eOptimal, iusage
         );
         if (!CheckImageFormatSupport(desc, ifsupport))
             throw std::invalid_argument("Requested size or multisample count unsupported.");
@@ -357,7 +355,7 @@ namespace Engine::RenderSystemState {
         VkImage image;
         VmaAllocation allocation;
         vmaCreateImage(pimpl->m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
-        DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), static_cast<vk::Image>(image), name);
+        DEBUG_SET_NAME_TEMPLATE(m_device_interface->GetDevice(), static_cast<vk::Image>(image), name);
         return ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, desc.type);
     }
 } // namespace Engine::RenderSystemState

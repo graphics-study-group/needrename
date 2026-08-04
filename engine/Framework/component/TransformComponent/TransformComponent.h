@@ -1,9 +1,9 @@
 #ifndef FRAMEWORK_COMPONENT_TRANSFORMCOMPONENT_TRANSFORMCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_TRANSFORMCOMPONENT_TRANSFORMCOMPONENT_INCLUDED
 
+#include <AnnoRefl/macros.h>
 #include <Core/Math/Transform.h>
 #include <Framework/component/Component.h>
-#include <AnnoRefl/macros.h>
 #include <glm.hpp>
 
 namespace Engine {

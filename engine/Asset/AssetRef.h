@@ -2,7 +2,9 @@
 #define ASSET_ASSETREF_INCLUDED
 
 #include <Core/guid.h>
+
 #include <AnnoRefl/macros.h>
+
 #include <memory>
 #include <optional>
 

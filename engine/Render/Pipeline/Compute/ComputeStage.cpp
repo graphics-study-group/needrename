@@ -2,12 +2,12 @@
 
 #include "Asset/AssetRef.h"
 #include "Asset/Shader/ShaderAsset.h"
-#include "Render/DebugUtils.h"
+#include "GpuContext/DebugUtils.h"
+#include "GpuContext/DeviceInterface.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Pipeline/Compute/ComputeResourceBinding.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 #include <bitset>
 #include <string>
 #include <unordered_map>

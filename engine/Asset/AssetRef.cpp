@@ -2,6 +2,7 @@
 #include <Asset/Asset.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <MainClass.h>
+
 #include <AnnoRefl/serialization.h>
 
 namespace Engine {

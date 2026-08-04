@@ -16,6 +16,7 @@
 #include "Framework/world/WorldSystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
@@ -290,7 +291,7 @@ int main(int argc, char **argv) {
             )
             .UseImage(s, IAT::ShaderSampledRead)
             .SetPassFunction([rsys](CommandBuffer &cb, const RenderGraph &) {
-                vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
+                vk::Extent2D extent{rsys->GetPresentProvider().GetExtent()};
                 vk::Rect2D scissor{{0, 0}, extent};
                 cb.SetupViewport(extent.width, extent.height, scissor);
                 cb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));

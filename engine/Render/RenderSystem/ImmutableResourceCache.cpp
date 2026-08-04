@@ -1,6 +1,6 @@
 #include "ImmutableResourceCache.h"
 
-#include "Render/DebugUtils.h"
+#include "GpuContext/DebugUtils.h"
 #include "Render/Hasher.hpp"
 #include "Render/Pipeline/PipelineUtils.hpp"
 

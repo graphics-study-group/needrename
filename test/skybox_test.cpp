@@ -12,6 +12,7 @@
 #include "Core/Math/Transform.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "UserInterface/GUISystem.h"
 
 #include "cmake_config.h"
@@ -191,7 +192,7 @@ int main(int argc, char **argv) {
                 glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
                 glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
                 rsys->GetSceneDataManager().DrawSkybox(
-                    cb, rsys->GetFrameManager().GetFrameInFlight(), pv, rsys->GetSwapchain().GetExtent()
+                    cb, rsys->GetFrameManager().GetFrameInFlight(), pv, rsys->GetPresentProvider().GetExtent()
                 );
             })
             .WrapRenderPass()

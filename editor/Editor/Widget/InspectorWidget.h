@@ -3,9 +3,10 @@
 
 #include "Widget.h"
 #include <Framework/world/Handle.h>
-#include <AnnoRefl/Var.h>
 #include <any>
 #include <string>
+
+#include <AnnoRefl/Var.h>
 
 namespace Engine {
     class GameObject;

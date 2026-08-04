@@ -1,9 +1,9 @@
-#ifndef RENDER_RENDERSYSTEM_ALLOCATORSTATE_INCLUDED
-#define RENDER_RENDERSYSTEM_ALLOCATORSTATE_INCLUDED
+#ifndef GPU_CONTEXT_ALLOCATORSTATE_INCLUDED
+#define GPU_CONTEXT_ALLOCATORSTATE_INCLUDED
 
-#include "Render/ImageUtils.h"
-#include "Render/Memory/MemoryAllocation.h"
-#include "Render/Memory/MemoryTypes.h"
+#include "MemoryAllocation.h"
+#include "MemoryTypes.h"
+#include "gpu_context_export.h"
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
@@ -12,22 +12,23 @@ class VmaAllocator_T;
 typedef VmaAllocator_T *VmaAllocator;
 
 namespace Engine {
-    class RenderSystem;
     namespace RenderSystemState {
+        class DeviceInterface;
 
         /**
          * @brief State of the underlying memory allocator.
          *
          * Currently the allocator is implemented via the VMA library.
          */
-        class AllocatorState {
+        class GPU_CONTEXT_API AllocatorState {
             struct impl;
             std::unique_ptr<impl> pimpl;
 
-            RenderSystem &m_system;
+            DeviceInterface *m_device_interface = nullptr;
 
         public:
-            AllocatorState(RenderSystem &system);
+            AllocatorState();
+            void SetDeviceInterface(DeviceInterface &device_interface);
 
             AllocatorState(const AllocatorState &) = delete;
             AllocatorState &operator=(const AllocatorState &) = delete;

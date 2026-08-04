@@ -1,8 +1,8 @@
 #ifndef ASSET_MATERIAL_SHADERASSET_INCLUDED
 #define ASSET_MATERIAL_SHADERASSET_INCLUDED
 
-#include <Asset/Asset.h>
 #include <AnnoRefl/macros.h>
+#include <Asset/Asset.h>
 #include <string>
 #include <vector>
 

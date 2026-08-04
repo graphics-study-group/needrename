@@ -1,10 +1,10 @@
 #ifndef FRAMEWORK_COMPONENT_PHYSICS_PHYSICSCONSTRAINTCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_PHYSICS_PHYSICSCONSTRAINTCOMPONENT_INCLUDED
 
-#include <Framework/component/Component.h>
-#include <Framework/world/Handle.h>
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
+#include <Framework/component/Component.h>
+#include <Framework/world/Handle.h>
 
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>

@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "Render/Memory/MemoryAllocation.h"
-#include "Render/Memory/MemoryTypes.h"
+#include "GpuContext/MemoryAllocation.h"
+#include "GpuContext/MemoryTypes.h"
 
 namespace vk {
     class Buffer;

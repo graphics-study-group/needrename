@@ -8,8 +8,8 @@
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/ImageUtilsFunc.h"
 
+#include "GpuContext/DeviceInterface.h"
 #include "Render/RenderSystem/CameraManager.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/ImmutableResourceCache.h"
 #include "Render/RenderSystem/RendererManager.h"
@@ -38,8 +38,8 @@
 #include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "Render/Renderer/VertexAttribute.h"
 
+#include "GpuContext/MemoryTypes.h"
 #include "Render/Memory/MemoryAccessTypes.h"
-#include "Render/Memory/MemoryTypes.h"
 
 #include "Render/Memory/ImageTexture.h"
 #include "Render/Memory/RenderTargetTexture.h"

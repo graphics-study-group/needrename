@@ -1,13 +1,15 @@
 #include "DefaultVarInspector.h"
 #include "VarInspectorRegistry.h"
 #include <Editor/EditorMainClass.h>
+
 #include <AnnoRefl/Type.h>
 #include <AnnoRefl/reflection.h>
-#include <cstring>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 #include <imgui.h>
 #include <utility>
+
+#include <cstring>
 
 namespace Editor {
     void InspectVar(const std::string &name, AnnoRefl::Var var) {

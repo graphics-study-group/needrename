@@ -1,5 +1,6 @@
 #include "DeviceInterface.h"
-#include "Render/DebugUtils.h"
+#include "DebugUtils.h"
+#include "Structs.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <unordered_set>
@@ -17,6 +18,8 @@ namespace Engine::RenderSystemState {
             VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
             VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME
         };
+
+        bool m_headless = false;
 
         vk::UniqueInstance instance{};
         vk::UniqueSurfaceKHR surface{};
@@ -73,6 +76,12 @@ namespace Engine::RenderSystemState {
                 std::is_same<decltype(VULKAN_HPP_DEFAULT_DISPATCHER), vk::detail::DispatchLoaderDynamic>::value,
                 "Vulkan-Hpp loader is not configured to be dynamic."
             );
+            // Load the Vulkan loader explicitly. In headless mode there is no
+            // window to trigger SDL's automatic Vulkan initialization.
+            if (!SDL_Vulkan_LoadLibrary(nullptr)) {
+                SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Failed to load Vulkan library, %s.", SDL_GetError());
+                std::terminate();
+            }
             if (cfg.dynamic_dispatcher) {
                 cfg.dynamic_dispatcher->init(
                     reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
@@ -92,13 +101,16 @@ namespace Engine::RenderSystemState {
             };
 
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating Vulkan instance.");
-            const char *const *pExt;
-            uint32_t extCount;
-            pExt = SDL_Vulkan_GetInstanceExtensions(&extCount);
-
             std::vector<const char *> extensions;
-            for (uint32_t i = 0; i < extCount; i++) {
-                extensions.push_back(pExt[i]);
+            if (m_headless) {
+                SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Headless mode: skipping surface extensions.");
+            } else {
+                const char *const *pExt;
+                uint32_t extCount;
+                pExt = SDL_Vulkan_GetInstanceExtensions(&extCount);
+                for (uint32_t i = 0; i < extCount; i++) {
+                    extensions.push_back(pExt[i]);
+                }
             }
 
 #ifndef NDEBUG
@@ -205,8 +217,6 @@ namespace Engine::RenderSystemState {
          * @brief Fill up a struct containing usable queue family indices.
          */
         QueueFamilies FillQueueFamilyIndices(vk::PhysicalDevice pd) {
-            assert(surface);
-
             QueueFamilies q;
 
             auto queueFamilyProps = pd.getQueueFamilyProperties();
@@ -215,7 +225,10 @@ namespace Engine::RenderSystemState {
             for (size_t i = 0; i < queueFamilyProps.size(); i++) {
                 const auto &prop = queueFamilyProps[i];
 
-                bool supportPresenting = pd.getSurfaceSupportKHR(i, surface.get());
+                bool supportPresenting = false;
+                if (!m_headless) {
+                    supportPresenting = pd.getSurfaceSupportKHR(i, surface.get());
+                }
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
                     "%s",
@@ -231,11 +244,13 @@ namespace Engine::RenderSystemState {
                 );
 
                 if (prop.queueFlags & vk::QueueFlagBits::eGraphics) {
-                    assert(pd.getSurfaceSupportKHR(i, surface.get()));
+                    if (!m_headless) {
+                        assert(pd.getSurfaceSupportKHR(i, surface.get()));
+                    }
                     q.graphics = q.graphics_present = i;
                 } else if (prop.queueFlags & vk::QueueFlagBits::eCompute) {
                     q.async_compute = i;
-                    if (pd.getSurfaceSupportKHR(i, surface.get())) {
+                    if (!m_headless && pd.getSurfaceSupportKHR(i, surface.get())) {
                         q.async_compute_present = i;
                     }
                 } else if (prop.queueFlags & vk::QueueFlagBits::eTransfer) {
@@ -290,11 +305,13 @@ namespace Engine::RenderSystemState {
                 return -1;
             }
 
-            // Check if swapchain is supported
-            auto support = FillSwapchainSupport(pd);
-            if (support.formats.empty() || support.modes.empty()) {
-                SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Cannot find suitable swapchain.");
-                return -1;
+            // Check if swapchain is supported (windowed only; headless has no surface)
+            if (!m_headless) {
+                auto support = FillSwapchainSupport(pd);
+                if (support.formats.empty() || support.modes.empty()) {
+                    SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Cannot find suitable swapchain.");
+                    return -1;
+                }
             }
 
             // Check features
@@ -342,8 +359,6 @@ namespace Engine::RenderSystemState {
          * @brief Get the physical device that supports needed Vulkan features.
          */
         void GetPhysicalDevice(const DeviceConfiguration &cfg) {
-            assert(surface);
-
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Selecting physical devices.");
             auto devices = instance->enumeratePhysicalDevices();
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Found %llu Vulkan devices.", devices.size());
@@ -455,7 +470,6 @@ namespace Engine::RenderSystemState {
         void CreateCommandPool(const DeviceConfiguration &cfg) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Retreiving queues.");
             queues.graphicsQueue = device->getQueue(queue_families.graphics.value(), 0);
-            queues.presentQueue = device->getQueue(queue_families.graphics_present.value(), 0);
 
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command pools.");
             vk::CommandPoolCreateInfo info{};
@@ -464,15 +478,20 @@ namespace Engine::RenderSystemState {
             queues.graphicsPool = device->createCommandPoolUnique(info);
             queues.graphicsOneTimePool = device->createCommandPoolUnique(info);
 
-            info.queueFamilyIndex = queue_families.graphics_present.value();
-            queues.presentPool = device->createCommandPoolUnique(info);
+            if (!m_headless) {
+                queues.presentQueue = device->getQueue(queue_families.graphics_present.value(), 0);
+                info.queueFamilyIndex = queue_families.graphics_present.value();
+                queues.presentPool = device->createCommandPoolUnique(info);
+            }
         }
     };
 
     DeviceInterface::DeviceInterface(DeviceConfiguration cfg) : pimpl(std::make_unique<impl>()) {
-        assert(cfg.window);
+        pimpl->m_headless = (cfg.window == nullptr);
         pimpl->CreateInstance(cfg);
-        pimpl->CreateSurface(cfg);
+        if (!pimpl->m_headless) {
+            pimpl->CreateSurface(cfg);
+        }
         pimpl->GetPhysicalDevice(cfg);
         pimpl->CreateDevice(cfg);
         pimpl->CreateCommandPool(cfg);

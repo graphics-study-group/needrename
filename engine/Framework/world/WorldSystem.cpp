@@ -1,21 +1,21 @@
 #include "WorldSystem.h"
-#include <Core/Delegate/Delegate.h>
 #include "EventQueue.h"
+#include <AnnoRefl/Type.h>
+#include <Core/Delegate/Delegate.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/component/RenderComponent/LightComponent.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
 #include <MainClass.h>
-#include <AnnoRefl/Type.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/RendererManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 
+#include <AnnoRefl/serialization.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Scene/LevelAsset.h>
-#include <AnnoRefl/serialization.h>
 
 namespace Engine {
     WorldSystem::WorldSystem() {

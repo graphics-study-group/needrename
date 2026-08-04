@@ -3,9 +3,9 @@
 #include "Asset/AssetRef.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 
+#include "GpuContext/DebugUtils.h"
 #include "MaterialInstance.h"
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/DebugUtils.h"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"

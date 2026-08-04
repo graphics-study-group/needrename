@@ -1,10 +1,10 @@
 #ifndef FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Handle.h>
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/Handle.h>
 #include <memory>
 
 namespace Engine {

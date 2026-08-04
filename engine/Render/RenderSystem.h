@@ -24,6 +24,7 @@ namespace Engine {
     class Camera;
     class CommandBuffer;
     class RenderTargetTexture;
+    class IPresentProvider;
 
     namespace ConstantData {
         struct PerCameraStruct;
@@ -31,7 +32,6 @@ namespace Engine {
 
     namespace RenderSystemState {
         class DeviceInterface;
-        class Swapchain;
         class AllocatorState;
         class FrameManager;
         class RendererManager;
@@ -146,8 +146,8 @@ namespace Engine {
 
         /// @brief Get the allocator service
         const RenderSystemState::AllocatorState &GetAllocatorState() const;
-        /// @brief Get the swapchain manager
-        const RenderSystemState::Swapchain &GetSwapchain() const;
+        /// @brief Get the present provider (windowed or headless)
+        IPresentProvider &GetPresentProvider();
         /// @brief Get the frame manager
         RenderSystemState::FrameManager &GetFrameManager();
         /// @brief Get the renderer manager

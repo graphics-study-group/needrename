@@ -1,12 +1,12 @@
 #ifndef FRAMEWORK_COMPONENT_PHYSICS_COLLISIONSHAPECOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_PHYSICS_COLLISIONSHAPECOMPONENT_INCLUDED
 
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_glm.h>
 #include <Core/Math/Transform.h>
 #include <Framework/component/Component.h>
 #include <Framework/world/physics/PhysicsDescriptors.h>
 #include <Physics/PhysicsScene.h>
-#include <AnnoRefl/macros.h>
-#include <AnnoRefl/serialization_glm.h>
 
 namespace Engine {
     /**

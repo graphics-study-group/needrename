@@ -1,8 +1,10 @@
 #include "FileSystemDatabase.h"
 #include <Asset/AssetRef.h>
+
 #include <AnnoRefl/Archive.h>
-#include <fstream>
 #include <nlohmann/json.hpp>
+
+#include <fstream>
 
 namespace {
     bool GetGUID(const AnnoRefl::Archive &archive, Engine::GUID &out_guid) {

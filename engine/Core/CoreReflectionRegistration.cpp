@@ -3,7 +3,8 @@
 
 #include "meta_core/reflection_init.inc"
 
-extern "C" {
+extern "C"
+{
     CORE_API void RegisterCoreTypes() {
         RegisterAllTypes();
     }

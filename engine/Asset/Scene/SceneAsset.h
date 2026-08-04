@@ -1,8 +1,8 @@
 #ifndef ASSET_SCENE_SCENEASSET_H
 #define ASSET_SCENE_SCENEASSET_H
 
-#include <Asset/Asset.h>
 #include <AnnoRefl/macros.h>
+#include <Asset/Asset.h>
 #include <memory>
 
 namespace Engine {

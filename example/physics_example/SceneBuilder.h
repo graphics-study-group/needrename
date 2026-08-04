@@ -97,11 +97,7 @@ public:
      * @param root          Root GameObject all created objects will be parented to.
      * @param render_system Render system, used by Finalize for GPU buffer refresh.
      */
-    SceneBuilder(
-        Engine::Scene &scene,
-        Engine::FileSystemDatabase &adb,
-        Engine::GameObject &root
-    );
+    SceneBuilder(Engine::Scene &scene, Engine::FileSystemDatabase &adb, Engine::GameObject &root);
 
     /**
      * @brief Add a physics box to the scene.

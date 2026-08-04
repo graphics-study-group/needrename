@@ -77,3 +77,13 @@ target_link_libraries(physics_registration_test engine)
 add_test(NAME physics_registration_test COMMAND physics_registration_test)
 set_target_properties(physics_registration_test PROPERTIES FOLDER tests)
 
+add_executable(headless_compute_test headless_compute_test.cpp)
+target_link_libraries(headless_compute_test engine)
+add_test(NAME headless_compute_test COMMAND headless_compute_test)
+set_target_properties(headless_compute_test PROPERTIES FOLDER tests)
+
+add_executable(headless_offscreen_test headless_offscreen_test.cpp)
+target_link_libraries(headless_offscreen_test engine)
+add_test(NAME headless_offscreen_test COMMAND headless_offscreen_test)
+set_target_properties(headless_offscreen_test PROPERTIES FOLDER tests)
+

@@ -5,8 +5,10 @@
 #include <Asset/AssetDatabase/AssetDatabase.h>
 #include <Asset/AssetRef.h>
 #include <MainClass.h>
+
 #include <AnnoRefl/reflection.h>
 #include <AnnoRefl/serialization.h>
+
 #include <cassert>
 #include <fstream>
 #include <nlohmann/json.hpp>

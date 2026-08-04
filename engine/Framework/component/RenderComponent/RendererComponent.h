@@ -1,11 +1,11 @@
 #ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
 
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_vector.h>
 #include <Asset/AssetRef.h>
 #include <Core/Math/Transform.h>
 #include <Framework/component/Component.h>
-#include <AnnoRefl/macros.h>
-#include <AnnoRefl/serialization_vector.h>
 #include <Render/RenderSystem/RendererManager.h>
 #include <vector>
 

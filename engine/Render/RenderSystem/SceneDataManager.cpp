@@ -1,6 +1,6 @@
 #include "SceneDataManager.h"
 
-#include "Render/DebugUtils.h"
+#include "GpuContext/DebugUtils.h"
 #include "Render/Memory/ComputeBuffer.h"
 #include "Render/Memory/IndexedBuffer.h"
 #include "Render/Resource/MaterialInstanceManager.h"

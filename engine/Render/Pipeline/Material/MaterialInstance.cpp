@@ -1,6 +1,7 @@
 #include "MaterialInstance.h"
 
 #include "Asset/Material/MaterialAsset.h"
+#include "GpuContext/DeviceInterface.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
 #include "Render/Memory/StructuredBufferPlacer.h"
@@ -9,7 +10,6 @@
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/VertexAttribute.h"

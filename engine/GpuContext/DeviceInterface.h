@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 
+#include "gpu_context_export.h"
 struct SDL_Window;
 
 namespace vk {
@@ -14,7 +15,7 @@ namespace vk {
     class PhysicalDevice;
     class Device;
     namespace detail {
-        class DispatchLoaderBase;
+        class DispatchLoaderDynamic;
     }
 } // namespace vk
 
@@ -30,7 +31,7 @@ namespace Engine {
          * All returned handles from this class can be assumed to be invariant
          * across a session, meaning that you are free to cache these results.
          */
-        class DeviceInterface {
+        class GPU_CONTEXT_API DeviceInterface {
             struct impl;
             std::unique_ptr<impl> pimpl;
 

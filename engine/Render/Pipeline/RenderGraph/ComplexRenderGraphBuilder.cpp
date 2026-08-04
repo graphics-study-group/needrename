@@ -10,6 +10,7 @@
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
+#include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
 
@@ -168,7 +169,7 @@ namespace Engine {
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
                 .SetPassFunction([&system, world_system](CommandBuffer &cb, const RenderGraph &) {
-                    vk::Extent2D extent{system.GetSwapchain().GetExtent()};
+                    vk::Extent2D extent{system.GetPresentProvider().GetExtent()};
                     vk::Rect2D scissor{{0, 0}, extent};
                     cb.SetupViewport(extent.width, extent.height, scissor);
                     auto active_camera = world_system->GetActiveCamera();

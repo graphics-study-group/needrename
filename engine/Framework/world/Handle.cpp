@@ -1,9 +1,9 @@
 #include "Handle.h"
 #include "HandleResolver.h"
+#include <AnnoRefl/serialization.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <AnnoRefl/serialization.h>
 
 namespace Engine {
     namespace detail {

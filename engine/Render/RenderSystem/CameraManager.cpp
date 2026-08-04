@@ -1,8 +1,8 @@
 #include "CameraManager.h"
 
-#include "Render/DebugUtils.h"
+#include "GpuContext/DebugUtils.h"
+#include "GpuContext/DeviceInterface.h"
 #include "Render/Memory/IndexedBuffer.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Renderer/Camera.h"
 #include <SDL3/SDL.h>
 #include <glm.hpp>

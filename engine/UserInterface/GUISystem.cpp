@@ -1,10 +1,11 @@
 #include "GUISystem.h"
 
+#include "GpuContext/DeviceInterface.h"
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/DeviceInterface.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include <SDL3/SDL.h>
@@ -113,19 +114,19 @@ namespace Engine {
             pimpl->vkr.descriptor_pool = render_system.GetDevice().createDescriptorPoolUnique(dpci);
         }
 
-        const auto &swapchain = render_system.GetSwapchain();
+        const auto &present_provider = render_system.GetPresentProvider();
         ImGui_ImplVulkan_InitInfo info{};
         info.Instance = render_system.GetDeviceInterface().GetInstance();
         info.PhysicalDevice = render_system.GetDeviceInterface().GetPhysicalDevice();
         info.Device = render_system.GetDevice();
         info.Queue = render_system.GetDeviceInterface().GetQueueInfo().graphicsQueue;
         info.DescriptorPool = pimpl->vkr.descriptor_pool.get();
-        info.ImageCount = swapchain.GetFrameCount();
+        info.ImageCount = present_provider.GetImageCount();
         info.MinImageCount = info.ImageCount;
         info.UseDynamicRendering = true;
 
         std::array<vk::Format, 1> formats = {
-            {color_attachment_format == vk::Format::eUndefined ? render_system.GetSwapchain().GetColorFormat()
+            {color_attachment_format == vk::Format::eUndefined ? render_system.GetPresentProvider().GetColorFormat()
                                                                : color_attachment_format}
         };
         VkPipelineRenderingCreateInfoKHR pipeline{static_cast<VkPipelineRenderingCreateInfoKHR>(

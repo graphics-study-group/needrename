@@ -91,4 +91,5 @@ namespace Engine {
 } // namespace Engine
 
 #include <AnnoRefl/serialization_glm.h>
+
 #include "__generated__/Transform.h.inc"

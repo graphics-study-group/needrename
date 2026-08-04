@@ -4,9 +4,9 @@
 #include <SDL3/SDL.h>
 #include <SPIRV/GlslangToSpv.h>
 
+#include <GpuContext/DeviceInterface.h>
 #include <MainClass.h>
 #include <Render/RenderSystem.h>
-#include <Render/RenderSystem/DeviceInterface.h>
 
 namespace {
     /**

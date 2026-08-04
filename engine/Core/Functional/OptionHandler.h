@@ -10,6 +10,7 @@ struct StartupOptions {
     int resol_x{1024}, resol_y{768};
     int fntSz{12};
     bool enableVerbose{false};
+    bool headless{false};
 
     std::string title{};
     std::string fntName{};
@@ -27,6 +28,7 @@ namespace OptionDeclaration {
         OPT_SETFONT,
         OPT_SETSIZE,
         OPT_STARTUP,
+        OPT_HEADLESS,
     };
     extern const char *short_options;
     extern const option long_options[];

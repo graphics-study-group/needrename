@@ -12,6 +12,8 @@ namespace Engine {
     class Texture;
     class DeviceBuffer;
     class CommandBuffer;
+    class RenderTargetTexture;
+    class IPresentProvider;
 
     namespace RenderSystemState {
         class SubmissionHelper;
@@ -46,7 +48,7 @@ namespace Engine {
              * Allocate synchronization primitives such as fences and semaphores.
              * Also allocates reused command buffers (i.e main command buffers).
              */
-            void Create();
+            void Create(IPresentProvider &present_provider);
 
             /// @brief Get the current frame-in-flight count.
             uint32_t GetFrameInFlight() const noexcept;
@@ -107,27 +109,17 @@ namespace Engine {
 
             /**
              * @brief Present an image to the swapchain by blitting.
-             * The area specified by extent and offset will be blitted
-             * to the whole swapchain image.
              *
-             * This method inserts appopriate barriers to ensure memory dependencies for the image.
-             * The layout of the image is assumed to be in `COLOR_ATTACHMENT_OPTIMAL`.
-             *
-             * Exactly one call of this method is expected each frame.
-             * You should probably use `RenderSystem::CompleteFrame()`
-             * if you have no idea what to use.
+             * Builds a `FrameSyncInfo` from this frame's synchronization state
+             * (timeline, image-acquired, copy-completed semaphores, and the
+             * command-executed fence), then delegates the Vulkan blit + submit +
+             * present to `IPresentProvider::CompleteFrame`.
              *
              * @return True if the swapchain needs to be recreated.
-             *
-             * @todo Revisit sychronization methods for this command.
              */
             [[nodiscard]]
             bool PresentToFramebuffer(
-                vk::Image image,
-                MemoryAccessTypeImageBits last_access,
-                vk::Extent2D extentSrc,
-                vk::Offset2D offsetSrc = {0, 0},
-                vk::Filter filter = vk::Filter::eLinear
+                const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access
             );
 
             /// @brief Get the submission helper.

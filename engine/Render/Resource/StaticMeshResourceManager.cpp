@@ -1,8 +1,8 @@
 #include "StaticMeshResourceManager.h"
 
 #include "Asset/AssetRef.h"
+#include "GpuContext/AllocatorState.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "StaticMeshResource.h"
 

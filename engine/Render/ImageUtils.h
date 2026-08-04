@@ -1,7 +1,7 @@
 #ifndef ENGINE_RENDER_IMAGEUTILS_INCLUDED
 #define ENGINE_RENDER_IMAGEUTILS_INCLUDED
 
-#include "Render/Memory/MemoryTypes.h"
+#include "GpuContext/MemoryTypes.h"
 #include "Render/Pipeline/PipelineEnums.h"
 #include <AnnoRefl/macros.h>
 

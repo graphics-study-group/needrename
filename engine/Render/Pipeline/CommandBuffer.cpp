@@ -1,8 +1,8 @@
 #include "CommandBuffer.h"
 
 #include "Framework/component/RenderComponent/RendererComponent.h"
+#include "GpuContext/DebugUtils.h"
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/DebugUtils.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/Texture.h"
 #include "Render/Pipeline/Compute/ComputeResourceBinding.h"
@@ -12,6 +12,7 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/Camera.h"
@@ -289,7 +290,10 @@ namespace Engine {
 
     void CommandBuffer::DrawRenderers(const std::string &tag, const RendererList &renderers) {
         this->DrawRenderers(
-            tag, renderers, m_system.GetCameraManager().GetActiveCameraIndex(), m_system.GetSwapchain().GetExtent()
+            tag,
+            renderers,
+            m_system.GetCameraManager().GetActiveCameraIndex(),
+            m_system.GetPresentProvider().GetExtent()
         );
     }
 
