@@ -373,13 +373,17 @@ namespace Engine::RenderSystemState {
 
             if (!selected_device) {
                 SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Cannot select appropiate device.");
-                SDL_ShowSimpleMessageBox(
-                    SDL_MESSAGEBOX_ERROR,
-                    "Critical Error",
-                    "None of your GPUs supports necessary Vulkan capabilities.\n"
-                    "This is an unrecoverable error and the program will now terminate.",
-                    cfg.window
-                );
+                // A modal message box with a null parent would block forever in
+                // headless/CI environments — log and terminate instead.
+                if (cfg.window != nullptr) {
+                    SDL_ShowSimpleMessageBox(
+                        SDL_MESSAGEBOX_ERROR,
+                        "Critical Error",
+                        "None of your GPUs supports necessary Vulkan capabilities.\n"
+                        "This is an unrecoverable error and the program will now terminate.",
+                        cfg.window
+                    );
+                }
                 std::terminate();
             }
             SDL_LogInfo(

@@ -99,3 +99,10 @@
 - [x] 13.3 Ensure `image_ready` wait uses `eAllTransfer` stage mask (stage latch, NOT `eAllCommands` — would gate the whole batch); add a comment at the submit site
 - [x] 13.4 Verify timeline timepoint-3 consumers are gone (grep `GetSubmitInfo(3` / `ExpectedTimepoints() - 1`) before merging
 - [x] 13.5 Restore `vk::Filter::eLinear` for the present blit (regression vs. the old default `eLinear`)
+
+## 14. Standalone GpuContext verification (verify-change WARNING follow-up)
+
+- [x] 14.1 Create `test/gpu_context_standalone_test.cpp`: constructs `Engine::GpuContext` directly with `DeviceConfiguration{.window = nullptr}` (no RenderSystem, no surface), compiles an inline GLSL compute shader via `ShaderCompiler`, builds a minimal raw-Vulkan compute pipeline, allocates the output buffer via `AllocatorState::AllocateBuffer(ReadbackFromDevice)`, dispatches, and verifies the readback — fulfilling the `gpu-context-module` spec scenario "Standalone headless compute test"
+- [x] 14.2 Add `gpu_context_standalone_test` target in `test/CMakeLists.txt`, link `engine` (for `ShaderCompiler`); initialize the module's dynamic dispatch loader copy (instance first, then device — same pattern as `RenderSystem::Create`)
+- [x] 14.3 Verify test passes: `ctest --preset debug -R gpu_context_standalone_test`
+- [x] 14.4 Skip the modal `SDL_ShowSimpleMessageBox` when `cfg.window == nullptr` (headless/CI environments would block forever) in `DeviceInterface::GetPhysicalDevice` failure path

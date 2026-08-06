@@ -82,6 +82,11 @@ target_link_libraries(headless_compute_test engine)
 add_test(NAME headless_compute_test COMMAND headless_compute_test)
 set_target_properties(headless_compute_test PROPERTIES FOLDER tests)
 
+add_executable(gpu_context_standalone_test gpu_context_standalone_test.cpp)
+target_link_libraries(gpu_context_standalone_test engine)
+add_test(NAME gpu_context_standalone_test COMMAND gpu_context_standalone_test)
+set_target_properties(gpu_context_standalone_test PROPERTIES FOLDER tests)
+
 add_executable(headless_offscreen_test headless_offscreen_test.cpp)
 target_link_libraries(headless_offscreen_test engine)
 add_test(NAME headless_offscreen_test COMMAND headless_offscreen_test)
