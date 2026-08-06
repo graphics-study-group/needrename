@@ -31,8 +31,10 @@ namespace Engine::RenderSystemState {
 
         std::array<vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores{};
 
-        // This has to be a vector since swapchain image count are not determined until startup.
-        std::vector<vk::UniqueSemaphore> copy_to_swapchain_completed_semaphores{};
+        // Frame completion credential: a binary semaphore per frame-in-flight,
+        // signaled by the frame-completion batch and waited on by `Present`.
+        // (Binary, because vkQueuePresentKHR accepts only binary semaphores.)
+        std::array<vk::UniqueSemaphore, FRAMES_IN_FLIGHT> frame_completed_semaphores{};
 
         std::array<vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences{};
 
@@ -124,18 +126,14 @@ namespace Engine::RenderSystemState {
                 device, image_acquired_semaphores[i].get(), std::format("Semaphore - image acquired {}", i)
             );
 
+            frame_completed_semaphores[i] = device.createSemaphoreUnique(scinfo);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, frame_completed_semaphores[i].get(), std::format("Semaphore - frame completed {}", i)
+            );
+
             command_executed_fences[i] = device.createFenceUnique(finfo);
             DEBUG_SET_NAME_TEMPLATE(
                 device, command_executed_fences[i].get(), std::format("Fence - all commands executed {}", i)
-            );
-        }
-        copy_to_swapchain_completed_semaphores.resize(m_present_provider->GetImageCount());
-        for (size_t i = 0; i < copy_to_swapchain_completed_semaphores.size(); i++) {
-            copy_to_swapchain_completed_semaphores[i] = device.createSemaphoreUnique(scinfo);
-            DEBUG_SET_NAME_TEMPLATE(
-                device,
-                copy_to_swapchain_completed_semaphores[i].get(),
-                std::format("Semaphore - final copy completed {}", i)
             );
         }
 
@@ -183,9 +181,11 @@ namespace Engine::RenderSystemState {
         return this->pimpl->current_framebuffer;
     }
 
-    CommandBuffer FrameManager::GetCommandBuffer() {
+    CommandBuffer FrameManager::BeginMainCommandBuffer() {
         pimpl->assert_in_frame();
-        return CommandBuffer(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
+        auto cb = GetRawMainCommandBuffer();
+        cb.begin(vk::CommandBufferBeginInfo{});
+        return CommandBuffer(pimpl->m_system, cb, GetFrameInFlight());
     }
 
     vk::CommandBuffer FrameManager::GetRawMainCommandBuffer() {
@@ -221,32 +221,51 @@ namespace Engine::RenderSystemState {
         return pimpl->current_framebuffer;
     }
 
-    void FrameManager::SubmitMainCommandBuffer() {
+    bool FrameManager::SubmitFrame(const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access) {
         pimpl->assert_in_frame();
 
         const uint32_t fif = GetFrameInFlight();
         auto &this_timeline_semaphore = pimpl->timeline_semaphores[fif];
         auto &prev_timeline_semaphore = pimpl->timeline_semaphores[(fif + (FRAMES_IN_FLIGHT - 1)) % FRAMES_IN_FLIGHT];
-        // TODO: we currently hardcode expected timepoints to be 4, namely: start(1), transfer(2), render(3) and presenting(4).
-        // This start timepoint is not actually needed other than scilencing the validation layer.
-        // The presenting timepoint is currently not needed actually as all operations happen on one queue.
+        // Timeline timepoints: 1 = start (validation silence), 2 = staged
+        // upload complete, 4 = frame complete. Timepoint 3 is gone: the copy
+        // executes in-order inside the same batch, so no "render complete"
+        // wait is needed. The value jumps 2 -> 4, which timeline semaphores
+        // allow.
         this_timeline_semaphore.SetExpectedTimepoints(4);
 
+        // End the main command buffer (recording is driven by the render layer,
+        // but the lifecycle belongs to FrameManager).
+        pimpl->command_buffers[fif]->end();
+
+        // Staged resource submission (signals timeline timepoint 2).
         pimpl->m_submission_helper->OnPreMainCbSubmission();
 
-        vk::CommandBufferSubmitInfo cbsi{pimpl->command_buffers[fif].get()};
-        std::array<vk::SemaphoreSubmitInfo, 2> wait_infos{};
-        vk::SemaphoreSubmitInfo signal_info{};
+        // Record the copy CB (headless → nullptr; the batch then carries no copy).
+        auto copy_cb = pimpl->m_present_provider->PrepareCopy(
+            pimpl->m_system.GetDevice(), present_texture, GetFramebuffer(), last_access
+        );
+
+        // ── One frame-completion batch: {main render CB, copy CB} ──
+        std::array<vk::SemaphoreSubmitInfo, 3> wait_infos{};
         wait_infos[0] = this_timeline_semaphore.GetSubmitInfo(
             2,
-            // Wait before any command starts.
+            // Wait for staged upload before any command starts.
             vk::PipelineStageFlagBits2::eAllCommands
         );
-        // Wait for total completion of the last frame
+        // Wait for total completion of the last frame.
         wait_infos[1] = prev_timeline_semaphore.GetSubmitInfo(
             prev_timeline_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllCommands
         );
-        // special consideration for deadlock on the first frame.
+        // Wait for image acquisition. eAllTransfer = a stage latch, NOT a batch
+        // latch: graphics/compute stages (earlier than eTransfer) may proceed
+        // before the image is ready; only transfer-stage commands (the copy
+        // blit) are gated. Must not use eAllCommands here.
+        wait_infos[2] = vk::SemaphoreSubmitInfo{
+            pimpl->image_acquired_semaphores[fif].get(), 0, vk::PipelineStageFlagBits2::eAllTransfer
+        };
+
+        // Special consideration for deadlock on the first frame.
         if (GetTotalFrame() == 0) {
             prev_timeline_semaphore.SetExpectedTimepoints(1);
             this->pimpl->m_system.GetDevice().signalSemaphore(
@@ -256,54 +275,35 @@ namespace Engine::RenderSystemState {
         // We must step frame after wait info is recorded to avoid deadlock.
         prev_timeline_semaphore.EndFrame();
 
-        signal_info = this_timeline_semaphore.GetSubmitInfo(
-            3,
-            // Signal after all commands are finished.
+        std::array<vk::SemaphoreSubmitInfo, 2> signal_infos{};
+        // Frame complete (timeline).
+        signal_infos[0] = this_timeline_semaphore.GetSubmitInfo(
+            4,
+            // Signal after all commands (render + copy) are finished.
             vk::PipelineStageFlagBits2::eAllCommands
         );
-
-        this->pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
-            vk::SubmitInfo2{vk::SubmitFlags{}, wait_infos, {cbsi}, {signal_info}}, nullptr
-        );
-    }
-
-    bool FrameManager::PresentToFramebuffer(
-        const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access
-    ) {
-        pimpl->assert_in_frame();
-
-        const auto fif = GetFrameInFlight();
-        const auto framebuffer = GetFramebuffer();
-
-        // Prepare synchronization for the copy-to-swapchain submit.
-        auto &this_frame_semaphore = pimpl->timeline_semaphores[fif];
-        FrameSyncInfo sync{};
-
-        // Wait for the second-to-last timepoint (main rendering complete).
-        sync.wait[0] = this_frame_semaphore.GetSubmitInfo(
-            this_frame_semaphore.GetExpectedTimepoints() - 1, vk::PipelineStageFlagBits2::eAllTransfer
-        );
-        // Wait for image acquisition (binary semaphore).
-        sync.wait[1] = vk::SemaphoreSubmitInfo{
-            pimpl->image_acquired_semaphores[fif].get(), 0, vk::PipelineStageFlagBits2::eAllTransfer
+        // Frame completion credential (binary) — waited on by Present.
+        signal_infos[1] = vk::SemaphoreSubmitInfo{
+            pimpl->frame_completed_semaphores[fif].get(), 0, vk::PipelineStageFlagBits2::eAllCommands
         };
 
-        // Signal ready for presenting.
-        sync.signal[0] = vk::SemaphoreSubmitInfo{
-            pimpl->copy_to_swapchain_completed_semaphores[framebuffer].get(),
-            0,
-            vk::PipelineStageFlagBits2::eAllTransfer
-        };
-        sync.signal[1] = this_frame_semaphore.GetSubmitInfo(
-            this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllTransfer
+        vk::CommandBufferSubmitInfo cbs[]{{pimpl->command_buffers[fif].get()}, {copy_cb}};
+        const uint32_t cb_count = copy_cb ? 2u : 1u;
+        vk::SubmitInfo2 sinfo{};
+        sinfo.waitSemaphoreInfoCount = static_cast<uint32_t>(wait_infos.size());
+        sinfo.pWaitSemaphoreInfos = wait_infos.data();
+        sinfo.commandBufferInfoCount = cb_count;
+        sinfo.pCommandBufferInfos = cbs;
+        sinfo.signalSemaphoreInfoCount = static_cast<uint32_t>(signal_infos.size());
+        sinfo.pSignalSemaphoreInfos = signal_infos.data();
+        pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
+            sinfo, pimpl->command_executed_fences[fif].get()
         );
 
-        sync.present_wait_semaphore = pimpl->copy_to_swapchain_completed_semaphores[framebuffer].get();
-        sync.fence = pimpl->command_executed_fences[fif].get();
-
-        // Delegate blit + submit + present to the present provider.
-        bool needs_recreating =
-            pimpl->m_present_provider->CompleteFrame(pimpl->m_system.GetDevice(), present_texture, framebuffer, sync);
+        // Present (waits on the frame completion credential).
+        bool needs_recreating = pimpl->m_present_provider->Present(
+            pimpl->m_system.GetDevice(), GetFramebuffer(), pimpl->frame_completed_semaphores[fif].get()
+        );
 
         pimpl->CompleteFrame();
         return needs_recreating;

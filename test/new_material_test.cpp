@@ -296,18 +296,17 @@ int main(int argc, char **argv) {
         );
 
         auto index = rsys->StartFrame();
+        rsys->GetFrameManager().BeginMainCommandBuffer();
         if (has_gaussian_blur) {
-            blur->Execute(*rsys);
+            blur->RecordIntoMainCommandBuffer(*rsys);
         } else {
-            nonblur->Execute(*rsys);
+            nonblur->RecordIntoMainCommandBuffer(*rsys);
         }
 
         rsys->CompleteFrame(
             has_gaussian_blur ? *postproc : *color,
             has_gaussian_blur ? MemoryAccessTypeImageBits::ShaderRandomWrite
-                              : MemoryAccessTypeImageBits::ColorAttachmentWrite,
-            postproc->GetTextureDescription().width,
-            postproc->GetTextureDescription().height
+                              : MemoryAccessTypeImageBits::ColorAttachmentWrite
         );
 
         SDL_Delay(10);

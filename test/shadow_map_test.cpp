@@ -324,9 +324,10 @@ int main(int argc, char **argv) {
         cube_mesh_comp.PreRenderUpdate();
         sphere_mesh_comp.PreRenderUpdate();
 
-        rg->Execute(*rsys);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(c);
-        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
+        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

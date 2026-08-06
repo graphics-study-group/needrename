@@ -65,15 +65,21 @@ namespace Engine {
             uint32_t GetFramebuffer() const noexcept;
 
             /**
-             * @brief Get the command buffer assigned to the current frame in flight.
+             * @brief Begin recording the main command buffer of the current
+             * frame in flight.
              *
-             * Must be called between `StartFrame()` and `CompleteFrame()`
+             * The main command buffer lifecycle (begin/end/submit) belongs to
+             * FrameManager: begin here, record render/physics commands, then
+             * call `SubmitFrame()` which ends and submits it.
+             *
+             * @warning Must be called between `StartFrame()` and `SubmitFrame()`,
+             * once each frame.
              */
-            [[deprecated]]
-            CommandBuffer GetCommandBuffer();
+            CommandBuffer BeginMainCommandBuffer();
 
             /**
-             * @brief Request the current main command buffer
+             * @brief Get the raw main command buffer handle of the current
+             * frame in flight.
              */
             vk::CommandBuffer GetRawMainCommandBuffer();
 
@@ -97,30 +103,26 @@ namespace Engine {
             uint32_t StartFrame(uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             /**
-             * @brief Submit the main command buffer to the graphics queue for execution.
+             * @brief Frame completion: the single per-frame submit + present.
              *
-             * Also performs staged resource submission.
+             * Ends the main command buffer, records the copy command buffer via
+             * `IPresentProvider::PrepareCopy` (nullptr when headless), submits
+             * ONE `vkQueueSubmit2` batch containing both the main render CB and
+             * the copy CB (in-order execution, zero signals between them;
+             * barriers handle layout), then presents waiting on the frame
+             * completion credential.
              *
-             * @warning Must be called before `PresentToFramebuffer`, once each frame.
+             * The batch unconditionally signals `timeline@4` + the
+             * command-executed fence, so the frame sync chain closes even in
+             * headless mode (no deadlock).
              *
-             * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
-             */
-            void SubmitMainCommandBuffer();
-
-            /**
-             * @brief Present an image to the swapchain by blitting.
-             *
-             * Builds a `FrameSyncInfo` from this frame's synchronization state
-             * (timeline, image-acquired, copy-completed semaphores, and the
-             * command-executed fence), then delegates the Vulkan blit + submit +
-             * present to `IPresentProvider::CompleteFrame`.
-             *
+             * @param present_texture Final render target to present.
+             * @param last_access Access mode of `present_texture` in its last
+             *                    pass (used to derive the copy source barrier).
              * @return True if the swapchain needs to be recreated.
              */
             [[nodiscard]]
-            bool PresentToFramebuffer(
-                const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access
-            );
+            bool SubmitFrame(const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access);
 
             /// @brief Get the submission helper.
             SubmissionHelper &GetSubmissionHelper();

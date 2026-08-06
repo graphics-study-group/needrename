@@ -322,13 +322,12 @@ int main(int argc, char **argv) {
             }
         });
 
-        rg->Execute(*rsys);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
 
         rsys->CompleteFrame(
             *colors[color],
-            color == 0 ? MemoryAccessTypeImageBits::TransferRead : MemoryAccessTypeImageBits::ColorAttachmentWrite,
-            colors[color]->GetTextureDescription().width,
-            colors[color]->GetTextureDescription().height
+            color == 0 ? MemoryAccessTypeImageBits::TransferRead : MemoryAccessTypeImageBits::ColorAttachmentWrite
         );
 
         SDL_Delay(10);

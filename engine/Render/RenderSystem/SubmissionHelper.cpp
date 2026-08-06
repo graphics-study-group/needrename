@@ -1,11 +1,11 @@
 #include "SubmissionHelper.h"
 
 #include "GpuContext/DeviceInterface.h"
+#include "GpuContext/Structs.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/Texture.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameSemaphore.hpp"
-#include "Render/RenderSystem/Structs.h"
 
 #include "GpuContext/DebugUtils.h"
 

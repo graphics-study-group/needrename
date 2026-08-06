@@ -22,11 +22,24 @@ The project already has a precedent for standalone DLLs: `Core` is a shared libr
 
 ## Decisions
 
+### Design at a glance
+
+The presentation layer performs exactly **one frame-completion submit per frame**. The main render CB and an optional copy CB (blit final RTT → swapchain image) are submitted as a single `vkQueueSubmit2` batch — the two CBs execute in order inside the batch, so no synchronization object exists between them; barriers handle layout transitions. All frame-lifecycle synchronization (`timeline_semaphores[3]` with timepoints 1/2/4, `image_acquired_semaphores[3]`, `command_executed_fences[3]`, main CB lifecycle) is owned by `FrameManager`. The provider interface exposes only four operations:
+
+```cpp
+uint32_t AcquireNextImage(vk::Device, vk::Semaphore image_ready_semaphore, uint64_t timeout);  // async; MUST signal
+vk::CommandBuffer PrepareCopy(vk::Device, const RenderTargetTexture&, uint32_t, MemoryAccessTypeImageBits);  // or nullptr
+bool Present(vk::Device, uint32_t image_index, vk::Semaphore frame_done_semaphore);
+void Recreate(vk::Extent2D);
+```
+
+The only synchronization object crossing the interface is the **frame completion credential** — a binary semaphore (`frame_completed_semaphores[fif]`) signaled by the frame-completion batch, passed into `Present`, meaning "present must wait until this frame (including the copy) is complete". Note the credential is a binary semaphore, not the `timeline@4` value: `vkQueuePresentKHR` accepts only binary semaphores in its wait list. `RenderGraph` records passes only; submission happens at the frame-completion point (`RenderSystem::CompleteFrame` → `FrameManager::SubmitFrame`). The decisions below record the reasoning; names from earlier iterations (e.g. `FrameSyncInfo`, `PresentToFramebuffer`) are historical and do not exist in the final design.
+
 ### Decision 1: `IPresentProvider` Strategy Pattern
 
 **Chosen**: `IPresentProvider` interface with `SwapchainPresentProvider` and `HeadlessPresentProvider` implementations.
 
-**Rationale**: Without this, `FrameManager::StartFrame`, `FrameManager::PresentToFramebuffer`, `RenderSystem::CompleteFrame`, `CommandBuffer::DrawRenderers`, and `ComplexRenderGraphBuilder` would each need `if (headless)` branches scattered across 5+ files. The Strategy pattern localizes the variation into two implementations of a single interface.
+**Rationale**: Without this, `FrameManager::SubmitFrame`, `RenderSystem::CompleteFrame`, `CommandBuffer::DrawRenderers`, and `ComplexRenderGraphBuilder` would each need `if (headless)` branches scattered across 5+ files. The Strategy pattern localizes the variation into two implementations of a single interface.
 
 **Alternatives considered**:
 - *If-checks everywhere*: Rejected — leads to brittle, hard-to-test code with hidden coupling.
@@ -34,44 +47,45 @@ The project already has a precedent for standalone DLLs: `Core` is a shared libr
 
 **Interface location**: `engine/Render/RenderSystem/IPresentProvider.h` — allows `RenderTargetTexture` in `CompleteFrame` signature without cross-module dependency, since `RenderSystem` state classes already have access to Render types.
 
-### Decision 1b: `FrameSyncInfo` — sync primitives passed as pre-built submit arrays
+### Decision 1b: Frame completion credential — the interface's only synchronization object
 
-**Chosen**: `CompleteFrame` receives a `FrameSyncInfo` struct containing two arrays of `vk::SemaphoreSubmitInfo` (wait/signal) plus a `vk::Fence`.
+**Chosen**: The provider interface carries NO sync-object arrays. The only synchronization object crossing the interface is the **frame completion credential** — a binary semaphore (`frame_completed_semaphores[fif]`) signaled by the frame-completion batch and passed into `Present`, expressing "present must wait until the frame — including the copy — has completed". (Binary, because `vkQueuePresentKHR` accepts only binary semaphores in its wait list.)
 
 ```cpp
-struct FrameSyncInfo {
-    std::array<vk::SemaphoreSubmitInfo, 2> wait;    // [0]=timeline, [1]=image_acquired
-    std::array<vk::SemaphoreSubmitInfo, 2> signal;  // [0]=timeline, [1]=copy_completed
-    vk::Fence fence;
-};
+// IPresentProvider (final)
+uint32_t AcquireNextImage(vk::Device, vk::Semaphore image_ready_semaphore, uint64_t timeout);
+vk::CommandBuffer PrepareCopy(vk::Device, const RenderTargetTexture&, uint32_t image_index,
+                              MemoryAccessTypeImageBits last_access);
+bool Present(vk::Device, uint32_t image_index, vk::Semaphore frame_done_semaphore);
 ```
 
 **Rationale**:
-- `vk::SubmitInfo2` natively takes wait/signal arrays — zero conversion, the provider is a dumb pass-through into `submit2`.
-- Arrays are extensible: future multi-queue or async compute work grows the arrays without changing the interface signature.
-- The provider never interprets semaphore semantics (timeline values, timepoints) — FrameManager pre-computes them from its `FrameSemaphore` state.
+- FrameManager executes the frame-completion submit itself (it owns all sync primitives); the provider only *records* the copy CB (`PrepareCopy`) and *presents* (`Present`). No "signal on the provider's behalf" seam exists.
+- A per-image `copy_completed` semaphore set (as in the earlier array-passing iteration) is over-engineering: once the copy is merged into the frame-completion batch, "copy complete" is not a distinct event — it is part of "frame complete" (`timeline@4`). Present always shows the current frame's image, so waiting on the current frame's credential is exact.
+- The credential direction is explicit: FrameManager lends its timeline; the provider consumes it. No implicit "must equal signal[0]" constraints.
 
 **Rejected alternatives**:
-- *Individual semaphore parameters* (`vk::Semaphore image_acquired, vk::Semaphore timeline, uint64_t wait_value, ...`): too many parameters, breaks when sync count changes.
-- *Provider builds submit info from semantic handles*: leaks timeline bookkeeping into the provider, blurs the ownership boundary.
+- *Pre-built wait/signal arrays + fence passed into a provider `CompleteFrame` method (an early iteration named this struct `FrameSyncInfo`)*: forced the provider to submit with FrameManager's sync objects; the headless no-op adapter could legally skip that submit and break the whole sync chain (see Decision 1d).
+- *FrameManager querying a provider-owned per-image semaphore (an early iteration's `GetCopyCompletedSemaphore()`)*: FrameManager signaling a provider-owned semaphore inverts ownership and re-introduces a per-image semaphore set for no benefit.
+- *Synchronous acquire (internal fence + `waitForFences` in `AcquireNextImage`)*: blocks the CPU; breaks the multi-frame-in-flight pipeline. Rejected in favor of the async binary-semaphore contract (Decision 8).
 
-### Decision 1c: `SwapchainPresentProvider` owns copy command buffers
+### Decision 1c: `SwapchainPresentProvider` owns copy command buffers (recording only)
 
-**Chosen**: `copy_to_swapchain_command_buffers` moves from `FrameManager` into `SwapchainPresentProvider`, allocated from the graphics command pool during `Initialize()`. `CompleteFrame` records the blit into one of its own buffers.
+**Chosen**: `PrepareCopy` records the blit (RTT → swapchain image) into one of the provider's own command buffers (one per swapchain image, allocated from the graphics command pool) and returns it. FrameManager submits it as part of the frame-completion batch. Headless returns `nullptr`.
 
-**Rationale**: The copy buffers exist only to blit the final RTT into a swapchain image — a pure swapchain concern. Headless mode never allocates them.
+**Rationale**: The copy buffers exist only to blit the final RTT into a swapchain image — a pure swapchain concern. Recording stays in the provider (it owns the swapchain image handles and layout knowledge, and derives the source-layout barrier from `last_access` via `GetImageLayout`); submission stays in FrameManager (it owns all synchronization).
 
-### Decision 1d: `FrameManager::PresentToFramebuffer` is restored, not stubbed
+**Reuse safety**: a swapchain image is only re-acquired after its previous present completes (the present waits on the frame completion credential, which fires after the copy batch), so the previous copy has finished before `PrepareCopy` resets the buffer for that image index.
 
-**Chosen**: `PresentToFramebuffer` keeps its full logic but delegates the Vulkan blit/submit/present to `IPresentProvider::CompleteFrame`. FrameManager retains ALL synchronization ownership.
+### Decision 1d: `SubmitFrame` — the single frame-completion submit (merges the former `SubmitMainCommandBuffer` + `PresentToFramebuffer`)
 
-**Rationale**: `PresentToFramebuffer` is not merely "blit + present" — it is the frame-synchronization hub:
-1. Builds `FrameSyncInfo` from its internal semaphores (timeline, image_acquired, copy_completed, fence)
-2. Calls `m_present_provider->CompleteFrame(...)` — the provider records blit, submits with `FrameSyncInfo`, presents
-3. Calls `pimpl->CompleteFrame()` — readback processing, `current_frame_in_flight++`, timeline `EndFrame()`, submission helper tick
-4. Returns `needs_recreating` from the provider
+**Chosen**: `FrameManager::SubmitFrame(present_texture, last_access)` is the single frame-completion point. It: ends the main CB → records the copy CB via `PrepareCopy` → submits ONE `vkQueueSubmit2` batch containing both the main render CB and the copy CB (in-order execution, zero signals between them; barriers handle layout) → presents → runs `impl::CompleteFrame()` (readback, FIF advance, timeline `EndFrame()`).
 
-Stubbing it (as done in an earlier iteration) broke the timeline state machine: `current_frame_in_flight` never advanced and timeline timepoints desynchronized, causing `waitForFences` deadlock and `vkSignalSemaphore` value-order violations.
+**Rationale**:
+- The main CB's lifecycle (begin/record/end/submit) belongs to FrameManager, but its recording is driven by the render layer. The submit must happen after the present target is known — and the present target (final RTT) is only known at frame-completion time. Therefore the submit point and the present point are necessarily the same moment: they merge into `SubmitFrame`. The former separate methods `SubmitMainCommandBuffer` (submit main CB) and `PresentToFramebuffer` (build sync + present) merge into it.
+- Batch-internal ordering makes copy-vs-render synchronization free: `{main CB, copy CB}` execute in order; the copy CB's barriers handle the layout transition (`GetImageLayout({last_access})` for the source).
+
+**History**: an earlier iteration delegated blit+submit+present to a provider method `CompleteFrame` (from an earlier interface iteration). The headless no-op implementation skipped the only submit that signals `timeline@4` + the command-executed fence → GPU queue stall from frame 2, CPU hang from frame 4 (`waitForFences` with `UINT64_MAX`). Lesson: the sync-chain invariant ("exactly one frame-completion submit per frame") must live in FrameManager, not in adapter behavior. `SubmitFrame` guarantees it structurally — the headless batch simply carries no copy CB.
 
 ### Decision 1e: Synchronization ownership boundary
 
@@ -79,13 +93,16 @@ Stubbing it (as done in an earlier iteration) broke the timeline state machine: 
 
 | Owned by FrameManager | Owned by IPresentProvider |
 |---|---|
-| `timeline_semaphores[3]` (GPU-GPU ordering) | `VkSwapchainKHR` + `swapchain_images[]` |
-| `image_acquired_semaphores[3]` (acquire→copy) | extent, color format, image count |
-| `copy_to_swapchain_completed_semaphores[N]` (copy→present) | `copy_to_swapchain_command_buffers[N]` |
-| `command_executed_fences[3]` (CPU-GPU) | internal present-completion signaling |
+| `timeline_semaphores[3]` (timepoints 1/2/4: start / staged upload / frame complete) | `VkSwapchainKHR` + `swapchain_images[]` |
+| `image_acquired_semaphores[3]` (async acquire → batch gate) | extent, color format, image count |
+| `command_executed_fences[3]` (CPU-GPU throttle) | copy command buffers (one per image, recording only) |
+| main command buffers (begin/end/submit) | acquire completion notification (MUST signal `image_ready`) |
+| frame-completion submit (main CB + copy CB batch) | present operation (waits on frame completion credential) |
 | `current_frame_in_flight` counter | — |
 
-**Rationale**: Synchronization primitives are per-frame-in-flight resources that interlock with `FrameManager`'s submit pipeline (`SubmitMainCommandBuffer`, readback). The provider is a thin swapchain data + operation shell: it provides images/barriers/format, executes acquire/present, and records the copy blit — but never owns or interprets frame lifecycle state.
+Note: the former `copy_to_swapchain_completed_semaphores[N]` (copy→present signaling) is removed — "copy complete" is subsumed by `timeline@4`.
+
+**Rationale**: The frame-completion submit is the single point where all frame lifecycle signals are produced; the provider is a thin swapchain shell that records the copy and presents, never owning or interpreting frame lifecycle state.
 
 ### Decision 2: `GpuContext` as separate SHARED DLL
 
@@ -141,6 +158,35 @@ engine/GpuContext/
 
 **Rationale**: Minimal API surface change. `RenderSystem` already stores window as `std::weak_ptr`; null weak_ptr naturally means "no window." Behavior divergence happens in `Create()` when `IPresentProvider` type is selected.
 
+### Decision 6: Frame-completion batch — main CB + copy CB in one submit
+
+**Chosen**: `SubmitFrame` submits `{main render CB, copy CB}` as one `vkQueueSubmit2` batch:
+- `waits`: `own@2` (staged upload complete), `prev@4` (previous frame fully complete), `image_acquired` (async acquire, **`eAllTransfer` stage mask**)
+- `signals`: `own@4` (frame complete) — timepoint 3 disappears; the timeline value jumps 2 → 4 (timeline semaphores allow skip-value signaling)
+- `fence`: `command_executed_fences[fif]`
+
+**Semantics of the acquire gate**: `image_ready` is gated at `eAllTransfer` only — a *stage latch*, not a *batch latch*. Graphics and compute stages appear earlier in the Vulkan pipeline order than `eTransfer`, so the main render may proceed before acquire completes; only transfer-stage commands (the copy blit) are gated. `eAllCommands` MUST NOT be used (it would gate the whole batch including the main render). Corollary: the main CB must not contain transfer-stage passes — transfer work goes through `SubmissionHelper` or the copy CB.
+
+**Headless**: `PrepareCopy` returns `nullptr`; the batch degrades to `{main CB}` and still signals `own@4` + fence — the sync chain closes unconditionally, no deadlock.
+
+### Decision 7: RenderGraph records only — submission belongs to the frame-completion point
+
+**Chosen**: `RenderGraph::Execute` no longer submits. It records passes into the main CB (begin / RecordAllPasses / end) and returns; the caller then calls `RenderSystem::CompleteFrame(final_rtt, last_access)`, which triggers `SubmitFrame`.
+
+**Rationale**: The render layer (RenderGraph, physics) must not know about the present target — the swapchain is none of its business. Splitting "record" from "submit" at the Execute call site is the seam between the render layer and the presentation layer. The main CB's begin/end/submit lifecycle belongs to FrameManager.
+
+**Multi-queue evolution**: when RenderGraph implements affinity-based multi-queue submission (graphics/compute/transfer groups, per the RenderGraph.cpp note), it will submit its groups itself and signal a "render complete" signal supplied by FrameManager. `SubmitFrame` then waits `{render complete, image_ready}` and submits only the copy CB — the structure is unchanged, only the wait objects and CB list change. The presentation layer needs no other interface change.
+
+### Decision 8: `AcquireNextImage` contract — MUST signal `image_ready_semaphore`
+
+**Chosen**: `AcquireNextImage` returns the target index and MUST signal `image_ready_semaphore` when the image becomes available:
+- Windowed: `vkAcquireNextImageKHR` signals it (async; the GPU-side batch gate waits on it, CPU never blocks)
+- Headless: a no-op empty `submit2` signals it (simulating a real acquire; the batch gate is immediately satisfied)
+
+`~0u` means the swapchain is out of date; `StartFrame` MUST trigger `UpdateSwapchain()` + retry instead of propagating the sentinel into framebuffer indexing.
+
+**Rationale**: A synchronous acquire (internal fence + `waitForFences`) would block the CPU and break the frames-in-flight pipeline. The binary-semaphore contract keeps the interface explicit and branch-free for FrameManager.
+
 ## Risks / Trade-offs
 
 - **Build breakage from moved files**: All includes of `AllocatorState.h`, `DeviceInterface.h`, `MemoryTypes.h`, `MemoryAllocation.h` change paths. → Mitigation: systematic search-and-replace guided by compiler errors; ~30 affected files.
@@ -149,8 +195,12 @@ engine/GpuContext/
 - **`SwapchainPresentProvider` owns swapchain lifecycle**: Currently `RenderSystem::CreateSwapchain()` handles swapchain creation/recreation. Moving this to `SwapchainPresentProvider::Recreate()` means resize events must route through `IPresentProvider`. → Mitigation: `RenderSystem::UpdateSwapchain()` delegates to `present_provider->Recreate(new_extent)`.
 - **Headless mode needs `SDL_INIT_VIDEO` still**: `SDL_Vulkan_LoadLibrary(nullptr)` requires SDL video subsystem initialized. → Acceptable: no window is created, just the library loaded.
 - **Cross-DLL dispatch loader**: Vulkan-Hpp's `VULKAN_HPP_STORAGE_SHARED` does NOT create DLL import/export on Clang/MinGW (only MSVC). Each DLL gets its own `vk::detail::defaultDispatchLoaderDynamic` copy. `DeviceInterface` (in GpuContext.dll) initializes its copy; engine.dll's copy stays empty. → Mitigation: `VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE` in `MainClass.cpp`, then in `RenderSystem::Create()` call `VULKAN_HPP_DEFAULT_DISPATCHER.init(instance, vkGetInstanceProcAddr)` followed by `init(device)`. `init(device)` alone crashes with a null `vkGetDeviceProcAddr` DEP violation.
-- **PresentToFramebuffer is the sync hub**: It must NOT be stubbed or simplified. It owns timeline state transitions (timepoint advance, `EndFrame()`), frame-in-flight advance, readback submission, and swapchain-recreation signaling. Earlier iteration stubbed it and caused `waitForFences` deadlock + `vkSignalSemaphore` value-order errors. → Mitigation: restore full body, delegate only Vulkan blit/submit/present to `IPresentProvider::CompleteFrame`.
+- **Headless sync-chain deadlock (fixed by design)**: an earlier iteration made `HeadlessPresentProvider::CompleteFrame` a no-op that skipped the only submit signaling `timeline@4` + fence → GPU stall from frame 2, CPU hang from frame 4. The single-frame offscreen test cannot detect it. → Mitigation: `SubmitFrame` unconditionally submits the frame-completion batch (copy CB optional); the sync chain is a FrameManager invariant, not adapter behavior. Add a multi-frame (≥4 frames + readback) headless test.
+- **Batch-level acquire gate**: `image_ready` waits at `eAllTransfer` — a stage latch. Graphics/compute stages run ahead; only transfer-stage commands wait. MUST NOT use `eAllCommands`. The main CB must not contain transfer-stage passes.
+- **`RenderGraph::Execute` semantic change (API break)**: it now only records instead of record+submit. All call sites (tests, examples) must be updated; consider renaming to `RecordIntoMainCommandBuffer`.
+- **Main CB `end()` ownership**: `SubmitFrame` ends the main CB; callers must stop calling `end()` themselves, or begin/end converge into `BeginMainCommandBuffer()` / `SubmitFrame`.
+- **`MainClass::RunOneFrame` headless crash**: `input->ProcessEvent` and `window->GetSize()` dereference nulls when `--headless` is set (Initialize skips window/Input creation). → Mitigation: headless branch in `RunOneFrame`; obtain size from `GetPresentProvider().GetExtent()`.
 
 ## Open Questions
 
-*(None — all design decisions resolved through grilling session.)*
+*(None — final design resolved through the review session: frame-completion batch, frame completion credential, async acquire contract, RenderGraph record-only.)*

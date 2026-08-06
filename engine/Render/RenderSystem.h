@@ -100,35 +100,19 @@ namespace Engine {
         /**
          * @brief Complete the rendering of the current frame.
          *
-         * Blits the present_texture to the swapchain image that is currently
-         * allocated for the frame (via `FrameManager::GetFramebuffer()`).
-         * This is the only time in a frame that the swapchain image is written
-         * to.
+         * Ends the main command buffer, records the copy command buffer via
+         * `IPresentProvider::PrepareCopy`, submits ONE batch containing the
+         * main render CB and the copy CB, then presents (see
+         * `FrameManager::SubmitFrame`). This is the only time in a frame that
+         * the swapchain image is written to.
          *
          * This method also does resource (i.e. swapchain) recreation if necessary.
-         * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
-         * then you must make sure that these resources are recreated correctly yourself.
+         *
+         * @param present_texture Final render target to present.
+         * @param last_access Access mode of `present_texture` in its last pass
+         *                    (used to derive the copy source barrier).
          */
-        void CompleteFrame(
-            const RenderTargetTexture &present_texture,
-            MemoryAccessTypeImageBits last_access,
-            uint32_t width,
-            uint32_t height,
-            uint32_t offset_x = 0,
-            uint32_t offset_y = 0
-        );
-
-        /**
-         * @brief Complete the rendering of the current frame.
-         * Defaults last_access to color attachment write.
-         */
-        void CompleteFrame(
-            const RenderTargetTexture &present_texture,
-            uint32_t width,
-            uint32_t height,
-            uint32_t offset_x = 0,
-            uint32_t offset_y = 0
-        );
+        void CompleteFrame(const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access);
 
         /**
          * @brief Get a handle to the Vulkan logical device that the current Render

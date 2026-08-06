@@ -1,13 +1,12 @@
 #include "GUISystem.h"
 
 #include "GpuContext/DeviceInterface.h"
+#include "GpuContext/Structs.h"
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Render/RenderSystem/Structs.h"
-#include "Render/RenderSystem/Swapchain.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>

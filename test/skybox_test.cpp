@@ -249,8 +249,9 @@ int main(int argc, char **argv) {
         Transform t;
         t.SetPosition({0.0f, 0.0f, 0.0f}).SetRotationEuler(euler_angle_rotation);
         camera->UpdateViewMatrix(t);
-        rg->Execute(*rsys);
-        rsys->CompleteFrame(*rg->GetInternalTextureResource(crt), 800, 800);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
+        rsys->CompleteFrame(*rg->GetInternalTextureResource(crt), MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

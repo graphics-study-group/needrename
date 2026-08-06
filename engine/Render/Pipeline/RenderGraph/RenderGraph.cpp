@@ -158,16 +158,17 @@ namespace Engine {
         RecordPostPass(cb);
     }
 
-    void RenderGraph::Execute(RenderSystem &system) {
+    void RenderGraph::RecordIntoMainCommandBuffer(RenderSystem &system) {
         /**
          * @note Currently all passes are recorded onto a single command buffer
-         * and submitted to the main (graphics) queue. The `affinity` and
-         * `cross_queue_dep` infrastructure in RenderGraphBuilder already
-         * detects cross-queue dependencies and splits passes into merge groups
-         * with appropriate signal/wait pipeline stages, but the actual
-         * multi-queue submission (separate vkQueueSubmit calls with
-         * semaphores for graphics / compute / transfer queues) is not yet
-         * implemented.
+         * and submitted to the main (graphics) queue by FrameManager's
+         * frame-completion batch (see `FrameManager::SubmitFrame`). The
+         * `affinity` and `cross_queue_dep` infrastructure in
+         * RenderGraphBuilder already detects cross-queue dependencies and
+         * splits passes into merge groups with appropriate signal/wait
+         * pipeline stages, but the actual multi-queue submission (separate
+         * vkQueueSubmit calls with semaphores for graphics / compute /
+         * transfer queues) is not yet implemented.
          *
          * When async compute is enabled, this method should:
          * 1. Group passes by their queue affinity
@@ -176,6 +177,9 @@ namespace Engine {
          * 4. Use timeline semaphores (or binary semaphores) between groups
          *    with cross-queue dependencies, using the signal_stage /
          *    wait_stage already computed in RenderGraphCompiledPass.
+         * 5. Signal a "render complete" signal (supplied by FrameManager)
+         *    after the last group; `SubmitFrame` then waits on it instead of
+         *    relying on in-batch ordering.
          *
          * @see RenderGraphPassAffinity
          * @see RenderGraphBuilder::AnalysisCrossQueueDependency
@@ -183,10 +187,7 @@ namespace Engine {
         auto &fm = system.GetFrameManager();
         auto cb = fm.GetRawMainCommandBuffer();
 
-        cb.begin(vk::CommandBufferBeginInfo{});
         RecordAllPasses(cb);
-        cb.end();
-        fm.SubmitMainCommandBuffer();
     }
 
     uint32_t RenderGraph::GetNumPasses() const noexcept {

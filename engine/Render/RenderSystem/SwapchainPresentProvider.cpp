@@ -1,6 +1,7 @@
 #include "SwapchainPresentProvider.h"
 
 #include "GpuContext/DeviceInterface.h"
+#include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Memory/RenderTargetTexture.h"
 
 #include <SDL3/SDL.h>
@@ -71,15 +72,19 @@ namespace {
         const Engine::RenderTargetTexture &texture,
         const std::vector<vk::Image> &images,
         vk::Extent2D extent,
-        uint32_t target_framebuffer
+        uint32_t target_framebuffer,
+        Engine::MemoryAccessTypeImageBits last_access
     ) {
+        // The source layout/access is derived from the final RTT's last access
+        // (e.g. ShaderRandomWrite → eGeneral after the bloom compute pass),
+        // NOT assumed to be a color attachment.
         std::array<vk::ImageMemoryBarrier2, 2> barriers{
             vk::ImageMemoryBarrier2{
-                vk::PipelineStageFlagBits2::eAllGraphics,
-                vk::AccessFlagBits2::eMemoryWrite,
+                vk::PipelineStageFlagBits2::eAllCommands,
+                Engine::GetAccessFlags({last_access}),
                 vk::PipelineStageFlagBits2::eAllTransfer,
                 vk::AccessFlagBits2::eTransferRead,
-                vk::ImageLayout::eColorAttachmentOptimal,
+                Engine::GetImageLayout({last_access}),
                 vk::ImageLayout::eTransferSrcOptimal,
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
@@ -116,7 +121,7 @@ namespace {
             vk::ImageLayout::eTransferDstOptimal,
             1,
             &blit_region,
-            vk::Filter::eNearest
+            vk::Filter::eLinear
         };
         cb.blitImage2(blit_info);
 
@@ -244,26 +249,34 @@ namespace Engine::RenderSystemState {
         return result.value;
     }
 
-    bool SwapchainPresentProvider::CompleteFrame(
-        vk::Device device, const RenderTargetTexture &final_rtt, uint32_t image_index, const FrameSyncInfo &sync
+    vk::CommandBuffer SwapchainPresentProvider::PrepareCopy(
+        vk::Device device,
+        const RenderTargetTexture &final_rtt,
+        uint32_t image_index,
+        MemoryAccessTypeImageBits last_access
     ) {
-        auto &di = *pimpl->m_device_interface;
+        // Reuse safety: a swapchain image is only re-acquired after its previous
+        // present completes (the present waits on the frame completion
+        // credential, which fires after the copy batch), so the previous copy
+        // has finished executing before we reset its command buffer.
         auto cb = pimpl->m_copy_command_buffers[image_index].get();
         cb.reset();
 
         vk::CommandBufferBeginInfo begin_info{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
         cb.begin(begin_info);
-        RecordCopyCommand(cb, final_rtt, pimpl->m_images, pimpl->m_extent, image_index);
+        RecordCopyCommand(cb, final_rtt, pimpl->m_images, pimpl->m_extent, image_index, last_access);
         cb.end();
+        return cb;
+    }
 
-        vk::CommandBufferSubmitInfo cbsi{cb};
-        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, sync.wait, {cbsi}, sync.signal};
-        const auto &present_queue = di.GetQueueInfo().presentQueue;
-        present_queue.submit2(sinfo, sync.fence);
+    bool SwapchainPresentProvider::Present(
+        vk::Device device, uint32_t image_index, vk::Semaphore frame_done_semaphore
+    ) {
+        const auto &present_queue = pimpl->m_device_interface->GetQueueInfo().presentQueue;
 
         std::array<vk::SwapchainKHR, 1> swapchains{pimpl->m_swapchain.get()};
         std::array<uint32_t, 1> frame_indices{image_index};
-        std::array<vk::Semaphore, 1> wait_semaphores{sync.present_wait_semaphore};
+        std::array<vk::Semaphore, 1> wait_semaphores{frame_done_semaphore};
         vk::PresentInfoKHR present_info{wait_semaphores, swapchains, frame_indices};
 
         bool needs_recreating = false;

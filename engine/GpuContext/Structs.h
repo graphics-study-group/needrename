@@ -1,5 +1,5 @@
-#ifndef RENDER_RENDERSYSTEM_STRUCTS_INCLUDED
-#define RENDER_RENDERSYSTEM_STRUCTS_INCLUDED
+#ifndef GPU_CONTEXT_STRUCTS_INCLUDED
+#define GPU_CONTEXT_STRUCTS_INCLUDED
 
 #include <optional>
 #include <vector>
@@ -33,4 +33,4 @@ namespace Engine::RenderSystemState {
     };
 } // namespace Engine::RenderSystemState
 
-#endif // RENDER_RENDERSYSTEM_STRUCTS_INCLUDED
+#endif // GPU_CONTEXT_STRUCTS_INCLUDED

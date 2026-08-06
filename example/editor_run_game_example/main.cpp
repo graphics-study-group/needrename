@@ -302,23 +302,20 @@ int main(int argc, char **argv) {
             cmc->GetPhysicsSystem()->PreGPUStep();
         }
 
-        auto cb = rsys->GetFrameManager().GetCommandBuffer();
-        cb.GetCommandBuffer().begin(vk::CommandBufferBeginInfo{});
+        auto cb = rsys->GetFrameManager().BeginMainCommandBuffer();
 
         if (main_window.m_is_playing) {
             cmc->GetPhysicsSystem()->GPUStep(cb);
         }
         rg->RecordAllPasses(cb.GetCommandBuffer());
 
-        cb.GetCommandBuffer().end();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rsys->CompleteFrame(
+            *rg->GetInternalTextureResource(final_color_id), MemoryAccessTypeImageBits::ColorAttachmentWrite
+        );
 
         if (main_window.m_is_playing) {
             cmc->GetPhysicsSystem()->PostGPUStep();
         }
-
-        auto [w, h] = cmc->GetWindow()->GetSize();
-        rsys->CompleteFrame(*rg->GetInternalTextureResource(final_color_id), w, h);
     }
     rsys->WaitForIdle();
 

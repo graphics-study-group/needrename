@@ -80,8 +80,9 @@ namespace Engine {
 
         if (is_headless) {
             vk::Extent2D extent{1920, 1080};
-            pimpl->m_present_provider =
-                std::make_unique<RenderSystemState::HeadlessPresentProvider>(extent, vk::Format::eR8G8B8A8Unorm, 3);
+            pimpl->m_present_provider = std::make_unique<RenderSystemState::HeadlessPresentProvider>(
+                *pimpl->m_device_interface, extent, vk::Format::eR8G8B8A8Unorm, 3
+            );
             pimpl->m_resizable_rtt_manger.SetReferenceSize(extent.width, extent.height);
         } else {
             uint32_t width, height;
@@ -114,32 +115,15 @@ namespace Engine {
     }
 
     void RenderSystem::CompleteFrame(
-        const RenderTargetTexture &present_texture,
-        MemoryAccessTypeImageBits last_access,
-        uint32_t width,
-        uint32_t height,
-        uint32_t offset_x,
-        uint32_t offset_y
+        const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access
     ) {
-        if (pimpl->m_frame_manager.PresentToFramebuffer(present_texture, last_access)) {
+        if (pimpl->m_frame_manager.SubmitFrame(present_texture, last_access)) {
             this->UpdateSwapchain();
         }
 
         pimpl->m_material_instance_provider.TickFrame();
         pimpl->m_material_library_provider.TickFrame();
         pimpl->m_static_mesh_resource_provider.TickFrame();
-    }
-
-    void RenderSystem::CompleteFrame(
-        const RenderTargetTexture &present_texture,
-        uint32_t width,
-        uint32_t height,
-        uint32_t offset_x,
-        uint32_t offset_y
-    ) {
-        this->CompleteFrame(
-            present_texture, MemoryAccessTypeImageBits::ColorAttachmentWrite, width, height, offset_x, offset_y
-        );
     }
 
     vk::Device RenderSystem::GetDevice() const {
@@ -198,6 +182,17 @@ namespace Engine {
 
     uint32_t RenderSystem::StartFrame() {
         auto fb = pimpl->m_frame_manager.StartFrame();
+        if (fb == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date (e.g. window resize): recreate and retry once.
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Acquire returned out-of-date; recreating swapchain and retrying.");
+            this->UpdateSwapchain();
+            fb = pimpl->m_frame_manager.StartFrame();
+        }
+        if (fb == std::numeric_limits<uint32_t>::max()) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Acquire still out-of-date after recreation; skipping frame.");
+            return fb;
+        }
+
         GetCameraManager().FetchCameraData();
         GetCameraManager().UploadCameraData(GetFrameManager().GetFrameInFlight());
 

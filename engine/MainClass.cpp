@@ -216,10 +216,10 @@ namespace Engine {
             // if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type ==
             // SDL_EVENT_KEY_UP))
             //     continue;
-            input->ProcessEvent(&event);
+            if (this->input) input->ProcessEvent(&event);
         }
 
-        this->input->Update();
+        if (this->input) this->input->Update();
         this->world->GetMainSceneRef().FlushCmdQueue();
         // TODO: add input event
         this->world->GetMainSceneRef().AddTickEvent();
@@ -233,24 +233,20 @@ namespace Engine {
         // Phase 1: CPU-side physics prep (no CB needed).
         this->physics->PreGPUStep();
         // Phase 2: GPU recording — physics + rendering share one CB.
-        auto cb = this->renderer->GetFrameManager().GetCommandBuffer();
-        cb.GetCommandBuffer().begin(vk::CommandBufferBeginInfo{});
+        auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
         this->physics->GPUStep(cb); // solvers record their RGs
         if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
             this->render_graph->RecordAllPasses(cb.GetCommandBuffer());
         }
-        cb.GetCommandBuffer().end();
-        this->renderer->GetFrameManager().SubmitMainCommandBuffer();
 
-        // Phase 3: Physics readback / post-processing (CB already submitted).
-        this->physics->PostGPUStep();
-
-        auto [w, h] = this->window->GetSize();
+        // Phase 3: Frame completion — ends the main CB, records the copy CB,
+        // submits one batch (main CB + copy CB) and presents.
         this->renderer->CompleteFrame(
             *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),
-            MemoryAccessTypeImageBits::ShaderRandomWrite,
-            w,
-            h
+            MemoryAccessTypeImageBits::ShaderRandomWrite
         );
+
+        // Phase 4: Physics readback / post-processing (batch already submitted).
+        this->physics->PostGPUStep();
     }
 } // namespace Engine

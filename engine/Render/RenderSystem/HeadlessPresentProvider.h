@@ -6,13 +6,19 @@
 
 namespace Engine {
     namespace RenderSystemState {
+        class DeviceInterface;
 
         class HeadlessPresentProvider : public IPresentProvider {
             struct impl;
             std::unique_ptr<impl> pimpl;
 
         public:
-            HeadlessPresentProvider(vk::Extent2D extent, vk::Format color_format, uint32_t image_count);
+            HeadlessPresentProvider(
+                const DeviceInterface &device_interface,
+                vk::Extent2D extent,
+                vk::Format color_format,
+                uint32_t image_count
+            );
             ~HeadlessPresentProvider() override;
 
             vk::Extent2D GetExtent() const override;
@@ -23,9 +29,14 @@ namespace Engine {
                 vk::Device device, vk::Semaphore image_ready_semaphore, uint64_t timeout
             ) override;
 
-            bool CompleteFrame(
-                vk::Device device, const RenderTargetTexture &final_rtt, uint32_t image_index, const FrameSyncInfo &sync
+            vk::CommandBuffer PrepareCopy(
+                vk::Device device,
+                const RenderTargetTexture &final_rtt,
+                uint32_t image_index,
+                MemoryAccessTypeImageBits last_access
             ) override;
+
+            bool Present(vk::Device device, uint32_t image_index, vk::Semaphore frame_done_semaphore) override;
 
             void Recreate(vk::Extent2D new_extent) override;
         };

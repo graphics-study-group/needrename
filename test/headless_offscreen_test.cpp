@@ -107,10 +107,18 @@ int main() {
     );
     auto rg = rgb.BuildRenderGraph();
 
-    // Execute a single frame headlessly.
-    rsys->StartFrame();
-    rg->Execute(*rsys);
-    rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
+    // Execute multiple frames headlessly. Running ≥4 frames exercises the full
+    // frames-in-flight sync chain (FRAMES_IN_FLIGHT = 3): without the
+    // frame-completion submit (FrameManager::SubmitFrame) signaling
+    // timeline@4 + the command-executed fence unconditionally, the 2nd frame's
+    // timeline wait and the 4th frame's fence wait would deadlock. The last
+    // frame's content is read back below.
+    for (uint32_t frame = 0; frame < 4; frame++) {
+        rsys->StartFrame();
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
+        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::TransferRead);
+    }
     rsys->WaitForIdle();
 
     // Read back and verify.
@@ -127,7 +135,7 @@ int main() {
         }
     }
 
-    std::filesystem::path output_path = "headless_offscreen.ppm";
+    std::filesystem::path output_path = std::filesystem::temp_directory_path() / "headless_offscreen.ppm";
     WritePPM(output_path, pixels);
     std::cout << "Wrote " << output_path << " (" << std::filesystem::file_size(output_path) << " bytes)." << std::endl;
 

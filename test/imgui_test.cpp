@@ -82,9 +82,10 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         assert(index < 3);
-        rg->Execute(*rsys);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(c);
-        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
+        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

@@ -122,14 +122,10 @@ int main(int argc, char *argv[]) {
         cbinding.GetStructuredBuffer().SetVariable<uint32_t>("UBO::frame_count", static_cast<uint32_t>(frame_count));
 
         if (frame_count == 1) rg->AddExternalInputDependency(g_color_in_handle, MemoryAccessTypeImageBits::None);
-        rg->Execute(*rsys);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
 
-        rsys->CompleteFrame(
-            *color_present,
-            MemoryAccessTypeImageBits::ShaderRandomWrite,
-            color_present->GetTextureDescription().width,
-            color_present->GetTextureDescription().height
-        );
+        rsys->CompleteFrame(*color_present, MemoryAccessTypeImageBits::ShaderRandomWrite);
 
         SDL_Delay(15);
     }

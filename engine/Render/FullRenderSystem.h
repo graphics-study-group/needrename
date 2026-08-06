@@ -9,15 +9,14 @@
 #include "Render/ImageUtilsFunc.h"
 
 #include "GpuContext/DeviceInterface.h"
+#include "GpuContext/Structs.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/ImmutableResourceCache.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/SceneDataManager.h"
-#include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
-#include "Render/RenderSystem/Swapchain.h"
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Render/Resource/StaticMeshResource.h"
 

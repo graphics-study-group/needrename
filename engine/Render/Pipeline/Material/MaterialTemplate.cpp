@@ -7,14 +7,12 @@
 #include "MaterialInstance.h"
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/ImageUtilsFunc.h"
+#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
-#include "Render/RenderSystem/Swapchain.h"
-
-#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 
 #include <SDL3/SDL.h>
 #include <fstream>

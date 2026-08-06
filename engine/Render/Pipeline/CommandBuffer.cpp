@@ -14,7 +14,6 @@
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/RenderSystem/RendererManager.h"
-#include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/IVertexBasedRenderer.h"
 #include "Render/Renderer/VertexAttribute.h"

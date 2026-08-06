@@ -27,9 +27,14 @@ namespace Engine {
                 vk::Device device, vk::Semaphore image_ready_semaphore, uint64_t timeout
             ) override;
 
-            bool CompleteFrame(
-                vk::Device device, const RenderTargetTexture &final_rtt, uint32_t image_index, const FrameSyncInfo &sync
+            vk::CommandBuffer PrepareCopy(
+                vk::Device device,
+                const RenderTargetTexture &final_rtt,
+                uint32_t image_index,
+                MemoryAccessTypeImageBits last_access
             ) override;
+
+            bool Present(vk::Device device, uint32_t image_index, vk::Semaphore frame_done_semaphore) override;
 
             void Recreate(vk::Extent2D new_extent) override;
         };

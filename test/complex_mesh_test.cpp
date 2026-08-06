@@ -241,9 +241,10 @@ int main(int argc, char **argv) {
         tmc.PreRenderUpdate();
 
         auto index = rsys->StartFrame();
-        rg->Execute(*rsys);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(ca);
-        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
+        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(5);
 
