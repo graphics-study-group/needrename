@@ -318,6 +318,10 @@ int main(int argc, char **argv) {
         }
 
         auto index = rsys->StartFrame();
+        if (index == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
         assert(index < 3);
 
         floor_mesh_comp.PreRenderUpdate();

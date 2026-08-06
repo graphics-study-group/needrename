@@ -118,7 +118,10 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        rsys->StartFrame();
+        if (rsys->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
         cbinding.GetStructuredBuffer().SetVariable<uint32_t>("UBO::frame_count", static_cast<uint32_t>(frame_count));
 
         if (frame_count == 1) rg->AddExternalInputDependency(g_color_in_handle, MemoryAccessTypeImageBits::None);

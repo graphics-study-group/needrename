@@ -296,6 +296,10 @@ int main(int argc, char **argv) {
         );
 
         auto index = rsys->StartFrame();
+        if (index == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
         rsys->GetFrameManager().BeginMainCommandBuffer();
         if (has_gaussian_blur) {
             blur->RecordIntoMainCommandBuffer(*rsys);

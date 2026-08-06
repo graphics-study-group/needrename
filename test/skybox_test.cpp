@@ -244,7 +244,10 @@ int main(int argc, char **argv) {
             }
         }
 
-        rsys->StartFrame();
+        if (rsys->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
 
         Transform t;
         t.SetPosition({0.0f, 0.0f, 0.0f}).SetRotationEuler(euler_angle_rotation);

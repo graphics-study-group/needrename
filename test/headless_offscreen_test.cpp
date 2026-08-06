@@ -114,7 +114,11 @@ int main() {
     // timeline wait and the 4th frame's fence wait would deadlock. The last
     // frame's content is read back below.
     for (uint32_t frame = 0; frame < 4; frame++) {
-        rsys->StartFrame();
+        if (rsys->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+            // Headless acquire never fails, but keep the same guard for
+            // symmetry with windowed loops.
+            continue;
+        }
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
         rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::TransferRead);

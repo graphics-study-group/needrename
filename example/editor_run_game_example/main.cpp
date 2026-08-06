@@ -296,7 +296,11 @@ int main(int argc, char **argv) {
         gui->PrepareGUI();
         main_window.Render();
 
-        rsys->StartFrame();
+        if (rsys->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after the recreation retry: skip this
+            // frame (frame state untouched, next frame resumes cleanly).
+            continue;
+        }
 
         if (main_window.m_is_playing) {
             cmc->GetPhysicsSystem()->PreGPUStep();

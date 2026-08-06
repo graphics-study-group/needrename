@@ -229,7 +229,13 @@ namespace Engine {
         this->world->GetMainSceneRef().FlushPhysics(*this->renderer);
         this->world->UpdateRendererData(*this->renderer);
 
-        this->renderer->StartFrame();
+        if (this->renderer->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after the recreation retry (e.g. window
+            // minimized or resized again mid-frame): skip this frame. The
+            // frame state was left untouched by StartFrame, so the next frame
+            // resumes cleanly.
+            return;
+        }
         // Phase 1: CPU-side physics prep (no CB needed).
         this->physics->PreGPUStep();
         // Phase 2: GPU recording — physics + rendering share one CB.

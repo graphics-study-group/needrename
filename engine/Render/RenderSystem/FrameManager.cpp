@@ -193,11 +193,28 @@ namespace Engine::RenderSystemState {
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout) {
-
         auto device = pimpl->m_system.GetDevice();
         uint32_t fif = GetFrameInFlight();
 
-        // Wait for command buffer execution.
+        // Acquire FIRST (async, never blocks). On failure the frame state is
+        // left untouched: `current_framebuffer` keeps its previous value, the
+        // fence is NOT reset and the FIF is NOT advanced, so the caller can
+        // safely skip this frame (or recreate the swapchain and retry) without
+        // deadlocking — the fence stays signaled and no wait depends on this
+        // frame's submit.
+        auto result = pimpl->m_present_provider->AcquireNextImage(
+            pimpl->m_system.GetDevice(), pimpl->image_acquired_semaphores[fif].get(), timeout
+        );
+        if (result == std::numeric_limits<uint32_t>::max()) {
+            return std::numeric_limits<uint32_t>::max();
+        }
+        pimpl->current_framebuffer = result;
+
+        // CPU throttle: wait for the previous frame on this FIF to finish,
+        // then reset its resources. Must happen after a successful acquire so
+        // an out-of-date retry never waits on a fence that no submit will
+        // signal (fences are only signaled by a completed submit, and
+        // `waitIdle` does not signal them).
         vk::Fence fence = pimpl->command_executed_fences[fif].get();
         vk::Result wait_result = device.waitForFences({fence}, vk::True, timeout);
         if (wait_result != vk::Result::eSuccess) {
@@ -211,12 +228,6 @@ namespace Engine::RenderSystemState {
         if (pimpl->timeline_semaphores[fif].GetTotalElapsedTimepoints() > 0) {
             device.signalSemaphore(pimpl->timeline_semaphores[fif].GetSignalInfo(1));
         }
-
-        // Acquire new image
-        auto result = pimpl->m_present_provider->AcquireNextImage(
-            pimpl->m_system.GetDevice(), pimpl->image_acquired_semaphores[fif].get(), timeout
-        );
-        pimpl->current_framebuffer = result;
 
         return pimpl->current_framebuffer;
     }
