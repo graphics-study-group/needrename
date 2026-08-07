@@ -3,7 +3,7 @@
 
 #include "Core/flagbits.h"
 
-namespace Engine {
+namespace Engine::Rhi {
     /**
      * @brief Access types of memory.
      */
@@ -78,6 +78,6 @@ namespace Engine {
     using MemoryAccessTypeBuffer = MemoryAccessTypes::MemoryAccessTypeBuffer;
     /// Bit flags for `MemoryAccessTypeImageBits`.
     using MemoryAccessTypeImage = MemoryAccessTypes::MemoryAccessTypeImage;
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_MEMORYACCESSTYPES

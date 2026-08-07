@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
     auto rsys = cmc->GetRenderSystem();
 
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
 
     RenderGraphBuilder rgb{*rsys};
 
@@ -157,9 +157,9 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto ca = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto ca = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{});
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto da = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto da = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{});
 
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(ca);
-        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::ColorAttachmentWrite);
+        rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(5);
 

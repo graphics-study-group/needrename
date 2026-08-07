@@ -1,22 +1,22 @@
-#include "Texture.h"
+#include "Rhi/Texture.h"
 
+#include "Render/RenderSystem.h" // TODO(phase 3): remove when Texture drops the RenderSystem constructor
 #include "Rhi/AllocatorState.h"
 #include "Rhi/Hasher.hpp"
 #include "Rhi/ImageUtilsFunc.h"
 #include "Rhi/ImmutableResourceCache.h"
 #include "Rhi/MemoryAllocation.h"
 #include "Rhi/TextureSubresourceView.h"
-#include "Render/RenderSystem.h" // TODO(phase 3): remove when Texture drops the RenderSystem constructor
 
 #include <vulkan/vulkan.hpp>
 
 namespace {
-    constexpr vk::ImageType GetImageType(const Engine::Texture::TextureDesc &d) {
+    constexpr vk::ImageType GetImageType(const Engine::Rhi::Texture::TextureDesc &d) {
         return d.dimensions == 1 ? vk::ImageType::e1D : (d.dimensions == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
     }
 
     constexpr vk::ImageViewType GetImageViewType(
-        const Engine::Texture::TextureDesc &d, const Engine::TextureSubresourceRange &r
+        const Engine::Rhi::Texture::TextureDesc &d, const Engine::Rhi::TextureSubresourceRange &r
     ) {
         assert(r.array_layer_base < d.array_layers && "Array layer base out of range.");
         assert(
@@ -51,10 +51,10 @@ namespace {
     }
 
     constexpr vk::ComponentSwizzle ToVkComponentSwizzle(
-        const Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle cs
+        const Engine::Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle cs
     ) {
         switch (cs) {
-            using enum Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle;
+            using enum Engine::Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle;
         case Identity:
             return vk::ComponentSwizzle::eIdentity;
         case Zero:
@@ -73,7 +73,9 @@ namespace {
         __builtin_unreachable();
     }
 
-    constexpr vk::ComponentMapping ToVkComponentMapping(const Engine::TextureSubresourceRange::SwizzleAndSrgb &sas) {
+    constexpr vk::ComponentMapping ToVkComponentMapping(
+        const Engine::Rhi::TextureSubresourceRange::SwizzleAndSrgb &sas
+    ) {
         return vk::ComponentMapping{
             ToVkComponentSwizzle(sas.r),
             ToVkComponentSwizzle(sas.g),
@@ -83,9 +85,9 @@ namespace {
     }
 
     constexpr vk::Format ConvertSrgbFormat(
-        vk::Format original, const Engine::TextureSubresourceRange::SwizzleAndSrgb &sc
+        vk::Format original, const Engine::Rhi::TextureSubresourceRange::SwizzleAndSrgb &sc
     ) {
-        if (sc.srgb == Engine::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceSrgb) {
+        if (sc.srgb == Engine::Rhi::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceSrgb) {
             switch (original) {
                 using enum vk::Format;
             case eR8G8B8A8Unorm:
@@ -93,7 +95,7 @@ namespace {
             default:
                 return original;
             }
-        } else if (sc.srgb == Engine::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceUnorm) {
+        } else if (sc.srgb == Engine::Rhi::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceUnorm) {
             switch (original) {
                 using enum vk::Format;
             case eR8G8B8A8Srgb:
@@ -107,7 +109,7 @@ namespace {
     }
 } // namespace
 
-namespace Engine {
+namespace Engine::Rhi {
 
     struct Texture::impl {
         vk::Device device{};
@@ -158,11 +160,11 @@ namespace Engine {
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
         pimpl->device = system.GetDevice();
         pimpl->m_image = allocator.AllocateImageUnique(
-            RenderSystemState::AllocatorState::ImageAllocationDescription{
+            Rhi::AllocatorState::ImageAllocationDescription{
                 texture.memory_type,
                 dim,
                 vk::Extent3D{width, height, depth},
-                ImageUtils::GetVkFormat(texture.format),
+                Rhi::GetVkFormat(texture.format),
                 mipLevels,
                 arrayLayers,
                 texture.is_cube_map,
@@ -191,12 +193,12 @@ namespace Engine {
         return pimpl->m_sdesc;
     }
 
-    vk::Image Engine::Texture::GetImage() const noexcept {
+    vk::Image Engine::Rhi::Texture::GetImage() const noexcept {
         assert(pimpl->m_image && pimpl->m_image->GetImage());
         return pimpl->m_image->GetImage();
     }
 
-    vk::ImageView Engine::Texture::GetImageView() const {
+    vk::ImageView Engine::Rhi::Texture::GetImageView() const {
         return this->GetImageView(TextureSubresourceRange{});
     }
 
@@ -208,10 +210,10 @@ namespace Engine {
             vk::ImageViewCreateFlags{},
             pimpl->m_image->GetImage(),
             GetImageViewType(pimpl->m_tdesc, tsv),
-            ConvertSrgbFormat(ImageUtils::GetVkFormat(pimpl->m_tdesc.format), tsv.swizzle_and_srgb),
+            ConvertSrgbFormat(Rhi::GetVkFormat(pimpl->m_tdesc.format), tsv.swizzle_and_srgb),
             ToVkComponentMapping(tsv.swizzle_and_srgb),
             vk::ImageSubresourceRange{
-                ImageUtils::GetVkAspect(pimpl->m_tdesc.format),
+                Rhi::GetVkAspect(pimpl->m_tdesc.format),
                 tsv.mip_level_base,
                 tsv.mip_level_size,
                 tsv.array_layer_base,
@@ -228,7 +230,7 @@ namespace Engine {
 
     size_t Texture::CalculateStagingBufferSizeNoMipmap() const noexcept {
         return pimpl->m_tdesc.height * pimpl->m_tdesc.width * pimpl->m_tdesc.depth * pimpl->m_tdesc.array_layers
-               * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
+               * Rhi::GetPixelSize(pimpl->m_tdesc.format);
     }
 
     bool Texture::SupportRandomAccess() const noexcept {
@@ -237,4 +239,4 @@ namespace Engine {
     bool Texture::SupportAtomicOperation() const noexcept {
         return false;
     }
-} // namespace Engine
+} // namespace Engine::Rhi

@@ -78,14 +78,14 @@ std::array<MaterialTemplateAsset *, 2> ConstructMaterialTemplate() {
 
     MaterialTemplateSinglePassProperties shadow_map_pass{}, lit_pass{};
     shadow_map_pass.shaders.shaders = std::vector{shadow_map_vs_ref};
-    shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    shadow_map_pass.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
     shadow_map_pass.rasterizer.depth_bias_constant = 0.05f;
     shadow_map_pass.rasterizer.depth_bias_slope = 1.0f;
 
     lit_pass.shaders.shaders = std::vector{vs_ref, fs_ref};
-    lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    lit_pass.attachments.color = std::vector{Rhi::ImageFormat::R8G8B8A8UNorm};
     lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
-    lit_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    lit_pass.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
 
     templates[0]->properties = lit_pass;
     templates[1]->properties = shadow_map_pass;
@@ -138,20 +138,20 @@ int main(int argc, char **argv) {
     rsys->GetSceneDataManager().SetLightDirectional(0, glm::vec3{1.0f, 1.0f, 1.0f}, glm::vec3{1.0f, 1.0f, 1.0f});
     rsys->GetSceneDataManager().SetLightCount(1);
 
-    auto idesc = ImageTexture::ImageTextureDesc{
+    auto idesc = Rhi::ImageTexture::ImageTextureDesc{
         .dimensions = 2,
         .width = 16,
         .height = 16,
         .depth = 1,
         .mipmap_levels = 1,
         .array_layers = 1,
-        .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+        .format = Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
         .is_cube_map = false
     };
     std::shared_ptr blank_color_red =
-        Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color red");
+        Engine::Rhi::ImageTexture::CreateUnique(*rsys, idesc, Rhi::Texture::SamplerDesc{}, "Blank color red");
     std::shared_ptr blank_color_gray =
-        Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color gray");
+        Engine::Rhi::ImageTexture::CreateUnique(*rsys, idesc, Rhi::Texture::SamplerDesc{}, "Blank color gray");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_red, {1.0f, 0.0f, 0.0f, 0.0f});
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_gray, {0.5f, 0.5f, 0.5f, 0.0f});
 
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
     desc.width = desc.height = 2048;
     auto s = rgb.RequestRenderTargetTexture(desc, {});
 
-    using IAT = MemoryAccessTypeImageBits;
+    using IAT = Rhi::MemoryAccessTypeImageBits;
 
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
                 cb.BeginRendering(
                     {nullptr},
                     {sm,
-                     Engine::TextureSubresourceRange::GetSingleRange(),
+                     Engine::Rhi::TextureSubresourceRange::GetSingleRange(),
                      AttachmentUtils::LoadOperation::Clear,
                      AttachmentUtils::StoreOperation::Store,
                      AttachmentUtils::DepthClearValue{1.0f, 0U}},
@@ -331,7 +331,7 @@ int main(int argc, char **argv) {
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(c);
-        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::ColorAttachmentWrite);
+        rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

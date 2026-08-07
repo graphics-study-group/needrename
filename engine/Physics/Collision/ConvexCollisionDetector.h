@@ -4,8 +4,10 @@
 #include <memory>
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class CommandBuffer;
-    class ComputeBuffer;
     class PhysicsScene;
     class RenderSystem;
 
@@ -16,11 +18,11 @@ namespace Engine {
      * owned by the detector and live until the detector is destroyed.
      */
     struct CollisionResultBuffers {
-        const ComputeBuffer *collision_ids{};
-        const ComputeBuffer *collision_normals{};
-        const ComputeBuffer *contact_point_a{};
-        const ComputeBuffer *contact_point_b{};
-        const ComputeBuffer *collision_count{};
+        const Rhi::ComputeBuffer *collision_ids{};
+        const Rhi::ComputeBuffer *collision_normals{};
+        const Rhi::ComputeBuffer *contact_point_a{};
+        const Rhi::ComputeBuffer *contact_point_b{};
+        const Rhi::ComputeBuffer *collision_count{};
         uint32_t max_output_collision_pairs{0};
     };
 
@@ -76,8 +78,8 @@ namespace Engine {
             uint32_t max_input_collision_pairs,
             uint32_t max_output_collision_pairs,
             float contact_margin,
-            const ComputeBuffer &pair_buffer,
-            const ComputeBuffer &pair_count_buffer
+            const Rhi::ComputeBuffer &pair_buffer,
+            const Rhi::ComputeBuffer &pair_count_buffer
         );
 
         /**

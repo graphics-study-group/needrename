@@ -28,7 +28,7 @@ namespace {
     }
 
     constexpr vk::PipelineStageFlagBits2 GuessPipelineStageFromAccess(
-        Engine::RenderGraphPassAffinity work_type, Engine::MemoryAccessTypeImageBits access
+        Engine::RenderGraphPassAffinity work_type, Engine::Rhi::MemoryAccessTypeImageBits access
     ) {
         switch (work_type) {
             using enum Engine::RenderGraphPassAffinity;
@@ -39,8 +39,8 @@ namespace {
             // While some transfer actions (e.g. blitting) requires working
             // on graphics queue, they are classified as transfer for
             // synchronization.
-            if (access == Engine::MemoryAccessTypeImageBits::TransferRead
-                || access == Engine::MemoryAccessTypeImageBits::TransferWrite) {
+            if (access == Engine::Rhi::MemoryAccessTypeImageBits::TransferRead
+                || access == Engine::Rhi::MemoryAccessTypeImageBits::TransferWrite) {
                 return vk::PipelineStageFlagBits2::eAllTransfer;
             }
             return vk::PipelineStageFlagBits2::eAllGraphics;
@@ -50,15 +50,15 @@ namespace {
             // If this pass does not have work load, then it should be a
             // virtual pass. In this case, we have to guess its stage......
             switch (access) {
-            case Engine::MemoryAccessTypeImageBits::TransferRead:
-            case Engine::MemoryAccessTypeImageBits::TransferWrite:
+            case Engine::Rhi::MemoryAccessTypeImageBits::TransferRead:
+            case Engine::Rhi::MemoryAccessTypeImageBits::TransferWrite:
                 return vk::PipelineStageFlagBits2::eTransfer;
-            case Engine::MemoryAccessTypeImageBits::ColorAttachmentRead:
-            case Engine::MemoryAccessTypeImageBits::ColorAttachmentWrite:
-            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentRead:
-            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentWrite:
-            case Engine::MemoryAccessTypeImageBits::ColorAttachmentDefault:
-            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentDefault:
+            case Engine::Rhi::MemoryAccessTypeImageBits::ColorAttachmentRead:
+            case Engine::Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite:
+            case Engine::Rhi::MemoryAccessTypeImageBits::DepthStencilAttachmentRead:
+            case Engine::Rhi::MemoryAccessTypeImageBits::DepthStencilAttachmentWrite:
+            case Engine::Rhi::MemoryAccessTypeImageBits::ColorAttachmentDefault:
+            case Engine::Rhi::MemoryAccessTypeImageBits::DepthStencilAttachmentDefault:
                 return vk::PipelineStageFlagBits2::eAllGraphics;
             default:
                 // Being conservative here.
@@ -68,9 +68,12 @@ namespace {
     }
 
     struct UsageCache {
-        std::unordered_map<Engine::RGBufferHandle, std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeBuffer>>>
-            buffer_usages{};
-        std::unordered_map<Engine::RGTextureHandle, std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeImageBits>>>
+        std::
+            unordered_map<Engine::RGBufferHandle, std::vector<std::pair<uint32_t, Engine::Rhi::MemoryAccessTypeBuffer>>>
+                buffer_usages{};
+        std::unordered_map<
+            Engine::RGTextureHandle,
+            std::vector<std::pair<uint32_t, Engine::Rhi::MemoryAccessTypeImageBits>>>
             image_usages{};
 
         template <typename T>
@@ -80,10 +83,10 @@ namespace {
 
         void SortByPassIndex() noexcept {
             for (auto &[r, u] : buffer_usages) {
-                std::sort(u.begin(), u.end(), less_by_pass_index<Engine::MemoryAccessTypeBuffer>);
+                std::sort(u.begin(), u.end(), less_by_pass_index<Engine::Rhi::MemoryAccessTypeBuffer>);
             }
             for (auto &[r, u] : image_usages) {
-                std::sort(u.begin(), u.end(), less_by_pass_index<Engine::MemoryAccessTypeImageBits>);
+                std::sort(u.begin(), u.end(), less_by_pass_index<Engine::Rhi::MemoryAccessTypeImageBits>);
             }
         }
     };
@@ -154,7 +157,7 @@ namespace Engine {
             };
             std::unordered_map<RGTextureHandle, TextureCreationInfo> texture_creation_info;
             std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
-            std::unordered_map<RGBufferHandle, const DeviceBuffer *> buffer_mapping;
+            std::unordered_map<RGBufferHandle, const Rhi::DeviceBuffer *> buffer_mapping;
 
             /**
              * @brief Materialize render target textures from the
@@ -267,9 +270,9 @@ namespace Engine {
         PipelineRuntimeInfoPerRendering GetPerRenderingInfo(const RenderGraphPass &subpass) const noexcept {
             PipelineRuntimeInfoPerRendering ret{};
 
-            std::fill(ret.color_attachment_format, ret.color_attachment_format + 8, ImageUtils::ImageFormat::UNDEFINED);
+            std::fill(ret.color_attachment_format, ret.color_attachment_format + 8, Rhi::ImageFormat::UNDEFINED);
             for (size_t i = 0; i < subpass.color_attachments.size(); i++) {
-                ImageUtils::ImageFormat format;
+                Rhi::ImageFormat format;
                 auto rth = subpass.color_attachments[i].rt_handle;
                 // Imported external resource
                 if (static_cast<int32_t>(rth) < 0) {
@@ -277,7 +280,7 @@ namespace Engine {
                                  ->GetTextureDescription()
                                  .format;
                 } else {
-                    format = static_cast<ImageUtils::ImageFormat>(rs.texture_creation_info.at(rth).t.format);
+                    format = static_cast<Rhi::ImageFormat>(rs.texture_creation_info.at(rth).t.format);
                 }
                 ret.color_attachment_format[i] = format;
             }
@@ -289,9 +292,9 @@ namespace Engine {
                         .format;
             } else if (static_cast<int32_t>(drth) > 0) {
                 ret.depth_stencil_attachment_format =
-                    static_cast<ImageUtils::ImageFormat>(rs.texture_creation_info.at(drth).t.format);
+                    static_cast<Rhi::ImageFormat>(rs.texture_creation_info.at(drth).t.format);
             } else {
-                ret.depth_stencil_attachment_format = ImageUtils::ImageFormat::UNDEFINED;
+                ret.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
             }
 
             return ret;
@@ -307,13 +310,13 @@ namespace Engine {
     RenderGraphBuilder::~RenderGraphBuilder() = default;
 
     RGTextureHandle RenderGraphBuilder::ImportExternalResource(
-        RenderTargetTexture &texture, MemoryAccessTypeImageBits prev_access
+        RenderTargetTexture &texture, Rhi::MemoryAccessTypeImageBits prev_access
     ) {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.texture_mapping[ret] = &texture;
 
-        if (prev_access != MemoryAccessTypeImageBits::None) {
+        if (prev_access != Rhi::MemoryAccessTypeImageBits::None) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
                 this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
@@ -324,13 +327,13 @@ namespace Engine {
     }
 
     RGTextureHandle RenderGraphBuilder::ImportExternalResource(
-        RRTTHandle texture, MemoryAccessTypeImageBits prev_access
+        RRTTHandle texture, Rhi::MemoryAccessTypeImageBits prev_access
     ) {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.texture_mapping[ret] = texture;
 
-        if (prev_access != MemoryAccessTypeImageBits::None) {
+        if (prev_access != Rhi::MemoryAccessTypeImageBits::None) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
                 this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
@@ -341,13 +344,13 @@ namespace Engine {
     }
 
     RGBufferHandle RenderGraphBuilder::ImportExternalResource(
-        const DeviceBuffer &buffer, MemoryAccessTypeBuffer prev_access
+        const Rhi::DeviceBuffer &buffer, Rhi::MemoryAccessTypeBuffer prev_access
     ) {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGBufferHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.buffer_mapping[ret] = &buffer;
 
-        if (prev_access != MemoryAccessTypeBuffer{MemoryAccessTypeBufferBits::None}) {
+        if (prev_access != Rhi::MemoryAccessTypeBuffer{Rhi::MemoryAccessTypeBufferBits::None}) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
                 this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
@@ -536,8 +539,8 @@ namespace Engine {
                     auto itr = std::lower_bound(
                         u.begin(),
                         u.end(),
-                        std::make_pair(subpass_id, MemoryAccessTypeImageBits{}),
-                        UsageCache::less_by_pass_index<MemoryAccessTypeImageBits>
+                        std::make_pair(subpass_id, Rhi::MemoryAccessTypeImageBits{}),
+                        UsageCache::less_by_pass_index<Rhi::MemoryAccessTypeImageBits>
                     );
 
                     vk::AccessFlags2 src_access, dst_access;
@@ -562,8 +565,8 @@ namespace Engine {
                     dst_layout = GetImageLayout({a});
                     vk::ImageAspectFlags aspect{};
                     if (pimpl->rs.texture_creation_info.contains(r)) {
-                        aspect = ImageUtils::GetVkAspect(
-                            static_cast<ImageUtils::ImageFormat>(
+                        aspect = Rhi::GetVkAspect(
+                            static_cast<Rhi::ImageFormat>(
                                 static_cast<std::underlying_type_t<RenderTargetTexture::RTTFormat>>(
                                     pimpl->rs.texture_creation_info[r].t.format
                                 )
@@ -571,7 +574,7 @@ namespace Engine {
                         );
                     } else {
                         assert(pimpl->rs.texture_mapping.contains(r));
-                        aspect = ImageUtils::GetVkAspect(
+                        aspect = Rhi::GetVkAspect(
                             std::visit(RenderTargetTextureVariantVisitor{}, pimpl->rs.texture_mapping.at(r))
                                 ->GetTextureDescription()
                                 .format
@@ -623,8 +626,8 @@ namespace Engine {
                     auto itr = std::lower_bound(
                         u.begin(),
                         u.end(),
-                        std::make_pair(subpass_id, MemoryAccessTypeBuffer{}),
-                        UsageCache::less_by_pass_index<MemoryAccessTypeBuffer>
+                        std::make_pair(subpass_id, Rhi::MemoryAccessTypeBuffer{}),
+                        UsageCache::less_by_pass_index<Rhi::MemoryAccessTypeBuffer>
                     );
 
                     vk::AccessFlags2 src_access, dst_access;

@@ -1,6 +1,6 @@
-#include "StructuredBuffer.h"
+#include "Rhi/StructuredBuffer.h"
 
-namespace Engine {
+namespace Engine::Rhi {
     struct StructuredBuffer::impl : private std::unordered_map<std::string, StructuredBuffer::VariableEntry> {
         friend class StructuredBuffer;
     };
@@ -32,4 +32,4 @@ namespace Engine {
         }
         return nullptr;
     }
-} // namespace Engine
+} // namespace Engine::Rhi

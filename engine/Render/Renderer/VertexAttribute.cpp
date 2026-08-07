@@ -76,7 +76,7 @@ namespace Engine {
     }
 
     std::vector<vk::VertexInputAttributeDescription> VertexAttribute::ToVkVertexAttribute(
-        RenderSystemState::AllocatorState *allocator
+        Rhi::AllocatorState *allocator
     ) const noexcept {
         std::vector<vk::VertexInputAttributeDescription> ret;
         ret.reserve(16);

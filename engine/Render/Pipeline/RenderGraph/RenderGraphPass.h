@@ -4,8 +4,8 @@
 #include <functional>
 #include <unordered_map>
 
-#include "Rhi/MemoryAccessTypes.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
+#include "Rhi/MemoryAccessTypes.h"
 
 namespace vk {
     struct CommandBuffer;
@@ -40,8 +40,8 @@ namespace Engine {
         std::function<void(vk::CommandBuffer, const RenderGraph &)> pass_function{};
 
         // Access registry
-        std::unordered_map<RGTextureHandle, MemoryAccessTypeImageBits> image_access{};
-        std::unordered_map<RGBufferHandle, MemoryAccessTypeBuffer> buffer_access{};
+        std::unordered_map<RGTextureHandle, Rhi::MemoryAccessTypeImageBits> image_access{};
+        std::unordered_map<RGBufferHandle, Rhi::MemoryAccessTypeBuffer> buffer_access{};
 
         // Attachments
         std::vector<RGAttachmentDesc2> color_attachments;
@@ -111,7 +111,7 @@ namespace Engine {
         /**
          * @brief Mark an image for access.
          */
-        RenderGraphPassBuilder &UseImage(RGTextureHandle handle, MemoryAccessTypeImageBits access) noexcept {
+        RenderGraphPassBuilder &UseImage(RGTextureHandle handle, Rhi::MemoryAccessTypeImageBits access) noexcept {
             pass.image_access[handle] = access;
             return *this;
         }
@@ -123,7 +123,7 @@ namespace Engine {
          * instead of a per-buffer barrier. It seems that most graphics drivers
          * does not support buffer ganularity synchronization after all.
          */
-        RenderGraphPassBuilder &UseBuffer(RGBufferHandle handle, MemoryAccessTypeBuffer access) noexcept {
+        RenderGraphPassBuilder &UseBuffer(RGBufferHandle handle, Rhi::MemoryAccessTypeBuffer access) noexcept {
             pass.buffer_access[handle] = access;
             return *this;
         }
@@ -136,7 +136,7 @@ namespace Engine {
          *
          * Implementationwise, it is marked by a special resource handle zero.
          */
-        RenderGraphPassBuilder &SetGlobalAccess(MemoryAccessTypeBuffer access) noexcept {
+        RenderGraphPassBuilder &SetGlobalAccess(Rhi::MemoryAccessTypeBuffer access) noexcept {
             pass.buffer_access[static_cast<RGBufferHandle>(0)] = access;
             return *this;
         }
@@ -150,12 +150,12 @@ namespace Engine {
          * This attachment will be automatically marked for read and write.
          */
         RenderGraphPassBuilder &AppendColorAttachment(RGAttachmentDesc2 attachment) noexcept {
-            attachment.range.swizzle_and_srgb.r = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
-            attachment.range.swizzle_and_srgb.g = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
-            attachment.range.swizzle_and_srgb.b = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
-            attachment.range.swizzle_and_srgb.a = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.r = Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.g = Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.b = Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.a = Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
             pass.color_attachments.push_back(attachment);
-            pass.image_access[attachment.rt_handle] = MemoryAccessTypeImageBits::ColorAttachmentDefault;
+            pass.image_access[attachment.rt_handle] = Rhi::MemoryAccessTypeImageBits::ColorAttachmentDefault;
             return *this;
         }
 
@@ -168,12 +168,12 @@ namespace Engine {
          * This attachment will be automatically marked for read and write.
          */
         RenderGraphPassBuilder &SetDepthStencilAttachment(RGAttachmentDesc2 attachment) noexcept {
-            attachment.range.swizzle_and_srgb.r = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
-            attachment.range.swizzle_and_srgb.g = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
-            attachment.range.swizzle_and_srgb.b = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
-            attachment.range.swizzle_and_srgb.a = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.r = Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.g = Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.b = Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.a = Rhi::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
             pass.depth_attachment = attachment;
-            pass.image_access[attachment.rt_handle] = MemoryAccessTypeImageBits::DepthStencilAttachmentDefault;
+            pass.image_access[attachment.rt_handle] = Rhi::MemoryAccessTypeImageBits::DepthStencilAttachmentDefault;
             return *this;
         }
 

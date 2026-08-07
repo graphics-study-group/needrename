@@ -1,9 +1,9 @@
 #include "PhysicsScene.h"
 
-#include <Rhi/ComputeBuffer.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
+#include <Rhi/ComputeBuffer.h>
 #include <Rhi/SubmissionHelper.h>
 #include <vulkan/vulkan.hpp>
 
@@ -27,15 +27,15 @@ namespace {
 
     template <typename T>
     void EnsureBuffer(
-        std::unique_ptr<Engine::ComputeBuffer> &buffer,
-        const Engine::RenderSystemState::AllocatorState &allocator,
+        std::unique_ptr<Engine::Rhi::ComputeBuffer> &buffer,
+        const Engine::Rhi::AllocatorState &allocator,
         size_t element_count,
         const std::string &name
     ) {
         const size_t safe_count = std::max<size_t>(1, element_count);
         const size_t byte_size = safe_count * sizeof(T);
         if (!buffer || buffer->GetSize() != byte_size) {
-            buffer = Engine::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
+            buffer = Engine::Rhi::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
         }
     }
 } // namespace

@@ -1,9 +1,9 @@
 #include "StaticMeshResourceManager.h"
 
 #include "Asset/AssetRef.h"
-#include "Rhi/AllocatorState.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Rhi/AllocatorState.h"
 #include "StaticMeshResource.h"
 
 #include <cassert>

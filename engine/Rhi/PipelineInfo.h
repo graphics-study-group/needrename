@@ -4,7 +4,7 @@
 #include <array>
 #include <vulkan/vulkan.hpp>
 
-namespace Engine {
+namespace Engine::Rhi {
     class DeviceBuffer;
     namespace PipelineInfo {
         struct ComputePassInfo {
@@ -28,6 +28,6 @@ namespace Engine {
             };
         };
     } // namespace PipelineInfo
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_PIPELINE_PIPELINEINFO_INCLUDED

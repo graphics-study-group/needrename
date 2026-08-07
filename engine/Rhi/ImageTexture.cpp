@@ -3,7 +3,7 @@
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Asset/Texture/ImageCubemapAsset.h"
 
-namespace Engine {
+namespace Engine::Rhi {
     ImageTexture::ImageTexture(
         RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name
     ) : Texture(system, texture, sampler, name) {
@@ -19,7 +19,7 @@ namespace Engine {
                 .width = texture.width,
                 .height = texture.height,
                 .depth = texture.depth,
-                .format = static_cast<ImageUtils::ImageFormat>(static_cast<int>(texture.format)),
+                .format = static_cast<Rhi::ImageFormat>(static_cast<int>(texture.format)),
                 .memory_type = {ImageMemoryTypeBits::DefaultTexture},
                 .mipmap_levels = texture.mipmap_levels,
                 .array_layers = texture.array_layers,
@@ -55,7 +55,7 @@ namespace Engine {
                 .width = static_cast<uint32_t>(asset.m_width),
                 .height = static_cast<uint32_t>(asset.m_height),
                 .depth = 1,
-                .format = ImageUtils::ImageFormat::R8G8B8A8SRGB,
+                .format = Rhi::ImageFormat::R8G8B8A8SRGB,
                 .memory_type = {ImageMemoryTypeBits::DefaultTexture},
                 .mipmap_levels = 1,
                 .array_layers = 6,
@@ -69,4 +69,4 @@ namespace Engine {
             asset.m_name
         ));
     }
-} // namespace Engine
+} // namespace Engine::Rhi

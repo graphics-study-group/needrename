@@ -31,7 +31,7 @@ int main() {
     rgb.AddPass(
         RenderGraphPassBuilder{*cmc->GetRenderSystem()}
             .SetName("Compute pass")
-            .SetGlobalAccess({MemoryAccessTypeBufferBits::ShaderRandomWrite})
+            .SetGlobalAccess({Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction(dummy_compute_pass)
             .Get()
@@ -40,7 +40,7 @@ int main() {
     rgb.AddPass(
         RenderGraphPassBuilder{*cmc->GetRenderSystem()}
             .SetName("Main pass")
-            .UseImage(gbuffer, MemoryAccessTypeImageBits::ShaderSampledRead)
+            .UseImage(gbuffer, Rhi::MemoryAccessTypeImageBits::ShaderSampledRead)
             .AppendColorAttachment(
                 {fbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
             )
@@ -52,7 +52,7 @@ int main() {
     rgb.AddPass(
         RenderGraphPassBuilder{*cmc->GetRenderSystem()}
             .SetName("GBuffer pass")
-            .SetGlobalAccess({MemoryAccessTypeBufferBits::IndexRead, MemoryAccessTypeBufferBits::VertexRead})
+            .SetGlobalAccess({Rhi::MemoryAccessTypeBufferBits::IndexRead, Rhi::MemoryAccessTypeBufferBits::VertexRead})
             .AppendColorAttachment(
                 {gbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
             )
@@ -64,7 +64,7 @@ int main() {
     rgb.AddPass(
         RenderGraphPassBuilder{*cmc->GetRenderSystem()}
             .SetName("Post processing compute")
-            .UseImage(fbuffer, MemoryAccessTypeImageBits::ShaderRandomRead)
+            .UseImage(fbuffer, Rhi::MemoryAccessTypeImageBits::ShaderRandomRead)
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction(dummy_compute_pass)
             .Get()

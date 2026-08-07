@@ -11,7 +11,9 @@
 #include <vector>
 
 namespace Engine {
-    class ComputeBuffer;
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class RenderSystem;
 
     enum class REFL_SER_CLASS() CollisionShapeType {
@@ -81,38 +83,38 @@ namespace Engine {
         void SyncGpuBuffers(RenderSystem &render_system);
 
         struct PhysicsGpuBuffers {
-            const ComputeBuffer *rigid_body_alive{};
-            const ComputeBuffer *rigid_body_mass{};
-            const ComputeBuffer *rigid_body_static_friction{};
-            const ComputeBuffer *rigid_body_dynamic_friction{};
-            const ComputeBuffer *rigid_body_restitution{};
-            const ComputeBuffer *rigid_body_is_kinematic{};
-            const ComputeBuffer *rigid_body_center_world_position{};
-            const ComputeBuffer *rigid_body_center_world_rotation{};
-            const ComputeBuffer *rigid_body_inertia{};
-            const ComputeBuffer *rigid_body_inverse_inertia{};
-            const ComputeBuffer *rigid_body_linear_velocity{};
-            const ComputeBuffer *rigid_body_angular_velocity{};
-            const ComputeBuffer *rigid_body_external_force{};
-            const ComputeBuffer *rigid_body_external_torque{};
+            const Rhi::ComputeBuffer *rigid_body_alive{};
+            const Rhi::ComputeBuffer *rigid_body_mass{};
+            const Rhi::ComputeBuffer *rigid_body_static_friction{};
+            const Rhi::ComputeBuffer *rigid_body_dynamic_friction{};
+            const Rhi::ComputeBuffer *rigid_body_restitution{};
+            const Rhi::ComputeBuffer *rigid_body_is_kinematic{};
+            const Rhi::ComputeBuffer *rigid_body_center_world_position{};
+            const Rhi::ComputeBuffer *rigid_body_center_world_rotation{};
+            const Rhi::ComputeBuffer *rigid_body_inertia{};
+            const Rhi::ComputeBuffer *rigid_body_inverse_inertia{};
+            const Rhi::ComputeBuffer *rigid_body_linear_velocity{};
+            const Rhi::ComputeBuffer *rigid_body_angular_velocity{};
+            const Rhi::ComputeBuffer *rigid_body_external_force{};
+            const Rhi::ComputeBuffer *rigid_body_external_torque{};
 
-            const ComputeBuffer *shape_alive{};
-            const ComputeBuffer *shape_type{};
-            const ComputeBuffer *shape_bound_rigid_body{};
-            const ComputeBuffer *shape_feature{};
-            const ComputeBuffer *shape_local_position{};
-            const ComputeBuffer *shape_local_rotation{};
-            const ComputeBuffer *shape_world_position{};
-            const ComputeBuffer *shape_world_rotation{};
+            const Rhi::ComputeBuffer *shape_alive{};
+            const Rhi::ComputeBuffer *shape_type{};
+            const Rhi::ComputeBuffer *shape_bound_rigid_body{};
+            const Rhi::ComputeBuffer *shape_feature{};
+            const Rhi::ComputeBuffer *shape_local_position{};
+            const Rhi::ComputeBuffer *shape_local_rotation{};
+            const Rhi::ComputeBuffer *shape_world_position{};
+            const Rhi::ComputeBuffer *shape_world_rotation{};
 
-            const ComputeBuffer *model_matrices{};
+            const Rhi::ComputeBuffer *model_matrices{};
 
-            const ComputeBuffer *shape_filter_data{};
+            const Rhi::ComputeBuffer *shape_filter_data{};
 
-            const ComputeBuffer *gpu_fixed_joints{};
-            const ComputeBuffer *gpu_fixed_joint_alive{};
-            const ComputeBuffer *gpu_hinge_joints{};
-            const ComputeBuffer *gpu_hinge_joint_alive{};
+            const Rhi::ComputeBuffer *gpu_fixed_joints{};
+            const Rhi::ComputeBuffer *gpu_fixed_joint_alive{};
+            const Rhi::ComputeBuffer *gpu_hinge_joints{};
+            const Rhi::ComputeBuffer *gpu_hinge_joint_alive{};
 
             uint32_t rigid_body_slot_count{0};
             uint32_t shape_slot_count{0};
@@ -164,44 +166,44 @@ namespace Engine {
         uint32_t m_gpu_rigid_body_slot_count{0};
         uint32_t m_gpu_shape_slot_count{0};
 
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_alive{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_mass{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_static_friction{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_dynamic_friction{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_restitution{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_is_kinematic{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_world_position{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_world_rotation{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_inertia{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_inverse_inertia{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_linear_velocity{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_angular_velocity{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_external_force{};
-        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_external_torque{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_alive{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_mass{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_static_friction{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_dynamic_friction{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_restitution{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_is_kinematic{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_center_world_position{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_center_world_rotation{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_inertia{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_inverse_inertia{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_linear_velocity{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_angular_velocity{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_external_force{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_external_torque{};
 
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_alive{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_type{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_bound_rigid_body{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_feature{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_local_position{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_local_rotation{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_world_position{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_world_rotation{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_alive{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_type{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_bound_rigid_body{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_feature{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_local_position{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_local_rotation{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_position{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_rotation{};
 
-        std::unique_ptr<ComputeBuffer> m_gpu_model_matrices{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_model_matrices{};
 
         std::vector<GpuFixedJoint> m_fixed_joints{};
         std::vector<uint32_t> m_fixed_joint_alive{};
         std::vector<GpuHingeJoint> m_hinge_joints{};
         std::vector<uint32_t> m_hinge_joint_alive{};
-        std::unique_ptr<ComputeBuffer> m_gpu_fixed_joints{};
-        std::unique_ptr<ComputeBuffer> m_gpu_fixed_joint_alive{};
-        std::unique_ptr<ComputeBuffer> m_gpu_hinge_joints{};
-        std::unique_ptr<ComputeBuffer> m_gpu_hinge_joint_alive{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_fixed_joints{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_fixed_joint_alive{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_hinge_joints{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_hinge_joint_alive{};
 
         std::vector<uint32_t> m_shape_filter_data{};
 
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_data{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_filter_data{};
     };
 } // namespace Engine
 

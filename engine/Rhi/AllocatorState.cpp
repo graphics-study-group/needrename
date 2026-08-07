@@ -1,15 +1,16 @@
-#include "AllocatorState.h"
+#include "Rhi/AllocatorState.h"
 
-#include "DebugUtils.h"
-#include "DeviceInterface.h"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/DeviceInterface.h"
 
 #include <SDL3/SDL.h>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan_hash.hpp>
 
 namespace {
-    constexpr std::tuple<vk::ImageUsageFlags, VmaMemoryUsage> GetImageFlags(Engine::ImageMemoryType type) {
+    constexpr std::tuple<vk::ImageUsageFlags, VmaMemoryUsage> GetImageFlags(Engine::Rhi::ImageMemoryType type) {
         using namespace Engine;
+        using namespace Engine::Rhi;
         vk::ImageUsageFlags iuf;
 
         if (type.Test(ImageMemoryTypeBits::CopyFrom)) iuf |= vk::ImageUsageFlagBits::eTransferSrc;
@@ -23,8 +24,9 @@ namespace {
         return std::make_tuple(iuf, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
     }
 
-    constexpr vk::FormatFeatureFlags GetFormatFeatures(Engine::ImageMemoryType type) {
+    constexpr vk::FormatFeatureFlags GetFormatFeatures(Engine::Rhi::ImageMemoryType type) {
         using namespace Engine;
+        using namespace Engine::Rhi;
 
         vk::FormatFeatureFlags fff{};
 
@@ -62,8 +64,7 @@ namespace {
     }
 
     bool CheckImageFormatSupport(
-        const Engine::RenderSystemState::AllocatorState::ImageAllocationDescription &desc,
-        const vk::ImageFormatProperties2 &ifp
+        const Engine::Rhi::AllocatorState::ImageAllocationDescription &desc, const vk::ImageFormatProperties2 &ifp
     ) {
         const auto &max_extent = ifp.imageFormatProperties.maxExtent;
         if (desc.extent.width > max_extent.width || desc.extent.height > max_extent.height
@@ -108,7 +109,7 @@ namespace {
     }
 } // namespace
 
-namespace Engine::RenderSystemState {
+namespace Engine::Rhi {
     struct AllocatorState::impl {
         VmaAllocator m_allocator{};
 
@@ -358,4 +359,4 @@ namespace Engine::RenderSystemState {
         DEBUG_SET_NAME_TEMPLATE(m_device_interface->GetDevice(), static_cast<vk::Image>(image), name);
         return ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, desc.type);
     }
-} // namespace Engine::RenderSystemState
+} // namespace Engine::Rhi

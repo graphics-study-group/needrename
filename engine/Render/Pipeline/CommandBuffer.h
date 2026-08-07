@@ -11,15 +11,17 @@
 #include <fwd.hpp>
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeResourceBinding;
+        class ComputeStage;
+        class DeviceBuffer;
+        class Texture;
+    } // namespace Rhi
     class RenderSystem;
-    class ComputeStage;
-    class ComputeResourceBinding;
     class MaterialTemplate;
     class MaterialInstance;
-    class DeviceBuffer;
     struct VertexAttribute;
     class IVertexBasedRenderer;
-    class Texture;
 
     namespace RenderSystemState {
         class SceneDataManager;
@@ -94,7 +96,7 @@ namespace Engine {
          * @param src Source texture (expected in eTransferSrcOptimal layout).
          * @param dst Destination texture (expected in eTransferDstOptimal layout).
          */
-        void BlitColorImage(const Texture &src, const Texture &dst);
+        void BlitColorImage(const Rhi::Texture &src, const Rhi::Texture &dst);
 
         /**
          * @brief Blit a specified sub-region from one color texture to another
@@ -108,7 +110,9 @@ namespace Engine {
          * @param src_area Sub-region of the source texture to read from.
          * @param dst_area Sub-region of the destination texture to write to.
          */
-        void BlitColorImage(const Texture &src, const Texture &dst, TextureArea src_area, TextureArea dst_area);
+        void BlitColorImage(
+            const Rhi::Texture &src, const Rhi::Texture &dst, TextureArea src_area, TextureArea dst_area
+        );
 
         // ── Render pass ──────────────────────────────────────────────────
 
@@ -330,26 +334,26 @@ namespace Engine {
         /**
          * @brief Bind a compute shader pipeline for subsequent dispatch.
          *
-         * Records the pipeline binding and stores the ComputeStage reference
+         * Records the pipeline binding and stores the Rhi::ComputeStage reference
          * so that BindComputeResource and DispatchCompute can use it.
          *
-         * @param stage ComputeStage owning the compute pipeline, pipeline
+         * @param stage Rhi::ComputeStage owning the compute pipeline, pipeline
          *              layout, and descriptor set layout.
          */
-        void BindComputeStage(ComputeStage &stage);
+        void BindComputeStage(Rhi::ComputeStage &stage);
 
         /**
          * @brief Bind the descriptor set and upload UBO data for the
          * currently bound compute stage.
          *
          * Must be called after BindComputeStage. Calls
-         * ComputeResourceBinding::UpdateGPUInfo to write UBO data, then binds
+         * Rhi::ComputeResourceBinding::UpdateGPUInfo to write UBO data, then binds
          * descriptor set 0 with dynamic offsets.
          *
-         * @param binding ComputeResourceBinding owning the UBO data, texture
+         * @param binding Rhi::ComputeResourceBinding owning the UBO data, texture
          *                bindings, and descriptor set.
          */
-        void BindComputeResource(ComputeResourceBinding &binding);
+        void BindComputeResource(Rhi::ComputeResourceBinding &binding);
 
         /**
          * @brief Dispatch workgroups for the currently bound compute pipeline.
@@ -384,7 +388,7 @@ namespace Engine {
 
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>>
             m_bound_material_pipeline{}; ///< Cached bound material pipeline + layout to skip redundant binds.
-        std::optional<std::reference_wrapper<ComputeStage>> m_bound_compute_stage{
+        std::optional<std::reference_wrapper<Rhi::ComputeStage>> m_bound_compute_stage{
             std::nullopt
         }; ///< Currently bound compute stage for BindComputeResource / DispatchCompute.
 

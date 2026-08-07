@@ -75,7 +75,7 @@ namespace Engine::detail {
             const fastgltf::Asset &asset,
             const fastgltf::Image &image,
             size_t image_index,
-            ImageUtils::ImageFormat format,
+            Rhi::ImageFormat format,
             const std::filesystem::path &model_path,
             AssetManager &am,
             std::unordered_map<std::string, uint32_t> &name_counters,
@@ -256,7 +256,7 @@ namespace Engine::detail {
         auto try_load_texture_ref = [&](const auto &texture_info,
                                         MaterialProperty &out_prop,
                                         const char *purpose,
-                                        ImageUtils::ImageFormat format) -> bool {
+                                        Rhi::ImageFormat format) -> bool {
             if (!texture_info.has_value()) {
                 return false;
             }
@@ -270,7 +270,7 @@ namespace Engine::detail {
             if (texcoord_index != 0) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_APPLICATION,
-                    "Texture %s uses UV set %u, but only UV0 is supported.",
+                    "Rhi::Texture %s uses UV set %u, but only UV0 is supported.",
                     purpose,
                     static_cast<unsigned int>(texcoord_index)
                 );
@@ -280,7 +280,7 @@ namespace Engine::detail {
             if (texture_info->textureIndex >= asset.textures.size()) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_APPLICATION,
-                    "Texture index %u for %s is out of range.",
+                    "Rhi::Texture index %u for %s is out of range.",
                     static_cast<unsigned int>(texture_info->textureIndex),
                     purpose
                 );
@@ -291,7 +291,7 @@ namespace Engine::detail {
             if (!texture.imageIndex.has_value()) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_APPLICATION,
-                    "Texture %u for %s does not provide a regular image source.",
+                    "Rhi::Texture %u for %s does not provide a regular image source.",
                     static_cast<unsigned int>(texture_info->textureIndex),
                     purpose
                 );
@@ -364,7 +364,7 @@ namespace Engine::detail {
                     source_material.pbrData.baseColorTexture,
                     albedo_prop,
                     "baseColorTexture",
-                    ImageUtils::ImageFormat::R8G8B8A8SRGB
+                    Rhi::ImageFormat::R8G8B8A8SRGB
                 )) {
                 // Albedo fallback branch: default builtin texture or generated solid color texture.
                 const float eps = 1e-5f;
@@ -382,7 +382,7 @@ namespace Engine::detail {
                 source_material.pbrData.metallicRoughnessTexture,
                 mrao_prop,
                 "metallicRoughnessTexture",
-                ImageUtils::ImageFormat::R8G8B8A8UNorm
+                Rhi::ImageFormat::R8G8B8A8UNorm
             );
             // MRAO fallback branch: use builtin white texture when map is missing.
             material_asset->m_properties["MRAOSampler"] =
@@ -404,14 +404,14 @@ namespace Engine::detail {
 
             MaterialProperty normal_prop;
             const bool has_normal = try_load_texture_ref(
-                source_material.normalTexture, normal_prop, "normalTexture", ImageUtils::ImageFormat::R8G8B8A8UNorm
+                source_material.normalTexture, normal_prop, "normalTexture", Rhi::ImageFormat::R8G8B8A8UNorm
             );
             material_asset->m_properties["normalSampler"] =
                 has_normal ? normal_prop : MaterialProperty(default_pbr_normal, MaterialProperty::Type::Texture);
 
             MaterialProperty emissive_prop;
             const bool has_emissive = try_load_texture_ref(
-                source_material.emissiveTexture, emissive_prop, "emissiveTexture", ImageUtils::ImageFormat::R8G8B8A8SRGB
+                source_material.emissiveTexture, emissive_prop, "emissiveTexture", Rhi::ImageFormat::R8G8B8A8SRGB
             );
             material_asset->m_properties["emissiveSampler"] =
                 has_emissive ? emissive_prop : MaterialProperty(default_pbr_emissive, MaterialProperty::Type::Texture);

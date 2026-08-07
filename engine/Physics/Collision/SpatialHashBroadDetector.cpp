@@ -9,13 +9,13 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsScene.h>
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/DeviceBuffer.h>
-#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
+#include <Render/RenderSystem.h>
+#include <Rhi/ComputeBuffer.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
-#include <Render/RenderSystem.h>
+#include <Rhi/DeviceBuffer.h>
+#include <Rhi/ShaderResourceBinding.h>
 
 #include <filesystem>
 #include <fstream>
@@ -74,61 +74,61 @@ namespace Engine {
         glm::ivec3 grid_dims{};
 
         // ---- Compute stages ----
-        std::unique_ptr<ComputeStage> aabb_stage{};
-        std::unique_ptr<ComputeStage> count_cells_stage{};
-        std::unique_ptr<ComputeStage> fill_cells_stage{};
-        std::unique_ptr<ComputeStage> histogram_stage{};
-        std::unique_ptr<ComputeStage> scatter_sort_stage{};
-        std::unique_ptr<ComputeStage> generate_pairs_stage{};
-        std::unique_ptr<ComputeStage> fallback_pairs_stage{};
-        std::unique_ptr<ComputeStage> global_pairs_stage{};
-        std::unique_ptr<ComputeStage> memset_stage{};
-        std::unique_ptr<ComputeStage> copy_stage{};
+        std::unique_ptr<Rhi::ComputeStage> aabb_stage{};
+        std::unique_ptr<Rhi::ComputeStage> count_cells_stage{};
+        std::unique_ptr<Rhi::ComputeStage> fill_cells_stage{};
+        std::unique_ptr<Rhi::ComputeStage> histogram_stage{};
+        std::unique_ptr<Rhi::ComputeStage> scatter_sort_stage{};
+        std::unique_ptr<Rhi::ComputeStage> generate_pairs_stage{};
+        std::unique_ptr<Rhi::ComputeStage> fallback_pairs_stage{};
+        std::unique_ptr<Rhi::ComputeStage> global_pairs_stage{};
+        std::unique_ptr<Rhi::ComputeStage> memset_stage{};
+        std::unique_ptr<Rhi::ComputeStage> copy_stage{};
 
         // ---- Pre-allocated bindings ----
-        ComputeResourceBinding *aabb_binding = nullptr;
-        ComputeResourceBinding *count_cells_binding = nullptr;
-        ComputeResourceBinding *fill_cells_binding = nullptr;
-        ComputeResourceBinding *histogram_binding = nullptr;
-        ComputeResourceBinding *scatter_sort_binding = nullptr;
-        ComputeResourceBinding *generate_pairs_binding = nullptr;
-        ComputeResourceBinding *fallback_pairs_binding = nullptr;
-        ComputeResourceBinding *global_pairs_binding = nullptr;
-        ComputeResourceBinding *memset_binding = nullptr;
-        ComputeResourceBinding *copy_binding = nullptr;
+        Rhi::ComputeResourceBinding *aabb_binding = nullptr;
+        Rhi::ComputeResourceBinding *count_cells_binding = nullptr;
+        Rhi::ComputeResourceBinding *fill_cells_binding = nullptr;
+        Rhi::ComputeResourceBinding *histogram_binding = nullptr;
+        Rhi::ComputeResourceBinding *scatter_sort_binding = nullptr;
+        Rhi::ComputeResourceBinding *generate_pairs_binding = nullptr;
+        Rhi::ComputeResourceBinding *fallback_pairs_binding = nullptr;
+        Rhi::ComputeResourceBinding *global_pairs_binding = nullptr;
+        Rhi::ComputeResourceBinding *memset_binding = nullptr;
+        Rhi::ComputeResourceBinding *copy_binding = nullptr;
 
         // ---- Owned GPU buffers ----
-        std::unique_ptr<ComputeBuffer> gpu_aabb_min{};
-        std::unique_ptr<ComputeBuffer> gpu_aabb_max{};
-        std::unique_ptr<ComputeBuffer> gpu_shape_cell_count{};
-        std::unique_ptr<ComputeBuffer> gpu_shape_cell_offset{};
-        std::unique_ptr<ComputeBuffer> gpu_cell_shape_pairs{};
-        std::unique_ptr<ComputeBuffer> gpu_total_assignments{};
-        std::unique_ptr<ComputeBuffer> gpu_cell_histogram{};
-        std::unique_ptr<ComputeBuffer> gpu_cell_offsets{};
-        std::unique_ptr<ComputeBuffer> gpu_cell_scratch{};
-        std::unique_ptr<ComputeBuffer> gpu_cell_shape_pairs_sorted{};
-        std::unique_ptr<ComputeBuffer> gpu_global_flags{};
-        std::unique_ptr<ComputeBuffer> gpu_global_list{};
-        std::unique_ptr<ComputeBuffer> gpu_global_count{};
-        std::unique_ptr<ComputeBuffer> gpu_collision_pairs{};
-        std::unique_ptr<ComputeBuffer> gpu_pair_count{};
-        std::unique_ptr<ComputeBuffer> gpu_grid_config{};
-        std::unique_ptr<ComputeBuffer> gpu_shape_slot_count{};
-        std::unique_ptr<ComputeBuffer> gpu_one{};
-        std::unique_ptr<ComputeBuffer> gpu_grid_cells_p1{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_aabb_min{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_aabb_max{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_shape_cell_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_shape_cell_offset{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_cell_shape_pairs{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_total_assignments{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_cell_histogram{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_cell_offsets{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_cell_scratch{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_cell_shape_pairs_sorted{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_global_flags{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_global_list{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_global_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_pairs{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_pair_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_grid_config{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_shape_slot_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_one{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_grid_cells_p1{};
 
-        std::unique_ptr<ComputeBuffer> gpu_pairs_temp{};
-        std::unique_ptr<ComputeBuffer> gpu_radix_scratch{};
-        std::unique_ptr<ComputeBuffer> gpu_unique_flags{};
-        std::unique_ptr<ComputeBuffer> gpu_unique_offsets{};
-        std::unique_ptr<ComputeBuffer> gpu_unique_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_pairs_temp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_radix_scratch{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_unique_flags{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_unique_offsets{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_unique_count{};
 
         std::unique_ptr<ParallelScan> scan{};
         std::unique_ptr<RadixSort> radix_sort{};
         std::unique_ptr<CompactUnique> compact_unique{};
 
-        std::unique_ptr<ComputeBuffer> gpu_scan_scratch{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_scan_scratch{};
 
         explicit Impl(RenderSystem &rs) : render_system(rs) {
         }
@@ -139,11 +139,11 @@ namespace Engine {
         Impl &operator=(Impl &&) = delete;
 
         void EnsureBuffer(
-            std::unique_ptr<ComputeBuffer> &buf, size_t bytes, const char *name, bool host_visible = false
+            std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name, bool host_visible = false
         ) {
             const auto &alloc = render_system.GetAllocatorState();
             if (!buf || buf->GetSize() != bytes) {
-                buf = ComputeBuffer::CreateUnique(alloc, bytes, host_visible, false, false, false, name);
+                buf = Rhi::ComputeBuffer::CreateUnique(alloc, bytes, host_visible, false, false, false, name);
             }
         }
 
@@ -189,17 +189,20 @@ namespace Engine {
             {
                 const size_t list_bytes = static_cast<size_t>(std::max(1u, shape_count)) * sizeof(uint32_t);
                 if (!gpu_global_list || gpu_global_list->GetSize() < list_bytes) {
-                    gpu_global_list =
-                        ComputeBuffer::CreateUnique(alloc, list_bytes, false, false, false, false, "BH GlobalList");
+                    gpu_global_list = Rhi::ComputeBuffer::CreateUnique(
+                        alloc, list_bytes, false, false, false, false, "BH GlobalList"
+                    );
                 }
             }
             if (!gpu_global_count || gpu_global_count->GetSize() < sizeof(uint32_t)) {
-                gpu_global_count =
-                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH GlobalCount");
+                gpu_global_count = Rhi::ComputeBuffer::CreateUnique(
+                    alloc, sizeof(uint32_t), true, false, false, false, "BH GlobalCount"
+                );
             }
 
             if (!gpu_one || gpu_one->GetSize() < sizeof(uint32_t)) {
-                gpu_one = ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH One");
+                gpu_one =
+                    Rhi::ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH One");
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_one->GetVMAddress());
                 *addr = 1u;
             }
@@ -215,13 +218,15 @@ namespace Engine {
                 EnsureBuffer(gpu_unique_offsets, flags_bytes, "BH UniqueOffsets");
             }
             if (!gpu_unique_count || gpu_unique_count->GetSize() < sizeof(uint32_t)) {
-                gpu_unique_count =
-                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH UniqueCount");
+                gpu_unique_count = Rhi::ComputeBuffer::CreateUnique(
+                    alloc, sizeof(uint32_t), true, false, false, false, "BH UniqueCount"
+                );
             }
 
             if (!gpu_grid_cells_p1 || gpu_grid_cells_p1->GetSize() < sizeof(uint32_t)) {
-                gpu_grid_cells_p1 =
-                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH GridCellsP1");
+                gpu_grid_cells_p1 = Rhi::ComputeBuffer::CreateUnique(
+                    alloc, sizeof(uint32_t), true, false, false, false, "BH GridCellsP1"
+                );
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_grid_cells_p1->GetVMAddress());
                 *addr = grid_total_cells + 1u;
             }
@@ -240,7 +245,7 @@ namespace Engine {
 
             auto load_stage = [this](const char *path, const char *name) {
                 auto spirv = LoadPhysicsSpirvBytes(path);
-                auto stage = std::make_unique<ComputeStage>(render_system);
+                auto stage = std::make_unique<Rhi::ComputeStage>(render_system);
                 stage->Instantiate(spirv, name);
                 return stage;
             };
@@ -285,7 +290,7 @@ namespace Engine {
         // Dispatch helpers
         // -----------------------------------------------------------------
 
-        void DispatchClear(CommandBuffer &cb, ComputeBuffer &target, ComputeBuffer &elem_count) {
+        void DispatchClear(CommandBuffer &cb, Rhi::ComputeBuffer &target, Rhi::ComputeBuffer &elem_count) {
             auto &srb = memset_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", target);
             srb.BindBuffer("ElemCount", elem_count);
@@ -296,7 +301,9 @@ namespace Engine {
             cb.DispatchCompute(wg, 1, 1);
         }
 
-        void DispatchCopy(CommandBuffer &cb, ComputeBuffer &src, ComputeBuffer &dst, ComputeBuffer &elem_count) {
+        void DispatchCopy(
+            CommandBuffer &cb, Rhi::ComputeBuffer &src, Rhi::ComputeBuffer &dst, Rhi::ComputeBuffer &elem_count
+        ) {
             auto &srb = copy_binding->GetShaderResourceBinding();
             srb.BindBuffer("SrcBuffer", src);
             srb.BindBuffer("DstBuffer", dst);

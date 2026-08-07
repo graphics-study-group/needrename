@@ -6,7 +6,7 @@
 #include <typeinfo>
 #include <vector>
 
-namespace Engine {
+namespace Engine::Rhi {
 
     class StructuredBuffer;
 
@@ -61,6 +61,6 @@ namespace Engine {
         void WriteBuffer(const StructuredBuffer &data, std::byte *buffer) const noexcept;
         void WriteBuffer(const StructuredBuffer &data, std::vector<std::byte> &buffer) const;
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_STRUCTUREDBUFFERPLACER_INCLUDED

@@ -51,10 +51,10 @@ int main() {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Headless Color Target");
-    auto readback_buffer = DeviceBuffer::CreateUnique(
+    auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Headless Color Target");
+    auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
         rsys->GetAllocatorState(),
-        Engine::BufferType{Engine::BufferTypeBits::ReadbackFromDevice},
+        Engine::Rhi::BufferType{Engine::Rhi::BufferTypeBits::ReadbackFromDevice},
         color->CalculateStagingBufferSizeNoMipmap()
     );
     auto *readback_raw = readback_buffer.get();
@@ -65,7 +65,7 @@ int main() {
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("Clear")
-            .UseImage(c, MemoryAccessTypeImageBits::TransferWrite)
+            .UseImage(c, Rhi::MemoryAccessTypeImageBits::TransferWrite)
             .SetAffinity(RenderGraphPassAffinity::Transfer)
             .SetPassFunction([c](CommandBuffer &cb, const RenderGraph &rg) {
                 auto rt = rg.GetInternalTextureResource(c);
@@ -82,8 +82,8 @@ int main() {
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("Readback")
-            .UseImage(c, MemoryAccessTypeImageBits::TransferRead)
-            .UseBuffer(rb, {MemoryAccessTypeBufferBits::TransferWrite})
+            .UseImage(c, Rhi::MemoryAccessTypeImageBits::TransferRead)
+            .UseBuffer(rb, {Rhi::MemoryAccessTypeBufferBits::TransferWrite})
             .SetAffinity(RenderGraphPassAffinity::Transfer)
             .SetPassFunction([c, readback_raw](CommandBuffer &cb, const RenderGraph &rg) {
                 auto rt = rg.GetInternalTextureResource(c);
@@ -121,7 +121,7 @@ int main() {
         }
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
-        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::TransferRead);
+        rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::TransferRead);
     }
     rsys->WaitForIdle();
 

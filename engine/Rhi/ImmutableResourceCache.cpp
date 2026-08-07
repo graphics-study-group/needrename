@@ -1,4 +1,4 @@
-#include "ImmutableResourceCache.h"
+#include "Rhi/ImmutableResourceCache.h"
 
 #include "Rhi/DebugUtils.h"
 #include "Rhi/Hasher.hpp"
@@ -9,7 +9,7 @@
 #include <vulkan/vulkan.hpp>
 
 namespace {
-    using Hasher = Engine::RenderResourceHasher;
+    using Hasher = Engine::Rhi::RenderResourceHasher;
 
     struct sampler_hasher {
         size_t operator()(const vk::SamplerCreateInfo &sci) const noexcept {
@@ -88,7 +88,7 @@ namespace {
     };
 } // namespace
 
-namespace Engine::RenderSystemState {
+namespace Engine::Rhi {
 
     struct ImmutableResourceCache::impl {
 
@@ -105,20 +105,20 @@ namespace Engine::RenderSystemState {
 
     ImmutableResourceCache::~ImmutableResourceCache() noexcept = default;
 
-    vk::Sampler ImmutableResourceCache::GetSampler(const ImageUtils::SamplerDesc &desc) {
+    vk::Sampler ImmutableResourceCache::GetSampler(const Rhi::SamplerDesc &desc) {
         vk::SamplerCreateInfo sci{
             vk::SamplerCreateFlags{},
-            ImageUtils::ToVkFilter(desc.min_filter),
-            ImageUtils::ToVkFilter(desc.max_filter),
-            ImageUtils::ToVkSamplerMipmapMode(desc.mipmap_filter),
-            ImageUtils::ToVkSamplerAddressMode(desc.u_address),
-            ImageUtils::ToVkSamplerAddressMode(desc.v_address),
-            ImageUtils::ToVkSamplerAddressMode(desc.w_address),
+            Rhi::ToVkFilter(desc.min_filter),
+            Rhi::ToVkFilter(desc.max_filter),
+            Rhi::ToVkSamplerMipmapMode(desc.mipmap_filter),
+            Rhi::ToVkSamplerAddressMode(desc.u_address),
+            Rhi::ToVkSamplerAddressMode(desc.v_address),
+            Rhi::ToVkSamplerAddressMode(desc.w_address),
             desc.bias_lod,
             (desc.max_anisotropy > 1.0f),
             desc.max_anisotropy,
-            (desc.comparator != ImageUtils::SamplerDesc::DepthComparator::Always),
-            PipelineUtils::ToVkCompareOp(desc.comparator),
+            (desc.comparator != Rhi::SamplerDesc::DepthComparator::Always),
+            Rhi::ToVkCompareOp(desc.comparator),
             desc.min_lod,
             desc.max_lod,
             vk::BorderColor::eFloatTransparentBlack,
@@ -126,12 +126,12 @@ namespace Engine::RenderSystemState {
             nullptr
         };
 
-        if (ImageUtils::ToVkSamplerAddressMode(desc.u_address) == vk::SamplerAddressMode::eClampToBorder) {
-            sci.borderColor = ImageUtils::ToVkBorderColor(desc.u_address);
-        } else if (ImageUtils::ToVkSamplerAddressMode(desc.v_address) == vk::SamplerAddressMode::eClampToBorder) {
-            sci.borderColor = ImageUtils::ToVkBorderColor(desc.v_address);
-        } else if (ImageUtils::ToVkSamplerAddressMode(desc.w_address) == vk::SamplerAddressMode::eClampToBorder) {
-            sci.borderColor = ImageUtils::ToVkBorderColor(desc.w_address);
+        if (Rhi::ToVkSamplerAddressMode(desc.u_address) == vk::SamplerAddressMode::eClampToBorder) {
+            sci.borderColor = Rhi::ToVkBorderColor(desc.u_address);
+        } else if (Rhi::ToVkSamplerAddressMode(desc.v_address) == vk::SamplerAddressMode::eClampToBorder) {
+            sci.borderColor = Rhi::ToVkBorderColor(desc.v_address);
+        } else if (Rhi::ToVkSamplerAddressMode(desc.w_address) == vk::SamplerAddressMode::eClampToBorder) {
+            sci.borderColor = Rhi::ToVkBorderColor(desc.w_address);
         }
 
         return GetSampler(sci);
@@ -180,4 +180,4 @@ namespace Engine::RenderSystemState {
         }
         return itr->second.get();
     }
-} // namespace Engine::RenderSystemState
+} // namespace Engine::Rhi

@@ -6,14 +6,14 @@
 
 #include <Physics/PhysicsScene.h>
 #include <Physics/Solver/XPBDGpuSolver.h>
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/DeviceBuffer.h>
-#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Rhi/ComputeResourceBinding.h>
-#include <Rhi/ComputeStage.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/SceneDataManager.h>
+#include <Rhi/ComputeBuffer.h>
+#include <Rhi/ComputeResourceBinding.h>
+#include <Rhi/ComputeStage.h>
+#include <Rhi/DeviceBuffer.h>
+#include <Rhi/ShaderResourceBinding.h>
 
 #include <filesystem>
 #include <fstream>
@@ -52,11 +52,11 @@ namespace Engine {
         XpbdConfig config{};
         bool initialized = false;
 
-        std::unique_ptr<ComputeStage> compute_stage{};
+        std::unique_ptr<Rhi::ComputeStage> compute_stage{};
         std::vector<uint32_t> shader_spirv{};
-        ComputeResourceBinding *resource_binding = nullptr;
+        Rhi::ComputeResourceBinding *resource_binding = nullptr;
 
-        std::unique_ptr<ComputeBuffer> gpu_uniforms{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_uniforms{};
 
         explicit Impl(RenderSystem &rs) : render_system(rs) {
         }
@@ -71,7 +71,7 @@ namespace Engine {
             if (!gpu_uniforms || gpu_uniforms->GetSize() != sz) {
                 const auto &alloc = render_system.GetAllocatorState();
                 gpu_uniforms =
-                    ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "DummySolver Uniforms");
+                    Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "DummySolver Uniforms");
             }
             (void)body_count;
         }
@@ -103,7 +103,7 @@ namespace Engine {
 
         if (!m_impl->initialized) {
             m_impl->shader_spirv = LoadPhysicsSpirv("solver/DummySolver/dummy_solver.comp.spv");
-            m_impl->compute_stage = std::make_unique<ComputeStage>(m_impl->render_system);
+            m_impl->compute_stage = std::make_unique<Rhi::ComputeStage>(m_impl->render_system);
             m_impl->compute_stage->Instantiate(m_impl->shader_spirv, "DummySolver");
             m_impl->resource_binding = &m_impl->compute_stage->AllocateResourceBinding();
 

@@ -28,10 +28,10 @@ namespace Engine::RenderSystemState {
      * - IsReadyImpl queries StaticMeshResource::IsReady(), which checks whether all
      *   submesh GPU buffers exist.
      * - EnsureReadyImpl calls StaticMeshResource::Submit() if not yet ready, which
-     *   allocates GPU buffers and enqueues copy operations via SubmissionHelper.
+     *   allocates GPU buffers and enqueues copy operations via Rhi::SubmissionHelper.
      *
      * GPU resource ownership:
-     * - Each submesh's vertex/index buffer (DeviceBuffer) is owned by StaticMeshResource.
+     * - Each submesh's vertex/index buffer (Rhi::DeviceBuffer) is owned by StaticMeshResource.
      * - OnDestroyImpl calls StaticMeshResource::Remove(), which resets buffer unique_ptrs,
      *   triggering RAII cleanup of the underlying GPU allocations.
      *
@@ -103,7 +103,7 @@ namespace Engine::RenderSystemState {
          *
          * If StaticMeshResource::IsReady() is false, calls Submit() to allocate and
          * upload all submesh GPU buffers.
-         * Enqueues copy operations via SubmissionHelper; actual GPU work may be
+         * Enqueues copy operations via Rhi::SubmissionHelper; actual GPU work may be
          * deferred to later in the frame.
          *
          * @param handle Target handle.

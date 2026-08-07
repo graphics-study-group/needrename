@@ -23,7 +23,7 @@ namespace Engine::detail::texture_import {
     void LoadImage2DTextureAssetFromFile(
         Engine::Image2DTextureAsset &asset,
         const std::filesystem::path &path,
-        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
+        Rhi::ImageFormat format = Rhi::ImageFormat::R8G8B8A8SRGB
     );
 
     /**
@@ -38,7 +38,7 @@ namespace Engine::detail::texture_import {
         Engine::Image2DTextureAsset &asset,
         const std::byte *bytes,
         size_t size,
-        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
+        Rhi::ImageFormat format = Rhi::ImageFormat::R8G8B8A8SRGB
     );
 
     /**
@@ -57,7 +57,7 @@ namespace Engine::detail::texture_import {
         const std::filesystem::path &path,
         int width,
         int height,
-        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
+        Rhi::ImageFormat format = Rhi::ImageFormat::R8G8B8A8SRGB
     );
 
     /**
@@ -73,7 +73,7 @@ namespace Engine::detail::texture_import {
     void LoadImageCubemapAssetFromSixFiles(
         Engine::ImageCubemapAsset &asset,
         const std::array<std::filesystem::path, 6> &paths,
-        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
+        Rhi::ImageFormat format = Rhi::ImageFormat::R8G8B8A8SRGB
     );
 
     /**
@@ -93,7 +93,7 @@ namespace Engine::detail::texture_import {
         size_t size,
         int width,
         int height,
-        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
+        Rhi::ImageFormat format = Rhi::ImageFormat::R8G8B8A8SRGB
     );
 
     /**
@@ -111,7 +111,7 @@ namespace Engine::detail::texture_import {
         Engine::ImageCubemapAsset &asset,
         const std::array<const std::byte *, 6> &bytes,
         const std::array<size_t, 6> &sizes,
-        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
+        Rhi::ImageFormat format = Rhi::ImageFormat::R8G8B8A8SRGB
     );
 } // namespace Engine::detail::texture_import
 

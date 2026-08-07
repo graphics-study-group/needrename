@@ -2,10 +2,11 @@
 #define RENDER_RESOURCE_IASYCHPREPARED_INCLUDED
 
 namespace Engine {
-    namespace RenderSystemState {
-        class SubmissionHelper;
+    namespace Rhi {
         class AllocatorState;
-    } // namespace RenderSystemState
+        class SubmissionHelper;
+    } // namespace Rhi
+    namespace RenderSystemState {} // namespace RenderSystemState
 
     /**
      * @brief Interface for GPU resources that have an explicit preparation/removal lifecycle.
@@ -41,9 +42,7 @@ namespace Engine {
          *
          * @note Implementation may perform eager upload or only enqueue async operations, depending on resource/manager policy.
          */
-        virtual void Submit(
-            const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &submission_helper
-        ) = 0;
+        virtual void Submit(const Rhi::AllocatorState &allocator, Rhi::SubmissionHelper &submission_helper) = 0;
     };
 } // namespace Engine
 

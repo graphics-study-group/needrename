@@ -7,8 +7,10 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
-    class ComputeBuffer;
-    class ComputeStage;
+    namespace Rhi {
+        class ComputeBuffer;
+        class ComputeStage;
+    } // namespace Rhi
     class RenderGraph;
     class RenderSystem;
 } // namespace Engine
@@ -33,14 +35,14 @@ namespace Editor {
             Engine::RGTextureHandle &scene_widget_color_id,
             Engine::RGTextureHandle &game_widget_color_id,
             Engine::RGTextureHandle &final_color_target_id,
-            const Engine::ComputeBuffer *model_matrices_buffer = nullptr
+            const Engine::Rhi::ComputeBuffer *model_matrices_buffer = nullptr
         );
 
     protected:
         Engine::RenderSystem &m_system;
         Engine::AssetRef m_bloom_shader{};
-        std::shared_ptr<Engine::ComputeStage> m_game_bloom_compute_stage{};
-        std::shared_ptr<Engine::ComputeStage> m_scene_bloom_compute_stage{};
+        std::shared_ptr<Engine::Rhi::ComputeStage> m_game_bloom_compute_stage{};
+        std::shared_ptr<Engine::Rhi::ComputeStage> m_scene_bloom_compute_stage{};
     };
 } // namespace Editor
 

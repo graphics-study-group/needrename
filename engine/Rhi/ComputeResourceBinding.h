@@ -12,6 +12,9 @@ namespace vk {
 
 namespace Engine {
     class RenderSystem;
+}
+
+namespace Engine::Rhi {
     class ComputeStage;
     class StructuredBuffer;
     class ShaderResourceBinding;
@@ -81,6 +84,6 @@ namespace Engine {
          */
         vk::DescriptorSet GetDescriptorSet(uint32_t backbuffer) const noexcept;
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // PIPELINE_COMPUTE_COMPUTERESOURCEBINDING

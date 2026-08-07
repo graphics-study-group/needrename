@@ -53,7 +53,7 @@ namespace Engine {
             /// @brief Which RTT to be written to.
             RenderTargetTexture *texture{nullptr};
             /// @brief What subresources are used by the rendering pass.
-            TextureSubresourceRange range{};
+            Rhi::TextureSubresourceRange range{};
             /// @brief Load operation of the attachment.
             LoadOperation load_op{};
             /// @brief Store operation of the attachment.

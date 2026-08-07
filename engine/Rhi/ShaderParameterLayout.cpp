@@ -1,4 +1,4 @@
-#include "ShaderParameterLayout.h"
+#include "Rhi/ShaderParameterLayout.h"
 
 #include "Rhi/StructuredBuffer.h"
 #include "Rhi/StructuredBufferPlacer.h"
@@ -13,7 +13,7 @@
 
 #include <string>
 
-namespace Engine::ShdrRfl {
+namespace Engine::Rhi {
     // Types are only added and never removed.
     // We will have no more than ~100 shaders, so this
     // might be Ok anyway.
@@ -21,17 +21,17 @@ namespace Engine::ShdrRfl {
         std::vector<std::unique_ptr<StructuredBufferPlacer>> structured_buffers;
     };
     static TypeStorage type_storage;
-} // namespace Engine::ShdrRfl
+} // namespace Engine::Rhi
 
 namespace {
     void ReflectSimpleStruct(
-        Engine::ShdrRfl::SPLayout &layout,
-        Engine::ShdrRfl::SPInterfaceStructuredBuffer &root,
+        Engine::Rhi::SPLayout &layout,
+        Engine::Rhi::SPInterfaceStructuredBuffer &root,
         const spirv_cross::Resource &buffer,
         const spirv_cross::Compiler &compiler
     ) {
         using namespace Engine;
-        using namespace Engine::ShdrRfl;
+        using namespace Engine::Rhi;
         // Construct the underlying type
         auto placer = std::unique_ptr<StructuredBufferPlacer>(new StructuredBufferPlacer{});
         auto &type = compiler.get_type(buffer.base_type_id);
@@ -92,7 +92,7 @@ namespace {
         type_storage.structured_buffers.emplace_back(std::move(placer));
     }
 
-    void FillImageInfo(Engine::ShdrRfl::SPInterfaceOpaqueImage &image, const spirv_cross::SPIRType &type) {
+    void FillImageInfo(Engine::Rhi::SPInterfaceOpaqueImage &image, const spirv_cross::SPIRType &type) {
         if (!type.array.empty()) {
             assert(type.array.size() == 1);
             image.array_size = type.array[0];
@@ -100,7 +100,7 @@ namespace {
             image.array_size = 0;
         }
 
-        using enum Engine::ShdrRfl::SPInterfaceOpaqueImage::ImageFlagBits;
+        using enum Engine::Rhi::SPInterfaceOpaqueImage::ImageFlagBits;
         if (type.image.arrayed) image.flags.Set(Arrayed);
         if (type.image.ms) image.flags.Set(Multisampled);
         switch (type.image.dim) {
@@ -146,7 +146,7 @@ namespace {
  * In the same line of thought, interfaces and type information should therefore not
  * be intermingled. This can save us a lot of headaches.
  */
-namespace Engine::ShdrRfl {
+namespace Engine::Rhi {
 
     void SPLayout::PlaceBufferVariable(
         std::vector<std::byte> &buffer, const SPInterfaceStructuredBuffer &interface, const StructuredBuffer &sb
@@ -323,9 +323,7 @@ namespace Engine::ShdrRfl {
         other.interface_name_mapping.clear();
     }
 
-    SPLayout Engine::ShdrRfl::SPLayout::Reflect(
-        const std::vector<uint32_t> &spirv_code, bool filter_out_low_descriptors
-    ) {
+    SPLayout Engine::Rhi::SPLayout::Reflect(const std::vector<uint32_t> &spirv_code, bool filter_out_low_descriptors) {
         SPLayout layout{};
         spirv_cross::Compiler compiler(spirv_code);
 
@@ -434,4 +432,4 @@ namespace Engine::ShdrRfl {
 
         return layout;
     }
-} // namespace Engine::ShdrRfl
+} // namespace Engine::Rhi

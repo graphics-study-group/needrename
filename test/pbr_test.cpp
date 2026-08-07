@@ -38,9 +38,9 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     test_asset->name = "LambertianCookTorrancePBR";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {ImageUtils::ImageFormat::R11G11B10UFloat};
+    mtspp.attachments.color = {Rhi::ImageFormat::R11G11B10UFloat};
     mtspp.attachments.color_blending = {PipelineProperties::ColorBlendingProperties{}};
-    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    mtspp.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
     test_asset->properties = mtspp;
 
@@ -71,10 +71,10 @@ public:
     void LoadData(
         std::filesystem::path mesh_file_name,
         AssetRef lib_asset_ref,
-        std::shared_ptr<Texture> albedo,
-        std::shared_ptr<Texture> MRAO,
-        std::shared_ptr<Texture> normal,
-        std::shared_ptr<Texture> emissive
+        std::shared_ptr<Rhi::Texture> albedo,
+        std::shared_ptr<Rhi::Texture> MRAO,
+        std::shared_ptr<Rhi::Texture> normal,
+        std::shared_ptr<Rhi::Texture> emissive
     ) {
         this->LoadMesh(mesh_file_name);
 
@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
     pbr_material->Instantiate(*pbr_material_assets.first);
 
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
 
     RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
@@ -216,35 +216,39 @@ int main(int argc, char **argv) {
         .is_cube_map = false
     };
     std::shared_ptr hdr_color{
-        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")
+        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "HDR Color Attachment")
     };
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    std::shared_ptr color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
+    std::shared_ptr color{
+        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Attachment")
+    };
     desc.mipmap_levels = 1;
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
+    std::shared_ptr depth{
+        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment")
+    };
 
-    ImageTexture::ImageTextureDesc empty_desc{
+    Rhi::ImageTexture::ImageTextureDesc empty_desc{
         .dimensions = 2,
         .width = 4,
         .height = 4,
         .depth = 1,
         .mipmap_levels = 1,
         .array_layers = 1,
-        .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+        .format = Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
         .is_cube_map = false
     };
     std::shared_ptr red_texture =
-        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Albedo");
+        Rhi::ImageTexture::CreateUnique(*rsys, empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Albedo");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
     std::shared_ptr MRAO_texture =
-        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled MRAO");
+        Rhi::ImageTexture::CreateUnique(*rsys, empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled MRAO");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*MRAO_texture, {1.0, 1.0, 1.0, 1.0});
     std::shared_ptr normal_texture =
-        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Normal");
+        Rhi::ImageTexture::CreateUnique(*rsys, empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Normal");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*normal_texture, {0.5, 0.5, 1.0, 1.0});
     std::shared_ptr emissive_texture =
-        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Emissive");
+        Rhi::ImageTexture::CreateUnique(*rsys, empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Emissive");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*emissive_texture, {1.0, 1.0, 1.0, 1.0});
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
@@ -267,7 +271,7 @@ int main(int argc, char **argv) {
 
     // Setup compute shader
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
-    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
+    auto bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(*rsys);
     bloom_compute_stage->Instantiate(*cs_ref.as<ShaderAsset>());
     auto &bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
 
@@ -284,13 +288,13 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto hc = rgb.RequestResizableRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto hc = rgb.RequestResizableRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{});
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto d = rgb.RequestResizableRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto d = rgb.RequestResizableRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{});
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    auto c = rgb.RequestResizableRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto c = rgb.RequestResizableRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{});
     // Color pass
-    using IAT = MemoryAccessTypeImageBits;
+    using IAT = Rhi::MemoryAccessTypeImageBits;
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("Color Pass")
@@ -386,7 +390,7 @@ int main(int argc, char **argv) {
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(c);
-        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::ColorAttachmentWrite);
+        rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         // SDL_Delay(5);
 

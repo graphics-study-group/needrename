@@ -1,8 +1,8 @@
 #ifndef RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
 #define RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
 
-#include "Rhi/ImageUtils.h"
 #include "Render/Renderer/VertexAttribute.h"
+#include "Rhi/ImageUtils.h"
 
 namespace Engine {
 
@@ -49,11 +49,11 @@ namespace Engine {
          *
          * Color attachment format, terminated by UNDEFINED.
          */
-        ImageUtils::ImageFormat color_attachment_format[8];
+        Rhi::ImageFormat color_attachment_format[8];
         /**
          * Depth and stencil attachment format.
          */
-        ImageUtils::ImageFormat depth_stencil_attachment_format;
+        Rhi::ImageFormat depth_stencil_attachment_format;
 
         bool operator==(const PipelineRuntimeInfoPerRendering &rhs) const noexcept {
             auto ret = static_cast<const PipelineRuntimeInfoPerRenderingHeader *>(this)->operator==(rhs);
@@ -63,7 +63,7 @@ namespace Engine {
             for (int i = 0; i < 8; i++) {
                 if (color_attachment_format[i] != rhs.color_attachment_format[i]) return false;
                 // Both undefined -> terminated.
-                if (color_attachment_format[i] == ImageUtils::ImageFormat::UNDEFINED) return true;
+                if (color_attachment_format[i] == Rhi::ImageFormat::UNDEFINED) return true;
             }
             return true;
         };

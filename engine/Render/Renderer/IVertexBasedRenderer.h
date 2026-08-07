@@ -5,8 +5,10 @@
 #include <vector>
 
 namespace Engine {
+    namespace Rhi {
+        class DeviceBuffer;
+    }
     struct VertexAttribute;
-    class DeviceBuffer;
 
     /**
      * @brief A base interface class for all vertex-based renderers.
@@ -18,7 +20,7 @@ namespace Engine {
         /// @brief How this vertex renderer is bound to vertex buffers
         struct BufferBindingInfo {
             /// Buffer object pointer
-            const DeviceBuffer *buffer;
+            const Rhi::DeviceBuffer *buffer;
             /// Offset into the buffer
             size_t offset;
             /// Size of the vertex buffer

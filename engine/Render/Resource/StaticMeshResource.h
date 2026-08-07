@@ -2,18 +2,19 @@
 #define RENDER_RESOURCE_STATICMESHRESOURCE_INCLUDED
 
 #include "Asset/AssetRef.h"
-#include "Rhi/DeviceBuffer.h"
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/IAsynchPrepared.h"
+#include "Rhi/DeviceBuffer.h"
 
 #include <memory>
 #include <vector>
 
 namespace Engine {
-    namespace RenderSystemState {
+    namespace Rhi {
         class AllocatorState;
         class SubmissionHelper;
-    } // namespace RenderSystemState
+    } // namespace Rhi
+    namespace RenderSystemState {} // namespace RenderSystemState
 
     /**
      * @brief GPU-side static mesh resource prepared from one MeshAsset.
@@ -30,7 +31,7 @@ namespace Engine {
                 uint32_t index_count{0};
 
                 std::vector<uint32_t> attribute_offsets{};
-                std::unique_ptr<DeviceBuffer> vi_buffer{};
+                std::unique_ptr<Rhi::DeviceBuffer> vi_buffer{};
             };
 
             std::vector<PerSubmeshData> submeshes{};
@@ -73,7 +74,7 @@ namespace Engine {
          * @param allocator_state The allocator state to use for preparing the submeshes.
          * @param submission_helper The submission helper to use for preparing the submeshes.
          */
-        void Submit(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &) override;
+        void Submit(const Rhi::AllocatorState &, Rhi::SubmissionHelper &) override;
     };
 } // namespace Engine
 

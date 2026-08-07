@@ -1,10 +1,10 @@
 #include "SceneDataManager.h"
 
-#include "Rhi/DebugUtils.h"
-#include "Rhi/ComputeBuffer.h"
 #include "Render/Memory/IndexedBuffer.h"
 #include "Render/Resource/MaterialInstanceManager.h"
 #include "Render/Resource/RenderResourceHandle.h"
+#include "Rhi/ComputeBuffer.h"
+#include "Rhi/DebugUtils.h"
 
 #include <SDL3/SDL.h>
 #include <ext/matrix_clip_space.hpp>
@@ -91,8 +91,8 @@ namespace Engine::RenderSystemState {
             std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
             // Model matrices storage buffer (for physics-driven objects)
-            std::unique_ptr<ComputeBuffer> model_matrices_buffer{};
-            const ComputeBuffer *external_model_matrices_buffer{nullptr};
+            std::unique_ptr<Rhi::ComputeBuffer> model_matrices_buffer{};
+            const Rhi::ComputeBuffer *external_model_matrices_buffer{nullptr};
 
             void Create(RenderSystem &system, vk::DescriptorPool pool) {
                 auto &allocator = system.GetAllocatorState();
@@ -107,14 +107,14 @@ namespace Engine::RenderSystemState {
                         immutable_samplers.begin(),
                         immutable_samplers.end(),
                         system.GetIRCache().GetSampler(
-                            ImageUtils::SamplerDesc{
-                                .min_filter = ImageUtils::SamplerDesc::FilterMode::Linear,
-                                .max_filter = ImageUtils::SamplerDesc::FilterMode::Linear,
-                                .mipmap_filter = ImageUtils::SamplerDesc::FilterMode::Point,
-                                .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
-                                .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
-                                .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
-                                .comparator = PipelineUtils::DSComparator::Less
+                            Rhi::SamplerDesc{
+                                .min_filter = Rhi::SamplerDesc::FilterMode::Linear,
+                                .max_filter = Rhi::SamplerDesc::FilterMode::Linear,
+                                .mipmap_filter = Rhi::SamplerDesc::FilterMode::Point,
+                                .u_address = Rhi::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
+                                .v_address = Rhi::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
+                                .w_address = Rhi::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
+                                .comparator = Rhi::DSComparator::Less
                             }
                         )
                     );
@@ -151,10 +151,10 @@ namespace Engine::RenderSystemState {
                 // Allocate the back buffer for lights.
                 light_back_buffer = IndexedBuffer::CreateUnique(
                     allocator,
-                    {BufferTypeBits::HostAccessibleUniform},
+                    {Rhi::BufferTypeBits::HostAccessibleUniform},
                     sizeof(pimpl->scene.light_front_buffer),
                     system.GetDeviceInterface().QueryLimit(
-                        DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
+                        Rhi::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                     ),
                     scene_descriptor_sets.size(),
                     "Scene Light Uniform Buffer"
@@ -162,7 +162,7 @@ namespace Engine::RenderSystemState {
                 assert(light_back_buffer);
 
                 // Allocate default dummy buffer for model matrices.
-                model_matrices_buffer = ComputeBuffer::CreateUnique(
+                model_matrices_buffer = Rhi::ComputeBuffer::CreateUnique(
                     allocator,
                     MAX_MODEL_MATRICES * sizeof(glm::mat4),
                     false, // No CPU access needed for dummy
@@ -184,7 +184,7 @@ namespace Engine::RenderSystemState {
                         .multisample = 1,
                         .is_cube_map = false
                     },
-                    Texture::SamplerDesc{
+                    Rhi::Texture::SamplerDesc{
 
                     },
                     "Default shadowmap"
@@ -307,8 +307,8 @@ namespace Engine::RenderSystemState {
             assert(desc.array_layers == 1 && desc.mipmap_levels == 1);
             assert(desc.dimensions == 2 && desc.depth == 1 && desc.height > 1 && desc.width > 1);
             assert(desc.is_cube_map == false);
-            assert(desc.memory_type.Test(ImageMemoryTypeBits::DepthStencilAttachment));
-            assert(desc.format == ImageUtils::ImageFormat::D32SFLOAT);
+            assert(desc.memory_type.Test(Rhi::ImageMemoryTypeBits::DepthStencilAttachment));
+            assert(desc.format == Rhi::ImageFormat::D32SFLOAT);
         }
 #endif
         pimpl->scene.bound_shadow_maps[index] = &shadowmap;
@@ -400,7 +400,7 @@ namespace Engine::RenderSystemState {
         // Update model matrices buffer descriptor (binding 2).
         // Always rebind because the external buffer may change between frames.
         {
-            const ComputeBuffer *current_buffer = GetModelMatricesBuffer();
+            const Rhi::ComputeBuffer *current_buffer = GetModelMatricesBuffer();
             vk::DescriptorBufferInfo mm_buffer_info{current_buffer->GetBuffer(), 0, current_buffer->GetSize()};
             vk::WriteDescriptorSet mm_write{
                 pimpl->scene.scene_descriptor_sets[frame_in_flight],
@@ -472,11 +472,11 @@ namespace Engine::RenderSystemState {
         return pimpl->scene.scene_common_pipeline_layout;
     }
 
-    void SceneDataManager::SetModelMatricesBuffer(const ComputeBuffer *buffer) noexcept {
+    void SceneDataManager::SetModelMatricesBuffer(const Rhi::ComputeBuffer *buffer) noexcept {
         pimpl->scene.external_model_matrices_buffer = buffer;
     }
 
-    const ComputeBuffer *SceneDataManager::GetModelMatricesBuffer() const noexcept {
+    const Rhi::ComputeBuffer *SceneDataManager::GetModelMatricesBuffer() const noexcept {
         if (pimpl->scene.external_model_matrices_buffer) {
             return pimpl->scene.external_model_matrices_buffer;
         }

@@ -10,11 +10,12 @@ namespace Engine {
 
         const PipelineRuntimeInfoPerRendering *pripr_ptr{nullptr};
 
-        std::vector<std::tuple<const RenderTargetTexture *, MemoryAccessTypeImageBits, MemoryAccessTypeImageBits>>
+        std::vector<
+            std::tuple<const RenderTargetTexture *, Rhi::MemoryAccessTypeImageBits, Rhi::MemoryAccessTypeImageBits>>
             pre_barrier_info{}, post_barrier_info{};
 
         vk::ImageMemoryBarrier2 GetImageBarrier(
-            const RenderTargetTexture &t, MemoryAccessTypeImageBits src, MemoryAccessTypeImageBits dst
+            const RenderTargetTexture &t, Rhi::MemoryAccessTypeImageBits src, Rhi::MemoryAccessTypeImageBits dst
         ) {
             return vk::ImageMemoryBarrier2{
                 vk::PipelineStageFlagBits2::eAllCommands,
@@ -27,7 +28,7 @@ namespace Engine {
                 vk::QueueFamilyIgnored,
                 t.GetImage(),
                 vk::ImageSubresourceRange{
-                    ImageUtils::GetVkAspect(t.GetTextureDescription().format),
+                    Rhi::GetVkAspect(t.GetTextureDescription().format),
                     0,
                     vk::RemainingMipLevels,
                     0,
@@ -51,7 +52,7 @@ namespace Engine {
         }
     };
 
-    void RenderGraph::AddExternalInputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access) {
+    void RenderGraph::AddExternalInputDependency(RGTextureHandle rt_handle, Rhi::MemoryAccessTypeImageBits access) {
         auto itr = pimpl->extra_info.first_persistent_texture_access.find(rt_handle);
         if (itr == pimpl->extra_info.first_persistent_texture_access.end()) {
             throw std::invalid_argument("Cannot find render target texture.");
@@ -66,7 +67,7 @@ namespace Engine {
         );
     }
 
-    void RenderGraph::AddExternalOutputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access) {
+    void RenderGraph::AddExternalOutputDependency(RGTextureHandle rt_handle, Rhi::MemoryAccessTypeImageBits access) {
         auto itr = pimpl->extra_info.last_persistent_texture_access.find(rt_handle);
         if (itr == pimpl->extra_info.last_persistent_texture_access.end()) {
             throw std::invalid_argument("Cannot find render target texture.");

@@ -100,7 +100,7 @@ namespace Engine {
             vk::Device device,
             const RenderTargetTexture &final_rtt,
             uint32_t image_index,
-            MemoryAccessTypeImageBits last_access
+            Rhi::MemoryAccessTypeImageBits last_access
         ) = 0;
 
         /**

@@ -1,8 +1,8 @@
 #include "SwapchainPresentProvider.h"
 
-#include "Rhi/DeviceInterface.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Memory/RenderTargetTexture.h"
+#include "Rhi/DeviceInterface.h"
 
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
@@ -73,7 +73,7 @@ namespace {
         const std::vector<vk::Image> &images,
         vk::Extent2D extent,
         uint32_t target_framebuffer,
-        Engine::MemoryAccessTypeImageBits last_access
+        Engine::Rhi::MemoryAccessTypeImageBits last_access
     ) {
         // The source layout/access is derived from the final RTT's last access
         // (e.g. ShaderRandomWrite → eGeneral after the bloom compute pass),
@@ -143,7 +143,7 @@ namespace {
 
 namespace Engine::RenderSystemState {
     struct SwapchainPresentProvider::impl {
-        const DeviceInterface *m_device_interface = nullptr;
+        const Rhi::DeviceInterface *m_device_interface = nullptr;
 
         vk::UniqueSwapchainKHR m_swapchain{};
         std::vector<vk::Image> m_images{};
@@ -171,7 +171,9 @@ namespace Engine::RenderSystemState {
 
     SwapchainPresentProvider::~SwapchainPresentProvider() = default;
 
-    void SwapchainPresentProvider::Initialize(const DeviceInterface &device_interface, vk::Extent2D expected_extent) {
+    void SwapchainPresentProvider::Initialize(
+        const Rhi::DeviceInterface &device_interface, vk::Extent2D expected_extent
+    ) {
         pimpl->m_device_interface = &device_interface;
         Recreate(expected_extent);
     }
@@ -203,11 +205,12 @@ namespace Engine::RenderSystemState {
         info.clipped = vk::True;
         info.oldSwapchain = pimpl->m_swapchain ? pimpl->m_swapchain.get() : nullptr;
 
-        auto graphics_index = di.GetQueueFamily(DeviceInterface::QueueFamilyType::GraphicsMain).value();
+        auto graphics_index = di.GetQueueFamily(Rhi::DeviceInterface::QueueFamilyType::GraphicsMain).value();
         std::array indices{
             graphics_index,
-            di.GetQueueFamily(DeviceInterface::QueueFamilyType::GraphicsPresent).value(),
-            di.GetQueueFamily(DeviceInterface::QueueFamilyType::AsynchronousComputePresent).value_or(graphics_index),
+            di.GetQueueFamily(Rhi::DeviceInterface::QueueFamilyType::GraphicsPresent).value(),
+            di.GetQueueFamily(Rhi::DeviceInterface::QueueFamilyType::AsynchronousComputePresent)
+                .value_or(graphics_index),
         };
         std::ranges::sort(indices);
         auto [ret, last] = std::ranges::unique(indices);
@@ -253,7 +256,7 @@ namespace Engine::RenderSystemState {
         vk::Device device,
         const RenderTargetTexture &final_rtt,
         uint32_t image_index,
-        MemoryAccessTypeImageBits last_access
+        Rhi::MemoryAccessTypeImageBits last_access
     ) {
         // Reuse safety: a swapchain image is only re-acquired after its previous
         // present completes (the present waits on the frame completion

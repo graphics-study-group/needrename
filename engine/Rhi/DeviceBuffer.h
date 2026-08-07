@@ -11,13 +11,10 @@ namespace vk {
     class Buffer;
 }
 
-namespace Engine {
+namespace Engine::Rhi {
 
-    class RenderSystem;
     class BufferAllocation;
-    namespace RenderSystemState {
-        class AllocatorState;
-    }
+    class AllocatorState;
 
     /**
      *  @brief A buffer with allocated memory, which could be directly used by the device.
@@ -42,10 +39,7 @@ namespace Engine {
          * @brief Create a buffer.
          */
         static DeviceBuffer Create(
-            const RenderSystemState::AllocatorState &allocator,
-            BufferType type,
-            size_t size,
-            const std::string &name = ""
+            const Rhi::AllocatorState &allocator, BufferType type, size_t size, const std::string &name = ""
         );
         /**
          * @brief Create a buffer with host side details on heap,
@@ -54,10 +48,7 @@ namespace Engine {
          * Cast the `unique_ptr` to `shared_ptr` if necessary.
          */
         static std::unique_ptr<DeviceBuffer> CreateUnique(
-            const RenderSystemState::AllocatorState &allocator,
-            BufferType type,
-            size_t size,
-            const std::string &name = ""
+            const Rhi::AllocatorState &allocator, BufferType type, size_t size, const std::string &name = ""
         );
 
         /// @brief Get the underlying Vulkan buffer object.
@@ -110,6 +101,6 @@ namespace Engine {
         size_t m_size{0ULL};
         BufferAllocation allocation;
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_DEVICEBUFFER_INCLUDED

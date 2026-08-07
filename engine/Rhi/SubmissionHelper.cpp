@@ -1,12 +1,12 @@
-#include "SubmissionHelper.h"
+#include "Rhi/SubmissionHelper.h"
 
 #include "Rhi/AllocatorState.h"
+#include "Rhi/DebugUtils.h"
 #include "Rhi/DeviceBuffer.h"
 #include "Rhi/DeviceInterface.h"
 #include "Rhi/ImageUtilsFunc.h"
 #include "Rhi/Structs.h"
 #include "Rhi/Texture.h"
-#include "Rhi/DebugUtils.h"
 #include <SDL3/SDL.h>
 
 namespace {
@@ -136,7 +136,7 @@ namespace {
     }
 } // namespace
 
-namespace Engine::RenderSystemState {
+namespace Engine::Rhi {
     enum class BatchState {
         Reset,
         Submitted
@@ -224,7 +224,7 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::EnqueueTextureBufferSubmission(const Texture &texture, std::span<const std::byte> data) {
-        if (!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
+        if (!(Rhi::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
             throw std::invalid_argument("Selected texture does not contain color aspect.");
         }
         auto staging_buffer = DeviceBuffer::CreateUnique(
@@ -246,7 +246,7 @@ namespace Engine::RenderSystemState {
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
                 TextureTransferType::TextureUploadBefore,
                 texture.GetImage(),
-                ImageUtils::GetVkAspect(texture.GetTextureDescription().format)
+                Rhi::GetVkAspect(texture.GetTextureDescription().format)
             )};
             vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
             cb.pipelineBarrier2(dinfo);
@@ -257,7 +257,7 @@ namespace Engine::RenderSystemState {
                 0,
                 0,
                 vk::ImageSubresourceLayers{
-                    ImageUtils::GetVkAspect(texture.GetTextureDescription().format),
+                    Rhi::GetVkAspect(texture.GetTextureDescription().format),
                     0,
                     0,
                     texture.GetTextureDescription().array_layers
@@ -275,7 +275,7 @@ namespace Engine::RenderSystemState {
             barriers[0] = GetTextureBarrier(
                 TextureTransferType::TextureUploadAfter,
                 texture.GetImage(),
-                ImageUtils::GetVkAspect(texture.GetTextureDescription().format)
+                Rhi::GetVkAspect(texture.GetTextureDescription().format)
             );
             dinfo.setImageMemoryBarriers(barriers);
             cb.pipelineBarrier2(dinfo);
@@ -285,7 +285,7 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color) {
-        if (!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
+        if (!(Rhi::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
             throw std::invalid_argument("Selected texture does not contain color aspect.");
         }
 
@@ -320,7 +320,7 @@ namespace Engine::RenderSystemState {
         if (!(0.0f <= depth && depth <= 1.0f)) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Depth clear value %f is not in the range of [0.0, 1.0].", depth);
         }
-        if (!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eDepth)) {
+        if (!(Rhi::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eDepth)) {
             throw std::invalid_argument("Selected texture does not contain depth aspect.");
         }
 
@@ -479,4 +479,4 @@ namespace Engine::RenderSystemState {
         }
     }
 
-} // namespace Engine::RenderSystemState
+} // namespace Engine::Rhi

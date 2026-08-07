@@ -5,8 +5,10 @@
 #include <memory>
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class CommandBuffer;
-    class ComputeBuffer;
     class ParallelScan;
     class RenderSystem;
 
@@ -72,13 +74,13 @@ namespace Engine {
          */
         void Record(
             CommandBuffer &cb,
-            ComputeBuffer &pairs_buf,
-            ComputeBuffer &flags_buf,
-            ComputeBuffer &offsets_buf,
-            ComputeBuffer &count_buf,
-            ComputeBuffer &scan_scratch_buf,
+            Rhi::ComputeBuffer &pairs_buf,
+            Rhi::ComputeBuffer &flags_buf,
+            Rhi::ComputeBuffer &offsets_buf,
+            Rhi::ComputeBuffer &count_buf,
+            Rhi::ComputeBuffer &scan_scratch_buf,
             ParallelScan &scan,
-            ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         );
 

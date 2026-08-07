@@ -10,28 +10,28 @@ namespace Engine {
     /**
      * @brief A texture that can be rendered to.
      */
-    class RenderTargetTexture : public Texture {
+    class RenderTargetTexture : public Rhi::Texture {
     public:
         /// @brief Description of a render target texture.
-        /// @see `Engine::ImageUtils::TextureDesc`
+        /// @see `Engine::Rhi::TextureDesc`
         struct RenderTargetTextureDesc {
 
-#define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
+#define COPY_ENUM_VALUE(x) x = (int)Rhi::ImageFormat::x
             /**
              * Formats available for Render Target Textures.
              *
-             * @see Engine::ImageUtils::ImageFormat
+             * @see Engine::Rhi::ImageFormat
              */
             enum class RTTFormat {
-                /// @copydoc Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm
+                /// @copydoc Engine::Rhi::ImageFormat::R8G8B8A8SNorm
                 COPY_ENUM_VALUE(R8G8B8A8SNorm),
-                /// @copydoc Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm
+                /// @copydoc Engine::Rhi::ImageFormat::R8G8B8A8UNorm
                 COPY_ENUM_VALUE(R8G8B8A8UNorm),
-                /// @copydoc Engine::ImageUtils::ImageFormat::R11G11B10UFloat
+                /// @copydoc Engine::Rhi::ImageFormat::R11G11B10UFloat
                 COPY_ENUM_VALUE(R11G11B10UFloat),
-                /// @copydoc Engine::ImageUtils::ImageFormat::R32G32B32A32SFloat
+                /// @copydoc Engine::Rhi::ImageFormat::R32G32B32A32SFloat
                 COPY_ENUM_VALUE(R32G32B32A32SFloat),
-                /// @copydoc Engine::ImageUtils::ImageFormat::D32SFLOAT
+                /// @copydoc Engine::Rhi::ImageFormat::D32SFLOAT
                 COPY_ENUM_VALUE(D32SFLOAT),
             };
 #undef COPY_ENUM_VALUE
@@ -65,7 +65,7 @@ namespace Engine {
 
     protected:
         RenderTargetTexture(
-            RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name = ""
+            RenderSystem &system, Rhi::TextureDesc texture, Rhi::SamplerDesc sampler, const std::string &name = ""
         );
 
         bool support_random_access{false}, support_atomic_access{false};
@@ -77,13 +77,19 @@ namespace Engine {
          * @deprecated Using the unique_ptr variant is recommended.
          */
         static RenderTargetTexture Create(
-            RenderSystem &system, RenderTargetTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
+            RenderSystem &system,
+            RenderTargetTextureDesc texture,
+            Rhi::SamplerDesc sampler,
+            const std::string &name = ""
         );
         /**
          * @brief Create a render target texture by description.
          */
         static std::unique_ptr<RenderTargetTexture> CreateUnique(
-            RenderSystem &system, RenderTargetTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
+            RenderSystem &system,
+            RenderTargetTextureDesc texture,
+            Rhi::SamplerDesc sampler,
+            const std::string &name = ""
         );
 
         bool SupportRandomAccess() const noexcept override;

@@ -6,9 +6,11 @@
 #include <memory>
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+        class ComputeStage;
+    } // namespace Rhi
     class CommandBuffer;
-    class ComputeBuffer;
-    class ComputeStage;
     class RenderSystem;
     class PhysicsScene;
     struct XpbdConfig;

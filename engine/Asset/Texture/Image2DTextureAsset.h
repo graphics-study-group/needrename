@@ -39,7 +39,7 @@ namespace Engine {
          * This member affects only how the image should be represented on the
          * GPU memory. It does not reflect its actual format on the desk.
          */
-        REFL_SER_ENABLE ImageUtils::ImageFormat m_format{};
+        REFL_SER_ENABLE Rhi::ImageFormat m_format{};
 
         /***
          * @brief Expected mipmap level of the texture.
@@ -61,12 +61,7 @@ namespace Engine {
          * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
          */
         void SetDecodedData(
-            int width,
-            int height,
-            int channel,
-            std::vector<std::byte> data,
-            ImageUtils::ImageFormat format,
-            unsigned mip_level
+            int width, int height, int channel, std::vector<std::byte> data, Rhi::ImageFormat format, unsigned mip_level
         );
 
     private:

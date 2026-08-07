@@ -45,7 +45,7 @@ namespace Engine {
          * This member affects only how the image should be represented on the
          * GPU memory. It does not reflect its actual format on the desk.
          */
-        REFL_SER_ENABLE ImageUtils::ImageFormat m_format{};
+        REFL_SER_ENABLE Rhi::ImageFormat m_format{};
 
         virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const override;
         virtual void load_asset_from_archive(AnnoRefl::Archive &archive) override;
@@ -57,9 +57,7 @@ namespace Engine {
          *
          * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
          */
-        void SetDecodedData(
-            int width, int height, int channel, std::vector<std::byte> data, ImageUtils::ImageFormat format
-        );
+        void SetDecodedData(int width, int height, int channel, std::vector<std::byte> data, Rhi::ImageFormat format);
 
     private:
         ktxTexture2 *m_texture{};

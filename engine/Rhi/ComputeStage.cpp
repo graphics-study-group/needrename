@@ -1,12 +1,12 @@
-#include "ComputeStage.h"
+#include "Rhi/ComputeStage.h"
 
 #include "Asset/AssetRef.h"
 #include "Asset/Shader/ShaderAsset.h"
+#include "Render/RenderSystem.h" // TODO(phase 3): remove when ComputeStage drops the RenderSystem constructor
+#include "Rhi/ComputeResourceBinding.h"
 #include "Rhi/DebugUtils.h"
 #include "Rhi/DeviceInterface.h"
 #include "Rhi/ShaderParameterLayout.h"
-#include "Rhi/ComputeResourceBinding.h"
-#include "Render/RenderSystem.h" // TODO(phase 3): remove when ComputeStage drops the RenderSystem constructor
 #include <bitset>
 #include <string>
 #include <unordered_map>
@@ -14,7 +14,7 @@
 
 #include <SDL3/SDL.h>
 
-namespace Engine {
+namespace Engine::Rhi {
 
     struct ComputeStage::impl {
 
@@ -35,13 +35,13 @@ namespace Engine {
 
         std::vector<std::unique_ptr<ComputeResourceBinding>> allocated_bindings;
 
-        ShdrRfl::SPLayout layout{};
+        Rhi::SPLayout layout{};
 
         void CreatePipeline(
             RenderSystem &system, const std::vector<uint32_t> &spirv_code, const std::string_view name = ""
         ) {
             // Create descriptor and pipeline layout
-            layout = ShdrRfl::SPLayout::Reflect(spirv_code, false);
+            layout = Rhi::SPLayout::Reflect(spirv_code, false);
             auto desc_bindings = layout.GenerateLayoutBindings(0, true, false);
             vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, desc_bindings};
             m_passInfo.desc_layout = system.GetDevice().createDescriptorSetLayoutUnique(dslci);
@@ -105,7 +105,7 @@ namespace Engine {
         return *pimpl->allocated_bindings.back();
     }
 
-    const ShdrRfl::SPLayout &ComputeStage::GetReflectedShaderInfo() const noexcept {
+    const Rhi::SPLayout &ComputeStage::GetReflectedShaderInfo() const noexcept {
         return pimpl->layout;
     }
 
@@ -122,4 +122,4 @@ namespace Engine {
         return pimpl->desc_pool.get();
     }
 
-} // namespace Engine
+} // namespace Engine::Rhi

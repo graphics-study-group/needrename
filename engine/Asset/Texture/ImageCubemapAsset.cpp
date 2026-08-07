@@ -101,9 +101,9 @@ namespace Engine {
     }
 
     void ImageCubemapAsset::SetDecodedData(
-        int width, int height, int channel, std::vector<std::byte> data, ImageUtils::ImageFormat format
+        int width, int height, int channel, std::vector<std::byte> data, Rhi::ImageFormat format
     ) {
-        const vk::Format vk_format = ImageUtils::GetVkFormat(format);
+        const vk::Format vk_format = Rhi::GetVkFormat(format);
         if (vk_format == vk::Format::eUndefined) {
             throw std::runtime_error("Unsupported image format for cubemap.");
         }
@@ -153,7 +153,7 @@ namespace Engine {
         }
         std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(saved_texture, ktxTexture2_Destroy);
 
-        if (ImageUtils::CanCompressToBasis(m_format)) {
+        if (Rhi::CanCompressToBasis(m_format)) {
             TryCompressTextureToBasis(saved_texture);
         }
 

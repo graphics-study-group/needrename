@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-namespace Engine {
+namespace Engine::Rhi {
     template <typename T>
     concept HashableVulkanHppHandle = requires {
         typename T::CType;
@@ -100,6 +100,6 @@ namespace Engine {
             return s;
         }
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // ENGINE_RENDER_HASHER_INCLUDED

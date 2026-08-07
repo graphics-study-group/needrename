@@ -1,14 +1,14 @@
 #include "FrameManager.h"
 
-#include "Rhi/DebugUtils.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/Structs.h"
-#include "Rhi/ImageUtilsFunc.h"
-#include "Rhi/DeviceBuffer.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/DeviceBuffer.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/Structs.h"
 #include "Rhi/SubmissionHelper.h"
 
 #include "Render/RenderSystem/FrameSemaphore.hpp"
@@ -17,7 +17,9 @@
 #include <bitset>
 
 namespace {
-    void ReadbackCommand(vk::CommandBuffer cb, const Engine::DeviceBuffer &src, const Engine::DeviceBuffer &dst) {
+    void ReadbackCommand(
+        vk::CommandBuffer cb, const Engine::Rhi::DeviceBuffer &src, const Engine::Rhi::DeviceBuffer &dst
+    ) {
         using namespace Engine;
         assert(src.GetSize() == dst.GetSize());
         cb.copyBuffer(src.GetBuffer(), dst.GetBuffer(), vk::BufferCopy{0, 0, dst.GetSize()});
@@ -46,7 +48,7 @@ namespace Engine::RenderSystemState {
                 // TODO: reuse fences and command buffers to avoid frequent reallocation.
                 vk::UniqueFence fence;
                 vk::UniqueCommandBuffer combuf;
-                std::deque<std::pair<ReadbackCallback, std::unique_ptr<DeviceBuffer>>> callbacks;
+                std::deque<std::pair<ReadbackCallback, std::unique_ptr<Rhi::DeviceBuffer>>> callbacks;
             };
 
             ReadbackRegistry current_registry;
@@ -57,7 +59,7 @@ namespace Engine::RenderSystemState {
                 return static_cast<bool>(current_registry.fence);
             }
 
-            void InitializeRegistry(const RenderSystemState::DeviceInterface &di) {
+            void InitializeRegistry(const Rhi::DeviceInterface &di) {
                 assert(!current_registry.fence && "Reinitializing readback registry");
                 current_registry.fence = di.GetDevice().createFenceUnique(vk::FenceCreateInfo{});
 
@@ -89,7 +91,7 @@ namespace Engine::RenderSystemState {
         RenderSystem &m_system;
         IPresentProvider *m_present_provider = nullptr;
 
-        std::unique_ptr<SubmissionHelper> m_submission_helper{};
+        std::unique_ptr<Rhi::SubmissionHelper> m_submission_helper{};
 
         void assert_in_frame() const {
             if (current_framebuffer == std::numeric_limits<uint32_t>::max()) {
@@ -161,7 +163,7 @@ namespace Engine::RenderSystemState {
 
         current_frame_in_flight = 0;
         m_submission_helper =
-            std::make_unique<SubmissionHelper>(m_system.GetDeviceInterface(), m_system.GetAllocatorState());
+            std::make_unique<Rhi::SubmissionHelper>(m_system.GetDeviceInterface(), m_system.GetAllocatorState());
     }
 
     void FrameManager::Create(IPresentProvider &present_provider) {
@@ -233,7 +235,9 @@ namespace Engine::RenderSystemState {
         return pimpl->current_framebuffer;
     }
 
-    bool FrameManager::SubmitFrame(const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access) {
+    bool FrameManager::SubmitFrame(
+        const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access
+    ) {
         pimpl->assert_in_frame();
 
         const uint32_t fif = GetFrameInFlight();
@@ -368,14 +372,14 @@ namespace Engine::RenderSystemState {
         m_submission_helper->OnFrameComplete();
     }
 
-    SubmissionHelper &FrameManager::GetSubmissionHelper() {
+    Rhi::SubmissionHelper &FrameManager::GetSubmissionHelper() {
         return *(pimpl->m_submission_helper);
     }
     const FrameSemaphore &FrameManager::GetFrameSemaphore() const noexcept {
         return pimpl->timeline_semaphores[GetFrameInFlight()];
     }
 
-    bool FrameManager::RegisterReadbackCallback(const DeviceBuffer &buffer, ReadbackCallback cb) {
+    bool FrameManager::RegisterReadbackCallback(const Rhi::DeviceBuffer &buffer, ReadbackCallback cb) {
         if (pimpl->readback.registry.size() >= FRAMES_IN_FLIGHT) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Too many uncalled callback registry. New request is ignored.");
             return false;
@@ -385,8 +389,10 @@ namespace Engine::RenderSystemState {
             pimpl->readback.InitializeRegistry(pimpl->m_system.GetDeviceInterface());
         }
 
-        auto staging_buffer = DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(), BufferType{BufferTypeBits::ReadbackFromDevice}, buffer.GetSize()
+        auto staging_buffer = Rhi::DeviceBuffer::CreateUnique(
+            pimpl->m_system.GetAllocatorState(),
+            Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice},
+            buffer.GetSize()
         );
 
         ReadbackCommand(pimpl->readback.current_registry.combuf.get(), buffer, *staging_buffer);

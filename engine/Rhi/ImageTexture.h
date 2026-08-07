@@ -1,11 +1,14 @@
 #ifndef RENDER_MEMORY_IMAGETEXTURE_INCLUDED
 #define RENDER_MEMORY_IMAGETEXTURE_INCLUDED
 
-#include "Texture.h"
+#include "Rhi/Texture.h"
 
 namespace Engine {
     class Image2DTextureAsset;
     class ImageCubemapAsset;
+} // namespace Engine
+
+namespace Engine::Rhi {
     /**
      * @brief A read-only image texture.
      * Its content must be transferred from the CPU side, and
@@ -19,7 +22,7 @@ namespace Engine {
          * @see `Engine::ImageUtils::TextureDesc`
          */
         struct ImageTextureDesc {
-#define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
+#define COPY_ENUM_VALUE(x) x = (int)Rhi::ImageFormat::x
             /**
              * Formats available for Image Textures.
              *
@@ -80,6 +83,6 @@ namespace Engine {
          */
         static std::unique_ptr<ImageTexture> CreateUnique(RenderSystem &system, const ImageCubemapAsset &asset);
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_IMAGETEXTURE_INCLUDED

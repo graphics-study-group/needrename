@@ -1,9 +1,9 @@
-#include "MemoryAllocation.h"
+#include "Rhi/MemoryAllocation.h"
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
-namespace Engine {
+namespace Engine::Rhi {
     struct ImageAllocation::impl {
         vk::Image image;
         ImageMemoryType type;
@@ -128,4 +128,4 @@ namespace Engine {
 
         return pimpl->type;
     }
-} // namespace Engine
+} // namespace Engine::Rhi

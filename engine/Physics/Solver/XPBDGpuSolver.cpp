@@ -7,14 +7,14 @@
 #include <Physics/Collision/ConvexCollisionDetector.h>
 #include <Physics/Collision/SpatialHashBroadDetector.h>
 #include <Physics/PhysicsScene.h>
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/DeviceBuffer.h>
-#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Rhi/ComputeResourceBinding.h>
-#include <Rhi/ComputeStage.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/SceneDataManager.h>
+#include <Rhi/ComputeBuffer.h>
+#include <Rhi/ComputeResourceBinding.h>
+#include <Rhi/ComputeStage.h>
+#include <Rhi/DeviceBuffer.h>
+#include <Rhi/ShaderResourceBinding.h>
 
 #include <filesystem>
 #include <fstream>
@@ -56,67 +56,67 @@ namespace Engine {
         std::unique_ptr<ConvexCollisionDetector> narrow_detector{};
 
         // ---- Compute stages ----
-        std::unique_ptr<ComputeStage> clear_int_stage{};
-        std::unique_ptr<ComputeStage> snapshot_stage{};
-        std::unique_ptr<ComputeStage> update_shape_world_pose_stage{};
-        std::unique_ptr<ComputeStage> integrate_stage{};
-        std::unique_ptr<ComputeStage> accum_pos_stage{};
-        std::unique_ptr<ComputeStage> apply_pos_stage{};
-        std::unique_ptr<ComputeStage> update_vel_stage{};
-        std::unique_ptr<ComputeStage> accum_vel_stage{};
-        std::unique_ptr<ComputeStage> apply_vel_stage{};
-        std::unique_ptr<ComputeStage> model_matrix_stage{};
-        std::unique_ptr<ComputeStage> clear_hinge_lagrange_stage{};
-        std::unique_ptr<ComputeStage> clear_fixed_lagrange_stage{};
-        std::unique_ptr<ComputeStage> accum_hinge_pos_stage{};
-        std::unique_ptr<ComputeStage> accum_fixed_pos_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_int_stage{};
+        std::unique_ptr<Rhi::ComputeStage> snapshot_stage{};
+        std::unique_ptr<Rhi::ComputeStage> update_shape_world_pose_stage{};
+        std::unique_ptr<Rhi::ComputeStage> integrate_stage{};
+        std::unique_ptr<Rhi::ComputeStage> accum_pos_stage{};
+        std::unique_ptr<Rhi::ComputeStage> apply_pos_stage{};
+        std::unique_ptr<Rhi::ComputeStage> update_vel_stage{};
+        std::unique_ptr<Rhi::ComputeStage> accum_vel_stage{};
+        std::unique_ptr<Rhi::ComputeStage> apply_vel_stage{};
+        std::unique_ptr<Rhi::ComputeStage> model_matrix_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_hinge_lagrange_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_fixed_lagrange_stage{};
+        std::unique_ptr<Rhi::ComputeStage> accum_hinge_pos_stage{};
+        std::unique_ptr<Rhi::ComputeStage> accum_fixed_pos_stage{};
 
         // ---- Pre-allocated bindings ----
-        ComputeResourceBinding *clear_int_binding = nullptr;
-        ComputeResourceBinding *snapshot_binding = nullptr;
-        ComputeResourceBinding *update_shape_world_pose_binding = nullptr;
-        ComputeResourceBinding *integrate_binding = nullptr;
-        ComputeResourceBinding *accum_pos_binding = nullptr;
-        ComputeResourceBinding *apply_pos_binding = nullptr;
-        ComputeResourceBinding *update_vel_binding = nullptr;
-        ComputeResourceBinding *accum_vel_binding = nullptr;
-        ComputeResourceBinding *apply_vel_binding = nullptr;
-        ComputeResourceBinding *model_matrix_binding = nullptr;
-        ComputeResourceBinding *clear_hinge_lagrange_binding = nullptr;
-        ComputeResourceBinding *clear_fixed_lagrange_binding = nullptr;
-        ComputeResourceBinding *accum_hinge_pos_binding = nullptr;
-        ComputeResourceBinding *accum_fixed_pos_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_int_binding = nullptr;
+        Rhi::ComputeResourceBinding *snapshot_binding = nullptr;
+        Rhi::ComputeResourceBinding *update_shape_world_pose_binding = nullptr;
+        Rhi::ComputeResourceBinding *integrate_binding = nullptr;
+        Rhi::ComputeResourceBinding *accum_pos_binding = nullptr;
+        Rhi::ComputeResourceBinding *apply_pos_binding = nullptr;
+        Rhi::ComputeResourceBinding *update_vel_binding = nullptr;
+        Rhi::ComputeResourceBinding *accum_vel_binding = nullptr;
+        Rhi::ComputeResourceBinding *apply_vel_binding = nullptr;
+        Rhi::ComputeResourceBinding *model_matrix_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_hinge_lagrange_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_fixed_lagrange_binding = nullptr;
+        Rhi::ComputeResourceBinding *accum_hinge_pos_binding = nullptr;
+        Rhi::ComputeResourceBinding *accum_fixed_pos_binding = nullptr;
 
         // ---- Intermediate GPU buffers ----
-        std::unique_ptr<ComputeBuffer> gpu_pre_contact_linear_vel{};
-        std::unique_ptr<ComputeBuffer> gpu_pre_contact_angular_vel{};
-        std::unique_ptr<ComputeBuffer> gpu_substep_start_position{};
-        std::unique_ptr<ComputeBuffer> gpu_substep_start_orientation{};
-        std::unique_ptr<ComputeBuffer> gpu_linear_position_delta{};
-        std::unique_ptr<ComputeBuffer> gpu_angular_position_delta{};
-        std::unique_ptr<ComputeBuffer> gpu_position_delta_count{};
-        std::unique_ptr<ComputeBuffer> gpu_linear_velocity_delta{};
-        std::unique_ptr<ComputeBuffer> gpu_angular_velocity_delta{};
-        std::unique_ptr<ComputeBuffer> gpu_velocity_delta_count{};
-        std::unique_ptr<ComputeBuffer> gpu_contact_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_hinge_axis_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_hinge_anchor_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_fixed_rotation_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_fixed_position_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_hinge_joint_count_buffer{};
-        std::unique_ptr<ComputeBuffer> gpu_fixed_joint_count_buffer{};
-        std::unique_ptr<ComputeBuffer> gpu_uniforms{};
-        std::unique_ptr<ComputeBuffer> gpu_body_count_buffer{};
-        std::unique_ptr<ComputeBuffer> gpu_contact_count_buffer{};
-        std::unique_ptr<ComputeBuffer> gpu_shape_slot_count_buffer{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_pre_contact_linear_vel{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_pre_contact_angular_vel{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_substep_start_position{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_substep_start_orientation{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_linear_position_delta{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_angular_position_delta{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_position_delta_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_linear_velocity_delta{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_angular_velocity_delta{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_velocity_delta_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_axis_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_anchor_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_rotation_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_position_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_joint_count_buffer{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_joint_count_buffer{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_uniforms{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_body_count_buffer{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_count_buffer{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_shape_slot_count_buffer{};
 
         explicit Impl(RenderSystem &rs) : render_system(rs) {
         }
 
-        void EnsureBuffer(std::unique_ptr<ComputeBuffer> &buf, size_t bytes, const char *name) {
+        void EnsureBuffer(std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name) {
             const auto &alloc = render_system.GetAllocatorState();
             if (!buf || buf->GetSize() != bytes) {
-                buf = ComputeBuffer::CreateUnique(alloc, bytes, false, false, false, false, name);
+                buf = Rhi::ComputeBuffer::CreateUnique(alloc, bytes, false, false, false, false, name);
             }
         }
 
@@ -151,7 +151,7 @@ namespace Engine {
                 size_t sz = sizeof(uint32_t);
                 if (!gpu_body_count_buffer || gpu_body_count_buffer->GetSize() != sz) {
                     gpu_body_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD BodyCount");
+                        Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD BodyCount");
                 }
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_body_count_buffer->GetVMAddress());
                 *addr = body_count;
@@ -160,7 +160,7 @@ namespace Engine {
                 size_t sz = sizeof(uint32_t);
                 if (!gpu_contact_count_buffer || gpu_contact_count_buffer->GetSize() != sz) {
                     gpu_contact_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD ContactCount");
+                        Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD ContactCount");
                 }
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_contact_count_buffer->GetVMAddress());
                 *addr = max_contacts;
@@ -169,20 +169,21 @@ namespace Engine {
                 size_t sz = sizeof(uint32_t);
                 if (!gpu_shape_slot_count_buffer || gpu_shape_slot_count_buffer->GetSize() != sz) {
                     gpu_shape_slot_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD ShapeSlotCount");
+                        Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD ShapeSlotCount");
                 }
             }
             {
                 size_t sz = sizeof(glm::vec4);
                 if (!gpu_uniforms || gpu_uniforms->GetSize() != sz) {
-                    gpu_uniforms = ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD Uniforms");
+                    gpu_uniforms =
+                        Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD Uniforms");
                 }
             }
             {
                 size_t sz = sizeof(uint32_t);
                 if (!gpu_hinge_joint_count_buffer || gpu_hinge_joint_count_buffer->GetSize() != sz) {
                     gpu_hinge_joint_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD HingeJointCnt");
+                        Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD HingeJointCnt");
                 }
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_hinge_joint_count_buffer->GetVMAddress());
                 *addr = hinge_joint_count;
@@ -191,7 +192,7 @@ namespace Engine {
                 size_t sz = sizeof(uint32_t);
                 if (!gpu_fixed_joint_count_buffer || gpu_fixed_joint_count_buffer->GetSize() != sz) {
                     gpu_fixed_joint_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD FixedJointCnt");
+                        Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD FixedJointCnt");
                 }
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_fixed_joint_count_buffer->GetVMAddress());
                 *addr = fixed_joint_count;
@@ -204,7 +205,7 @@ namespace Engine {
 
             auto load = [this](const char *path, const char *name) {
                 auto spirv = LoadSpirv(path);
-                auto stage = std::make_unique<ComputeStage>(render_system);
+                auto stage = std::make_unique<Rhi::ComputeStage>(render_system);
                 stage->Instantiate(spirv, name);
                 return stage;
             };
@@ -255,8 +256,8 @@ namespace Engine {
         // ---- Dispatch helpers ----
         void Dispatch(
             vk::CommandBuffer cb,
-            ComputeStage &stage,
-            ComputeResourceBinding &binding,
+            Rhi::ComputeStage &stage,
+            Rhi::ComputeResourceBinding &binding,
             uint32_t wg_x,
             uint32_t wg_y = 1,
             uint32_t wg_z = 1
@@ -269,7 +270,10 @@ namespace Engine {
         }
 
         void DispatchClearInt(
-            vk::CommandBuffer cb, ComputeResourceBinding &binding, ComputeBuffer &target, ComputeBuffer &count
+            vk::CommandBuffer cb,
+            Rhi::ComputeResourceBinding &binding,
+            Rhi::ComputeBuffer &target,
+            Rhi::ComputeBuffer &count
         ) {
             auto &srb = binding.GetShaderResourceBinding();
             srb.BindBuffer("Target", target);
@@ -277,7 +281,9 @@ namespace Engine {
             Dispatch(cb, *clear_int_stage, binding, (count.GetSize() / sizeof(uint32_t) + 63u) / 64u);
         }
 
-        void DispatchSnapshot(vk::CommandBuffer cb, ComputeBuffer &src, ComputeBuffer &dst, uint32_t body_count) {
+        void DispatchSnapshot(
+            vk::CommandBuffer cb, Rhi::ComputeBuffer &src, Rhi::ComputeBuffer &dst, uint32_t body_count
+        ) {
             auto &srb = snapshot_binding->GetShaderResourceBinding();
             srb.BindBuffer("SrcBuffer", src);
             srb.BindBuffer("DstBuffer", dst);
@@ -375,16 +381,19 @@ namespace Engine {
             command_buffer.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
         };
 
-        auto dispatch =
-            [&command_buffer](
-                ComputeStage &stage, ComputeResourceBinding &binding, uint32_t x, uint32_t y = 1, uint32_t z = 1
-            ) {
-                command_buffer.BindComputeStage(stage);
-                command_buffer.BindComputeResource(binding);
-                command_buffer.DispatchCompute(x, y, z);
-            };
+        auto dispatch = [&command_buffer](
+                            Rhi::ComputeStage &stage,
+                            Rhi::ComputeResourceBinding &binding,
+                            uint32_t x,
+                            uint32_t y = 1,
+                            uint32_t z = 1
+                        ) {
+            command_buffer.BindComputeStage(stage);
+            command_buffer.BindComputeResource(binding);
+            command_buffer.DispatchCompute(x, y, z);
+        };
 
-        auto dispatch_clear = [this, &dispatch](ComputeBuffer &tgt, ComputeBuffer &cnt, uint32_t wg) {
+        auto dispatch_clear = [this, &dispatch](Rhi::ComputeBuffer &tgt, Rhi::ComputeBuffer &cnt, uint32_t wg) {
             auto &srb = m_impl->clear_int_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", tgt);
             srb.BindBuffer("ElemCount", cnt);

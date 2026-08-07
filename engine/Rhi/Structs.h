@@ -5,7 +5,7 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-namespace Engine::RenderSystemState {
+namespace Engine::Rhi {
 
     /// @brief Support of a device to swapchains.
     struct SwapchainSupport {
@@ -31,6 +31,6 @@ namespace Engine::RenderSystemState {
         /// Command pool for presenting.
         vk::UniqueCommandPool presentPool;
     };
-} // namespace Engine::RenderSystemState
+} // namespace Engine::Rhi
 
 #endif // GPU_CONTEXT_STRUCTS_INCLUDED

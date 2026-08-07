@@ -3,7 +3,7 @@
 
 #include "Core/flagbits.h"
 
-namespace Engine {
+namespace Engine::Rhi {
     /**
      * @brief Memory access types allowed by buffers or images specified on
      * creation.
@@ -86,6 +86,6 @@ namespace Engine {
     using BufferType = Flags<BufferTypeBits>;
     /// Bit flags for `ImageMemoryTypeBits`.
     using ImageMemoryType = Flags<ImageMemoryTypeBits>;
-}; // namespace Engine
+}; // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_MEMORYTYPES_INCLUDED

@@ -5,8 +5,10 @@
 #include <memory>
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class CommandBuffer;
-    class ComputeBuffer;
     class PhysicsScene;
     class RenderSystem;
 
@@ -27,8 +29,8 @@ namespace Engine {
      * detector's lifetime.
      */
     struct BroadDetectorOutputBuffers {
-        const ComputeBuffer *pair_buffer{};
-        const ComputeBuffer *pair_count_buffer{};
+        const Rhi::ComputeBuffer *pair_buffer{};
+        const Rhi::ComputeBuffer *pair_count_buffer{};
         uint32_t max_pairs{};
     };
 

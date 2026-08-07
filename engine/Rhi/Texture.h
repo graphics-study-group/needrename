@@ -14,13 +14,13 @@ namespace vk {
 
 namespace Engine {
     class RenderSystem;
+}
+
+namespace Engine::Rhi {
     class AllocatedMemory;
+    class AllocatorState;
     class DeviceBuffer;
     struct TextureSubresourceRange;
-
-    namespace RenderSystemState {
-        class AllocatorState;
-    };
 
     /**
      *  @brief A base class for textures with handles to
@@ -31,8 +31,8 @@ namespace Engine {
      */
     class Texture {
     public:
-        using TextureDesc = ImageUtils::TextureDesc;
-        using SamplerDesc = ImageUtils::SamplerDesc;
+        using TextureDesc = Engine::Rhi::TextureDesc;
+        using SamplerDesc = Engine::Rhi::SamplerDesc;
 
     protected:
         struct impl;
@@ -102,6 +102,6 @@ namespace Engine {
          */
         virtual bool SupportAtomicOperation() const noexcept;
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_TEXTURE_INCLUDED

@@ -23,11 +23,19 @@ Phased implementation. Each phase ends with a mandatory review stop: build + tes
 
 ## 2. Phase 2 — Namespace unification (Engine::Rhi) + asset script
 
-- [ ] 2.1 Rename namespaces of all types now residing in `Rhi`: `Engine::RenderSystemState` → `Engine::Rhi`, `Engine::ImageUtils` → `Engine::Rhi`, `Engine::PipelineUtils` → `Engine::Rhi`, `Engine::ShdrRfl` → `Engine::Rhi`, bare `Engine` (moved types only) → `Engine::Rhi`
-- [ ] 2.2 Update all references repo-wide (Render, Physics, Asset, Framework, tests, examples) to the unified namespace; resolve `using` aliases in `Asset/Material/PipelineProperty.h` and other consumers
-- [ ] 2.3 Delete the `GpuContext` aggregator class (`engine/Rhi/GpuContext.h/.cpp`)
-- [ ] 2.4 Write and run the JSON asset batch script: rewrite namespace-qualified type names in asset files (e.g. `Engine::ImageUtils::ImageFormat` → `Engine::Rhi::ImageFormat`); spot-check affected assets load
-- [ ] 2.5 Phase 2 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes
+> Phase 2 notes (implementation):
+> - Namespace block forms: `namespace Engine { namespace RenderSystemState { ... } }` (indented) and bare-`Engine` blocks in Rhi files were converted to `namespace Engine::Rhi`; the `ImageUtils`/`PipelineUtils`/`ShdrRfl` nesting layers were removed (types lifted into `Engine::Rhi`).
+> - `MemoryTypes` nesting layer inside `Rhi` was kept, with `using` aliases (`BufferType`, `ImageMemoryType`, ...) exposed at `Engine::Rhi` scope.
+> - `PipelineUtils.hpp` functions (`ToVkBlendFactor`, `ToVulkan*`, `pipeline_runtime_info_hasher`, ...) remain in `Engine::PipelineUtils`; only the enums and `ToVkCompareOp` moved to `Engine::Rhi`.
+> - `class X;` forward declarations of Rhi types now use `namespace Rhi { class X; }` blocks (qualified forward decls unsupported by libclang); qualified `class Engine::RenderSystem;` is written as a top-level `namespace Engine { class RenderSystem; }` block before the Rhi block.
+> - Asset scan (49 `.asset` files under `builtin_assets/`): no changes required. `%type` fields reference only Asset-module types (`Engine::MaterialAsset`, `Engine::PipelineProperties::*`, ...) which did not move; enum values are serialized by value name (`"Texture"`, `"Less"`, `"None"`, `"R11G11B10UFloat"`) and those names did not change; there are zero `Engine::ImageUtils::` / `Engine::PipelineUtils::` / `Engine::ShdrRfl::` / `Engine::RenderSystemState::` references in any asset.
+> - Both GpuContext-class tests (`gpu_context_standalone_test`, `submission_helper_test`) now construct `Rhi::DeviceInterface` + `Rhi::AllocatorState` directly.
+
+- [x] 2.1 Rename namespaces of all types now residing in `Rhi`: `Engine::RenderSystemState` → `Engine::Rhi`, `Engine::ImageUtils` → `Engine::Rhi`, `Engine::PipelineUtils` → `Engine::Rhi`, `Engine::ShdrRfl` → `Engine::Rhi`, bare `Engine` (moved types only) → `Engine::Rhi`
+- [x] 2.2 Update all references repo-wide (Render, Physics, Asset, Framework, tests, examples) to the unified namespace; resolve `using` aliases in `Asset/Material/PipelineProperty.h` and other consumers
+- [x] 2.3 Delete the `GpuContext` aggregator class (`engine/Rhi/GpuContext.h/.cpp`) and rework its two test consumers to construct the facilities directly
+- [x] 2.4 Asset scan: all 49 `.asset` files checked — `%type` only references Asset-module types and enum values serialize by name; zero affected references, batch script not required
+- [x] 2.5 Phase 2 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (48/48)
 - [ ] 2.6 PHASE 2 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
 ## 3. Phase 3 — Physics interface rework (behavior point)

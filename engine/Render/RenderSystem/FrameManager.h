@@ -8,15 +8,17 @@
 #include "Rhi/MemoryAccessTypes.h"
 
 namespace Engine {
+    namespace Rhi {
+        class DeviceBuffer;
+        class SubmissionHelper;
+    } // namespace Rhi
     class RenderSystem;
     class Texture;
-    class DeviceBuffer;
     class CommandBuffer;
     class RenderTargetTexture;
     class IPresentProvider;
 
     namespace RenderSystemState {
-        class SubmissionHelper;
         class FrameSemaphore;
 
         /// @brief Multiple frame in flight manager
@@ -122,10 +124,10 @@ namespace Engine {
              * @return True if the swapchain needs to be recreated.
              */
             [[nodiscard]]
-            bool SubmitFrame(const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access);
+            bool SubmitFrame(const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access);
 
             /// @brief Get the submission helper.
-            SubmissionHelper &GetSubmissionHelper();
+            Rhi::SubmissionHelper &GetSubmissionHelper();
 
             /// @brief Get the current frame semaphore.
             const FrameSemaphore &GetFrameSemaphore() const noexcept;
@@ -136,7 +138,7 @@ namespace Engine {
              * Data retrieved from the device is stored in the device buffer.
              * This buffer can be mapped to the host VM for reading.
              */
-            using ReadbackCallback = std::function<void(std::unique_ptr<DeviceBuffer>)>;
+            using ReadbackCallback = std::function<void(std::unique_ptr<Rhi::DeviceBuffer>)>;
             /**
              * @brief Register a callback for buffer or texture readback.
              *
@@ -157,7 +159,7 @@ namespace Engine {
              * If too many readback requests are not fulfilled, the registering
              * might fail.
              */
-            bool RegisterReadbackCallback(const DeviceBuffer &buffer, ReadbackCallback cb);
+            bool RegisterReadbackCallback(const Rhi::DeviceBuffer &buffer, ReadbackCallback cb);
         };
     } // namespace RenderSystemState
 } // namespace Engine

@@ -5,8 +5,10 @@
 #include <memory>
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class CommandBuffer;
-    class ComputeBuffer;
     class RenderSystem;
 
     /**
@@ -105,11 +107,11 @@ namespace Engine {
          */
         void Record(
             CommandBuffer &cb,
-            ComputeBuffer &pairs_buf_a,
-            ComputeBuffer &pairs_buf_b,
-            ComputeBuffer &scratch_buf,
+            Rhi::ComputeBuffer &pairs_buf_a,
+            Rhi::ComputeBuffer &pairs_buf_b,
+            Rhi::ComputeBuffer &scratch_buf,
             uint32_t elem_capacity,
-            ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t max_shape_count
         );
 

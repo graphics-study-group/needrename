@@ -1,19 +1,19 @@
 #include "MaterialInstance.h"
 
 #include "Asset/Material/MaterialAsset.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/ShaderParameterLayout.h"
-#include "Rhi/ShaderResourceBinding.h"
-#include "Rhi/StructuredBufferPlacer.h"
-#include "Rhi/TextureSubresourceView.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
-#include "Rhi/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Rhi/SubmissionHelper.h"
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/MaterialLibraryManager.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/PipelineInfo.h"
+#include "Rhi/ShaderParameterLayout.h"
+#include "Rhi/ShaderResourceBinding.h"
+#include "Rhi/StructuredBufferPlacer.h"
+#include "Rhi/SubmissionHelper.h"
+#include "Rhi/TextureSubresourceView.h"
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <Asset/Texture/ImageCubemapAsset.h>
@@ -41,8 +41,8 @@ namespace Engine {
             std::bitset<8> _is_ubo_dirty{};
         };
 
-        std::unique_ptr<ShaderResourceBinding> p_srb{};
-        std::unique_ptr<StructuredBuffer> p_buffer{};
+        std::unique_ptr<Rhi::ShaderResourceBinding> p_srb{};
+        std::unique_ptr<Rhi::StructuredBuffer> p_buffer{};
         std::unordered_map<const MaterialTemplate *, PassInfo> m_pass_infos{};
 
         // A small buffer for uniform buffer staging to avoid random write to UBO.
@@ -50,7 +50,7 @@ namespace Engine {
 
         std::unordered_map<
             std::string,
-            std::variant<std::shared_ptr<const Texture>, std::shared_ptr<const DeviceBuffer>>>
+            std::variant<std::shared_ptr<const Rhi::Texture>, std::shared_ptr<const Rhi::DeviceBuffer>>>
             owned_resources;
 
         void SetUboDirtyFlags() noexcept {
@@ -69,9 +69,9 @@ namespace Engine {
             const auto &splayout = tpl.GetReflectedShaderInfo();
 
             for (const auto &pinterface : splayout.interfaces) {
-                if (auto pbuffer = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
-                    if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                        auto psb = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(pbuffer);
+                if (auto pbuffer = dynamic_cast<const Rhi::SPInterfaceBuffer *>(pinterface.get())) {
+                    if (pbuffer->type == Rhi::SPInterfaceBuffer::Type::UniformBuffer) {
+                        auto psb = dynamic_cast<const Rhi::SPInterfaceStructuredBuffer *>(pbuffer);
                         if (!psb) {
                             SDL_LogWarn(
                                 SDL_LOG_CATEGORY_RENDER,
@@ -83,11 +83,10 @@ namespace Engine {
 
                         pass.ubos[pbuffer->layout_binding] = IndexedBuffer::CreateUnique(
                             system.GetAllocatorState(),
-                            {BufferTypeBits::HostAccessibleUniform},
+                            {Rhi::BufferTypeBits::HostAccessibleUniform},
                             psb->buffer_placer->CalculateMaxSize(),
                             system.GetDeviceInterface().QueryLimit(
-                                RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::
-                                    UniformBufferOffsetAlignment
+                                Rhi::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                             ),
                             PassInfo::BACK_BUFFERS,
                             std::format("Indexed UBO {} for Material", pbuffer->name)
@@ -105,8 +104,8 @@ namespace Engine {
 
     MaterialInstance::MaterialInstance(RenderSystem &system, RenderSystemState::MaterialLibraryHandle library) :
         m_system(system), m_library(library), pimpl(std::make_unique<impl>()) {
-        pimpl->p_srb = std::make_unique<ShaderResourceBinding>(m_system.GetIRCache());
-        pimpl->p_buffer = std::make_unique<StructuredBuffer>();
+        pimpl->p_srb = std::make_unique<Rhi::ShaderResourceBinding>(m_system.GetIRCache());
+        pimpl->p_buffer = std::make_unique<Rhi::StructuredBuffer>();
     }
 
     MaterialInstance::~MaterialInstance() {
@@ -150,19 +149,19 @@ namespace Engine {
         std::visit(Visitor{pimpl.get(), name}, value);
     }
 
-    void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr<Texture> texture) {
+    void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr<Rhi::Texture> texture) {
         this->pimpl->owned_resources[name] = texture;
         this->pimpl->p_srb->BindTexture(name, *texture);
     }
 
     void MaterialInstance::AssignTexture(
-        const std::string &name, std::shared_ptr<Texture> texture, TextureSubresourceRange range
+        const std::string &name, std::shared_ptr<Rhi::Texture> texture, Rhi::TextureSubresourceRange range
     ) {
         this->pimpl->owned_resources[name] = texture;
         this->pimpl->p_srb->BindTexture(name, *texture, range);
     }
 
-    void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr<const DeviceBuffer> buffer) {
+    void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr<const Rhi::DeviceBuffer> buffer) {
         this->pimpl->owned_resources[name] = buffer;
         this->pimpl->p_srb->BindBuffer(name, *buffer);
     }
@@ -202,8 +201,8 @@ namespace Engine {
             for (const auto &[k, v] : pass_info.ubos) {
                 auto itr = splayout.interface_name_mapping.find(pass_info.ubo_name_lut[k]);
                 assert(itr != splayout.interface_name_mapping.end());
-                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(itr->second);
-                assert(pbuf && pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer);
+                auto pbuf = dynamic_cast<const Rhi::SPInterfaceStructuredBuffer *>(itr->second);
+                assert(pbuf && pbuf->type == Rhi::SPInterfaceBuffer::Type::UniformBuffer);
 
                 splayout.PlaceBufferVariable(pimpl->m_buffer, *pbuf, *pimpl->p_buffer);
 
@@ -254,8 +253,9 @@ namespace Engine {
                 auto texture_asset = dynamic_cast<Image2DTextureAsset *>(t_asset);
                 if (texture_asset) {
                     // TODO: We should allocate texture from assets in a pool.
-                    auto texture =
-                        std::shared_ptr<ImageTexture>(ImageTexture::CreateUnique(this->m_system, *texture_asset));
+                    auto texture = std::shared_ptr<Rhi::ImageTexture>(
+                        Rhi::ImageTexture::CreateUnique(this->m_system, *texture_asset)
+                    );
                     AssignTexture(prop.first, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
                         *texture, std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}
@@ -263,19 +263,19 @@ namespace Engine {
                 }
                 auto solid_color_asset = dynamic_cast<SolidColorTextureAsset *>(t_asset);
                 if (solid_color_asset) {
-                    std::shared_ptr texture = ImageTexture::CreateUnique(
+                    std::shared_ptr texture = Rhi::ImageTexture::CreateUnique(
                         this->m_system,
-                        ImageTexture::ImageTextureDesc{
+                        Rhi::ImageTexture::ImageTextureDesc{
                             .dimensions = 2,
                             .width = 4,
                             .height = 4,
                             .depth = 1,
                             .mipmap_levels = 1,
                             .array_layers = 1,
-                            .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+                            .format = Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
                             .is_cube_map = false
                         },
-                        Texture::SamplerDesc{},
+                        Rhi::Texture::SamplerDesc{},
                         "Sampled Albedo"
                     );
                     AssignTexture(prop.first, texture);
@@ -292,7 +292,7 @@ namespace Engine {
             case MaterialProperty::Type::CubeTexture: {
                 auto texture_asset = std::any_cast<AssetRef>(p.m_value).as<ImageCubemapAsset>();
                 auto texture =
-                    std::shared_ptr<ImageTexture>(ImageTexture::CreateUnique(this->m_system, *texture_asset));
+                    std::shared_ptr<Rhi::ImageTexture>(Rhi::ImageTexture::CreateUnique(this->m_system, *texture_asset));
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
                     *texture, std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}

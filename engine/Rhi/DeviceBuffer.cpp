@@ -1,19 +1,19 @@
-#include "DeviceBuffer.h"
+#include "Rhi/DeviceBuffer.h"
 
 #include "Rhi/AllocatorState.h"
 
-namespace Engine {
+namespace Engine::Rhi {
     DeviceBuffer::DeviceBuffer(BufferAllocation &&alloc, size_t size) : m_size(size), allocation(std::move(alloc)) {
     }
 
     DeviceBuffer DeviceBuffer::Create(
-        const RenderSystemState::AllocatorState &allocator, BufferType type, size_t size, const std::string &name
+        const Rhi::AllocatorState &allocator, BufferType type, size_t size, const std::string &name
     ) {
         return DeviceBuffer(allocator.AllocateBuffer(type, size, name), size);
     }
 
     std::unique_ptr<DeviceBuffer> DeviceBuffer::CreateUnique(
-        const RenderSystemState::AllocatorState &allocator, BufferType type, size_t size, const std::string &name
+        const Rhi::AllocatorState &allocator, BufferType type, size_t size, const std::string &name
     ) {
         return std::unique_ptr<DeviceBuffer>(new DeviceBuffer(allocator.AllocateBuffer(type, size, name), size));
     }
@@ -40,4 +40,4 @@ namespace Engine {
     BufferType DeviceBuffer::GetType() const noexcept {
         return allocation.GetMemoryType();
     }
-} // namespace Engine
+} // namespace Engine::Rhi

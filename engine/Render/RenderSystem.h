@@ -19,6 +19,11 @@ namespace vk {
 } // namespace vk
 
 namespace Engine {
+    namespace Rhi {
+        class AllocatorState;
+        class DeviceInterface;
+        class ImmutableResourceCache;
+    } // namespace Rhi
     class SDLWindow;
     class RendererComponent;
     class Camera;
@@ -31,11 +36,8 @@ namespace Engine {
     };
 
     namespace RenderSystemState {
-        class DeviceInterface;
-        class AllocatorState;
         class FrameManager;
         class RendererManager;
-        class ImmutableResourceCache;
         class CameraManager;
         class SceneDataManager;
         class ResizableRTTManager;
@@ -70,7 +72,7 @@ namespace Engine {
         /**
          * @brief Create the render system and initialize all subsystems.
          *
-         * @see RenderSystemState::DeviceInterface
+         * @see Rhi::DeviceInterface
          * for details on how the Vulkan abstraction layer is initialized.
          */
         void Create();
@@ -112,7 +114,7 @@ namespace Engine {
          * @param last_access Access mode of `present_texture` in its last pass
          *                    (used to derive the copy source barrier).
          */
-        void CompleteFrame(const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access);
+        void CompleteFrame(const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access);
 
         /**
          * @brief Get a handle to the Vulkan logical device that the current Render
@@ -126,10 +128,10 @@ namespace Engine {
          * @brief Get interfaces to all unique Vulkan low-level objects managed by the
          * system.
          */
-        const RenderSystemState::DeviceInterface &GetDeviceInterface() const;
+        const Rhi::DeviceInterface &GetDeviceInterface() const;
 
         /// @brief Get the allocator service
-        const RenderSystemState::AllocatorState &GetAllocatorState() const;
+        const Rhi::AllocatorState &GetAllocatorState() const;
         /// @brief Get the present provider (windowed or headless)
         IPresentProvider &GetPresentProvider();
         /// @brief Get the frame manager
@@ -137,7 +139,7 @@ namespace Engine {
         /// @brief Get the renderer manager
         RenderSystemState::RendererManager &GetRendererManager();
         /// @brief Get the immutable resource cache
-        RenderSystemState::ImmutableResourceCache &GetIRCache();
+        Rhi::ImmutableResourceCache &GetIRCache();
         /// @brief Get the camera manager
         RenderSystemState::CameraManager &GetCameraManager();
         /// @brief Get the manager for scene data (e.g lightings)

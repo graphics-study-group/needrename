@@ -143,7 +143,7 @@ namespace Engine::detail::texture_import {
             int height,
             int channel,
             std::vector<std::byte> data,
-            ImageUtils::ImageFormat format,
+            Rhi::ImageFormat format,
             unsigned mip_level
         ) {
             asset.SetDecodedData(width, height, channel, std::move(data), format, mip_level);
@@ -155,14 +155,14 @@ namespace Engine::detail::texture_import {
             int height,
             int channel,
             std::vector<std::byte> data,
-            ImageUtils::ImageFormat format
+            Rhi::ImageFormat format
         ) {
             asset.SetDecodedData(width, height, channel, std::move(data), format);
         }
     };
 
     void LoadImage2DTextureAssetFromFile(
-        Image2DTextureAsset &asset, const std::filesystem::path &path, ImageUtils::ImageFormat format
+        Image2DTextureAsset &asset, const std::filesystem::path &path, Rhi::ImageFormat format
     ) {
         int width = 0;
         int height = 0;
@@ -183,7 +183,7 @@ namespace Engine::detail::texture_import {
     }
 
     void LoadImage2DTextureAssetFromMemory(
-        Image2DTextureAsset &asset, const std::byte *bytes, size_t size, ImageUtils::ImageFormat format
+        Image2DTextureAsset &asset, const std::byte *bytes, size_t size, Rhi::ImageFormat format
     ) {
         DecodedImage2D image = DecodeImage2DFromMemory(bytes, size);
         Access::Set2DTextureDecodedData(
@@ -192,11 +192,7 @@ namespace Engine::detail::texture_import {
     }
 
     void LoadImageCubemapAssetFromEquirectangularFile(
-        ImageCubemapAsset &asset,
-        const std::filesystem::path &path,
-        int width,
-        int height,
-        ImageUtils::ImageFormat format
+        ImageCubemapAsset &asset, const std::filesystem::path &path, int width, int height, Rhi::ImageFormat format
     ) {
         int src_w = 0;
         int src_h = 0;
@@ -216,7 +212,7 @@ namespace Engine::detail::texture_import {
     }
 
     void LoadImageCubemapAssetFromSixFiles(
-        ImageCubemapAsset &asset, const std::array<std::filesystem::path, 6> &paths, ImageUtils::ImageFormat format
+        ImageCubemapAsset &asset, const std::array<std::filesystem::path, 6> &paths, Rhi::ImageFormat format
     ) {
         int width = 0;
         int height = 0;
@@ -257,12 +253,7 @@ namespace Engine::detail::texture_import {
     }
 
     void LoadImageCubemapAssetFromEquirectangularMemory(
-        ImageCubemapAsset &asset,
-        const std::byte *bytes,
-        size_t size,
-        int width,
-        int height,
-        ImageUtils::ImageFormat format
+        ImageCubemapAsset &asset, const std::byte *bytes, size_t size, int width, int height, Rhi::ImageFormat format
     ) {
         DecodedImage2D image = DecodeImage2DFromMemory(bytes, size);
         std::vector<std::byte> data =
@@ -274,7 +265,7 @@ namespace Engine::detail::texture_import {
         ImageCubemapAsset &asset,
         const std::array<const std::byte *, 6> &bytes,
         const std::array<size_t, 6> &sizes,
-        ImageUtils::ImageFormat format
+        Rhi::ImageFormat format
     ) {
         std::array<DecodedImage2D, 6> images{};
         for (int i = 0; i < 6; ++i) {

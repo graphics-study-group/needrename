@@ -5,7 +5,6 @@
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Rhi/ComputeResourceBinding.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
@@ -13,6 +12,7 @@
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
+#include <Rhi/ComputeResourceBinding.h>
 
 #include <vulkan/vulkan.hpp>
 
@@ -29,7 +29,7 @@ namespace Engine {
         uint32_t texture_width,
         uint32_t texture_height,
         RGTextureHandle &final_color_target_id,
-        const ComputeBuffer *model_matrices_buffer
+        const Rhi::ComputeBuffer *model_matrices_buffer
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -37,7 +37,7 @@ namespace Engine {
         RGBufferHandle mm_handle{};
         if (model_matrices_buffer != nullptr) {
             mm_handle = rgb.ImportExternalResource(
-                *model_matrices_buffer, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomWrite)
+                *model_matrices_buffer, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite)
             );
         }
 
@@ -53,12 +53,12 @@ namespace Engine {
             .multisample = 1,
             .is_cube_map = false
         };
-        auto color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Final Color");
+        auto color_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Final Color");
         final_color_target_id = color_id;
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat;
-        auto hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "HDR Color");
+        auto hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "HDR Color");
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-        auto depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Depth");
+        auto depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Depth");
 
         RenderTargetTexture::RenderTargetTextureDesc shadow_desc{
             .dimensions = 2,
@@ -74,18 +74,19 @@ namespace Engine {
         std::vector<RGTextureHandle> shadow_ids;
         shadow_ids.resize(RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS);
         for (size_t i = 0; i < shadow_ids.size(); i++) {
-            shadow_ids[i] =
-                rgb.RequestRenderTargetTexture(shadow_desc, Texture::SamplerDesc{}, "Shadow Map " + std::to_string(i));
+            shadow_ids[i] = rgb.RequestRenderTargetTexture(
+                shadow_desc, Rhi::Texture::SamplerDesc{}, "Shadow Map " + std::to_string(i)
+            );
         }
 
         // Set up bloom compute stage
-        m_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
+        m_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system);
         m_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
 
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
         auto &bloom_compute_stage = *m_bloom_compute_stage;
-        using IAT = MemoryAccessTypeImageBits;
+        using IAT = Rhi::MemoryAccessTypeImageBits;
 
         bool has_model_matrices = (model_matrices_buffer != nullptr);
 
@@ -97,7 +98,7 @@ namespace Engine {
             auto shadow_builder = RenderGraphPassBuilder{m_system}.SetName("Shadowmap Pass " + std::to_string(i));
             if (has_model_matrices) {
                 shadow_builder.UseBuffer(
-                    mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead)
+                    mm_handle, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)
                 );
             }
             rgb.AddPass(
@@ -117,7 +118,7 @@ namespace Engine {
                             cb.BeginRendering(
                                 {nullptr},
                                 {shadow_map_target,
-                                 TextureSubresourceRange::GetSingleRange(),
+                                 Rhi::TextureSubresourceRange::GetSingleRange(),
                                  AttachmentUtils::LoadOperation::Clear,
                                  AttachmentUtils::StoreOperation::Store,
                                  AttachmentUtils::DepthClearValue{1.0f, 0U}},
@@ -153,7 +154,7 @@ namespace Engine {
             // Declare model matrices read (after physics compute writes).
             if (has_model_matrices) {
                 lit_pass_builder.UseBuffer(
-                    mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead)
+                    mm_handle, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)
                 );
             }
 

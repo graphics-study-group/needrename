@@ -28,10 +28,10 @@ inline std::vector<uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, ESh
     return binary;
 }
 
-inline void PrintLayout(const Engine::ShdrRfl::SPLayout &layout) {
+inline void PrintLayout(const Engine::Rhi::SPLayout &layout) {
     std::cout << "Interfaces: " << std::endl;
     for (const auto &i : layout.interfaces) {
-        if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueImage *>(i.get())) {
+        if (auto ptr = dynamic_cast<const Engine::Rhi::SPInterfaceOpaqueImage *>(i.get())) {
             std::cout << "\t"
                       << std::format(
                              "{}: Set: {}, Binding: {}, Type: Image (size {}, flags {})",
@@ -42,7 +42,7 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout &layout) {
                              static_cast<uint32_t>(ptr->flags)
                          )
                       << std::endl;
-        } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueStorageImage *>(i.get())) {
+        } else if (auto ptr = dynamic_cast<const Engine::Rhi::SPInterfaceOpaqueStorageImage *>(i.get())) {
             std::cout << "\t"
                       << std::format(
                              "{}: Set: {}, Binding: {}, Type: Storage Image (size {})",
@@ -52,14 +52,14 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout &layout) {
                              ptr->array_size
                          )
                       << std::endl;
-        } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceBuffer *>(i.get())) {
+        } else if (auto ptr = dynamic_cast<const Engine::Rhi::SPInterfaceBuffer *>(i.get())) {
             std::cout << "\t"
                       << std::format(
                              "{}: Set: {}, Binding: {}, Type: {}",
                              i->name,
                              i->layout_set,
                              i->layout_binding,
-                             ptr->type == Engine::ShdrRfl::SPInterfaceBuffer::Type::StorageBuffer ? "SSBO" : "UBO"
+                             ptr->type == Engine::Rhi::SPInterfaceBuffer::Type::StorageBuffer ? "SSBO" : "UBO"
                          )
                       << std::endl;
         } else {
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 
     auto binary = GetSpirvBinaryFromGLSL(p, EShLangVertex);
-    auto layout1 = Engine::ShdrRfl::SPLayout::Reflect(binary, true);
+    auto layout1 = Engine::Rhi::SPLayout::Reflect(binary, true);
     std::cout << " - Vertex Shader: " << std::endl;
     PrintLayout(layout1);
 
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
         std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.0.glsl",
         EShLangFragment
     );
-    auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary, true);
+    auto layout = Engine::Rhi::SPLayout::Reflect(binary, true);
     std::cout << " - Fragment Shader: " << std::endl;
     PrintLayout(layout);
 
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
     binary = GetSpirvBinaryFromGLSL(
         std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.glsl", EShLangCompute
     );
-    layout = Engine::ShdrRfl::SPLayout::Reflect(binary, false);
+    layout = Engine::Rhi::SPLayout::Reflect(binary, false);
     std::cout << " - Compute Shader: " << std::endl;
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());

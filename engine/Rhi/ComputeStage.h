@@ -8,12 +8,12 @@
 namespace Engine {
     class RenderSystem;
     class ShaderAsset;
+} // namespace Engine
+
+namespace Engine::Rhi {
     class ComputeBuffer;
     class ComputeResourceBinding;
-
-    namespace ShdrRfl {
-        class SPLayout;
-    }
+    class SPLayout;
 
     /**
      * @brief Compute pipeline used for compute kernel dispatches.
@@ -61,7 +61,7 @@ namespace Engine {
         ComputeResourceBinding &AllocateResourceBinding() noexcept;
 
         /// @brief Get all reflected information of the shader.
-        const ShdrRfl::SPLayout &GetReflectedShaderInfo() const noexcept;
+        const Rhi::SPLayout &GetReflectedShaderInfo() const noexcept;
         /// @brief Get the compute pipeline
         vk::Pipeline GetPipeline() const noexcept;
         /// @brief Get the pipeline layout
@@ -71,6 +71,6 @@ namespace Engine {
         /// @brief Get the descriptor pool
         vk::DescriptorPool GetDescriptorPool() const noexcept;
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // PIPELINE_COMPUTE_COMPUTESTAGE

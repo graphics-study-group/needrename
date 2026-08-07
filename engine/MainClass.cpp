@@ -249,7 +249,7 @@ namespace Engine {
         // submits one batch (main CB + copy CB) and presents.
         this->renderer->CompleteFrame(
             *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),
-            MemoryAccessTypeImageBits::ShaderRandomWrite
+            Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite
         );
 
         // Phase 4: Physics readback / post-processing (batch already submitted).

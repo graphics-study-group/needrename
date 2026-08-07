@@ -4,12 +4,12 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
+#include <Render/RenderSystem.h>
+#include <Rhi/ComputeBuffer.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
-#include <Render/RenderSystem.h>
+#include <Rhi/ShaderResourceBinding.h>
 
 #include <cassert>
 #include <filesystem>
@@ -57,30 +57,30 @@ namespace Engine {
         uint32_t max_elem_count = 1u;
         bool initialized = false;
 
-        std::unique_ptr<ComputeStage> histogram_stage{};
+        std::unique_ptr<Rhi::ComputeStage> histogram_stage{};
         std::vector<uint32_t> histogram_spirv{};
 
-        std::unique_ptr<ComputeStage> prefix_sum_stage{};
+        std::unique_ptr<Rhi::ComputeStage> prefix_sum_stage{};
         std::vector<uint32_t> prefix_sum_spirv{};
 
-        std::unique_ptr<ComputeStage> scatter_stage{};
+        std::unique_ptr<Rhi::ComputeStage> scatter_stage{};
         std::vector<uint32_t> scatter_spirv{};
 
-        std::unique_ptr<ComputeStage> memset_stage{};
+        std::unique_ptr<Rhi::ComputeStage> memset_stage{};
         std::vector<uint32_t> memset_spirv{};
 
-        std::unique_ptr<ComputeBuffer> gpu_const_256{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_const_256{};
 
-        std::vector<std::unique_ptr<ComputeBuffer>> histogram_param_pool{};
+        std::vector<std::unique_ptr<Rhi::ComputeBuffer>> histogram_param_pool{};
         size_t histogram_param_index = 0;
 
-        std::vector<std::unique_ptr<ComputeBuffer>> scatter_param_pool{};
+        std::vector<std::unique_ptr<Rhi::ComputeBuffer>> scatter_param_pool{};
         size_t scatter_param_index = 0;
 
-        ComputeResourceBinding *histogram_binding = nullptr;
-        ComputeResourceBinding *prefix_sum_binding = nullptr;
-        ComputeResourceBinding *scatter_binding = nullptr;
-        ComputeResourceBinding *memset_binding = nullptr;
+        Rhi::ComputeResourceBinding *histogram_binding = nullptr;
+        Rhi::ComputeResourceBinding *prefix_sum_binding = nullptr;
+        Rhi::ComputeResourceBinding *scatter_binding = nullptr;
+        Rhi::ComputeResourceBinding *memset_binding = nullptr;
 
         explicit Impl(RenderSystem &rs, uint32_t mec) : render_system(rs), max_elem_count(mec) {
             if (max_elem_count == 0u) {
@@ -99,31 +99,31 @@ namespace Engine {
 
             const char *histogram_path = "algorithm/radix_histogram.comp.spv";
             histogram_spirv = LoadPhysicsSpirvBytes(histogram_path);
-            histogram_stage = std::make_unique<ComputeStage>(render_system);
+            histogram_stage = std::make_unique<Rhi::ComputeStage>(render_system);
             histogram_stage->Instantiate(histogram_spirv, "RadixHistogram");
             histogram_binding = &histogram_stage->AllocateResourceBinding();
 
             const char *prefix_sum_path = "algorithm/radix_prefix_sum_256.comp.spv";
             prefix_sum_spirv = LoadPhysicsSpirvBytes(prefix_sum_path);
-            prefix_sum_stage = std::make_unique<ComputeStage>(render_system);
+            prefix_sum_stage = std::make_unique<Rhi::ComputeStage>(render_system);
             prefix_sum_stage->Instantiate(prefix_sum_spirv, "RadixPrefixSum256");
             prefix_sum_binding = &prefix_sum_stage->AllocateResourceBinding();
 
             const char *scatter_path = "algorithm/radix_scatter.comp.spv";
             scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
-            scatter_stage = std::make_unique<ComputeStage>(render_system);
+            scatter_stage = std::make_unique<Rhi::ComputeStage>(render_system);
             scatter_stage->Instantiate(scatter_spirv, "RadixScatter");
             scatter_binding = &scatter_stage->AllocateResourceBinding();
 
             const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
-            memset_stage = std::make_unique<ComputeStage>(render_system);
+            memset_stage = std::make_unique<Rhi::ComputeStage>(render_system);
             memset_stage->Instantiate(memset_spirv, "RadixMemset");
             memset_binding = &memset_stage->AllocateResourceBinding();
 
             {
                 const auto &alloc = render_system.GetAllocatorState();
-                gpu_const_256 = ComputeBuffer::CreateUnique(
+                gpu_const_256 = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(uint32_t), true, false, false, false, "RadixSort Const256"
                 );
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_const_256->GetVMAddress());
@@ -131,10 +131,10 @@ namespace Engine {
             }
         }
 
-        ComputeBuffer &AcquireHistogramParam(uint32_t byte_shift, uint32_t word_select, uint32_t elem_capacity) {
+        Rhi::ComputeBuffer &AcquireHistogramParam(uint32_t byte_shift, uint32_t word_select, uint32_t elem_capacity) {
             if (histogram_param_index >= histogram_param_pool.size()) {
                 const auto &alloc = render_system.GetAllocatorState();
-                auto buf = ComputeBuffer::CreateUnique(
+                auto buf = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(RadixSortParamsGpu), true, false, false, false, "RadixSort HistogramParams"
                 );
                 histogram_param_pool.push_back(std::move(buf));
@@ -148,10 +148,10 @@ namespace Engine {
             return buf;
         }
 
-        ComputeBuffer &AcquireScatterParam(uint32_t byte_shift, uint32_t word_select, uint32_t elem_capacity) {
+        Rhi::ComputeBuffer &AcquireScatterParam(uint32_t byte_shift, uint32_t word_select, uint32_t elem_capacity) {
             if (scatter_param_index >= scatter_param_pool.size()) {
                 const auto &alloc = render_system.GetAllocatorState();
-                auto buf = ComputeBuffer::CreateUnique(
+                auto buf = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(RadixSortParamsGpu), true, false, false, false, "RadixSort ScatterParams"
                 );
                 scatter_param_pool.push_back(std::move(buf));
@@ -165,7 +165,7 @@ namespace Engine {
             return buf;
         }
 
-        void RecordClearPass(CommandBuffer &cb, ComputeBuffer &scratch_buf) {
+        void RecordClearPass(CommandBuffer &cb, Rhi::ComputeBuffer &scratch_buf) {
             auto &srb = memset_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", scratch_buf);
             srb.BindBuffer("ElemCount", *gpu_const_256);
@@ -177,10 +177,10 @@ namespace Engine {
 
         void RecordHistogramPass(
             CommandBuffer &cb,
-            ComputeBuffer &pairs_buf,
-            ComputeBuffer &scratch_buf,
-            ComputeBuffer &param_buf,
-            ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &pairs_buf,
+            Rhi::ComputeBuffer &scratch_buf,
+            Rhi::ComputeBuffer &param_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         ) {
             auto &srb = histogram_binding->GetShaderResourceBinding();
@@ -196,7 +196,7 @@ namespace Engine {
             cb.DispatchCompute(wg, 1, 1);
         }
 
-        void RecordPrefixSumPass(CommandBuffer &cb, ComputeBuffer &scratch_buf) {
+        void RecordPrefixSumPass(CommandBuffer &cb, Rhi::ComputeBuffer &scratch_buf) {
             auto &srb = prefix_sum_binding->GetShaderResourceBinding();
             srb.BindBuffer("Histogram", scratch_buf);
 
@@ -207,11 +207,11 @@ namespace Engine {
 
         void RecordScatterPass(
             CommandBuffer &cb,
-            ComputeBuffer &pairs_in_buf,
-            ComputeBuffer &pairs_out_buf,
-            ComputeBuffer &scratch_buf,
-            ComputeBuffer &param_buf,
-            ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &pairs_in_buf,
+            Rhi::ComputeBuffer &pairs_out_buf,
+            Rhi::ComputeBuffer &scratch_buf,
+            Rhi::ComputeBuffer &param_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         ) {
             auto &srb = scatter_binding->GetShaderResourceBinding();
@@ -230,10 +230,10 @@ namespace Engine {
 
         void RecordRadixPass(
             CommandBuffer &cb,
-            ComputeBuffer &pairs_in_buf,
-            ComputeBuffer &pairs_out_buf,
-            ComputeBuffer &scratch_buf,
-            ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &pairs_in_buf,
+            Rhi::ComputeBuffer &pairs_out_buf,
+            Rhi::ComputeBuffer &scratch_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t byte_shift,
             uint32_t word_select,
             uint32_t elem_capacity
@@ -269,11 +269,11 @@ namespace Engine {
 
     void RadixSort::Record(
         CommandBuffer &cb,
-        ComputeBuffer &pairs_buf_a,
-        ComputeBuffer &pairs_buf_b,
-        ComputeBuffer &scratch_buf,
+        Rhi::ComputeBuffer &pairs_buf_a,
+        Rhi::ComputeBuffer &pairs_buf_b,
+        Rhi::ComputeBuffer &scratch_buf,
         uint32_t elem_capacity,
-        ComputeBuffer &pair_count_buf,
+        Rhi::ComputeBuffer &pair_count_buf,
         uint32_t max_shape_count
     ) {
         if (elem_capacity == 0u) {

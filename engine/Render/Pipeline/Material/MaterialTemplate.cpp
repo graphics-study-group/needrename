@@ -3,16 +3,16 @@
 #include "Asset/AssetRef.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 
-#include "Rhi/DebugUtils.h"
 #include "MaterialInstance.h"
 #include "Render/AttachmentUtilsFunc.h"
-#include "Rhi/ImageUtilsFunc.h"
-#include "Rhi/ShaderParameterLayout.h"
-#include "Rhi/PipelineInfo.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/PipelineInfo.h"
+#include "Rhi/ShaderParameterLayout.h"
 
 #include <SDL3/SDL.h>
 #include <fstream>
@@ -28,7 +28,7 @@ namespace Engine {
 
         vk::DescriptorPool desc_pool{};
         vk::PipelineLayout pipeline_layout{};
-        const ShdrRfl::SPLayout *m_layout{};
+        const Rhi::SPLayout *m_layout{};
 
         vk::UniquePipeline pipeline{};
         std::string m_name{};
@@ -83,8 +83,8 @@ namespace Engine {
             std::vector<vk::Format> color_attachment_formats{};
 
             for (const auto &f : pri.color_attachment_format) {
-                if (f == ImageUtils::ImageFormat::UNDEFINED) break;
-                color_attachment_formats.push_back(ImageUtils::GetVkFormat(f));
+                if (f == Rhi::ImageFormat::UNDEFINED) break;
+                color_attachment_formats.push_back(Rhi::GetVkFormat(f));
             }
 
             std::vector<vk::PipelineColorBlendAttachmentState> cbass{
@@ -118,7 +118,7 @@ namespace Engine {
             prci = vk::PipelineRenderingCreateInfo{
                 0,
                 color_attachment_formats,
-                ImageUtils::GetVkFormat(pri.depth_stencil_attachment_format),
+                Rhi::GetVkFormat(pri.depth_stencil_attachment_format),
                 // XXX: stencil attachment support
                 vk::Format::eUndefined
             };
@@ -155,7 +155,7 @@ namespace Engine {
         const std::vector<vk::ShaderModule> &shaders,
         vk::PipelineLayout layout,
         vk::DescriptorPool pool,
-        const ShdrRfl::SPLayout &reflected,
+        const Rhi::SPLayout &reflected,
         const PipelineRuntimeInfo &pri,
         const std::string &name
     ) : MaterialTemplate(system) {
@@ -187,7 +187,7 @@ namespace Engine {
         return pimpl->desc_pool;
     }
 
-    const ShdrRfl::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {
+    const Rhi::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {
         return *(pimpl->m_layout);
     }
     bool MaterialTemplate::HasMaterialData() const noexcept {

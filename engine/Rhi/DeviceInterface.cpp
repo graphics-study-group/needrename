@@ -1,6 +1,6 @@
-#include "DeviceInterface.h"
-#include "DebugUtils.h"
-#include "Structs.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/Structs.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <unordered_set>
@@ -10,7 +10,7 @@
 // Rhi becomes a standalone DLL again. While merged into engine.dll, the storage
 // is provided by MainClass.cpp.
 
-namespace Engine::RenderSystemState {
+namespace Engine::Rhi {
     struct DeviceInterface::impl {
 
         static constexpr const char *VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
@@ -164,7 +164,7 @@ namespace Engine::RenderSystemState {
             // Enable debug utils (setName, label regions) only when validation layer is loaded,
             // because VK_EXT_debug_utils is provided by the validation layer on most drivers.
             if (validation_layer_available) {
-                Engine::RenderDebugUtils::g_debug_utils_available = true;
+                Engine::Rhi::RenderDebugUtils::g_debug_utils_available = true;
             }
 #endif
 
@@ -570,4 +570,4 @@ namespace Engine::RenderSystemState {
         assert(!"Unimplemented.");
         return 0.0f;
     }
-} // namespace Engine::RenderSystemState
+} // namespace Engine::Rhi

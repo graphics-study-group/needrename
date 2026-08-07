@@ -1,6 +1,6 @@
-#include "StructuredBufferPlacer.h"
+#include "Rhi/StructuredBufferPlacer.h"
 
-#include "StructuredBuffer.h"
+#include "Rhi/StructuredBuffer.h"
 
 #include <SDL3/SDL.h>
 #include <any>
@@ -25,7 +25,7 @@ namespace {
 } // namespace
 #endif
 
-namespace Engine {
+namespace Engine::Rhi {
     struct StructuredBufferPlacer::impl {
         struct TypeInfo {
             // type info is used for type checking only.
@@ -128,4 +128,4 @@ namespace Engine {
         buffer.resize(CalculateMaxSize());
         WriteBuffer(data, buffer.data());
     }
-} // namespace Engine
+} // namespace Engine::Rhi

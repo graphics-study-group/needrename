@@ -12,10 +12,11 @@ namespace vk {
 } // namespace vk
 
 namespace Engine {
-    namespace RenderSystemState {
-        class DeviceInterface;
+    namespace Rhi {
         class AllocatorState;
-    } // namespace RenderSystemState
+        class DeviceInterface;
+    } // namespace Rhi
+    namespace RenderSystemState {} // namespace RenderSystemState
 
     /**
      * @brief A struct that stores vertex attribute contained in a mesh.
@@ -130,7 +131,7 @@ namespace Engine {
          * Pass null to ignore the checks.
          */
         std::vector<vk::VertexInputAttributeDescription> ToVkVertexAttribute(
-            RenderSystemState::AllocatorState *allocator = nullptr
+            Rhi::AllocatorState *allocator = nullptr
         ) const noexcept;
 
         /**

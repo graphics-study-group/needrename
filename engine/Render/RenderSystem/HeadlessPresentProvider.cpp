@@ -4,7 +4,7 @@
 
 namespace Engine::RenderSystemState {
     struct HeadlessPresentProvider::impl {
-        const DeviceInterface *m_device_interface;
+        const Rhi::DeviceInterface *m_device_interface;
         vk::Extent2D m_extent;
         vk::Format m_color_format;
         uint32_t m_image_count;
@@ -12,7 +12,7 @@ namespace Engine::RenderSystemState {
     };
 
     HeadlessPresentProvider::HeadlessPresentProvider(
-        const DeviceInterface &device_interface, vk::Extent2D extent, vk::Format color_format, uint32_t image_count
+        const Rhi::DeviceInterface &device_interface, vk::Extent2D extent, vk::Format color_format, uint32_t image_count
     ) : pimpl(std::make_unique<impl>(impl{&device_interface, extent, color_format, image_count})) {
     }
 
@@ -44,7 +44,7 @@ namespace Engine::RenderSystemState {
     }
 
     vk::CommandBuffer HeadlessPresentProvider::PrepareCopy(
-        vk::Device, const RenderTargetTexture &, uint32_t, MemoryAccessTypeImageBits
+        vk::Device, const RenderTargetTexture &, uint32_t, Rhi::MemoryAccessTypeImageBits
     ) {
         // No presentation target — the frame-completion batch carries no copy CB.
         return nullptr;

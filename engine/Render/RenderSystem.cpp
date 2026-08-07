@@ -5,10 +5,6 @@
 #include <unordered_set>
 
 #include "Framework/component/RenderComponent/RendererComponent.h"
-#include "Rhi/AllocatorState.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/Structs.h"
-#include "Rhi/MemoryAccessTypes.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
@@ -19,6 +15,10 @@
 #include "Render/RenderSystem/SwapchainPresentProvider.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Resource/AllRenderResourceManagers.h"
+#include "Rhi/AllocatorState.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/MemoryAccessTypes.h"
+#include "Rhi/Structs.h"
 
 #include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>
@@ -39,10 +39,10 @@ namespace Engine {
         std::weak_ptr<SDLWindow> m_window;
 
         // Order of declaration effects destructing order!
-        std::unique_ptr<RenderSystemState::DeviceInterface> m_device_interface{};
-        std::unique_ptr<RenderSystemState::ImmutableResourceCache> m_immutable_resource_cache{};
+        std::unique_ptr<Rhi::DeviceInterface> m_device_interface{};
+        std::unique_ptr<Rhi::ImmutableResourceCache> m_immutable_resource_cache{};
 
-        std::unique_ptr<RenderSystemState::AllocatorState> m_allocator_state;
+        std::unique_ptr<Rhi::AllocatorState> m_allocator_state;
         std::unique_ptr<IPresentProvider> m_present_provider;
         RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::RendererManager m_renderer_manager;
@@ -69,14 +69,14 @@ namespace Engine {
         bool is_headless = pimpl->m_window.expired();
         SDL_Window *sdl_window = is_headless ? nullptr : pimpl->m_window.lock()->GetWindow();
 
-        RenderSystemState::DeviceInterface::DeviceConfiguration cfg{
+        Rhi::DeviceInterface::DeviceConfiguration cfg{
             .window = sdl_window, .application_name = "", .application_version = 0, .dynamic_dispatcher = nullptr
         };
-        pimpl->m_device_interface = std::make_unique<RenderSystemState::DeviceInterface>(cfg);
+        pimpl->m_device_interface = std::make_unique<Rhi::DeviceInterface>(cfg);
         VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_device_interface->GetInstance(), ::vkGetInstanceProcAddr);
         VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_device_interface->GetDevice());
         pimpl->m_immutable_resource_cache =
-            std::make_unique<RenderSystemState::ImmutableResourceCache>(pimpl->m_device_interface->GetDevice());
+            std::make_unique<Rhi::ImmutableResourceCache>(pimpl->m_device_interface->GetDevice());
 
         if (is_headless) {
             vk::Extent2D extent{1920, 1080};
@@ -98,7 +98,7 @@ namespace Engine {
             pimpl->m_resizable_rtt_manger.SetReferenceSize(w, h);
         }
 
-        pimpl->m_allocator_state = std::make_unique<RenderSystemState::AllocatorState>();
+        pimpl->m_allocator_state = std::make_unique<Rhi::AllocatorState>();
         pimpl->m_allocator_state->SetDeviceInterface(*pimpl->m_device_interface);
         pimpl->m_allocator_state->Create();
 
@@ -115,7 +115,7 @@ namespace Engine {
     }
 
     void RenderSystem::CompleteFrame(
-        const RenderTargetTexture &present_texture, MemoryAccessTypeImageBits last_access
+        const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access
     ) {
         if (pimpl->m_frame_manager.SubmitFrame(present_texture, last_access)) {
             this->UpdateSwapchain();
@@ -129,11 +129,11 @@ namespace Engine {
     vk::Device RenderSystem::GetDevice() const {
         return pimpl->m_device_interface->GetDevice();
     }
-    const RenderSystemState::DeviceInterface &RenderSystem::GetDeviceInterface() const {
+    const Rhi::DeviceInterface &RenderSystem::GetDeviceInterface() const {
         return *pimpl->m_device_interface;
     }
 
-    const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const {
+    const Rhi::AllocatorState &RenderSystem::GetAllocatorState() const {
         return *pimpl->m_allocator_state;
     }
 
@@ -149,7 +149,7 @@ namespace Engine {
         return pimpl->m_renderer_manager;
     }
 
-    RenderSystemState::ImmutableResourceCache &RenderSystem::GetIRCache() {
+    Rhi::ImmutableResourceCache &RenderSystem::GetIRCache() {
         return *pimpl->m_immutable_resource_cache;
     }
 

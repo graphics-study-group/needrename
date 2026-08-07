@@ -85,14 +85,9 @@ namespace Engine {
     }
 
     void Image2DTextureAsset::SetDecodedData(
-        int width,
-        int height,
-        int channel,
-        std::vector<std::byte> data,
-        ImageUtils::ImageFormat format,
-        unsigned mip_level
+        int width, int height, int channel, std::vector<std::byte> data, Rhi::ImageFormat format, unsigned mip_level
     ) {
-        const vk::Format vk_format = ImageUtils::GetVkFormat(format);
+        const vk::Format vk_format = Rhi::GetVkFormat(format);
         if (vk_format == vk::Format::eUndefined) {
             throw std::runtime_error("Unsupported image format for texture.");
         }
@@ -129,7 +124,7 @@ namespace Engine {
         }
         std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(saved_texture, ktxTexture2_Destroy);
 
-        if (ImageUtils::CanCompressToBasis(m_format)) {
+        if (Rhi::CanCompressToBasis(m_format)) {
             TryCompressTextureToBasis(saved_texture);
         }
 
@@ -168,7 +163,7 @@ namespace Engine {
             const auto transcode_error = ktxTexture2_TranscodeBasis(m_texture, KTX_TTF_RGBA32, 0);
             if (transcode_error != KTX_SUCCESS) {
                 throw std::runtime_error(
-                    std::string("Texture transcode to RGBA32 failed: ") + ktxErrorString(transcode_error)
+                    std::string("Rhi::Texture transcode to RGBA32 failed: ") + ktxErrorString(transcode_error)
                 );
             }
         }

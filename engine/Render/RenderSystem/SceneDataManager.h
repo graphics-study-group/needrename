@@ -13,9 +13,11 @@ namespace vk {
 } // namespace vk
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class RenderSystem;
     class CommandBuffer;
-    class ComputeBuffer;
 
     namespace RenderSystemState {
         /**
@@ -221,7 +223,7 @@ namespace Engine {
              * vertex shaders via set 0 binding 2.  Pass nullptr to revert
              * to the default dummy buffer.
              */
-            void SetModelMatricesBuffer(const ComputeBuffer *buffer) noexcept;
+            void SetModelMatricesBuffer(const Rhi::ComputeBuffer *buffer) noexcept;
 
             /**
              * @brief Get the currently bound model matrices buffer.
@@ -229,7 +231,7 @@ namespace Engine {
              * @return Current model matrices buffer, or the dummy buffer
              *         if no physics buffer has been set.
              */
-            const ComputeBuffer *GetModelMatricesBuffer() const noexcept;
+            const Rhi::ComputeBuffer *GetModelMatricesBuffer() const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

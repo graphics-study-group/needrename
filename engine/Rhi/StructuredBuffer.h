@@ -7,14 +7,14 @@
 #include <typeinfo>
 #include <vector>
 
-namespace Engine {
+namespace Engine::Rhi {
 
     /**
      * @brief A structured buffer that every contained variable is named.
      *
      * It is implemented via a mapping from name to bitwise content of the
      * variable. To actually write these variables onto a buffer, use
-     * `Engine::StructuredBufferPlacer`
+     * `Engine::Rhi::StructuredBufferPlacer`
      */
     class StructuredBuffer {
         struct impl;
@@ -87,6 +87,6 @@ namespace Engine {
 
         const VariableEntry *GetVariable(const std::string &name) const;
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_STRUCTUREDBUFFER_INCLUDED

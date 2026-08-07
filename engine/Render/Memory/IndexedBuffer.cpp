@@ -14,16 +14,16 @@ namespace Engine {
     };
 
     IndexedBuffer::IndexedBuffer(
-        BufferAllocation &&alloc,
+        Rhi::BufferAllocation &&alloc,
         size_t size,
         size_t slice_size,
         size_t slice_alignment,
         uint32_t slices,
         size_t aligned_slice_size
     ) :
-        DeviceBuffer(std::move(alloc), size),
+        Rhi::DeviceBuffer(std::move(alloc), size),
         pimpl(std::make_unique<IndexedBuffer::impl>(slice_size, slice_alignment, slices, aligned_slice_size, nullptr)) {
-        pimpl->base_ptr = DeviceBuffer::GetVMAddress();
+        pimpl->base_ptr = Rhi::DeviceBuffer::GetVMAddress();
     }
 
     IndexedBuffer::IndexedBuffer(IndexedBuffer &&) noexcept = default;
@@ -33,8 +33,8 @@ namespace Engine {
     IndexedBuffer::~IndexedBuffer() = default;
 
     IndexedBuffer IndexedBuffer::Create(
-        const RenderSystemState::AllocatorState &allocator,
-        BufferType type,
+        const Rhi::AllocatorState &allocator,
+        Rhi::BufferType type,
         size_t slice_size,
         size_t slice_alignment,
         uint32_t slices,
@@ -54,8 +54,8 @@ namespace Engine {
     }
 
     std::unique_ptr<IndexedBuffer> IndexedBuffer::CreateUnique(
-        const RenderSystemState::AllocatorState &allocator,
-        BufferType type,
+        const Rhi::AllocatorState &allocator,
+        Rhi::BufferType type,
         size_t slice_size,
         size_t slice_alignment,
         uint32_t slices,
@@ -92,10 +92,10 @@ namespace Engine {
     }
 
     void IndexedBuffer::FlushSlice(uint32_t slice) const {
-        DeviceBuffer::Flush(GetSliceOffset(slice), pimpl->aligned_slice_size);
+        Rhi::DeviceBuffer::Flush(GetSliceOffset(slice), pimpl->aligned_slice_size);
     }
 
     void IndexedBuffer::InvalidateSlice(uint32_t slice) {
-        DeviceBuffer::Invalidate(GetSliceOffset(slice), pimpl->aligned_slice_size);
+        Rhi::DeviceBuffer::Invalidate(GetSliceOffset(slice), pimpl->aligned_slice_size);
     }
 } // namespace Engine

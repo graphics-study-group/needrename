@@ -5,8 +5,10 @@
 #include <memory>
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class CommandBuffer;
-    class ComputeBuffer;
     class RenderSystem;
 
     /**
@@ -26,7 +28,7 @@ namespace Engine {
      *   3. add_block_offset shader: add prefix-summed block offsets back to data
      *
      * Input and output buffers are always separate bindings.  The caller may
-     * pass the same ComputeBuffer for both to achieve in-place scan.
+     * pass the same Rhi::ComputeBuffer for both to achieve in-place scan.
      *
      * Scratch buffer sizing:
      *   Use GetRequiredBlockSumsBytes(max_elem_count) to determine the minimum
@@ -102,9 +104,9 @@ namespace Engine {
          */
         void Record(
             CommandBuffer &cb,
-            ComputeBuffer &input_buf,
-            ComputeBuffer &output_buf,
-            ComputeBuffer &block_sums_buf,
+            Rhi::ComputeBuffer &input_buf,
+            Rhi::ComputeBuffer &output_buf,
+            Rhi::ComputeBuffer &block_sums_buf,
             uint32_t elem_count
         );
 

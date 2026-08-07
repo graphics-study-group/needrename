@@ -6,6 +6,7 @@
 #include <random>
 
 using namespace Engine;
+using namespace Engine::Rhi;
 
 constexpr const char GLSL_CODE[] = {
     R"(
@@ -57,7 +58,7 @@ int main() {
     }
 
     auto spirv = GetSpirvBinaryFromGLSL(GLSL_CODE, EShLangCompute);
-    auto cstage = ComputeStage{*rsys};
+    auto cstage = Rhi::ComputeStage{*rsys};
     cstage.Instantiate(spirv, "Headless Test Compute Shader");
     auto &cbinding = cstage.AllocateResourceBinding();
     cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
@@ -70,8 +71,8 @@ int main() {
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("Compute")
-            .UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-            .UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
+            .UseBuffer(cbi1, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead})
+            .UseBuffer(cbi2, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction([&cstage, &cbinding](CommandBuffer &cb, const RenderGraph &) -> void {
                 cb.BindComputeStage(cstage);

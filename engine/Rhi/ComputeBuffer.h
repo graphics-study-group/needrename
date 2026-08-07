@@ -1,11 +1,11 @@
 #ifndef RENDER_MEMORY_COMPUTEBUFFER_INCLUDED
 #define RENDER_MEMORY_COMPUTEBUFFER_INCLUDED
 
-#include "DeviceBuffer.h"
+#include "Rhi/DeviceBuffer.h"
 
 #include <span>
 
-namespace Engine {
+namespace Engine::Rhi {
     /**
      * @brief A buffer dedicated for compute shader use (i.e. storage buffer).
      */
@@ -22,7 +22,7 @@ namespace Engine {
          * @param as_indirect_draw_buffer Allows it to be used as indirect draw command buffer.
          */
         static std::unique_ptr<ComputeBuffer> CreateUnique(
-            const RenderSystemState::AllocatorState &allocator,
+            const Rhi::AllocatorState &allocator,
             size_t size,
             bool allow_cpu_access,
             bool as_readonly_buffer,
@@ -47,7 +47,7 @@ namespace Engine {
          * @param as_indirect_draw_buffer Allows it to be used as indirect draw command buffer.
          */
         static std::unique_ptr<ComputeBufferTyped<T>> CreateUniqueTyped(
-            const RenderSystemState::AllocatorState &allocator,
+            const Rhi::AllocatorState &allocator,
             size_t count,
             bool allow_cpu_access,
             bool as_readonly_buffer,
@@ -89,6 +89,6 @@ namespace Engine {
             return *buffer;
         }
     };
-}; // namespace Engine
+}; // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_COMPUTEBUFFER_INCLUDED

@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
     auto rsys = cmc->GetRenderSystem();
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
 
     RenderGraphBuilder rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
                 gsys->DrawGUI(
                     AttachmentUtils::AttachmentDescription{
                         color,
-                        TextureSubresourceRange::GetSingleRange(),
+                        Rhi::TextureSubresourceRange::GetSingleRange(),
                         AttachmentUtils::LoadOperation::Clear,
                         AttachmentUtils::StoreOperation::Store,
                     },
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(c);
-        rsys->CompleteFrame(*color, MemoryAccessTypeImageBits::ColorAttachmentWrite);
+        rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

@@ -1,10 +1,10 @@
 #include "MaterialLibrary.h"
 
 #include "Asset/Material/MaterialTemplateAsset.h"
-#include "Rhi/DebugUtils.h"
-#include "Rhi/ShaderParameterLayout.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/ShaderParameterLayout.h"
 
 #include <SDL3/SDL.h>
 #include <cassert>
@@ -30,7 +30,7 @@ namespace Engine {
             /// Shader modules for the pipeline.
             std::vector<vk::UniqueShaderModule> shader_modules{};
             /// Reflected pipeline info.
-            ShdrRfl::SPLayout reflected{};
+            Rhi::SPLayout reflected{};
 
             /// Descriptor pool for material descriptors (could be null if no material descriptor is found).
             vk::UniqueDescriptorPool descriptor_pool{};
@@ -71,7 +71,7 @@ namespace Engine {
 
                 auto shader_asset = shader_refs[i].as<ShaderAsset>();
                 auto code = shader_asset->binary;
-                b.reflected.Merge(Engine::ShdrRfl::SPLayout::Reflect(code, true));
+                b.reflected.Merge(Engine::Rhi::SPLayout::Reflect(code, true));
                 vk::ShaderModuleCreateInfo ci{
                     {}, code.size() * sizeof(uint32_t), reinterpret_cast<const uint32_t *>(code.data())
                 };
@@ -89,7 +89,7 @@ namespace Engine {
          */
         void GenerateDescriptorSetAndPipelineLayout(
             PipelineBundle &b,
-            RenderSystemState::ImmutableResourceCache &irc,
+            Rhi::ImmutableResourceCache &irc,
             vk::Device d,
             vk::DescriptorSetLayout scene_descriptors,
             vk::DescriptorSetLayout camera_descriptors,

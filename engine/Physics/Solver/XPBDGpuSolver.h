@@ -7,8 +7,10 @@
 #include <memory>
 
 namespace Engine {
-    class ComputeBuffer;
-    class ComputeStage;
+    namespace Rhi {
+        class ComputeBuffer;
+        class ComputeStage;
+    } // namespace Rhi
     class ConvexCollisionDetector;
     class PhysicsScene;
     class RenderSystem;

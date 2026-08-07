@@ -15,12 +15,12 @@ namespace Engine {
      * be aligned accordingly, making the
      * buffer suitable to use for dynamic buffer descriptors.
      */
-    class IndexedBuffer : public DeviceBuffer {
+    class IndexedBuffer : public Rhi::DeviceBuffer {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
         IndexedBuffer(
-            BufferAllocation &&alloc,
+            Rhi::BufferAllocation &&alloc,
             size_t size,
             size_t slice_size,
             size_t slice_alignment,
@@ -47,8 +47,8 @@ namespace Engine {
          * @param name Name of the buffer.
          */
         static IndexedBuffer Create(
-            const RenderSystemState::AllocatorState &allocator,
-            BufferType type,
+            const Rhi::AllocatorState &allocator,
+            Rhi::BufferType type,
             size_t slice_size,
             size_t slice_alignment,
             uint32_t slices,
@@ -64,8 +64,8 @@ namespace Engine {
          * @param name Name of the buffer.
          */
         static std::unique_ptr<IndexedBuffer> CreateUnique(
-            const RenderSystemState::AllocatorState &allocator,
-            BufferType type,
+            const Rhi::AllocatorState &allocator,
+            Rhi::BufferType type,
             size_t slice_size,
             size_t slice_alignment,
             uint32_t slices,

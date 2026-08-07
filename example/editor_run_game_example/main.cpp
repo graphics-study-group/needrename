@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
     auto asys = cmc->GetAssetManager();
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
-    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
+    gui->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -314,7 +314,7 @@ int main(int argc, char **argv) {
         rg->RecordAllPasses(cb.GetCommandBuffer());
 
         rsys->CompleteFrame(
-            *rg->GetInternalTextureResource(final_color_id), MemoryAccessTypeImageBits::ColorAttachmentWrite
+            *rg->GetInternalTextureResource(final_color_id), Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
         );
 
         if (main_window.m_is_playing) {

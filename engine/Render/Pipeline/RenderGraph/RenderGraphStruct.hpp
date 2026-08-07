@@ -5,9 +5,9 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-#include "Rhi/MemoryAccessTypes.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
+#include "Rhi/MemoryAccessTypes.h"
 
 namespace Engine {
     class RenderGraph;
@@ -54,14 +54,14 @@ namespace Engine {
      * @brief Extra info used for constructing a render graph.
      */
     struct RenderGraph2ExtraInfo {
-        std::unordered_map<RGTextureHandle, MemoryAccessTypeImageBits> first_persistent_texture_access,
+        std::unordered_map<RGTextureHandle, Rhi::MemoryAccessTypeImageBits> first_persistent_texture_access,
             last_persistent_texture_access;
 
         std::unordered_map<RGTextureHandle, OwnedRenderTargetTextureVariant> transient_texture_storage;
 
         std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
 
-        std::unordered_map<RGBufferHandle, const DeviceBuffer *> buffer_mapping;
+        std::unordered_map<RGBufferHandle, const Rhi::DeviceBuffer *> buffer_mapping;
     };
 } // namespace Engine
 

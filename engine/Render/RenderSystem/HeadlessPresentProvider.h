@@ -5,8 +5,10 @@
 #include <memory>
 
 namespace Engine {
-    namespace RenderSystemState {
+    namespace Rhi {
         class DeviceInterface;
+    }
+    namespace RenderSystemState {
 
         class HeadlessPresentProvider : public IPresentProvider {
             struct impl;
@@ -14,7 +16,7 @@ namespace Engine {
 
         public:
             HeadlessPresentProvider(
-                const DeviceInterface &device_interface,
+                const Rhi::DeviceInterface &device_interface,
                 vk::Extent2D extent,
                 vk::Format color_format,
                 uint32_t image_count
@@ -33,7 +35,7 @@ namespace Engine {
                 vk::Device device,
                 const RenderTargetTexture &final_rtt,
                 uint32_t image_index,
-                MemoryAccessTypeImageBits last_access
+                Rhi::MemoryAccessTypeImageBits last_access
             ) override;
 
             bool Present(vk::Device device, uint32_t image_index, vk::Semaphore frame_done_semaphore) override;

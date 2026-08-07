@@ -1,4 +1,4 @@
-#include "ShaderResourceBinding.h"
+#include "Rhi/ShaderResourceBinding.h"
 
 #include "Rhi/DeviceBuffer.h"
 #include "Rhi/Hasher.hpp"
@@ -12,9 +12,9 @@
 #include <variant>
 #include <vulkan/vulkan.hpp>
 
-namespace Engine {
+namespace Engine::Rhi {
     struct ShaderResourceBinding::impl {
-        RenderSystemState::ImmutableResourceCache *irc{nullptr};
+        Rhi::ImmutableResourceCache *irc{nullptr};
 
         using InterfaceVariant = std::variant<
             std::monostate,
@@ -57,8 +57,7 @@ namespace Engine {
             descriptor_sets{};
     };
 
-    ShaderResourceBinding::ShaderResourceBinding(RenderSystemState::ImmutableResourceCache &irc) :
-        pimpl(std::make_unique<impl>()) {
+    ShaderResourceBinding::ShaderResourceBinding(Rhi::ImmutableResourceCache &irc) : pimpl(std::make_unique<impl>()) {
         pimpl->irc = &irc;
     }
 
@@ -82,7 +81,7 @@ namespace Engine {
 
     vk::DescriptorSet ShaderResourceBinding::GetDescriptorSet(
         uint32_t set_id,
-        const ShdrRfl::SPLayout &s,
+        const Rhi::SPLayout &s,
         vk::Device d,
         vk::DescriptorPool pool,
         bool enforce_dynamic_uniform,
@@ -120,7 +119,7 @@ namespace Engine {
                 continue;
             }
 
-            if (auto popaque = dynamic_cast<const ShdrRfl::SPInterfaceOpaqueImage *>(pinterface.get())) {
+            if (auto popaque = dynamic_cast<const Rhi::SPInterfaceOpaqueImage *>(pinterface.get())) {
                 auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
                 assert(pimg);
                 assert(popaque->array_size == 0);
@@ -136,7 +135,7 @@ namespace Engine {
                         vk::DescriptorType::eCombinedImageSampler
                     }
                 );
-            } else if (auto pstorage = dynamic_cast<const ShdrRfl::SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
+            } else if (auto pstorage = dynamic_cast<const Rhi::SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
                 auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
                 assert(pimg);
                 assert(pstorage->array_size == 0);
@@ -155,7 +154,7 @@ namespace Engine {
                 );
             }
             // The interface is a buffer
-            else if (auto pbuffer = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
+            else if (auto pbuffer = dynamic_cast<const Rhi::SPInterfaceBuffer *>(pinterface.get())) {
                 auto pbuf = std::get_if<std::tuple<vk::Buffer, size_t, size_t>>(&itr->second);
                 assert(pbuf);
 
@@ -221,4 +220,4 @@ namespace Engine {
         return descriptor;
     }
 
-} // namespace Engine
+} // namespace Engine::Rhi

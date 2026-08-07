@@ -10,19 +10,13 @@
 
 #include "Rhi/TextureSubresourceView.h"
 
-namespace Engine {
+namespace Engine::Rhi {
 
     class DeviceBuffer;
+    class DeviceInterface;
+    class ImmutableResourceCache;
+    class SPLayout;
     class Texture;
-
-    namespace RenderSystemState {
-        class DeviceInterface;
-        class ImmutableResourceCache;
-    }; // namespace RenderSystemState
-
-    namespace ShdrRfl {
-        class SPLayout;
-    }
 
     /**
      * @brief A class that offers aggregated binding for shader resouces.
@@ -47,7 +41,7 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
-        ShaderResourceBinding(RenderSystemState::ImmutableResourceCache &irc);
+        ShaderResourceBinding(Rhi::ImmutableResourceCache &irc);
         ~ShaderResourceBinding() noexcept;
 
         /**
@@ -87,13 +81,13 @@ namespace Engine {
          */
         vk::DescriptorSet GetDescriptorSet(
             uint32_t set_id,
-            const ShdrRfl::SPLayout &s,
+            const Rhi::SPLayout &s,
             vk::Device d,
             vk::DescriptorPool pool,
             bool enforce_dynamic_uniform = false,
             bool enforce_dynamic_storage = false
         );
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // MEMORY_SHADERPARAMETERS_SHADERRESOURCEBINDING_INCLUDED

@@ -5,13 +5,13 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsScene.h>
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/DeviceBuffer.h>
-#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
+#include <Render/RenderSystem.h>
+#include <Rhi/ComputeBuffer.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
-#include <Render/RenderSystem.h>
+#include <Rhi/DeviceBuffer.h>
+#include <Rhi/ShaderResourceBinding.h>
 
 #include <filesystem>
 #include <fstream>
@@ -52,8 +52,8 @@ namespace Engine {
         RenderSystem &render_system;
 
         PhysicsScene *cached_scene = nullptr;
-        const ComputeBuffer *cached_pair_buffer = nullptr;
-        const ComputeBuffer *cached_pair_count_buffer = nullptr;
+        const Rhi::ComputeBuffer *cached_pair_buffer = nullptr;
+        const Rhi::ComputeBuffer *cached_pair_count_buffer = nullptr;
 
         uint32_t max_input_collision_pairs = 1;
         uint32_t max_output_collision_pairs = 1;
@@ -61,20 +61,20 @@ namespace Engine {
 
         bool shaders_loaded = false;
 
-        std::unique_ptr<ComputeStage> clear_stage{};
-        ComputeResourceBinding *clear_binding = nullptr;
+        std::unique_ptr<Rhi::ComputeStage> clear_stage{};
+        Rhi::ComputeResourceBinding *clear_binding = nullptr;
 
-        std::unique_ptr<ComputeStage> detect_stage{};
-        ComputeResourceBinding *detect_binding = nullptr;
+        std::unique_ptr<Rhi::ComputeStage> detect_stage{};
+        Rhi::ComputeResourceBinding *detect_binding = nullptr;
 
-        std::unique_ptr<ComputeBuffer> gpu_shape_slot_count{};
-        std::unique_ptr<ComputeBuffer> gpu_collision_ids{};
-        std::unique_ptr<ComputeBuffer> gpu_collision_normals{};
-        std::unique_ptr<ComputeBuffer> gpu_contact_point_a{};
-        std::unique_ptr<ComputeBuffer> gpu_contact_point_b{};
-        std::unique_ptr<ComputeBuffer> gpu_collision_count{};
-        std::unique_ptr<ComputeBuffer> gpu_detector_config{};
-        std::unique_ptr<ComputeBuffer> gpu_one{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_shape_slot_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_ids{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_normals{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_point_a{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_point_b{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_detector_config{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_one{};
 
         explicit Impl(RenderSystem &rs) : render_system(rs) {
         }
@@ -91,21 +91,23 @@ namespace Engine {
             {
                 const size_t byte_size = sizeof(uint32_t);
                 if (!gpu_shape_slot_count || gpu_shape_slot_count->GetSize() != byte_size) {
-                    gpu_shape_slot_count =
-                        ComputeBuffer::CreateUnique(allocator, byte_size, true, false, false, false, "ShapeSlotCount");
+                    gpu_shape_slot_count = Rhi::ComputeBuffer::CreateUnique(
+                        allocator, byte_size, true, false, false, false, "ShapeSlotCount"
+                    );
                 }
             }
             {
                 const size_t byte_size = result_entries * sizeof(glm::uvec2);
                 if (!gpu_collision_ids || gpu_collision_ids->GetSize() != byte_size) {
-                    gpu_collision_ids =
-                        ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "CollisionIds");
+                    gpu_collision_ids = Rhi::ComputeBuffer::CreateUnique(
+                        allocator, byte_size, false, false, false, false, "CollisionIds"
+                    );
                 }
             }
             {
                 const size_t byte_size = result_entries * sizeof(glm::vec4);
                 if (!gpu_collision_normals || gpu_collision_normals->GetSize() != byte_size) {
-                    gpu_collision_normals = ComputeBuffer::CreateUnique(
+                    gpu_collision_normals = Rhi::ComputeBuffer::CreateUnique(
                         allocator, byte_size, false, false, false, false, "CollisionNormals"
                     );
                 }
@@ -113,34 +115,38 @@ namespace Engine {
             {
                 const size_t byte_size = result_entries * sizeof(glm::vec4);
                 if (!gpu_contact_point_a || gpu_contact_point_a->GetSize() != byte_size) {
-                    gpu_contact_point_a =
-                        ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "ContactPointA");
+                    gpu_contact_point_a = Rhi::ComputeBuffer::CreateUnique(
+                        allocator, byte_size, false, false, false, false, "ContactPointA"
+                    );
                 }
             }
             {
                 const size_t byte_size = result_entries * sizeof(glm::vec4);
                 if (!gpu_contact_point_b || gpu_contact_point_b->GetSize() != byte_size) {
-                    gpu_contact_point_b =
-                        ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "ContactPointB");
+                    gpu_contact_point_b = Rhi::ComputeBuffer::CreateUnique(
+                        allocator, byte_size, false, false, false, false, "ContactPointB"
+                    );
                 }
             }
             {
                 const size_t byte_size = sizeof(uint32_t);
                 if (!gpu_collision_count || gpu_collision_count->GetSize() != byte_size) {
-                    gpu_collision_count =
-                        ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "CollisionCount");
+                    gpu_collision_count = Rhi::ComputeBuffer::CreateUnique(
+                        allocator, byte_size, false, false, false, false, "CollisionCount"
+                    );
                 }
             }
             {
                 const size_t byte_size = sizeof(float);
                 if (!gpu_detector_config || gpu_detector_config->GetSize() != byte_size) {
-                    gpu_detector_config =
-                        ComputeBuffer::CreateUnique(allocator, byte_size, true, false, false, false, "DetectorConfig");
+                    gpu_detector_config = Rhi::ComputeBuffer::CreateUnique(
+                        allocator, byte_size, true, false, false, false, "DetectorConfig"
+                    );
                 }
             }
             {
                 if (!gpu_one || gpu_one->GetSize() < sizeof(uint32_t)) {
-                    gpu_one = ComputeBuffer::CreateUnique(
+                    gpu_one = Rhi::ComputeBuffer::CreateUnique(
                         allocator, sizeof(uint32_t), true, false, false, false, "NarrowOne"
                     );
                     auto *addr = reinterpret_cast<uint32_t *>(gpu_one->GetVMAddress());
@@ -155,7 +161,7 @@ namespace Engine {
 
             {
                 auto spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_int_buffer.comp.spv");
-                clear_stage = std::make_unique<ComputeStage>(render_system);
+                clear_stage = std::make_unique<Rhi::ComputeStage>(render_system);
                 clear_stage->Instantiate(spirv, "ConvexDetect ClearCount");
                 clear_binding = &clear_stage->AllocateResourceBinding();
                 auto &srb = clear_binding->GetShaderResourceBinding();
@@ -165,7 +171,7 @@ namespace Engine {
 
             {
                 auto spirv = LoadPhysicsSpirv("collision/ConvexCollisionDetector/detect_collisions.comp.spv");
-                detect_stage = std::make_unique<ComputeStage>(render_system);
+                detect_stage = std::make_unique<Rhi::ComputeStage>(render_system);
                 detect_stage->Instantiate(spirv, "Convex Collision Detection");
                 detect_binding = &detect_stage->AllocateResourceBinding();
                 auto &srb = detect_binding->GetShaderResourceBinding();
@@ -231,8 +237,8 @@ namespace Engine {
         uint32_t max_input_collision_pairs,
         uint32_t max_output_collision_pairs,
         float contact_margin,
-        const ComputeBuffer &pair_buffer,
-        const ComputeBuffer &pair_count_buffer
+        const Rhi::ComputeBuffer &pair_buffer,
+        const Rhi::ComputeBuffer &pair_count_buffer
     ) {
         m_impl->cached_scene = &scene;
         m_impl->cached_pair_buffer = &pair_buffer;

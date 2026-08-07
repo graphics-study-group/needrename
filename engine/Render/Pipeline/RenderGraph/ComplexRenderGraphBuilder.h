@@ -7,8 +7,10 @@
 #include <memory>
 
 namespace Engine {
-    class ComputeBuffer;
-    class ComputeStage;
+    namespace Rhi {
+        class ComputeBuffer;
+        class ComputeStage;
+    } // namespace Rhi
     class RenderGraph;
     class RenderSystem;
 
@@ -39,13 +41,13 @@ namespace Engine {
             uint32_t texture_width,
             uint32_t texture_height,
             RGTextureHandle &final_color_target_id,
-            const ComputeBuffer *model_matrices_buffer = nullptr
+            const Rhi::ComputeBuffer *model_matrices_buffer = nullptr
         );
 
     protected:
         RenderSystem &m_system;
         AssetRef m_bloom_shader{};
-        std::shared_ptr<ComputeStage> m_bloom_compute_stage{};
+        std::shared_ptr<Rhi::ComputeStage> m_bloom_compute_stage{};
     };
 } // namespace Engine
 

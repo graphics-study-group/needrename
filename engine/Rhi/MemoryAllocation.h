@@ -1,7 +1,7 @@
 #ifndef RENDER_MEMORY_MEMORYALLOCATION_INCLUDED
 #define RENDER_MEMORY_MEMORYALLOCATION_INCLUDED
 
-#include "MemoryTypes.h"
+#include "Rhi/MemoryTypes.h"
 #include "gpu_context_export.h"
 
 #include <cassert>
@@ -17,7 +17,7 @@ namespace vk {
     class Buffer;
 } // namespace vk
 
-namespace Engine {
+namespace Engine::Rhi {
     /**
      * @brief A piece of memory allocated by Vulkan via Vulkan Memory Allocator.
      *
@@ -28,7 +28,7 @@ namespace Engine {
      * This class should not be visible to users. Use `ImageAllocation` for
      * images and `BufferAllocation` for buffers.
      *
-     * Use `Engine::RenderSystemState::AllocatorState` to allocate memory.
+     * Use `Engine::Rhi::AllocatorState` to allocate memory.
      *
      * @invariant This class, once created, is guaranteed to hold a vaild memory
      * allocation until moved or destructed.
@@ -41,7 +41,7 @@ namespace Engine {
         VmaMemoryAllocation() : m_allocation(nullptr), m_allocator(nullptr) {
         }
 
-        /// @brief Create an allocation, called from `Engine::RenderSystemState::AllocatorState`.
+        /// @brief Create an allocation, called from `Engine::Rhi::AllocatorState`.
         VmaMemoryAllocation(VmaAllocation allocation, VmaAllocator allocator) :
             m_allocation(allocation), m_allocator(allocator) {
         }
@@ -69,7 +69,7 @@ namespace Engine {
     /**
      * @brief A piece of memory allocation for images.
      *
-     * Use `Engine::RenderSystemState::AllocatorState` to perform memory
+     * Use `Engine::Rhi::AllocatorState` to perform memory
      * allocation.
      *
      * @invariant This class, once created, is guaranteed to hold a vaild image
@@ -83,7 +83,7 @@ namespace Engine {
         void Destory() noexcept;
 
     public:
-        /// @brief Create an image allocation, called from `Engine::RenderSystemState::AllocatorState`.
+        /// @brief Create an image allocation, called from `Engine::Rhi::AllocatorState`.
         ImageAllocation(vk::Image image, VmaAllocation allocation, VmaAllocator allocator, ImageMemoryType type);
 
         ~ImageAllocation();
@@ -117,10 +117,10 @@ namespace Engine {
      * @brief A piece of memory allocation for buffer.
      *
      * This class represents a low-level memory interface for buffer memory.
-     * Users should prefer to use `Engine::DeviceBuffer` or related classes
+     * Users should prefer to use `Engine::Rhi::DeviceBuffer` or related classes
      * to manipulate data.
      *
-     * Use `Engine::RenderSystemState::AllocatorState` to perform memory
+     * Use `Engine::Rhi::AllocatorState` to perform memory
      * allocation.
      *
      * @invariant This class, once created, is guaranteed to hold a vaild buffer
@@ -134,7 +134,7 @@ namespace Engine {
         void Destroy() noexcept;
 
     public:
-        /// @brief Create a buffer allocation, called from `Engine::RenderSystemState::AllocatorState`.
+        /// @brief Create a buffer allocation, called from `Engine::Rhi::AllocatorState`.
         BufferAllocation(vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator, BufferType type);
         ~BufferAllocation();
 
@@ -187,6 +187,6 @@ namespace Engine {
         /// @brief Query the memory type specified on creation.
         BufferType GetMemoryType() const noexcept;
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_MEMORYALLOCATION_INCLUDED

@@ -1,14 +1,14 @@
-#include "ComputeBuffer.h"
+#include "Rhi/ComputeBuffer.h"
 
 #include "Rhi/AllocatorState.h"
 
-namespace Engine {
+namespace Engine::Rhi {
 
     ComputeBuffer::ComputeBuffer(BufferAllocation &&alloc, size_t size) : DeviceBuffer(std::move(alloc), size) {
     }
 
     std::unique_ptr<ComputeBuffer> ComputeBuffer::CreateUnique(
-        const RenderSystemState::AllocatorState &allocator,
+        const Rhi::AllocatorState &allocator,
         size_t size,
         bool allow_cpu_access,
         bool as_readonly_buffer,
@@ -24,4 +24,4 @@ namespace Engine {
 
         return std::unique_ptr<ComputeBuffer>(new ComputeBuffer(allocator.AllocateBuffer(type, size, name), size));
     }
-} // namespace Engine
+} // namespace Engine::Rhi

@@ -1,8 +1,9 @@
+#include "Rhi/AllocatorState.h"
 #include "Rhi/DeviceInterface.h"
-#include "Rhi/GpuContext.h"
+
+#include "Rhi/DeviceBuffer.h"
 #include "Rhi/MemoryTypes.h"
 #include "Rhi/Structs.h"
-#include "Rhi/DeviceBuffer.h"
 #include "Rhi/SubmissionHelper.h"
 
 #include <SDL3/SDL.h>
@@ -13,7 +14,7 @@
 #include <vulkan/vulkan.hpp>
 
 using namespace Engine;
-using namespace Engine::RenderSystemState;
+using namespace Engine::Rhi;
 
 static bool g_pass = true;
 #define CHECK(cond)                                                                                                    \
@@ -39,21 +40,24 @@ int main() {
     // Requires the SDL video subsystem for SDL_Vulkan_LoadLibrary(nullptr).
     SDL_Init(SDL_INIT_VIDEO);
 
-    // Standalone headless GpuContext: no window, no RenderSystem, no FrameManager.
-    DeviceInterface::DeviceConfiguration cfg{
+    // Standalone headless facilities: no window, no RenderSystem, no FrameManager.
+    Rhi::DeviceInterface::DeviceConfiguration cfg{
         .window = nullptr,
-        .application_name = "SubmissionHelper Standalone Test",
+        .application_name = "Rhi::SubmissionHelper Standalone Test",
         .application_version = 0,
         .dynamic_dispatcher = nullptr,
     };
-    GpuContext gpu{cfg};
-    const auto device = gpu.GetDevice();
-    const auto &allocator = gpu.GetAllocatorState();
-    CHECK(device && "GpuContext must create a Vulkan device headlessly.");
+    Rhi::DeviceInterface gpu_device{cfg};
+    Rhi::AllocatorState allocator_state;
+    allocator_state.SetDeviceInterface(gpu_device);
+    allocator_state.Create();
+    const auto device = gpu_device.GetDevice();
+    const auto &allocator = allocator_state;
+    CHECK(device && "Rhi must create a Vulkan device headlessly.");
 
     // Initialize this module's copy of the dynamic dispatch loader (instance
     // first, then device). Same pattern as RenderSystem::Create.
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(gpu.GetDeviceInterface().GetInstance(), ::vkGetInstanceProcAddr);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(gpu_device.GetInstance(), ::vkGetInstanceProcAddr);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
 
     // Timeline semaphore for the caller-provided submission signal.
@@ -62,8 +66,8 @@ int main() {
     sci.pNext = &stci;
     auto timeline = device.createSemaphoreUnique(sci);
 
-    SubmissionHelper helper{gpu.GetDeviceInterface(), gpu.GetAllocatorState()};
-    auto target = DeviceBuffer::CreateUnique(allocator, {BufferTypeBits::CopyTo}, 64, "Target buffer");
+    Rhi::SubmissionHelper helper{gpu_device, allocator_state};
+    auto target = Rhi::DeviceBuffer::CreateUnique(allocator, {Rhi::BufferTypeBits::CopyTo}, 64, "Target buffer");
     std::vector<std::byte> data(64, std::byte{0xAB});
 
     // Case 1: empty-batch ExecuteSubmission advances the signal CPU-side;
@@ -116,9 +120,9 @@ int main() {
     // Case 8: destruction with a pending deferred batch does not crash
     // (the destructor waits on the batch fence).
     {
-        SubmissionHelper destructing_helper{gpu.GetDeviceInterface(), gpu.GetAllocatorState()};
+        Rhi::SubmissionHelper destructing_helper{gpu_device, allocator_state};
         auto destructing_target =
-            DeviceBuffer::CreateUnique(allocator, {BufferTypeBits::CopyTo}, 64, "Destructing target");
+            Rhi::DeviceBuffer::CreateUnique(allocator, {Rhi::BufferTypeBits::CopyTo}, 64, "Destructing target");
         std::vector<std::byte> destructing_data(64, std::byte{0xCD});
         destructing_helper.EnqueueBufferSubmission(*destructing_target, destructing_data);
         destructing_helper.ExecuteSubmission({timeline.get(), 9});
@@ -126,9 +130,9 @@ int main() {
 
     device.waitIdle();
     if (!g_pass) {
-        std::cerr << "SubmissionHelper standalone test FAILED." << std::endl;
+        std::cerr << "Rhi::SubmissionHelper standalone test FAILED." << std::endl;
         return 1;
     }
-    std::cout << "SubmissionHelper standalone test PASSED." << std::endl;
+    std::cout << "Rhi::SubmissionHelper standalone test PASSED." << std::endl;
     return 0;
 }

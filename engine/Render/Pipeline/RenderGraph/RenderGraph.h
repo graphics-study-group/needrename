@@ -39,7 +39,7 @@ namespace Engine {
          * a full pipeline barrier to effectuate the desired access, so use this
          * method sparingly.
          */
-        void AddExternalInputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access);
+        void AddExternalInputDependency(RGTextureHandle rt_handle, Rhi::MemoryAccessTypeImageBits access);
 
         /**
          * @brief Add an external output dependency on a texture for this frame.
@@ -49,7 +49,7 @@ namespace Engine {
          * a full pipeline barrier to effectuate the desired access, so use this
          * method sparingly.
          */
-        void AddExternalOutputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access);
+        void AddExternalOutputDependency(RGTextureHandle rt_handle, Rhi::MemoryAccessTypeImageBits access);
 
         /**
          * @brief Get a internally managed render target texture.

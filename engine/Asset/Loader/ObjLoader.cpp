@@ -348,7 +348,7 @@ namespace Engine {
                     }
                     auto *texture = am->CreateAsset<Image2DTextureAsset>();
                     detail::texture_import::LoadImage2DTextureAssetFromFile(
-                        *texture, base_path / texture_name, ImageUtils::ImageFormat::R8G8B8A8SRGB
+                        *texture, base_path / texture_name, Rhi::ImageFormat::R8G8B8A8SRGB
                     );
                     texture->m_name = detail::import_shared::SanitizeAssetName(material_asset.m_name + suffix);
                     material_asset.m_properties[property_name] =

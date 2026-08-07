@@ -1,5 +1,6 @@
 #include "Asset/Shader/ShaderCompiler.h"
-#include "Rhi/GpuContext.h"
+#include "Rhi/AllocatorState.h"
+#include "Rhi/DeviceInterface.h"
 #include "Rhi/MemoryTypes.h"
 #include "Rhi/Structs.h"
 #include <SDL3/SDL.h>
@@ -32,23 +33,26 @@ int main() {
     // Requires the SDL video subsystem for SDL_Vulkan_LoadLibrary(nullptr).
     SDL_Init(SDL_INIT_VIDEO);
 
-    // Standalone GpuContext: no SDLWindow, no RenderSystem, no surface.
-    RenderSystemState::DeviceInterface::DeviceConfiguration cfg{
+    // Standalone headless facilities: no SDLWindow, no RenderSystem, no surface.
+    Rhi::DeviceInterface::DeviceConfiguration cfg{
         .window = nullptr,
         .application_name = "GpuContext Standalone Test",
         .application_version = 0,
         .dynamic_dispatcher = nullptr,
     };
-    GpuContext gpu{cfg};
-    const auto device = gpu.GetDevice();
-    const auto &queues = gpu.GetDeviceInterface().GetQueueInfo();
-    assert(device && "GpuContext must create a Vulkan device headlessly.");
+    Rhi::DeviceInterface gpu_device{cfg};
+    Rhi::AllocatorState allocator;
+    allocator.SetDeviceInterface(gpu_device);
+    allocator.Create();
+    const auto device = gpu_device.GetDevice();
+    const auto &queues = gpu_device.GetQueueInfo();
+    assert(device && "Rhi must create a Vulkan device headlessly.");
     assert(queues.graphicsQueue && "Headless device must expose a graphics queue.");
 
     // Initialize this module's copy of the dynamic dispatch loader (instance
     // first, then device — init(device) alone crashes with a null
     // vkGetDeviceProcAddr DEP violation). Same pattern as RenderSystem::Create.
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(gpu.GetDeviceInterface().GetInstance(), ::vkGetInstanceProcAddr);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(gpu_device.GetInstance(), ::vkGetInstanceProcAddr);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
 
     // ── Compile the compute shader (ShaderCompiler has no Render dependency) ──
@@ -72,12 +76,12 @@ int main() {
         vk::DescriptorSetAllocateInfo{descriptor_pool.get(), 1, &descriptor_set_layout.get()}
     );
 
-    // ── Allocate the output buffer via AllocatorState (standalone) ──
+    // ── Allocate the output buffer via Rhi::AllocatorState (standalone) ──
     // ReadbackFromDevice = CopyTo | HostRandomAccess: shader-writable,
     // automatically host-mapped, invalidatable.
     const size_t buffer_size = ELEMENT_COUNT * sizeof(uint32_t);
-    auto buffer = gpu.GetAllocatorState().AllocateBuffer(
-        BufferType{BufferTypeBits::ReadbackFromDevice}, buffer_size, "Standalone output buffer"
+    auto buffer = allocator.AllocateBuffer(
+        Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice}, buffer_size, "Standalone output buffer"
     );
 
     vk::DescriptorBufferInfo descriptor_buffer_info{buffer.GetBuffer(), 0, buffer_size};

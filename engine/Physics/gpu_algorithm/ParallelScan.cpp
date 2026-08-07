@@ -4,12 +4,12 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
+#include <Render/RenderSystem.h>
+#include <Rhi/ComputeBuffer.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
-#include <Render/RenderSystem.h>
+#include <Rhi/ShaderResourceBinding.h>
 
 #include <cassert>
 #include <filesystem>
@@ -60,17 +60,17 @@ namespace Engine {
         uint32_t max_elem_count = 1u;
         bool initialized = false;
 
-        std::unique_ptr<ComputeStage> scan_stage{};
+        std::unique_ptr<Rhi::ComputeStage> scan_stage{};
         std::vector<uint32_t> scan_spirv{};
 
-        std::unique_ptr<ComputeStage> offset_stage{};
+        std::unique_ptr<Rhi::ComputeStage> offset_stage{};
         std::vector<uint32_t> offset_spirv{};
 
-        std::vector<std::unique_ptr<ComputeBuffer>> param_pool{};
+        std::vector<std::unique_ptr<Rhi::ComputeBuffer>> param_pool{};
         size_t param_pool_index = 0;
 
-        ComputeResourceBinding *scan_binding = nullptr;
-        ComputeResourceBinding *offset_binding = nullptr;
+        Rhi::ComputeResourceBinding *scan_binding = nullptr;
+        Rhi::ComputeResourceBinding *offset_binding = nullptr;
 
         explicit Impl(RenderSystem &rs, uint32_t mec) : render_system(rs), max_elem_count(mec) {
             if (max_elem_count == 0u) {
@@ -89,23 +89,23 @@ namespace Engine {
 
             const char *scan_path = "algorithm/parallel_scan.comp.spv";
             scan_spirv = LoadPhysicsSpirvBytes(scan_path);
-            scan_stage = std::make_unique<ComputeStage>(render_system);
+            scan_stage = std::make_unique<Rhi::ComputeStage>(render_system);
             scan_stage->Instantiate(scan_spirv, "ParallelScan");
             scan_binding = &scan_stage->AllocateResourceBinding();
 
             const char *offset_path = "algorithm/add_block_offset.comp.spv";
             offset_spirv = LoadPhysicsSpirvBytes(offset_path);
-            offset_stage = std::make_unique<ComputeStage>(render_system);
+            offset_stage = std::make_unique<Rhi::ComputeStage>(render_system);
             offset_stage->Instantiate(offset_spirv, "AddBlockOffset");
             offset_binding = &offset_stage->AllocateResourceBinding();
         }
 
-        ComputeBuffer &AcquireParamBuffer(
+        Rhi::ComputeBuffer &AcquireParamBuffer(
             uint32_t mode, uint32_t data_offset, uint32_t elem_count, uint32_t block_offset
         ) {
             if (param_pool_index >= param_pool.size()) {
                 const auto &alloc = render_system.GetAllocatorState();
-                auto buf = ComputeBuffer::CreateUnique(
+                auto buf = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(ScanParamsGpu), true, false, false, false, "ParallelScan Params"
                 );
                 param_pool.push_back(std::move(buf));
@@ -121,10 +121,10 @@ namespace Engine {
 
         void RecordScanPass(
             CommandBuffer &cb,
-            ComputeBuffer &data_input_buf,
-            ComputeBuffer &data_output_buf,
-            ComputeBuffer &block_sums_buf,
-            ComputeBuffer &param_buf,
+            Rhi::ComputeBuffer &data_input_buf,
+            Rhi::ComputeBuffer &data_output_buf,
+            Rhi::ComputeBuffer &block_sums_buf,
+            Rhi::ComputeBuffer &param_buf,
             uint32_t num_workgroups
         ) {
             auto &srb = scan_binding->GetShaderResourceBinding();
@@ -140,10 +140,10 @@ namespace Engine {
 
         void RecordOffsetPass(
             CommandBuffer &cb,
-            ComputeBuffer &data_input_buf,
-            ComputeBuffer &data_output_buf,
-            ComputeBuffer &block_sums_buf,
-            ComputeBuffer &param_buf,
+            Rhi::ComputeBuffer &data_input_buf,
+            Rhi::ComputeBuffer &data_output_buf,
+            Rhi::ComputeBuffer &block_sums_buf,
+            Rhi::ComputeBuffer &param_buf,
             uint32_t num_workgroups
         ) {
             auto &srb = offset_binding->GetShaderResourceBinding();
@@ -159,9 +159,9 @@ namespace Engine {
 
         void RecordScanInternal(
             CommandBuffer &cb,
-            ComputeBuffer &data_input_buf,
-            ComputeBuffer &data_output_buf,
-            ComputeBuffer &block_sums_buf,
+            Rhi::ComputeBuffer &data_input_buf,
+            Rhi::ComputeBuffer &data_output_buf,
+            Rhi::ComputeBuffer &block_sums_buf,
             uint32_t elem_count,
             uint32_t data_offset,
             uint32_t block_offset
@@ -239,9 +239,9 @@ namespace Engine {
 
     void ParallelScan::Record(
         CommandBuffer &cb,
-        ComputeBuffer &input_buf,
-        ComputeBuffer &output_buf,
-        ComputeBuffer &block_sums_buf,
+        Rhi::ComputeBuffer &input_buf,
+        Rhi::ComputeBuffer &output_buf,
+        Rhi::ComputeBuffer &block_sums_buf,
         uint32_t elem_count
     ) {
         if (elem_count == 0u) {

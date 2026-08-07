@@ -1,4 +1,4 @@
-#include "ComputeResourceBinding.h"
+#include "Rhi/ComputeResourceBinding.h"
 
 #include "Render/Memory/IndexedBuffer.h" // TODO(decision pending): move IndexedBuffer to Rhi with ComputeResourceBinding
 #include "Render/RenderSystem.h" // TODO(phase 3): remove when ComputeResourceBinding drops the RenderSystem constructor
@@ -18,7 +18,7 @@
 #include <variant>
 #include <vulkan/vulkan.hpp>
 
-namespace Engine {
+namespace Engine::Rhi {
     struct ComputeResourceBinding::impl {
         constexpr static uint32_t BACK_BUFFERS = 3;
 
@@ -39,13 +39,13 @@ namespace Engine {
                 ubo_dirty.set();
             }
 
-            void PrepareIndexedBuffers(RenderSystem &system, const ShdrRfl::SPLayout &layout) {
+            void PrepareIndexedBuffers(RenderSystem &system, const Rhi::SPLayout &layout) {
                 ubos.clear();
 
                 for (const auto &pinterface : layout.interfaces) {
-                    if (auto pbuffer = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
-                        if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                            auto psb = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(pinterface.get());
+                    if (auto pbuffer = dynamic_cast<const Rhi::SPInterfaceBuffer *>(pinterface.get())) {
+                        if (pbuffer->type == Rhi::SPInterfaceBuffer::Type::UniformBuffer) {
+                            auto psb = dynamic_cast<const Rhi::SPInterfaceStructuredBuffer *>(pinterface.get());
                             if (!psb) {
                                 continue;
                             }
@@ -58,8 +58,7 @@ namespace Engine {
                                 {BufferTypeBits::HostAccessibleUniform},
                                 placer->CalculateMaxSize(),
                                 system.GetDeviceInterface().QueryLimit(
-                                    RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::
-                                        UniformBufferOffsetAlignment
+                                    Rhi::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                                 ),
                                 BACK_BUFFERS,
                                 std::format("Indexed UBO {} for Compute Shader", pbuffer->name)
@@ -133,8 +132,8 @@ namespace Engine {
             for (const auto &[k, v] : pimpl->ubo_manager.ubos) {
                 auto itr = splayout.interface_name_mapping.find(k);
                 assert(itr != splayout.interface_name_mapping.end());
-                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(itr->second);
-                assert(pbuf && pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer);
+                auto pbuf = dynamic_cast<const Rhi::SPInterfaceStructuredBuffer *>(itr->second);
+                assert(pbuf && pbuf->type == Rhi::SPInterfaceBuffer::Type::UniformBuffer);
                 splayout.PlaceBufferVariable(pimpl->cpu_side_buffer, *pbuf, *pimpl->p_buffer);
                 std::memcpy(
                     v->GetSlicePtr(backbuffer), this->pimpl->cpu_side_buffer.data(), this->pimpl->cpu_side_buffer.size()
@@ -148,4 +147,4 @@ namespace Engine {
     vk::DescriptorSet ComputeResourceBinding::GetDescriptorSet(uint32_t b) const noexcept {
         return pimpl->descriptor_sets[b];
     }
-} // namespace Engine
+} // namespace Engine::Rhi

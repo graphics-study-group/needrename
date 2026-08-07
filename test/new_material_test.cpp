@@ -63,7 +63,7 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     test_asset->name = "Blinn-Phong";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    mtspp.attachments.color = {Rhi::ImageFormat::R8G8B8A8UNorm};
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp;
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
@@ -72,7 +72,7 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     cbp.src_alpha = CBP::BlendFactor::One;
     cbp.dst_alpha = CBP::BlendFactor::Zero;
     mtspp.attachments.color_blending = {cbp};
-    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    mtspp.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
     mtspp.shaders.specialization_constants = {{0, 1}};
 
@@ -94,10 +94,10 @@ auto BuildRenderGraph(
     MaterialInstance *material,
     IVertexBasedRenderer *mesh,
     RenderTargetTexture *blurred = nullptr,
-    ComputeStage *kernel = nullptr,
-    ComputeResourceBinding *kbinding = nullptr
+    Rhi::ComputeStage *kernel = nullptr,
+    Rhi::ComputeResourceBinding *kbinding = nullptr
 ) {
-    using IAT = Engine::MemoryAccessTypeImageBits;
+    using IAT = Engine::Rhi::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
     auto c = rgb.ImportExternalResource(*color);
     auto d = rgb.ImportExternalResource(*depth);
@@ -121,7 +121,7 @@ auto BuildRenderGraph(
                 PipelineRuntimeInfo pri{};
                 pri.va = mesh->GetVertexAttributeFormat();
                 pri.color_attachment_format[0] = color->GetTextureDescription().format;
-                pri.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
+                pri.color_attachment_format[1] = Rhi::ImageFormat::UNDEFINED;
                 pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
 
                 cb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
@@ -189,11 +189,9 @@ int main(int argc, char **argv) {
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     Engine::detail::texture_import::LoadImage2DTextureAssetFromFile(
-        *test_texture_asset,
-        std::string(ENGINE_ASSETS_DIR) + "/skybox/sky_cloudy.png",
-        ImageUtils::ImageFormat::R8G8B8A8SRGB
+        *test_texture_asset, std::string(ENGINE_ASSETS_DIR) + "/skybox/sky_cloudy.png", Rhi::ImageFormat::R8G8B8A8SRGB
     );
-    std::shared_ptr allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
+    std::shared_ptr allocated_image_texture = Rhi::ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
     // Prepare material
     auto [test_library_asset, test_template_asset] = ConstructMaterial();
@@ -246,16 +244,18 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment");
+    std::shared_ptr color =
+        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Attachment");
     std::shared_ptr postproc =
-        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Gaussian Blurred");
+        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Gaussian Blurred");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
+    std::shared_ptr depth =
+        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment");
 
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/gaussian_blur.comp.asset"});
-    ComputeStage cstage{*rsys};
+    Rhi::ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref.as<ShaderAsset>());
 
     auto &kbinding = cstage.AllocateResourceBinding();
@@ -309,8 +309,8 @@ int main(int argc, char **argv) {
 
         rsys->CompleteFrame(
             has_gaussian_blur ? *postproc : *color,
-            has_gaussian_blur ? MemoryAccessTypeImageBits::ShaderRandomWrite
-                              : MemoryAccessTypeImageBits::ColorAttachmentWrite
+            has_gaussian_blur ? Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite
+                              : Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
         );
 
         SDL_Delay(10);

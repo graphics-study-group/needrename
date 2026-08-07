@@ -1,3 +1,3 @@
 #include "Rhi/PipelineInfo.h"
 
-namespace Engine::PipelineInfo {} // namespace Engine::PipelineInfo
+namespace Engine::Rhi {} // namespace Engine::Rhi

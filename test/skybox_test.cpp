@@ -56,13 +56,13 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     test_asset->name = "Skybox";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    mtspp.attachments.color = {Rhi::ImageFormat::R8G8B8A8UNorm};
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp{};
     mtspp.attachments.color_blending = {cbp};
-    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    mtspp.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
-    mtspp.depth_stencil.depth_comparator = PipelineUtils::DSComparator::LEqual;
+    mtspp.depth_stencil.depth_comparator = Rhi::DSComparator::LEqual;
 
     test_asset->properties = mtspp;
 
@@ -102,22 +102,22 @@ int main(int argc, char **argv) {
     uint32_t width = 1024;
     uint32_t height = 1024;
 
-    std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
+    std::shared_ptr skybox_texture = Rhi::ImageTexture::CreateUnique(
         *rsys,
-        ImageTexture::ImageTextureDesc{
+        Rhi::ImageTexture::ImageTextureDesc{
             .dimensions = 2,
             .width = width,
             .height = height,
             .depth = 1,
             .mipmap_levels = 1,
             .array_layers = 6,
-            .format = ImageTexture::ITFormat::R8G8B8A8SRGB,
+            .format = Rhi::ImageTexture::ITFormat::R8G8B8A8SRGB,
             .is_cube_map = true
         },
-        ImageUtils::SamplerDesc{
-            .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-            .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-            .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+        Rhi::SamplerDesc{
+            .u_address = Rhi::SamplerDesc::AddressMode::ClampToEdge,
+            .v_address = Rhi::SamplerDesc::AddressMode::ClampToEdge,
+            .w_address = Rhi::SamplerDesc::AddressMode::ClampToEdge
         },
         "Skybox"
     );
@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
         camera->UpdateViewMatrix(t);
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
-        rsys->CompleteFrame(*rg->GetInternalTextureResource(crt), MemoryAccessTypeImageBits::ColorAttachmentWrite);
+        rsys->CompleteFrame(*rg->GetInternalTextureResource(crt), Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

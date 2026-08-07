@@ -20,21 +20,21 @@ namespace Engine {
             REFL_SER_SIMPLE_STRUCT(RasterizerProperties)
 
             /// Filling mode of the rasterizer
-            using FillingMode = PipelineUtils::FillingMode;
+            using FillingMode = Rhi::FillingMode;
             /// Culling mode of the rasterizer.
-            using CullingMode = PipelineUtils::CullingMode;
+            using CullingMode = Rhi::CullingMode;
             /// How the front face of a polygon is determined.
-            using FrontFace = PipelineUtils::FrontFace;
+            using FrontFace = Rhi::FrontFace;
 
             /// Filling mode of the rasterizer.
-            FillingMode filling{FillingMode::Fill};
+            Rhi::FillingMode filling{Rhi::FillingMode::Fill};
             /// Line width of the rasterizer.
             /// This configuration might be ignored due to hardware limitations.
             float line_width{1.0f};
             /// Culling mode of the rasterizer.
-            CullingMode culling{CullingMode::None};
+            Rhi::CullingMode culling{Rhi::CullingMode::None};
             /// How the front face of a polygon is determined.
-            FrontFace front{FrontFace::Counterclockwise};
+            Rhi::FrontFace front{Rhi::FrontFace::Counterclockwise};
 
             /**
              * @brief Depth bias slope factor.
@@ -62,19 +62,19 @@ namespace Engine {
             REFL_SER_SIMPLE_STRUCT(StencilState)
 
             /// @brief Stencil operation that can be used.
-            using StencilOperation = PipelineUtils::StencilOperation;
+            using StencilOperation = Rhi::StencilOperation;
             /// @brief Comparator that can be used.
-            using DSComparator = PipelineUtils::DSComparator;
+            using DSComparator = Rhi::DSComparator;
 
             /// @brief Operation used if stencil test is failed.
-            StencilOperation fail_op{StencilOperation::Keep};
+            Rhi::StencilOperation fail_op{Rhi::StencilOperation::Keep};
             /// @brief Operation used if both stencil and depth tests are passed.
-            StencilOperation pass_op{StencilOperation::Keep};
+            Rhi::StencilOperation pass_op{Rhi::StencilOperation::Keep};
             /// @brief Operation used if stencil test is passed but depth test is failed.
-            StencilOperation zfail_op{StencilOperation::Keep};
+            Rhi::StencilOperation zfail_op{Rhi::StencilOperation::Keep};
 
             /// @brief Comparator used for stencil test.
-            DSComparator comparator{DSComparator::Never};
+            Rhi::DSComparator comparator{Rhi::DSComparator::Never};
 
             /// @brief 8-bits mask applied before stencil comparing.
             uint8_t compare_mask{0xFF};
@@ -91,7 +91,7 @@ namespace Engine {
             REFL_SER_SIMPLE_STRUCT(DSProperties)
 
             /// @brief Comparator that can be used.
-            using DSComparator = PipelineUtils::DSComparator;
+            using DSComparator = Rhi::DSComparator;
 
             /// @brief Whether depth values of fragments can be written into the depth buffer.
             bool depth_write_enable{true};
@@ -99,7 +99,7 @@ namespace Engine {
             bool depth_test_enable{true};
             /// @brief Depth comparator used in depth test.
             /// Defaults to LESS operation, which means less depth => closer.
-            DSComparator depth_comparator{DSComparator::Less};
+            Rhi::DSComparator depth_comparator{Rhi::DSComparator::Less};
 
             /// @brief Whether stencil test is enabled
             bool stencil_test_enable{false};
@@ -138,11 +138,11 @@ namespace Engine {
             REFL_SER_SIMPLE_STRUCT(ColorBlendingProperties)
 
             /// Blending operation.
-            using BlendOperation = PipelineUtils::BlendOperation;
+            using BlendOperation = Rhi::BlendOperation;
             /// Blending factor.
-            using BlendFactor = PipelineUtils::BlendFactor;
+            using BlendFactor = Rhi::BlendFactor;
             /// Mask of color channel for color writes.
-            using ColorChannelMask = PipelineUtils::ColorChannelMask;
+            using ColorChannelMask = Rhi::ColorChannelMask;
 
             /**
              * @brief Blending operation of color components.
@@ -151,7 +151,7 @@ namespace Engine {
              * and all other settings specified
              * in the struct is ignored, including `color_write_mask`.
              */
-            BlendOperation color_op{BlendOperation::None};
+            Rhi::BlendOperation color_op{Rhi::BlendOperation::None};
             /**
              * @brief Blending operation of alpha components.
              * If either `color_op` or
@@ -159,32 +159,32 @@ namespace Engine {
              * and all other settings specified
              * in the struct is ignored, including `color_write_mask`.
              */
-            BlendOperation alpha_op{BlendOperation::None};
+            Rhi::BlendOperation alpha_op{Rhi::BlendOperation::None};
 
             /**
              * @brief Factor multiplied to color to be drawn when blending.
              * Common values
              * are `One` and `SrcAlpha`.
              */
-            BlendFactor src_color{BlendFactor::One};
+            Rhi::BlendFactor src_color{Rhi::BlendFactor::One};
             /**
              * @brief Factor multiplied to color in the color attachment when blending.
              *
              * Common values are `Zero` and `OneMinusSrcAlpha`.
              */
-            BlendFactor dst_color{BlendFactor::Zero};
+            Rhi::BlendFactor dst_color{Rhi::BlendFactor::Zero};
             /**
              * @brief Factor multiplied to alpha to be drawn when blending.
              * The most
              * common value is `One`.
              */
-            BlendFactor src_alpha{BlendFactor::One};
+            Rhi::BlendFactor src_alpha{Rhi::BlendFactor::One};
             /**
              * @brief Factor multiplied to alpha in the color attachment when blending.
              *
              * The most common value is `Zero`.
              */
-            BlendFactor dst_alpha{BlendFactor::Zero};
+            Rhi::BlendFactor dst_alpha{Rhi::BlendFactor::Zero};
 
             /**
              * @brief Which color channels can be written by this operation.
@@ -192,7 +192,7 @@ namespace Engine {
              * @todo Automatically set this mask to zero when no color
              * attachment is set to avoid UB.
              */
-            ColorChannelMask color_write_mask{ColorChannelMask::All};
+            Rhi::ColorChannelMask color_write_mask{Rhi::ColorChannelMask::All};
         };
 
         /// @brief Attachment information for the pipeline.
@@ -203,7 +203,7 @@ namespace Engine {
             /// @brief Color attachments. If they and depth attachment are all left empty,
             /// the pipeline will be configured to use the current swapchain as attachments.
             /// You can specify `UNDEFINED` format to use default image format determined at runtime.
-            std::vector<ImageUtils::ImageFormat> color{};
+            std::vector<Rhi::ImageFormat> color{};
 
             /**
              * @brief Color attachment blending operations.
@@ -214,11 +214,11 @@ namespace Engine {
 
             /// @brief Depth attachment format. If color attachments and it are all left empty,
             /// the pipeline will be configured to use the current swapchain as attachments.
-            ImageUtils::ImageFormat depth{};
+            Rhi::ImageFormat depth{};
 
             /// @brief Stencial attachment format.
             /// @deprecated Inferred from the depth attachment format and unused.
-            ImageUtils::ImageFormat stencil{};
+            Rhi::ImageFormat stencil{};
         };
 
         /**

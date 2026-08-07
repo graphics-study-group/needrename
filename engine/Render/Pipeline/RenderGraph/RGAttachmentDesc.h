@@ -30,7 +30,7 @@ namespace Engine {
         T rt_handle{};
         /// @brief What subresources are used by the rendering pass.
         /// Component swizzles of the subresource range is ignored.
-        TextureSubresourceRange range{};
+        Rhi::TextureSubresourceRange range{};
         /// @brief Load operation of the attachment.
         LoadOp load_op{};
         /// @brief Store operation of the attachment.

@@ -8,7 +8,7 @@ namespace vk {
     class ImageView;
 }
 
-namespace Engine {
+namespace Engine::Rhi {
     class Texture;
 
     /**
@@ -85,8 +85,8 @@ namespace Engine {
              *
              * This conversion is only performed if the format of the underlying
              * image can be converted between SRGB and Unorm, such as
-             * `ImageUtils::ImageFormat::R8G8B8A8SRGB` and
-             * `ImageUtils::ImageFormat::R8G8B8A8UNorm`
+             * `Rhi::ImageFormat::R8G8B8A8SRGB` and
+             * `Rhi::ImageFormat::R8G8B8A8UNorm`
              */
             SrgbConversion srgb : 4 {SrgbConversion::None};
 
@@ -149,6 +149,6 @@ namespace Engine {
          */
         vk::ImageView GetImageView();
     };
-}; // namespace Engine
+}; // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_TEXTURESUBRESOURCEVIEW
