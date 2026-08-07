@@ -47,7 +47,7 @@ The compute shader SHALL displace each alive body by `position.z += gravity.z * 
 
 ### Requirement: DummySolver compute shader
 
-One shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
+The solver SHALL provide one shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
 - Binding 0: `readonly buffer RigidBodyAlive`
 - Binding 1: `buffer RigidBodyCenterPosition` (read-write)
 - Binding 2: `readonly buffer RigidBodyCenterRotation`

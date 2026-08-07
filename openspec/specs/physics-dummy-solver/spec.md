@@ -1,8 +1,8 @@
-# Physics Dummy Solver
+# physics-dummy-solver
 
 ## Purpose
 
-Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a configurable step size and writes model matrices via a compute shader. This solver validates the `ISolver` interface and the separate physics RenderGraph architecture.
+Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a configurable step size and writes model matrices via a compute shader, dispatching compute directly to the command buffer (no RenderGraph). This solver validates the `ISolver` interface and the RenderGraph-free physics GPU architecture.
 
 ## Requirements
 
@@ -28,42 +28,32 @@ Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a 
 - **WHEN** `DummySolver::GPUStep(cb)` is called
 - **THEN** the solver SHALL access the RenderSystem through the reference stored at construction time, not through a method parameter
 
-### Requirement: DummySolver displaces bodies and records RG in GPUStep
+### Requirement: DummySolver dispatches compute directly in GPUStep
 
 On each `GPUStep(cb)` call, the solver SHALL:
-1. Ensure shaders are loaded (once)
-2. Update host-visible uniform buffer with `vec4(gravity.xyz, time_step)`
-3. Lazily build RG on first call (or if body count changed)
-4. Call `m_rg->RecordAllPasses(cb)` to record the compute pass
+1. Insert a `vk::MemoryBarrier2` (ComputeShader: ShaderStorageWrite → ComputeShader: ShaderStorageRead|Write) at the start
+2. Dispatch the compute shader via `cb.BindComputeStage`, `cb.BindComputeResource`, `cb.DispatchCompute`
+3. Use pre-allocated shader pipeline and resource binding (created in `PreGPUStep`)
 
 The compute shader SHALL displace each alive body by `position.z += gravity.z * time_step` and write its model matrix.
 
-`DummySolver::PreGPUStep()` SHALL perform the shader initialization and uniform buffer write (steps 1–2). `DummySolver::GPUStep(cb)` SHALL perform the RG build and pass recording (steps 3–4).
+`DummySolver::PreGPUStep()` SHALL perform the shader initialization, uniform buffer write, and binding allocation. `DummySolver::GPUStep(cb)` SHALL only dispatch.
 
 #### Scenario: Bodies move downward each frame
 
 - **WHEN** `GPUStep(cb)` is called with 3 rigid bodies, `gravity = (0,0,-9.81)`, `time_step = 0.01`
 - **THEN** uniform buffer SHALL contain `vec4(0, 0, -9.81, 0.01)`
-- **AND** `m_rg->RecordAllPasses(cb)` SHALL be called after uniform update
+- **AND** compute dispatch SHALL be recorded directly to `cb` (no `RenderGraph::RecordAllPasses`)
 
-#### Scenario: RenderGraph lazily created and reused
+#### Scenario: No RenderGraph used
 
-- **WHEN** `GPUStep()` is called for the second time with unchanged body count
-- **THEN** `BuildRenderGraph()` SHALL NOT be called again
-- **AND** the cached RG SHALL be recorded to `cb`
-
-### Requirement: DummySolver imports physics scene buffers once
-
-When building the RG via `BuildRenderGraph()`, the solver SHALL access buffers through `m_bound_scene->GetGpuBuffers()` and import each required buffer exactly once with `prev_access = None`.
-
-#### Scenario: No duplicate imports
-
-- **WHEN** `BuildRenderGraph()` is called
-- **THEN** each required buffer SHALL be imported exactly once
+- **WHEN** `GPUStep()` is called for any frame
+- **THEN** no `RenderGraph`, `RenderGraphBuilder`, or `RenderGraphPass` is created or used
+- **AND** `cb.BindComputeStage`, `cb.BindComputeResource`, `cb.DispatchCompute` are called directly
 
 ### Requirement: DummySolver compute shader
 
-One shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
+The solver SHALL provide one shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
 - Binding 0: `readonly buffer RigidBodyAlive`
 - Binding 1: `buffer RigidBodyCenterPosition` (read-write)
 - Binding 2: `readonly buffer RigidBodyCenterRotation`
@@ -74,5 +64,5 @@ One shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
 
 #### Scenario: Shader loaded from SPIR-V
 
-- **WHEN** first initialized
+- **WHEN** first initialized via `PreGPUStep`
 - **THEN** shader SHALL be loaded from `ENGINE_PHYSICS_SPIRV_DIR/solver/DummySolver/dummy_solver.comp.spv`
