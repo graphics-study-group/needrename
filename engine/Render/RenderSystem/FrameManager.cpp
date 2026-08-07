@@ -1,14 +1,14 @@
 #include "FrameManager.h"
 
+#include "Rhi/DebugUtils.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/Structs.h"
+#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/DeviceBuffer.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Rhi/DebugUtils.h"
-#include "Rhi/DeviceBuffer.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/ImageUtilsFunc.h"
-#include "Rhi/Structs.h"
 #include "Rhi/SubmissionHelper.h"
 
 #include "Render/RenderSystem/FrameSemaphore.hpp"
@@ -17,9 +17,7 @@
 #include <bitset>
 
 namespace {
-    void ReadbackCommand(
-        vk::CommandBuffer cb, const Engine::Rhi::DeviceBuffer &src, const Engine::Rhi::DeviceBuffer &dst
-    ) {
+    void ReadbackCommand(vk::CommandBuffer cb, const Engine::Rhi::DeviceBuffer &src, const Engine::Rhi::DeviceBuffer &dst) {
         using namespace Engine;
         assert(src.GetSize() == dst.GetSize());
         cb.copyBuffer(src.GetBuffer(), dst.GetBuffer(), vk::BufferCopy{0, 0, dst.GetSize()});
@@ -199,10 +197,20 @@ namespace Engine::RenderSystemState {
         auto device = pimpl->m_system.GetDevice();
         uint32_t fif = GetFrameInFlight();
 
-        // Acquire FIRST (async, never blocks). On failure the frame state is
-        // left untouched: `current_framebuffer` keeps its previous value, the
-        // fence is NOT reset and the FIF is NOT advanced, so the caller can
-        // safely skip this frame (or recreate the swapchain and retry) without
+        // CPU throttle: wait for the previous frame on this FIF to finish.
+        // MUST happen before acquire: the acquire semaphore was waited on by
+        // the previous frame's submit, and reusing it while that wait is still
+        // pending violates VUID-vkAcquireNextImageKHR-semaphore-01779.
+        vk::Fence fence = pimpl->command_executed_fences[fif].get();
+        vk::Result wait_result = device.waitForFences({fence}, vk::True, timeout);
+        if (wait_result != vk::Result::eSuccess) {
+            throw std::runtime_error(vk::to_string(wait_result) + " happened when waiting for frame fences.");
+        }
+
+        // Acquire (async, never blocks). On failure the frame state is left
+        // untouched: `current_framebuffer` keeps its previous value, the fence
+        // is NOT reset and the FIF is NOT advanced, so the caller can safely
+        // skip this frame (or recreate the swapchain and retry) without
         // deadlocking — the fence stays signaled and no wait depends on this
         // frame's submit.
         auto result = pimpl->m_present_provider->AcquireNextImage(
@@ -213,16 +221,10 @@ namespace Engine::RenderSystemState {
         }
         pimpl->current_framebuffer = result;
 
-        // CPU throttle: wait for the previous frame on this FIF to finish,
-        // then reset its resources. Must happen after a successful acquire so
-        // an out-of-date retry never waits on a fence that no submit will
-        // signal (fences are only signaled by a completed submit, and
+        // Acquire succeeded: the fence is guaranteed signaled (waited above),
+        // so resetting the command buffer and fence here cannot deadlock a
+        // later wait (fences are only signaled by a completed submit, and
         // `waitIdle` does not signal them).
-        vk::Fence fence = pimpl->command_executed_fences[fif].get();
-        vk::Result wait_result = device.waitForFences({fence}, vk::True, timeout);
-        if (wait_result != vk::Result::eSuccess) {
-            throw std::runtime_error(vk::to_string(wait_result) + " happened when waiting for frame fences.");
-        }
         pimpl->command_buffers[fif]->reset();
         device.resetFences({fence});
 
@@ -235,9 +237,7 @@ namespace Engine::RenderSystemState {
         return pimpl->current_framebuffer;
     }
 
-    bool FrameManager::SubmitFrame(
-        const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access
-    ) {
+    bool FrameManager::SubmitFrame(const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access) {
         pimpl->assert_in_frame();
 
         const uint32_t fif = GetFrameInFlight();
@@ -390,9 +390,7 @@ namespace Engine::RenderSystemState {
         }
 
         auto staging_buffer = Rhi::DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(),
-            Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice},
-            buffer.GetSize()
+            pimpl->m_system.GetAllocatorState(), Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice}, buffer.GetSize()
         );
 
         ReadbackCommand(pimpl->readback.current_registry.combuf.get(), buffer, *staging_buffer);
