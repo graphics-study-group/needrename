@@ -4,13 +4,17 @@
 #include <glm.hpp>
 #include <memory>
 
+namespace vk {
+    class CommandBuffer;
+}
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
     }
-    class CommandBuffer;
     class PhysicsScene;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief Spatial hash grid configuration.
@@ -44,14 +48,14 @@ namespace Engine {
      * pipeline is skipped in favour of direct all-pairs generation.
      *
      * Lifecycle:
-     *   1. Construct with RenderSystem& only (no GPU allocation).
+     *   1. Construct with Rhi::DeviceContext& only (no GPU allocation).
      *   2. Configure(scene, shape_count, grid_config, threshold) -- CPU prep,
      *      buffer allocation, shader loading, binding creation.
      *   3. Record(cb) -- dispatch compute passes directly to cb, return void.
      */
     class SpatialHashBroadDetector {
     public:
-        explicit SpatialHashBroadDetector(RenderSystem &render_system);
+        explicit SpatialHashBroadDetector(Rhi::DeviceContext &device_context);
         ~SpatialHashBroadDetector();
 
         SpatialHashBroadDetector(const SpatialHashBroadDetector &) = delete;
@@ -74,7 +78,7 @@ namespace Engine {
          * The path (fallback vs spatial-hash) is selected via if-else based on the
          * threshold cached in Configure().
          */
-        void Record(CommandBuffer &cb);
+        void Record(vk::CommandBuffer cb);
 
         bool IsInitialized() const noexcept;
 
@@ -83,6 +87,7 @@ namespace Engine {
         BroadDetectorOutputBuffers GetResultBuffers() const noexcept;
 
     private:
+        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };

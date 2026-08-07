@@ -8,10 +8,12 @@
 
 #include "Solver/ISolver.h"
 
+namespace vk {
+    class CommandBuffer;
+}
+
 namespace Engine {
     class PhysicsScene;
-    class RenderSystem;
-    class CommandBuffer;
 
     /**
      * @brief Physics scene manager at engine-system scope.
@@ -117,9 +119,9 @@ namespace Engine {
          * Calls GPUStep on each registered solver for every scene.
          * Must be called BETWEEN cb.begin() and cb.end().
          *
-         * @param cb CommandBuffer in Recording state.
+         * @param cb Raw command buffer in Recording state.
          */
-        void GPUStep(CommandBuffer &cb);
+        void GPUStep(vk::CommandBuffer cb);
 
         /**
          * @brief Post-GPU work (readback, cleanup).

@@ -13,6 +13,7 @@ namespace Engine {
 namespace Engine::Rhi {
     class ComputeBuffer;
     class ComputeResourceBinding;
+    class DeviceContext;
     class SPLayout;
 
     /**
@@ -25,25 +26,19 @@ namespace Engine::Rhi {
      * follows the same restrictions specified in the @ref material_descriptor
      * "(`Engine::MaterialTemplate` documentation)".
      */
-    class ComputeStage : public IInstantiatedFromAsset<ShaderAsset> {
+    class ComputeStage {
         using PassInfo = PipelineInfo::ComputePassInfo;
 
-        RenderSystem &m_system;
+        DeviceContext &m_device_context;
 
         struct impl;
         std::unique_ptr<impl> pimpl;
 
     public:
-        ComputeStage(RenderSystem &system);
+        explicit ComputeStage(DeviceContext &device_context);
 
         /**
-         * @brief Instantiate a ComputeStage from a compute shader asset.
-         * @todo Add specialization constant support.
-         */
-        void Instantiate(ShaderAsset &asset) override;
-
-        /**
-         * @brief Instantiate a ComputeStage from a compute shader SPIR-V code.
+         * @brief Instantiate a ComputeStage from compute shader SPIR-V code.
          */
         void Instantiate(const std::vector<uint32_t> &code, const std::string_view name);
 

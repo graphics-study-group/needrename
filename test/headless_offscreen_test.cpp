@@ -51,7 +51,9 @@ int main() {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Headless Color Target");
+    auto color = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Headless Color Target"
+    );
     auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
         rsys->GetAllocatorState(),
         Engine::Rhi::BufferType{Engine::Rhi::BufferTypeBits::ReadbackFromDevice},

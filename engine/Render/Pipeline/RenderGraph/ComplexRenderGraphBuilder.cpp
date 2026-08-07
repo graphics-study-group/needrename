@@ -80,8 +80,10 @@ namespace Engine {
         }
 
         // Set up bloom compute stage
-        m_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system);
-        m_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
+        m_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system.GetDeviceContext());
+        m_bloom_compute_stage->Instantiate(
+            m_bloom_shader.as<ShaderAsset>()->binary, m_bloom_shader.as<ShaderAsset>()->m_name
+        );
 
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();

@@ -4,12 +4,16 @@
 #include <cstdint>
 #include <memory>
 
+namespace vk {
+    class CommandBuffer;
+}
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
     }
-    class CommandBuffer;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief GPU 8-bit LSD radix sort for uvec2 pairs.
@@ -55,7 +59,7 @@ namespace Engine {
          * @param max_elem_count  Maximum number of uvec2 pairs this instance
          *                        will ever sort.  Used for dispatch bounds.
          */
-        explicit RadixSort(RenderSystem &render_system, uint32_t max_elem_count);
+        explicit RadixSort(Rhi::DeviceContext &device_context, uint32_t max_elem_count);
 
         ~RadixSort();
 
@@ -106,7 +110,7 @@ namespace Engine {
          * @throws std::runtime_error if max_shape_count > kMaxShapeCount
          */
         void Record(
-            CommandBuffer &cb,
+            vk::CommandBuffer cb,
             Rhi::ComputeBuffer &pairs_buf_a,
             Rhi::ComputeBuffer &pairs_buf_b,
             Rhi::ComputeBuffer &scratch_buf,
@@ -131,6 +135,7 @@ namespace Engine {
         void ResetParamPool();
 
     private:
+        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };

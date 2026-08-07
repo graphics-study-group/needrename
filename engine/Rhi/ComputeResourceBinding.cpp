@@ -1,10 +1,10 @@
 #include "Rhi/ComputeResourceBinding.h"
 
-#include "Render/Memory/IndexedBuffer.h" // TODO(decision pending): move IndexedBuffer to Rhi with ComputeResourceBinding
-#include "Render/RenderSystem.h" // TODO(phase 3): remove when ComputeResourceBinding drops the RenderSystem constructor
 #include "Rhi/ComputeBuffer.h"
 #include "Rhi/ComputeStage.h"
+#include "Rhi/DeviceContext.h"
 #include "Rhi/DeviceInterface.h"
+#include "Rhi/IndexedBuffer.h"
 #include "Rhi/ShaderParameterLayout.h"
 #include "Rhi/ShaderResourceBinding.h"
 #include "Rhi/StructuredBuffer.h"
@@ -22,7 +22,7 @@ namespace Engine::Rhi {
     struct ComputeResourceBinding::impl {
         constexpr static uint32_t BACK_BUFFERS = 3;
 
-        RenderSystem *system;
+        DeviceContext *device_context;
         ComputeStage *stage;
 
         std::array<vk::DescriptorSet, BACK_BUFFERS> descriptor_sets{};
@@ -39,7 +39,11 @@ namespace Engine::Rhi {
                 ubo_dirty.set();
             }
 
-            void PrepareIndexedBuffers(RenderSystem &system, const Rhi::SPLayout &layout) {
+            void PrepareIndexedBuffers(
+                const DeviceInterface &device_interface,
+                const AllocatorState &allocator_state,
+                const Rhi::SPLayout &layout
+            ) {
                 ubos.clear();
 
                 for (const auto &pinterface : layout.interfaces) {
@@ -54,10 +58,10 @@ namespace Engine::Rhi {
                             assert(placer);
 
                             ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
-                                system.GetAllocatorState(),
+                                allocator_state,
                                 {BufferTypeBits::HostAccessibleUniform},
                                 placer->CalculateMaxSize(),
-                                system.GetDeviceInterface().QueryLimit(
+                                device_interface.QueryLimit(
                                     Rhi::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                                 ),
                                 BACK_BUFFERS,
@@ -75,13 +79,15 @@ namespace Engine::Rhi {
             std::variant<std::shared_ptr<const Texture>, std::shared_ptr<const DeviceBuffer>>>
             owned_resource;
     };
-    ComputeResourceBinding::ComputeResourceBinding(RenderSystem &system, ComputeStage &compute) :
+    ComputeResourceBinding::ComputeResourceBinding(DeviceContext &device_context, ComputeStage &compute) :
         pimpl(std::make_unique<impl>()) {
-        pimpl->p_srb = std::make_unique<ShaderResourceBinding>(system.GetIRCache());
+        pimpl->p_srb = std::make_unique<ShaderResourceBinding>(device_context.GetIRCache());
         pimpl->p_buffer = std::make_unique<StructuredBuffer>();
-        pimpl->system = &system;
+        pimpl->device_context = &device_context;
         pimpl->stage = &compute;
-        pimpl->ubo_manager.PrepareIndexedBuffers(system, compute.GetReflectedShaderInfo());
+        pimpl->ubo_manager.PrepareIndexedBuffers(
+            device_context.GetDeviceInterface(), device_context.GetAllocatorState(), compute.GetReflectedShaderInfo()
+        );
     }
 
     ComputeResourceBinding::~ComputeResourceBinding() noexcept = default;
@@ -120,7 +126,7 @@ namespace Engine::Rhi {
         pimpl->descriptor_sets[backbuffer] = pimpl->p_srb->GetDescriptorSet(
             0,
             pimpl->stage->GetReflectedShaderInfo(),
-            pimpl->system->GetDevice(),
+            pimpl->device_context->GetDevice(),
             pimpl->stage->GetDescriptorPool(),
             true,
             false

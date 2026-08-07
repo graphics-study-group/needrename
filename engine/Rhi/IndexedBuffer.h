@@ -3,7 +3,7 @@
 
 #include "Rhi/DeviceBuffer.h"
 
-namespace Engine {
+namespace Engine::Rhi {
 
     /**
      * @brief Buffer of a large trunk of memory.
@@ -122,6 +122,6 @@ namespace Engine {
          */
         void InvalidateSlice(uint32_t slice);
     };
-} // namespace Engine
+} // namespace Engine::Rhi
 
 #endif // RENDER_MEMORY_INDEXEDBUFFER_INCLUDED

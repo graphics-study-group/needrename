@@ -265,13 +265,23 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment");
+    auto depth = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment"
+    );
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
     std::array colors{
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Position)"),
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Vertex color)"),
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Normal)"),
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Texcoord)")
+        RenderTargetTexture::CreateUnique(
+            rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Position)"
+        ),
+        RenderTargetTexture::CreateUnique(
+            rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Vertex color)"
+        ),
+        RenderTargetTexture::CreateUnique(
+            rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Normal)"
+        ),
+        RenderTargetTexture::CreateUnique(
+            rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Texcoord)"
+        )
     };
     auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
         rsys->GetAllocatorState(),

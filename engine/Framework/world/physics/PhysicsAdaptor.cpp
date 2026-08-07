@@ -8,6 +8,8 @@
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <Render/RenderSystem.h>
+#include <Rhi/DeviceContext.h>
+#include <Rhi/SubmissionHelper.h>
 
 #include <SDL3/SDL.h>
 
@@ -313,6 +315,12 @@ namespace Engine {
         m_pending_hinge_joints.clear();
 
         // Step 7: GPU sync
-        m_physics_scene.SyncGpuBuffers(render_system);
+        if (!m_submission_helper) {
+            m_submission_helper = std::make_unique<Rhi::SubmissionHelper>(
+                render_system.GetDeviceContext().GetDeviceInterface(),
+                render_system.GetDeviceContext().GetAllocatorState()
+            );
+        }
+        m_physics_scene.SyncGpuBuffers(render_system.GetDeviceContext(), *m_submission_helper);
     }
 } // namespace Engine

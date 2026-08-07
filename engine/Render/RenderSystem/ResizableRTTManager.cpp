@@ -29,8 +29,9 @@ namespace Engine::RenderSystemState {
             true_description.width = std::floor(reference_width * itr->second.scale_x);
             true_description.height = std::floor(reference_height * itr->second.scale_y);
 
-            texture_map[itr->first] =
-                RenderTargetTexture::CreateUnique(system, true_description, itr->second.sdesc, itr->second.name);
+            texture_map[itr->first] = RenderTargetTexture::CreateUnique(
+                system.GetDeviceContext(), true_description, itr->second.sdesc, itr->second.name
+            );
         }
     };
 

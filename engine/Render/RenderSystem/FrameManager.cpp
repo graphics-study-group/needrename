@@ -1,14 +1,14 @@
 #include "FrameManager.h"
 
-#include "Rhi/DebugUtils.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/Structs.h"
-#include "Rhi/ImageUtilsFunc.h"
-#include "Rhi/DeviceBuffer.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/DeviceBuffer.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/Structs.h"
 #include "Rhi/SubmissionHelper.h"
 
 #include "Render/RenderSystem/FrameSemaphore.hpp"
@@ -17,7 +17,9 @@
 #include <bitset>
 
 namespace {
-    void ReadbackCommand(vk::CommandBuffer cb, const Engine::Rhi::DeviceBuffer &src, const Engine::Rhi::DeviceBuffer &dst) {
+    void ReadbackCommand(
+        vk::CommandBuffer cb, const Engine::Rhi::DeviceBuffer &src, const Engine::Rhi::DeviceBuffer &dst
+    ) {
         using namespace Engine;
         assert(src.GetSize() == dst.GetSize());
         cb.copyBuffer(src.GetBuffer(), dst.GetBuffer(), vk::BufferCopy{0, 0, dst.GetSize()});
@@ -237,7 +239,9 @@ namespace Engine::RenderSystemState {
         return pimpl->current_framebuffer;
     }
 
-    bool FrameManager::SubmitFrame(const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access) {
+    bool FrameManager::SubmitFrame(
+        const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access
+    ) {
         pimpl->assert_in_frame();
 
         const uint32_t fif = GetFrameInFlight();
@@ -390,7 +394,9 @@ namespace Engine::RenderSystemState {
         }
 
         auto staging_buffer = Rhi::DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(), Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice}, buffer.GetSize()
+            pimpl->m_system.GetAllocatorState(),
+            Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice},
+            buffer.GetSize()
         );
 
         ReadbackCommand(pimpl->readback.current_registry.combuf.get(), buffer, *staging_buffer);

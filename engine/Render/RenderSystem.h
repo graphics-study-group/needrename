@@ -21,6 +21,7 @@ namespace vk {
 namespace Engine {
     namespace Rhi {
         class AllocatorState;
+        class DeviceContext;
         class DeviceInterface;
         class ImmutableResourceCache;
     } // namespace Rhi
@@ -62,7 +63,7 @@ namespace Engine {
             m_resource_managers{};
 
     public:
-        RenderSystem(std::weak_ptr<SDLWindow> parent_window);
+        RenderSystem(std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context);
 
         RenderSystem(const RenderSystem &) = delete;
         RenderSystem(RenderSystem &&) = delete;
@@ -132,6 +133,8 @@ namespace Engine {
 
         /// @brief Get the allocator service
         const Rhi::AllocatorState &GetAllocatorState() const;
+        /// @brief Get the device-scoped GPU facilities (device, allocator, resource cache)
+        Rhi::DeviceContext &GetDeviceContext();
         /// @brief Get the present provider (windowed or headless)
         IPresentProvider &GetPresentProvider();
         /// @brief Get the frame manager

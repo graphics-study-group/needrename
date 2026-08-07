@@ -29,20 +29,18 @@
 
 namespace Engine {
     struct RenderSystem::impl {
-        impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
-            m_window(parent_window), m_frame_manager(parent), m_renderer_manager(parent), m_scene_data_manager(parent),
-            m_camera_manager(parent), m_resizable_rtt_manger(parent), m_material_instance_provider(parent),
-            m_material_library_provider(parent), m_static_mesh_resource_provider(parent) {
+        impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context) :
+            m_window(parent_window), m_device_context(device_context), m_frame_manager(parent),
+            m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent),
+            m_resizable_rtt_manger(parent), m_material_instance_provider(parent), m_material_library_provider(parent),
+            m_static_mesh_resource_provider(parent) {
 
             };
 
         std::weak_ptr<SDLWindow> m_window;
 
-        // Order of declaration effects destructing order!
-        std::unique_ptr<Rhi::DeviceInterface> m_device_interface{};
-        std::unique_ptr<Rhi::ImmutableResourceCache> m_immutable_resource_cache{};
+        Rhi::DeviceContext &m_device_context;
 
-        std::unique_ptr<Rhi::AllocatorState> m_allocator_state;
         std::unique_ptr<IPresentProvider> m_present_provider;
         RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::RendererManager m_renderer_manager;
@@ -55,33 +53,25 @@ namespace Engine {
         RenderSystemState::StaticMeshResourceManager m_static_mesh_resource_provider;
     };
 
-    RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) :
-        pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)), m_resource_managers{
-                                                                               &pimpl->m_material_instance_provider,
-                                                                               &pimpl->m_material_library_provider,
-                                                                               &pimpl->m_static_mesh_resource_provider
-                                                                           } {
+    RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context) :
+        pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window, device_context)),
+        m_resource_managers{
+            &pimpl->m_material_instance_provider,
+            &pimpl->m_material_library_provider,
+            &pimpl->m_static_mesh_resource_provider
+        } {
     }
 
     void RenderSystem::Create() {
-        assert(!this->pimpl->m_device_interface.get() && "Recreating render system");
-
         bool is_headless = pimpl->m_window.expired();
         SDL_Window *sdl_window = is_headless ? nullptr : pimpl->m_window.lock()->GetWindow();
 
-        Rhi::DeviceInterface::DeviceConfiguration cfg{
-            .window = sdl_window, .application_name = "", .application_version = 0, .dynamic_dispatcher = nullptr
-        };
-        pimpl->m_device_interface = std::make_unique<Rhi::DeviceInterface>(cfg);
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_device_interface->GetInstance(), ::vkGetInstanceProcAddr);
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_device_interface->GetDevice());
-        pimpl->m_immutable_resource_cache =
-            std::make_unique<Rhi::ImmutableResourceCache>(pimpl->m_device_interface->GetDevice());
+        Rhi::DeviceInterface &device_interface = pimpl->m_device_context.GetDeviceInterface();
 
         if (is_headless) {
             vk::Extent2D extent{1920, 1080};
             pimpl->m_present_provider = std::make_unique<RenderSystemState::HeadlessPresentProvider>(
-                *pimpl->m_device_interface, extent, vk::Format::eR8G8B8A8Unorm, 3
+                device_interface, extent, vk::Format::eR8G8B8A8Unorm, 3
             );
             pimpl->m_resizable_rtt_manger.SetReferenceSize(extent.width, extent.height);
         } else {
@@ -93,14 +83,10 @@ namespace Engine {
             vk::Extent2D expected_extent{width, height};
 
             auto spp = std::make_unique<RenderSystemState::SwapchainPresentProvider>();
-            spp->Initialize(*pimpl->m_device_interface, expected_extent);
+            spp->Initialize(device_interface, expected_extent);
             pimpl->m_present_provider = std::move(spp);
             pimpl->m_resizable_rtt_manger.SetReferenceSize(w, h);
         }
-
-        pimpl->m_allocator_state = std::make_unique<Rhi::AllocatorState>();
-        pimpl->m_allocator_state->SetDeviceInterface(*pimpl->m_device_interface);
-        pimpl->m_allocator_state->Create();
 
         pimpl->m_frame_manager.Create(*pimpl->m_present_provider);
         pimpl->m_scene_data_manager.Create();
@@ -127,14 +113,18 @@ namespace Engine {
     }
 
     vk::Device RenderSystem::GetDevice() const {
-        return pimpl->m_device_interface->GetDevice();
+        return pimpl->m_device_context.GetDevice();
     }
     const Rhi::DeviceInterface &RenderSystem::GetDeviceInterface() const {
-        return *pimpl->m_device_interface;
+        return pimpl->m_device_context.GetDeviceInterface();
     }
 
     const Rhi::AllocatorState &RenderSystem::GetAllocatorState() const {
-        return *pimpl->m_allocator_state;
+        return pimpl->m_device_context.GetAllocatorState();
+    }
+
+    Rhi::DeviceContext &RenderSystem::GetDeviceContext() {
+        return pimpl->m_device_context;
     }
 
     IPresentProvider &RenderSystem::GetPresentProvider() {
@@ -150,7 +140,7 @@ namespace Engine {
     }
 
     Rhi::ImmutableResourceCache &RenderSystem::GetIRCache() {
-        return *pimpl->m_immutable_resource_cache;
+        return pimpl->m_device_context.GetIRCache();
     }
 
     RenderSystemState::CameraManager &RenderSystem::GetCameraManager() {
@@ -166,7 +156,7 @@ namespace Engine {
     }
 
     void RenderSystem::WaitForIdle() const {
-        pimpl->m_device_interface->GetDevice().waitIdle();
+        pimpl->m_device_context.GetDevice().waitIdle();
     }
 
     void RenderSystem::UpdateSwapchain() {

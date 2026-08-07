@@ -13,7 +13,9 @@ namespace Engine {
     } // namespace Rhi
     class ConvexCollisionDetector;
     class PhysicsScene;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
     class SpatialHashBroadDetector;
 
     /**
@@ -44,14 +46,14 @@ namespace Engine {
      * command buffer in GPUStep.
      *
      * Lifecycle:
-     *   1. Construct with RenderSystem&.
+     *   1. Construct with Rhi::DeviceContext&.
      *   2. OnBindToScene(scene) -- called by PhysicsSystem during registration.
      *   3. PreGPUStep() -- shader loading, buffer sizing, CPU uploads, detector Configure.
      *   4. GPUStep(cb) -- record compute dispatches with manual barriers.
      */
     class XpbdGpuSolver : public ISolver {
     public:
-        explicit XpbdGpuSolver(RenderSystem &render_system);
+        explicit XpbdGpuSolver(Rhi::DeviceContext &device_context);
         ~XpbdGpuSolver() override;
 
         XpbdGpuSolver(const XpbdGpuSolver &) = delete;
@@ -60,13 +62,15 @@ namespace Engine {
         XpbdGpuSolver &operator=(XpbdGpuSolver &&) = delete;
 
         void PreGPUStep() override;
-        void GPUStep(CommandBuffer &command_buffer) override;
+        void GPUStep(vk::CommandBuffer cb) override;
         bool IsInitialized() const noexcept override;
 
         void SetConfig(const XpbdConfig &config) noexcept;
         const XpbdConfig &GetConfig() const noexcept;
 
     private:
+        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
+
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };

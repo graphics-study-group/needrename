@@ -39,9 +39,35 @@ Rationale: "Context" implies a stateful aggregator, but the module is a dependen
 
 Alternatives: keep `GpuContext` (semantics void after class deletion); `Gpu` (too terse); `GpuInfra` (verbose).
 
-### D2: Delete the `GpuContext` aggregator class
+### D2: DeviceContext aggregator (revives the deleted GpuContext class, redesigned)
 
-`GpuContext::impl` (DeviceInterface + AllocatorState) is unused dead code. Delete the class; a future headless-init entry point will be designed when physics-only runtime actually needs one. Device/allocator composition stays explicit at call sites (RenderSystem already does this).
+The `GpuContext` aggregator class was deleted in Phase 2 as dead code. Phase 3 analysis revived the need: `AllocatorState` and `ImmutableResourceCache` are device-scoped facilities, and physics now requires the same set as rendering. A new aggregator `Rhi::DeviceContext` is introduced (named `DeviceContext` — the module is `Rhi`, the device-scoped context is `DeviceContext`; user decision):
+
+```cpp
+namespace Engine::Rhi {
+    class DeviceContext {
+        std::unique_ptr<DeviceInterface> m_device_interface;
+        std::unique_ptr<AllocatorState> m_allocator_state;
+        std::unique_ptr<ImmutableResourceCache> m_immutable_resource_cache;
+    public:
+        explicit DeviceContext(DeviceInterface::DeviceConfiguration cfg);  // creates device → dispatcher init → irc → allocator
+        DeviceInterface& GetDeviceInterface(); const DeviceInterface& GetDeviceInterface() const;
+        AllocatorState& GetAllocatorState(); const AllocatorState& GetAllocatorState() const;
+        ImmutableResourceCache& GetIRCache();
+        vk::Device GetDevice() const;
+    };
+}
+```
+
+- **Contains**: DeviceInterface + AllocatorState + ImmutableResourceCache (static device-scoped facilities, one lifetime = one device).
+- **Does NOT contain**: `SubmissionHelper` (active object with pending-queue state; physics and render keep independent upload queues — a shared queue would let physics `ExecuteSubmissionImmediately` carry along render-layer pending operations), `PresentProvider`/`FrameManager` (render presentation layer).
+- **Ownership**: `MainClass` owns one `std::unique_ptr<Rhi::DeviceContext>`, created in `Initialize`; passes it to `RenderSystem` (constructor) and to physics components.
+- **`VULKAN_HPP_DEFAULT_DISPATCHER.init()` moves into `DeviceContext` construction** (whoever creates the device initializes the loader); removed from `RenderSystem::Create`. Standalone tests keep their own init (they construct `DeviceInterface` directly, not via `DeviceContext`).
+- **`AllocatorState` constructor simplifies to one step**: `AllocatorState(DeviceInterface&)` (replaces the `AllocatorState()` + `SetDeviceInterface()` + `Create()` two-step; user decision). Tests adapt syntactically but keep constructing the facilities directly (no `DeviceContext` use; user decision).
+- **RenderSystem rework**: constructor gains `Rhi::DeviceContext&`; `Create()` drops its own device/irc/allocator creation and uses the context; `GetDeviceInterface()/GetAllocatorState()/GetIRCache()` remain as forwards; a `GetDeviceContext()` accessor is added.
+- **PhysicsAdaptor (Framework)** lazily creates its own `Rhi::SubmissionHelper` on first `Flush` (it receives `RenderSystem&` per call, no construction-time device), and passes `(render_system.GetDeviceContext(), m_submission_helper)` to `PhysicsScene::SyncGpuBuffers`.
+
+Rationale for the name: the previous deletion was correct at the time (no consumer); the aggregator is now a real composition with a single owner and two consumers, and `DeviceContext` states its device-scoped nature precisely.
 
 ### D3: File migration set (Render → Rhi), zero semantic change
 
@@ -67,16 +93,27 @@ Notes:
 
 ### D4: ComputeStage drops Asset coupling
 
-Remove `IInstantiatedFromAsset<ShaderAsset>` inheritance and `Instantiate(ShaderAsset&)`; keep `Instantiate(const std::vector<uint32_t>& code, std::string_view name)` (implementation at `ComputeStage.cpp:98`). The only Asset-path caller (`ComplexRenderGraphBuilder.cpp:83`, bloom) switches to passing `shader->binary` + name. `ComputeStage` construction changes from `RenderSystem&` to `(const DeviceInterface&, const AllocatorState&)` (it only needs `GetDevice()`; pipeline cache is `nullptr`).
+Remove `IInstantiatedFromAsset<ShaderAsset>` inheritance and `Instantiate(ShaderAsset&)`; keep `Instantiate(const std::vector<uint32_t>& code, std::string_view name)` (implementation at `ComputeStage.cpp:98`). The only Asset-path caller (`ComplexRenderGraphBuilder.cpp:84`, bloom) switches to passing `shader->binary` + name. `ComputeStage` construction changes from `RenderSystem&` to `Rhi::DeviceContext&` — it needs the IRC because `AllocateResourceBinding()` creates a `ComputeResourceBinding`, whose `ShaderResourceBinding` requires an IRC. (Unified consumer pattern, see D5.)
 
 Alternative considered: keep the Asset overload and link Asset into Rhi — rejected (would drag reflection into the lowest layer, reversing `external_dependency_granular_split`).
 
 ### D5: Physics interface rework
 
-- `ISolver::GPUStep(CommandBuffer&)` → `GPUStep(vk::CommandBuffer)`. Implementations (`XpbdGpuSolver`, `DummySolver`) and `Record` methods of `SpatialHashBroadDetector`, `ConvexCollisionDetector`, `RadixSort`, `ParallelScan`, `CompactUnique` adapt: raw `pipelineBarrier2` calls already use the raw handle; the wrapper calls (`BindComputeStage`/`BindComputeResource`/`DispatchCompute`) become free functions in `Engine::Rhi` operating on `vk::CommandBuffer` + `ComputeStage`/`ComputeResourceBinding`.
-- Constructors: `XpbdGpuSolver(RenderSystem&)` → `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&)`; same for `DummySolver`, detectors, algorithms. `ComputeResourceBinding` → `(const Rhi::DeviceInterface&, ComputeStage&)`.
-- `PhysicsScene::RefreshGpuBuffers`/`SyncGpuBuffers` take `(const Rhi::AllocatorState&, Rhi::SubmissionHelper&)`.
-- Explicit per-component parameters over a new aggregate: honest, matches the dependency-injection style of the decoupled `SubmissionHelper`; `MainClass` already exposes the three getters (`GetDeviceInterface`, `GetAllocatorState`, `GetSubmissionHelper`).
+- `ISolver::GPUStep(CommandBuffer&)` → `GPUStep(vk::CommandBuffer)`. Implementations (`XpbdGpuSolver`, `DummySolver`) and `Record` methods of `SpatialHashBroadDetector`, `ConvexCollisionDetector`, `RadixSort`, `ParallelScan`, `CompactUnique` adapt: raw `pipelineBarrier2` calls already use the raw handle; the wrapper calls (`BindComputeStage`/`BindComputeResource`/`DispatchCompute`) become free functions in `Engine::Rhi` operating on `vk::CommandBuffer` + `ComputeStage`/`ComputeResourceBinding`:
+  ```cpp
+  namespace Engine::Rhi {
+      void BindComputeStage(vk::CommandBuffer cb, ComputeStage& stage);
+      void BindComputeResource(vk::CommandBuffer cb, ComputeResourceBinding& binding, uint32_t frame_index);
+      void DispatchCompute(vk::CommandBuffer cb, uint32_t x, uint32_t y, uint32_t z);
+  }
+  ```
+  `BindComputeResource` needs the in-flight frame index (descriptor-set rotation) that `CommandBuffer` used to own (`m_inflight_frame_index`); physics components maintain their own frame counter (incremented per `GPUStep`/`Record`, modulo the binding's frame count) — the descriptor rotation semantics are preserved without the render fif.
+- Constructors: `XpbdGpuSolver(RenderSystem&)` → `(Rhi::DeviceContext&)`; same for `DummySolver`, detectors, algorithms (`RadixSort`/`ParallelScan`/`CompactUnique` keep their `uint32_t max_elem_count` second parameter). Components take the `DeviceContext&` (D2) and read `GetDeviceInterface()`/`GetAllocatorState()`/`GetIRCache()` from it — physics shares the render-side IRC (single cache per device).
+- **All device-facility consumers unify on a single `DeviceContext&`** (user decision after grilling): `ComputeStage(DeviceContext&)`, `ComputeResourceBinding(DeviceContext&, ComputeStage&)`, `Texture(DeviceContext&, ...)` / `ImageTexture` / `RenderTargetTexture` (Texture's stale `RenderSystem&` constructor was a Phase 3 gap, now closed). `AllocatorState(DeviceInterface&)` stays (it is an aggregatee inside `DeviceContext`, not a consumer — taking `DeviceContext&` would be circular). `ShaderResourceBinding(ImmutableResourceCache&)` stays minimal (single-facility dependency).
+- `RenderSystem` keeps its `GetDeviceInterface()`/`GetAllocatorState()`/`GetIRCache()`/`GetDevice()` as one-line forwards to `m_device_context` (Facade pattern — 50+ in-module call sites stay unchanged), plus `GetDeviceContext()`.
+- `ComputeResourceBinding(RenderSystem&, ComputeStage&)` → `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&, Rhi::ImmutableResourceCache&, ComputeStage&)` (it needs the allocator for `IndexedBuffer` creation, `QueryLimit` from the device interface, and the IRC for its `ShaderResourceBinding`).
+- `PhysicsScene::RefreshGpuBuffers`/`SyncGpuBuffers` take `(Rhi::DeviceContext&, Rhi::SubmissionHelper&)`; `PhysicsAdaptor::Flush` lazily creates and holds the scene's own `SubmissionHelper`.
+- A single `DeviceContext&` parameter replaces the earlier `(DeviceInterface&, AllocatorState&)` plan: the aggregator (D2) makes the signature shorter and gives physics the shared IRC without per-component construction.
 
 ### D6: Model matrices bridge moves to MainClass
 
@@ -124,7 +161,7 @@ Four sequential phases, each ending with a build + test gate and a manual review
 
 1. **Phase 1 — Pure relocation (DONE)**: move files Render → Rhi, update include paths and CMake only. No namespace changes, no logic changes. `EngineLibRhi` is an OBJECT library merged into `engine.dll` (user decision; the standalone DLL split moves to Phase 4). Build + ctest green (48/48), behavior identical.
 2. **Phase 2 — Namespace unification**: rename everything to `Engine::Rhi`, update all references repo-wide, JSON asset batch script. Build + ctest green.
-3. **Phase 3 — Physics interface rework**: constructor signatures, raw `vk::CommandBuffer` in GPUStep/Record, free-function compute helpers, model matrices bridge to MainClass, `IndexedBuffer` move. Build + ctest green.
+3. **Phase 3 — Physics interface rework + DeviceContext**: create `Rhi::DeviceContext` aggregator, `AllocatorState` one-step constructor, MainClass/RenderSystem init rework, physics constructor signatures to `DeviceContext&`, raw `vk::CommandBuffer` in GPUStep/Record, free-function compute helpers (with frame index), `ComputeStage`/`ComputeResourceBinding` constructors (+IRC), bloom Asset-overload removal, `IndexedBuffer` move, model matrices bridge to MainClass. Build + ctest green.
 4. **Phase 4 — Cleanup + DLL split**: reflection registration for Rhi, `rhi_export.h`, restore SHARED `Rhi.dll` + `GPU_CONTEXT_DLL_EXPORTS` + dispatcher storage, test/example updates. Build + ctest green.
 
 Rollback: no data migration beyond JSON asset renames (reversible via script); each phase is an independent revertable diff.
@@ -138,7 +175,7 @@ Rollback: no data migration beyond JSON asset renames (reversible via script); e
 - Texture family moves → yes, with `ImageUtils` + `ImmutableResourceCache` (D3).
 - PipelineEnums moves wholesale → yes (D3).
 - Namespace strategy → unified `Engine::Rhi`, assets scripted (D1).
-- `GpuContext` class → deleted (D2).
-- Physics component signatures → explicit `(DeviceInterface&, AllocatorState&)` (D5).
+- `GpuContext` class → deleted in Phase 2; revived as `Rhi::DeviceContext` aggregator in Phase 3 (D2).
+- Physics component signatures → single `Rhi::DeviceContext&` via the aggregator (D5), superseding the earlier `(DeviceInterface&, AllocatorState&)` plan.
 - Model matrices bridge → `MainClass` assembly (D6).
 - Change organization → single change, phased tasks, per-phase review + manual commit.

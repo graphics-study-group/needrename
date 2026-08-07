@@ -5,15 +5,15 @@
 
 namespace Engine::Rhi {
     ImageTexture::ImageTexture(
-        RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name
-    ) : Texture(system, texture, sampler, name) {
+        DeviceContext &device_context, TextureDesc texture, SamplerDesc sampler, const std::string &name
+    ) : Texture(device_context, texture, sampler, name) {
     }
 
     std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(
-        RenderSystem &system, ImageTextureDesc texture, SamplerDesc sampler, const std::string &name
+        DeviceContext &device_context, ImageTextureDesc texture, SamplerDesc sampler, const std::string &name
     ) {
         return std::unique_ptr<ImageTexture>(new ImageTexture(
-            system,
+            device_context,
             TextureDesc{
                 .dimensions = texture.dimensions,
                 .width = texture.width,
@@ -29,9 +29,11 @@ namespace Engine::Rhi {
             name
         ));
     }
-    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(RenderSystem &system, const Image2DTextureAsset &asset) {
+    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(
+        DeviceContext &device_context, const Image2DTextureAsset &asset
+    ) {
         return std::unique_ptr<ImageTexture>(new ImageTexture(
-            system,
+            device_context,
             TextureDesc{
                 .dimensions = 2,
                 .width = static_cast<uint32_t>(asset.m_width),
@@ -47,9 +49,11 @@ namespace Engine::Rhi {
             asset.m_name
         ));
     }
-    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(RenderSystem &system, const ImageCubemapAsset &asset) {
+    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(
+        DeviceContext &device_context, const ImageCubemapAsset &asset
+    ) {
         return std::unique_ptr<ImageTexture>(new ImageTexture(
-            system,
+            device_context,
             TextureDesc{
                 .dimensions = 2,
                 .width = static_cast<uint32_t>(asset.m_width),

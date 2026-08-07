@@ -1,18 +1,22 @@
 #include "RenderTargetTexture.h"
 
 #include "Rhi/AllocatorState.h"
+#include <Rhi/DeviceContext.h>
 
 namespace Engine {
     RenderTargetTexture::RenderTargetTexture(
-        RenderSystem &system, Rhi::TextureDesc texture, Rhi::SamplerDesc sampler, const std::string &name
-    ) : Rhi::Texture(system, texture, sampler, name) {
+        Rhi::DeviceContext &device_context, Rhi::TextureDesc texture, Rhi::SamplerDesc sampler, const std::string &name
+    ) : Rhi::Texture(device_context, texture, sampler, name) {
     }
     RenderTargetTexture RenderTargetTexture::Create(
-        RenderSystem &system, RenderTargetTextureDesc texture, Rhi::SamplerDesc sampler, const std::string &name
+        Rhi::DeviceContext &device_context,
+        RenderTargetTextureDesc texture,
+        Rhi::SamplerDesc sampler,
+        const std::string &name
     ) {
         assert(texture.multisample == 1 && "Unimplemented multisampling feature.");
         auto ret = RenderTargetTexture(
-            system,
+            device_context,
             Rhi::TextureDesc{
                 .dimensions = texture.dimensions,
                 .width = texture.width,
@@ -31,21 +35,24 @@ namespace Engine {
             name
         );
 
-        ret.support_random_access = system.GetAllocatorState().QueryFormatFeatures(
+        ret.support_random_access = device_context.GetAllocatorState().QueryFormatFeatures(
             Rhi::GetVkFormat(ret.GetTextureDescription().format), vk::FormatFeatureFlagBits::eStorageImage
         );
 
-        ret.support_atomic_access = system.GetAllocatorState().QueryFormatFeatures(
+        ret.support_atomic_access = device_context.GetAllocatorState().QueryFormatFeatures(
             Rhi::GetVkFormat(ret.GetTextureDescription().format), vk::FormatFeatureFlagBits::eStorageImageAtomic
         );
 
         return ret;
     }
     std::unique_ptr<RenderTargetTexture> RenderTargetTexture::CreateUnique(
-        RenderSystem &system, RenderTargetTextureDesc texture, Rhi::SamplerDesc sampler, const std::string &name
+        Rhi::DeviceContext &device_context,
+        RenderTargetTextureDesc texture,
+        Rhi::SamplerDesc sampler,
+        const std::string &name
     ) {
         auto ret = std::unique_ptr<RenderTargetTexture>(new RenderTargetTexture(
-            system,
+            device_context,
             Rhi::TextureDesc{
                 .dimensions = texture.dimensions,
                 .width = texture.width,
@@ -63,11 +70,11 @@ namespace Engine {
             sampler,
             name
         ));
-        ret->support_random_access = system.GetAllocatorState().QueryFormatFeatures(
+        ret->support_random_access = device_context.GetAllocatorState().QueryFormatFeatures(
             Rhi::GetVkFormat(ret->GetTextureDescription().format), vk::FormatFeatureFlagBits::eStorageImage
         );
 
-        ret->support_atomic_access = system.GetAllocatorState().QueryFormatFeatures(
+        ret->support_atomic_access = device_context.GetAllocatorState().QueryFormatFeatures(
             Rhi::GetVkFormat(ret->GetTextureDescription().format), vk::FormatFeatureFlagBits::eStorageImageAtomic
         );
         return ret;

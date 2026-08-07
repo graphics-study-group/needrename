@@ -2,6 +2,7 @@
 #define ENGINE_MAINCLASS_INCLUDED
 
 #include "Core/Functional/OptionHandler.h"
+#include "Rhi/DeviceContext.h"
 
 #include <SDL3/SDL.h>
 #include <filesystem>
@@ -66,6 +67,7 @@ namespace Engine {
         void SetRenderGraph(std::unique_ptr<RenderGraph> render_graph, RGTextureHandle final_color_attachment_id);
 
     protected:
+        std::unique_ptr<Rhi::DeviceContext> m_device_context{};
         std::shared_ptr<RenderSystem> renderer{};
         std::shared_ptr<SDLWindow> window{};
         std::shared_ptr<TimeSystem> time{};

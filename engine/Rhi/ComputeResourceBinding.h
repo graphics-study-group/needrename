@@ -10,12 +10,9 @@ namespace vk {
     class DescriptorSet;
 }
 
-namespace Engine {
-    class RenderSystem;
-}
-
 namespace Engine::Rhi {
     class ComputeStage;
+    class DeviceContext;
     class StructuredBuffer;
     class ShaderResourceBinding;
     class ComputeBuffer;
@@ -36,7 +33,7 @@ namespace Engine::Rhi {
         std::unique_ptr<impl> pimpl;
 
     public:
-        ComputeResourceBinding(RenderSystem &system, ComputeStage &compute);
+        ComputeResourceBinding(DeviceContext &device_context, ComputeStage &compute);
         ~ComputeResourceBinding() noexcept;
 
         /**

@@ -3,13 +3,17 @@
 
 #include <memory>
 
+namespace vk {
+    class CommandBuffer;
+}
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
     }
-    class CommandBuffer;
     class PhysicsScene;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief Bundle of read-only pointers to collision detection result buffers.
@@ -34,7 +38,7 @@ namespace Engine {
      * broad-phase detector -- pair buffer references are cached during Configure().
      *
      * Lifecycle:
-     *   1. Construct with RenderSystem& only (no GPU allocation).
+     *   1. Construct with Rhi::DeviceContext& only (no GPU allocation).
      *   2. Configure(scene, max_pairs, margin, pair_buf, count_buf) -- CPU prep,
      *      buffer allocation, shader loading, binding creation.
      *   3. Record(cb) -- dispatch compute passes directly to cb, return void.
@@ -52,7 +56,7 @@ namespace Engine {
      */
     class ConvexCollisionDetector {
     public:
-        explicit ConvexCollisionDetector(RenderSystem &render_system);
+        explicit ConvexCollisionDetector(Rhi::DeviceContext &device_context);
         ~ConvexCollisionDetector();
 
         ConvexCollisionDetector(const ConvexCollisionDetector &) = delete;
@@ -89,7 +93,7 @@ namespace Engine {
          * All passes dispatch via BindComputeStage / DispatchCompute directly
          * (no RenderGraph).
          */
-        void Record(CommandBuffer &cb);
+        void Record(vk::CommandBuffer cb);
 
         bool IsInitialized() const noexcept;
 
@@ -102,6 +106,7 @@ namespace Engine {
         CollisionResultBuffers GetResultBuffers() const noexcept;
 
     private:
+        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };

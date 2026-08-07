@@ -1,10 +1,10 @@
 #include "SceneDataManager.h"
 
-#include "Render/Memory/IndexedBuffer.h"
 #include "Render/Resource/MaterialInstanceManager.h"
 #include "Render/Resource/RenderResourceHandle.h"
 #include "Rhi/ComputeBuffer.h"
 #include "Rhi/DebugUtils.h"
+#include <Rhi/IndexedBuffer.h>
 
 #include <SDL3/SDL.h>
 #include <ext/matrix_clip_space.hpp>
@@ -79,7 +79,7 @@ namespace Engine::RenderSystemState {
 
             // Light data
             LightUniformBuffer light_front_buffer{};
-            std::unique_ptr<IndexedBuffer> light_back_buffer{};
+            std::unique_ptr<Rhi::IndexedBuffer> light_back_buffer{};
             std::array<std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS>
                 bound_light_components{};
             std::array<const RenderTargetTexture *, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps{};
@@ -149,7 +149,7 @@ namespace Engine::RenderSystemState {
 #endif
 
                 // Allocate the back buffer for lights.
-                light_back_buffer = IndexedBuffer::CreateUnique(
+                light_back_buffer = Rhi::IndexedBuffer::CreateUnique(
                     allocator,
                     {Rhi::BufferTypeBits::HostAccessibleUniform},
                     sizeof(pimpl->scene.light_front_buffer),
@@ -175,7 +175,7 @@ namespace Engine::RenderSystemState {
 
                 // Prepare default depth map
                 default_light_map = RenderTargetTexture::CreateUnique(
-                    system,
+                    system.GetDeviceContext(),
                     RenderTargetTexture::RenderTargetTextureDesc{
                         .dimensions = 2,
                         .width = 16, .height = 16, .depth = 1,

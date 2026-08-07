@@ -14,6 +14,7 @@ namespace Engine::Rhi {
      * Its content must be transferred from the CPU side, and
      * cannot be modified by any render operation.
      */
+    class DeviceContext;
     class ImageTexture : public Texture {
     public:
         /**
@@ -57,14 +58,16 @@ namespace Engine::Rhi {
         using ITFormat = ImageTextureDesc::ImageTextureFormat;
 
     protected:
-        ImageTexture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name = "");
+        ImageTexture(
+            DeviceContext &device_context, TextureDesc texture, SamplerDesc sampler, const std::string &name = ""
+        );
 
     public:
         /**
          * @brief Create a texture from descriptions.
          */
         static std::unique_ptr<ImageTexture> CreateUnique(
-            RenderSystem &system, ImageTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
+            DeviceContext &device_context, ImageTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
         );
 
         /**
@@ -73,7 +76,9 @@ namespace Engine::Rhi {
          * Width and height will be read from the asset. Its format will be
          * defaulted to R8G8B8A8 SRGB. Its attached sampler will be defaulted.
          */
-        static std::unique_ptr<ImageTexture> CreateUnique(RenderSystem &system, const Image2DTextureAsset &asset);
+        static std::unique_ptr<ImageTexture> CreateUnique(
+            DeviceContext &device_context, const Image2DTextureAsset &asset
+        );
 
         /**
          * @brief Create a cubemap from an asset.
@@ -81,7 +86,9 @@ namespace Engine::Rhi {
          * Width and height will be read from the asset. Its format will be
          * defaulted to R8G8B8A8 SRGB.
          */
-        static std::unique_ptr<ImageTexture> CreateUnique(RenderSystem &system, const ImageCubemapAsset &asset);
+        static std::unique_ptr<ImageTexture> CreateUnique(
+            DeviceContext &device_context, const ImageCubemapAsset &asset
+        );
     };
 } // namespace Engine::Rhi
 

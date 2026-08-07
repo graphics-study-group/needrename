@@ -2,7 +2,7 @@
 
 #include "Rhi/AllocatorState.h"
 
-namespace Engine {
+namespace Engine::Rhi {
 
     struct IndexedBuffer::impl {
         size_t slice_size;
@@ -98,4 +98,4 @@ namespace Engine {
     void IndexedBuffer::InvalidateSlice(uint32_t slice) {
         Rhi::DeviceBuffer::Invalidate(GetSliceOffset(slice), pimpl->aligned_slice_size);
     }
-} // namespace Engine
+} // namespace Engine::Rhi

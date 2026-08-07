@@ -26,8 +26,11 @@ namespace Engine::Rhi {
         DeviceInterface *m_device_interface = nullptr;
 
     public:
-        AllocatorState();
-        void SetDeviceInterface(DeviceInterface &device_interface);
+        /**
+         * @brief Construct the allocator state, initializing the VMA library
+         * on the given device.
+         */
+        explicit AllocatorState(DeviceInterface &device_interface);
 
         AllocatorState(const AllocatorState &) = delete;
         AllocatorState &operator=(const AllocatorState &) = delete;
@@ -35,8 +38,6 @@ namespace Engine::Rhi {
         AllocatorState(AllocatorState &&) = default;
 
         ~AllocatorState();
-        /// @brief Create the allocator state by initializing the VMA library.
-        void Create();
         /// @brief Get the underlying allocator state.
         VmaAllocator GetAllocator() const;
 

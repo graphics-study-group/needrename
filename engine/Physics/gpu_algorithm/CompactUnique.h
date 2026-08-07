@@ -4,13 +4,17 @@
 #include <cstdint>
 #include <memory>
 
+namespace vk {
+    class CommandBuffer;
+}
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
     }
-    class CommandBuffer;
     class ParallelScan;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief GPU compact-unique post-processing pass.
@@ -40,7 +44,7 @@ namespace Engine {
      */
     class CompactUnique {
     public:
-        explicit CompactUnique(RenderSystem &render_system, uint32_t max_elem_count);
+        explicit CompactUnique(Rhi::DeviceContext &device_context, uint32_t max_elem_count);
 
         ~CompactUnique();
 
@@ -73,7 +77,7 @@ namespace Engine {
          * @pre elem_capacity <= max_elem_count
          */
         void Record(
-            CommandBuffer &cb,
+            vk::CommandBuffer cb,
             Rhi::ComputeBuffer &pairs_buf,
             Rhi::ComputeBuffer &flags_buf,
             Rhi::ComputeBuffer &offsets_buf,
@@ -89,6 +93,7 @@ namespace Engine {
         uint32_t GetMaxElemCount() const noexcept;
 
     private:
+        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };

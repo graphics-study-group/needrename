@@ -58,7 +58,7 @@ int main() {
     }
 
     auto spirv = GetSpirvBinaryFromGLSL(GLSL_CODE, EShLangCompute);
-    auto cstage = Rhi::ComputeStage{*rsys};
+    auto cstage = Rhi::ComputeStage{rsys->GetDeviceContext()};
     cstage.Instantiate(spirv, "Headless Test Compute Shader");
     auto &cbinding = cstage.AllocateResourceBinding();
     cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());

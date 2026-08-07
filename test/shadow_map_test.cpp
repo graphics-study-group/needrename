@@ -148,10 +148,12 @@ int main(int argc, char **argv) {
         .format = Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
         .is_cube_map = false
     };
-    std::shared_ptr blank_color_red =
-        Engine::Rhi::ImageTexture::CreateUnique(*rsys, idesc, Rhi::Texture::SamplerDesc{}, "Blank color red");
-    std::shared_ptr blank_color_gray =
-        Engine::Rhi::ImageTexture::CreateUnique(*rsys, idesc, Rhi::Texture::SamplerDesc{}, "Blank color gray");
+    std::shared_ptr blank_color_red = Engine::Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), idesc, Rhi::Texture::SamplerDesc{}, "Blank color red"
+    );
+    std::shared_ptr blank_color_gray = Engine::Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), idesc, Rhi::Texture::SamplerDesc{}, "Blank color gray"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_red, {1.0f, 0.0f, 0.0f, 0.0f});
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_gray, {0.5f, 0.5f, 0.5f, 0.0f});
 

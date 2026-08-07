@@ -4,12 +4,16 @@
 #include <cstdint>
 #include <memory>
 
+namespace vk {
+    class CommandBuffer;
+}
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
     }
-    class CommandBuffer;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief GPU parallel exclusive prefix-sum (Blelloch work-efficient scan).
@@ -59,7 +63,7 @@ namespace Engine {
          *                        ever scan.  Used for bounds-checking in
          *                        Record and sizing via GetRequiredBlockSumsBytes.
          */
-        explicit ParallelScan(RenderSystem &render_system, uint32_t max_elem_count);
+        explicit ParallelScan(Rhi::DeviceContext &device_context, uint32_t max_elem_count);
 
         ~ParallelScan();
 
@@ -103,7 +107,7 @@ namespace Engine {
          * @pre elem_count > 0 && elem_count <= max_elem_count
          */
         void Record(
-            CommandBuffer &cb,
+            vk::CommandBuffer cb,
             Rhi::ComputeBuffer &input_buf,
             Rhi::ComputeBuffer &output_buf,
             Rhi::ComputeBuffer &block_sums_buf,
@@ -125,6 +129,7 @@ namespace Engine {
         void ResetParamPool();
 
     private:
+        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };

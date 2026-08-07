@@ -95,10 +95,14 @@ namespace Editor {
         }
 
         // Init compute stages
-        m_game_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system);
-        m_game_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
-        m_scene_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system);
-        m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
+        m_game_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system.GetDeviceContext());
+        m_game_bloom_compute_stage->Instantiate(
+            m_bloom_shader.as<ShaderAsset>()->binary, m_bloom_shader.as<ShaderAsset>()->m_name
+        );
+        m_scene_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system.GetDeviceContext());
+        m_scene_bloom_compute_stage->Instantiate(
+            m_bloom_shader.as<ShaderAsset>()->binary, m_bloom_shader.as<ShaderAsset>()->m_name
+        );
 
         using IBT = Rhi::MemoryAccessTypeBufferBits;
         RGBufferHandle mm_handle{};

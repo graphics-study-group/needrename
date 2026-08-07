@@ -10,6 +10,9 @@ namespace Engine {
     /**
      * @brief A texture that can be rendered to.
      */
+    namespace Rhi {
+        class DeviceContext;
+    }
     class RenderTargetTexture : public Rhi::Texture {
     public:
         /// @brief Description of a render target texture.
@@ -65,7 +68,10 @@ namespace Engine {
 
     protected:
         RenderTargetTexture(
-            RenderSystem &system, Rhi::TextureDesc texture, Rhi::SamplerDesc sampler, const std::string &name = ""
+            Rhi::DeviceContext &device_context,
+            Rhi::TextureDesc texture,
+            Rhi::SamplerDesc sampler,
+            const std::string &name = ""
         );
 
         bool support_random_access{false}, support_atomic_access{false};
@@ -77,7 +83,7 @@ namespace Engine {
          * @deprecated Using the unique_ptr variant is recommended.
          */
         static RenderTargetTexture Create(
-            RenderSystem &system,
+            Rhi::DeviceContext &device_context,
             RenderTargetTextureDesc texture,
             Rhi::SamplerDesc sampler,
             const std::string &name = ""
@@ -86,7 +92,7 @@ namespace Engine {
          * @brief Create a render target texture by description.
          */
         static std::unique_ptr<RenderTargetTexture> CreateUnique(
-            RenderSystem &system,
+            Rhi::DeviceContext &device_context,
             RenderTargetTextureDesc texture,
             Rhi::SamplerDesc sampler,
             const std::string &name = ""

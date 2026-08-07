@@ -1,7 +1,7 @@
 #include "Rhi/Texture.h"
 
-#include "Render/RenderSystem.h" // TODO(phase 3): remove when Texture drops the RenderSystem constructor
 #include "Rhi/AllocatorState.h"
+#include "Rhi/DeviceContext.h"
 #include "Rhi/Hasher.hpp"
 #include "Rhi/ImageUtilsFunc.h"
 #include "Rhi/ImmutableResourceCache.h"
@@ -139,10 +139,10 @@ namespace Engine::Rhi {
     Texture::Texture() : pimpl(nullptr) {
     }
 
-    Texture::Texture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name) :
+    Texture::Texture(DeviceContext &device_context, TextureDesc texture, SamplerDesc sampler, const std::string &name) :
         pimpl(std::make_unique<impl>()) {
 
-        auto &allocator = system.GetAllocatorState();
+        auto &allocator = device_context.GetAllocatorState();
         auto dimension = texture.dimensions;
         auto [width, height, depth] = std::tie(texture.width, texture.height, texture.depth);
         auto mipLevels = texture.mipmap_levels;
@@ -158,7 +158,7 @@ namespace Engine::Rhi {
         assert(!texture.is_cube_map || arrayLayers == 6);
 
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
-        pimpl->device = system.GetDevice();
+        pimpl->device = device_context.GetDevice();
         pimpl->m_image = allocator.AllocateImageUnique(
             Rhi::AllocatorState::ImageAllocationDescription{
                 texture.memory_type,
@@ -175,7 +175,7 @@ namespace Engine::Rhi {
         pimpl->m_tdesc = texture;
         pimpl->m_name = name;
 
-        pimpl->m_sampler = system.GetIRCache().GetSampler(sampler);
+        pimpl->m_sampler = device_context.GetIRCache().GetSampler(sampler);
         pimpl->m_sdesc = sampler;
     }
 

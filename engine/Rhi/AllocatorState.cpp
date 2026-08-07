@@ -233,25 +233,19 @@ namespace Engine::Rhi {
         }
     };
 
-    AllocatorState::AllocatorState() = default;
-
-    void AllocatorState::SetDeviceInterface(DeviceInterface &device_interface) {
-        m_device_interface = &device_interface;
-        pimpl = std::make_unique<impl>();
-    }
-    AllocatorState::~AllocatorState() {
-        if (pimpl) vmaDestroyAllocator(pimpl->m_allocator);
-    }
-    void AllocatorState::Create() {
+    AllocatorState::AllocatorState(DeviceInterface &device_interface) :
+        pimpl(std::make_unique<impl>()), m_device_interface(&device_interface) {
         VmaAllocatorCreateInfo info{};
         info.device = m_device_interface->GetDevice();
         info.physicalDevice = m_device_interface->GetPhysicalDevice();
         info.instance = m_device_interface->GetInstance();
         info.vulkanApiVersion = vk::ApiVersion13;
 
-        vmaDestroyAllocator(pimpl->m_allocator);
         vmaCreateAllocator(&info, &pimpl->m_allocator);
         assert(pimpl->m_allocator && "Failed to create allocator.");
+    }
+    AllocatorState::~AllocatorState() {
+        if (pimpl) vmaDestroyAllocator(pimpl->m_allocator);
     }
 
     VmaAllocator AllocatorState::GetAllocator() const {

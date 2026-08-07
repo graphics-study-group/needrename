@@ -1,13 +1,11 @@
 #include "PhysicsScene.h"
 
-#include <Render/RenderSystem.h>
-#include <Render/RenderSystem/FrameManager.h>
-#include <Render/RenderSystem/SceneDataManager.h>
 #include <Rhi/ComputeBuffer.h>
+#include <Rhi/DeviceContext.h>
 #include <Rhi/SubmissionHelper.h>
-#include <vulkan/vulkan.hpp>
 
 #include <SDL3/SDL.h>
+#include <vulkan/vulkan.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -241,10 +239,9 @@ namespace Engine {
         m_hinge_joint_alive[joint_idx] = 1u;
     }
 
-    void PhysicsScene::SyncGpuBuffers(RenderSystem &render_system) {
-        RefreshGpuBuffers(render_system);
-        render_system.GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
-        render_system.GetSceneDataManager().SetModelMatricesBuffer(m_gpu_model_matrices.get());
+    void PhysicsScene::SyncGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper) {
+        RefreshGpuBuffers(device_context, submission_helper);
+        submission_helper.ExecuteSubmissionImmediately();
     }
 
     PhysicsScene::PhysicsGpuBuffers PhysicsScene::GetGpuBuffers() const noexcept {
@@ -300,11 +297,11 @@ namespace Engine {
         return m_simulation_enabled;
     }
 
-    void PhysicsScene::RefreshGpuBuffers(RenderSystem &render_system) {
+    void PhysicsScene::RefreshGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper) {
         m_gpu_rigid_body_slot_count = static_cast<uint32_t>(m_rigid_body_alive.size());
         m_gpu_shape_slot_count = static_cast<uint32_t>(m_shape_alive.size());
 
-        const auto &allocator = render_system.GetAllocatorState();
+        const auto &allocator = device_context.GetAllocatorState();
         EnsureBuffer<uint32_t>(m_gpu_rigid_body_alive, allocator, m_gpu_rigid_body_slot_count, "Physics RB Alive");
         EnsureBuffer<float>(m_gpu_rigid_body_mass, allocator, m_gpu_rigid_body_slot_count, "Physics RB Mass");
         EnsureBuffer<float>(
@@ -374,7 +371,7 @@ namespace Engine {
         EnsureBuffer<GpuHingeJoint>(m_gpu_hinge_joints, allocator, hinge_joint_count, "Physics HingeJoints");
         EnsureBuffer<uint32_t>(m_gpu_hinge_joint_alive, allocator, hinge_joint_count, "Physics HingeJoint Alive");
 
-        auto &submission = render_system.GetFrameManager().GetSubmissionHelper();
+        auto &submission = submission_helper;
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_alive, MakeSpan(m_rigid_body_alive));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_mass, MakeSpan(m_rigid_body_mass));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_static_friction, MakeSpan(m_rigid_body_static_friction));

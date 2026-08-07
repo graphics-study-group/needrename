@@ -74,7 +74,7 @@ namespace Engine {
         level_asset->LoadToWorld();
 
         auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene();
-        auto solver = std::make_unique<XpbdGpuSolver>(*renderer);
+        auto solver = std::make_unique<XpbdGpuSolver>(*this->m_device_context);
         XpbdConfig config{};
         config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
         config.time_step = 1.0f / 60.0f;
@@ -110,7 +110,14 @@ namespace Engine {
                 std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, sdl_window_flags);
         }
         this->time = std::make_shared<TimeSystem>();
-        this->renderer = std::make_shared<RenderSystem>(this->window);
+        Rhi::DeviceInterface::DeviceConfiguration cfg{
+            .window = is_headless ? nullptr : this->window->GetWindow(),
+            .application_name = opt->title.c_str(),
+            .application_version = 0,
+            .dynamic_dispatcher = nullptr,
+        };
+        this->m_device_context = std::make_unique<Rhi::DeviceContext>(cfg);
+        this->renderer = std::make_shared<RenderSystem>(this->window, *this->m_device_context);
         this->physics = std::make_shared<PhysicsSystem>();
         this->world = std::make_shared<WorldSystem>();
         this->asset_database = std::make_shared<FileSystemDatabase>();
@@ -229,6 +236,12 @@ namespace Engine {
         this->world->GetMainSceneRef().FlushPhysics(*this->renderer);
         this->world->UpdateRendererData(*this->renderer);
 
+        // Physics → render bridge: forward the physics model matrices buffer
+        // to the scene data manager (physics itself no longer touches Render).
+        if (auto *phys_scene = this->world->GetMainSceneRef().GetPhysicsScene()) {
+            this->renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+        }
+
         if (this->renderer->StartFrame() == std::numeric_limits<uint32_t>::max()) {
             // Swapchain out of date after the recreation retry (e.g. window
             // minimized or resized again mid-frame): skip this frame. The
@@ -240,7 +253,7 @@ namespace Engine {
         this->physics->PreGPUStep();
         // Phase 2: GPU recording — physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
-        this->physics->GPUStep(cb); // solvers record their RGs
+        this->physics->GPUStep(cb.GetCommandBuffer()); // solvers record their RGs
         if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
             this->render_graph->RecordAllPasses(cb.GetCommandBuffer());
         }

@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
     uint32_t height = 1024;
 
     std::shared_ptr skybox_texture = Rhi::ImageTexture::CreateUnique(
-        *rsys,
+        rsys->GetDeviceContext(),
         Rhi::ImageTexture::ImageTextureDesc{
             .dimensions = 2,
             .width = width,

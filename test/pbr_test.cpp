@@ -215,18 +215,18 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr hdr_color{
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "HDR Color Attachment")
-    };
+    std::shared_ptr hdr_color{RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "HDR Color Attachment"
+    )};
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    std::shared_ptr color{
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Attachment")
-    };
+    std::shared_ptr color{RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment"
+    )};
     desc.mipmap_levels = 1;
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth{
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment")
-    };
+    std::shared_ptr depth{RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment"
+    )};
 
     Rhi::ImageTexture::ImageTextureDesc empty_desc{
         .dimensions = 2,
@@ -238,17 +238,21 @@ int main(int argc, char **argv) {
         .format = Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
         .is_cube_map = false
     };
-    std::shared_ptr red_texture =
-        Rhi::ImageTexture::CreateUnique(*rsys, empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Albedo");
+    std::shared_ptr red_texture = Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Albedo"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
-    std::shared_ptr MRAO_texture =
-        Rhi::ImageTexture::CreateUnique(*rsys, empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled MRAO");
+    std::shared_ptr MRAO_texture = Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled MRAO"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*MRAO_texture, {1.0, 1.0, 1.0, 1.0});
-    std::shared_ptr normal_texture =
-        Rhi::ImageTexture::CreateUnique(*rsys, empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Normal");
+    std::shared_ptr normal_texture = Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Normal"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*normal_texture, {0.5, 0.5, 1.0, 1.0});
-    std::shared_ptr emissive_texture =
-        Rhi::ImageTexture::CreateUnique(*rsys, empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Emissive");
+    std::shared_ptr emissive_texture = Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), empty_desc, Rhi::Texture::SamplerDesc{}, "Sampled Emissive"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*emissive_texture, {1.0, 1.0, 1.0, 1.0});
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
@@ -271,8 +275,8 @@ int main(int argc, char **argv) {
 
     // Setup compute shader
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
-    auto bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(*rsys);
-    bloom_compute_stage->Instantiate(*cs_ref.as<ShaderAsset>());
+    auto bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(rsys->GetDeviceContext());
+    bloom_compute_stage->Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
     auto &bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
 
     // Build render graph.

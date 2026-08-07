@@ -1,9 +1,12 @@
 #ifndef ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 #define ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 
+namespace vk {
+    class CommandBuffer;
+}
+
 namespace Engine {
     class PhysicsScene;
-    class CommandBuffer;
 
     /**
      * @brief Abstract base class for GPU physics solvers.
@@ -13,12 +16,13 @@ namespace Engine {
      * GPUStep → PostGPUStep lifecycle.
      *
      * PreGPUStep / PostGPUStep run outside the CommandBuffer scope.
-     * GPUStep receives the CommandBuffer and records compute dispatches
-     * directly — callers never access the solver's internal resources.
+     * GPUStep receives the raw vk::CommandBuffer and records compute
+     * dispatches directly — callers never access the solver's internal
+     * resources.
      *
      * Each solver is bound to a specific PhysicsScene at registration
      * time via OnBindToScene(). The bound scene is accessible through
-     * the protected m_bound_scene member. RenderSystem is stored by
+     * the protected m_bound_scene member. Rhi::DeviceContext is stored by
      * each concrete solver at construction time.
      */
     class ISolver {
@@ -55,9 +59,9 @@ namespace Engine {
          * The solver MUST record its compute dispatches to @p cb before
          * returning. The solver accesses its scene through m_bound_scene.
          *
-         * @param command_buffer CommandBuffer in Recording state (after begin, before end).
+         * @param cb Raw command buffer in Recording state (after begin, before end).
          */
-        virtual void GPUStep(CommandBuffer &command_buffer) = 0;
+        virtual void GPUStep(vk::CommandBuffer cb) = 0;
 
         /**
          * @brief Called AFTER cb.end() + submit each frame.

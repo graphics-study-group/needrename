@@ -38,16 +38,29 @@ Phased implementation. Each phase ends with a mandatory review stop: build + tes
 - [x] 2.5 Phase 2 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (48/48)
 - [ ] 2.6 PHASE 2 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
-## 3. Phase 3 — Physics interface rework (behavior point)
+## 3. Phase 3 — Physics interface rework + DeviceContext (behavior point)
 
-- [ ] 3.1 Change `ISolver::GPUStep` and `PhysicsSystem::GPUStep` to raw `vk::CommandBuffer`; adapt `XpbdGpuSolver`, `DummySolver`, `SpatialHashBroadDetector`, `ConvexCollisionDetector`, `RadixSort`, `ParallelScan`, `CompactUnique` `GPUStep`/`Record` signatures
-- [ ] 3.2 Add Rhi compute helpers as free functions over `vk::CommandBuffer` + `ComputeStage`/`ComputeResourceBinding` (bind stage, bind resource, dispatch); physics call sites switch from the Render `CommandBuffer` wrapper to these helpers
-- [ ] 3.3 Change constructor signatures: `XpbdGpuSolver`, `DummySolver`, detectors, and algorithms from `RenderSystem&` to `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&)`; `ComputeResourceBinding` to `(const Rhi::DeviceInterface&, ComputeStage&)`; `PhysicsScene::RefreshGpuBuffers`/`SyncGpuBuffers` take `(const Rhi::AllocatorState&, Rhi::SubmissionHelper&)`
-- [ ] 3.4 Adapt call sites: `MainClass::LoadProject` solver construction, all `test/*.cpp` and example solver/detector constructions
-- [ ] 3.5 Remove physics→render bridge: delete `SetModelMatricesBuffer` calls in `XPBDGpuSolver::GPUStep` and `PhysicsScene::SyncGpuBuffers`; add the forward in `MainClass::RunOneFrame` after physics flush/step using `GetGpuBuffers().model_matrices` (skip when physics scene is null)
-- [ ] 3.6 Verify physics module no longer includes any `Render/` header (grep check)
-- [ ] 3.7 Phase 3 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (windowed + headless); physics behavior unchanged
-- [ ] 3.8 PHASE 3 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
+> Phase 3 design updates (user decisions during implementation):
+> - New `Rhi::DeviceContext` aggregator (revives the Phase-2-deleted class, redesigned): owns DeviceInterface + AllocatorState + ImmutableResourceCache; MainClass creates one and passes it to RenderSystem and physics. `SubmissionHelper` stays independent (physics gets its own via PhysicsAdaptor). `VULKAN_HPP_DEFAULT_DISPATCHER.init` moves into DeviceContext construction.
+> - `AllocatorState` constructor becomes one-step `AllocatorState(DeviceInterface&)`.
+> - Physics component constructors take `Rhi::DeviceContext&`; `ComputeStage` takes `(DeviceInterface&, AllocatorState&, ImmutableResourceCache&)`; `ComputeResourceBinding` takes `(DeviceInterface&, AllocatorState&, ImmutableResourceCache&, ComputeStage&)`.
+> - Compute free functions take a `frame_index` parameter (physics components maintain their own counter).
+> - Tests keep constructing facilities directly (no DeviceContext) — only syntactic adaptation for the AllocatorState constructor.
+> - Bloom (`ComplexRenderGraphBuilder.cpp:84`) also switches off the `Instantiate(ShaderAsset&)` overload (D4 completion).
+> - `BindComputeResource` free function additionally takes the `ComputeStage&` (needed for the pipeline layout; D5 signature corrected during implementation).
+> - All device-facility consumers unify on a single `DeviceContext&` (user decision): `ComputeStage(DeviceContext&)`, `ComputeResourceBinding(DeviceContext&, ComputeStage&)`, `Texture`/`ImageTexture`/`RenderTargetTexture` (`Texture`'s stale `RenderSystem&` constructor closed here). `AllocatorState(DeviceInterface&)` and `ShaderResourceBinding(ImmutableResourceCache&)` stay as-is. RenderSystem getters remain one-line forwards (Facade).
+> - `MainClass::m_device_context` must be declared FIRST among members (destructed last) — a DeviceContext destroyed before RenderSystem/PhysicsSystem frees the VMA allocator while solver/RTT resources are still alive (VMA "allocations not freed" fail-fast).
+> - Unified `DeviceContext&` consumption implemented: `ComputeStage(DeviceContext&)`, `ComputeResourceBinding(DeviceContext&, ComputeStage&)`, `Texture`/`ImageTexture`/`RenderTargetTexture(DeviceContext&, ...)` (Texture's stale `RenderSystem&` closed); physics creation sites shortened to `ComputeStage(ctx)`; tests/bloom use `rsys->GetDeviceContext()`. `AllocatorState(DeviceInterface&)` and `ShaderResourceBinding(ImmutableResourceCache&)` unchanged; RenderSystem getters remain forwards.
+
+- [x] 3.1 Create `Rhi::DeviceContext` (`engine/Rhi/DeviceContext.h/.cpp`): aggregates DeviceInterface + AllocatorState + ImmutableResourceCache, dispatcher init inside, getters; `AllocatorState` constructor one-step `AllocatorState(DeviceInterface&)`; adapt `RenderSystem::Create` (drop self-creation, use the context) and `MainClass::Initialize` (create context, pass to `RenderSystem` constructor, add `GetDeviceContext` to RenderSystem)
+- [x] 3.2 Change `ISolver::GPUStep` and `PhysicsSystem::GPUStep` to raw `vk::CommandBuffer`; adapt `XpbdGpuSolver`, `DummySolver`, `SpatialHashBroadDetector`, `ConvexCollisionDetector`, `RadixSort`, `ParallelScan`, `CompactUnique` `GPUStep`/`Record` signatures
+- [x] 3.3 Add Rhi compute helpers as free functions over `vk::CommandBuffer` + `ComputeStage`/`ComputeResourceBinding` (bind stage, bind resource with frame index, dispatch); physics call sites switch from the Render `CommandBuffer` wrapper to these helpers; physics components maintain their own frame counters
+- [x] 3.4 Change constructor signatures: `XpbdGpuSolver`, `DummySolver`, detectors, algorithms from `RenderSystem&` to `Rhi::DeviceContext&`; `ComputeStage` to `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&, Rhi::ImmutableResourceCache&)`; `ComputeResourceBinding` to `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&, Rhi::ImmutableResourceCache&, ComputeStage&)`; `PhysicsScene::RefreshGpuBuffers`/`SyncGpuBuffers` take `(Rhi::DeviceContext&, Rhi::SubmissionHelper&)`; move `IndexedBuffer` from `engine/Render/Memory/` to `engine/Rhi/` (with namespace `Engine::Rhi`)
+- [x] 3.5 Adapt call sites: `MainClass::LoadProject` solver construction (via DeviceContext), `PhysicsAdaptor::Flush` (lazily create and hold its own `SubmissionHelper`, pass `(render_system.GetDeviceContext(), m_submission_helper)`), bloom `ComputeStage` construction (from RenderSystem getters) and Asset-overload removal, tests (`AllocatorState` one-step constructor + `ComputeStage` construction + `Instantiate` binary overload)
+- [x] 3.6 Remove physics→render bridge: delete `SetModelMatricesBuffer` calls in `XPBDGpuSolver::GPUStep`, `DummySolver::PreGPUStep`, and `PhysicsScene::SyncGpuBuffers`; add the forward in `MainClass::RunOneFrame` after `FlushPhysics` using `GetGpuBuffers().model_matrices` (skip when physics scene is null)
+- [x] 3.7 Verify physics module no longer includes any `Render/` header (grep clean; only a stale `class RenderSystem;` forward declaration removed)
+- [x] 3.8 Phase 3 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (48/48); physics behavior unchanged
+- [ ] 3.9 PHASE 3 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
 ## 4. Phase 4 — Cleanup (reflection, exports, tests)
 

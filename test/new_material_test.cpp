@@ -191,7 +191,8 @@ int main(int argc, char **argv) {
     Engine::detail::texture_import::LoadImage2DTextureAssetFromFile(
         *test_texture_asset, std::string(ENGINE_ASSETS_DIR) + "/skybox/sky_cloudy.png", Rhi::ImageFormat::R8G8B8A8SRGB
     );
-    std::shared_ptr allocated_image_texture = Rhi::ImageTexture::CreateUnique(*rsys, *test_texture_asset);
+    std::shared_ptr allocated_image_texture =
+        Rhi::ImageTexture::CreateUnique(rsys->GetDeviceContext(), *test_texture_asset);
 
     // Prepare material
     auto [test_library_asset, test_template_asset] = ConstructMaterial();
@@ -244,19 +245,22 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr color =
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Attachment");
-    std::shared_ptr postproc =
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Gaussian Blurred");
+    std::shared_ptr color = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment"
+    );
+    std::shared_ptr postproc = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Gaussian Blurred"
+    );
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth =
-        RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment");
+    std::shared_ptr depth = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment"
+    );
 
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/gaussian_blur.comp.asset"});
-    Rhi::ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs_ref.as<ShaderAsset>());
+    Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
+    cstage.Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
 
     auto &kbinding = cstage.AllocateResourceBinding();
     kbinding.GetShaderResourceBinding().BindTexture("inputImage", *color);

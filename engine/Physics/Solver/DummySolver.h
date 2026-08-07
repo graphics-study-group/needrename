@@ -5,13 +5,17 @@
 
 #include <memory>
 
+namespace vk {
+    class CommandBuffer;
+}
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
         class ComputeStage;
     } // namespace Rhi
-    class CommandBuffer;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
     class PhysicsScene;
     struct XpbdConfig;
 
@@ -27,11 +31,12 @@ namespace Engine {
      * (no RenderGraph).
      */
     class DummySolver : public ISolver {
+        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
 
     public:
-        explicit DummySolver(RenderSystem &render_system);
+        explicit DummySolver(Rhi::DeviceContext &device_context);
         ~DummySolver() override;
 
         DummySolver(const DummySolver &) = delete;
@@ -40,7 +45,7 @@ namespace Engine {
         DummySolver &operator=(DummySolver &&) = delete;
 
         void PreGPUStep() override;
-        void GPUStep(CommandBuffer &command_buffer) override;
+        void GPUStep(vk::CommandBuffer cb) override;
 
         [[nodiscard]]
         bool IsInitialized() const noexcept override;

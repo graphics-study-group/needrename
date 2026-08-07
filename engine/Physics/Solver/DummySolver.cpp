@@ -6,9 +6,9 @@
 
 #include <Physics/PhysicsScene.h>
 #include <Physics/Solver/XPBDGpuSolver.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/RenderSystem.h>
-#include <Render/RenderSystem/SceneDataManager.h>
+#include <Rhi/ComputeHelpers.h>
+#include <Rhi/DeviceContext.h>
+
 #include <Rhi/ComputeBuffer.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
@@ -47,7 +47,7 @@ namespace {
 namespace Engine {
 
     struct DummySolver::Impl {
-        RenderSystem &render_system;
+        Rhi::DeviceContext &device_context;
 
         XpbdConfig config{};
         bool initialized = false;
@@ -58,7 +58,7 @@ namespace Engine {
 
         std::unique_ptr<Rhi::ComputeBuffer> gpu_uniforms{};
 
-        explicit Impl(RenderSystem &rs) : render_system(rs) {
+        explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
         Impl(const Impl &) = delete;
@@ -69,7 +69,7 @@ namespace Engine {
         void EnsureUniformBuffer(uint32_t body_count) {
             size_t sz = sizeof(glm::vec4);
             if (!gpu_uniforms || gpu_uniforms->GetSize() != sz) {
-                const auto &alloc = render_system.GetAllocatorState();
+                const auto &alloc = device_context.GetAllocatorState();
                 gpu_uniforms =
                     Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "DummySolver Uniforms");
             }
@@ -77,7 +77,7 @@ namespace Engine {
         }
     };
 
-    DummySolver::DummySolver(RenderSystem &render_system) : m_impl(std::make_unique<Impl>(render_system)) {
+    DummySolver::DummySolver(Rhi::DeviceContext &device_context) : m_impl(std::make_unique<Impl>(device_context)) {
     }
 
     DummySolver::~DummySolver() = default;
@@ -103,11 +103,10 @@ namespace Engine {
 
         if (!m_impl->initialized) {
             m_impl->shader_spirv = LoadPhysicsSpirv("solver/DummySolver/dummy_solver.comp.spv");
-            m_impl->compute_stage = std::make_unique<Rhi::ComputeStage>(m_impl->render_system);
+            m_impl->compute_stage = std::make_unique<Rhi::ComputeStage>(m_impl->device_context);
             m_impl->compute_stage->Instantiate(m_impl->shader_spirv, "DummySolver");
             m_impl->resource_binding = &m_impl->compute_stage->AllocateResourceBinding();
 
-            m_impl->render_system.GetSceneDataManager().SetModelMatricesBuffer(gpu.model_matrices);
             m_impl->initialized = true;
         }
 
@@ -121,14 +120,15 @@ namespace Engine {
             glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt);
     }
 
-    void DummySolver::GPUStep(CommandBuffer &command_buffer) {
+    void DummySolver::GPUStep(vk::CommandBuffer cb) {
         const auto gpu = m_bound_scene->GetGpuBuffers();
 
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) {
             return;
         }
 
-        command_buffer.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        const uint32_t frame = m_frame_counter++ % 3;
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         auto &srb = m_impl->resource_binding->GetShaderResourceBinding();
         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
@@ -139,9 +139,9 @@ namespace Engine {
 
         const uint32_t body_wg = (gpu.rigid_body_slot_count + 63u) / 64u;
 
-        command_buffer.BindComputeStage(*m_impl->compute_stage);
-        command_buffer.BindComputeResource(*m_impl->resource_binding);
-        command_buffer.DispatchCompute(body_wg, 1, 1);
+        Rhi::BindComputeStage(cb, *m_impl->compute_stage);
+        Rhi::BindComputeResource(cb, *m_impl->compute_stage, *m_impl->resource_binding, frame);
+        Rhi::DispatchCompute(cb, body_wg, 1, 1);
     }
 
 } // namespace Engine

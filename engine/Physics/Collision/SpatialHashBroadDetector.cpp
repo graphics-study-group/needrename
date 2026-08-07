@@ -9,12 +9,12 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsScene.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/RenderSystem.h>
 #include <Rhi/ComputeBuffer.h>
+#include <Rhi/ComputeHelpers.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
 #include <Rhi/DeviceBuffer.h>
+#include <Rhi/DeviceContext.h>
 #include <Rhi/ShaderResourceBinding.h>
 
 #include <filesystem>
@@ -58,7 +58,7 @@ namespace Engine {
     static_assert(sizeof(GridConfigGpu) == 48, "GridConfigGpu must match shader UBO layout");
 
     struct SpatialHashBroadDetector::Impl {
-        RenderSystem &render_system;
+        Rhi::DeviceContext &device_context;
         GridConfig grid_config{};
         uint32_t fallback_threshold = 8;
         uint32_t max_global_shape_count = 100;
@@ -130,7 +130,7 @@ namespace Engine {
 
         std::unique_ptr<Rhi::ComputeBuffer> gpu_scan_scratch{};
 
-        explicit Impl(RenderSystem &rs) : render_system(rs) {
+        explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
         Impl(const Impl &) = delete;
@@ -141,14 +141,14 @@ namespace Engine {
         void EnsureBuffer(
             std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name, bool host_visible = false
         ) {
-            const auto &alloc = render_system.GetAllocatorState();
+            const auto &alloc = device_context.GetAllocatorState();
             if (!buf || buf->GetSize() != bytes) {
                 buf = Rhi::ComputeBuffer::CreateUnique(alloc, bytes, host_visible, false, false, false, name);
             }
         }
 
         void EnsureAllBuffers(uint32_t shape_count) {
-            const auto &alloc = render_system.GetAllocatorState();
+            const auto &alloc = device_context.GetAllocatorState();
 
             EnsureBuffer(gpu_shape_slot_count, sizeof(uint32_t), "BH ShapeSlotCount", true);
 
@@ -245,7 +245,7 @@ namespace Engine {
 
             auto load_stage = [this](const char *path, const char *name) {
                 auto spirv = LoadPhysicsSpirvBytes(path);
-                auto stage = std::make_unique<Rhi::ComputeStage>(render_system);
+                auto stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 stage->Instantiate(spirv, name);
                 return stage;
             };
@@ -290,36 +290,42 @@ namespace Engine {
         // Dispatch helpers
         // -----------------------------------------------------------------
 
-        void DispatchClear(CommandBuffer &cb, Rhi::ComputeBuffer &target, Rhi::ComputeBuffer &elem_count) {
+        void DispatchClear(
+            vk::CommandBuffer cb, uint32_t frame, Rhi::ComputeBuffer &target, Rhi::ComputeBuffer &elem_count
+        ) {
             auto &srb = memset_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", target);
             srb.BindBuffer("ElemCount", elem_count);
-            cb.BindComputeStage(*memset_stage);
-            cb.BindComputeResource(*memset_binding);
+            Rhi::BindComputeStage(cb, *memset_stage);
+            Rhi::BindComputeResource(cb, *memset_stage, *memset_binding, frame);
             uint32_t wg = (target.GetSize() / sizeof(uint32_t) + 63u) / 64u;
             if (wg == 0) wg = 1;
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
         void DispatchCopy(
-            CommandBuffer &cb, Rhi::ComputeBuffer &src, Rhi::ComputeBuffer &dst, Rhi::ComputeBuffer &elem_count
+            vk::CommandBuffer cb,
+            uint32_t frame,
+            Rhi::ComputeBuffer &src,
+            Rhi::ComputeBuffer &dst,
+            Rhi::ComputeBuffer &elem_count
         ) {
             auto &srb = copy_binding->GetShaderResourceBinding();
             srb.BindBuffer("SrcBuffer", src);
             srb.BindBuffer("DstBuffer", dst);
             srb.BindBuffer("ElemCount", elem_count);
-            cb.BindComputeStage(*copy_stage);
-            cb.BindComputeResource(*copy_binding);
+            Rhi::BindComputeStage(cb, *copy_stage);
+            Rhi::BindComputeResource(cb, *copy_stage, *copy_binding, frame);
             uint32_t wg = (dst.GetSize() / sizeof(uint32_t) + 63u) / 64u;
             if (wg == 0) wg = 1;
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
         // -----------------------------------------------------------------
         // Recording paths
         // -----------------------------------------------------------------
 
-        void RecordAABBPass(CommandBuffer &cb) {
+        void RecordAABBPass(vk::CommandBuffer cb, uint32_t frame) {
             const auto gpu = scene->GetGpuBuffers();
             auto &srb = aabb_binding->GetShaderResourceBinding();
             srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
@@ -336,24 +342,24 @@ namespace Engine {
             srb.BindBuffer("GlobalCount", *gpu_global_count);
 
             uint32_t wg = (shape_count + 63u) / 64u;
-            cb.BindComputeStage(*aabb_stage);
-            cb.BindComputeResource(*aabb_binding);
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::BindComputeStage(cb, *aabb_stage);
+            Rhi::BindComputeResource(cb, *aabb_stage, *aabb_binding, frame);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
-        void RecordFallbackPath(CommandBuffer &cb) {
+        void RecordFallbackPath(vk::CommandBuffer cb, uint32_t frame) {
             const auto gpu = scene->GetGpuBuffers();
 
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            DispatchClear(cb, *gpu_global_count, *gpu_one);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            DispatchClear(cb, frame, *gpu_global_count, *gpu_one);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            RecordAABBPass(cb);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            RecordAABBPass(cb, frame);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            DispatchClear(cb, *gpu_pair_count, *gpu_one);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            DispatchClear(cb, frame, *gpu_pair_count, *gpu_one);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             auto &srb = fallback_pairs_binding->GetShaderResourceBinding();
             srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
@@ -366,23 +372,23 @@ namespace Engine {
 
             uint32_t total_pairs = (shape_count * (shape_count - 1u)) / 2u;
             uint32_t wg = (total_pairs + 63u) / 64u;
-            cb.BindComputeStage(*fallback_pairs_stage);
-            cb.BindComputeResource(*fallback_pairs_binding);
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::BindComputeStage(cb, *fallback_pairs_stage);
+            Rhi::BindComputeResource(cb, *fallback_pairs_stage, *fallback_pairs_binding, frame);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
-        void RecordSpatialHashPath(CommandBuffer &cb) {
+        void RecordSpatialHashPath(vk::CommandBuffer cb, uint32_t frame) {
             const auto gpu = scene->GetGpuBuffers();
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            DispatchClear(cb, *gpu_global_count, *gpu_one);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            DispatchClear(cb, frame, *gpu_global_count, *gpu_one);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            RecordAABBPass(cb);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            RecordAABBPass(cb, frame);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            DispatchClear(cb, *gpu_total_assignments, *gpu_one);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            DispatchClear(cb, frame, *gpu_total_assignments, *gpu_one);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Count cells
             {
@@ -396,15 +402,15 @@ namespace Engine {
                 srb.BindBuffer("TotalAssignments", *gpu_total_assignments);
 
                 uint32_t wg = (shape_count + 63u) / 64u;
-                cb.BindComputeStage(*count_cells_stage);
-                cb.BindComputeResource(*count_cells_binding);
-                cb.DispatchCompute(wg, 1, 1);
+                Rhi::BindComputeStage(cb, *count_cells_stage);
+                Rhi::BindComputeResource(cb, *count_cells_stage, *count_cells_binding, frame);
+                Rhi::DispatchCompute(cb, wg, 1, 1);
             }
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Prefix sum: shape_cell_count -> shape_cell_offset
             scan->Record(cb, *gpu_shape_cell_count, *gpu_shape_cell_offset, *gpu_scan_scratch, shape_count);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Fill cells
             {
@@ -418,15 +424,15 @@ namespace Engine {
                 srb.BindBuffer("CellShapePairs", *gpu_cell_shape_pairs);
 
                 uint32_t wg = (shape_count + 63u) / 64u;
-                cb.BindComputeStage(*fill_cells_stage);
-                cb.BindComputeResource(*fill_cells_binding);
-                cb.DispatchCompute(wg, 1, 1);
+                Rhi::BindComputeStage(cb, *fill_cells_stage);
+                Rhi::BindComputeResource(cb, *fill_cells_stage, *fill_cells_binding, frame);
+                Rhi::DispatchCompute(cb, wg, 1, 1);
             }
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Clear histogram
-            DispatchClear(cb, *gpu_cell_histogram, *gpu_grid_cells_p1);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            DispatchClear(cb, frame, *gpu_cell_histogram, *gpu_grid_cells_p1);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Histogram
             {
@@ -436,19 +442,19 @@ namespace Engine {
                 srb.BindBuffer("TotalAssignments", *gpu_total_assignments);
 
                 uint32_t wg = (max_cell_shape_pair_count + 63u) / 64u;
-                cb.BindComputeStage(*histogram_stage);
-                cb.BindComputeResource(*histogram_binding);
-                cb.DispatchCompute(wg, 1, 1);
+                Rhi::BindComputeStage(cb, *histogram_stage);
+                Rhi::BindComputeResource(cb, *histogram_stage, *histogram_binding, frame);
+                Rhi::DispatchCompute(cb, wg, 1, 1);
             }
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Prefix sum: cell_histogram -> cell_histogram (in-place)
             scan->Record(cb, *gpu_cell_histogram, *gpu_cell_histogram, *gpu_scan_scratch, grid_total_cells + 1u);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Copy cell_offsets -> cell_scratch
-            DispatchCopy(cb, *gpu_cell_histogram, *gpu_cell_scratch, *gpu_grid_cells_p1);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            DispatchCopy(cb, frame, *gpu_cell_histogram, *gpu_cell_scratch, *gpu_grid_cells_p1);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Scatter sort
             {
@@ -459,15 +465,15 @@ namespace Engine {
                 srb.BindBuffer("TotalAssignments", *gpu_total_assignments);
 
                 uint32_t wg = (max_cell_shape_pair_count + 63u) / 64u;
-                cb.BindComputeStage(*scatter_sort_stage);
-                cb.BindComputeResource(*scatter_sort_binding);
-                cb.DispatchCompute(wg, 1, 1);
+                Rhi::BindComputeStage(cb, *scatter_sort_stage);
+                Rhi::BindComputeResource(cb, *scatter_sort_stage, *scatter_sort_binding, frame);
+                Rhi::DispatchCompute(cb, wg, 1, 1);
             }
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Clear pair count
-            DispatchClear(cb, *gpu_pair_count, *gpu_one);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            DispatchClear(cb, frame, *gpu_pair_count, *gpu_one);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Generate pairs
             {
@@ -486,11 +492,11 @@ namespace Engine {
                 srb.BindBuffer("AabbMax", *gpu_aabb_max);
 
                 uint32_t wg = (grid_total_cells + 63u) / 64u;
-                cb.BindComputeStage(*generate_pairs_stage);
-                cb.BindComputeResource(*generate_pairs_binding);
-                cb.DispatchCompute(wg, 1, 1);
+                Rhi::BindComputeStage(cb, *generate_pairs_stage);
+                Rhi::BindComputeResource(cb, *generate_pairs_stage, *generate_pairs_binding, frame);
+                Rhi::DispatchCompute(cb, wg, 1, 1);
             }
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Generate global pairs
             {
@@ -507,11 +513,11 @@ namespace Engine {
                 srb.BindBuffer("AabbMax", *gpu_aabb_max);
 
                 uint32_t n_wg = (shape_count + 63u) / 64u;
-                cb.BindComputeStage(*global_pairs_stage);
-                cb.BindComputeResource(*global_pairs_binding);
-                cb.DispatchCompute(n_wg, max_global_shape_count, 1);
+                Rhi::BindComputeStage(cb, *global_pairs_stage);
+                Rhi::BindComputeResource(cb, *global_pairs_stage, *global_pairs_binding, frame);
+                Rhi::DispatchCompute(cb, n_wg, max_global_shape_count, 1);
             }
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // Dedup: RadixSort + CompactUnique
             {
@@ -524,7 +530,7 @@ namespace Engine {
                     *gpu_pair_count,
                     shape_count
                 );
-                cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+                cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
                 compact_unique->Record(
                     cb,
@@ -537,9 +543,9 @@ namespace Engine {
                     *gpu_pair_count,
                     max_output_pair_count
                 );
-                cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+                cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-                DispatchCopy(cb, *gpu_unique_count, *gpu_pair_count, *gpu_one);
+                DispatchCopy(cb, frame, *gpu_unique_count, *gpu_pair_count, *gpu_one);
             }
         }
     };
@@ -548,8 +554,8 @@ namespace Engine {
     // Public API
     // ===================================================================
 
-    SpatialHashBroadDetector::SpatialHashBroadDetector(RenderSystem &render_system) :
-        m_impl(std::make_unique<Impl>(render_system)) {
+    SpatialHashBroadDetector::SpatialHashBroadDetector(Rhi::DeviceContext &device_context) :
+        m_impl(std::make_unique<Impl>(device_context)) {
     }
 
     SpatialHashBroadDetector::~SpatialHashBroadDetector() = default;
@@ -620,22 +626,23 @@ namespace Engine {
 
         uint32_t scan_element = std::max(m_impl->max_output_pair_count, m_impl->grid_total_cells + 1u);
         if (!m_impl->scan || m_impl->scan->GetMaxElemCount() < scan_element) {
-            m_impl->scan = std::make_unique<ParallelScan>(m_impl->render_system, scan_element);
+            m_impl->scan = std::make_unique<ParallelScan>(m_impl->device_context, scan_element);
         }
         m_impl->scan->ResetParamPool();
 
         if (!m_impl->radix_sort || m_impl->radix_sort->GetMaxElemCount() < m_impl->max_output_pair_count) {
-            m_impl->radix_sort = std::make_unique<RadixSort>(m_impl->render_system, m_impl->max_output_pair_count);
+            m_impl->radix_sort = std::make_unique<RadixSort>(m_impl->device_context, m_impl->max_output_pair_count);
         }
         m_impl->radix_sort->ResetParamPool();
 
         if (!m_impl->compact_unique || m_impl->compact_unique->GetMaxElemCount() < m_impl->max_output_pair_count) {
             m_impl->compact_unique =
-                std::make_unique<CompactUnique>(m_impl->render_system, m_impl->max_output_pair_count);
+                std::make_unique<CompactUnique>(m_impl->device_context, m_impl->max_output_pair_count);
         }
     }
 
-    void SpatialHashBroadDetector::Record(CommandBuffer &cb) {
+    void SpatialHashBroadDetector::Record(vk::CommandBuffer cb) {
+        const uint32_t frame = m_frame_counter++ % 3;
         assert(m_impl->scene && "Configure must be called before Record");
         const auto gpu = m_impl->scene->GetGpuBuffers();
 
@@ -643,12 +650,12 @@ namespace Engine {
             return;
         }
 
-        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         if (m_impl->shape_count <= m_impl->fallback_threshold) {
-            m_impl->RecordFallbackPath(cb);
+            m_impl->RecordFallbackPath(cb, frame);
         } else {
-            m_impl->RecordSpatialHashPath(cb);
+            m_impl->RecordSpatialHashPath(cb, frame);
         }
     }
 } // namespace Engine

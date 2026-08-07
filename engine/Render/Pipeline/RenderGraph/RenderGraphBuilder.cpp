@@ -170,7 +170,7 @@ namespace Engine {
                 for (const auto &[k, v] : texture_creation_info) {
 
                     if (v.scale_x < 0.0f || v.scale_y < 0.0f) {
-                        ret[k] = RenderTargetTexture::CreateUnique(s, v.t, v.s, v.name);
+                        ret[k] = RenderTargetTexture::CreateUnique(s.GetDeviceContext(), v.t, v.s, v.name);
                     } else {
                         ret[k] = s.GetResizableRTTManager().RequestRTT(v.t, v.s, v.scale_x, v.scale_y, v.name);
                     }

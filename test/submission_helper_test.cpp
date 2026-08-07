@@ -48,9 +48,7 @@ int main() {
         .dynamic_dispatcher = nullptr,
     };
     Rhi::DeviceInterface gpu_device{cfg};
-    Rhi::AllocatorState allocator_state;
-    allocator_state.SetDeviceInterface(gpu_device);
-    allocator_state.Create();
+    Rhi::AllocatorState allocator_state{gpu_device};
     const auto device = gpu_device.GetDevice();
     const auto &allocator = allocator_state;
     CHECK(device && "Rhi must create a Vulkan device headlessly.");

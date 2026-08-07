@@ -5,12 +5,12 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsScene.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/RenderSystem.h>
 #include <Rhi/ComputeBuffer.h>
+#include <Rhi/ComputeHelpers.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
 #include <Rhi/DeviceBuffer.h>
+#include <Rhi/DeviceContext.h>
 #include <Rhi/ShaderResourceBinding.h>
 
 #include <filesystem>
@@ -49,7 +49,7 @@ namespace {
 namespace Engine {
 
     struct ConvexCollisionDetector::Impl {
-        RenderSystem &render_system;
+        Rhi::DeviceContext &device_context;
 
         PhysicsScene *cached_scene = nullptr;
         const Rhi::ComputeBuffer *cached_pair_buffer = nullptr;
@@ -76,7 +76,7 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_detector_config{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_one{};
 
-        explicit Impl(RenderSystem &rs) : render_system(rs) {
+        explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
         Impl(const Impl &) = delete;
@@ -85,7 +85,7 @@ namespace Engine {
         Impl &operator=(Impl &&) = delete;
 
         void EnsureBuffers() {
-            const auto &allocator = render_system.GetAllocatorState();
+            const auto &allocator = device_context.GetAllocatorState();
             const size_t result_entries = std::max<uint32_t>(1u, max_output_collision_pairs);
 
             {
@@ -161,7 +161,7 @@ namespace Engine {
 
             {
                 auto spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_int_buffer.comp.spv");
-                clear_stage = std::make_unique<Rhi::ComputeStage>(render_system);
+                clear_stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 clear_stage->Instantiate(spirv, "ConvexDetect ClearCount");
                 clear_binding = &clear_stage->AllocateResourceBinding();
                 auto &srb = clear_binding->GetShaderResourceBinding();
@@ -171,7 +171,7 @@ namespace Engine {
 
             {
                 auto spirv = LoadPhysicsSpirv("collision/ConvexCollisionDetector/detect_collisions.comp.spv");
-                detect_stage = std::make_unique<Rhi::ComputeStage>(render_system);
+                detect_stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 detect_stage->Instantiate(spirv, "Convex Collision Detection");
                 detect_binding = &detect_stage->AllocateResourceBinding();
                 auto &srb = detect_binding->GetShaderResourceBinding();
@@ -222,8 +222,8 @@ namespace Engine {
         }
     };
 
-    ConvexCollisionDetector::ConvexCollisionDetector(RenderSystem &render_system) :
-        m_impl(std::make_unique<Impl>(render_system)) {
+    ConvexCollisionDetector::ConvexCollisionDetector(Rhi::DeviceContext &device_context) :
+        m_impl(std::make_unique<Impl>(device_context)) {
     }
 
     ConvexCollisionDetector::~ConvexCollisionDetector() = default;
@@ -268,7 +268,7 @@ namespace Engine {
         return result;
     }
 
-    void ConvexCollisionDetector::Record(CommandBuffer &cb) {
+    void ConvexCollisionDetector::Record(vk::CommandBuffer cb) {
         assert(m_impl->cached_scene && "Configure must be called before Record");
         const auto gpu = m_impl->cached_scene->GetGpuBuffers();
 
@@ -276,20 +276,21 @@ namespace Engine {
             return;
         }
 
-        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        const uint32_t frame = m_frame_counter++ % 3;
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         m_impl->EnsureShadersAndBindings();
         m_impl->RebindDetectBuffers();
 
-        cb.BindComputeStage(*m_impl->clear_stage);
-        cb.BindComputeResource(*m_impl->clear_binding);
-        cb.DispatchCompute(1, 1, 1);
+        Rhi::BindComputeStage(cb, *m_impl->clear_stage);
+        Rhi::BindComputeResource(cb, *m_impl->clear_stage, *m_impl->clear_binding, frame);
+        Rhi::DispatchCompute(cb, 1, 1, 1);
 
-        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         uint32_t detect_wg = std::max(1u, (m_impl->max_input_collision_pairs + 63u) / 64u);
-        cb.BindComputeStage(*m_impl->detect_stage);
-        cb.BindComputeResource(*m_impl->detect_binding);
-        cb.DispatchCompute(detect_wg, 1, 1);
+        Rhi::BindComputeStage(cb, *m_impl->detect_stage);
+        Rhi::BindComputeResource(cb, *m_impl->detect_stage, *m_impl->detect_binding, frame);
+        Rhi::DispatchCompute(cb, detect_wg, 1, 1);
     }
 } // namespace Engine

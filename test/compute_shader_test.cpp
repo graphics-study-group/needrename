@@ -88,16 +88,19 @@ int main(int argc, char *argv[]) {
         .is_cube_map = false
     };
 
-    std::shared_ptr color_input =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Compute Input");
-    std::shared_ptr color_output =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Compute Output");
+    std::shared_ptr color_input = Engine::RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Compute Input"
+    );
+    std::shared_ptr color_output = Engine::RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Compute Output"
+    );
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    std::shared_ptr color_present =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Rhi::Texture::SamplerDesc{}, "Color Present");
+    std::shared_ptr color_present = Engine::RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Present"
+    );
 
-    Rhi::ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs);
+    Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
+    cstage.Instantiate(cs->binary, cs->m_name);
     auto &cbinding = cstage.AllocateResourceBinding();
     cbinding.GetShaderResourceBinding().BindTexture("outputImage", *color_output);
     cbinding.GetShaderResourceBinding().BindTexture("inputImage", *color_input);

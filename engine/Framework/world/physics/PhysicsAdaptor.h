@@ -17,6 +17,9 @@
 namespace Engine {
     class Scene;
     class RenderSystem;
+    namespace Rhi {
+        class SubmissionHelper;
+    }
 
     /**
      * @brief Bridges GameObject-space physics descriptors to the COM-space PhysicsScene.
@@ -190,6 +193,7 @@ namespace Engine {
         PhysicsScene &m_physics_scene;
         Scene &m_scene;
 
+        std::unique_ptr<Rhi::SubmissionHelper> m_submission_helper{};
         std::unordered_map<ObjectHandle, uint32_t> m_object_to_rigid_body{};
         std::unordered_map<uint32_t, ObjectHandle> m_rigid_body_to_object{};
         std::unordered_map<ComponentHandle, uint32_t> m_shape_component_to_index{};

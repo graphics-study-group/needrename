@@ -4,8 +4,9 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/RenderSystem.h>
+#include <Rhi/ComputeHelpers.h>
+#include <Rhi/DeviceContext.h>
+
 #include <Rhi/ComputeBuffer.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
@@ -53,7 +54,7 @@ namespace Engine {
     static_assert(sizeof(RadixSortParamsGpu) == 16, "RadixSortParamsGpu must be 16 bytes");
 
     struct RadixSort::Impl {
-        RenderSystem &render_system;
+        Rhi::DeviceContext &device_context;
         uint32_t max_elem_count = 1u;
         bool initialized = false;
 
@@ -82,7 +83,7 @@ namespace Engine {
         Rhi::ComputeResourceBinding *scatter_binding = nullptr;
         Rhi::ComputeResourceBinding *memset_binding = nullptr;
 
-        explicit Impl(RenderSystem &rs, uint32_t mec) : render_system(rs), max_elem_count(mec) {
+        explicit Impl(Rhi::DeviceContext &ctx, uint32_t mec) : device_context(ctx), max_elem_count(mec) {
             if (max_elem_count == 0u) {
                 throw std::invalid_argument("RadixSort: max_elem_count must be > 0");
             }
@@ -99,30 +100,30 @@ namespace Engine {
 
             const char *histogram_path = "algorithm/radix_histogram.comp.spv";
             histogram_spirv = LoadPhysicsSpirvBytes(histogram_path);
-            histogram_stage = std::make_unique<Rhi::ComputeStage>(render_system);
+            histogram_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             histogram_stage->Instantiate(histogram_spirv, "RadixHistogram");
             histogram_binding = &histogram_stage->AllocateResourceBinding();
 
             const char *prefix_sum_path = "algorithm/radix_prefix_sum_256.comp.spv";
             prefix_sum_spirv = LoadPhysicsSpirvBytes(prefix_sum_path);
-            prefix_sum_stage = std::make_unique<Rhi::ComputeStage>(render_system);
+            prefix_sum_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             prefix_sum_stage->Instantiate(prefix_sum_spirv, "RadixPrefixSum256");
             prefix_sum_binding = &prefix_sum_stage->AllocateResourceBinding();
 
             const char *scatter_path = "algorithm/radix_scatter.comp.spv";
             scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
-            scatter_stage = std::make_unique<Rhi::ComputeStage>(render_system);
+            scatter_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             scatter_stage->Instantiate(scatter_spirv, "RadixScatter");
             scatter_binding = &scatter_stage->AllocateResourceBinding();
 
             const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
-            memset_stage = std::make_unique<Rhi::ComputeStage>(render_system);
+            memset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             memset_stage->Instantiate(memset_spirv, "RadixMemset");
             memset_binding = &memset_stage->AllocateResourceBinding();
 
             {
-                const auto &alloc = render_system.GetAllocatorState();
+                const auto &alloc = device_context.GetAllocatorState();
                 gpu_const_256 = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(uint32_t), true, false, false, false, "RadixSort Const256"
                 );
@@ -133,7 +134,7 @@ namespace Engine {
 
         Rhi::ComputeBuffer &AcquireHistogramParam(uint32_t byte_shift, uint32_t word_select, uint32_t elem_capacity) {
             if (histogram_param_index >= histogram_param_pool.size()) {
-                const auto &alloc = render_system.GetAllocatorState();
+                const auto &alloc = device_context.GetAllocatorState();
                 auto buf = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(RadixSortParamsGpu), true, false, false, false, "RadixSort HistogramParams"
                 );
@@ -150,7 +151,7 @@ namespace Engine {
 
         Rhi::ComputeBuffer &AcquireScatterParam(uint32_t byte_shift, uint32_t word_select, uint32_t elem_capacity) {
             if (scatter_param_index >= scatter_param_pool.size()) {
-                const auto &alloc = render_system.GetAllocatorState();
+                const auto &alloc = device_context.GetAllocatorState();
                 auto buf = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(RadixSortParamsGpu), true, false, false, false, "RadixSort ScatterParams"
                 );
@@ -165,18 +166,19 @@ namespace Engine {
             return buf;
         }
 
-        void RecordClearPass(CommandBuffer &cb, Rhi::ComputeBuffer &scratch_buf) {
+        void RecordClearPass(vk::CommandBuffer cb, uint32_t frame, Rhi::ComputeBuffer &scratch_buf) {
             auto &srb = memset_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", scratch_buf);
             srb.BindBuffer("ElemCount", *gpu_const_256);
 
-            cb.BindComputeStage(*memset_stage);
-            cb.BindComputeResource(*memset_binding);
-            cb.DispatchCompute(4, 1, 1); // 4 WGs for 256 elements
+            Rhi::BindComputeStage(cb, *memset_stage);
+            Rhi::BindComputeResource(cb, *memset_stage, *memset_binding, frame);
+            Rhi::DispatchCompute(cb, 4, 1, 1); // 4 WGs for 256 elements
         }
 
         void RecordHistogramPass(
-            CommandBuffer &cb,
+            vk::CommandBuffer cb,
+            uint32_t frame,
             Rhi::ComputeBuffer &pairs_buf,
             Rhi::ComputeBuffer &scratch_buf,
             Rhi::ComputeBuffer &param_buf,
@@ -191,22 +193,23 @@ namespace Engine {
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            cb.BindComputeStage(*histogram_stage);
-            cb.BindComputeResource(*histogram_binding);
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::BindComputeStage(cb, *histogram_stage);
+            Rhi::BindComputeResource(cb, *histogram_stage, *histogram_binding, frame);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
-        void RecordPrefixSumPass(CommandBuffer &cb, Rhi::ComputeBuffer &scratch_buf) {
+        void RecordPrefixSumPass(vk::CommandBuffer cb, uint32_t frame, Rhi::ComputeBuffer &scratch_buf) {
             auto &srb = prefix_sum_binding->GetShaderResourceBinding();
             srb.BindBuffer("Histogram", scratch_buf);
 
-            cb.BindComputeStage(*prefix_sum_stage);
-            cb.BindComputeResource(*prefix_sum_binding);
-            cb.DispatchCompute(1, 1, 1);
+            Rhi::BindComputeStage(cb, *prefix_sum_stage);
+            Rhi::BindComputeResource(cb, *prefix_sum_stage, *prefix_sum_binding, frame);
+            Rhi::DispatchCompute(cb, 1, 1, 1);
         }
 
         void RecordScatterPass(
-            CommandBuffer &cb,
+            vk::CommandBuffer cb,
+            uint32_t frame,
             Rhi::ComputeBuffer &pairs_in_buf,
             Rhi::ComputeBuffer &pairs_out_buf,
             Rhi::ComputeBuffer &scratch_buf,
@@ -223,13 +226,14 @@ namespace Engine {
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            cb.BindComputeStage(*scatter_stage);
-            cb.BindComputeResource(*scatter_binding);
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::BindComputeStage(cb, *scatter_stage);
+            Rhi::BindComputeResource(cb, *scatter_stage, *scatter_binding, frame);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
         void RecordRadixPass(
-            CommandBuffer &cb,
+            vk::CommandBuffer cb,
+            uint32_t frame,
             Rhi::ComputeBuffer &pairs_in_buf,
             Rhi::ComputeBuffer &pairs_out_buf,
             Rhi::ComputeBuffer &scratch_buf,
@@ -238,23 +242,25 @@ namespace Engine {
             uint32_t word_select,
             uint32_t elem_capacity
         ) {
-            RecordClearPass(cb, scratch_buf);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            RecordClearPass(cb, frame, scratch_buf);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             auto &hist_param = AcquireHistogramParam(byte_shift, word_select, elem_capacity);
-            RecordHistogramPass(cb, pairs_in_buf, scratch_buf, hist_param, pair_count_buf, elem_capacity);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            RecordHistogramPass(cb, frame, pairs_in_buf, scratch_buf, hist_param, pair_count_buf, elem_capacity);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            RecordPrefixSumPass(cb, scratch_buf);
-            cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+            RecordPrefixSumPass(cb, frame, scratch_buf);
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             auto &scat_param = AcquireScatterParam(byte_shift, word_select, elem_capacity);
-            RecordScatterPass(cb, pairs_in_buf, pairs_out_buf, scratch_buf, scat_param, pair_count_buf, elem_capacity);
+            RecordScatterPass(
+                cb, frame, pairs_in_buf, pairs_out_buf, scratch_buf, scat_param, pair_count_buf, elem_capacity
+            );
         }
     };
 
-    RadixSort::RadixSort(RenderSystem &render_system, uint32_t max_elem_count) :
-        m_impl(std::make_unique<Impl>(render_system, max_elem_count)) {
+    RadixSort::RadixSort(Rhi::DeviceContext &device_context, uint32_t max_elem_count) :
+        m_impl(std::make_unique<Impl>(device_context, max_elem_count)) {
     }
 
     RadixSort::~RadixSort() = default;
@@ -268,7 +274,7 @@ namespace Engine {
     }
 
     void RadixSort::Record(
-        CommandBuffer &cb,
+        vk::CommandBuffer cb,
         Rhi::ComputeBuffer &pairs_buf_a,
         Rhi::ComputeBuffer &pairs_buf_b,
         Rhi::ComputeBuffer &scratch_buf,
@@ -276,6 +282,7 @@ namespace Engine {
         Rhi::ComputeBuffer &pair_count_buf,
         uint32_t max_shape_count
     ) {
+        const uint32_t frame = m_frame_counter++ % 3;
         if (elem_capacity == 0u) {
             return;
         }
@@ -301,16 +308,32 @@ namespace Engine {
 
             if (to_b) {
                 m_impl->RecordRadixPass(
-                    cb, pairs_buf_a, pairs_buf_b, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity
+                    cb,
+                    frame,
+                    pairs_buf_a,
+                    pairs_buf_b,
+                    scratch_buf,
+                    pair_count_buf,
+                    byte_shift,
+                    word_select,
+                    elem_capacity
                 );
             } else {
                 m_impl->RecordRadixPass(
-                    cb, pairs_buf_b, pairs_buf_a, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity
+                    cb,
+                    frame,
+                    pairs_buf_b,
+                    pairs_buf_a,
+                    scratch_buf,
+                    pair_count_buf,
+                    byte_shift,
+                    word_select,
+                    elem_capacity
                 );
             }
 
             if (pass + 1 < kNumPasses) {
-                cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+                cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
             }
         }
     }

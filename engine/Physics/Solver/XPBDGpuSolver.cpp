@@ -7,9 +7,9 @@
 #include <Physics/Collision/ConvexCollisionDetector.h>
 #include <Physics/Collision/SpatialHashBroadDetector.h>
 #include <Physics/PhysicsScene.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/RenderSystem.h>
-#include <Render/RenderSystem/SceneDataManager.h>
+#include <Rhi/ComputeHelpers.h>
+#include <Rhi/DeviceContext.h>
+
 #include <Rhi/ComputeBuffer.h>
 #include <Rhi/ComputeResourceBinding.h>
 #include <Rhi/ComputeStage.h>
@@ -46,7 +46,7 @@ namespace {
 namespace Engine {
 
     struct XpbdGpuSolver::Impl {
-        RenderSystem &render_system;
+        Rhi::DeviceContext &device_context;
 
         bool shaders_loaded = false;
         XpbdConfig config{};
@@ -110,11 +110,11 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_count_buffer{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_shape_slot_count_buffer{};
 
-        explicit Impl(RenderSystem &rs) : render_system(rs) {
+        explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
         void EnsureBuffer(std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name) {
-            const auto &alloc = render_system.GetAllocatorState();
+            const auto &alloc = device_context.GetAllocatorState();
             if (!buf || buf->GetSize() != bytes) {
                 buf = Rhi::ComputeBuffer::CreateUnique(alloc, bytes, false, false, false, false, name);
             }
@@ -123,7 +123,7 @@ namespace Engine {
         void EnsureIntermediateBuffers(
             uint32_t body_count, uint32_t max_contacts, uint32_t hinge_joint_count, uint32_t fixed_joint_count
         ) {
-            const auto &alloc = render_system.GetAllocatorState();
+            const auto &alloc = device_context.GetAllocatorState();
             size_t body_bytes = static_cast<size_t>(body_count) * sizeof(glm::vec4);
             size_t body_int3 = static_cast<size_t>(body_count) * 3 * sizeof(float);
             size_t body_int1 = static_cast<size_t>(body_count) * sizeof(float);
@@ -205,7 +205,7 @@ namespace Engine {
 
             auto load = [this](const char *path, const char *name) {
                 auto spirv = LoadSpirv(path);
-                auto stage = std::make_unique<Rhi::ComputeStage>(render_system);
+                auto stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 stage->Instantiate(spirv, name);
                 return stage;
             };
@@ -292,7 +292,7 @@ namespace Engine {
         }
     };
 
-    XpbdGpuSolver::XpbdGpuSolver(RenderSystem &render_system) : m_impl(std::make_unique<Impl>(render_system)) {
+    XpbdGpuSolver::XpbdGpuSolver(Rhi::DeviceContext &device_context) : m_impl(std::make_unique<Impl>(device_context)) {
     }
 
     XpbdGpuSolver::~XpbdGpuSolver() = default;
@@ -335,7 +335,7 @@ namespace Engine {
 
         {
             if (!m_impl->broad_detector) {
-                m_impl->broad_detector = std::make_unique<SpatialHashBroadDetector>(m_impl->render_system);
+                m_impl->broad_detector = std::make_unique<SpatialHashBroadDetector>(m_impl->device_context);
             }
             GridConfig grid_config{};
             grid_config.world_min = m_impl->config.grid_world_min;
@@ -352,7 +352,7 @@ namespace Engine {
             auto broad_buffers = m_impl->broad_detector->GetResultBuffers();
 
             if (!m_impl->narrow_detector) {
-                m_impl->narrow_detector = std::make_unique<ConvexCollisionDetector>(m_impl->render_system);
+                m_impl->narrow_detector = std::make_unique<ConvexCollisionDetector>(m_impl->device_context);
             }
             uint32_t broad_max_pairs = m_impl->broad_detector->GetMaxPairs();
             uint32_t narrow_max_contacts =
@@ -368,7 +368,7 @@ namespace Engine {
         }
     }
 
-    void XpbdGpuSolver::GPUStep(CommandBuffer &command_buffer) {
+    void XpbdGpuSolver::GPUStep(vk::CommandBuffer cb) {
         const auto gpu = m_bound_scene->GetGpuBuffers();
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) return;
 
@@ -376,21 +376,20 @@ namespace Engine {
         const uint32_t shape_count = gpu.shape_slot_count;
         const uint32_t body_wg = (body_count + 63u) / 64u;
         const uint32_t shape_wg = (shape_count + 63u) / 64u;
+        const uint32_t frame = m_frame_counter++ % 3;
 
-        auto barrier = [&command_buffer]() {
-            command_buffer.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
-        };
+        auto barrier = [&cb]() { cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}}); };
 
-        auto dispatch = [&command_buffer](
+        auto dispatch = [&cb, frame](
                             Rhi::ComputeStage &stage,
                             Rhi::ComputeResourceBinding &binding,
                             uint32_t x,
                             uint32_t y = 1,
                             uint32_t z = 1
                         ) {
-            command_buffer.BindComputeStage(stage);
-            command_buffer.BindComputeResource(binding);
-            command_buffer.DispatchCompute(x, y, z);
+            Rhi::BindComputeStage(cb, stage);
+            Rhi::BindComputeResource(cb, stage, binding, frame);
+            Rhi::DispatchCompute(cb, x, y, z);
         };
 
         auto dispatch_clear = [this, &dispatch](Rhi::ComputeBuffer &tgt, Rhi::ComputeBuffer &cnt, uint32_t wg) {
@@ -399,8 +398,6 @@ namespace Engine {
             srb.BindBuffer("ElemCount", cnt);
             dispatch(*m_impl->clear_int_stage, *m_impl->clear_int_binding, wg);
         };
-
-        m_impl->render_system.GetSceneDataManager().SetModelMatricesBuffer(gpu.model_matrices);
 
         if (m_bound_scene->IsSimulationEnabled()) {
             const uint32_t substep_count = std::max(1u, m_impl->config.num_substep_perstep);
@@ -481,8 +478,8 @@ namespace Engine {
                 }
 
                 // ====== Collision Detection ======
-                m_impl->broad_detector->Record(command_buffer);
-                m_impl->narrow_detector->Record(command_buffer);
+                m_impl->broad_detector->Record(cb);
+                m_impl->narrow_detector->Record(cb);
 
                 // ====== PostCollision PreIter ======
                 barrier();

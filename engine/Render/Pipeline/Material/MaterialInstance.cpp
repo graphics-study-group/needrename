@@ -18,7 +18,7 @@
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <Asset/Texture/ImageCubemapAsset.h>
 #include <Asset/Texture/SolidColorTextureAsset.h>
-#include <Render/Memory/IndexedBuffer.h>
+#include <Rhi/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <bitset>
 #include <gtc/type_ptr.hpp>
@@ -34,7 +34,7 @@ namespace Engine {
             static constexpr uint32_t BACK_BUFFERS = 3;
 
             std::unordered_map<uint32_t, std::string> ubo_name_lut{};
-            std::unordered_map<uint32_t, std::unique_ptr<IndexedBuffer>> ubos{};
+            std::unordered_map<uint32_t, std::unique_ptr<Rhi::IndexedBuffer>> ubos{};
 
             std::array<vk::DescriptorSet, BACK_BUFFERS> desc_set_cache{};
 
@@ -81,7 +81,7 @@ namespace Engine {
                             continue;
                         }
 
-                        pass.ubos[pbuffer->layout_binding] = IndexedBuffer::CreateUnique(
+                        pass.ubos[pbuffer->layout_binding] = Rhi::IndexedBuffer::CreateUnique(
                             system.GetAllocatorState(),
                             {Rhi::BufferTypeBits::HostAccessibleUniform},
                             psb->buffer_placer->CalculateMaxSize(),
@@ -254,7 +254,7 @@ namespace Engine {
                 if (texture_asset) {
                     // TODO: We should allocate texture from assets in a pool.
                     auto texture = std::shared_ptr<Rhi::ImageTexture>(
-                        Rhi::ImageTexture::CreateUnique(this->m_system, *texture_asset)
+                        Rhi::ImageTexture::CreateUnique(this->m_system.GetDeviceContext(), *texture_asset)
                     );
                     AssignTexture(prop.first, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
@@ -264,7 +264,7 @@ namespace Engine {
                 auto solid_color_asset = dynamic_cast<SolidColorTextureAsset *>(t_asset);
                 if (solid_color_asset) {
                     std::shared_ptr texture = Rhi::ImageTexture::CreateUnique(
-                        this->m_system,
+                        this->m_system.GetDeviceContext(),
                         Rhi::ImageTexture::ImageTextureDesc{
                             .dimensions = 2,
                             .width = 4,
@@ -291,8 +291,9 @@ namespace Engine {
             }
             case MaterialProperty::Type::CubeTexture: {
                 auto texture_asset = std::any_cast<AssetRef>(p.m_value).as<ImageCubemapAsset>();
-                auto texture =
-                    std::shared_ptr<Rhi::ImageTexture>(Rhi::ImageTexture::CreateUnique(this->m_system, *texture_asset));
+                auto texture = std::shared_ptr<Rhi::ImageTexture>(
+                    Rhi::ImageTexture::CreateUnique(this->m_system.GetDeviceContext(), *texture_asset)
+                );
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
                     *texture, std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}

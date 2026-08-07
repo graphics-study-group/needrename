@@ -12,14 +12,11 @@ namespace vk {
     class Sampler;
 } // namespace vk
 
-namespace Engine {
-    class RenderSystem;
-}
-
 namespace Engine::Rhi {
     class AllocatedMemory;
     class AllocatorState;
     class DeviceBuffer;
+    class DeviceContext;
     struct TextureSubresourceRange;
 
     /**
@@ -41,7 +38,7 @@ namespace Engine::Rhi {
         // Used in move operator for copy-and-swap
         Texture();
 
-        Texture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name = "");
+        Texture(DeviceContext &device_context, TextureDesc texture, SamplerDesc sampler, const std::string &name = "");
 
     public:
         Texture(const Texture &) = delete;

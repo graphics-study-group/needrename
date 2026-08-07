@@ -309,7 +309,7 @@ int main(int argc, char **argv) {
         auto cb = rsys->GetFrameManager().BeginMainCommandBuffer();
 
         if (main_window.m_is_playing) {
-            cmc->GetPhysicsSystem()->GPUStep(cb);
+            cmc->GetPhysicsSystem()->GPUStep(cb.GetCommandBuffer());
         }
         rg->RecordAllPasses(cb.GetCommandBuffer());
 

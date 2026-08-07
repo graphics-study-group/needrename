@@ -13,8 +13,9 @@
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
-    }
-    class RenderSystem;
+        class DeviceContext;
+        class SubmissionHelper;
+    } // namespace Rhi
 
     enum class REFL_SER_CLASS() CollisionShapeType {
         Box = 0,
@@ -80,7 +81,7 @@ namespace Engine {
         void SubmitFixedJoint(uint32_t joint_idx, const GpuFixedJoint &joint);
         void SubmitHingeJoint(uint32_t joint_idx, const GpuHingeJoint &joint);
 
-        void SyncGpuBuffers(RenderSystem &render_system);
+        void SyncGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper);
 
         struct PhysicsGpuBuffers {
             const Rhi::ComputeBuffer *rigid_body_alive{};
@@ -133,7 +134,7 @@ namespace Engine {
         bool IsSimulationEnabled() const noexcept;
 
     private:
-        void RefreshGpuBuffers(RenderSystem &render_system);
+        void RefreshGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper);
 
         uint32_t m_scene_id{0};
 

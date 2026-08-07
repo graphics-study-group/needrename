@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     std::cout << std::endl;
 
     auto spirv = GetSpirvBinaryFromGLSL(GLSL_CODE, EShLangCompute);
-    auto cstage = Rhi::ComputeStage{*rsys};
+    auto cstage = Rhi::ComputeStage{rsys->GetDeviceContext()};
     cstage.Instantiate(spirv, "Test Compute Shader");
     auto &cbinding = cstage.AllocateResourceBinding();
     cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
