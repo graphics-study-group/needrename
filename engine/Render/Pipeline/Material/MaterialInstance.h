@@ -3,7 +3,7 @@
 
 #include "Asset/InstantiatedFromAsset.h"
 #include "MaterialTemplate.h"
-#include "Render/Memory/DeviceBuffer.h"
+#include "Rhi/DeviceBuffer.h"
 #include "Render/Resource/RenderResourceHandle.h"
 
 #include <any>

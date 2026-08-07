@@ -1,8 +1,8 @@
 #ifndef PIPELINE_COMPUTE_COMPUTESTAGE
 #define PIPELINE_COMPUTE_COMPUTESTAGE
 
-#include "Asset/InstantiatedFromAsset.h"
-#include "Render/Pipeline/PipelineInfo.h"
+#include "Asset/InstantiatedFromAsset.h" // TODO(decision pending): remove with ComputeStage Asset decoupling (design D4)
+#include "Rhi/PipelineInfo.h"
 #include <any>
 
 namespace Engine {

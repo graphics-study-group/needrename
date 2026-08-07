@@ -1,7 +1,7 @@
 #ifndef RENDER_MEMORY_INDEXEDBUFFER_INCLUDED
 #define RENDER_MEMORY_INDEXEDBUFFER_INCLUDED
 
-#include "Render/Memory/DeviceBuffer.h"
+#include "Rhi/DeviceBuffer.h"
 
 namespace Engine {
 

@@ -1,8 +1,8 @@
 #include "MaterialLibrary.h"
 
 #include "Asset/Material/MaterialTemplateAsset.h"
-#include "GpuContext/DebugUtils.h"
-#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/ShaderParameterLayout.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 

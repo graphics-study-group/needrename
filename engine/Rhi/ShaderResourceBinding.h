@@ -6,7 +6,9 @@
 // GLM forward declarations.
 #include <fwd.hpp>
 
-#include "Render/Memory/TextureSubresourceView.h"
+#include <vulkan/vulkan.hpp>
+
+#include "Rhi/TextureSubresourceView.h"
 
 namespace Engine {
 

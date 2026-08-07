@@ -1,9 +1,9 @@
-#include "GpuContext/DeviceInterface.h"
-#include "GpuContext/GpuContext.h"
-#include "GpuContext/MemoryTypes.h"
-#include "GpuContext/Structs.h"
-#include "Render/Memory/DeviceBuffer.h"
-#include "Render/RenderSystem/SubmissionHelper.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/GpuContext.h"
+#include "Rhi/MemoryTypes.h"
+#include "Rhi/Structs.h"
+#include "Rhi/DeviceBuffer.h"
+#include "Rhi/SubmissionHelper.h"
 
 #include <SDL3/SDL.h>
 #include <cstdint>

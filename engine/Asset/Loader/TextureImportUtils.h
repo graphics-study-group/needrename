@@ -1,7 +1,7 @@
 #ifndef ASSET_LOADER_TEXTUREIMPORTUTILS_INCLUDED
 #define ASSET_LOADER_TEXTUREIMPORTUTILS_INCLUDED
 
-#include <Render/ImageUtils.h>
+#include <Rhi/ImageUtils.h>
 
 #include <array>
 #include <cstddef>

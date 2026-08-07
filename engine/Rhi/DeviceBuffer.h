@@ -2,9 +2,10 @@
 #define RENDER_MEMORY_DEVICEBUFFER_INCLUDED
 
 #include <memory>
+#include <string>
 
-#include "GpuContext/MemoryAllocation.h"
-#include "GpuContext/MemoryTypes.h"
+#include "Rhi/MemoryAllocation.h"
+#include "Rhi/MemoryTypes.h"
 
 namespace vk {
     class Buffer;

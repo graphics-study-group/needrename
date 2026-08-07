@@ -5,7 +5,7 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/MemoryAccessTypes.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 

@@ -1,7 +1,7 @@
 #include "GameWidget.h"
 
 #include <Render/AttachmentUtils.h>
-#include <Render/ImageUtils.h>
+#include <Rhi/ImageUtils.h>
 
 #include <Core/Functional/SDLWindow.h>
 #include <Framework/world/WorldSystem.h>

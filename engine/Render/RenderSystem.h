@@ -5,7 +5,7 @@
 #include <memory>
 #include <tuple>
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/MemoryAccessTypes.h"
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push

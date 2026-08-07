@@ -5,7 +5,7 @@
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
+#include <Rhi/ComputeResourceBinding.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
@@ -16,7 +16,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include <Render/Memory/ComputeBuffer.h>
+#include <Rhi/ComputeBuffer.h>
 
 namespace Engine {
     ComplexRenderGraphBuilder::ComplexRenderGraphBuilder(RenderSystem &system) : m_system(system) {

@@ -1,8 +1,8 @@
 #ifndef ENGINE_RENDER_IMAGEUTILS_INCLUDED
 #define ENGINE_RENDER_IMAGEUTILS_INCLUDED
 
-#include "GpuContext/MemoryTypes.h"
-#include "Render/Pipeline/PipelineEnums.h"
+#include "Rhi/MemoryTypes.h"
+#include "Rhi/PipelineEnums.h"
 #include <AnnoRefl/macros.h>
 
 #include <cstdint>

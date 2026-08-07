@@ -3,7 +3,7 @@
 
 #include "AnnoRefl/macros.h"
 #include "Asset/Texture/TextureAsset.h"
-#include <Render/ImageUtils.h>
+#include <Rhi/ImageUtils.h>
 #include <vector>
 
 struct ktxTexture2;

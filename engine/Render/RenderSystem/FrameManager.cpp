@@ -1,15 +1,15 @@
 #include "FrameManager.h"
 
-#include "GpuContext/DebugUtils.h"
-#include "GpuContext/DeviceInterface.h"
-#include "GpuContext/Structs.h"
-#include "Render/ImageUtilsFunc.h"
-#include "Render/Memory/DeviceBuffer.h"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/Structs.h"
+#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/DeviceBuffer.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Render/RenderSystem/SubmissionHelper.h"
+#include "Rhi/SubmissionHelper.h"
 
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 

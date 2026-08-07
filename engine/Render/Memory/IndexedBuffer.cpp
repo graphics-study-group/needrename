@@ -1,6 +1,6 @@
 #include "IndexedBuffer.h"
 
-#include "GpuContext/AllocatorState.h"
+#include "Rhi/AllocatorState.h"
 
 namespace Engine {
 

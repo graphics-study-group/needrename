@@ -4,8 +4,8 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Asset/Material/PipelineProperty.h"
-#include "Render/Hasher.hpp"
-#include "Render/Pipeline/PipelineEnums.h"
+#include "Rhi/Hasher.hpp"
+#include "Rhi/PipelineEnums.h"
 
 namespace Engine::PipelineUtils {
     constexpr vk::PolygonMode ToVkPolygonMode(FillingMode mode) {
@@ -42,10 +42,6 @@ namespace Engine::PipelineUtils {
             return vk::FrontFace::eClockwise;
         }
         __builtin_unreachable();
-    }
-
-    constexpr vk::CompareOp ToVkCompareOp(DSComparator comp) {
-        return static_cast<vk::CompareOp>(static_cast<int>(comp));
     }
 
     constexpr vk::StencilOp ToVkStencilOp(StencilOperation op) {

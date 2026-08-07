@@ -1,6 +1,6 @@
 #include "VertexAttribute.h"
 
-#include "GpuContext/AllocatorState.h"
+#include "Rhi/AllocatorState.h"
 #include <vulkan/vulkan.hpp>
 
 namespace {

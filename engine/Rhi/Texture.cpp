@@ -1,12 +1,12 @@
 #include "Texture.h"
 
-#include "GpuContext/AllocatorState.h"
-#include "GpuContext/MemoryAllocation.h"
-#include "Render/Hasher.hpp"
-#include "Render/ImageUtilsFunc.h"
-#include "Render/Memory/DeviceBuffer.h"
-#include "Render/Memory/TextureSubresourceView.h"
-#include "Render/RenderSystem.h"
+#include "Rhi/AllocatorState.h"
+#include "Rhi/Hasher.hpp"
+#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/ImmutableResourceCache.h"
+#include "Rhi/MemoryAllocation.h"
+#include "Rhi/TextureSubresourceView.h"
+#include "Render/RenderSystem.h" // TODO(phase 3): remove when Texture drops the RenderSystem constructor
 
 #include <vulkan/vulkan.hpp>
 

@@ -1,6 +1,6 @@
 #include "RenderTargetTexture.h"
 
-#include "GpuContext/AllocatorState.h"
+#include "Rhi/AllocatorState.h"
 
 namespace Engine {
     RenderTargetTexture::RenderTargetTexture(

@@ -1,7 +1,7 @@
 #ifndef RENDER_RENDERSYSTEM_IPRESENTPROVIDER_INCLUDED
 #define RENDER_RENDERSYSTEM_IPRESENTPROVIDER_INCLUDED
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/MemoryAccessTypes.h"
 
 #include <vulkan/vulkan.hpp>
 

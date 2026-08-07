@@ -6,12 +6,12 @@
 
 #include <Physics/PhysicsScene.h>
 #include <Physics/Solver/XPBDGpuSolver.h>
-#include <Render/Memory/ComputeBuffer.h>
-#include <Render/Memory/DeviceBuffer.h>
-#include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
+#include <Rhi/ComputeBuffer.h>
+#include <Rhi/DeviceBuffer.h>
+#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
-#include <Render/Pipeline/Compute/ComputeStage.h>
+#include <Rhi/ComputeResourceBinding.h>
+#include <Rhi/ComputeStage.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 

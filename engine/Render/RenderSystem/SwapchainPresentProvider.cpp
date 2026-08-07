@@ -1,6 +1,6 @@
 #include "SwapchainPresentProvider.h"
 
-#include "GpuContext/DeviceInterface.h"
+#include "Rhi/DeviceInterface.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Memory/RenderTargetTexture.h"
 

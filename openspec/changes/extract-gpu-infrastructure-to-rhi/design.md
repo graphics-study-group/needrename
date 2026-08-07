@@ -94,10 +94,20 @@ Alternatives: Render pulls from Physics (Render → Physics dependency, rejected
 
 ### D7: Rhi module build & reflection
 
-- CMake: `engine/Rhi/CMakeLists.txt` becomes the target `Rhi` (SHARED) containing `GpuContext` sources + moved sources; links `Core`, `EngineDepSdl`, `EngineDepVulkan`, `EngineLibHeaderInterface`, `spirv-cross-cpp`, `vma`. Render loses the moved sources and the `spirv-cross-cpp` PUBLIC link.
-- `gpu_context_export.h` → `rhi_export.h` with `RHI_API`; export macro applied to moved DLL-boundary types.
-- Reflection: moved types carry `REFL_SER_CLASS` (e.g. `ImageUtils::ImageFormat`, `PipelineUtils::*`). Rhi gets its own generated `__generated__/` (e.g. `ImageUtils.h.inc`) and a per-DLL `RegisterRhiTypes()` following the existing per-DLL registration pattern (`RegisterCoreTypes`); `MainClass::Initialize` calls it. The reflection parser scan list gains `engine/Rhi/`.
-- JSON assets: script rewrites namespace-qualified type names (e.g. `Engine::ImageUtils::ImageFormat` → `Engine::Rhi::ImageFormat`).
+- CMake Phase 1 (implemented): `engine/Rhi/CMakeLists.txt` builds `EngineLibRhi` as an OBJECT library merged into `engine.dll` (user decision — a standalone `Rhi.dll` split is deferred to Phase 4, which also restores `GPU_CONTEXT_DLL_EXPORTS`/`VULKAN_HPP_STORAGE_SHARED_EXPORT` semantics and the dispatcher storage). Render loses the moved sources and the `spirv-cross-cpp` PUBLIC link; `EngineLibRhi` links `spirv-cross-cpp` + `vma`.
+- `GPU_CONTEXT_API` expands empty during the OBJECT merge: with a `dllimport` class attribute, MinGW treats class-member definitions as import references and strips them from the export table, which in turn disables the linker's default `--export-all-symbols` and drops every non-`dllexport` engine symbol (MainClass etc.) from `libengine.dll.a`. With the macro empty, `--export-all-symbols` stays active (baseline behavior, 165k symbols) and auto-import serves consumers.
+- The dispatcher storage `VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE` in `DeviceInterface.cpp` is removed while merged (MainClass.cpp provides it); restored in Phase 4.
+- Reflection: moved types carry `REFL_SER_CLASS` (e.g. `ImageUtils::ImageFormat`, `PipelineUtils::*`). The parser globs `engine/` recursively, so wrappers regenerate under `engine/Rhi/__generated__/` automatically (verified: `ImageUtils.h.inc`, `PipelineEnums.h.inc`); `EngineLibRhi` depends on `meta_engine`. Per-DLL `RegisterRhiTypes()` registration remains Phase 4 work.
+- JSON assets: script rewrites namespace-qualified type names in Phase 2.
+
+### D8: Phase 1 dependency-closure additions (implemented)
+
+Files discovered during relocation that must move with the closure (all generic GPU facilities, no rendering semantics):
+- `Hasher.hpp` (FNV hasher, used by `ImmutableResourceCache` and `ShaderResourceBinding`)
+- `ImageUtilsFunc.h` (ToVk* conversion functions, used by `ImmutableResourceCache` / `SubmissionHelper`)
+- `PipelineInfo.h` (contains `ComputePassInfo`; `MaterialPoolInfo` is a descriptor-pool size constant, no render dependency)
+- `ToVkCompareOp` moved from `PipelineUtils.hpp` into `PipelineEnums.h` (only cross-file user of the enum-to-vk converters that depends on Rhi; `PipelineUtils.hpp` stays in Render and includes the Rhi header)
+- `IndexedBuffer` is deferred to Phase 3: `ComputeResourceBinding` uses it, but while merged into `engine.dll` the link order is fine; it moves together with the `ComputeResourceBinding` constructor rework.
 
 ## Risks / Trade-offs
 
@@ -112,10 +122,10 @@ Alternatives: Render pulls from Physics (Render → Physics dependency, rejected
 
 Four sequential phases, each ending with a build + test gate and a manual review + commit by the user:
 
-1. **Phase 1 — Pure relocation**: move files Render → Rhi, update include paths and CMake only. No namespace changes, no logic changes. Build + ctest green with identical behavior.
+1. **Phase 1 — Pure relocation (DONE)**: move files Render → Rhi, update include paths and CMake only. No namespace changes, no logic changes. `EngineLibRhi` is an OBJECT library merged into `engine.dll` (user decision; the standalone DLL split moves to Phase 4). Build + ctest green (48/48), behavior identical.
 2. **Phase 2 — Namespace unification**: rename everything to `Engine::Rhi`, update all references repo-wide, JSON asset batch script. Build + ctest green.
-3. **Phase 3 — Physics interface rework**: constructor signatures, raw `vk::CommandBuffer` in GPUStep/Record, free-function compute helpers, model matrices bridge to MainClass. Build + ctest green.
-4. **Phase 4 — Cleanup**: reflection registration for Rhi, `rhi_export.h`, test/example updates, SPIRV-Cross dependency transfer. Build + ctest green.
+3. **Phase 3 — Physics interface rework**: constructor signatures, raw `vk::CommandBuffer` in GPUStep/Record, free-function compute helpers, model matrices bridge to MainClass, `IndexedBuffer` move. Build + ctest green.
+4. **Phase 4 — Cleanup + DLL split**: reflection registration for Rhi, `rhi_export.h`, restore SHARED `Rhi.dll` + `GPU_CONTEXT_DLL_EXPORTS` + dispatcher storage, test/example updates. Build + ctest green.
 
 Rollback: no data migration beyond JSON asset renames (reversible via script); each phase is an independent revertable diff.
 

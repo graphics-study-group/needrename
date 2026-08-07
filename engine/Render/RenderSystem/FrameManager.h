@@ -5,7 +5,7 @@
 // May be safe to include here as this header is not included in other headers.
 #include <vulkan/vulkan.hpp>
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/MemoryAccessTypes.h"
 
 namespace Engine {
     class RenderSystem;

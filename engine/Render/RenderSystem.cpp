@@ -5,10 +5,10 @@
 #include <unordered_set>
 
 #include "Framework/component/RenderComponent/RendererComponent.h"
-#include "GpuContext/AllocatorState.h"
-#include "GpuContext/DeviceInterface.h"
-#include "GpuContext/Structs.h"
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/AllocatorState.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/Structs.h"
+#include "Rhi/MemoryAccessTypes.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"

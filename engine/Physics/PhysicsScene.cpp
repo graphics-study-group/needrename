@@ -1,10 +1,10 @@
 #include "PhysicsScene.h"
 
-#include <Render/Memory/ComputeBuffer.h>
+#include <Rhi/ComputeBuffer.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
-#include <Render/RenderSystem/SubmissionHelper.h>
+#include <Rhi/SubmissionHelper.h>
 #include <vulkan/vulkan.hpp>
 
 #include <SDL3/SDL.h>

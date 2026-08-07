@@ -4,15 +4,21 @@ Phased implementation. Each phase ends with a mandatory review stop: build + tes
 
 ## 1. Phase 1 — Pure relocation (files + includes + CMake only, zero logic / namespace change)
 
-- [ ] 1.1 Rename module `GpuContext` → `Rhi`: move `engine/GpuContext/` to `engine/Rhi/`, rename CMake target to `Rhi` (SHARED), update all `#include "GpuContext/xxx.h"` to `"Rhi/xxx.h"` across the repo
-- [ ] 1.2 Move buffer types: `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer` from `engine/Render/Memory/` to `engine/Rhi/`
-- [ ] 1.3 Move texture types: `Texture`, `ImageTexture`, `TextureSubresourceView` from `engine/Render/Memory/` to `engine/Rhi/`
-- [ ] 1.4 Move `ImageUtils` and `MemoryAccessTypes` from `engine/Render/` to `engine/Rhi/`
-- [ ] 1.5 Move `ImmutableResourceCache` and `SubmissionHelper` from `engine/Render/RenderSystem/` to `engine/Rhi/`
-- [ ] 1.6 Move compute/shader-parameter types: `ComputeStage`, `ComputeResourceBinding`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface` from `engine/Render/` to `engine/Rhi/`
-- [ ] 1.7 Move `PipelineEnums` from `engine/Render/Pipeline/` to `engine/Rhi/`
-- [ ] 1.8 Update CMake: Render CMakeLists loses moved sources and the `spirv-cross-cpp` PUBLIC link; Rhi CMakeLists gains them (plus `vma`); update all `#include "Render/..."` paths referencing moved files repo-wide
-- [ ] 1.9 Phase 1 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (windowed + headless), with no namespace or logic changes
+> Phase 1 adjustments (user decisions during implementation):
+> - Rhi is an OBJECT library merged into `engine.dll` for now; the standalone `Rhi.dll` split moves to Phase 4. Constructor signatures keep `RenderSystem&`; call-site adaptation stays in Phase 3.
+> - `GPU_CONTEXT_API` expands empty during the OBJECT merge (a dllimport class member would be stripped from the export table; MinGW's default `--export-all-symbols` handles consumers).
+> - The dispatcher storage in `DeviceInterface.cpp` is temporarily removed (MainClass.cpp provides it while merged); restore in Phase 4.
+> - Dependency-closure additions to the moved set: `Hasher.hpp`, `ImageUtilsFunc.h`, `PipelineInfo.h`, `ToVkCompareOp` (into `PipelineEnums.h`). `IndexedBuffer` stays in Render for Phase 1 (link order is fine while merged); moves in Phase 3 with the `ComputeResourceBinding` rework.
+
+- [x] 1.1 Rename module `GpuContext` → `Rhi`: move `engine/GpuContext/` to `engine/Rhi/`, rename CMake target to `Rhi` (SHARED → OBJECT for Phase 1), update all `#include "GpuContext/xxx.h"` to `"Rhi/xxx.h"` across the repo
+- [x] 1.2 Move buffer types: `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer` from `engine/Render/Memory/` to `engine/Rhi/`
+- [x] 1.3 Move texture types: `Texture`, `ImageTexture`, `TextureSubresourceView` from `engine/Render/Memory/` to `engine/Rhi/`
+- [x] 1.4 Move `ImageUtils`, `ImageUtilsFunc.h`, `Hasher.hpp`, and `MemoryAccessTypes` from `engine/Render/` to `engine/Rhi/`
+- [x] 1.5 Move `ImmutableResourceCache` and `SubmissionHelper` from `engine/Render/RenderSystem/` to `engine/Rhi/`
+- [x] 1.6 Move compute/shader-parameter types: `ComputeStage`, `ComputeResourceBinding`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface`, `PipelineInfo.h` from `engine/Render/` to `engine/Rhi/`
+- [x] 1.7 Move `PipelineEnums` from `engine/Render/Pipeline/` to `engine/Rhi/` (with `ToVkCompareOp` moved in from `PipelineUtils.hpp`)
+- [x] 1.8 Update CMake: Render CMakeLists loses moved sources and the `spirv-cross-cpp` PUBLIC link; `EngineLibRhi` (OBJECT) gains them (plus `vma`); update all `#include "Render/..."` paths referencing moved files repo-wide (engine, test, example, editor)
+- [x] 1.9 Phase 1 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (48/48), with no namespace or logic changes
 - [ ] 1.10 PHASE 1 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
 ## 2. Phase 2 — Namespace unification (Engine::Rhi) + asset script

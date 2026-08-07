@@ -1,7 +1,7 @@
 #ifndef RENDER_MEMORY_TEXTURE_INCLUDED
 #define RENDER_MEMORY_TEXTURE_INCLUDED
 
-#include "Render/ImageUtils.h"
+#include "Rhi/ImageUtils.h"
 
 #include <memory>
 #include <string>

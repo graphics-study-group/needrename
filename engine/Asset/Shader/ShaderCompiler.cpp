@@ -4,7 +4,7 @@
 #include <SDL3/SDL.h>
 #include <SPIRV/GlslangToSpv.h>
 
-#include <GpuContext/DeviceInterface.h>
+#include <Rhi/DeviceInterface.h>
 #include <MainClass.h>
 #include <Render/RenderSystem.h>
 

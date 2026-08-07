@@ -4,7 +4,7 @@
 #include <functional>
 #include <unordered_map>
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/MemoryAccessTypes.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 
 namespace vk {

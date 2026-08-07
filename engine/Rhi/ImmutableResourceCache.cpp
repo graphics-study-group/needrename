@@ -1,8 +1,9 @@
 #include "ImmutableResourceCache.h"
 
-#include "GpuContext/DebugUtils.h"
-#include "Render/Hasher.hpp"
-#include "Render/Pipeline/PipelineUtils.hpp"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/Hasher.hpp"
+#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/PipelineEnums.h"
 
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>

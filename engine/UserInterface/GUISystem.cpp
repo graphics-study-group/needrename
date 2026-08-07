@@ -1,9 +1,9 @@
 #include "GUISystem.h"
 
-#include "GpuContext/DeviceInterface.h"
-#include "GpuContext/Structs.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/Structs.h"
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/ImageUtilsFunc.h"
+#include "Rhi/ImageUtilsFunc.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"

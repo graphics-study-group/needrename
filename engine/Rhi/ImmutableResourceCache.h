@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include <vulkan/vulkan.hpp>
+
 namespace vk {
     class Device;
     class Sampler;

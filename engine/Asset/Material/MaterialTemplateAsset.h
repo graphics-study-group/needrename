@@ -10,7 +10,7 @@
 #include <Asset/Material/PipelineProperty.h>
 #include <Asset/Shader/ShaderAsset.h>
 #include <Render/AttachmentUtils.h>
-#include <Render/ImageUtils.h>
+#include <Rhi/ImageUtils.h>
 
 namespace Engine {
     /// @brief Properties for a single pass, contains enough information to create a complete pipeline.

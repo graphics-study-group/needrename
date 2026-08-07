@@ -1,6 +1,6 @@
 #include "ImageCubemapAsset.h"
 
-#include <Render/ImageUtilsFunc.h>
+#include <Rhi/ImageUtilsFunc.h>
 #include <SDL3/SDL_log.h>
 #include <algorithm>
 #include <cstdlib>

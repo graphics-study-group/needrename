@@ -1,12 +1,12 @@
 #include "ShaderParameterLayout.h"
 
-#include "../StructuredBuffer.h"
-#include "../StructuredBufferPlacer.h"
+#include "Rhi/StructuredBuffer.h"
+#include "Rhi/StructuredBufferPlacer.h"
 
 // CMake is messing with the SPIRV-Cross in Vulkan SDK
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
-#include "../../../../third_party/SPIRV-Cross/spirv_cross.hpp"
+#include "../../third_party/SPIRV-Cross/spirv_cross.hpp"
 #pragma GCC diagnostic pop
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>

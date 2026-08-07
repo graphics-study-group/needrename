@@ -2,7 +2,7 @@
 #define RENDER_RESOURCE_STATICMESHRESOURCE_INCLUDED
 
 #include "Asset/AssetRef.h"
-#include "Render/Memory/DeviceBuffer.h"
+#include "Rhi/DeviceBuffer.h"
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/IAsynchPrepared.h"
 

@@ -4,12 +4,12 @@
 #include <Asset/Shader/ShaderAsset.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <Render/Memory/ComputeBuffer.h>
+#include <Rhi/ComputeBuffer.h>
 #include <Render/Memory/RenderTargetTexture.h>
-#include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
+#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
-#include <Render/Pipeline/Compute/ComputeStage.h>
+#include <Rhi/ComputeResourceBinding.h>
+#include <Rhi/ComputeStage.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>

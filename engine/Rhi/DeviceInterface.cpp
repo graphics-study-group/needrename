@@ -6,7 +6,9 @@
 #include <unordered_set>
 #include <vulkan/vulkan.hpp>
 
-VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+// TODO(phase 4): restore VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE when
+// Rhi becomes a standalone DLL again. While merged into engine.dll, the storage
+// is provided by MainClass.cpp.
 
 namespace Engine::RenderSystemState {
     struct DeviceInterface::impl {

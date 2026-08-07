@@ -2,12 +2,11 @@
 
 #include "Asset/AssetRef.h"
 #include "Asset/Shader/ShaderAsset.h"
-#include "GpuContext/DebugUtils.h"
-#include "GpuContext/DeviceInterface.h"
-#include "Render/Memory/DeviceBuffer.h"
-#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
-#include "Render/Pipeline/Compute/ComputeResourceBinding.h"
-#include "Render/RenderSystem.h"
+#include "Rhi/DebugUtils.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/ShaderParameterLayout.h"
+#include "Rhi/ComputeResourceBinding.h"
+#include "Render/RenderSystem.h" // TODO(phase 3): remove when ComputeStage drops the RenderSystem constructor
 #include <bitset>
 #include <string>
 #include <unordered_map>

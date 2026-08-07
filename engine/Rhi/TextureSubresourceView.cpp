@@ -1,6 +1,6 @@
 #include "TextureSubresourceView.h"
 
-#include "Render/Memory/Texture.h"
+#include "Rhi/Texture.h"
 
 namespace Engine {
     vk::ImageView TextureSubresourceView::GetImageView() {

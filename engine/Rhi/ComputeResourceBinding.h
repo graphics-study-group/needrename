@@ -1,14 +1,18 @@
 #ifndef PIPELINE_COMPUTE_COMPUTERESOURCEBINDING
 #define PIPELINE_COMPUTE_COMPUTERESOURCEBINDING
 
+#include <limits>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace vk {
     class DescriptorSet;
 }
 
 namespace Engine {
+    class RenderSystem;
+    class ComputeStage;
     class StructuredBuffer;
     class ShaderResourceBinding;
     class ComputeBuffer;

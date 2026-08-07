@@ -1,9 +1,15 @@
 #include "ShaderResourceBinding.h"
 
-#include "Render/Hasher.hpp"
-#include "Render/Memory/ShaderParameters/ShaderInterface.h"
-#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
+#include "Rhi/DeviceBuffer.h"
+#include "Rhi/Hasher.hpp"
+#include "Rhi/ImmutableResourceCache.h"
+#include "Rhi/ShaderInterface.h"
+#include "Rhi/ShaderParameterLayout.h"
+#include "Rhi/Texture.h"
 
+#include <map>
+#include <tuple>
+#include <variant>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {

@@ -10,9 +10,4 @@ target_link_libraries(EngineLibRender
     EngineLibHeaderInterface
     EngineLibExternalDependency
 )
-target_link_libraries(EngineLibRender
-    PUBLIC
-    spirv-cross-cpp
-    vma
-)
 target_precompile_headers(EngineLibRender PRIVATE "FullRenderSystem.h")

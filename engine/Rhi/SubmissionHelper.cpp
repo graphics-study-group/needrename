@@ -1,14 +1,12 @@
 #include "SubmissionHelper.h"
 
-#include "GpuContext/AllocatorState.h"
-#include "GpuContext/DeviceInterface.h"
-#include "GpuContext/Structs.h"
-#include "Render/ImageUtilsFunc.h"
-#include "Render/Memory/DeviceBuffer.h"
-#include "Render/Memory/Texture.h"
-
-#include "GpuContext/DebugUtils.h"
-
+#include "Rhi/AllocatorState.h"
+#include "Rhi/DeviceBuffer.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/Structs.h"
+#include "Rhi/Texture.h"
+#include "Rhi/DebugUtils.h"
 #include <SDL3/SDL.h>
 
 namespace {

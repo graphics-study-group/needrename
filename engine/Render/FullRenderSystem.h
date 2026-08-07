@@ -6,24 +6,24 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/ImageUtilsFunc.h"
+#include "Rhi/ImageUtilsFunc.h"
 
-#include "GpuContext/DeviceInterface.h"
-#include "GpuContext/Structs.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/Structs.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/ImmutableResourceCache.h"
+#include "Rhi/ImmutableResourceCache.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/SceneDataManager.h"
-#include "Render/RenderSystem/SubmissionHelper.h"
+#include "Rhi/SubmissionHelper.h"
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Render/Resource/StaticMeshResource.h"
 
 #include "Render/Pipeline/CommandBuffer.h"
 
-#include "Render/Pipeline/Compute/ComputeResourceBinding.h"
-#include "Render/Pipeline/Compute/ComputeStage.h"
+#include "Rhi/ComputeResourceBinding.h"
+#include "Rhi/ComputeStage.h"
 
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
@@ -37,19 +37,19 @@
 #include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "Render/Renderer/VertexAttribute.h"
 
-#include "GpuContext/MemoryTypes.h"
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/MemoryTypes.h"
+#include "Rhi/MemoryAccessTypes.h"
 
-#include "Render/Memory/ImageTexture.h"
+#include "Rhi/ImageTexture.h"
 #include "Render/Memory/RenderTargetTexture.h"
-#include "Render/Memory/Texture.h"
-#include "Render/Memory/TextureSubresourceView.h"
+#include "Rhi/Texture.h"
+#include "Rhi/TextureSubresourceView.h"
 
-#include "Render/Memory/ComputeBuffer.h"
-#include "Render/Memory/DeviceBuffer.h"
-#include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
-#include "Render/Memory/StructuredBuffer.h"
-#include "Render/Memory/StructuredBufferPlacer.h"
+#include "Rhi/ComputeBuffer.h"
+#include "Rhi/DeviceBuffer.h"
+#include "Rhi/ShaderResourceBinding.h"
+#include "Rhi/StructuredBuffer.h"
+#include "Rhi/StructuredBufferPlacer.h"
 
 #include "Render/RenderSystem.h"
 

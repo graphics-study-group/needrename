@@ -1,6 +1,6 @@
 #include "RenderGraphPass.h"
 
-#include "GpuContext/DebugUtils.h"
+#include "Rhi/DebugUtils.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"

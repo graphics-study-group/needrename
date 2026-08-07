@@ -41,7 +41,7 @@ target_link_libraries(EngineLibExternalDependency
 ###########################################
 
 add_subdirectory(Core)
-add_subdirectory(GpuContext)
+add_subdirectory(Rhi)
 
 #################################################
 # The parts that are still mixed in engine      #
@@ -66,6 +66,7 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibFramework>
     $<TARGET_OBJECTS:EngineLibPhysics>
     $<TARGET_OBJECTS:EngineLibRender>
+    $<TARGET_OBJECTS:EngineLibRhi>
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
 
@@ -75,7 +76,6 @@ target_link_libraries(engine
     EngineLibHeaderInterface
     EngineLibExternalDependency
     Core
-    GpuContext
 )
 
 # Dependencies only used in a small module are marked as private to avoid pollution
@@ -85,6 +85,7 @@ target_link_libraries(engine
     EngineLibFramework
     EngineLibPhysics
     EngineLibRender
+    EngineLibRhi
     EngineLibUserInterface
 )
 
@@ -95,9 +96,8 @@ add_custom_command(TARGET engine POST_BUILD
     $<TARGET_FILE:SDL3::SDL3-shared>
     $<TARGET_FILE:ktx>
     $<TARGET_FILE:Core>
-    $<TARGET_FILE:GpuContext>
     $<TARGET_FILE_DIR:engine>
-    COMMENT "Copying SDL3, libktx, Core, and GpuContext DLLs to output directory"
+    COMMENT "Copying SDL3, libktx, and Core DLLs to output directory"
 )
 
 # TODO: Use relative paths when install.
@@ -123,6 +123,7 @@ add_reflection_parser(
     parent_projects meta_core_generation
 )
 add_dependencies(engine meta_engine)
+add_dependencies(EngineLibRhi meta_engine)
 target_link_libraries(engine PRIVATE meta_engine)
 
 add_dependencies(engine shader)

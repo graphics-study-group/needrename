@@ -1,12 +1,22 @@
 #include "ComputeResourceBinding.h"
 
-#include "Render/Memory/IndexedBuffer.h"
-#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
-#include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
-#include "Render/Memory/StructuredBuffer.h"
+#include "Render/Memory/IndexedBuffer.h" // TODO(decision pending): move IndexedBuffer to Rhi with ComputeResourceBinding
+#include "Render/RenderSystem.h" // TODO(phase 3): remove when ComputeResourceBinding drops the RenderSystem constructor
+#include "Rhi/ComputeBuffer.h"
+#include "Rhi/ComputeStage.h"
+#include "Rhi/DeviceInterface.h"
+#include "Rhi/ShaderParameterLayout.h"
+#include "Rhi/ShaderResourceBinding.h"
+#include "Rhi/StructuredBuffer.h"
+#include "Rhi/StructuredBufferPlacer.h"
 
+#include <array>
 #include <bitset>
+#include <cassert>
+#include <format>
 #include <unordered_map>
+#include <variant>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     struct ComputeResourceBinding::impl {

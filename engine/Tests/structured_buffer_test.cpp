@@ -1,5 +1,5 @@
-#include "../Render/Memory/StructuredBuffer.h"
-#include "../Render/Memory/StructuredBufferPlacer.h"
+#include "../Rhi/StructuredBuffer.h"
+#include "../Rhi/StructuredBufferPlacer.h"
 #include <format>
 #include <glm.hpp>
 #include <gtc/type_ptr.hpp>

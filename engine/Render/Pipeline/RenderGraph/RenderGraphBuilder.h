@@ -1,7 +1,7 @@
 #ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPHBUILDER2
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPHBUILDER2
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/MemoryAccessTypes.h"
 #include "Render/Memory/RenderTargetTexture.h"
 
 namespace Engine {

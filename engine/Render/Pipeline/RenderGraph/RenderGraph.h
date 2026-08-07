@@ -1,7 +1,7 @@
 #ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPH2
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPH2
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/MemoryAccessTypes.h"
 
 namespace vk {
     struct CommandBuffer;

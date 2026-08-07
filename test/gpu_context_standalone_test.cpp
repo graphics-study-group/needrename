@@ -1,7 +1,7 @@
 #include "Asset/Shader/ShaderCompiler.h"
-#include "GpuContext/GpuContext.h"
-#include "GpuContext/MemoryTypes.h"
-#include "GpuContext/Structs.h"
+#include "Rhi/GpuContext.h"
+#include "Rhi/MemoryTypes.h"
+#include "Rhi/Structs.h"
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <iostream>

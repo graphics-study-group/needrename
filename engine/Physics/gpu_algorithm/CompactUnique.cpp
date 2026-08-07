@@ -5,11 +5,11 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include <Render/Memory/ComputeBuffer.h>
-#include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
+#include <Rhi/ComputeBuffer.h>
+#include <Rhi/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
-#include <Render/Pipeline/Compute/ComputeStage.h>
+#include <Rhi/ComputeResourceBinding.h>
+#include <Rhi/ComputeStage.h>
 #include <Render/RenderSystem.h>
 
 #include <cassert>

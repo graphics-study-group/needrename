@@ -4,6 +4,7 @@
 
 #include <SDL3/SDL.h>
 #include <any>
+#include <cassert>
 #include <unordered_map>
 
 #ifndef NDEBUG

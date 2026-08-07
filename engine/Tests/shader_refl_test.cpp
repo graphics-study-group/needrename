@@ -7,8 +7,8 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Asset/Shader/ShaderCompiler.h"
-#include "Render/Memory/ShaderParameters/ShaderInterface.h"
-#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
+#include "Rhi/ShaderInterface.h"
+#include "Rhi/ShaderParameterLayout.h"
 #include <cmake_config.h>
 
 inline std::vector<uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, EShLanguage shaderType) {
