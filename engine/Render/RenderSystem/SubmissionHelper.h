@@ -5,25 +5,65 @@
 #include <queue>
 #include <span>
 
+#include <vulkan/vulkan.hpp>
+
 namespace Engine {
-    class RenderSystem;
     class Texture;
     class DeviceBuffer;
 
     namespace RenderSystemState {
-        /// @brief A helper for submitting data to GPU.
-        /// Used in `FrameManager`.
+        class DeviceInterface;
+        class AllocatorState;
+
+        /**
+         * @brief A helper for submitting data to GPU.
+         *
+         * Enqueued operations are executed in batches. A batch starts at a
+         * submission call (`ExecuteSubmission` / `ExecuteSubmissionImmediately`)
+         * and covers all operations enqueued since the previous submission
+         * (or since construction). Enqueued operations keep their staging
+         * buffers alive until the batch that carries them has finished
+         * executing on the GPU.
+         *
+         * Batch state machine:
+         * - `Reset`: no deferred batch is pending; submission is allowed.
+         * - `Submitted`: a deferred batch (submitted via `ExecuteSubmission`)
+         *   is pending and awaits `OnFrameComplete`.
+         *
+         * Protocol:
+         * - `ExecuteSubmission` / `ExecuteSubmissionImmediately` require the
+         *   state to be `Reset`, otherwise they throw `std::runtime_error`.
+         * - `OnFrameComplete` reaps the pending deferred batch. It throws
+         *   `std::runtime_error` when called with unsubmitted operations
+         *   pending (Enqueue operations must be submitted within the same
+         *   frame; recording-phase enqueues such as mesh submission in
+         *   `RendererManager::FilterAndSortRenderers` still precede
+         *   `ExecuteSubmission` in the frame loop). Readback callbacks
+         *   invoked by `FrameManager` must not perform uploads.
+         * - `ExecuteSubmissionImmediately` is self-contained: it submits and
+         *   waits for completion, leaving the state at `Reset`. It submits
+         *   all currently pending operations.
+         * - An empty `ExecuteSubmission` advances the caller-provided signal
+         *   CPU-side without submitting anything.
+         *
+         * This class is NOT thread-safe. All methods must be called from a
+         * single thread (the frame loop thread).
+         */
         class SubmissionHelper {
             using CmdOperation = std::function<void(vk::CommandBuffer)>;
 
         private:
-            RenderSystem &m_system;
+            const DeviceInterface &m_device_interface;
+            const AllocatorState &m_allocator;
             struct impl;
             std::unique_ptr<impl> pimpl;
 
         public:
-            SubmissionHelper(RenderSystem &system);
-            virtual ~SubmissionHelper();
+            SubmissionHelper(const DeviceInterface &device_interface, const AllocatorState &allocator);
+            ~SubmissionHelper();
+
+            SubmissionHelper(const SubmissionHelper &) = delete;
+            SubmissionHelper &operator=(const SubmissionHelper &) = delete;
 
             /**
              * @brief Enqueue a buffer uploading.
@@ -41,7 +81,8 @@ namespace Engine {
              * @brief Enqueue a texture buffer submission. Record corresponding image
              * barriers and buffer writes to a disposable command buffer.
              *
-             * A staging buffer is created, and will be de-allocated at the end of the frame.
+             * A staging buffer is created, and will be de-allocated when the batch
+             * that carries it finishes.
              * The layout of the image will be transferred to optimal for shader read after submission.
              *
              * Only color aspect and the very first level of mipmap is considered for submission,
@@ -89,35 +130,46 @@ namespace Engine {
             // void EnqueueTextureClear(const Texture &texture, std::tuple<float, uint8_t> depth_stencil);
 
             /**
-             * @brief Execute staged submissions.
+             * @brief Execute staged submissions as a deferred batch.
              *
-             * Allocated a new command buffer if needed, record all pending operations, and
-             * submit the buffer to the graphics queue allocated by the render system.
+             * Allocates a new command buffer if needed, records all pending operations, and
+             * submits the buffer to the graphics queue with the provided signal.
              *
-             * @warning This method uses internal synchronization mechanisms to ensure
-             * correct memory dependency. Unexpected call-sites will likely results in
-             * synchronization failure.
+             * If no operations are pending, the provided signal is advanced CPU-side
+             * (semaphore + value) and nothing is submitted.
+             *
+             * @param signal_info Batch completion signal: {semaphore, value} signaled
+             * when all recorded operations have finished. Used by the caller to gate
+             * dependent work (e.g. the main command buffer waiting on it).
+             *
+             * @warning The batch state must be `Reset`; otherwise a previous deferred
+             * batch is still pending and this call throws `std::runtime_error`.
+             * The batch is reaped by `OnFrameComplete`.
              */
-            void ExecuteSubmission();
+            void ExecuteSubmission(vk::SemaphoreSignalInfo signal_info);
 
             /**
              * @brief Immediately execute staged submissions.
              *
+             * Submits all currently pending operations, waits for completion on the
+             * CPU, and releases their staging buffers. The batch state remains `Reset`.
+             *
              * Use this method sparingly, as it causes CPU to stall and wait for all submission.
+             *
+             * @warning The batch state must be `Reset`; calling this while a deferred
+             * batch is pending throws `std::runtime_error`.
              */
             void ExecuteSubmissionImmediately();
 
             /**
-             * @brief Execute the submission commandbuffer before the main CB.
-             */
-            void OnPreMainCbSubmission();
-
-            /**
              * @brief Complete the frame.
              *
-             * Wait for execution of the disposable command buffer,
-             * de-allocate staging buffers,
-             * reset the fence, and remove the command buffer.
+             * In the `Submitted` state: waits for execution of the deferred batch,
+             * de-allocates its staging buffers, resets the fence, and reclaims the
+             * command buffer, then returns to `Reset`.
+             *
+             * In the `Reset` state: returns idempotently when idle, or throws
+             * `std::runtime_error` when unsubmitted operations are pending.
              */
             void OnFrameComplete();
         };

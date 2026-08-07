@@ -92,3 +92,8 @@ target_link_libraries(headless_offscreen_test engine)
 add_test(NAME headless_offscreen_test COMMAND headless_offscreen_test)
 set_target_properties(headless_offscreen_test PROPERTIES FOLDER tests)
 
+add_executable(submission_helper_test submission_helper_test.cpp)
+target_link_libraries(submission_helper_test engine)
+add_test(NAME submission_helper_test COMMAND submission_helper_test)
+set_target_properties(submission_helper_test PROPERTIES FOLDER tests)
+

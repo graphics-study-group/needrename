@@ -160,7 +160,8 @@ namespace Engine::RenderSystemState {
         }
 
         current_frame_in_flight = 0;
-        m_submission_helper = std::make_unique<SubmissionHelper>(m_system);
+        m_submission_helper =
+            std::make_unique<SubmissionHelper>(m_system.GetDeviceInterface(), m_system.GetAllocatorState());
     }
 
     void FrameManager::Create(IPresentProvider &present_provider) {
@@ -250,7 +251,7 @@ namespace Engine::RenderSystemState {
         pimpl->command_buffers[fif]->end();
 
         // Staged resource submission (signals timeline timepoint 2).
-        pimpl->m_submission_helper->OnPreMainCbSubmission();
+        pimpl->m_submission_helper->ExecuteSubmission(this_timeline_semaphore.GetSignalInfo(2));
 
         // Record the copy CB (headless → nullptr; the batch then carries no copy).
         auto copy_cb = pimpl->m_present_provider->PrepareCopy(

@@ -55,25 +55,19 @@ int main() {
     ShaderCompiler compiler;
     std::vector<uint32_t> spirv{};
     compiler.CompileGLSLtoSPV(spirv, GLSL_CODE, EShLangCompute);
-    auto shader_module =
-        device.createShaderModuleUnique(vk::ShaderModuleCreateInfo{{}, spirv});
+    auto shader_module = device.createShaderModuleUnique(vk::ShaderModuleCreateInfo{{}, spirv});
 
     // ── Minimal compute pipeline (raw Vulkan, no Render helpers) ──
-    vk::DescriptorSetLayoutBinding dslb{
-        0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute
-    };
+    vk::DescriptorSetLayoutBinding dslb{0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute};
     auto descriptor_set_layout = device.createDescriptorSetLayoutUnique({{}, {dslb}});
     auto pipeline_layout = device.createPipelineLayoutUnique({{}, {descriptor_set_layout.get()}});
 
-    vk::PipelineShaderStageCreateInfo stage{
-        {}, vk::ShaderStageFlagBits::eCompute, shader_module.get(), "main"
-    };
+    vk::PipelineShaderStageCreateInfo stage{{}, vk::ShaderStageFlagBits::eCompute, shader_module.get(), "main"};
     vk::ComputePipelineCreateInfo pipeline_info{{}, stage, pipeline_layout.get()};
     auto pipeline = device.createComputePipelineUnique(nullptr, pipeline_info);
 
     vk::DescriptorPoolSize pool_size{vk::DescriptorType::eStorageBuffer, 1};
-    auto descriptor_pool =
-        device.createDescriptorPoolUnique(vk::DescriptorPoolCreateInfo{{}, 1, {pool_size}});
+    auto descriptor_pool = device.createDescriptorPoolUnique(vk::DescriptorPoolCreateInfo{{}, 1, {pool_size}});
     auto descriptor_set = device.allocateDescriptorSetsUnique(
         vk::DescriptorSetAllocateInfo{descriptor_pool.get(), 1, &descriptor_set_layout.get()}
     );
