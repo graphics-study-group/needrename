@@ -9,6 +9,7 @@
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
+#include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
@@ -201,7 +202,8 @@ namespace Engine {
         /**
          * Bloom FX compute pass.
          */
-        auto &bloom_compute_binding = bloom_compute_stage.AllocateResourceBinding();
+        auto &bloom_compute_binding =
+            bloom_compute_stage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Bloom FX pass")

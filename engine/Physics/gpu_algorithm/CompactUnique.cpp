@@ -89,25 +89,25 @@ namespace Engine {
             flag_spirv = LoadPhysicsSpirvBytes(flag_path);
             flag_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             flag_stage->Instantiate(flag_spirv, "FlagUnique");
-            flag_binding = &flag_stage->AllocateResourceBinding();
+            flag_binding = &flag_stage->AllocateResourceBinding(3);
 
             const char *scatter_path = "algorithm/compact_scatter.comp.spv";
             scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
             scatter_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             scatter_stage->Instantiate(scatter_spirv, "CompactScatter");
-            scatter_binding = &scatter_stage->AllocateResourceBinding();
+            scatter_binding = &scatter_stage->AllocateResourceBinding(3);
 
             const char *copy_path = "collision/SpatialHashBroadDetector/copy_uint.comp.spv";
             copy_spirv = LoadPhysicsSpirvBytes(copy_path);
             copy_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             copy_stage->Instantiate(copy_spirv, "CompactUnique Copy");
-            copy_binding = &copy_stage->AllocateResourceBinding();
+            copy_binding = &copy_stage->AllocateResourceBinding(3);
 
             const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
             memset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             memset_stage->Instantiate(memset_spirv, "CompactUnique Memset");
-            memset_binding = &memset_stage->AllocateResourceBinding();
+            memset_binding = &memset_stage->AllocateResourceBinding(3);
 
             const auto &alloc = device_context.GetAllocatorState();
             gpu_const_one = Rhi::ComputeBuffer::CreateUnique(

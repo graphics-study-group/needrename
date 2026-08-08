@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     auto spirv = GetSpirvBinaryFromGLSL(GLSL_CODE, EShLangCompute);
     auto cstage = Rhi::ComputeStage{rsys->GetDeviceContext()};
     cstage.Instantiate(spirv, "Test Compute Shader");
-    auto &cbinding = cstage.AllocateResourceBinding();
+    auto &cbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
     cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
     cbinding.GetShaderResourceBinding().BindBuffer("Output", compbuf2->GetComputeBuffer());
 

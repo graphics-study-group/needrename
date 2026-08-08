@@ -11,15 +11,11 @@ namespace Engine::Rhi {
     }
 
     void BindComputeResource(
-        vk::CommandBuffer cb, ComputeStage &stage, ComputeResourceBinding &binding, uint32_t frame_index
+        vk::CommandBuffer cb, ComputeStage &stage, ComputeResourceBinding &binding, uint32_t slot
     ) {
-        auto offsets = binding.UpdateGPUInfo(frame_index);
+        auto offsets = binding.UpdateGPUInfo(slot);
         cb.bindDescriptorSets(
-            vk::PipelineBindPoint::eCompute,
-            stage.GetPipelineLayout(),
-            0,
-            {binding.GetDescriptorSet(frame_index)},
-            offsets
+            vk::PipelineBindPoint::eCompute, stage.GetPipelineLayout(), 0, {binding.GetDescriptorSet(slot)}, offsets
         );
     }
 

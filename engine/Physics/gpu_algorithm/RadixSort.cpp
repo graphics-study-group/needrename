@@ -102,25 +102,25 @@ namespace Engine {
             histogram_spirv = LoadPhysicsSpirvBytes(histogram_path);
             histogram_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             histogram_stage->Instantiate(histogram_spirv, "RadixHistogram");
-            histogram_binding = &histogram_stage->AllocateResourceBinding();
+            histogram_binding = &histogram_stage->AllocateResourceBinding(3);
 
             const char *prefix_sum_path = "algorithm/radix_prefix_sum_256.comp.spv";
             prefix_sum_spirv = LoadPhysicsSpirvBytes(prefix_sum_path);
             prefix_sum_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             prefix_sum_stage->Instantiate(prefix_sum_spirv, "RadixPrefixSum256");
-            prefix_sum_binding = &prefix_sum_stage->AllocateResourceBinding();
+            prefix_sum_binding = &prefix_sum_stage->AllocateResourceBinding(3);
 
             const char *scatter_path = "algorithm/radix_scatter.comp.spv";
             scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
             scatter_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             scatter_stage->Instantiate(scatter_spirv, "RadixScatter");
-            scatter_binding = &scatter_stage->AllocateResourceBinding();
+            scatter_binding = &scatter_stage->AllocateResourceBinding(3);
 
             const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
             memset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             memset_stage->Instantiate(memset_spirv, "RadixMemset");
-            memset_binding = &memset_stage->AllocateResourceBinding();
+            memset_binding = &memset_stage->AllocateResourceBinding(3);
 
             {
                 const auto &alloc = device_context.GetAllocatorState();

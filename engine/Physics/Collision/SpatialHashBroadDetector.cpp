@@ -251,39 +251,39 @@ namespace Engine {
             };
 
             aabb_stage = load_stage("collision/SpatialHashBroadDetector/compute_aabbs.comp.spv", "BH ComputeAABBs");
-            aabb_binding = &aabb_stage->AllocateResourceBinding();
+            aabb_binding = &aabb_stage->AllocateResourceBinding(3);
 
             count_cells_stage = load_stage("collision/SpatialHashBroadDetector/count_cells.comp.spv", "BH CountCells");
-            count_cells_binding = &count_cells_stage->AllocateResourceBinding();
+            count_cells_binding = &count_cells_stage->AllocateResourceBinding(3);
 
             fill_cells_stage = load_stage("collision/SpatialHashBroadDetector/fill_cells.comp.spv", "BH FillCells");
-            fill_cells_binding = &fill_cells_stage->AllocateResourceBinding();
+            fill_cells_binding = &fill_cells_stage->AllocateResourceBinding(3);
 
             histogram_stage = load_stage("collision/SpatialHashBroadDetector/histogram_cells.comp.spv", "BH Histogram");
-            histogram_binding = &histogram_stage->AllocateResourceBinding();
+            histogram_binding = &histogram_stage->AllocateResourceBinding(3);
 
             scatter_sort_stage =
                 load_stage("collision/SpatialHashBroadDetector/scatter_sort.comp.spv", "BH ScatterSort");
-            scatter_sort_binding = &scatter_sort_stage->AllocateResourceBinding();
+            scatter_sort_binding = &scatter_sort_stage->AllocateResourceBinding(3);
 
             generate_pairs_stage =
                 load_stage("collision/SpatialHashBroadDetector/generate_broad_pairs.comp.spv", "BH GenPairs");
-            generate_pairs_binding = &generate_pairs_stage->AllocateResourceBinding();
+            generate_pairs_binding = &generate_pairs_stage->AllocateResourceBinding(3);
 
             fallback_pairs_stage = load_stage(
                 "collision/SpatialHashBroadDetector/generate_all_pairs_fallback.comp.spv", "BH FallbackPairs"
             );
-            fallback_pairs_binding = &fallback_pairs_stage->AllocateResourceBinding();
+            fallback_pairs_binding = &fallback_pairs_stage->AllocateResourceBinding(3);
 
             global_pairs_stage =
                 load_stage("collision/SpatialHashBroadDetector/generate_global_pairs.comp.spv", "BH GlobalPairs");
-            global_pairs_binding = &global_pairs_stage->AllocateResourceBinding();
+            global_pairs_binding = &global_pairs_stage->AllocateResourceBinding(3);
 
             memset_stage = load_stage("collision/SpatialHashBroadDetector/memset_uint.comp.spv", "BH Memset");
-            memset_binding = &memset_stage->AllocateResourceBinding();
+            memset_binding = &memset_stage->AllocateResourceBinding(3);
 
             copy_stage = load_stage("collision/SpatialHashBroadDetector/copy_uint.comp.spv", "BH Copy");
-            copy_binding = &copy_stage->AllocateResourceBinding();
+            copy_binding = &copy_stage->AllocateResourceBinding(3);
         }
 
         // -----------------------------------------------------------------

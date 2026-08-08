@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
     Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
     cstage.Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
 
-    auto &kbinding = cstage.AllocateResourceBinding();
+    auto &kbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
     kbinding.GetShaderResourceBinding().BindTexture("inputImage", *color);
     kbinding.GetShaderResourceBinding().BindTexture("outputImage", *postproc);
 

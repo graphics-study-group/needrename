@@ -277,7 +277,8 @@ int main(int argc, char **argv) {
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
     auto bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(rsys->GetDeviceContext());
     bloom_compute_stage->Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
-    auto &bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
+    auto &bloom_compute_binding =
+        bloom_compute_stage->AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
 
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};

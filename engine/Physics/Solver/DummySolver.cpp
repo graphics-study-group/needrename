@@ -105,7 +105,7 @@ namespace Engine {
             m_impl->shader_spirv = LoadPhysicsSpirv("solver/DummySolver/dummy_solver.comp.spv");
             m_impl->compute_stage = std::make_unique<Rhi::ComputeStage>(m_impl->device_context);
             m_impl->compute_stage->Instantiate(m_impl->shader_spirv, "DummySolver");
-            m_impl->resource_binding = &m_impl->compute_stage->AllocateResourceBinding();
+            m_impl->resource_binding = &m_impl->compute_stage->AllocateResourceBinding(3);
 
             m_impl->initialized = true;
         }

@@ -20,19 +20,20 @@
 
 namespace Engine::Rhi {
     struct ComputeResourceBinding::impl {
-        constexpr static uint32_t BACK_BUFFERS = 3;
+        constexpr static uint32_t MAX_SLOT_COUNT = 8;
 
         DeviceContext *device_context;
         ComputeStage *stage;
+        uint32_t slot_count;
 
-        std::array<vk::DescriptorSet, BACK_BUFFERS> descriptor_sets{};
+        std::array<vk::DescriptorSet, MAX_SLOT_COUNT> descriptor_sets{};
         std::unique_ptr<ShaderResourceBinding> p_srb{};
         std::unique_ptr<StructuredBuffer> p_buffer{};
         std::vector<std::byte> cpu_side_buffer{};
 
         // Manages UBO related stuff.
         struct {
-            std::bitset<8> ubo_dirty{};
+            std::bitset<MAX_SLOT_COUNT> ubo_dirty{};
             std::unordered_map<std::string, std::unique_ptr<IndexedBuffer>> ubos{};
 
             void SetDirtyFlag() noexcept {
@@ -42,7 +43,8 @@ namespace Engine::Rhi {
             void PrepareIndexedBuffers(
                 const DeviceInterface &device_interface,
                 const AllocatorState &allocator_state,
-                const Rhi::SPLayout &layout
+                const Rhi::SPLayout &layout,
+                uint32_t slot_count
             ) {
                 ubos.clear();
 
@@ -64,7 +66,7 @@ namespace Engine::Rhi {
                                 device_interface.QueryLimit(
                                     Rhi::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                                 ),
-                                BACK_BUFFERS,
+                                slot_count,
                                 std::format("Indexed UBO {} for Compute Shader", pbuffer->name)
                             );
                         }
@@ -79,14 +81,20 @@ namespace Engine::Rhi {
             std::variant<std::shared_ptr<const Texture>, std::shared_ptr<const DeviceBuffer>>>
             owned_resource;
     };
-    ComputeResourceBinding::ComputeResourceBinding(DeviceContext &device_context, ComputeStage &compute) :
-        pimpl(std::make_unique<impl>()) {
+    ComputeResourceBinding::ComputeResourceBinding(
+        DeviceContext &device_context, ComputeStage &compute, uint32_t slot_count
+    ) : pimpl(std::make_unique<impl>()) {
+        assert(slot_count > 0 && slot_count <= impl::MAX_SLOT_COUNT);
         pimpl->p_srb = std::make_unique<ShaderResourceBinding>(device_context.GetIRCache());
         pimpl->p_buffer = std::make_unique<StructuredBuffer>();
         pimpl->device_context = &device_context;
         pimpl->stage = &compute;
+        pimpl->slot_count = slot_count;
         pimpl->ubo_manager.PrepareIndexedBuffers(
-            device_context.GetDeviceInterface(), device_context.GetAllocatorState(), compute.GetReflectedShaderInfo()
+            device_context.GetDeviceInterface(),
+            device_context.GetAllocatorState(),
+            compute.GetReflectedShaderInfo(),
+            slot_count
         );
     }
 
@@ -115,15 +123,16 @@ namespace Engine::Rhi {
         pimpl->owned_resource[name] = buffer;
         pimpl->p_srb->BindBuffer(name, *buffer, offset, size);
     }
-    std::vector<uint32_t> ComputeResourceBinding::UpdateGPUInfo(uint32_t backbuffer) const noexcept {
+    std::vector<uint32_t> ComputeResourceBinding::UpdateGPUInfo(uint32_t slot) const noexcept {
+        assert(slot < pimpl->slot_count);
         // First prepare descriptor writes
         std::vector<uint32_t> dynamic_offsets;
         for (const auto &[k, v] : pimpl->ubo_manager.ubos) {
             pimpl->p_srb->BindBuffer(k, *v, 0, v->GetSliceSize());
             // FIXME: Dynamic offset order might not be correct.
-            dynamic_offsets.push_back(v->GetSliceOffset(backbuffer));
+            dynamic_offsets.push_back(v->GetSliceOffset(slot));
         }
-        pimpl->descriptor_sets[backbuffer] = pimpl->p_srb->GetDescriptorSet(
+        pimpl->descriptor_sets[slot] = pimpl->p_srb->GetDescriptorSet(
             0,
             pimpl->stage->GetReflectedShaderInfo(),
             pimpl->device_context->GetDevice(),
@@ -133,7 +142,7 @@ namespace Engine::Rhi {
         );
 
         // Then do uniform writes.
-        if (pimpl->ubo_manager.ubo_dirty[backbuffer]) {
+        if (pimpl->ubo_manager.ubo_dirty[slot]) {
             const auto &splayout = pimpl->stage->GetReflectedShaderInfo();
             for (const auto &[k, v] : pimpl->ubo_manager.ubos) {
                 auto itr = splayout.interface_name_mapping.find(k);
@@ -142,15 +151,16 @@ namespace Engine::Rhi {
                 assert(pbuf && pbuf->type == Rhi::SPInterfaceBuffer::Type::UniformBuffer);
                 splayout.PlaceBufferVariable(pimpl->cpu_side_buffer, *pbuf, *pimpl->p_buffer);
                 std::memcpy(
-                    v->GetSlicePtr(backbuffer), this->pimpl->cpu_side_buffer.data(), this->pimpl->cpu_side_buffer.size()
+                    v->GetSlicePtr(slot), this->pimpl->cpu_side_buffer.data(), this->pimpl->cpu_side_buffer.size()
                 );
             }
 
-            pimpl->ubo_manager.ubo_dirty[backbuffer] = false;
+            pimpl->ubo_manager.ubo_dirty[slot] = false;
         }
         return dynamic_offsets;
     }
-    vk::DescriptorSet ComputeResourceBinding::GetDescriptorSet(uint32_t b) const noexcept {
-        return pimpl->descriptor_sets[b];
+    vk::DescriptorSet ComputeResourceBinding::GetDescriptorSet(uint32_t slot) const noexcept {
+        assert(slot < pimpl->slot_count);
+        return pimpl->descriptor_sets[slot];
     }
 } // namespace Engine::Rhi

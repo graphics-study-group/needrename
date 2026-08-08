@@ -19,13 +19,11 @@ namespace Engine::Rhi {
     /**
      * @brief Bind the resources of a compute stage.
      *
-     * @param frame_index Frame-in-flight index for per-frame descriptor set
-     * selection. Callers maintain their own counter (modulo the binding's
-     * back-buffer count).
+     * @param slot Rotation slot index for descriptor-set / UBO-slice
+     * selection. Callers advance the slot in lockstep with their own
+     * submission cadence, modulo the binding's declared slot count.
      */
-    void BindComputeResource(
-        vk::CommandBuffer cb, ComputeStage &stage, ComputeResourceBinding &binding, uint32_t frame_index
-    );
+    void BindComputeResource(vk::CommandBuffer cb, ComputeStage &stage, ComputeResourceBinding &binding, uint32_t slot);
 
     /**
      * @brief Issue a compute dispatch.

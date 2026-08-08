@@ -92,13 +92,13 @@ namespace Engine {
             scan_spirv = LoadPhysicsSpirvBytes(scan_path);
             scan_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             scan_stage->Instantiate(scan_spirv, "ParallelScan");
-            scan_binding = &scan_stage->AllocateResourceBinding();
+            scan_binding = &scan_stage->AllocateResourceBinding(3);
 
             const char *offset_path = "algorithm/add_block_offset.comp.spv";
             offset_spirv = LoadPhysicsSpirvBytes(offset_path);
             offset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             offset_stage->Instantiate(offset_spirv, "AddBlockOffset");
-            offset_binding = &offset_stage->AllocateResourceBinding();
+            offset_binding = &offset_stage->AllocateResourceBinding(3);
         }
 
         Rhi::ComputeBuffer &AcquireParamBuffer(

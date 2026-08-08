@@ -50,10 +50,15 @@ namespace Engine::Rhi {
          * This allocated binding is guaranteed to be available until the
          * destruction of this compute stage.
          *
+         * @param slot_count Rotation depth of the binding: the number of
+         * descriptor-set / UBO-slice slots the caller rotates through in
+         * lockstep with its own submission cadence. Must be at least the
+         * number of batches the caller keeps in flight.
+         *
          * @note These bindings will not be de-allocated. Call this member
          * sparingly to avoid memory leak.
          */
-        ComputeResourceBinding &AllocateResourceBinding() noexcept;
+        ComputeResourceBinding &AllocateResourceBinding(uint32_t slot_count = 1) noexcept;
 
         /// @brief Get all reflected information of the shader.
         const Rhi::SPLayout &GetReflectedShaderInfo() const noexcept;

@@ -163,7 +163,7 @@ namespace Engine {
                 auto spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_int_buffer.comp.spv");
                 clear_stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 clear_stage->Instantiate(spirv, "ConvexDetect ClearCount");
-                clear_binding = &clear_stage->AllocateResourceBinding();
+                clear_binding = &clear_stage->AllocateResourceBinding(3);
                 auto &srb = clear_binding->GetShaderResourceBinding();
                 srb.BindBuffer("Target", *gpu_collision_count);
                 srb.BindBuffer("ElemCount", *gpu_one);
@@ -173,7 +173,7 @@ namespace Engine {
                 auto spirv = LoadPhysicsSpirv("collision/ConvexCollisionDetector/detect_collisions.comp.spv");
                 detect_stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 detect_stage->Instantiate(spirv, "Convex Collision Detection");
-                detect_binding = &detect_stage->AllocateResourceBinding();
+                detect_binding = &detect_stage->AllocateResourceBinding(3);
                 auto &srb = detect_binding->GetShaderResourceBinding();
                 srb.BindBuffer("ShapeAlive", *cached_scene->GetGpuBuffers().shape_alive);
                 srb.BindBuffer("ShapeType", *cached_scene->GetGpuBuffers().shape_type);

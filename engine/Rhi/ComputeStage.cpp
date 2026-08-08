@@ -100,8 +100,10 @@ namespace Engine::Rhi {
 
     ComputeStage::~ComputeStage() = default;
 
-    ComputeResourceBinding &ComputeStage::AllocateResourceBinding() noexcept {
-        pimpl->allocated_bindings.push_back(std::make_unique<ComputeResourceBinding>(m_device_context, *this));
+    ComputeResourceBinding &ComputeStage::AllocateResourceBinding(uint32_t slot_count) noexcept {
+        pimpl->allocated_bindings.push_back(
+            std::make_unique<ComputeResourceBinding>(m_device_context, *this, slot_count)
+        );
         return *pimpl->allocated_bindings.back();
     }
 

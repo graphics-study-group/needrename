@@ -220,7 +220,8 @@ namespace Editor {
         /**
          * Scene widget bloom compute pass.
          */
-        auto &scene_bloom_binding = scene_bloom.AllocateResourceBinding();
+        auto &scene_bloom_binding =
+            scene_bloom.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Scene Bloom FX pass")
@@ -303,7 +304,8 @@ namespace Editor {
         /**
          * Game widget bloom compute pass.
          */
-        auto &game_bloom_binding = game_bloom.AllocateResourceBinding();
+        auto &game_bloom_binding =
+            game_bloom.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Game Bloom FX pass")

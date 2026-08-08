@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
 
     Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
     cstage.Instantiate(cs->binary, cs->m_name);
-    auto &cbinding = cstage.AllocateResourceBinding();
+    auto &cbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
     cbinding.GetShaderResourceBinding().BindTexture("outputImage", *color_output);
     cbinding.GetShaderResourceBinding().BindTexture("inputImage", *color_input);
     cbinding.GetShaderResourceBinding().BindTexture("outputColorImage", *color_present);

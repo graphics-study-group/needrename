@@ -210,47 +210,47 @@ namespace Engine {
                 return stage;
             };
             clear_int_stage = load("solver/XPBDSolver/clear_int_buffer.comp.spv", "XPBD Clear Int");
-            clear_int_binding = &clear_int_stage->AllocateResourceBinding();
+            clear_int_binding = &clear_int_stage->AllocateResourceBinding(3);
 
             snapshot_stage = load("solver/XPBDSolver/snapshot_position.comp.spv", "XPBD Snapshot");
-            snapshot_binding = &snapshot_stage->AllocateResourceBinding();
+            snapshot_binding = &snapshot_stage->AllocateResourceBinding(3);
 
             update_shape_world_pose_stage =
                 load("solver/XPBDSolver/update_shape_world_pose.comp.spv", "XPBD UpdateShape");
-            update_shape_world_pose_binding = &update_shape_world_pose_stage->AllocateResourceBinding();
+            update_shape_world_pose_binding = &update_shape_world_pose_stage->AllocateResourceBinding(3);
 
             integrate_stage = load("solver/XPBDSolver/integrate_forces.comp.spv", "XPBD Integrate");
-            integrate_binding = &integrate_stage->AllocateResourceBinding();
+            integrate_binding = &integrate_stage->AllocateResourceBinding(3);
 
             accum_pos_stage = load("solver/XPBDSolver/accumulate_contact_position.comp.spv", "XPBD AccumPos");
-            accum_pos_binding = &accum_pos_stage->AllocateResourceBinding();
+            accum_pos_binding = &accum_pos_stage->AllocateResourceBinding(3);
 
             apply_pos_stage = load("solver/XPBDSolver/apply_body_position_deltas.comp.spv", "XPBD ApplyPos");
-            apply_pos_binding = &apply_pos_stage->AllocateResourceBinding();
+            apply_pos_binding = &apply_pos_stage->AllocateResourceBinding(3);
 
             update_vel_stage = load("solver/XPBDSolver/update_velocities_from_pose.comp.spv", "XPBD UpdateVel");
-            update_vel_binding = &update_vel_stage->AllocateResourceBinding();
+            update_vel_binding = &update_vel_stage->AllocateResourceBinding(3);
 
             accum_vel_stage = load("solver/XPBDSolver/accumulate_contact_velocity.comp.spv", "XPBD AccumVel");
-            accum_vel_binding = &accum_vel_stage->AllocateResourceBinding();
+            accum_vel_binding = &accum_vel_stage->AllocateResourceBinding(3);
 
             apply_vel_stage = load("solver/XPBDSolver/apply_body_velocity_deltas.comp.spv", "XPBD ApplyVel");
-            apply_vel_binding = &apply_vel_stage->AllocateResourceBinding();
+            apply_vel_binding = &apply_vel_stage->AllocateResourceBinding(3);
 
             model_matrix_stage = load("solver/XPBDSolver/model_matrix.comp.spv", "XPBD ModelMatrix");
-            model_matrix_binding = &model_matrix_stage->AllocateResourceBinding();
+            model_matrix_binding = &model_matrix_stage->AllocateResourceBinding(3);
 
             clear_hinge_lagrange_stage = load("solver/XPBDSolver/clear_hinge_lagrange.comp.spv", "XPBD ClearHinge");
-            clear_hinge_lagrange_binding = &clear_hinge_lagrange_stage->AllocateResourceBinding();
+            clear_hinge_lagrange_binding = &clear_hinge_lagrange_stage->AllocateResourceBinding(3);
 
             clear_fixed_lagrange_stage = load("solver/XPBDSolver/clear_fixed_lagrange.comp.spv", "XPBD ClearFixed");
-            clear_fixed_lagrange_binding = &clear_fixed_lagrange_stage->AllocateResourceBinding();
+            clear_fixed_lagrange_binding = &clear_fixed_lagrange_stage->AllocateResourceBinding(3);
 
             accum_hinge_pos_stage = load("solver/XPBDSolver/accumulate_hinge_position.comp.spv", "XPBD AccumHingePos");
-            accum_hinge_pos_binding = &accum_hinge_pos_stage->AllocateResourceBinding();
+            accum_hinge_pos_binding = &accum_hinge_pos_stage->AllocateResourceBinding(3);
 
             accum_fixed_pos_stage = load("solver/XPBDSolver/accumulate_fixed_position.comp.spv", "XPBD AccumFixedPos");
-            accum_fixed_pos_binding = &accum_fixed_pos_stage->AllocateResourceBinding();
+            accum_fixed_pos_binding = &accum_fixed_pos_stage->AllocateResourceBinding(3);
         }
 
         // ---- Dispatch helpers ----
