@@ -74,11 +74,16 @@ The `contact_margin` configured for `ConvexCollisionDetector` SHALL reach the sh
 
 ### Requirement: C++ push layouts conform to shader declarations
 
-For every physics push-constant parameter, the C++ side SHALL define a structure (or scalar) whose size and field layout match the shader's push-constant block under std430 rules, guarded by `static_assert` on the expected size.
+For every physics push-constant parameter, the C++ side SHALL define a structure (or scalar) whose field order matches the shader's push-constant block and whose size equals the shader's declared block size — std430 member layout, with no struct-level 16-byte tail padding on the reflected size — guarded by `static_assert` on the expected size. `vec4`-family members SHALL precede scalar members so that C++ natural alignment matches the std430 member offsets.
 
 #### Scenario: Layout drift is a compile-time failure
 - **WHEN** a C++ push structure's size differs from its documented shader layout
 - **THEN** the `static_assert` fails the build
+
+#### Scenario: Mixed vec4 + scalar blocks use the declared size
+- **WHEN** a shader declares `{ vec4 a; uint b; }` or `{ vec4 a; ivec4 b; uint c; }`
+- **THEN** the reflected `push_constant_size` is 20 / 36 (no struct-level 16-byte padding)
+- **AND** the C++ push structure is 20 / 36 bytes with `vec4` members first
 
 ### Requirement: Shader bindings are consecutive
 

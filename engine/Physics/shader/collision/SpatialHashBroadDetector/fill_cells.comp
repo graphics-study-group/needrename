@@ -19,9 +19,9 @@ layout(push_constant) uniform GridPush {
     uint  shape_slot_count;
 } params;
 
-layout(set = 0, binding = 5) readonly buffer ShapeCellOffset { uint v[]; } shape_cell_offset;
+layout(set = 0, binding = 3) readonly buffer ShapeCellOffset { uint v[]; } shape_cell_offset;
 
-layout(set = 0, binding = 6) writeonly buffer CellShapePairs { uvec2 v[]; } cell_shape_pairs;
+layout(set = 0, binding = 4) writeonly buffer CellShapePairs { uvec2 v[]; } cell_shape_pairs;
 
 // Encode 3D cell coordinate to 1D cell ID.
 uint cell_id(ivec3 c) {

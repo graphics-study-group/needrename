@@ -48,7 +48,7 @@ Rationale: template deduces size, making single-parameter pushes `PushConstants(
 
 ### D4: Per-shader minimal push blocks — no component-level unification
 
-Every shader declares only the fields it consumes; C++ constructs the value inline at the dispatch site (scalar for one field, function-local struct for several). Shared shaders (`memset_uint.comp`, `copy_uint.comp`) use one contract: `{ uint elem_count; }`, pushed by both `SpatialHashBroadDetector` and `RadixSort`. Rationale: blocks are tiny; Vulkan requires `size <= stage range`, so a shared 64-byte struct cannot be pushed onto a 4-byte-range stage anyway; unification would force every call site to reason about padding. `radix_prefix_sum_256.comp` has no parameters and stays untouched.
+Every shader declares only the fields it consumes; C++ constructs the value inline at the dispatch site (scalar for one field, function-local struct for several). `memset_uint.comp` uses one push contract `{ uint elem_count; }`, shared by `SpatialHashBroadDetector`, `RadixSort` and `CompactUnique` (all three counts are CPU-known). `copy_uint.comp` keeps an SSBO `ElemCount` because `CompactUnique` binds the GPU-written `PairCount` (unknown at record time); `SpatialHashBroadDetector` uses a new push-constant twin `copy_uint_push.comp` for its CPU-known counts. Rationale: blocks are tiny; Vulkan requires `size <= stage range`. `radix_prefix_sum_256.comp` has no parameters and stays untouched.
 
 ### D5: Constant SSBOs and parameter pools are deleted, not kept
 
@@ -60,7 +60,7 @@ All 16 CPU-written constant buffers (including `gpu_const_256`, `gpu_one`, `gpu_
 
 ### D7: C++ push layouts are compile-time checked
 
-Each push struct carries `static_assert` on its expected size (std430 rules, vec4 = 16-byte alignment), mirroring the existing `ScanParamsGpu`/`GridConfigGpu` pattern. `shader_refl_test` locks the reflection side (D10).
+Each push struct carries `static_assert` on its expected size. The expected size is the shader's **declared** block size (std430 member layout): `get_declared_struct_size` does not add struct-level 16-byte tail padding, so `{ vec4; uint }` reflects 20 and `{ vec4; ivec4; uint }` reflects 36 — the C++ structs use matching natural alignment with `vec4` members first (glm::vec4 aligns to 4, so a scalar preceding a `vec4` would diverge from std430 offsets). `shader_refl_test` locks the reflection side (D10), including mixed-layout cases.
 
 ### D8: Binding renumbering is the final, gated step
 

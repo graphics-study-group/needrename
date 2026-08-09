@@ -35,22 +35,22 @@ layout(push_constant) uniform XpbdPush {
 } params;
 
 // ---- Lagrange multiplier SoA buffers (solver-owned, read-write) ----
-layout(set = 0, binding = 2)  buffer HingeAxisLagrange   { float v[]; } hinge_axis_lagrange;
-layout(set = 0, binding = 3)  buffer HingeAnchorLagrange { float v[]; } hinge_anchor_lagrange;
-layout(set = 0, binding = 4) readonly buffer HingeJointAlive { uint v[]; } hinge_joint_alive;
+layout(set = 0, binding = 1)  buffer HingeAxisLagrange   { float v[]; } hinge_axis_lagrange;
+layout(set = 0, binding = 2)  buffer HingeAnchorLagrange { float v[]; } hinge_anchor_lagrange;
+layout(set = 0, binding = 3) readonly buffer HingeJointAlive { uint v[]; } hinge_joint_alive;
 
 // ---- Body state (read-only) ----
-layout(set = 0, binding = 5)  readonly buffer RigidBodyAlive         { uint v[]; } rigid_body_alive;
-layout(set = 0, binding = 6)  readonly buffer RigidBodyCenterPosition { vec4 v[]; } rigid_body_center_position;
-layout(set = 0, binding = 7)  readonly buffer RigidBodyCenterRotation { vec4 v[]; } rigid_body_center_rotation;
-layout(set = 0, binding = 8)  readonly buffer RigidBodyMass           { float v[]; } rigid_body_mass;
-layout(set = 0, binding = 9)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
-layout(set = 0, binding = 10)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
+layout(set = 0, binding = 4)  readonly buffer RigidBodyAlive         { uint v[]; } rigid_body_alive;
+layout(set = 0, binding = 5)  readonly buffer RigidBodyCenterPosition { vec4 v[]; } rigid_body_center_position;
+layout(set = 0, binding = 6)  readonly buffer RigidBodyCenterRotation { vec4 v[]; } rigid_body_center_rotation;
+layout(set = 0, binding = 7)  readonly buffer RigidBodyMass           { float v[]; } rigid_body_mass;
+layout(set = 0, binding = 8)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
+layout(set = 0, binding = 9)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
 
 // ---- Jacobi accumulators (shared with contact solver) ----
-layout(set = 0, binding = 12) buffer LinearPositionDelta  { float v[]; } lin_delta;
-layout(set = 0, binding = 13) buffer AngularPositionDelta { float v[]; } ang_delta;
-layout(set = 0, binding = 14) buffer PositionDeltaCount    { float v[]; } delta_count;
+layout(set = 0, binding = 10) buffer LinearPositionDelta  { float v[]; } lin_delta;
+layout(set = 0, binding = 11) buffer AngularPositionDelta { float v[]; } ang_delta;
+layout(set = 0, binding = 12) buffer PositionDeltaCount    { float v[]; } delta_count;
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;

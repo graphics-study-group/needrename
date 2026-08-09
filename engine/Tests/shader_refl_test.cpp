@@ -156,6 +156,40 @@ void main() { out_buf.v[0] = params.count; }
         assert(pc_layout.push_constant_size == 4u && "scalar push block must reflect 4 bytes");
     }
 
+    // Mixed vec4 + scalar push block -> declared size only (20), no struct-level 16 padding.
+    {
+        const std::string glsl = R"(
+#version 450 core
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(push_constant) uniform Params { vec4 value; uint count; } params;
+layout(set = 0, binding = 0) buffer OutBuffer { uint v[]; } out_buf;
+void main() { out_buf.v[0] = params.count; }
+)";
+        std::vector<uint32_t> spirv{};
+        Engine::ShaderCompiler compiler;
+        compiler.CompileGLSLtoSPV(spirv, glsl, EShLangCompute);
+        auto pc_layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
+        std::cout << " - Push-constant mixed shader: push_constant_size = " << pc_layout.push_constant_size << std::endl;
+        assert(pc_layout.push_constant_size == 20u && "mixed push block must reflect declared size 20");
+    }
+
+    // Mixed vec4 + ivec4 + scalar -> 36, no struct-level 16 padding.
+    {
+        const std::string glsl = R"(
+#version 450 core
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(push_constant) uniform Params { vec4 a; ivec4 b; uint c; } params;
+layout(set = 0, binding = 0) buffer OutBuffer { uint v[]; } out_buf;
+void main() { out_buf.v[0] = params.c; }
+)";
+        std::vector<uint32_t> spirv{};
+        Engine::ShaderCompiler compiler;
+        compiler.CompileGLSLtoSPV(spirv, glsl, EShLangCompute);
+        auto pc_layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
+        std::cout << " - Push-constant grid-like shader: push_constant_size = " << pc_layout.push_constant_size << std::endl;
+        assert(pc_layout.push_constant_size == 36u && "grid-like push block must reflect declared size 36");
+    }
+
     // No push constants -> 0.
     {
         const std::string glsl = R"(

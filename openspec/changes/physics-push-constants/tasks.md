@@ -29,17 +29,17 @@
 
 ## 4. Test coverage
 
-- [x] 4.1 `shader_refl_test`: embed GLSL with push-constant blocks (vec4 and uint variants) and assert reflected `push_constant_size`
+- [x] 4.1 `shader_refl_test`: embed GLSL with push-constant blocks (vec4, uint, and mixed vec4+scalar variants) and assert reflected `push_constant_size` (16/4/20/36)
 - [x] 4.2 `headless_compute_test`: embed a push-constant compute shader (`output = input + params.offset`), push at record time, assert read-back after `waitIdle`
 
 ## 5. Verification and review gate
 
 - [x] 5.1 Build + full `ctest --preset debug` green (48 tests)
 - [x] 5.2 Grep acceptance: no `AllocateResourceBinding(3)`, `m_frame_counter`, `param_pool`, `ResetParamPool`, or deleted constant-buffer names under `engine/Physics/`; no `% 3` rotation expressions
-- [ ] 5.3 Stop for user review of the diff (no commit yet); user validates physics behavior manually (`physics_example`, incl. DetectorConfig margin effect)
-- [ ] 5.4 On approval, commit the migration
+- [x] 5.3 Stop for user review of the diff (no commit yet); user validates physics behavior manually (`physics_example`, incl. DetectorConfig margin effect)
+- [x] 5.4 On approval, commit the migration (user committed `cc85c1d0`; push-struct sizes corrected to declared sizes — no `alignas(16)`, static_asserts restored at 16/20/20/36)
 
 ## 6. Shader binding renumbering (final, after reconfirmation)
 
-- [ ] 6.1 After user reconfirms, renumber all physics shader descriptor bindings to consecutive 0..N (no holes)
-- [ ] 6.2 Rebuild + re-run `ctest`; grep acceptance that every physics shader's bindings are contiguous
+- [x] 6.1 After user reconfirms, renumber all physics shader descriptor bindings to consecutive 0..N (no holes)
+- [x] 6.2 Rebuild + re-run `ctest`; grep acceptance that every physics shader's bindings are contiguous

@@ -25,15 +25,15 @@ layout(push_constant) uniform ShapeCountPush {
     uint shape_slot_count;
 } params;
 
-layout(set = 0, binding = 5)  writeonly buffer CollisionPairs  { uvec2 v[]; } collision_pairs;
-layout(set = 0, binding = 6)  buffer PairCount                 { uint v[]; } pair_count;
+layout(set = 0, binding = 4)  writeonly buffer CollisionPairs  { uvec2 v[]; } collision_pairs;
+layout(set = 0, binding = 5)  buffer PairCount                 { uint v[]; } pair_count;
 
 // Collision filter: fixed-stride array, shape i at [i*MAX_FILTER_ENTRIES .. i*MAX_FILTER_ENTRIES+MAX_FILTER_ENTRIES).
-layout(set = 0, binding = 7)  readonly buffer ShapeFilterData  { uint v[]; } filter_data;
+layout(set = 0, binding = 6)  readonly buffer ShapeFilterData  { uint v[]; } filter_data;
 
 // AABB buffers (produced by compute_aabbs.comp).
-layout(set = 0, binding = 8)  readonly buffer AabbMin { vec4 v[]; } aabb_min;
-layout(set = 0, binding = 9)  readonly buffer AabbMax { vec4 v[]; } aabb_max;
+layout(set = 0, binding = 7)  readonly buffer AabbMin { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 8)  readonly buffer AabbMax { vec4 v[]; } aabb_max;
 
 bool aabb_overlap(uint a, uint b) {
     return all(greaterThanEqual(aabb_max.v[a].xyz, aabb_min.v[b].xyz))

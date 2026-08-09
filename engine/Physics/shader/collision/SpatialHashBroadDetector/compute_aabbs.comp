@@ -28,8 +28,8 @@ layout(push_constant) uniform GridPush {
     uint  shape_slot_count;
 } params;
 
-layout(set = 0, binding = 10) writeonly buffer GlobalList  { uint v[]; } global_list;
-layout(set = 0, binding = 11) buffer GlobalCount           { uint v[]; } global_count;
+layout(set = 0, binding = 8) writeonly buffer GlobalList  { uint v[]; } global_list;
+layout(set = 0, binding = 9) buffer GlobalCount           { uint v[]; } global_count;
 
 // --- Shape type constants ---
 #define SHAPE_TYPE_BOX      0u

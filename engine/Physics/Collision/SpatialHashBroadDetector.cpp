@@ -50,12 +50,14 @@ namespace {
 namespace Engine {
 
     // Push-constant layout, matching the GridPush block in the SpatialHash
-    // shaders (std430): vec4 world_min_cell_size, ivec4 grid_dims_max_cells,
+    // shaders. The reflected size is the declared size (std430 member layout,
+    // no struct-level 16 padding): vec4 + ivec4 + uint = 36 bytes.
     struct GridPushParams {
         glm::vec4 world_min_cell_size;  // xyz = bounds min, w = cell_size
         glm::ivec4 grid_dims_max_cells; // xyz = grid dimensions, w = max_cells_per_shape
         uint32_t shape_slot_count;
     };
+    static_assert(sizeof(GridPushParams) == 36, "GridPushParams must match shader push block");
 
     struct SpatialHashBroadDetector::Impl {
         Rhi::DeviceContext &device_context;

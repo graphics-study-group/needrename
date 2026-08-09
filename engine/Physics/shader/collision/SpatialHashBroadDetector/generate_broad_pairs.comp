@@ -16,8 +16,8 @@ layout(set = 0, binding = 1) readonly buffer CellOffsets   { uint v[]; } cell_of
 layout(set = 0, binding = 2) readonly buffer GlobalFlags   { uint v[]; } global_flags;
 layout(set = 0, binding = 3) readonly buffer ShapeAlive    { uint v[]; } shape_alive;
 
-layout(set = 0, binding = 5) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
-layout(set = 0, binding = 6) buffer PairCount               { uint v[]; } pair_count;
+layout(set = 0, binding = 4) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
+layout(set = 0, binding = 5) buffer PairCount               { uint v[]; } pair_count;
 
 // --- Config (push constant, recorded by the detector) ---
 
@@ -25,14 +25,14 @@ layout(push_constant) uniform GridPush {
     uint total_cells;
 } params;
 
-layout(set = 0, binding = 8) readonly buffer TotalAssignments { uint total; } total_assignments;
+layout(set = 0, binding = 6) readonly buffer TotalAssignments { uint total; } total_assignments;
 
 // Collision filter: fixed-stride array, shape i at [i*MAX_FILTER_ENTRIES .. i*MAX_FILTER_ENTRIES+MAX_FILTER_ENTRIES).
-layout(set = 0, binding = 9) readonly buffer ShapeFilterData { uint v[]; } filter_data;
+layout(set = 0, binding = 7) readonly buffer ShapeFilterData { uint v[]; } filter_data;
 
 // AABB buffers (produced by compute_aabbs.comp).
-layout(set = 0, binding = 10) readonly buffer AabbMin { vec4 v[]; } aabb_min;
-layout(set = 0, binding = 11) readonly buffer AabbMax { vec4 v[]; } aabb_max;
+layout(set = 0, binding = 8) readonly buffer AabbMin { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 9) readonly buffer AabbMax { vec4 v[]; } aabb_max;
 
 bool aabb_overlap(uint a, uint b) {
     return all(greaterThanEqual(aabb_max.v[a].xyz, aabb_min.v[b].xyz))

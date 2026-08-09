@@ -40,7 +40,7 @@ layout(set = 0, binding = 5) readonly buffer CollisionPairs {
 
 // ---- Pair count (actual number of pairs from broad-phase) ----
 
-layout(set = 0, binding = 13) readonly buffer PairCount {
+layout(set = 0, binding = 11) readonly buffer PairCount {
     uint count;
 } pair_count;
 

@@ -43,20 +43,25 @@ namespace {
     };
 
     // Push-constant layouts, matching the per-shader blocks in
-    // engine/Physics/shader/solver/XPBDSolver/ (std430).
+    // engine/Physics/shader/solver/XPBDSolver/. The reflected size is the
+    // declared size (std430 member layout, no struct-level 16 padding), so
+    // vec4 members must come before scalar members (glm::vec4 aligns to 4).
     struct XpbdPushParams {
         glm::vec4 gravity_dt; // xyz = gravity, w = substep dt
     };
+    static_assert(sizeof(XpbdPushParams) == 16, "XpbdPushParams must match shader push block");
 
     struct HingePushParams {
         glm::vec4 gravity_dt;
         uint32_t hinge_joint_count;
     };
+    static_assert(sizeof(HingePushParams) == 20, "HingePushParams must match shader push block");
 
     struct FixedPushParams {
         glm::vec4 gravity_dt;
         uint32_t fixed_joint_count;
     };
+    static_assert(sizeof(FixedPushParams) == 20, "FixedPushParams must match shader push block");
 } // namespace
 
 namespace Engine {
