@@ -128,12 +128,14 @@ int main() {
             .UseBuffer(cbi1, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead})
             .UseBuffer(cbi3, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
-            .SetPassFunction([&cstage_push, &cbinding_push, PUSH_OFFSET](CommandBuffer &cb, const RenderGraph &) -> void {
-                Rhi::PushConstants(cb.GetCommandBuffer(), cstage_push, PUSH_OFFSET);
-                cb.BindComputeStage(cstage_push);
-                cb.BindComputeResource(cbinding_push);
-                cb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
-            })
+            .SetPassFunction(
+                [&cstage_push, &cbinding_push, PUSH_OFFSET](CommandBuffer &cb, const RenderGraph &) -> void {
+                    Rhi::PushConstants(cb.GetCommandBuffer(), cstage_push, PUSH_OFFSET);
+                    cb.BindComputeStage(cstage_push);
+                    cb.BindComputeResource(cbinding_push);
+                    cb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
+                }
+            )
             .Get()
     );
     auto rg_push{rgb_push.BuildRenderGraph()};

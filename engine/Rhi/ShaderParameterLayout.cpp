@@ -11,8 +11,8 @@
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
-#include <string>
 #include <algorithm>
+#include <string>
 
 namespace Engine::Rhi {
     // Types are only added and never removed.

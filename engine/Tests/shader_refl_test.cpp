@@ -152,7 +152,8 @@ void main() { out_buf.v[0] = params.count; }
         Engine::ShaderCompiler compiler;
         compiler.CompileGLSLtoSPV(spirv, glsl, EShLangCompute);
         auto pc_layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
-        std::cout << " - Push-constant scalar shader: push_constant_size = " << pc_layout.push_constant_size << std::endl;
+        std::cout << " - Push-constant scalar shader: push_constant_size = " << pc_layout.push_constant_size
+                  << std::endl;
         assert(pc_layout.push_constant_size == 4u && "scalar push block must reflect 4 bytes");
     }
 
@@ -169,7 +170,8 @@ void main() { out_buf.v[0] = params.count; }
         Engine::ShaderCompiler compiler;
         compiler.CompileGLSLtoSPV(spirv, glsl, EShLangCompute);
         auto pc_layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
-        std::cout << " - Push-constant mixed shader: push_constant_size = " << pc_layout.push_constant_size << std::endl;
+        std::cout << " - Push-constant mixed shader: push_constant_size = " << pc_layout.push_constant_size
+                  << std::endl;
         assert(pc_layout.push_constant_size == 20u && "mixed push block must reflect declared size 20");
     }
 
@@ -186,7 +188,8 @@ void main() { out_buf.v[0] = params.c; }
         Engine::ShaderCompiler compiler;
         compiler.CompileGLSLtoSPV(spirv, glsl, EShLangCompute);
         auto pc_layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
-        std::cout << " - Push-constant grid-like shader: push_constant_size = " << pc_layout.push_constant_size << std::endl;
+        std::cout << " - Push-constant grid-like shader: push_constant_size = " << pc_layout.push_constant_size
+                  << std::endl;
         assert(pc_layout.push_constant_size == 36u && "grid-like push block must reflect declared size 36");
     }
 

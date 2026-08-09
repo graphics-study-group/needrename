@@ -171,7 +171,15 @@ namespace Engine {
                 const ScanParamsPush params{0u, block_offset, num_blocks, 0u};
                 RecordScanPass(cb, block_sums_buf, block_sums_buf, block_sums_buf, params, 1u);
             } else {
-                RecordScanInternal(cb, block_sums_buf, block_sums_buf, block_sums_buf, num_blocks, block_offset, block_offset + num_blocks);
+                RecordScanInternal(
+                    cb,
+                    block_sums_buf,
+                    block_sums_buf,
+                    block_sums_buf,
+                    num_blocks,
+                    block_offset,
+                    block_offset + num_blocks
+                );
             }
 
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});

@@ -566,9 +566,7 @@ namespace Engine {
                 for (uint32_t iter = 0; iter < vel_iters; ++iter) {
                     barrier();
 
-                    dispatch_clear(
-                        *m_impl->gpu_velocity_delta_count, body_count, (body_count + 63u) / 64u
-                    );
+                    dispatch_clear(*m_impl->gpu_velocity_delta_count, body_count, (body_count + 63u) / 64u);
                     barrier();
 
                     {

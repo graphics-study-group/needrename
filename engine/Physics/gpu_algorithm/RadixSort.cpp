@@ -201,7 +201,9 @@ namespace Engine {
             RecordPrefixSumPass(cb, scratch_buf);
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            RecordScatterPass(cb, pairs_in_buf, pairs_out_buf, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity);
+            RecordScatterPass(
+                cb, pairs_in_buf, pairs_out_buf, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity
+            );
         }
     };
 
@@ -252,9 +254,13 @@ namespace Engine {
             bool to_b = (pass % 2u) == 0u;
 
             if (to_b) {
-                m_impl->RecordRadixPass(cb, pairs_buf_a, pairs_buf_b, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity);
+                m_impl->RecordRadixPass(
+                    cb, pairs_buf_a, pairs_buf_b, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity
+                );
             } else {
-                m_impl->RecordRadixPass(cb, pairs_buf_b, pairs_buf_a, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity);
+                m_impl->RecordRadixPass(
+                    cb, pairs_buf_b, pairs_buf_a, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity
+                );
             }
 
             if (pass + 1 < kNumPasses) {

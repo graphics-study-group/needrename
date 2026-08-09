@@ -51,7 +51,9 @@ namespace Engine::Rhi {
             if (layout.push_constant_size > 0) {
                 pc_ranges.emplace_back(vk::ShaderStageFlagBits::eCompute, 0, layout.push_constant_size);
             }
-            vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, pc_ranges};
+            vk::PipelineLayoutCreateInfo plci{
+                vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, pc_ranges
+            };
             m_passInfo.pipeline_layout = device_interface.GetDevice().createPipelineLayoutUnique(plci);
             DEBUG_SET_NAME_TEMPLATE(
                 device_interface.GetDevice(),
