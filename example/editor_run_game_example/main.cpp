@@ -292,6 +292,11 @@ int main(int argc, char **argv) {
         }
 
         world->UpdateRendererData(*rsys);
+        // Physics → render bridge: forward the physics model matrices buffer
+        // to the scene data manager (physics itself no longer touches Render).
+        if (auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene()) {
+            rsys->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+        }
 
         gui->PrepareGUI();
         main_window.Render();
