@@ -76,7 +76,7 @@ namespace Engine::Rhi {
         size_t max_size{0};
         for (const auto &[k, v] : pimpl->mapping) {
             size_t element_size{0};
-            if (v.info == &typeid(StructuredBuffer)) {
+            if (v.info != nullptr && *v.info == typeid(StructuredBuffer)) {
                 assert(v.subbuffer);
                 element_size = v.subbuffer->CalculateMaxSize();
             } else {
@@ -100,7 +100,7 @@ namespace Engine::Rhi {
                 );
                 continue;
             }
-            if (info.info != nullptr && info.info != varptr->type) {
+            if (info.info != nullptr && varptr->type != nullptr && !(*info.info == *varptr->type)) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_APPLICATION,
                     "Variable of name %s has type %s in the placer but %s in the buffer.",
@@ -110,7 +110,7 @@ namespace Engine::Rhi {
                 );
             }
 
-            if (info.info == &typeid(StructuredBuffer)) {
+            if (info.info != nullptr && *info.info == typeid(StructuredBuffer)) {
                 // Recursively process buffer writes.
                 using cbp = const StructuredBuffer *;
                 assert(info.subbuffer != nullptr);
