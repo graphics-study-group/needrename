@@ -8,7 +8,7 @@
 //   2. Recursively scan the block-sums buffer (mode=0)
 //   3. Dispatch offset-addition shader (mode=2 in add_block_offset.comp)
 //
-// ScanParams layout (matches C++ ScanParamsGpu):
+// ScanParams (push constant, matches C++ ScanParamsPush):
 //   mode          — 0 = single-pass scan, 1 = scan + write block totals
 //   data_offset   — offset (in uints) into InputData / OutputData
 //   elem_count    — number of elements to process (logical, before offset)
@@ -17,8 +17,7 @@
 // Bindings:
 //   binding 0 — readonly buffer uint[]  InputData
 //   binding 1 — buffer uint[]           OutputData (may alias InputData)
-//   binding 2 — readonly buffer         ScanParams { mode; data_offset; elem_count; block_offset }
-//   binding 3 — buffer uint[]           BlockSums
+//   binding 2 — buffer uint[]           BlockSums
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
@@ -33,14 +32,16 @@ layout(set = 0, binding = 1) buffer OutputData {
     uint v[];
 } output_data;
 
-layout(set = 0, binding = 2) readonly buffer ScanParams {
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+
+layout(push_constant) uniform ScanParamsPush {
     uint mode;
     uint data_offset;
     uint elem_count;
     uint block_offset;
-} scan_params;
+} params;
 
-layout(set = 0, binding = 3) buffer BlockSums {
+layout(set = 0, binding = 2) buffer BlockSums {
     uint v[];
 } block_sums;
 
@@ -49,8 +50,8 @@ shared uint s[SHARED_N];
 void main() {
     uint tid = gl_LocalInvocationID.x;
     uint wg_id = gl_WorkGroupID.x;
-    uint n = scan_params.elem_count;
-    uint data_off = scan_params.data_offset;
+    uint n = params.elem_count;
+    uint data_off = params.data_offset;
 
     // Each workgroup handles SHARED_N elements starting at data_off + wg_id * SHARED_N.
     uint logical_base = wg_id * SHARED_N;
@@ -101,7 +102,7 @@ void main() {
     }
 
     // Mode 1: write per-block total sums to BlockSums[block_offset + wg_id].
-    if (scan_params.mode == 1u && tid == 0u) {
-        block_sums.v[scan_params.block_offset + wg_id] = block_total;
+    if (params.mode == 1u && tid == 0u) {
+        block_sums.v[params.block_offset + wg_id] = block_total;
     }
 }

@@ -58,6 +58,7 @@ namespace Engine {
         uint32_t max_input_collision_pairs = 1;
         uint32_t max_output_collision_pairs = 1;
         float contact_margin = 0.001f;
+        uint32_t shape_slot_count = 0;
 
         bool shaders_loaded = false;
 
@@ -67,14 +68,11 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeStage> detect_stage{};
         Rhi::ComputeResourceBinding *detect_binding = nullptr;
 
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_shape_slot_count{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_ids{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_normals{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_point_a{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_point_b{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_count{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_detector_config{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_one{};
 
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
@@ -88,14 +86,6 @@ namespace Engine {
             const auto &allocator = device_context.GetAllocatorState();
             const size_t result_entries = std::max<uint32_t>(1u, max_output_collision_pairs);
 
-            {
-                const size_t byte_size = sizeof(uint32_t);
-                if (!gpu_shape_slot_count || gpu_shape_slot_count->GetSize() != byte_size) {
-                    gpu_shape_slot_count = Rhi::ComputeBuffer::CreateUnique(
-                        allocator, byte_size, true, false, false, false, "ShapeSlotCount"
-                    );
-                }
-            }
             {
                 const size_t byte_size = result_entries * sizeof(glm::uvec2);
                 if (!gpu_collision_ids || gpu_collision_ids->GetSize() != byte_size) {
@@ -136,23 +126,6 @@ namespace Engine {
                     );
                 }
             }
-            {
-                const size_t byte_size = sizeof(float);
-                if (!gpu_detector_config || gpu_detector_config->GetSize() != byte_size) {
-                    gpu_detector_config = Rhi::ComputeBuffer::CreateUnique(
-                        allocator, byte_size, true, false, false, false, "DetectorConfig"
-                    );
-                }
-            }
-            {
-                if (!gpu_one || gpu_one->GetSize() < sizeof(uint32_t)) {
-                    gpu_one = Rhi::ComputeBuffer::CreateUnique(
-                        allocator, sizeof(uint32_t), true, false, false, false, "NarrowOne"
-                    );
-                    auto *addr = reinterpret_cast<uint32_t *>(gpu_one->GetVMAddress());
-                    *addr = 1u;
-                }
-            }
         }
 
         void EnsureShadersAndBindings() {
@@ -163,17 +136,16 @@ namespace Engine {
                 auto spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_int_buffer.comp.spv");
                 clear_stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 clear_stage->Instantiate(spirv, "ConvexDetect ClearCount");
-                clear_binding = &clear_stage->AllocateResourceBinding(3);
+                clear_binding = &clear_stage->AllocateResourceBinding();
                 auto &srb = clear_binding->GetShaderResourceBinding();
                 srb.BindBuffer("Target", *gpu_collision_count);
-                srb.BindBuffer("ElemCount", *gpu_one);
             }
 
             {
                 auto spirv = LoadPhysicsSpirv("collision/ConvexCollisionDetector/detect_collisions.comp.spv");
                 detect_stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 detect_stage->Instantiate(spirv, "Convex Collision Detection");
-                detect_binding = &detect_stage->AllocateResourceBinding(3);
+                detect_binding = &detect_stage->AllocateResourceBinding();
                 auto &srb = detect_binding->GetShaderResourceBinding();
                 srb.BindBuffer("ShapeAlive", *cached_scene->GetGpuBuffers().shape_alive);
                 srb.BindBuffer("ShapeType", *cached_scene->GetGpuBuffers().shape_type);
@@ -187,8 +159,6 @@ namespace Engine {
                 srb.BindBuffer("ContactPointA", *gpu_contact_point_a);
                 srb.BindBuffer("ContactPointB", *gpu_contact_point_b);
                 srb.BindBuffer("CollisionCount", *gpu_collision_count);
-                srb.BindBuffer("ShapeSlotCount", *gpu_shape_slot_count);
-                srb.BindBuffer("DetectorConfig", *gpu_detector_config);
             }
         }
 
@@ -207,18 +177,6 @@ namespace Engine {
             srb.BindBuffer("ContactPointA", *gpu_contact_point_a);
             srb.BindBuffer("ContactPointB", *gpu_contact_point_b);
             srb.BindBuffer("CollisionCount", *gpu_collision_count);
-            srb.BindBuffer("ShapeSlotCount", *gpu_shape_slot_count);
-            srb.BindBuffer("DetectorConfig", *gpu_detector_config);
-        }
-
-        void UpdateShapeSlotCount(uint32_t count) {
-            auto *addr = reinterpret_cast<uint32_t *>(gpu_shape_slot_count->GetVMAddress());
-            *addr = count;
-        }
-
-        void UpdateDetectorConfig() {
-            auto *addr = reinterpret_cast<float *>(gpu_detector_config->GetVMAddress());
-            *addr = contact_margin;
         }
     };
 
@@ -251,10 +209,7 @@ namespace Engine {
         m_impl->EnsureShadersAndBindings();
 
         const auto gpu = scene.GetGpuBuffers();
-        if (gpu.shape_slot_count > 0u) {
-            m_impl->UpdateShapeSlotCount(gpu.shape_slot_count);
-        }
-        m_impl->UpdateDetectorConfig();
+        m_impl->shape_slot_count = gpu.shape_slot_count;
     }
 
     CollisionResultBuffers ConvexCollisionDetector::GetResultBuffers() const noexcept {
@@ -276,21 +231,29 @@ namespace Engine {
             return;
         }
 
-        const uint32_t frame = m_frame_counter++ % 3;
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         m_impl->EnsureShadersAndBindings();
         m_impl->RebindDetectBuffers();
 
+        Rhi::PushConstants(cb, *m_impl->clear_stage, 1u);
         Rhi::BindComputeStage(cb, *m_impl->clear_stage);
-        Rhi::BindComputeResource(cb, *m_impl->clear_stage, *m_impl->clear_binding, frame);
+        Rhi::BindComputeResource(cb, *m_impl->clear_stage, *m_impl->clear_binding);
         Rhi::DispatchCompute(cb, 1, 1, 1);
 
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
+        struct DetectPushParams {
+            float contact_margin;
+            uint32_t shape_slot_count;
+        };
+        static_assert(sizeof(DetectPushParams) == 8, "DetectPushParams must match shader push block");
+        const DetectPushParams params{m_impl->contact_margin, m_impl->shape_slot_count};
+
         uint32_t detect_wg = std::max(1u, (m_impl->max_input_collision_pairs + 63u) / 64u);
+        Rhi::PushConstants(cb, *m_impl->detect_stage, params);
         Rhi::BindComputeStage(cb, *m_impl->detect_stage);
-        Rhi::BindComputeResource(cb, *m_impl->detect_stage, *m_impl->detect_binding, frame);
+        Rhi::BindComputeResource(cb, *m_impl->detect_stage, *m_impl->detect_binding);
         Rhi::DispatchCompute(cb, detect_wg, 1, 1);
     }
 } // namespace Engine

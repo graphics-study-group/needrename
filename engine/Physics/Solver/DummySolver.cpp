@@ -56,8 +56,6 @@ namespace Engine {
         std::vector<uint32_t> shader_spirv{};
         Rhi::ComputeResourceBinding *resource_binding = nullptr;
 
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_uniforms{};
-
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
@@ -65,16 +63,6 @@ namespace Engine {
         Impl &operator=(const Impl &) = delete;
         Impl(Impl &&) = delete;
         Impl &operator=(Impl &&) = delete;
-
-        void EnsureUniformBuffer(uint32_t body_count) {
-            size_t sz = sizeof(glm::vec4);
-            if (!gpu_uniforms || gpu_uniforms->GetSize() != sz) {
-                const auto &alloc = device_context.GetAllocatorState();
-                gpu_uniforms =
-                    Rhi::ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "DummySolver Uniforms");
-            }
-            (void)body_count;
-        }
     };
 
     DummySolver::DummySolver(Rhi::DeviceContext &device_context) : m_impl(std::make_unique<Impl>(device_context)) {
@@ -105,19 +93,10 @@ namespace Engine {
             m_impl->shader_spirv = LoadPhysicsSpirv("solver/DummySolver/dummy_solver.comp.spv");
             m_impl->compute_stage = std::make_unique<Rhi::ComputeStage>(m_impl->device_context);
             m_impl->compute_stage->Instantiate(m_impl->shader_spirv, "DummySolver");
-            m_impl->resource_binding = &m_impl->compute_stage->AllocateResourceBinding(3);
+            m_impl->resource_binding = &m_impl->compute_stage->AllocateResourceBinding();
 
             m_impl->initialized = true;
         }
-
-        const uint32_t body_count = gpu.rigid_body_slot_count;
-
-        m_impl->EnsureUniformBuffer(body_count);
-
-        float effective_dt = m_bound_scene->IsSimulationEnabled() ? m_impl->config.time_step : 0.0f;
-        auto *uniform_addr = reinterpret_cast<glm::vec4 *>(m_impl->gpu_uniforms->GetVMAddress());
-        *uniform_addr =
-            glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt);
     }
 
     void DummySolver::GPUStep(vk::CommandBuffer cb) {
@@ -127,20 +106,23 @@ namespace Engine {
             return;
         }
 
-        const uint32_t frame = m_frame_counter++ % 3;
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         auto &srb = m_impl->resource_binding->GetShaderResourceBinding();
         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
         srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
         srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-        srb.BindBuffer("DummySolverUniforms", *m_impl->gpu_uniforms);
         srb.BindBuffer("ModelMatrices", *gpu.model_matrices);
 
         const uint32_t body_wg = (gpu.rigid_body_slot_count + 63u) / 64u;
 
+        const float effective_dt = m_bound_scene->IsSimulationEnabled() ? m_impl->config.time_step : 0.0f;
+        const glm::vec4 gravity_dt =
+            glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt);
+
+        Rhi::PushConstants(cb, *m_impl->compute_stage, gravity_dt);
         Rhi::BindComputeStage(cb, *m_impl->compute_stage);
-        Rhi::BindComputeResource(cb, *m_impl->compute_stage, *m_impl->resource_binding, frame);
+        Rhi::BindComputeResource(cb, *m_impl->compute_stage, *m_impl->resource_binding);
         Rhi::DispatchCompute(cb, body_wg, 1, 1);
     }
 

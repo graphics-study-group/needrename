@@ -124,18 +124,7 @@ namespace Engine {
         /// Get the maximum element count this instance was configured for.
         uint32_t GetMaxElemCount() const noexcept;
 
-        /**
-         * @brief Reset the per-pass parameter buffer pool.
-         *
-         * Frees all allocated parameter buffers so they can be reused in
-         * subsequent Record calls.  This is typically called after a
-         * Record operation completes to ensure fresh allocation for the next
-         * dispatch.
-         */
-        void ResetParamPool();
-
     private:
-        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };

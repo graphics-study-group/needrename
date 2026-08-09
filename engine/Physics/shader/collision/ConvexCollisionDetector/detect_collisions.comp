@@ -66,17 +66,12 @@ layout(set = 0, binding = 10) buffer CollisionCount {
     uint v[]; // single-element array, atomically incremented
 } collision_count;
 
-// ---- Shape slot count (same buffer used by generate_pairs.comp) ----
+// ---- Per-dispatch constants (push constant, recorded by the detector) ----
 
-layout(set = 0, binding = 11) readonly buffer ShapeSlotCount {
-    uint count;
-} shape_slot_count;
-
-// ---- Detector config uniform (binding 12) ----
-
-layout(set = 0, binding = 12) uniform DetectorConfig {
+layout(push_constant) uniform DetectPush {
     float contact_margin;
-} detector_config;
+    uint  shape_slot_count;
+} params;
 
 // ---- Shared GLSL headers ----
 
@@ -128,7 +123,7 @@ void main() {
         base_result.contact_normal,
         midpoint,
         base_result.penetration,
-        detector_config.contact_margin,
+        params.contact_margin,
         base_result.contact_point_a,
         base_result.contact_point_b
     );

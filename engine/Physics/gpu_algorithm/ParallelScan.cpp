@@ -45,13 +45,15 @@ namespace {
 
 namespace Engine {
 
-    struct alignas(16) ScanParamsGpu {
+    // Push-constant layout, matching the ScanParamsPush block in
+    // engine/Physics/shader/algorithm/ (std430).
+    struct ScanParamsPush {
         uint32_t mode;
         uint32_t data_offset;
         uint32_t elem_count;
         uint32_t block_offset;
     };
-    static_assert(sizeof(ScanParamsGpu) == 16, "ScanParamsGpu must be 16 bytes");
+    static_assert(sizeof(ScanParamsPush) == 16, "ScanParamsPush must be 16 bytes");
 
     static constexpr uint32_t kBlockSize = 512u;
     static constexpr uint32_t kMaxSingleLevel = 512u;
@@ -66,9 +68,6 @@ namespace Engine {
 
         std::unique_ptr<Rhi::ComputeStage> offset_stage{};
         std::vector<uint32_t> offset_spirv{};
-
-        std::vector<std::unique_ptr<Rhi::ComputeBuffer>> param_pool{};
-        size_t param_pool_index = 0;
 
         Rhi::ComputeResourceBinding *scan_binding = nullptr;
         Rhi::ComputeResourceBinding *offset_binding = nullptr;
@@ -92,77 +91,55 @@ namespace Engine {
             scan_spirv = LoadPhysicsSpirvBytes(scan_path);
             scan_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             scan_stage->Instantiate(scan_spirv, "ParallelScan");
-            scan_binding = &scan_stage->AllocateResourceBinding(3);
+            scan_binding = &scan_stage->AllocateResourceBinding();
 
             const char *offset_path = "algorithm/add_block_offset.comp.spv";
             offset_spirv = LoadPhysicsSpirvBytes(offset_path);
             offset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             offset_stage->Instantiate(offset_spirv, "AddBlockOffset");
-            offset_binding = &offset_stage->AllocateResourceBinding(3);
-        }
-
-        Rhi::ComputeBuffer &AcquireParamBuffer(
-            uint32_t mode, uint32_t data_offset, uint32_t elem_count, uint32_t block_offset
-        ) {
-            if (param_pool_index >= param_pool.size()) {
-                const auto &alloc = device_context.GetAllocatorState();
-                auto buf = Rhi::ComputeBuffer::CreateUnique(
-                    alloc, sizeof(ScanParamsGpu), true, false, false, false, "ParallelScan Params"
-                );
-                param_pool.push_back(std::move(buf));
-            }
-            auto &buf = *param_pool[param_pool_index++];
-            auto *addr = reinterpret_cast<ScanParamsGpu *>(buf.GetVMAddress());
-            addr->mode = mode;
-            addr->data_offset = data_offset;
-            addr->elem_count = elem_count;
-            addr->block_offset = block_offset;
-            return buf;
+            offset_binding = &offset_stage->AllocateResourceBinding();
         }
 
         void RecordScanPass(
             vk::CommandBuffer cb,
-            uint32_t frame,
             Rhi::ComputeBuffer &data_input_buf,
             Rhi::ComputeBuffer &data_output_buf,
             Rhi::ComputeBuffer &block_sums_buf,
-            Rhi::ComputeBuffer &param_buf,
+            const ScanParamsPush &params,
             uint32_t num_workgroups
         ) {
             auto &srb = scan_binding->GetShaderResourceBinding();
             srb.BindBuffer("InputData", data_input_buf);
             srb.BindBuffer("OutputData", data_output_buf);
-            srb.BindBuffer("ScanParams", param_buf);
             srb.BindBuffer("BlockSums", block_sums_buf);
 
+            Rhi::PushConstants(cb, *scan_stage, params);
             Rhi::BindComputeStage(cb, *scan_stage);
-            Rhi::BindComputeResource(cb, *scan_stage, *scan_binding, frame);
+            Rhi::BindComputeResource(cb, *scan_stage, *scan_binding);
             Rhi::DispatchCompute(cb, num_workgroups, 1, 1);
         }
 
         void RecordOffsetPass(
             vk::CommandBuffer cb,
-            uint32_t frame,
             Rhi::ComputeBuffer &data_input_buf,
             Rhi::ComputeBuffer &data_output_buf,
             Rhi::ComputeBuffer &block_sums_buf,
-            Rhi::ComputeBuffer &param_buf,
+            const ScanParamsPush &params,
             uint32_t num_workgroups
         ) {
             auto &srb = offset_binding->GetShaderResourceBinding();
             srb.BindBuffer("InputData", data_input_buf);
             srb.BindBuffer("OutputData", data_output_buf);
-            srb.BindBuffer("ScanParams", param_buf);
             srb.BindBuffer("BlockSums", block_sums_buf);
 
+            Rhi::PushConstants(cb, *offset_stage, params);
             Rhi::BindComputeStage(cb, *offset_stage);
-            Rhi::BindComputeResource(cb, *offset_stage, *offset_binding, frame);
+            Rhi::BindComputeResource(cb, *offset_stage, *offset_binding);
             Rhi::DispatchCompute(cb, num_workgroups, 1, 1);
         }
 
         void RecordScanInternal(
             vk::CommandBuffer cb,
-            uint32_t frame,
             Rhi::ComputeBuffer &data_input_buf,
             Rhi::ComputeBuffer &data_output_buf,
             Rhi::ComputeBuffer &block_sums_buf,
@@ -174,8 +151,8 @@ namespace Engine {
             assert(elem_count <= max_elem_count);
 
             if (elem_count <= kMaxSingleLevel) {
-                auto &param = AcquireParamBuffer(0u, data_offset, elem_count, block_offset);
-                RecordScanPass(cb, frame, data_input_buf, data_output_buf, block_sums_buf, param, 1u);
+                const ScanParamsPush params{0u, data_offset, elem_count, block_offset};
+                RecordScanPass(cb, data_input_buf, data_output_buf, block_sums_buf, params, 1u);
                 return;
             }
 
@@ -183,35 +160,26 @@ namespace Engine {
 
             // --- Pass 1: scan blocks, write per-block sums ---
             {
-                auto &param = AcquireParamBuffer(1u, data_offset, elem_count, block_offset);
-                RecordScanPass(cb, frame, data_input_buf, data_output_buf, block_sums_buf, param, num_blocks);
+                const ScanParamsPush params{1u, data_offset, elem_count, block_offset};
+                RecordScanPass(cb, data_input_buf, data_output_buf, block_sums_buf, params, num_blocks);
             }
 
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // --- Pass 2: recursively scan the block sums ---
             if (num_blocks <= kMaxSingleLevel) {
-                auto &param = AcquireParamBuffer(0u, block_offset, num_blocks, 0u);
-                RecordScanPass(cb, frame, block_sums_buf, block_sums_buf, block_sums_buf, param, 1u);
+                const ScanParamsPush params{0u, block_offset, num_blocks, 0u};
+                RecordScanPass(cb, block_sums_buf, block_sums_buf, block_sums_buf, params, 1u);
             } else {
-                RecordScanInternal(
-                    cb,
-                    frame,
-                    block_sums_buf,
-                    block_sums_buf,
-                    block_sums_buf,
-                    num_blocks,
-                    block_offset,
-                    block_offset + num_blocks
-                );
+                RecordScanInternal(cb, block_sums_buf, block_sums_buf, block_sums_buf, num_blocks, block_offset, block_offset + num_blocks);
             }
 
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // --- Pass 3: add prefix-summed block offsets back to data ---
             {
-                auto &param = AcquireParamBuffer(2u, data_offset, elem_count, block_offset);
-                RecordOffsetPass(cb, frame, data_output_buf, data_output_buf, block_sums_buf, param, num_blocks);
+                const ScanParamsPush params{2u, data_offset, elem_count, block_offset};
+                RecordOffsetPass(cb, data_output_buf, data_output_buf, block_sums_buf, params, num_blocks);
             }
         }
     };
@@ -249,7 +217,6 @@ namespace Engine {
         Rhi::ComputeBuffer &block_sums_buf,
         uint32_t elem_count
     ) {
-        const uint32_t frame = m_frame_counter++ % 3;
         if (elem_count == 0u) {
             return;
         }
@@ -262,10 +229,6 @@ namespace Engine {
 
         m_impl->EnsureInitialized();
 
-        m_impl->RecordScanInternal(cb, frame, input_buf, output_buf, block_sums_buf, elem_count, 0u, 0u);
-    }
-
-    void ParallelScan::ResetParamPool() {
-        m_impl->param_pool_index = 0;
+        m_impl->RecordScanInternal(cb, input_buf, output_buf, block_sums_buf, elem_count, 0u, 0u);
     }
 } // namespace Engine

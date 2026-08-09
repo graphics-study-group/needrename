@@ -3,8 +3,8 @@
 // Radix sort histogram pass.
 //
 // Each thread processes one uvec2 pair from the input buffer, extracts an 8-bit
-// digit from .x or .y (controlled by RadixParams.word_select) at the given byte
-// offset (RadixParams.byte_shift), and atomically increments the histogram bin.
+// digit from .x or .y (controlled by params.word_select) at the given byte
+// offset (params.byte_shift), and atomically increments the histogram bin.
 //
 // Dispatch: ceil(elem_capacity / 64), 1, 1
 //   elem_capacity is the buffer size (max_pairs), used only to size the dispatch.
@@ -21,16 +21,16 @@ layout(set = 0, binding = 1) buffer Histogram {
     uint v[256];
 } histogram;
 
-layout(set = 0, binding = 2) readonly buffer RadixParams {
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+
+layout(push_constant) uniform RadixParamsPush {
     uint byte_shift;   // 0, 8, 16, or 24
     uint word_select;  // 0 = pair.y (secondary), 1 = pair.x (primary)
-    uint elem_capacity; // buffer capacity (used for dispatch sizing on CPU)
-    uint _pad;
-} radix_params;
+} params;
 
 // Actual pair count, written by the pair-generation passes earlier in the frame.
 // Read at GPU execution time — NOT a CPU constant baked at RG build time.
-layout(set = 0, binding = 3) readonly buffer PairCount {
+layout(set = 0, binding = 2) readonly buffer PairCount {
     uint count;
 } pair_count;
 
@@ -41,8 +41,8 @@ void main() {
     if (idx >= pair_count.count) return;
 
     uvec2 pair = pairs_in.v[idx];
-    uint key = (radix_params.word_select == 0u) ? pair.y : pair.x;
-    uint digit = (key >> radix_params.byte_shift) & 0xFFu;
+    uint key = (params.word_select == 0u) ? pair.y : pair.x;
+    uint digit = (key >> params.byte_shift) & 0xFFu;
 
     atomicAdd(histogram.v[digit], 1u);
 }

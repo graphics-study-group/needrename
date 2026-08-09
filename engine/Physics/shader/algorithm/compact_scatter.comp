@@ -36,6 +36,7 @@ layout(set = 0, binding = 4) buffer UniqueCount {
     uint v[];
 } unique_count;
 
+// Actual pair count, written by an earlier GPU pass — read at execution time.
 layout(set = 0, binding = 5) readonly buffer ElemCount {
     uint count;
 } elem_count;

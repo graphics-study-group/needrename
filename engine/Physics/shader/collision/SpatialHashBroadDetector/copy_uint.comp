@@ -12,6 +12,8 @@ layout(set = 0, binding = 1) writeonly buffer DstBuffer {
     uint v[];
 } dst;
 
+// Element count: caller-provided buffer — either a CPU constant (SpatialHash)
+// or a GPU-written counter (CompactUnique), so it stays an SSBO.
 layout(set = 0, binding = 2) readonly buffer ElemCount {
     uint count;
 } elem_count;

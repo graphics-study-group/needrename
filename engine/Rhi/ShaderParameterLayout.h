@@ -28,6 +28,14 @@ namespace Engine::Rhi {
         std::unordered_map<std::string, const SPInterface *> interface_name_mapping;
 
         /**
+         * @brief Size in bytes of the shader's push constant block.
+         *
+         * 0 when the shader declares no push constants. Offsets always
+         * start at 0; Vulkan permits exactly one range per shader stage.
+         */
+        uint32_t push_constant_size = 0;
+
+        /**
          * @brief Place all simple variables (i.e. scalars, arrays,
          * vectors and matrices) into their corresponding buffers.
          *

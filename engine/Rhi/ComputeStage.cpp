@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include <SDL3/SDL.h>
 
@@ -46,7 +47,11 @@ namespace Engine::Rhi {
             vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, desc_bindings};
             m_passInfo.desc_layout = device_interface.GetDevice().createDescriptorSetLayoutUnique(dslci);
 
-            vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, {}};
+            std::vector<vk::PushConstantRange> pc_ranges;
+            if (layout.push_constant_size > 0) {
+                pc_ranges.emplace_back(vk::ShaderStageFlagBits::eCompute, 0, layout.push_constant_size);
+            }
+            vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, pc_ranges};
             m_passInfo.pipeline_layout = device_interface.GetDevice().createPipelineLayoutUnique(plci);
             DEBUG_SET_NAME_TEMPLATE(
                 device_interface.GetDevice(),
@@ -109,6 +114,10 @@ namespace Engine::Rhi {
 
     const Rhi::SPLayout &ComputeStage::GetReflectedShaderInfo() const noexcept {
         return pimpl->layout;
+    }
+
+    uint32_t ComputeStage::GetPushConstantSize() const noexcept {
+        return pimpl->layout.push_constant_size;
     }
 
     vk::Pipeline ComputeStage::GetPipeline() const noexcept {

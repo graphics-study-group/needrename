@@ -45,13 +45,13 @@ namespace {
 
 namespace Engine {
 
-    struct alignas(16) RadixSortParamsGpu {
-        uint32_t byte_shift;
-        uint32_t word_select;
-        uint32_t elem_capacity;
-        uint32_t _pad;
+    // Push-constant layout, matching the RadixParamsPush block in
+    // engine/Physics/shader/algorithm/ (std430).
+    struct RadixParamsPush {
+        uint32_t byte_shift;  // 0, 8, 16, or 24
+        uint32_t word_select; // 0 = pair.y (secondary), 1 = pair.x (primary)
     };
-    static_assert(sizeof(RadixSortParamsGpu) == 16, "RadixSortParamsGpu must be 16 bytes");
+    static_assert(sizeof(RadixParamsPush) == 8, "RadixParamsPush must be 8 bytes");
 
     struct RadixSort::Impl {
         Rhi::DeviceContext &device_context;
@@ -69,14 +69,6 @@ namespace Engine {
 
         std::unique_ptr<Rhi::ComputeStage> memset_stage{};
         std::vector<uint32_t> memset_spirv{};
-
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_const_256{};
-
-        std::vector<std::unique_ptr<Rhi::ComputeBuffer>> histogram_param_pool{};
-        size_t histogram_param_index = 0;
-
-        std::vector<std::unique_ptr<Rhi::ComputeBuffer>> scatter_param_pool{};
-        size_t scatter_param_index = 0;
 
         Rhi::ComputeResourceBinding *histogram_binding = nullptr;
         Rhi::ComputeResourceBinding *prefix_sum_binding = nullptr;
@@ -102,138 +94,71 @@ namespace Engine {
             histogram_spirv = LoadPhysicsSpirvBytes(histogram_path);
             histogram_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             histogram_stage->Instantiate(histogram_spirv, "RadixHistogram");
-            histogram_binding = &histogram_stage->AllocateResourceBinding(3);
+            histogram_binding = &histogram_stage->AllocateResourceBinding();
 
             const char *prefix_sum_path = "algorithm/radix_prefix_sum_256.comp.spv";
             prefix_sum_spirv = LoadPhysicsSpirvBytes(prefix_sum_path);
             prefix_sum_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             prefix_sum_stage->Instantiate(prefix_sum_spirv, "RadixPrefixSum256");
-            prefix_sum_binding = &prefix_sum_stage->AllocateResourceBinding(3);
+            prefix_sum_binding = &prefix_sum_stage->AllocateResourceBinding();
 
             const char *scatter_path = "algorithm/radix_scatter.comp.spv";
             scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
             scatter_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             scatter_stage->Instantiate(scatter_spirv, "RadixScatter");
-            scatter_binding = &scatter_stage->AllocateResourceBinding(3);
+            scatter_binding = &scatter_stage->AllocateResourceBinding();
 
             const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
             memset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             memset_stage->Instantiate(memset_spirv, "RadixMemset");
-            memset_binding = &memset_stage->AllocateResourceBinding(3);
-
-            {
-                const auto &alloc = device_context.GetAllocatorState();
-                gpu_const_256 = Rhi::ComputeBuffer::CreateUnique(
-                    alloc, sizeof(uint32_t), true, false, false, false, "RadixSort Const256"
-                );
-                auto *addr = reinterpret_cast<uint32_t *>(gpu_const_256->GetVMAddress());
-                *addr = RadixSort::kNumBins;
-            }
+            memset_binding = &memset_stage->AllocateResourceBinding();
         }
 
-        Rhi::ComputeBuffer &AcquireHistogramParam(uint32_t byte_shift, uint32_t word_select, uint32_t elem_capacity) {
-            if (histogram_param_index >= histogram_param_pool.size()) {
-                const auto &alloc = device_context.GetAllocatorState();
-                auto buf = Rhi::ComputeBuffer::CreateUnique(
-                    alloc, sizeof(RadixSortParamsGpu), true, false, false, false, "RadixSort HistogramParams"
-                );
-                histogram_param_pool.push_back(std::move(buf));
-            }
-            auto &buf = *histogram_param_pool[histogram_param_index++];
-            auto *addr = reinterpret_cast<RadixSortParamsGpu *>(buf.GetVMAddress());
-            addr->byte_shift = byte_shift;
-            addr->word_select = word_select;
-            addr->elem_capacity = elem_capacity;
-            addr->_pad = 0u;
-            return buf;
-        }
-
-        Rhi::ComputeBuffer &AcquireScatterParam(uint32_t byte_shift, uint32_t word_select, uint32_t elem_capacity) {
-            if (scatter_param_index >= scatter_param_pool.size()) {
-                const auto &alloc = device_context.GetAllocatorState();
-                auto buf = Rhi::ComputeBuffer::CreateUnique(
-                    alloc, sizeof(RadixSortParamsGpu), true, false, false, false, "RadixSort ScatterParams"
-                );
-                scatter_param_pool.push_back(std::move(buf));
-            }
-            auto &buf = *scatter_param_pool[scatter_param_index++];
-            auto *addr = reinterpret_cast<RadixSortParamsGpu *>(buf.GetVMAddress());
-            addr->byte_shift = byte_shift;
-            addr->word_select = word_select;
-            addr->elem_capacity = elem_capacity;
-            addr->_pad = 0u;
-            return buf;
-        }
-
-        void RecordClearPass(vk::CommandBuffer cb, uint32_t frame, Rhi::ComputeBuffer &scratch_buf) {
+        void RecordClearPass(vk::CommandBuffer cb, Rhi::ComputeBuffer &scratch_buf) {
             auto &srb = memset_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", scratch_buf);
-            srb.BindBuffer("ElemCount", *gpu_const_256);
 
+            Rhi::PushConstants(cb, *memset_stage, RadixSort::kNumBins);
             Rhi::BindComputeStage(cb, *memset_stage);
-            Rhi::BindComputeResource(cb, *memset_stage, *memset_binding, frame);
+            Rhi::BindComputeResource(cb, *memset_stage, *memset_binding);
             Rhi::DispatchCompute(cb, 4, 1, 1); // 4 WGs for 256 elements
         }
 
         void RecordHistogramPass(
             vk::CommandBuffer cb,
-            uint32_t frame,
             Rhi::ComputeBuffer &pairs_buf,
             Rhi::ComputeBuffer &scratch_buf,
-            Rhi::ComputeBuffer &param_buf,
             Rhi::ComputeBuffer &pair_count_buf,
+            uint32_t byte_shift,
+            uint32_t word_select,
             uint32_t elem_capacity
         ) {
             auto &srb = histogram_binding->GetShaderResourceBinding();
             srb.BindBuffer("PairsIn", pairs_buf);
             srb.BindBuffer("Histogram", scratch_buf);
-            srb.BindBuffer("RadixParams", param_buf);
             srb.BindBuffer("PairCount", pair_count_buf);
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
+            const RadixParamsPush params{byte_shift, word_select};
+            Rhi::PushConstants(cb, *histogram_stage, params);
             Rhi::BindComputeStage(cb, *histogram_stage);
-            Rhi::BindComputeResource(cb, *histogram_stage, *histogram_binding, frame);
+            Rhi::BindComputeResource(cb, *histogram_stage, *histogram_binding);
             Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
-        void RecordPrefixSumPass(vk::CommandBuffer cb, uint32_t frame, Rhi::ComputeBuffer &scratch_buf) {
+        void RecordPrefixSumPass(vk::CommandBuffer cb, Rhi::ComputeBuffer &scratch_buf) {
             auto &srb = prefix_sum_binding->GetShaderResourceBinding();
             srb.BindBuffer("Histogram", scratch_buf);
 
             Rhi::BindComputeStage(cb, *prefix_sum_stage);
-            Rhi::BindComputeResource(cb, *prefix_sum_stage, *prefix_sum_binding, frame);
+            Rhi::BindComputeResource(cb, *prefix_sum_stage, *prefix_sum_binding);
             Rhi::DispatchCompute(cb, 1, 1, 1);
         }
 
         void RecordScatterPass(
             vk::CommandBuffer cb,
-            uint32_t frame,
-            Rhi::ComputeBuffer &pairs_in_buf,
-            Rhi::ComputeBuffer &pairs_out_buf,
-            Rhi::ComputeBuffer &scratch_buf,
-            Rhi::ComputeBuffer &param_buf,
-            Rhi::ComputeBuffer &pair_count_buf,
-            uint32_t elem_capacity
-        ) {
-            auto &srb = scatter_binding->GetShaderResourceBinding();
-            srb.BindBuffer("PairsIn", pairs_in_buf);
-            srb.BindBuffer("PairsOut", pairs_out_buf);
-            srb.BindBuffer("Histogram", scratch_buf);
-            srb.BindBuffer("RadixParams", param_buf);
-            srb.BindBuffer("PairCount", pair_count_buf);
-
-            uint32_t wg = (elem_capacity + 63u) / 64u;
-
-            Rhi::BindComputeStage(cb, *scatter_stage);
-            Rhi::BindComputeResource(cb, *scatter_stage, *scatter_binding, frame);
-            Rhi::DispatchCompute(cb, wg, 1, 1);
-        }
-
-        void RecordRadixPass(
-            vk::CommandBuffer cb,
-            uint32_t frame,
             Rhi::ComputeBuffer &pairs_in_buf,
             Rhi::ComputeBuffer &pairs_out_buf,
             Rhi::ComputeBuffer &scratch_buf,
@@ -242,20 +167,41 @@ namespace Engine {
             uint32_t word_select,
             uint32_t elem_capacity
         ) {
-            RecordClearPass(cb, frame, scratch_buf);
+            auto &srb = scatter_binding->GetShaderResourceBinding();
+            srb.BindBuffer("PairsIn", pairs_in_buf);
+            srb.BindBuffer("PairsOut", pairs_out_buf);
+            srb.BindBuffer("Histogram", scratch_buf);
+            srb.BindBuffer("PairCount", pair_count_buf);
+
+            uint32_t wg = (elem_capacity + 63u) / 64u;
+
+            const RadixParamsPush params{byte_shift, word_select};
+            Rhi::PushConstants(cb, *scatter_stage, params);
+            Rhi::BindComputeStage(cb, *scatter_stage);
+            Rhi::BindComputeResource(cb, *scatter_stage, *scatter_binding);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
+        }
+
+        void RecordRadixPass(
+            vk::CommandBuffer cb,
+            Rhi::ComputeBuffer &pairs_in_buf,
+            Rhi::ComputeBuffer &pairs_out_buf,
+            Rhi::ComputeBuffer &scratch_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
+            uint32_t byte_shift,
+            uint32_t word_select,
+            uint32_t elem_capacity
+        ) {
+            RecordClearPass(cb, scratch_buf);
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            auto &hist_param = AcquireHistogramParam(byte_shift, word_select, elem_capacity);
-            RecordHistogramPass(cb, frame, pairs_in_buf, scratch_buf, hist_param, pair_count_buf, elem_capacity);
+            RecordHistogramPass(cb, pairs_in_buf, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity);
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            RecordPrefixSumPass(cb, frame, scratch_buf);
+            RecordPrefixSumPass(cb, scratch_buf);
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            auto &scat_param = AcquireScatterParam(byte_shift, word_select, elem_capacity);
-            RecordScatterPass(
-                cb, frame, pairs_in_buf, pairs_out_buf, scratch_buf, scat_param, pair_count_buf, elem_capacity
-            );
+            RecordScatterPass(cb, pairs_in_buf, pairs_out_buf, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity);
         }
     };
 
@@ -282,7 +228,6 @@ namespace Engine {
         Rhi::ComputeBuffer &pair_count_buf,
         uint32_t max_shape_count
     ) {
-        const uint32_t frame = m_frame_counter++ % 3;
         if (elem_capacity == 0u) {
             return;
         }
@@ -307,39 +252,14 @@ namespace Engine {
             bool to_b = (pass % 2u) == 0u;
 
             if (to_b) {
-                m_impl->RecordRadixPass(
-                    cb,
-                    frame,
-                    pairs_buf_a,
-                    pairs_buf_b,
-                    scratch_buf,
-                    pair_count_buf,
-                    byte_shift,
-                    word_select,
-                    elem_capacity
-                );
+                m_impl->RecordRadixPass(cb, pairs_buf_a, pairs_buf_b, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity);
             } else {
-                m_impl->RecordRadixPass(
-                    cb,
-                    frame,
-                    pairs_buf_b,
-                    pairs_buf_a,
-                    scratch_buf,
-                    pair_count_buf,
-                    byte_shift,
-                    word_select,
-                    elem_capacity
-                );
+                m_impl->RecordRadixPass(cb, pairs_buf_b, pairs_buf_a, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity);
             }
 
             if (pass + 1 < kNumPasses) {
                 cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
             }
         }
-    }
-
-    void RadixSort::ResetParamPool() {
-        m_impl->histogram_param_index = 0;
-        m_impl->scatter_param_index = 0;
     }
 } // namespace Engine

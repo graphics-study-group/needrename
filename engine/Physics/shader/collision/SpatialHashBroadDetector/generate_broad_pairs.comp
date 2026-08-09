@@ -15,16 +15,15 @@ layout(set = 0, binding = 0) readonly buffer SortedPairs   { uvec2 v[]; } sorted
 layout(set = 0, binding = 1) readonly buffer CellOffsets   { uint v[]; } cell_offsets;   // exclusive scan of histogram
 layout(set = 0, binding = 2) readonly buffer GlobalFlags   { uint v[]; } global_flags;
 layout(set = 0, binding = 3) readonly buffer ShapeAlive    { uint v[]; } shape_alive;
-layout(set = 0, binding = 4) readonly buffer ShapeSlotCount { uint count; } shape_slot_count;
 
 layout(set = 0, binding = 5) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
 layout(set = 0, binding = 6) buffer PairCount               { uint v[]; } pair_count;
 
-layout(set = 0, binding = 7) readonly buffer GridConfig {
-    vec4 world_min;
-    ivec4 grid_dims;
+// --- Config (push constant, recorded by the detector) ---
+
+layout(push_constant) uniform GridPush {
     uint total_cells;
-} grid_config;
+} params;
 
 layout(set = 0, binding = 8) readonly buffer TotalAssignments { uint total; } total_assignments;
 
@@ -52,7 +51,7 @@ bool is_filtered(uint shape_a, uint shape_b) {
 
 void main() {
     uint cell_idx = gl_GlobalInvocationID.x;
-    if (cell_idx >= grid_config.total_cells) return;
+    if (cell_idx >= params.total_cells) return;
 
     // Range of entries in sorted_pairs for this cell.
     uint start = cell_offsets.v[cell_idx];

@@ -20,6 +20,7 @@ layout(set = 0, binding = 1) writeonly buffer UniqueFlags {
     uint v[];
 } unique_flags;
 
+// Actual pair count, written by an earlier GPU pass — read at execution time.
 layout(set = 0, binding = 2) readonly buffer ElemCount {
     uint count;
 } elem_count;

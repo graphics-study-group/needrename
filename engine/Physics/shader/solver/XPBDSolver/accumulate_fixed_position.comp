@@ -27,7 +27,12 @@ struct GpuFixedJoint {
 };
 
 layout(set = 0, binding = 0)  readonly buffer FixedJoints         { GpuFixedJoint v[]; } fixed_joints;
-layout(set = 0, binding = 1)  readonly buffer FixedJointCount     { uint count; } fixed_joint_count;
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform XpbdPush {
+    vec4 gravity_dt;      // w = substep_dt
+    uint fixed_joint_count;
+} params;
 
 // ---- Lagrange multiplier SoA buffers (solver-owned, read-write) ----
 layout(set = 0, binding = 2)  buffer FixedRotationLagrange { float v[]; } rotation_lagrange;
@@ -42,9 +47,6 @@ layout(set = 0, binding = 8)  readonly buffer RigidBodyMass           { float v[
 layout(set = 0, binding = 9)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
 layout(set = 0, binding = 10)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
 
-// ---- Uniforms (dt) ----
-layout(set = 0, binding = 11) readonly buffer XpbdUniforms { vec4 v; } uniforms;  // xyz = gravity, w = substep_dt
-
 // ---- Jacobi accumulators (shared with contact and hinge solvers) ----
 layout(set = 0, binding = 12) buffer LinearPositionDelta  { float v[]; } lin_delta;
 layout(set = 0, binding = 13) buffer AngularPositionDelta { float v[]; } ang_delta;
@@ -52,7 +54,7 @@ layout(set = 0, binding = 14) buffer PositionDeltaCount    { float v[]; } delta_
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
-    if (cidx >= fixed_joint_count.count) return;
+    if (cidx >= params.fixed_joint_count) return;
 
     if (fixed_joint_alive.v[cidx] == 0u) return;
 
@@ -80,7 +82,7 @@ void main() {
     mat4 inv_inertia1 = rigid_body_inverse_inertia.v[obj1_idx];
     mat4 inv_inertia2 = rigid_body_inverse_inertia.v[obj2_idx];
 
-    float dt = uniforms.v.w;
+    float dt = params.gravity_dt.w;
     float tilde_alpha = constraint.compliance / (dt * dt);
     float kEpsilon = 1e-8;
 

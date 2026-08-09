@@ -23,11 +23,11 @@ layout(set = 0, binding = 2) readonly buffer RigidBodyCenterRotation {
     vec4 v[];
 } rigid_body_center_rotation;
 
-// ---- Solver-owned uniform buffer ----
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
 
-layout(set = 0, binding = 3) readonly buffer DummySolverUniforms {
+layout(push_constant) uniform DummyPush {
     vec4 gravity_dt; // xyz = gravity, w = time_step
-} uniforms;
+} params;
 
 // ---- Output buffer (scene-owned) ----
 
@@ -66,7 +66,7 @@ void main() {
 
     // Displace along Z: pos.z += gravity.z * dt
     //   gravity.z is typically negative (-9.81), so bodies move downward.
-    pos.z += uniforms.gravity_dt.z * uniforms.gravity_dt.w;
+    pos.z += params.gravity_dt.z * params.gravity_dt.w;
     rigid_body_center_position.v[idx] = pos;
 
     // Write model matrix from updated pose

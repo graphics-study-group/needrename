@@ -120,6 +120,58 @@ int main(int argc, char *argv[]) {
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 
+    // --- Push-constant reflection ---
+
+    // vec4-only push block -> 16 bytes.
+    {
+        const std::string glsl = R"(
+#version 450 core
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(push_constant) uniform Params { vec4 value; } params;
+layout(set = 0, binding = 0) buffer OutBuffer { vec4 v[]; } out_buf;
+void main() { out_buf.v[0] = params.value; }
+)";
+        std::vector<uint32_t> spirv{};
+        Engine::ShaderCompiler compiler;
+        compiler.CompileGLSLtoSPV(spirv, glsl, EShLangCompute);
+        auto pc_layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
+        std::cout << " - Push-constant vec4 shader: push_constant_size = " << pc_layout.push_constant_size << std::endl;
+        assert(pc_layout.push_constant_size == 16u && "vec4 push block must reflect 16 bytes");
+    }
+
+    // Scalar-only push block -> 4 bytes.
+    {
+        const std::string glsl = R"(
+#version 450 core
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(push_constant) uniform Params { uint count; } params;
+layout(set = 0, binding = 0) buffer OutBuffer { uint v[]; } out_buf;
+void main() { out_buf.v[0] = params.count; }
+)";
+        std::vector<uint32_t> spirv{};
+        Engine::ShaderCompiler compiler;
+        compiler.CompileGLSLtoSPV(spirv, glsl, EShLangCompute);
+        auto pc_layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
+        std::cout << " - Push-constant scalar shader: push_constant_size = " << pc_layout.push_constant_size << std::endl;
+        assert(pc_layout.push_constant_size == 4u && "scalar push block must reflect 4 bytes");
+    }
+
+    // No push constants -> 0.
+    {
+        const std::string glsl = R"(
+#version 450 core
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(set = 0, binding = 0) buffer OutBuffer { uint v[]; } out_buf;
+void main() { out_buf.v[0] = 1u; }
+)";
+        std::vector<uint32_t> spirv{};
+        Engine::ShaderCompiler compiler;
+        compiler.CompileGLSLtoSPV(spirv, glsl, EShLangCompute);
+        auto pc_layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
+        std::cout << " - No-push-constant shader: push_constant_size = " << pc_layout.push_constant_size << std::endl;
+        assert(pc_layout.push_constant_size == 0u && "shader without push constants must reflect 0");
+    }
+
     glslang::FinalizeProcess();
     return 0;
 }

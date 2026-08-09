@@ -12,6 +12,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <string>
+#include <algorithm>
 
 namespace Engine::Rhi {
     // Types are only added and never removed.
@@ -417,6 +418,15 @@ namespace Engine::Rhi {
             }
             layout.interface_name_mapping[ssbo.name] = buffer_interface_ptr.get();
             layout.interfaces.push_back(std::move(buffer_interface_ptr));
+        }
+
+        // Push constant blocks: not descriptor interfaces, but the pipeline
+        // layout must declare a range covering them. SPIRV-Cross folds all
+        // push constant blocks of a stage into one resource.
+        for (auto &pc : shader_resources.push_constant_buffers) {
+            auto &type = compiler.get_type(pc.base_type_id);
+            const uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
+            layout.push_constant_size = std::max(layout.push_constant_size, size);
         }
 
         std::sort(

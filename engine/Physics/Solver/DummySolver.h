@@ -31,7 +31,6 @@ namespace Engine {
      * (no RenderGraph).
      */
     class DummySolver : public ISolver {
-        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
 

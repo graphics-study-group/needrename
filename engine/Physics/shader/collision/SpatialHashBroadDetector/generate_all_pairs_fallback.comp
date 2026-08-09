@@ -12,7 +12,12 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 #define INVALID_INDEX 0xFFFFFFFFu
 
 layout(set = 0, binding = 0) readonly buffer ShapeAlive     { uint v[]; } shape_alive;
-layout(set = 0, binding = 1) readonly buffer ShapeSlotCount  { uint count; } shape_slot_count;
+
+// --- Config (push constant, recorded by the detector) ---
+
+layout(push_constant) uniform ShapeCountPush {
+    uint shape_slot_count;
+} params;
 
 layout(set = 0, binding = 2) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
 layout(set = 0, binding = 3) buffer PairCount                { uint v[]; } pair_count;
@@ -41,7 +46,7 @@ bool is_filtered(uint shape_a, uint shape_b) {
 
 void main() {
     uint k = gl_GlobalInvocationID.x;
-    uint n = shape_slot_count.count;
+    uint n = params.shape_slot_count;
     uint total_pairs = (n * (n - 1u)) / 2u;
 
     if (k >= total_pairs) return;

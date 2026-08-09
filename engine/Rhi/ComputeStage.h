@@ -62,6 +62,8 @@ namespace Engine::Rhi {
 
         /// @brief Get all reflected information of the shader.
         const Rhi::SPLayout &GetReflectedShaderInfo() const noexcept;
+        /// @brief Get the size in bytes of the shader's push constant block (0 if none).
+        uint32_t GetPushConstantSize() const noexcept;
         /// @brief Get the compute pipeline
         vk::Pipeline GetPipeline() const noexcept;
         /// @brief Get the pipeline layout

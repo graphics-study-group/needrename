@@ -93,7 +93,6 @@ namespace Engine {
         uint32_t GetMaxElemCount() const noexcept;
 
     private:
-        uint32_t m_frame_counter = 0; ///< Per-frame index for descriptor-set rotation
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };
