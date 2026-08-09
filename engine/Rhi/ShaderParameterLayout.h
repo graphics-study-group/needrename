@@ -2,6 +2,8 @@
 #define ENGINE_RHI_SHADERPARAMETERLAYOUT_INCLUDED
 
 #include "Rhi/ShaderInterface.h"
+#include "rhi_export.h"
+
 #include <memory>
 #include <unordered_map>
 
@@ -22,7 +24,7 @@ namespace Engine::Rhi {
      * Contains detailed information on descriptor set layouts and memory
      * layouts of uniform buffers.
      */
-    struct SPLayout {
+    struct RHI_API SPLayout {
         // Interfaces are guaranteed to be sorted by set and binding numbers
         std::vector<std::unique_ptr<SPInterface>> interfaces;
         std::unordered_map<std::string, const SPInterface *> interface_name_mapping;

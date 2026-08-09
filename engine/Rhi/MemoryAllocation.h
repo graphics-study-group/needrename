@@ -2,10 +2,11 @@
 #define ENGINE_RHI_MEMORYALLOCATION_INCLUDED
 
 #include "Rhi/MemoryTypes.h"
-#include "gpu_context_export.h"
+#include "rhi_export.h"
 
 #include <cassert>
 #include <memory>
+
 class VmaAllocation_T;
 class VmaAllocator_T;
 class VmaAllocationInfo;
@@ -75,7 +76,7 @@ namespace Engine::Rhi {
      * @invariant This class, once created, is guaranteed to hold a vaild image
      * allocation until moved or destructed.
      */
-    class GPU_CONTEXT_API ImageAllocation : private VmaMemoryAllocation {
+    class RHI_API ImageAllocation : private VmaMemoryAllocation {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
@@ -126,7 +127,7 @@ namespace Engine::Rhi {
      * @invariant This class, once created, is guaranteed to hold a vaild buffer
      * allocation until moved or destructed.
      */
-    class GPU_CONTEXT_API BufferAllocation : private VmaMemoryAllocation {
+    class RHI_API BufferAllocation : private VmaMemoryAllocation {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

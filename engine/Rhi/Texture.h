@@ -2,6 +2,7 @@
 #define ENGINE_RHI_TEXTURE_INCLUDED
 
 #include "Rhi/ImageUtils.h"
+#include "rhi_export.h"
 
 #include <memory>
 #include <string>
@@ -26,7 +27,7 @@ namespace Engine::Rhi {
      *
      * @note Movable but non-copyable.
      */
-    class Texture {
+    class RHI_API Texture {
     public:
         using TextureDesc = Engine::Rhi::TextureDesc;
         using SamplerDesc = Engine::Rhi::SamplerDesc;

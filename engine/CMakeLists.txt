@@ -6,7 +6,7 @@
 add_library(EngineLibHeaderInterface INTERFACE)
 target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
 
-# Granular external dependency targets — each DLL links only what it needs
+# Granular external dependency targets - each DLL links only what it needs
 add_library(EngineDepGlm INTERFACE)
 target_link_libraries(EngineDepGlm INTERFACE glm)
 target_compile_definitions(EngineDepGlm INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
@@ -17,9 +17,15 @@ target_link_libraries(EngineDepJson INTERFACE json)
 add_library(EngineDepSdl INTERFACE)
 target_link_libraries(EngineDepSdl INTERFACE SDL3::SDL3)
 
+# Consumers of the Rhi DLL import the dynamic dispatch loader from it.
 add_library(EngineDepVulkan INTERFACE)
 target_link_libraries(EngineDepVulkan INTERFACE Vulkan::Vulkan vma glslang)
 target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+if (WIN32 AND (NOT MSVC))
+    target_compile_definitions(EngineDepVulkan INTERFACE "VULKAN_HPP_STORAGE_API=__declspec(dllimport)")
+else()
+    target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_STORAGE_SHARED=1)
+endif()
 
 add_library(EngineDepImgui INTERFACE)
 target_link_libraries(EngineDepImgui INTERFACE imgui)
@@ -66,7 +72,6 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibFramework>
     $<TARGET_OBJECTS:EngineLibPhysics>
     $<TARGET_OBJECTS:EngineLibRender>
-    $<TARGET_OBJECTS:EngineLibRhi>
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
 
@@ -76,6 +81,7 @@ target_link_libraries(engine
     EngineLibHeaderInterface
     EngineLibExternalDependency
     Core
+    Rhi
 )
 
 # Dependencies only used in a small module are marked as private to avoid pollution
@@ -85,7 +91,6 @@ target_link_libraries(engine
     EngineLibFramework
     EngineLibPhysics
     EngineLibRender
-    EngineLibRhi
     EngineLibUserInterface
 )
 
@@ -113,6 +118,7 @@ file(GLOB_RECURSE HEADERS "./*.h")
 list(FILTER HEADERS EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Tests/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Core/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Rhi/.*")
 filter_files_with_reflection_macros(HEADERS REFLECTION_SEARCH_HEADERS)
 
 add_reflection_parser(
@@ -123,7 +129,6 @@ add_reflection_parser(
     parent_projects meta_core_generation
 )
 add_dependencies(engine meta_engine)
-add_dependencies(EngineLibRhi meta_engine)
 target_link_libraries(engine PRIVATE meta_engine)
 
 add_dependencies(engine shader)

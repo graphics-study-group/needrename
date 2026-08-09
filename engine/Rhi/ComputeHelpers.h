@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Rhi/ComputeStage.h"
+#include "rhi_export.h"
 
 namespace vk {
     class CommandBuffer;
@@ -19,7 +20,7 @@ namespace Engine::Rhi {
     /**
      * @brief Bind a compute pipeline to the given command buffer.
      */
-    void BindComputeStage(vk::CommandBuffer cb, ComputeStage &stage);
+    RHI_API void BindComputeStage(vk::CommandBuffer cb, ComputeStage &stage);
 
     /**
      * @brief Bind the resources of a compute stage.
@@ -29,7 +30,7 @@ namespace Engine::Rhi {
      * submission cadence, modulo the binding's declared slot count.
      * Defaults to 0 for the common no-rotation case.
      */
-    void BindComputeResource(
+    RHI_API void BindComputeResource(
         vk::CommandBuffer cb, ComputeStage &stage, ComputeResourceBinding &binding, uint32_t slot = 0
     );
 
@@ -49,7 +50,9 @@ namespace Engine::Rhi {
     /**
      * @brief Issue a compute dispatch.
      */
-    void DispatchCompute(vk::CommandBuffer cb, uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
+    RHI_API void DispatchCompute(
+        vk::CommandBuffer cb, uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z
+    );
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMPUTEHELPERS_INCLUDED

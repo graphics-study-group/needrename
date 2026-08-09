@@ -1,21 +1,44 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
 file(GLOB_RECURSE RHI_HEADERS "./*.h")
 
-# Phase 1: OBJECT library merged into engine.dll (Rhi is not yet a standalone
-# DLL; the RenderSystem constructor dependencies are still present and will be
-# removed in Phase 3). Phase 4 converts this back to a SHARED library.
-# NOTE: GPU_CONTEXT_DLL_EXPORTS must NOT be defined here — a dllexport symbol
-# anywhere in the link disables MinGW ld's default --export-all-symbols, which
-# would strip MainClass and other engine symbols from the export table.
-# Phase 4 defines it again when Rhi becomes its own DLL.
-add_library(EngineLibRhi OBJECT ${SOURCE})
-target_link_libraries(EngineLibRhi
-    PRIVATE
-    EngineLibHeaderInterface
-    EngineLibExternalDependency
-)
-target_link_libraries(EngineLibRhi
+add_library(EngineDepVulkanExport INTERFACE)
+target_link_libraries(EngineDepVulkanExport INTERFACE Vulkan::Vulkan vma glslang)
+target_compile_definitions(EngineDepVulkanExport INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+
+# Rhi is the engine's generic GPU infrastructure layer, built as its own DLL
+add_library(Rhi SHARED ${SOURCE})
+target_link_libraries(Rhi
     PUBLIC
-    spirv-cross-cpp
-    vma
+    EngineLibHeaderInterface
+    EngineDepSdl
+    EngineDepVulkanExport
+    AnnoRefl
 )
+target_link_libraries(Rhi
+    PRIVATE
+    spirv-cross-cpp
+)
+
+# export VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+if (WIN32 AND (NOT MSVC))
+    target_compile_definitions(Rhi PRIVATE "VULKAN_HPP_STORAGE_API=__declspec(dllexport)")
+else()
+    target_compile_definitions(Rhi PRIVATE VULKAN_HPP_STORAGE_SHARED=1 VULKAN_HPP_STORAGE_SHARED_EXPORT=1)
+endif()
+target_compile_definitions(Rhi PRIVATE RHI_DLL_EXPORTS)
+
+# Reflection: per-DLL registration for the REFL_SER_CLASS types (ImageFormat, PipelineEnums, ...).
+include(${ANROREFL_PARSER_DIR}/parser.cmake)
+filter_files_with_reflection_macros(RHI_HEADERS RHI_REFLECTION_HEADERS)
+
+set(all_include_dirs)
+get_include_directories_for_target(Rhi all_include_dirs)
+
+add_reflection_parser(
+    target_name meta_rhi
+    reflection_search_files "${RHI_REFLECTION_HEADERS}"
+    generated_code_dir "${CMAKE_CURRENT_SOURCE_DIR}/__generated__"
+    reflection_search_include_dirs "${all_include_dirs}"
+)
+add_dependencies(Rhi meta_rhi)
+target_link_libraries(Rhi PRIVATE meta_rhi)

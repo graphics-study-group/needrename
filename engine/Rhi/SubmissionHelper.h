@@ -1,11 +1,13 @@
 #ifndef ENGINE_RHI_SUBMISSIONHELPER_INCLUDED
 #define ENGINE_RHI_SUBMISSIONHELPER_INCLUDED
 
+#include "rhi_export.h"
+
+#include <vulkan/vulkan.hpp>
+
 #include <functional>
 #include <queue>
 #include <span>
-
-#include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
     class Texture;
@@ -48,7 +50,7 @@ namespace Engine::Rhi {
      * This class is NOT thread-safe. All methods must be called from a
      * single thread (the frame loop thread).
      */
-    class SubmissionHelper {
+    class RHI_API SubmissionHelper {
         using CmdOperation = std::function<void(vk::CommandBuffer)>;
 
     private:

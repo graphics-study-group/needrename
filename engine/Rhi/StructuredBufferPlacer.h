@@ -1,6 +1,8 @@
 #ifndef ENGINE_RHI_STRUCTUREDBUFFERPLACER_INCLUDED
 #define ENGINE_RHI_STRUCTUREDBUFFERPLACER_INCLUDED
 
+#include "rhi_export.h"
+
 #include <memory>
 #include <type_traits>
 #include <typeinfo>
@@ -13,7 +15,7 @@ namespace Engine::Rhi {
     /**
      * @brief A helper that places named variables into a structured buffer.
      */
-    class StructuredBufferPlacer {
+    class RHI_API StructuredBufferPlacer {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

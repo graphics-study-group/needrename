@@ -64,8 +64,16 @@ Phased implementation. Each phase ends with a mandatory review stop: build + tes
 
 ## 4. Phase 4 — Cleanup (reflection, exports, tests)
 
-- [ ] 4.1 Add Rhi reflection registration: move generated `__generated__` outputs (e.g. `ImageUtils.h.inc`) to the Rhi module, add `reflection_init.inc` + `RegisterRhiTypes()` per the per-DLL registration pattern, call it from `MainClass::Initialize`; extend the reflection parser scan list with `engine/Rhi/`
-- [ ] 4.2 Rename export macro: `gpu_context_export.h` → `rhi_export.h` with `RHI_API` / `RHI_DLL_EXPORTS`; apply to moved DLL-boundary types
-- [ ] 4.3 Sweep tests and examples for stale namespace/include references (no `RenderSystemState` or old paths for moved types)
-- [ ] 4.4 Final verification: `cmake --build --preset debug` and `ctest --preset debug` all green; grep confirms `Rhi` has zero `engine/Render/` includes; `Asset → Rhi` dependency in effect
+> Phase 4 implementation notes:
+> - `Rhi` restored as a standalone SHARED DLL (`Rhi.dll`); `engine` links it PUBLIC (like `Core`), tests/examples/editor get it transitively.
+> - **Single shared dispatch loader** (better than the pre-split double-storage setup): `VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE` moved back into `DeviceInterface.cpp` (Rhi.dll) with `VULKAN_HPP_STORAGE_SHARED_EXPORT`; `MainClass.cpp` storage removed. Verified on MinGW/lld: visibility attributes do NOT export (only explicit dllexport does), and the presence of any dllexport suppresses `--export-all-symbols` — so `Rhi` links with `-Wl,--export-all-symbols` to force-export the dispatcher data symbol plus all non-`RHI_API` symbols; consumers auto-import it (no dllimport needed).
+> - `rhi_export.h` (`RHI_API` / `RHI_DLL_EXPORTS`) replaces `gpu_context_export.h`; every Rhi public class and the compute free functions carry `RHI_API` (dllexport), `--export-all-symbols` as belt-and-braces.
+> - Reflection: `meta_rhi` per-DLL parser (engine's HEADERS glob excludes `Rhi/.*`; stale `ImageUtils.h.inc`/`PipelineEnums.h.inc` removed from `engine/__generated__/`); `RhiReflectionRegistration.cpp` exposes `RegisterRhiTypes()` (extern "C"), called from `MainClass::Initialize`. `AnnoRefl` must be PUBLIC-linked on Rhi (the parser recurses INTERFACE_LINK_LIBRARIES only).
+> - 4.3 sweep: `gpu_context_standalone_test` renamed to `rhi_standalone_test`; zero stale `GpuContext`/`RenderSystemState`/old-path references; `RenderDebugUtils` namespace renamed to `DebugUtils` (C-level cleanup folded in).
+> - Final state: build green, 48/48 tests, `engine/Rhi/` has zero `Render/` includes, `Asset → Rhi` dependency in effect (PipelineProperty.h etc.).
+
+- [x] 4.1 Add Rhi reflection registration: move generated `__generated__` outputs (e.g. `ImageUtils.h.inc`) to the Rhi module, add `reflection_init.inc` + `RegisterRhiTypes()` per the per-DLL registration pattern, call it from `MainClass::Initialize`; extend the reflection parser scan list with `engine/Rhi/`
+- [x] 4.2 Rename export macro: `gpu_context_export.h` → `rhi_export.h` with `RHI_API` / `RHI_DLL_EXPORTS`; apply to moved DLL-boundary types
+- [x] 4.3 Sweep tests and examples for stale namespace/include references (no `RenderSystemState` or old paths for moved types)
+- [x] 4.4 Final verification: `cmake --build --preset debug` and `ctest --preset debug` all green; grep confirms `Rhi` has zero `engine/Render/` includes; `Asset → Rhi` dependency in effect
 - [ ] 4.5 PHASE 4 REVIEW STOP: report the full diff summary to the user; wait for user review and manual commit, then archive the change

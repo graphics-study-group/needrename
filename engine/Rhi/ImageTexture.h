@@ -15,7 +15,7 @@ namespace Engine::Rhi {
      * cannot be modified by any render operation.
      */
     class DeviceContext;
-    class ImageTexture : public Texture {
+    class RHI_API ImageTexture : public Texture {
     public:
         /**
          * @brief Description of an image texture.

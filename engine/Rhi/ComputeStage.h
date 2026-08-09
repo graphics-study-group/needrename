@@ -1,8 +1,9 @@
 #ifndef ENGINE_RHI_COMPUTESTAGE_INCLUDED
 #define ENGINE_RHI_COMPUTESTAGE_INCLUDED
 
-#include "Asset/InstantiatedFromAsset.h" // TODO(decision pending): remove with ComputeStage Asset decoupling (design D4)
 #include "Rhi/PipelineInfo.h"
+#include "rhi_export.h"
+
 #include <any>
 
 namespace Engine {
@@ -26,7 +27,7 @@ namespace Engine::Rhi {
      * follows the same restrictions specified in the @ref material_descriptor
      * "(`Engine::MaterialTemplate` documentation)".
      */
-    class ComputeStage {
+    class RHI_API ComputeStage {
         using PassInfo = PipelineInfo::ComputePassInfo;
 
         DeviceContext &m_device_context;

@@ -36,7 +36,7 @@ int main() {
     // Standalone headless facilities: no SDLWindow, no RenderSystem, no surface.
     Rhi::DeviceInterface::DeviceConfiguration cfg{
         .window = nullptr,
-        .application_name = "GpuContext Standalone Test",
+        .application_name = "Rhi Standalone Test",
         .application_version = 0,
         .dynamic_dispatcher = nullptr,
     };
@@ -115,9 +115,9 @@ int main() {
 
     device.waitIdle();
     if (!pass) {
-        std::cerr << "GpuContext standalone test FAILED." << std::endl;
+        std::cerr << "Rhi standalone test FAILED." << std::endl;
         return 1;
     }
-    std::cout << "GpuContext standalone test PASSED." << std::endl;
+    std::cout << "Rhi standalone test PASSED." << std::endl;
     return 0;
 }

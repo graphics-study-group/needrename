@@ -1,14 +1,14 @@
 #ifndef ENGINE_RHI_SHADERRESOURCEBINDING_INCLUDED
 #define ENGINE_RHI_SHADERRESOURCEBINDING_INCLUDED
 
-#include <memory>
+#include "Rhi/TextureSubresourceView.h"
+#include "rhi_export.h"
 
 // GLM forward declarations.
 #include <fwd.hpp>
-
 #include <vulkan/vulkan.hpp>
 
-#include "Rhi/TextureSubresourceView.h"
+#include <memory>
 
 namespace Engine::Rhi {
 
@@ -36,7 +36,7 @@ namespace Engine::Rhi {
      * The other class handles trivial uniform buffer variables (e.g. floats,
      * vectors and matrics).
      */
-    class ShaderResourceBinding {
+    class RHI_API ShaderResourceBinding {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

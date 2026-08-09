@@ -1,11 +1,12 @@
 #ifndef ENGINE_RHI_DEVICEBUFFER_INCLUDED
 #define ENGINE_RHI_DEVICEBUFFER_INCLUDED
 
-#include <memory>
-#include <string>
-
 #include "Rhi/MemoryAllocation.h"
 #include "Rhi/MemoryTypes.h"
+#include "rhi_export.h"
+
+#include <memory>
+#include <string>
 
 namespace vk {
     class Buffer;
@@ -22,7 +23,7 @@ namespace Engine::Rhi {
      *
      * @note Movable but non-copyable.
      */
-    class DeviceBuffer {
+    class RHI_API DeviceBuffer {
     protected:
         DeviceBuffer(BufferAllocation &&alloc, size_t size);
 

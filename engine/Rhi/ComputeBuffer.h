@@ -3,13 +3,14 @@
 
 #include "Rhi/DeviceBuffer.h"
 
+#include "rhi_export.h"
 #include <span>
 
 namespace Engine::Rhi {
     /**
      * @brief A buffer dedicated for compute shader use (i.e. storage buffer).
      */
-    class ComputeBuffer : public DeviceBuffer {
+    class RHI_API ComputeBuffer : public DeviceBuffer {
         ComputeBuffer(BufferAllocation &&alloc, size_t size);
 
     public:

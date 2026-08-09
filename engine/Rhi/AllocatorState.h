@@ -3,7 +3,7 @@
 
 #include "Rhi/MemoryAllocation.h"
 #include "Rhi/MemoryTypes.h"
-#include "gpu_context_export.h"
+#include "rhi_export.h"
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
@@ -19,7 +19,7 @@ namespace Engine::Rhi {
      *
      * Currently the allocator is implemented via the VMA library.
      */
-    class GPU_CONTEXT_API AllocatorState {
+    class RHI_API AllocatorState {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

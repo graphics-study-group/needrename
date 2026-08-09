@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "rhi_export.h"
+
 namespace vk {
     class DescriptorSet;
 }
@@ -28,7 +30,7 @@ namespace Engine::Rhi {
      * - A small uniform buffer for placing variables, which is split into
      * `slot_count` rotation slots.
      */
-    class ComputeResourceBinding {
+    class RHI_API ComputeResourceBinding {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

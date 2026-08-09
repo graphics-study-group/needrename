@@ -23,11 +23,10 @@
 
 #include "meta_engine/reflection_init.inc"
 
-VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-
 extern "C"
 {
     void RegisterCoreTypes();
+    void RegisterRhiTypes();
 }
 
 namespace Engine {
@@ -133,6 +132,7 @@ namespace Engine {
         }
         AnnoRefl::Initialize();
         RegisterCoreTypes();
+        RegisterRhiTypes();
         RegisterAllTypes();
 
         // if in editor mode

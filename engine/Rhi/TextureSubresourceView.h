@@ -1,6 +1,8 @@
 #ifndef ENGINE_RHI_TEXTURESUBRESOURCEVIEW_INCLUDED
 #define ENGINE_RHI_TEXTURESUBRESOURCEVIEW_INCLUDED
 
+#include "rhi_export.h"
+
 #include <cstdint>
 #include <limits>
 
@@ -19,7 +21,7 @@ namespace Engine::Rhi {
      *
      * @see `VkImageSubresourceRange`.
      */
-    struct TextureSubresourceRange {
+    struct RHI_API TextureSubresourceRange {
         /**
          * @brief Base array layer that is considered as the first layer for
          * this view.
@@ -137,7 +139,7 @@ namespace Engine::Rhi {
      * The underlying `VkImageView` is lazily allocated, and is managed by the
      * parent texture.
      */
-    class TextureSubresourceView {
+    class RHI_API TextureSubresourceView {
     public:
         Texture &texture;
         TextureSubresourceRange range;

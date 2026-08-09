@@ -1,14 +1,14 @@
 #include "Rhi/DeviceInterface.h"
 #include "Rhi/DebugUtils.h"
 #include "Rhi/Structs.h"
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
-#include <unordered_set>
 #include <vulkan/vulkan.hpp>
 
-// TODO(phase 4): restore VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE when
-// Rhi becomes a standalone DLL again. While merged into engine.dll, the storage
-// is provided by MainClass.cpp.
+#include <unordered_set>
+
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace Engine::Rhi {
     struct DeviceInterface::impl {
@@ -164,7 +164,7 @@ namespace Engine::Rhi {
             // Enable debug utils (setName, label regions) only when validation layer is loaded,
             // because VK_EXT_debug_utils is provided by the validation layer on most drivers.
             if (validation_layer_available) {
-                Engine::Rhi::RenderDebugUtils::g_debug_utils_available = true;
+                Engine::Rhi::DebugUtils::g_debug_utils_available = true;
             }
 #endif
 

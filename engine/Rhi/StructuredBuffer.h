@@ -1,6 +1,8 @@
 #ifndef ENGINE_RHI_STRUCTUREDBUFFER_INCLUDED
 #define ENGINE_RHI_STRUCTUREDBUFFER_INCLUDED
 
+#include "rhi_export.h"
+
 #include <memory>
 #include <span>
 #include <type_traits>
@@ -16,7 +18,7 @@ namespace Engine::Rhi {
      * variable. To actually write these variables onto a buffer, use
      * `Engine::Rhi::StructuredBufferPlacer`
      */
-    class StructuredBuffer {
+    class RHI_API StructuredBuffer {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

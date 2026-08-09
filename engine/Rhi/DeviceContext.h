@@ -22,7 +22,7 @@ namespace Engine::Rhi {
      *
      * @note Movable but non-copyable.
      */
-    class GPU_CONTEXT_API DeviceContext {
+    class RHI_API DeviceContext {
         std::unique_ptr<DeviceInterface> m_device_interface;
         std::unique_ptr<AllocatorState> m_allocator_state;
         std::unique_ptr<ImmutableResourceCache> m_immutable_resource_cache;

@@ -1,9 +1,11 @@
 #ifndef ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
 #define ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
 
-#include <memory>
+#include "rhi_export.h"
 
 #include <vulkan/vulkan.hpp>
+
+#include <memory>
 
 namespace vk {
     class Device;
@@ -22,7 +24,7 @@ namespace Engine::Rhi {
      * @see Fossilze library by VALVE. Hashing of Vulkan create info
      * structures are largely based on it.
      */
-    class ImmutableResourceCache {
+    class RHI_API ImmutableResourceCache {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

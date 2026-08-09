@@ -15,7 +15,7 @@ namespace Engine::Rhi {
      * be aligned accordingly, making the
      * buffer suitable to use for dynamic buffer descriptors.
      */
-    class IndexedBuffer : public Rhi::DeviceBuffer {
+    class RHI_API IndexedBuffer : public Rhi::DeviceBuffer {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
