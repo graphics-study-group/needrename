@@ -1,5 +1,5 @@
-#ifndef RENDER_DEBUGUTILS_INCLUDED
-#define RENDER_DEBUGUTILS_INCLUDED
+#ifndef ENGINE_RHI_DEBUGUTILS_INCLUDED
+#define ENGINE_RHI_DEBUGUTILS_INCLUDED
 
 #include <vulkan/vulkan.hpp>
 
@@ -64,4 +64,4 @@ void DEBUG_SET_NAME_TEMPLATE_IMPL(vk::Device device, T handle, const char *name)
 #endif
 }
 
-#endif // RENDER_DEBUGUTILS_INCLUDED
+#endif // ENGINE_RHI_DEBUGUTILS_INCLUDED

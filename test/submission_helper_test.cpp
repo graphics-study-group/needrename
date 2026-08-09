@@ -69,38 +69,38 @@ int main() {
     std::vector<std::byte> data(64, std::byte{0xAB});
 
     // Case 1: empty-batch ExecuteSubmission advances the signal CPU-side;
-    // idle OnFrameComplete is idempotent.
+    // idle OnBatchComplete is idempotent.
     helper.ExecuteSubmission({timeline.get(), 1});
     uint64_t value = 0;
     CHECK(device.getSemaphoreCounterValue(timeline.get(), &value) == vk::Result::eSuccess && value == 1);
-    helper.OnFrameComplete();
+    helper.OnBatchComplete();
 
     // Case 2: normal submit -> reap -> re-submit cycle.
     helper.EnqueueBufferSubmission(*target, data);
     helper.ExecuteSubmission({timeline.get(), 2});
-    helper.OnFrameComplete();
+    helper.OnBatchComplete();
     helper.EnqueueBufferSubmission(*target, data);
     helper.ExecuteSubmission({timeline.get(), 3});
-    helper.OnFrameComplete();
+    helper.OnBatchComplete();
 
     // Case 3: consecutive deferred submissions are rejected.
     helper.EnqueueBufferSubmission(*target, data);
     helper.ExecuteSubmission({timeline.get(), 4});
     CHECK(ExpectRuntimeError([&] { helper.ExecuteSubmission({timeline.get(), 5}); }));
-    helper.OnFrameComplete();
+    helper.OnBatchComplete();
 
     // Case 4: immediate submission while a deferred batch is pending is rejected.
     helper.EnqueueBufferSubmission(*target, data);
     helper.ExecuteSubmission({timeline.get(), 6});
     CHECK(ExpectRuntimeError([&] { helper.ExecuteSubmissionImmediately(); }));
-    helper.OnFrameComplete();
+    helper.OnBatchComplete();
 
     // Case 5: frame end with unsubmitted operations is rejected; the state is
     // left untouched (Reset with pending operations), so submission recovers.
     helper.EnqueueBufferSubmission(*target, data);
-    CHECK(ExpectRuntimeError([&] { helper.OnFrameComplete(); }));
+    CHECK(ExpectRuntimeError([&] { helper.OnBatchComplete(); }));
     helper.ExecuteSubmission({timeline.get(), 7});
-    helper.OnFrameComplete();
+    helper.OnBatchComplete();
 
     // Case 6: consecutive immediate submissions are legal (self-contained).
     helper.EnqueueBufferSubmission(*target, data);
@@ -111,7 +111,7 @@ int main() {
     // Case 7: mixing immediate and deferred submissions.
     helper.EnqueueBufferSubmission(*target, data);
     helper.ExecuteSubmission({timeline.get(), 8});
-    helper.OnFrameComplete();
+    helper.OnBatchComplete();
     helper.EnqueueBufferSubmission(*target, data);
     helper.ExecuteSubmissionImmediately();
 

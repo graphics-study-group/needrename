@@ -10,12 +10,10 @@ namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
         class ComputeStage;
+        class DeviceContext;
     } // namespace Rhi
     class ConvexCollisionDetector;
     class PhysicsScene;
-    namespace Rhi {
-        class DeviceContext;
-    }
     class SpatialHashBroadDetector;
 
     /**

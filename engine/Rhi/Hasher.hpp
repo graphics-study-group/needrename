@@ -1,5 +1,5 @@
-#ifndef ENGINE_RENDER_HASHER_INCLUDED
-#define ENGINE_RENDER_HASHER_INCLUDED
+#ifndef ENGINE_RHI_HASHER_INCLUDED
+#define ENGINE_RHI_HASHER_INCLUDED
 
 #include <cstdint>
 
@@ -102,4 +102,4 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // ENGINE_RENDER_HASHER_INCLUDED
+#endif // ENGINE_RHI_HASHER_INCLUDED

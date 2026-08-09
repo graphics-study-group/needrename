@@ -1,5 +1,5 @@
-#ifndef GPU_CONTEXT_ALLOCATORSTATE_INCLUDED
-#define GPU_CONTEXT_ALLOCATORSTATE_INCLUDED
+#ifndef ENGINE_RHI_ALLOCATORSTATE_INCLUDED
+#define ENGINE_RHI_ALLOCATORSTATE_INCLUDED
 
 #include "Rhi/MemoryAllocation.h"
 #include "Rhi/MemoryTypes.h"
@@ -96,4 +96,4 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // RENDER_RENDERSYSTEM_ALLOCATORSTATE_INCLUDED
+#endif // ENGINE_RHI_ALLOCATORSTATE_INCLUDED

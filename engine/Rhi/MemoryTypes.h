@@ -1,5 +1,5 @@
-#ifndef RENDER_MEMORY_MEMORYTYPES_INCLUDED
-#define RENDER_MEMORY_MEMORYTYPES_INCLUDED
+#ifndef ENGINE_RHI_MEMORYTYPES_INCLUDED
+#define ENGINE_RHI_MEMORYTYPES_INCLUDED
 
 #include "Core/flagbits.h"
 
@@ -88,4 +88,4 @@ namespace Engine::Rhi {
     using ImageMemoryType = Flags<ImageMemoryTypeBits>;
 }; // namespace Engine::Rhi
 
-#endif // RENDER_MEMORY_MEMORYTYPES_INCLUDED
+#endif // ENGINE_RHI_MEMORYTYPES_INCLUDED

@@ -1,5 +1,5 @@
-#ifndef RENDER_PIPELINE_PIPELINEINFO_INCLUDED
-#define RENDER_PIPELINE_PIPELINEINFO_INCLUDED
+#ifndef ENGINE_RHI_PIPELINEINFO_INCLUDED
+#define ENGINE_RHI_PIPELINEINFO_INCLUDED
 
 #include <array>
 #include <vulkan/vulkan.hpp>
@@ -30,4 +30,4 @@ namespace Engine::Rhi {
     } // namespace PipelineInfo
 } // namespace Engine::Rhi
 
-#endif // RENDER_PIPELINE_PIPELINEINFO_INCLUDED
+#endif // ENGINE_RHI_PIPELINEINFO_INCLUDED

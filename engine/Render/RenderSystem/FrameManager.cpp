@@ -373,7 +373,7 @@ namespace Engine::RenderSystemState {
         total_frame_count++;
 
         // Handle submissions
-        m_submission_helper->OnFrameComplete();
+        m_submission_helper->OnBatchComplete();
     }
 
     Rhi::SubmissionHelper &FrameManager::GetSubmissionHelper() {

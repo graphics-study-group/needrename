@@ -1,5 +1,5 @@
-#ifndef GPU_CONTEXT_STRUCTS_INCLUDED
-#define GPU_CONTEXT_STRUCTS_INCLUDED
+#ifndef ENGINE_RHI_STRUCTS_INCLUDED
+#define ENGINE_RHI_STRUCTS_INCLUDED
 
 #include <optional>
 #include <vector>
@@ -33,4 +33,4 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // GPU_CONTEXT_STRUCTS_INCLUDED
+#endif // ENGINE_RHI_STRUCTS_INCLUDED

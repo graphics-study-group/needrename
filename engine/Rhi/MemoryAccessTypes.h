@@ -1,5 +1,5 @@
-#ifndef RENDER_MEMORY_MEMORYACCESSTYPES
-#define RENDER_MEMORY_MEMORYACCESSTYPES
+#ifndef ENGINE_RHI_MEMORYACCESSTYPES_INCLUDED
+#define ENGINE_RHI_MEMORYACCESSTYPES_INCLUDED
 
 #include "Core/flagbits.h"
 
@@ -80,4 +80,4 @@ namespace Engine::Rhi {
     using MemoryAccessTypeImage = MemoryAccessTypes::MemoryAccessTypeImage;
 } // namespace Engine::Rhi
 
-#endif // RENDER_MEMORY_MEMORYACCESSTYPES
+#endif // ENGINE_RHI_MEMORYACCESSTYPES_INCLUDED

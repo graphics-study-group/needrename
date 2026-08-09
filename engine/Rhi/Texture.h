@@ -1,5 +1,5 @@
-#ifndef RENDER_MEMORY_TEXTURE_INCLUDED
-#define RENDER_MEMORY_TEXTURE_INCLUDED
+#ifndef ENGINE_RHI_TEXTURE_INCLUDED
+#define ENGINE_RHI_TEXTURE_INCLUDED
 
 #include "Rhi/ImageUtils.h"
 
@@ -101,4 +101,4 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // RENDER_MEMORY_TEXTURE_INCLUDED
+#endif // ENGINE_RHI_TEXTURE_INCLUDED

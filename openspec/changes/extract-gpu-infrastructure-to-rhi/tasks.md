@@ -19,7 +19,7 @@ Phased implementation. Each phase ends with a mandatory review stop: build + tes
 - [x] 1.7 Move `PipelineEnums` from `engine/Render/Pipeline/` to `engine/Rhi/` (with `ToVkCompareOp` moved in from `PipelineUtils.hpp`)
 - [x] 1.8 Update CMake: Render CMakeLists loses moved sources and the `spirv-cross-cpp` PUBLIC link; `EngineLibRhi` (OBJECT) gains them (plus `vma`); update all `#include "Render/..."` paths referencing moved files repo-wide (engine, test, example, editor)
 - [x] 1.9 Phase 1 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (48/48), with no namespace or logic changes
-- [ ] 1.10 PHASE 1 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
+- [x] 1.10 PHASE 1 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
 ## 2. Phase 2 — Namespace unification (Engine::Rhi) + asset script
 
@@ -36,7 +36,7 @@ Phased implementation. Each phase ends with a mandatory review stop: build + tes
 - [x] 2.3 Delete the `GpuContext` aggregator class (`engine/Rhi/GpuContext.h/.cpp`) and rework its two test consumers to construct the facilities directly
 - [x] 2.4 Asset scan: all 49 `.asset` files checked — `%type` only references Asset-module types and enum values serialize by name; zero affected references, batch script not required
 - [x] 2.5 Phase 2 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (48/48)
-- [ ] 2.6 PHASE 2 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
+- [x] 2.6 PHASE 2 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
 ## 3. Phase 3 — Physics interface rework + DeviceContext (behavior point)
 
@@ -60,7 +60,7 @@ Phased implementation. Each phase ends with a mandatory review stop: build + tes
 - [x] 3.6 Remove physics→render bridge: delete `SetModelMatricesBuffer` calls in `XPBDGpuSolver::GPUStep`, `DummySolver::PreGPUStep`, and `PhysicsScene::SyncGpuBuffers`; add the forward in `MainClass::RunOneFrame` after `FlushPhysics` using `GetGpuBuffers().model_matrices` (skip when physics scene is null)
 - [x] 3.7 Verify physics module no longer includes any `Render/` header (grep clean; only a stale `class RenderSystem;` forward declaration removed)
 - [x] 3.8 Phase 3 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (48/48); physics behavior unchanged
-- [ ] 3.9 PHASE 3 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
+- [x] 3.9 PHASE 3 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
 ## 4. Phase 4 — Cleanup (reflection, exports, tests)
 

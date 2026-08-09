@@ -1,5 +1,5 @@
-#ifndef ENGINE_RENDER_IMAGEUTILS_INCLUDED
-#define ENGINE_RENDER_IMAGEUTILS_INCLUDED
+#ifndef ENGINE_RHI_IMAGEUTILS_INCLUDED
+#define ENGINE_RHI_IMAGEUTILS_INCLUDED
 
 #include "Rhi/MemoryTypes.h"
 #include "Rhi/PipelineEnums.h"
@@ -127,4 +127,4 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // ENGINE_RENDER_IMAGEUTILS_INCLUDED
+#endif // ENGINE_RHI_IMAGEUTILS_INCLUDED

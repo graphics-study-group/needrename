@@ -1,5 +1,5 @@
-#ifndef RENDER_MEMORY_DEVICEBUFFER_INCLUDED
-#define RENDER_MEMORY_DEVICEBUFFER_INCLUDED
+#ifndef ENGINE_RHI_DEVICEBUFFER_INCLUDED
+#define ENGINE_RHI_DEVICEBUFFER_INCLUDED
 
 #include <memory>
 #include <string>
@@ -103,4 +103,4 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // RENDER_MEMORY_DEVICEBUFFER_INCLUDED
+#endif // ENGINE_RHI_DEVICEBUFFER_INCLUDED

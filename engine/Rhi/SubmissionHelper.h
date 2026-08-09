@@ -1,5 +1,5 @@
-#ifndef RENDER_RENDERSYSTEM_SUBMISSIONHELPER_INCLUDED
-#define RENDER_RENDERSYSTEM_SUBMISSIONHELPER_INCLUDED
+#ifndef ENGINE_RHI_SUBMISSIONHELPER_INCLUDED
+#define ENGINE_RHI_SUBMISSIONHELPER_INCLUDED
 
 #include <functional>
 #include <queue>
@@ -27,18 +27,18 @@ namespace Engine::Rhi {
      * Batch state machine:
      * - `Reset`: no deferred batch is pending; submission is allowed.
      * - `Submitted`: a deferred batch (submitted via `ExecuteSubmission`)
-     *   is pending and awaits `OnFrameComplete`.
+     *   is pending and awaits `OnBatchComplete`.
      *
      * Protocol:
      * - `ExecuteSubmission` / `ExecuteSubmissionImmediately` require the
      *   state to be `Reset`, otherwise they throw `std::runtime_error`.
-     * - `OnFrameComplete` reaps the pending deferred batch. It throws
+     * - `OnBatchComplete` reaps the pending deferred batch. It throws
      *   `std::runtime_error` when called with unsubmitted operations
-     *   pending (Enqueue operations must be submitted within the same
-     *   frame; recording-phase enqueues such as mesh submission in
-     *   `RendererManager::FilterAndSortRenderers` still precede
-     *   `ExecuteSubmission` in the frame loop). Readback callbacks
-     *   invoked by `FrameManager` must not perform uploads.
+     *   pending (enqueue operations must be submitted before the next
+     *   `OnBatchComplete`; recording-phase enqueues still precede
+     *   `ExecuteSubmission` in the caller's loop). Readback callbacks
+     *   must not perform uploads.
+     *
      * - `ExecuteSubmissionImmediately` is self-contained: it submits and
      *   waits for completion, leaving the state at `Reset`. It submits
      *   all currently pending operations.
@@ -143,7 +143,7 @@ namespace Engine::Rhi {
          *
          * @warning The batch state must be `Reset`; otherwise a previous deferred
          * batch is still pending and this call throws `std::runtime_error`.
-         * The batch is reaped by `OnFrameComplete`.
+         * The batch is reaped by `OnBatchComplete`.
          */
         void ExecuteSubmission(vk::SemaphoreSignalInfo signal_info);
 
@@ -170,8 +170,8 @@ namespace Engine::Rhi {
          * In the `Reset` state: returns idempotently when idle, or throws
          * `std::runtime_error` when unsubmitted operations are pending.
          */
-        void OnFrameComplete();
+        void OnBatchComplete();
     };
 } // namespace Engine::Rhi
 
-#endif // RENDER_RENDERSYSTEM_SUBMISSIONHELPER_INCLUDED
+#endif // ENGINE_RHI_SUBMISSIONHELPER_INCLUDED

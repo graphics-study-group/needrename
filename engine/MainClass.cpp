@@ -253,7 +253,7 @@ namespace Engine {
         this->physics->PreGPUStep();
         // Phase 2: GPU recording — physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
-        this->physics->GPUStep(cb.GetCommandBuffer()); // solvers record their RGs
+        this->physics->GPUStep(cb.GetCommandBuffer()); // physics solvers record their compute passes
         if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
             this->render_graph->RecordAllPasses(cb.GetCommandBuffer());
         }

@@ -1,5 +1,5 @@
-#ifndef RENDER_MEMORY_MEMORYALLOCATION_INCLUDED
-#define RENDER_MEMORY_MEMORYALLOCATION_INCLUDED
+#ifndef ENGINE_RHI_MEMORYALLOCATION_INCLUDED
+#define ENGINE_RHI_MEMORYALLOCATION_INCLUDED
 
 #include "Rhi/MemoryTypes.h"
 #include "gpu_context_export.h"
@@ -189,4 +189,4 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // RENDER_MEMORY_MEMORYALLOCATION_INCLUDED
+#endif // ENGINE_RHI_MEMORYALLOCATION_INCLUDED

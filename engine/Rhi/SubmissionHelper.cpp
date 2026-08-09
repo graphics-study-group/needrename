@@ -149,8 +149,8 @@ namespace Engine::Rhi {
         // Staging buffers of operations enqueued but not yet submitted.
         std::vector<std::unique_ptr<DeviceBuffer>> m_pending_staging{};
         // Staging buffers of the deferred batch currently in flight, awaiting
-        // reclamation by OnFrameComplete.
-        std::vector<std::unique_ptr<DeviceBuffer>> m_inflight_staging{};
+        // reclamation by OnBatchComplete.
+        std::vector<std::unique_ptr<DeviceBuffer>> m_active_staging{};
 
         vk::UniqueCommandBuffer m_one_time_cb{};
         vk::UniqueFence m_completion_fence{};
@@ -353,7 +353,7 @@ namespace Engine::Rhi {
     void SubmissionHelper::ExecuteSubmission(vk::SemaphoreSignalInfo signal_info) {
         if (pimpl->m_state != BatchState::Reset) {
             throw std::runtime_error(
-                "ExecuteSubmission called while a previous batch is still pending. Call OnFrameComplete() first."
+                "ExecuteSubmission called while a previous batch is still pending. Call OnBatchComplete() first."
             );
         }
 
@@ -388,8 +388,8 @@ namespace Engine::Rhi {
         pimpl->m_one_time_cb->end();
 
         // The batch's staging buffers must stay alive until the fence is
-        // reaped by OnFrameComplete.
-        pimpl->m_inflight_staging = std::move(pimpl->m_pending_staging);
+        // reaped by OnBatchComplete.
+        pimpl->m_active_staging = std::move(pimpl->m_pending_staging);
 
         vk::SemaphoreSubmitInfo signal{
             signal_info.semaphore, signal_info.value, vk::PipelineStageFlagBits2::eAllTransfer
@@ -406,7 +406,7 @@ namespace Engine::Rhi {
     void SubmissionHelper::ExecuteSubmissionImmediately() {
         if (pimpl->m_state != BatchState::Reset) {
             throw std::runtime_error(
-                "ExecuteSubmissionImmediately called while a delayed batch is still pending. Call OnFrameComplete() "
+                "ExecuteSubmissionImmediately called while a delayed batch is still pending. Call OnBatchComplete() "
                 "first."
             );
         }
@@ -451,7 +451,7 @@ namespace Engine::Rhi {
         this_batch_staging.clear();
     }
 
-    void SubmissionHelper::OnFrameComplete() {
+    void SubmissionHelper::OnBatchComplete() {
         if (pimpl->m_state == BatchState::Submitted) {
             auto device = m_device_interface.GetDevice();
             auto wfresult =
@@ -462,7 +462,7 @@ namespace Engine::Rhi {
 
             device.resetFences({pimpl->m_completion_fence.get()});
             pimpl->m_one_time_cb.reset();
-            pimpl->m_inflight_staging.clear();
+            pimpl->m_active_staging.clear();
             pimpl->m_state = BatchState::Reset;
             return;
         }
@@ -473,7 +473,7 @@ namespace Engine::Rhi {
         // callbacks must not perform uploads.
         if (!pimpl->m_pending_operations.empty()) {
             throw std::runtime_error(
-                "OnFrameComplete called with unsubmitted operations. Enqueue operations must be submitted before "
+                "OnBatchComplete called with unsubmitted operations. Enqueue operations must be submitted before "
                 "the frame ends."
             );
         }

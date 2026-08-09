@@ -1,5 +1,5 @@
-#ifndef PIPELINE_COMPUTE_COMPUTESTAGE
-#define PIPELINE_COMPUTE_COMPUTESTAGE
+#ifndef ENGINE_RHI_COMPUTESTAGE_INCLUDED
+#define ENGINE_RHI_COMPUTESTAGE_INCLUDED
 
 #include "Asset/InstantiatedFromAsset.h" // TODO(decision pending): remove with ComputeStage Asset decoupling (design D4)
 #include "Rhi/PipelineInfo.h"
@@ -75,4 +75,4 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // PIPELINE_COMPUTE_COMPUTESTAGE
+#endif // ENGINE_RHI_COMPUTESTAGE_INCLUDED
