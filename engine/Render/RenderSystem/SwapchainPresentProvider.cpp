@@ -2,7 +2,7 @@
 
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Memory/RenderTargetTexture.h"
-#include "Rhi/DeviceInterface.h"
+#include "Rhi/Device/DeviceInterface.h"
 
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>

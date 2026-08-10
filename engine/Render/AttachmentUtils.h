@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <variant>
 
-#include "Rhi/TextureSubresourceView.h"
+#include "Rhi/Texture/TextureSubresourceView.h"
 
 namespace Engine {
     class RenderTargetTexture;

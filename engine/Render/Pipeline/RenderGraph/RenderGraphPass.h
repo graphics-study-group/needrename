@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
-#include "Rhi/MemoryAccessTypes.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace vk {
     struct CommandBuffer;

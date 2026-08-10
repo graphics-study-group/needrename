@@ -3,7 +3,7 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"
-#include "Rhi/DebugUtils.h"
+#include "Rhi/Device/DebugUtils.h"
 
 namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetPassFunction(

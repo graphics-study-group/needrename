@@ -8,8 +8,8 @@
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <Render/RenderSystem.h>
-#include <Rhi/DeviceContext.h>
-#include <Rhi/SubmissionHelper.h>
+#include <Rhi/Device/DeviceContext.h>
+#include <Rhi/Submission/SubmissionHelper.h>
 
 #include <SDL3/SDL.h>
 

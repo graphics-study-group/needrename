@@ -1,7 +1,7 @@
 #include "RenderTargetTexture.h"
 
-#include "Rhi/AllocatorState.h"
-#include <Rhi/DeviceContext.h>
+#include "Rhi/Device/AllocatorState.h"
+#include <Rhi/Device/DeviceContext.h>
 
 namespace Engine {
     RenderTargetTexture::RenderTargetTexture(

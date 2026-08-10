@@ -1,9 +1,9 @@
 #include "CameraManager.h"
 
 #include "Render/Renderer/Camera.h"
-#include "Rhi/DebugUtils.h"
-#include "Rhi/DeviceInterface.h"
-#include <Rhi/IndexedBuffer.h>
+#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include <Rhi/Buffer/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <glm.hpp>
 #include <vulkan/vulkan.h>

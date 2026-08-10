@@ -7,7 +7,7 @@
 
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
-#include "Rhi/MemoryAccessTypes.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace Engine {
     class RenderGraph;

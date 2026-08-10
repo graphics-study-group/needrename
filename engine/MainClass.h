@@ -2,7 +2,7 @@
 #define ENGINE_MAINCLASS_INCLUDED
 
 #include "Core/Functional/OptionHandler.h"
-#include "Rhi/DeviceContext.h"
+#include "Rhi/Device/DeviceContext.h"
 
 #include <SDL3/SDL.h>
 #include <filesystem>

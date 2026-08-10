@@ -1,7 +1,7 @@
 #include "Image2DTextureAsset.h"
 
 #include <AnnoRefl/serialization.h>
-#include <Rhi/ImageUtilsFunc.h>
+#include <Rhi/Texture/ImageUtilsFunc.h>
 #include <SDL3/SDL_log.h>
 #include <ktx.h>
 

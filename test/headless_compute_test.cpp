@@ -1,7 +1,7 @@
 #include "Asset/Shader/ShaderCompiler.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Rhi/ComputeHelpers.h"
+#include "Rhi/Pipeline/ComputeHelpers.h"
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <random>

@@ -1,8 +1,8 @@
 #include "Asset/Shader/ShaderCompiler.h"
-#include "Rhi/AllocatorState.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/MemoryTypes.h"
-#include "Rhi/Structs.h"
+#include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/Device/Structs.h"
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <iostream>

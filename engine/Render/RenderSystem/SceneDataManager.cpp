@@ -2,9 +2,9 @@
 
 #include "Render/Resource/MaterialInstanceManager.h"
 #include "Render/Resource/RenderResourceHandle.h"
-#include "Rhi/ComputeBuffer.h"
-#include "Rhi/DebugUtils.h"
-#include <Rhi/IndexedBuffer.h>
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Device/DebugUtils.h"
+#include <Rhi/Buffer/IndexedBuffer.h>
 
 #include <SDL3/SDL.h>
 #include <ext/matrix_clip_space.hpp>

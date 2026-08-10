@@ -3,8 +3,8 @@
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
-#include "Rhi/DebugUtils.h"
-#include "Rhi/ShaderParameterLayout.h"
+#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Pipeline/ShaderParameterLayout.h"
 
 #include <SDL3/SDL.h>
 #include <cassert>

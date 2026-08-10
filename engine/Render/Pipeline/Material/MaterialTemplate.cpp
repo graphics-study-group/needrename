@@ -9,10 +9,10 @@
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
-#include "Rhi/DebugUtils.h"
-#include "Rhi/ImageUtilsFunc.h"
-#include "Rhi/PipelineInfo.h"
-#include "Rhi/ShaderParameterLayout.h"
+#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Pipeline/PipelineInfo.h"
+#include "Rhi/Pipeline/ShaderParameterLayout.h"
+#include "Rhi/Texture/ImageUtilsFunc.h"
 
 #include <SDL3/SDL.h>
 #include <fstream>

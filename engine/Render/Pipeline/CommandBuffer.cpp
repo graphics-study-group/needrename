@@ -13,11 +13,11 @@
 #include "Render/Renderer/IVertexBasedRenderer.h"
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/MaterialInstanceManager.h"
-#include "Rhi/ComputeResourceBinding.h"
-#include "Rhi/ComputeStage.h"
-#include "Rhi/DebugUtils.h"
-#include "Rhi/DeviceBuffer.h"
-#include "Rhi/Texture.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Pipeline/ComputeResourceBinding.h"
+#include "Rhi/Pipeline/ComputeStage.h"
+#include "Rhi/Texture/Texture.h"
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>

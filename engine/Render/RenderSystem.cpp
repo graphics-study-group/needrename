@@ -15,10 +15,10 @@
 #include "Render/RenderSystem/SwapchainPresentProvider.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Resource/AllRenderResourceManagers.h"
-#include "Rhi/AllocatorState.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/MemoryAccessTypes.h"
-#include "Rhi/Structs.h"
+#include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
+#include "Rhi/Device/Structs.h"
 
 #include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>

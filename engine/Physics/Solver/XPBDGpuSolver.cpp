@@ -7,14 +7,14 @@
 #include <Physics/Collision/ConvexCollisionDetector.h>
 #include <Physics/Collision/SpatialHashBroadDetector.h>
 #include <Physics/PhysicsScene.h>
-#include <Rhi/ComputeHelpers.h>
-#include <Rhi/DeviceContext.h>
+#include <Rhi/Device/DeviceContext.h>
+#include <Rhi/Pipeline/ComputeHelpers.h>
 
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/ComputeResourceBinding.h>
-#include <Rhi/ComputeStage.h>
-#include <Rhi/DeviceBuffer.h>
-#include <Rhi/ShaderResourceBinding.h>
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Buffer/DeviceBuffer.h>
+#include <Rhi/Pipeline/ComputeResourceBinding.h>
+#include <Rhi/Pipeline/ComputeStage.h>
+#include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <filesystem>
 #include <fstream>

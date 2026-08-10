@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Render/AttachmentUtilsFunc.h"
-#include "Rhi/ImageUtilsFunc.h"
+#include "Rhi/Texture/ImageUtilsFunc.h"
 
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
@@ -15,15 +15,15 @@
 #include "Render/RenderSystem/SceneDataManager.h"
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Render/Resource/StaticMeshResource.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/ImmutableResourceCache.h"
-#include "Rhi/Structs.h"
-#include "Rhi/SubmissionHelper.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/Structs.h"
+#include "Rhi/Resource/ImmutableResourceCache.h"
+#include "Rhi/Submission/SubmissionHelper.h"
 
 #include "Render/Pipeline/CommandBuffer.h"
 
-#include "Rhi/ComputeResourceBinding.h"
-#include "Rhi/ComputeStage.h"
+#include "Rhi/Pipeline/ComputeResourceBinding.h"
+#include "Rhi/Pipeline/ComputeStage.h"
 
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
@@ -37,19 +37,19 @@
 #include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "Render/Renderer/VertexAttribute.h"
 
-#include "Rhi/MemoryAccessTypes.h"
-#include "Rhi/MemoryTypes.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
+#include "Rhi/Device/MemoryTypes.h"
 
 #include "Render/Memory/RenderTargetTexture.h"
-#include "Rhi/ImageTexture.h"
-#include "Rhi/Texture.h"
-#include "Rhi/TextureSubresourceView.h"
+#include "Rhi/Texture/ImageTexture.h"
+#include "Rhi/Texture/Texture.h"
+#include "Rhi/Texture/TextureSubresourceView.h"
 
-#include "Rhi/ComputeBuffer.h"
-#include "Rhi/DeviceBuffer.h"
-#include "Rhi/ShaderResourceBinding.h"
-#include "Rhi/StructuredBuffer.h"
-#include "Rhi/StructuredBufferPlacer.h"
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Buffer/StructuredBuffer.h"
+#include "Rhi/Buffer/StructuredBufferPlacer.h"
+#include "Rhi/Pipeline/ShaderResourceBinding.h"
 
 #include "Render/RenderSystem.h"
 

@@ -3,7 +3,7 @@
 
 #include "AttachmentUtils.h"
 #include "Render/Memory/RenderTargetTexture.h"
-#include "Rhi/TextureSubresourceView.h"
+#include "Rhi/Texture/TextureSubresourceView.h"
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {

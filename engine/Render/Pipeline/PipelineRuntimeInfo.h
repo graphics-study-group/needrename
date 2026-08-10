@@ -2,7 +2,7 @@
 #define RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
 
 #include "Render/Renderer/VertexAttribute.h"
-#include "Rhi/ImageUtils.h"
+#include "Rhi/Texture/ImageUtils.h"
 
 namespace Engine {
 

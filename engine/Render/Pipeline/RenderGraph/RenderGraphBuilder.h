@@ -2,7 +2,7 @@
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPHBUILDER2
 
 #include "Render/Memory/RenderTargetTexture.h"
-#include "Rhi/MemoryAccessTypes.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace Engine {
     namespace Rhi {

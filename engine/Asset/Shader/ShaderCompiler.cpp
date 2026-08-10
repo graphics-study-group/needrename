@@ -6,7 +6,7 @@
 
 #include <MainClass.h>
 #include <Render/RenderSystem.h>
-#include <Rhi/DeviceInterface.h>
+#include <Rhi/Device/DeviceInterface.h>
 
 namespace {
     /**

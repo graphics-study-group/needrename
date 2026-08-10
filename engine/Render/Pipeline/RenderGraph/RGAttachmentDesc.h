@@ -2,7 +2,7 @@
 #define PIPELINE_RENDERGRAPH_RGATTACHMENTDESC
 
 #include "Render/AttachmentUtils.h"
-#include "Rhi/TextureSubresourceView.h"
+#include "Rhi/Texture/TextureSubresourceView.h"
 
 namespace Engine {
     /// @brief Handle for textures in render graph.

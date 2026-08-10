@@ -4,7 +4,7 @@
 #include "Asset/InstantiatedFromAsset.h"
 #include "MaterialTemplate.h"
 #include "Render/Resource/RenderResourceHandle.h"
-#include "Rhi/DeviceBuffer.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
 
 #include <any>
 #include <fwd.hpp>

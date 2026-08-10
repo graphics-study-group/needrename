@@ -1,6 +1,6 @@
 #include "VertexAttribute.h"
 
-#include "Rhi/AllocatorState.h"
+#include "Rhi/Device/AllocatorState.h"
 #include <vulkan/vulkan.hpp>
 
 namespace {

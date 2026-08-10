@@ -3,7 +3,7 @@
 #include "Asset/AssetRef.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Rhi/AllocatorState.h"
+#include "Rhi/Device/AllocatorState.h"
 #include "StaticMeshResource.h"
 
 #include <cassert>

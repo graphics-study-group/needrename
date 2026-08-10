@@ -1,6 +1,6 @@
 #include "HeadlessPresentProvider.h"
 
-#include "Rhi/DeviceInterface.h"
+#include "Rhi/Device/DeviceInterface.h"
 
 namespace Engine::RenderSystemState {
     struct HeadlessPresentProvider::impl {

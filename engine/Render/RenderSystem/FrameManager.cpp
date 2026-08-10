@@ -4,12 +4,12 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Rhi/DebugUtils.h"
-#include "Rhi/DeviceBuffer.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/ImageUtilsFunc.h"
-#include "Rhi/Structs.h"
-#include "Rhi/SubmissionHelper.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/Structs.h"
+#include "Rhi/Submission/SubmissionHelper.h"
+#include "Rhi/Texture/ImageUtilsFunc.h"
 
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 

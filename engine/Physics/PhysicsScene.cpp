@@ -1,8 +1,8 @@
 #include "PhysicsScene.h"
 
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/DeviceContext.h>
-#include <Rhi/SubmissionHelper.h>
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Device/DeviceContext.h>
+#include <Rhi/Submission/SubmissionHelper.h>
 
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>

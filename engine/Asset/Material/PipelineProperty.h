@@ -6,8 +6,8 @@
 #include <AnnoRefl/serialization_unordered_map.h>
 #include <AnnoRefl/serialization_vector.h>
 
-#include <Rhi/ImageUtils.h>
-#include <Rhi/PipelineEnums.h>
+#include <Rhi/Pipeline/PipelineEnums.h>
+#include <Rhi/Texture/ImageUtils.h>
 
 #include <Asset/AssetRef.h>
 #include <Asset/Shader/ShaderAsset.h>

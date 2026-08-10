@@ -3,7 +3,7 @@
 
 #include "TextureAsset.h"
 #include <AnnoRefl/macros.h>
-#include <Rhi/ImageUtils.h>
+#include <Rhi/Texture/ImageUtils.h>
 #include <memory>
 #include <vector>
 

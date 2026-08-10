@@ -4,8 +4,8 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Asset/Material/PipelineProperty.h"
-#include "Rhi/Hasher.hpp"
-#include "Rhi/PipelineEnums.h"
+#include "Rhi/Device/Hasher.hpp"
+#include "Rhi/Pipeline/PipelineEnums.h"
 
 namespace Engine::PipelineUtils {
     constexpr vk::PolygonMode ToVkPolygonMode(Rhi::FillingMode mode) {

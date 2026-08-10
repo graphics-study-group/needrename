@@ -1,7 +1,7 @@
 #ifndef RENDER_MEMORY_RENDERTARGETTEXTURE
 #define RENDER_MEMORY_RENDERTARGETTEXTURE
 
-#include "Rhi/Texture.h"
+#include "Rhi/Texture/Texture.h"
 
 #include <string>
 

@@ -5,7 +5,7 @@
 // May be safe to include here as this header is not included in other headers.
 #include <vulkan/vulkan.hpp>
 
-#include "Rhi/MemoryAccessTypes.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace Engine {
     namespace Rhi {

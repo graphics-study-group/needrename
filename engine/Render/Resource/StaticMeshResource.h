@@ -4,7 +4,7 @@
 #include "Asset/AssetRef.h"
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/IAsynchPrepared.h"
-#include "Rhi/DeviceBuffer.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
 
 #include <memory>
 #include <vector>

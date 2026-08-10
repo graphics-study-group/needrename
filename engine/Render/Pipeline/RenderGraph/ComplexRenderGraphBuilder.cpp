@@ -13,11 +13,11 @@
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
-#include <Rhi/ComputeResourceBinding.h>
+#include <Rhi/Pipeline/ComputeResourceBinding.h>
 
 #include <vulkan/vulkan.hpp>
 
-#include <Rhi/ComputeBuffer.h>
+#include <Rhi/Buffer/ComputeBuffer.h>
 
 namespace Engine {
     ComplexRenderGraphBuilder::ComplexRenderGraphBuilder(RenderSystem &system) : m_system(system) {

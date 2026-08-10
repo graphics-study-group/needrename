@@ -1,10 +1,10 @@
-#include "Rhi/AllocatorState.h"
-#include "Rhi/DeviceInterface.h"
+#include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Device/DeviceInterface.h"
 
-#include "Rhi/DeviceBuffer.h"
-#include "Rhi/MemoryTypes.h"
-#include "Rhi/Structs.h"
-#include "Rhi/SubmissionHelper.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/Device/Structs.h"
+#include "Rhi/Submission/SubmissionHelper.h"
 
 #include <SDL3/SDL.h>
 #include <cstdint>

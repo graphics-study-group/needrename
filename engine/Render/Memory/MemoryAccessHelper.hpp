@@ -1,7 +1,7 @@
 #ifndef RENDER_MEMORY_MEMORYACCESSHELPER
 #define RENDER_MEMORY_MEMORYACCESSHELPER
 
-#include "Rhi/MemoryAccessTypes.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {

@@ -4,9 +4,9 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Rhi/DeviceInterface.h"
-#include "Rhi/ImageUtilsFunc.h"
-#include "Rhi/Structs.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/Structs.h"
+#include "Rhi/Texture/ImageUtilsFunc.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>

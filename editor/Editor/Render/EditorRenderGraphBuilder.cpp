@@ -14,10 +14,10 @@
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
-#include <Rhi/ComputeBuffer.h>
-#include <Rhi/ComputeResourceBinding.h>
-#include <Rhi/ComputeStage.h>
-#include <Rhi/ShaderResourceBinding.h>
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Pipeline/ComputeResourceBinding.h>
+#include <Rhi/Pipeline/ComputeStage.h>
+#include <Rhi/Pipeline/ShaderResourceBinding.h>
 #include <UserInterface/GUISystem.h>
 
 #include <Editor/Widget/GameWidget.h>
