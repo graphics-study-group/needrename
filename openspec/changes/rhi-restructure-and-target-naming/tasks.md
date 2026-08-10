@@ -8,18 +8,18 @@ Prerequisite: `extract-gpu-infrastructure-to-rhi` is archived (its 4.5 review/co
 - [x] 1.2 Update includes inside `engine/Rhi/` (self-references between moved files) to the new group paths
 - [x] 1.3 Update includes repo-wide outside the module: `engine/` (Render, Physics, Asset, Framework, MainClass), `editor/`, `example/`, `test/` (all `#include "Rhi/xxx.h"` → `#include "Rhi/<group>/xxx.h"`)
 - [x] 1.4 Phase 1 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes (same count as baseline 48/48); grep confirms zero group-less `#include "Rhi/` references remain
-- [ ] 1.5 PHASE 1 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
+- [x] 1.5 PHASE 1 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
 ## 2. Phase 2: Target and DLL renames
 
-- [ ] 2.1 `engine/Core/CMakeLists.txt`: rename `add_library(Core ...)` → `EngineCore`, update `target_compile_definitions`/`get_include_directories_for_target(Core ...)` self-references; `meta_core` target name unchanged
-- [ ] 2.2 `engine/Rhi/CMakeLists.txt`: rename `add_library(Rhi ...)` → `EngineRhi`, update all self-references (`get_include_directories_for_target`, `add_dependencies(Rhi ...)`); `meta_rhi` target name unchanged
-- [ ] 2.3 `engine/CMakeLists.txt`: rename `add_library(engine ...)` → `Engine`; update `target_link_libraries` (PUBLIC/PRIVATE, `Core`/`Rhi` → `EngineCore`/`EngineRhi`), the POST_BUILD copy command `$<TARGET_FILE:Core>` → `$<TARGET_FILE:EngineCore>`, `add_dependencies(engine ...)` → `Engine`, and reflection parser `get_include_directories_for_target(engine ...)` → `Engine`; `meta_engine` target name unchanged
-- [ ] 2.4 `editor/CMakeLists.txt`: rename `add_library(editor ...)` → `EngineEditor`; link `engine` → `Engine`
-- [ ] 2.5 `example/*/CMakeLists.txt`: update all `target_link_libraries(... engine)` → `Engine` and `editor` → `EngineEditor` (editor_run_game_example links both)
-- [ ] 2.6 `test/CMakeLists.txt`: update all `target_link_libraries(... engine)` → `Engine` (all `*_test` executables)
-- [ ] 2.7 Phase 2 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes; build output directory contains `EngineCore.dll`, `EngineRhi.dll`, `Engine.dll`, `EngineEditor.dll` and no `Core.dll`/`Rhi.dll`/`engine.dll`/`editor.dll`
-- [ ] 2.8 PHASE 2 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
+- [x] 2.1 `engine/Core/CMakeLists.txt`: rename `add_library(Core ...)` → `EngineCore`, update `target_compile_definitions`/`get_include_directories_for_target(Core ...)` self-references; `meta_core` target name unchanged
+- [x] 2.2 `engine/Rhi/CMakeLists.txt`: rename `add_library(Rhi ...)` → `EngineRhi`, update all self-references (`get_include_directories_for_target`, `add_dependencies(Rhi ...)`); `meta_rhi` target name unchanged
+- [x] 2.3 `engine/CMakeLists.txt`: rename `add_library(engine ...)` → `Engine`; update `target_link_libraries` (PUBLIC/PRIVATE, `Core`/`Rhi` → `EngineCore`/`EngineRhi`), the POST_BUILD copy command `$<TARGET_FILE:Core>` → `$<TARGET_FILE:EngineCore>`, `add_dependencies(engine ...)` → `Engine`, and reflection parser `get_include_directories_for_target(engine ...)` → `Engine`; `meta_engine` target name unchanged
+- [x] 2.4 `editor/CMakeLists.txt`: rename `add_library(editor ...)` → `EngineEditor`; link `engine` → `Engine`
+- [x] 2.5 `example/*/CMakeLists.txt`: update all `target_link_libraries(... engine)` → `Engine` and `editor` → `EngineEditor` (editor_run_game_example links both)
+- [x] 2.6 `test/CMakeLists.txt`: update all `target_link_libraries(... engine)` → `Engine` (all `*_test` executables)
+- [x] 2.7 Phase 2 verification: `cmake --build --preset debug` succeeds and `ctest --preset debug` passes; build output directory contains `EngineCore.dll`, `EngineRhi.dll`, `Engine.dll`, `EngineEditor.dll` and no `Core.dll`/`Rhi.dll`/`engine.dll`/`editor.dll`
+- [x] 2.8 PHASE 2 REVIEW STOP: report the diff summary to the user; wait for user review and manual commit before continuing
 
 ## 3. Phase 3: Final sweep and archive
 

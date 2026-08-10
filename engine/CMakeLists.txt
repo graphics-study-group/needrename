@@ -65,7 +65,7 @@ add_subdirectory(Physics)
 add_subdirectory(Render)
 add_subdirectory(UserInterface)
 
-add_library(engine SHARED 
+add_library(Engine SHARED 
     "MainClass.cpp"
     $<TARGET_OBJECTS:imgui>
     $<TARGET_OBJECTS:EngineLibAsset>
@@ -76,16 +76,16 @@ add_library(engine SHARED
 )
 
 # Widely used dependencies such as SDL and Vulkan are marked as public
-target_link_libraries(engine
+target_link_libraries(Engine
     PUBLIC
     EngineLibHeaderInterface
     EngineLibExternalDependency
-    Core
-    Rhi
+    EngineCore
+    EngineRhi
 )
 
 # Dependencies only used in a small module are marked as private to avoid pollution
-target_link_libraries(engine 
+target_link_libraries(Engine 
     PRIVATE
     EngineLibAsset
     EngineLibFramework
@@ -96,13 +96,13 @@ target_link_libraries(engine
 
 # Copy third-party DLLs that are not natively built into the bin directory.
 # SDL3 is an imported target from MSYS2; libktx overrides LIBRARY_OUTPUT_DIRECTORY.
-add_custom_command(TARGET engine POST_BUILD
+add_custom_command(TARGET Engine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3-shared>
     $<TARGET_FILE:ktx>
-    $<TARGET_FILE:Core>
-    $<TARGET_FILE_DIR:engine>
-    COMMENT "Copying SDL3, libktx, and Core DLLs to output directory"
+    $<TARGET_FILE:EngineCore>
+    $<TARGET_FILE_DIR:Engine>
+    COMMENT "Copying SDL3, libktx, and EngineCore DLLs to output directory"
 )
 
 # TODO: Use relative paths when install.
@@ -111,7 +111,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOU
 # Setup meta parser for engine reflection
 include(${ANROREFL_PARSER_DIR}/parser.cmake)
 set(all_include_dirs)
-get_include_directories_for_target(engine all_include_dirs)
+get_include_directories_for_target(Engine all_include_dirs)
 
 file(GLOB_RECURSE HEADERS "./*.h")
 # Exclude the parts that are already separated
@@ -128,11 +128,11 @@ add_reflection_parser(
     reflection_search_include_dirs "${all_include_dirs}" "${all_ext_include_dirs}"
     parent_projects meta_core_generation
 )
-add_dependencies(engine meta_engine)
-target_link_libraries(engine PRIVATE meta_engine)
+add_dependencies(Engine meta_engine)
+target_link_libraries(Engine PRIVATE meta_engine)
 
-add_dependencies(engine shader)
-add_dependencies(engine physics_shader)
+add_dependencies(Engine shader)
+add_dependencies(Engine physics_shader)
 
 add_dependencies(EngineLibAsset meta_engine)
 add_dependencies(EngineLibFramework meta_engine)

@@ -6,7 +6,7 @@ add_executable(${ProjectId} main.cpp CustomComponent.cpp)
 
 # There seems to be some bugs hiding, as only PUBLIC dependencies are scanned
 # by the reflection parser.
-target_link_libraries(${ProjectId} PUBLIC editor engine)
+target_link_libraries(${ProjectId} PUBLIC EngineEditor Engine)
 
 set(all_include_dirs)
 get_include_directories_for_target(${ProjectId} all_include_dirs)

@@ -11,9 +11,9 @@ else()
     include_directories(${UUID_INCLUDE_DIRS})
 endif()
 
-add_library(Core SHARED ${SOURCE})
-target_compile_definitions(Core PRIVATE CORE_DLL_EXPORTS)
-target_link_libraries(Core
+add_library(EngineCore SHARED ${SOURCE})
+target_compile_definitions(EngineCore PRIVATE CORE_DLL_EXPORTS)
+target_link_libraries(EngineCore
     PUBLIC
     EngineLibHeaderInterface
     AnnoRefl
@@ -28,7 +28,7 @@ filter_files_with_reflection_macros(CORE_HEADERS CORE_REFLECTION_HEADERS)
 
 # Set up include dirs needed for parsing Core headers
 set(all_include_dirs)
-get_include_directories_for_target(Core all_include_dirs)
+get_include_directories_for_target(EngineCore all_include_dirs)
 
 add_reflection_parser(
     target_name meta_core
@@ -36,5 +36,5 @@ add_reflection_parser(
     generated_code_dir "${CMAKE_CURRENT_SOURCE_DIR}/__generated__"
     reflection_search_include_dirs "${all_include_dirs}"
 )
-add_dependencies(Core meta_core)
-target_link_libraries(Core PRIVATE meta_core)
+add_dependencies(EngineCore meta_core)
+target_link_libraries(EngineCore PRIVATE meta_core)
