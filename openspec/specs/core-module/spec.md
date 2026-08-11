@@ -1,18 +1,19 @@
 # core-module Specification
 
 ## Purpose
-TBD - created by archiving change extract-core-and-reflection-dlls. Update Purpose after archive.
+Defines Core as the engine's foundational standalone library: engine-agnostic types (GUID, Transform, delegates/events, flagbits, SDL window wrapper, time system, CLI options) exposed as a separate shared library with minimal public surface and no engine-module dependencies.
+
 ## Requirements
 ### Requirement: Core is a standalone shared library
-The engine SHALL compile Core as a separate `Core.dll` shared library that does not depend on any other engine module except Reflection.dll.
+The engine SHALL compile Core as a separate `EngineCore.dll` shared library that does not depend on any other engine module except Reflection.dll.
 
 #### Scenario: Core.dll has no Framework or Render dependencies
-- **WHEN** the build system links Core.dll
-- **THEN** Core.dll SHALL NOT link to Framework.dll, Render.dll, Asset.dll, Physics.dll, or UI.dll
+- **WHEN** the build system links EngineCore.dll
+- **THEN** EngineCore.dll SHALL NOT link to Framework.dll, Render.dll, Asset.dll, Physics.dll, or UI.dll
 
 #### Scenario: Core.dll links only Reflection and external libraries
-- **WHEN** the build system links Core.dll
-- **THEN** Core.dll SHALL link only to Reflection.dll, SDL3, glm, and system libraries (rpcrt4 on Windows, uuid on Unix)
+- **WHEN** the build system links EngineCore.dll
+- **THEN** EngineCore.dll SHALL link only to Reflection.dll, SDL3, glm, and system libraries (rpcrt4 on Windows, uuid on Unix)
 
 ### Requirement: Core public interface is minimal
 The Core module SHALL expose no more than 10 public header files, containing only engine-agnostic types.

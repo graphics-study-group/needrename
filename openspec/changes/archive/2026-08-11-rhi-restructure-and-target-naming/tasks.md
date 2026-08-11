@@ -23,6 +23,6 @@ Prerequisite: `extract-gpu-infrastructure-to-rhi` is archived (its 4.5 review/co
 
 ## 3. Phase 3: Final sweep and archive
 
-- [ ] 3.1 Sweep greps: no stale target names in CMake link contexts (`Core`/`Rhi`/`engine`/`editor` as linked targets), no group-less `#include "Rhi/` references, no remaining `GpuContext` references
-- [ ] 3.2 Final verification: clean `cmake --build --preset debug` and `ctest --preset debug` all green; runtime smoke check of one example (e.g. `physics_example` or a test executable) to confirm DLL loading with the new names
+- [x] 3.1 Sweep greps: no stale target names in CMake link contexts (`Core`/`Rhi`/`engine`/`editor` as linked targets), no group-less `#include "Rhi/` references, no remaining `GpuContext` references
+- [x] 3.2 Final verification: clean `cmake --build --preset debug` and `ctest --preset debug` all green; runtime smoke check of one example (e.g. `physics_example` or a test executable) to confirm DLL loading with the new names
 - [ ] 3.3 PHASE 3 REVIEW STOP: report the full diff summary to the user; wait for user review and manual commit, then archive the change

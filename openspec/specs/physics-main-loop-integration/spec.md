@@ -1,7 +1,8 @@
 # physics-main-loop-integration Specification
 
 ## Purpose
-TBD - created by archiving change integrate-physics-into-main-loop. Update Purpose after archive.
+Defines how `MainClass` integrates the physics GPU pipeline into the main loop: automatic solver registration on project load, per-frame `PreGPUStep` → `GPUStep` → `PostGPUStep` execution on the shared main command buffer, and the assembly-layer forward of the physics model matrices buffer into the render system.
+
 ## Requirements
 ### Requirement: Default solver auto-registration
 
@@ -38,6 +39,24 @@ After `ProcessEvents` and before `UpdateRendererData` in the main loop, the engi
 ### Requirement: Physics pipeline in RunOneFrame
 
 `MainClass::RunOneFrame` SHALL execute the full physics pipeline in order: `PreGPUStep`, `GPUStep`, `PostGPUStep`. Physics compute and render graph passes SHALL share the same command buffer.
+
+### Requirement: MainClass forwards model matrices buffer to SceneDataManager
+
+`MainClass::RunOneFrame` SHALL forward the physics model matrices buffer to the render system's `SceneDataManager` via `SetModelMatricesBuffer`, using the main scene's physics scene `GetGpuBuffers().model_matrices`. The forward SHALL happen after the physics flush/step and before render-graph recording in the same frame, and SHALL tolerate a null physics scene (skip the forward).
+
+#### Scenario: Forward after physics step
+
+- **WHEN** `RunOneFrame` executes with a registered physics scene containing GPU buffers
+- **THEN** `SceneDataManager::SetModelMatricesBuffer` is called with the physics model matrices buffer pointer before render passes are recorded
+
+#### Scenario: No physics scene skips forward
+
+- **WHEN** `RunOneFrame` executes and the main scene has no physics scene (or physics disabled)
+- **THEN** no call to `SetModelMatricesBuffer` is made and rendering proceeds with no model matrices buffer
+
+### Requirement: Physics GPUStep records into raw command buffer
+
+`MainClass::RunOneFrame` SHALL call `physics->GPUStep(cb)` where `cb` is the raw `vk::CommandBuffer` obtained from the frame manager's main command buffer, and physics compute passes SHALL be recorded directly onto it.
 
 #### Scenario: Physics step executes within shared command buffer
 

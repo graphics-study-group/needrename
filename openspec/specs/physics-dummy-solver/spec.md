@@ -10,11 +10,11 @@ Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a 
 
 `DummySolver` SHALL inherit from `ISolver` and implement all pure virtual methods. It SHALL be defined in `engine/Physics/Solver/DummySolver.h/.cpp`. It SHALL override `PreGPUStep` and `GPUStep`, and SHALL use the default `PostGPUStep` (no-op).
 
-`DummySolver`'s constructor SHALL take `RenderSystem&` and store it internally. The solver SHALL access its bound PhysicsScene through `m_bound_scene` (set by `ISolver::OnBindToScene`). It SHALL NOT override `OnBindToScene` — the default implementation is sufficient.
+`DummySolver`'s constructor SHALL take `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&)` (replacing the former `RenderSystem&`) and store them internally. The solver SHALL access its bound PhysicsScene through `m_bound_scene` (set by `ISolver::OnBindToScene`). It SHALL NOT override `OnBindToScene` — the default implementation is sufficient.
 
 #### Scenario: DummySolver is polymorphic
 
-- **WHEN** registered via `RegisterSolver(scene_id, std::make_unique<DummySolver>(rs))`
+- **WHEN** registered via `RegisterSolver(scene_id, std::make_unique<DummySolver>(device_interface, allocator))`
 - **AND** `scene_id` maps to an existing scene
 - **THEN** `PhysicsSystem::GPUStep(cb)` SHALL correctly dispatch to `DummySolver::GPUStep(cb)`
 
@@ -23,10 +23,10 @@ Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a 
 - **WHEN** `DummySolver::GPUStep(cb)` is called
 - **THEN** the solver SHALL obtain GPU buffers via `m_bound_scene->GetGpuBuffers()`
 
-#### Scenario: DummySolver uses stored RenderSystem
+#### Scenario: DummySolver uses stored Rhi facilities
 
 - **WHEN** `DummySolver::GPUStep(cb)` is called
-- **THEN** the solver SHALL access the RenderSystem through the reference stored at construction time, not through a method parameter
+- **THEN** the solver SHALL access the device and allocator through the references stored at construction time, not through a method parameter
 
 ### Requirement: DummySolver dispatches compute directly in GPUStep
 
@@ -42,7 +42,7 @@ The compute shader SHALL displace each alive body by `position.z += gravity.z * 
 #### Scenario: Bodies move downward each frame
 
 - **WHEN** `GPUStep(cb)` is called with 3 rigid bodies, `gravity = (0,0,-9.81)`, `time_step = 0.01`
-- **THEN** uniform buffer SHALL contain `vec4(0, 0, -9.81, 0.01)`
+- **THEN** the push-constant block SHALL contain `vec4(0, 0, -9.81, 0.01)` recorded before the dispatch
 - **AND** compute dispatch SHALL be recorded directly to `cb` (no `RenderGraph::RecordAllPasses`)
 
 #### Scenario: No RenderGraph used
@@ -57,8 +57,8 @@ The solver SHALL provide one shader at `engine/Physics/shader/solver/DummySolver
 - Binding 0: `readonly buffer RigidBodyAlive`
 - Binding 1: `buffer RigidBodyCenterPosition` (read-write)
 - Binding 2: `readonly buffer RigidBodyCenterRotation`
-- Binding 3: `readonly buffer DummySolverUniforms { vec4 gravity_dt; }`
-- Binding 4: `writeonly buffer ModelMatrices`
+- Binding 3: `writeonly buffer ModelMatrices`
+- Push-constant block `DummyPush { vec4 gravity_dt; }` (xyz = gravity, w = time_step)
 - Workgroup size 64
 - Displaces `pos.z += gravity_dt.z * gravity_dt.w`, writes TRS model matrix
 

@@ -2,19 +2,19 @@
 
 ## 1. Rhi push-constant infrastructure
 
-- [ ] 1.1 Add `push_constant_size` field to `SPLayout`; extend `SPLayout::Reflect` to aggregate push-constant block size via `get_declared_struct_size` (0 when none)
-- [ ] 1.2 In `ComputeStage::CreatePipeline`, declare `VkPushConstantRange{eCompute, 0, size}` when reflected size > 0; expose `ComputeStage::GetPushConstantSize()`
-- [ ] 1.3 Add template `Rhi::PushConstants(cb, stage, const T&)` to `ComputeHelpers` with `assert(sizeof(T) <= GetPushConstantSize())`
-- [ ] 1.4 Default `BindComputeResource`'s `slot` parameter to 0
+- [x] 1.1 Add `push_constant_size` field to `SPLayout`; extend `SPLayout::Reflect` to aggregate push-constant block size via `get_declared_struct_size` (0 when none)
+- [x] 1.2 In `ComputeStage::CreatePipeline`, declare `VkPushConstantRange{eCompute, 0, size}` when reflected size > 0; expose `ComputeStage::GetPushConstantSize()`
+- [x] 1.3 Add template `Rhi::PushConstants(cb, stage, const T&)` to `ComputeHelpers` with `assert(sizeof(T) <= GetPushConstantSize())`
+- [x] 1.4 Default `BindComputeResource`'s `slot` parameter to 0
 
 ## 2. Shader migration to per-shader push-constant blocks (binding holes kept)
 
-- [ ] 2.1 XPBD shaders: `integrate_forces.comp`, `update_velocities_from_pose.comp`, `accumulate_hinge_position.comp`, `accumulate_fixed_position.comp` declare `{ vec4 gravity_dt; }`; `clear_int_buffer.comp`, `snapshot_position.comp` declare `{ uint elem_count; }`
-- [ ] 2.2 `dummy_solver.comp` declares `{ vec4 gravity_dt; }`
-- [ ] 2.3 `detect_collisions.comp` declares `{ float contact_margin; uint shape_slot_count; }`
+- [x] 2.1 XPBD shaders: `integrate_forces.comp`, `update_velocities_from_pose.comp`, `accumulate_hinge_position.comp`, `accumulate_fixed_position.comp` declare `{ vec4 gravity_dt; }`; `clear_int_buffer.comp`, `snapshot_position.comp` declare `{ uint elem_count; }`
+- [x] 2.2 `dummy_solver.comp` declares `{ vec4 gravity_dt; }`
+- [x] 2.3 `detect_collisions.comp` declares `{ float contact_margin; uint shape_slot_count; }`
 - [x] 2.4 SpatialHash shaders: `compute_aabbs.comp`, `count_cells.comp`, `fill_cells.comp`, `generate_broad_pairs.comp` declare grid + shape-slot-count block; `generate_all_pairs_fallback.comp`, `generate_global_pairs.comp` declare `{ uint shape_slot_count; }`; `memset_uint.comp` declares `{ uint elem_count; }`; new `copy_uint_push.comp` (push-constant ElemCount); `copy_uint.comp` keeps its SSBO `ElemCount` (CompactUnique binds the GPU-written `PairCount` buffer — count unknown at record time)
-- [ ] 2.5 `parallel_scan.comp` and `add_block_offset.comp` declare the `ScanParams` block (mode/data_offset/elem_count/block_offset)
-- [ ] 2.6 `radix_histogram.comp` and `radix_scatter.comp` declare the `RadixParams` block (only fields the shader reads); `radix_prefix_sum_256.comp` untouched
+- [x] 2.5 `parallel_scan.comp` and `add_block_offset.comp` declare the `ScanParams` block (mode/data_offset/elem_count/block_offset)
+- [x] 2.6 `radix_histogram.comp` and `radix_scatter.comp` declare the `RadixParams` block (only fields the shader reads); `radix_prefix_sum_256.comp` untouched
 
 ## 3. Physics C++ migration
 

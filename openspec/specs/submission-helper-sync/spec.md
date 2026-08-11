@@ -8,12 +8,12 @@ Defines `SubmissionHelper` as a render-system-independent batch submission compo
 
 ### Requirement: Independent dependency construction
 
-`SubmissionHelper` SHALL be constructible with only a `DeviceInterface &` and an `AllocatorState &`, and MUST NOT access or reference `RenderSystem` / `FrameManager`. All device access (device, queue info, staging allocation) MUST go through these two parameters.
+`SubmissionHelper` SHALL reside in the `Rhi` module as `Engine::Rhi::SubmissionHelper` (moved from `Render/RenderSystem/` with namespace `Engine::RenderSystemState`). It SHALL be constructible with only a `DeviceInterface &` and an `AllocatorState &`, and MUST NOT access or reference `RenderSystem` / `FrameManager`. All device access (device, queue info, staging allocation) MUST go through these two parameters.
 
 #### Scenario: Standalone construction without FrameManager
 
-- **WHEN** constructing `SubmissionHelper` directly with the `GetDeviceInterface()` and `GetAllocatorState()` of a headless `GpuContext`
-- **THEN** construction succeeds, and `SubmissionHelper.h` does not depend on `Render/RenderSystem.h` or `FrameSemaphore.hpp`
+- **WHEN** constructing `SubmissionHelper` directly with the `GetDeviceInterface()` and `GetAllocatorState()` of a headless `Rhi` setup
+- **THEN** construction succeeds, and `Rhi/SubmissionHelper.h` does not depend on `Render/RenderSystem.h` or `FrameSemaphore.hpp`
 
 #### Scenario: FrameManager construction adaptation
 
