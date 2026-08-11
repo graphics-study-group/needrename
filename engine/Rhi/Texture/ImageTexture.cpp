@@ -1,8 +1,5 @@
 #include "Rhi/Texture/ImageTexture.h"
 
-#include "Asset/Texture/Image2DTextureAsset.h"
-#include "Asset/Texture/ImageCubemapAsset.h"
-
 namespace Engine::Rhi {
     ImageTexture::ImageTexture(
         DeviceContext &device_context, TextureDesc texture, SamplerDesc sampler, const std::string &name
@@ -27,50 +24,6 @@ namespace Engine::Rhi {
             },
             sampler,
             name
-        ));
-    }
-    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(
-        DeviceContext &device_context, const Image2DTextureAsset &asset
-    ) {
-        return std::unique_ptr<ImageTexture>(new ImageTexture(
-            device_context,
-            TextureDesc{
-                .dimensions = 2,
-                .width = static_cast<uint32_t>(asset.m_width),
-                .height = static_cast<uint32_t>(asset.m_height),
-                .depth = 1,
-                .format = asset.m_format,
-                .memory_type = {ImageMemoryTypeBits::DefaultTexture},
-                .mipmap_levels = asset.m_mip_level,
-                .array_layers = 1,
-                .is_cube_map = false
-            },
-            SamplerDesc{},
-            asset.m_name
-        ));
-    }
-    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(
-        DeviceContext &device_context, const ImageCubemapAsset &asset
-    ) {
-        return std::unique_ptr<ImageTexture>(new ImageTexture(
-            device_context,
-            TextureDesc{
-                .dimensions = 2,
-                .width = static_cast<uint32_t>(asset.m_width),
-                .height = static_cast<uint32_t>(asset.m_height),
-                .depth = 1,
-                .format = Rhi::ImageFormat::R8G8B8A8SRGB,
-                .memory_type = {ImageMemoryTypeBits::DefaultTexture},
-                .mipmap_levels = 1,
-                .array_layers = 6,
-                .is_cube_map = true
-            },
-            SamplerDesc{
-                .u_address = SamplerDesc::AddressMode::ClampToEdge,
-                .v_address = SamplerDesc::AddressMode::ClampToEdge,
-                .w_address = SamplerDesc::AddressMode::ClampToEdge
-            },
-            asset.m_name
         ));
     }
 } // namespace Engine::Rhi

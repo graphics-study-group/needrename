@@ -2,8 +2,11 @@
 #define ASSET_TEXTURE_IMAGE2DTEXTUREASSET_INCLUDED
 
 #include "TextureAsset.h"
-#include <AnnoRefl/macros.h>
+#include <Rhi/Texture/ImageTexture.h>
 #include <Rhi/Texture/ImageUtils.h>
+
+#include <AnnoRefl/macros.h>
+
 #include <memory>
 #include <vector>
 
@@ -52,6 +55,17 @@ namespace Engine {
         const std::byte *GetPixelData() const;
         /// @brief Get the size of all pixel data
         size_t GetPixelDataSize() const;
+
+        /**
+         * @brief Create an image texture from this asset.
+         *
+         * Width, height, format and mip levels are read from the asset.
+         * The created texture's content is not uploaded until submitted.
+         *
+         * @param device_context Device context used to create the texture.
+         * @return The created image texture.
+         */
+        std::unique_ptr<Rhi::ImageTexture> CreateImageTexture(Rhi::DeviceContext &device_context) const;
 
     protected:
         friend struct detail::texture_import::Access;

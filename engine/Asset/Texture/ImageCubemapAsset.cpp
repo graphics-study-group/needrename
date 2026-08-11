@@ -134,6 +134,28 @@ namespace Engine {
         return ktxTexture_GetDataSize(ktxTexture(m_texture));
     }
 
+    std::unique_ptr<Rhi::ImageTexture> ImageCubemapAsset::CreateImageTexture(Rhi::DeviceContext &device_context) const {
+        return Rhi::ImageTexture::CreateUnique(
+            device_context,
+            Rhi::ImageTexture::ImageTextureDesc{
+                .dimensions = 2,
+                .width = static_cast<uint32_t>(m_width),
+                .height = static_cast<uint32_t>(m_height),
+                .depth = 1,
+                .mipmap_levels = 1,
+                .array_layers = 6,
+                .format = Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8SRGB,
+                .is_cube_map = true
+            },
+            Rhi::Texture::SamplerDesc{
+                .u_address = Rhi::Texture::SamplerDesc::AddressMode::ClampToEdge,
+                .v_address = Rhi::Texture::SamplerDesc::AddressMode::ClampToEdge,
+                .w_address = Rhi::Texture::SamplerDesc::AddressMode::ClampToEdge
+            },
+            m_name
+        );
+    }
+
     void ImageCubemapAsset::save_asset_to_archive(AnnoRefl::Archive &archive) const {
         if (m_texture == nullptr) {
             throw std::runtime_error("Cannot save ImageCubemapAsset: texture data is not set.");

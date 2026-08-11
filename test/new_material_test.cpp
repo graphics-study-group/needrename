@@ -191,8 +191,7 @@ int main(int argc, char **argv) {
     Engine::detail::texture_import::LoadImage2DTextureAssetFromFile(
         *test_texture_asset, std::string(ENGINE_ASSETS_DIR) + "/skybox/sky_cloudy.png", Rhi::ImageFormat::R8G8B8A8SRGB
     );
-    std::shared_ptr allocated_image_texture =
-        Rhi::ImageTexture::CreateUnique(rsys->GetDeviceContext(), *test_texture_asset);
+    std::shared_ptr allocated_image_texture = test_texture_asset->CreateImageTexture(rsys->GetDeviceContext());
 
     // Prepare material
     auto [test_library_asset, test_template_asset] = ConstructMaterial();

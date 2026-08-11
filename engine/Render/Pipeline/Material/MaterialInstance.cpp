@@ -254,7 +254,7 @@ namespace Engine {
                 if (texture_asset) {
                     // TODO: We should allocate texture from assets in a pool.
                     auto texture = std::shared_ptr<Rhi::ImageTexture>(
-                        Rhi::ImageTexture::CreateUnique(this->m_system.GetDeviceContext(), *texture_asset)
+                        texture_asset->CreateImageTexture(this->m_system.GetDeviceContext())
                     );
                     AssignTexture(prop.first, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
@@ -292,7 +292,7 @@ namespace Engine {
             case MaterialProperty::Type::CubeTexture: {
                 auto texture_asset = std::any_cast<AssetRef>(p.m_value).as<ImageCubemapAsset>();
                 auto texture = std::shared_ptr<Rhi::ImageTexture>(
-                    Rhi::ImageTexture::CreateUnique(this->m_system.GetDeviceContext(), *texture_asset)
+                    texture_asset->CreateImageTexture(this->m_system.GetDeviceContext())
                 );
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(

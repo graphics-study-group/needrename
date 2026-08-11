@@ -180,6 +180,26 @@ namespace Engine {
         return ktxTexture_GetDataSize(ktxTexture(m_texture));
     }
 
+    std::unique_ptr<Rhi::ImageTexture> Image2DTextureAsset::CreateImageTexture(
+        Rhi::DeviceContext &device_context
+    ) const {
+        return Rhi::ImageTexture::CreateUnique(
+            device_context,
+            Rhi::ImageTexture::ImageTextureDesc{
+                .dimensions = 2,
+                .width = static_cast<uint32_t>(m_width),
+                .height = static_cast<uint32_t>(m_height),
+                .depth = 1,
+                .mipmap_levels = static_cast<uint32_t>(m_mip_level),
+                .array_layers = 1,
+                .format = static_cast<Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat>(m_format),
+                .is_cube_map = false
+            },
+            Rhi::Texture::SamplerDesc{},
+            m_name
+        );
+    }
+
     void Image2DTextureAsset::ResetTexture(ktxTexture2 *texture) {
         if (m_texture != nullptr) {
             ktxTexture2_Destroy(m_texture);

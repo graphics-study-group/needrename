@@ -1,9 +1,13 @@
 #ifndef ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
 #define ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
 
-#include "AnnoRefl/macros.h"
 #include "Asset/Texture/TextureAsset.h"
+#include <Rhi/Texture/ImageTexture.h>
 #include <Rhi/Texture/ImageUtils.h>
+
+#include "AnnoRefl/macros.h"
+
+#include <memory>
 #include <vector>
 
 struct ktxTexture2;
@@ -31,6 +35,18 @@ namespace Engine {
          */
         const std::byte *GetPixelData() const;
         size_t GetPixelDataSize() const;
+
+        /**
+         * @brief Create a cubemap image texture from this asset.
+         *
+         * Width and height are read from the asset. Its format is defaulted
+         * to R8G8B8A8 SRGB. The created texture's content is not uploaded
+         * until submitted.
+         *
+         * @param device_context Device context used to create the texture.
+         * @return The created cubemap image texture.
+         */
+        std::unique_ptr<Rhi::ImageTexture> CreateImageTexture(Rhi::DeviceContext &device_context) const;
 
         /// @brief Width of each face of the cubemap.
         REFL_SER_ENABLE int m_width{};

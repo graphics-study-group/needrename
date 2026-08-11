@@ -3,11 +3,6 @@
 
 #include "Rhi/Texture/Texture.h"
 
-namespace Engine {
-    class Image2DTextureAsset;
-    class ImageCubemapAsset;
-} // namespace Engine
-
 namespace Engine::Rhi {
     /**
      * @brief A read-only image texture.
@@ -68,26 +63,6 @@ namespace Engine::Rhi {
          */
         static std::unique_ptr<ImageTexture> CreateUnique(
             DeviceContext &device_context, ImageTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
-        );
-
-        /**
-         * @brief Create a texture from an asset.
-         *
-         * Width and height will be read from the asset. Its format will be
-         * defaulted to R8G8B8A8 SRGB. Its attached sampler will be defaulted.
-         */
-        static std::unique_ptr<ImageTexture> CreateUnique(
-            DeviceContext &device_context, const Image2DTextureAsset &asset
-        );
-
-        /**
-         * @brief Create a cubemap from an asset.
-         *
-         * Width and height will be read from the asset. Its format will be
-         * defaulted to R8G8B8A8 SRGB.
-         */
-        static std::unique_ptr<ImageTexture> CreateUnique(
-            DeviceContext &device_context, const ImageCubemapAsset &asset
         );
     };
 } // namespace Engine::Rhi
