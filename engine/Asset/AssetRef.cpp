@@ -1,7 +1,7 @@
 #include "AssetRef.h"
 #include <Asset/Asset.h>
 #include <Asset/AssetManager/AssetManager.h>
-#include <MainClass.h>
+#include <Asset/AssetRuntime.h>
 
 #include <AnnoRefl/serialization.h>
 
@@ -47,7 +47,7 @@ namespace Engine {
 
     void AssetRef::Acquire() {
         if (IsValid() && !IsAcquired()) {
-            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            auto &amg = *GetAssetRuntime().asset_manager;
             if (!amg.IsAssetLoaded(m_guid)) {
                 amg.LoadAssetImmediately(m_guid);
             }
@@ -58,7 +58,7 @@ namespace Engine {
 
     void AssetRef::AcquireAsync() {
         if (IsValid() && !IsAcquired()) {
-            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            auto &amg = *GetAssetRuntime().asset_manager;
             if (!amg.IsAssetLoaded(m_guid)) {
                 amg.AddToLoadingQueue(m_guid);
             }
@@ -70,12 +70,9 @@ namespace Engine {
     void AssetRef::Release() {
         if (IsAcquired()) {
             m_is_acquired = false;
-            auto cmc = MainClass::GetInstance();
-            if (cmc) {
-                auto amg = cmc->GetAssetManager();
-                if (amg) {
-                    amg->DecrementRefCount(m_guid);
-                }
+            auto *amg = GetAssetRuntime().asset_manager;
+            if (amg) {
+                amg->DecrementRefCount(m_guid);
             }
         }
     }
@@ -94,13 +91,13 @@ namespace Engine {
 
     Asset *AssetRef::TryGetAsset() const {
         if (!IsAcquired()) return nullptr;
-        auto &amg = *MainClass::GetInstance()->GetAssetManager();
+        auto &amg = *GetAssetRuntime().asset_manager;
         return amg.GetAsset(m_guid);
     }
 
     void AssetRef::LoadEagerly() const {
         if (IsValid()) {
-            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            auto &amg = *GetAssetRuntime().asset_manager;
             if (!amg.IsAssetLoaded(m_guid)) {
                 amg.LoadAssetImmediately(m_guid);
             }

@@ -1,10 +1,9 @@
 #include "AssetManager.h"
 
-#include "Asset/Loader/ObjLoader.h"
 #include <Asset/Asset.h>
 #include <Asset/AssetDatabase/AssetDatabase.h>
 #include <Asset/AssetRef.h>
-#include <MainClass.h>
+#include <Asset/AssetRuntime.h>
 
 #include <AnnoRefl/reflection.h>
 #include <AnnoRefl/serialization.h>
@@ -37,7 +36,7 @@ namespace Engine {
             }
 
             AnnoRefl::Archive archive;
-            MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, guid);
+            GetAssetRuntime().asset_database->LoadArchive(archive, guid);
             archive.prepare_load();
 
             auto asset_type = AnnoRefl::GetType(archive.GetMainDataProperty("%type").get<std::string>());
@@ -63,7 +62,7 @@ namespace Engine {
             return m_loaded_assets[guid].get();
         }
         AnnoRefl::Archive archive;
-        MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, guid);
+        GetAssetRuntime().asset_database->LoadArchive(archive, guid);
         auto type = AnnoRefl::GetType(archive.GetMainDataProperty("%type").get<std::string>());
         if (!type || !type->IsReflectable()) {
             throw std::runtime_error(

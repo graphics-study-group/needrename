@@ -4,10 +4,6 @@
 #include <SDL3/SDL.h>
 #include <SPIRV/GlslangToSpv.h>
 
-#include <MainClass.h>
-#include <Render/RenderSystem.h>
-#include <Rhi/Device/DeviceInterface.h>
-
 namespace {
     /**
      * @brief Read whole file into a string.

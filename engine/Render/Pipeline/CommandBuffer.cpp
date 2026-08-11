@@ -1,6 +1,5 @@
 #include "CommandBuffer.h"
 
-#include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"

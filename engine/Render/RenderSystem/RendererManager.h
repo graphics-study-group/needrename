@@ -1,7 +1,6 @@
 #ifndef RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 
-#include "Framework/world/Handle.h"
 #include "Render/Resource/RenderResourceHandle.h"
 
 #include <glm.hpp>

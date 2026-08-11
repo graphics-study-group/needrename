@@ -2,6 +2,7 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Asset/AssetRuntime.h>
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Scene/LevelAsset.h>
 #include <Asset/Shader/ShaderCompiler.h>
@@ -48,6 +49,7 @@ namespace Engine {
     }
 
     MainClass::~MainClass() {
+        SetAssetRuntime({});
         SDL_Quit();
     }
 
@@ -121,6 +123,7 @@ namespace Engine {
         this->world = std::make_shared<WorldSystem>();
         this->asset_database = std::make_shared<FileSystemDatabase>();
         this->asset_manager = std::make_shared<AssetManager>();
+        SetAssetRuntime({asset_manager.get(), asset_database.get()});
         if (!is_headless) {
             this->gui = std::make_shared<GUISystem>();
             this->input = std::make_shared<Input>();

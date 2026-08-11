@@ -4,7 +4,6 @@
 #include <SDL3/SDL_vulkan.h>
 #include <unordered_set>
 
-#include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"

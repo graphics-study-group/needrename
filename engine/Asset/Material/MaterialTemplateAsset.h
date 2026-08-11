@@ -9,7 +9,6 @@
 #include <Asset/AssetRef.h>
 #include <Asset/Material/PipelineProperty.h>
 #include <Asset/Shader/ShaderAsset.h>
-#include <Render/AttachmentUtils.h>
 #include <Rhi/Texture/ImageUtils.h>
 
 namespace Engine {
