@@ -1,6 +1,7 @@
 #ifndef ASSET_ASSETREF_INCLUDED
 #define ASSET_ASSETREF_INCLUDED
 
+#include "Asset/asset_export.h"
 #include <Core/guid.h>
 
 #include <AnnoRefl/macros.h>
@@ -21,7 +22,7 @@ namespace Engine {
      * When the acquire flag is true, it counts as a reference in the asset manager.
      * And The asset will be loaded eagerly or asynchronously in the asset manager.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) AssetRef final {
+    class ASSET_CORE_API REFL_SER_CLASS(REFL_WHITELIST) AssetRef final {
         REFL_SER_BODY_FINAL(AssetRef)
     public:
         REFL_ENABLE AssetRef();

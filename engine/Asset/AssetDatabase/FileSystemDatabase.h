@@ -1,6 +1,7 @@
 #ifndef ASSET_ASSETDATABASE_FILESYSTEMDATABASE_INCLUDED
 #define ASSET_ASSETDATABASE_FILESYSTEMDATABASE_INCLUDED
 
+#include "Asset/asset_export.h"
 #include "AssetDatabase.h"
 #include <Asset/AssetRef.h>
 #include <Core/guid.h>
@@ -21,7 +22,7 @@ namespace Engine {
      *
      * Call `to_absolute_path()` to get an absolute path for this asset on the local disk.
      */
-    class AssetPath : private std::filesystem::path {
+    class ASSET_CORE_API AssetPath : private std::filesystem::path {
     private:
         const FileSystemDatabase &m_database;
 
@@ -32,7 +33,7 @@ namespace Engine {
         AssetPath(const AssetPath &other) = default;
         AssetPath &operator=(const AssetPath &other);
         bool operator==(const AssetPath &other) const;
-        struct Hash {
+        struct ASSET_CORE_API Hash {
             std::size_t operator()(const AssetPath &p) const;
         };
 
@@ -53,7 +54,7 @@ namespace Engine {
     /**
      * @brief An implementation of AssetDatabase that uses the file system to store assets.
      */
-    class FileSystemDatabase : public AssetDatabase {
+    class ASSET_CORE_API FileSystemDatabase : public AssetDatabase {
     public:
         static constexpr const char *k_asset_file_extension = ".asset";
 

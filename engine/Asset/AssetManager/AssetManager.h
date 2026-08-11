@@ -1,6 +1,7 @@
 #ifndef ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED
 #define ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED
 
+#include "Asset/asset_export.h"
 #include <Core/guid.h>
 #include <filesystem>
 #include <memory>
@@ -24,7 +25,7 @@ namespace Engine {
      * such as textures, models, materials, and game object prefabs.
      * It ensures that these assets are efficiently loaded, managed, and utilized during the game's runtime.
      */
-    class AssetManager : public std::enable_shared_from_this<AssetManager> {
+    class ASSET_CORE_API AssetManager : public std::enable_shared_from_this<AssetManager> {
     public:
         AssetManager() = default;
         virtual ~AssetManager() = default;

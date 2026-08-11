@@ -28,6 +28,7 @@ extern "C"
 {
     void RegisterCoreTypes();
     void RegisterRhiTypes();
+    void RegisterAssetCoreTypes();
 }
 
 namespace Engine {
@@ -136,6 +137,7 @@ namespace Engine {
         AnnoRefl::Initialize();
         RegisterCoreTypes();
         RegisterRhiTypes();
+        RegisterAssetCoreTypes();
         RegisterAllTypes();
 
         // if in editor mode

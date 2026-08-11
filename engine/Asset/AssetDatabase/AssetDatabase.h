@@ -1,6 +1,7 @@
 #ifndef ASSET_ASSETDATABASE_ASSETDATABASE_INCLUDED
 #define ASSET_ASSETDATABASE_ASSETDATABASE_INCLUDED
 
+#include "Asset/asset_export.h"
 #include <Core/guid.h>
 #include <filesystem>
 #include <iterator>
@@ -17,7 +18,7 @@ namespace Engine {
      * Different implementations can use different storage backends, such as file system,
      * or packaged files.
      */
-    class AssetDatabase {
+    class ASSET_CORE_API AssetDatabase {
     public:
         AssetDatabase() = default;
         virtual ~AssetDatabase() = default;

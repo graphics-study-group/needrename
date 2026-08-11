@@ -82,6 +82,7 @@ target_link_libraries(Engine
     EngineLibExternalDependency
     EngineCore
     EngineRhi
+    EngineAssetCore
 )
 
 # Dependencies only used in a small module are marked as private to avoid pollution
@@ -101,6 +102,7 @@ add_custom_command(TARGET Engine POST_BUILD
     $<TARGET_FILE:SDL3::SDL3-shared>
     $<TARGET_FILE:ktx>
     $<TARGET_FILE:EngineCore>
+    $<TARGET_FILE:EngineAssetCore>
     $<TARGET_FILE_DIR:Engine>
     COMMENT "Copying SDL3, libktx, and EngineCore DLLs to output directory"
 )
@@ -119,6 +121,9 @@ list(FILTER HEADERS EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Tests/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Core/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Rhi/.*")
+# Asset core types are registered by meta_asset_core in EngineAssetCore
+list(FILTER HEADERS EXCLUDE REGEX "Asset/Asset\\.h")
+list(FILTER HEADERS EXCLUDE REGEX "Asset/AssetRef\\.h")
 filter_files_with_reflection_macros(HEADERS REFLECTION_SEARCH_HEADERS)
 
 add_reflection_parser(

@@ -1,6 +1,7 @@
 #ifndef ASSET_ASSET_INCLUDED
 #define ASSET_ASSET_INCLUDED
 
+#include "Asset/asset_export.h"
 #include <Core/guid.h>
 
 #include <AnnoRefl/macros.h>
@@ -14,7 +15,7 @@
 namespace Engine {
     class AssetManager;
     /// @brief Base class for all assets.
-    class REFL_SER_CLASS(REFL_WHITELIST) Asset : public std::enable_shared_from_this<Asset> {
+    class ASSET_CORE_API REFL_SER_CLASS(REFL_WHITELIST) Asset : public std::enable_shared_from_this<Asset> {
         REFL_SER_BODY(Asset)
     public:
         REFL_ENABLE Asset();

@@ -1,6 +1,8 @@
 #ifndef ASSET_ASSETRUNTIME_INCLUDED
 #define ASSET_ASSETRUNTIME_INCLUDED
 
+#include "Asset/asset_export.h"
+
 namespace Engine {
     class AssetManager;
     class AssetDatabase;
@@ -16,9 +18,9 @@ namespace Engine {
     };
 
     /// @brief Set the asset runtime context. Called by the host application at startup.
-    void SetAssetRuntime(const AssetRuntimeContext &ctx) noexcept;
+    ASSET_CORE_API void SetAssetRuntime(const AssetRuntimeContext &ctx) noexcept;
     /// @brief Get the asset runtime context.
-    const AssetRuntimeContext &GetAssetRuntime() noexcept;
+    ASSET_CORE_API const AssetRuntimeContext &GetAssetRuntime() noexcept;
 } // namespace Engine
 
 #endif // ASSET_ASSETRUNTIME_INCLUDED
