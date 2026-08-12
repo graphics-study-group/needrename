@@ -9,3 +9,7 @@ target_link_libraries(EngineLibFramework
     EngineLibHeaderInterface
     EngineLibExternalDependency
 )
+target_link_libraries(EngineLibFramework
+    PUBLIC
+    tinyxml2
+)

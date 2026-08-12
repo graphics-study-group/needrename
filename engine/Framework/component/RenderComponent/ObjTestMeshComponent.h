@@ -2,9 +2,9 @@
 #define COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Loader/ObjLoader.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
+#include "Render/Loader/ObjLoader.h"
 
 namespace Engine {
     /**

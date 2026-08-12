@@ -10,7 +10,7 @@
 #include <Rhi/Texture/ImageUtils.h>
 
 #include <Asset/AssetRef.h>
-#include <Asset/Shader/ShaderAsset.h>
+#include <Render/Shader/ShaderAsset.h>
 
 namespace Engine {
     namespace PipelineProperties {

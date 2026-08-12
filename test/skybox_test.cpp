@@ -5,14 +5,14 @@
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Loader/TextureImportUtils.h"
-#include "Asset/Material/MaterialAsset.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Texture/ImageCubemapAsset.h"
 #include "Core/Math/Transform.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Loader/TextureImportUtils.h"
+#include "Render/Material/MaterialAsset.h"
+#include "Render/Material/MaterialTemplateAsset.h"
 #include "Render/RenderSystem/IPresentProvider.h"
+#include "Render/Texture/ImageCubemapAsset.h"
 #include "UserInterface/GUISystem.h"
 
 #include "cmake_config.h"

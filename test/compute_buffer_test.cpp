@@ -1,6 +1,6 @@
-#include "Asset/Shader/ShaderCompiler.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Shader/ShaderCompiler.h"
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <random>

@@ -2,7 +2,7 @@
 #define ASSET_MESH_PLANEMESHASSET
 
 #include "AnnoRefl/macros.h"
-#include "Asset/Mesh/MeshAsset.h"
+#include "Render/Mesh/MeshAsset.h"
 #include <cassert>
 #include <cstring>
 

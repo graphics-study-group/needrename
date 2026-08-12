@@ -1,6 +1,6 @@
 #include "RendererManager.h"
 
-#include "Asset/Mesh/MeshAsset.h"
+#include "Render/Mesh/MeshAsset.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/Renderer/StaticHomogeneousMesh.h"

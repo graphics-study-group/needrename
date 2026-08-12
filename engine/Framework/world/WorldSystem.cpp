@@ -15,7 +15,7 @@
 
 #include <AnnoRefl/serialization.h>
 #include <Asset/AssetRef.h>
-#include <Asset/Scene/LevelAsset.h>
+#include <Framework/Scene/LevelAsset.h>
 
 namespace Engine {
     WorldSystem::WorldSystem() {

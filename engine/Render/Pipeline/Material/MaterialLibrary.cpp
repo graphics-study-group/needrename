@@ -1,6 +1,6 @@
 #include "MaterialLibrary.h"
 
-#include "Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Material/MaterialTemplateAsset.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Rhi/Device/DebugUtils.h"

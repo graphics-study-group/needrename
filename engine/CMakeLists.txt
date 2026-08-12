@@ -68,7 +68,6 @@ add_subdirectory(UserInterface)
 add_library(Engine SHARED 
     "MainClass.cpp"
     $<TARGET_OBJECTS:imgui>
-    $<TARGET_OBJECTS:EngineLibAsset>
     $<TARGET_OBJECTS:EngineLibFramework>
     $<TARGET_OBJECTS:EngineLibPhysics>
     $<TARGET_OBJECTS:EngineLibRender>
@@ -88,7 +87,6 @@ target_link_libraries(Engine
 # Dependencies only used in a small module are marked as private to avoid pollution
 target_link_libraries(Engine 
     PRIVATE
-    EngineLibAsset
     EngineLibFramework
     EngineLibPhysics
     EngineLibRender
@@ -139,7 +137,6 @@ target_link_libraries(Engine PRIVATE meta_engine)
 add_dependencies(Engine shader)
 add_dependencies(Engine physics_shader)
 
-add_dependencies(EngineLibAsset meta_engine)
 add_dependencies(EngineLibFramework meta_engine)
 add_dependencies(EngineLibPhysics meta_engine)
 add_dependencies(EngineLibRender meta_engine)

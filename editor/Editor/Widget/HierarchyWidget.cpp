@@ -1,7 +1,7 @@
 #include "HierarchyWidget.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
-#include "Asset/Scene/SceneAsset.h"
+#include "Framework/Scene/SceneAsset.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/LightComponent.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"

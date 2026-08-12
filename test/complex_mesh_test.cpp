@@ -5,19 +5,19 @@
 #include <fstream>
 #include <stb_image.h>
 
-#include "Asset/Material/MaterialAsset.h"
 #include "Core/Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Material/MaterialAsset.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
-#include <Asset/Loader/ObjLoader.h>
-#include <Asset/Mesh/MeshAsset.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
+#include <Render/Loader/ObjLoader.h>
+#include <Render/Mesh/MeshAsset.h>
 
 #include "cmake_config.h"
 

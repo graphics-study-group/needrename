@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "Asset/InstantiatedFromAsset.h"
-#include "Asset/Material/MaterialLibraryAsset.h"
+#include "Render/Material/MaterialLibraryAsset.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Renderer/VertexAttribute.h"
 

@@ -10,4 +10,11 @@ target_link_libraries(EngineLibRender
     EngineLibHeaderInterface
     EngineLibExternalDependency
 )
+target_link_libraries(EngineLibRender
+    PUBLIC
+    tinyobjloader
+    stb
+    ktx
+    fastgltf::fastgltf
+)
 target_precompile_headers(EngineLibRender PRIVATE "FullRenderSystem.h")

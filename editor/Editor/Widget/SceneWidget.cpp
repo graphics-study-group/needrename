@@ -1,8 +1,8 @@
 #include "SceneWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Asset/Scene/LevelAsset.h>
-#include <Asset/Scene/SceneAsset.h>
 #include <Core/Functional/SDLWindow.h>
+#include <Framework/Scene/LevelAsset.h>
+#include <Framework/Scene/SceneAsset.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>

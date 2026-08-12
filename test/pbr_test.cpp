@@ -6,11 +6,6 @@
 #include "Render/FullRenderSystem.h"
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Loader/ObjLoader.h"
-#include "Asset/Material/MaterialAsset.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Mesh/MeshAsset.h"
-#include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
 #include "Core/guid.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
@@ -18,6 +13,11 @@
 #include "Framework/world/Scene.h"
 #include "Framework/world/WorldSystem.h"
 #include "MainClass.h"
+#include "Render/Loader/ObjLoader.h"
+#include "Render/Material/MaterialAsset.h"
+#include "Render/Material/MaterialTemplateAsset.h"
+#include "Render/Mesh/MeshAsset.h"
+#include "Render/Texture/Image2DTextureAsset.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "UserInterface/GUISystem.h"

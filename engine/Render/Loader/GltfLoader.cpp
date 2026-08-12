@@ -5,16 +5,16 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
-#include <Asset/Material/MaterialAsset.h>
-#include <Asset/Mesh/MeshAsset.h>
-#include <Asset/Scene/SceneAsset.h>
-#include <Asset/Texture/TextureAsset.h>
 #include <Core/Math/Transform.h>
+#include <Framework/Scene/SceneAsset.h>
 #include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
+#include <Render/Material/MaterialAsset.h>
+#include <Render/Mesh/MeshAsset.h>
+#include <Render/Texture/TextureAsset.h>
 
 #include <SDL3/SDL.h>
 #include <fastgltf/core.hpp>

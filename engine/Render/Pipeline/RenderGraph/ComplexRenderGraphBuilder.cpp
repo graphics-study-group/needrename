@@ -1,6 +1,5 @@
 #include "ComplexRenderGraphBuilder.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Asset/Shader/ShaderAsset.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
@@ -13,6 +12,7 @@
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
+#include <Render/Shader/ShaderAsset.h>
 #include <Rhi/Pipeline/ComputeResourceBinding.h>
 
 #include <vulkan/vulkan.hpp>

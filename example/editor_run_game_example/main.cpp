@@ -10,7 +10,6 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
-#include <Asset/Loader/Importer.h>
 #include <Core/Delegate/FuncDelegate.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
@@ -23,6 +22,7 @@
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/Loader/Importer.h>
 #include <SDL3/SDL.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>

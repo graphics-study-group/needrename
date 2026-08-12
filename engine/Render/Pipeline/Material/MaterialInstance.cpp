@@ -1,6 +1,6 @@
 #include "MaterialInstance.h"
 
-#include "Asset/Material/MaterialAsset.h"
+#include "Render/Material/MaterialAsset.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
@@ -14,10 +14,10 @@
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
 #include "Rhi/Submission/SubmissionHelper.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
-#include <Asset/Material/MaterialAsset.h>
-#include <Asset/Texture/Image2DTextureAsset.h>
-#include <Asset/Texture/ImageCubemapAsset.h>
-#include <Asset/Texture/SolidColorTextureAsset.h>
+#include <Render/Material/MaterialAsset.h>
+#include <Render/Texture/Image2DTextureAsset.h>
+#include <Render/Texture/ImageCubemapAsset.h>
+#include <Render/Texture/SolidColorTextureAsset.h>
 #include <Rhi/Buffer/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <bitset>

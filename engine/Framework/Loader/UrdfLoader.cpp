@@ -3,9 +3,8 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
-#include <Asset/Loader/ImportSharedUtil.h>
-#include <Asset/Scene/SceneAsset.h>
 #include <Core/Math/Transform.h>
+#include <Framework/Scene/SceneAsset.h>
 #include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/component/physics/CollisionShapeComponent.h>
 #include <Framework/component/physics/PhysicsConstraintComponent.h>
@@ -14,6 +13,7 @@
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
+#include <Render/Loader/ImportSharedUtil.h>
 
 #include <SDL3/SDL.h>
 #include <tinyxml2.h>

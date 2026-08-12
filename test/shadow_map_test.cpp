@@ -4,10 +4,6 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Material/MaterialAsset.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Mesh/PlaneMeshAsset.h"
-#include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
@@ -16,7 +12,11 @@
 #include "Framework/world/WorldSystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Material/MaterialAsset.h"
+#include "Render/Material/MaterialTemplateAsset.h"
+#include "Render/Mesh/PlaneMeshAsset.h"
 #include "Render/RenderSystem/IPresentProvider.h"
+#include "Render/Texture/Image2DTextureAsset.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
