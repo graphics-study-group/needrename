@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Solver/ISolver.h"
+#include "physics_export.h"
 
 namespace vk {
     class CommandBuffer;
@@ -26,7 +27,7 @@ namespace Engine {
      * registration time. The three-phase PreGPUStep / GPUStep / PostGPUStep
      * iterate all scenes and dispatch to each scene's registered solvers.
      */
-    class PhysicsSystem {
+    class PHYSICS_API PhysicsSystem {
     public:
         /**
          * @brief Construct the physics system.

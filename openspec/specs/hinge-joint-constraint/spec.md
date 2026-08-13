@@ -54,25 +54,25 @@ The obj1 is implicitly the GameObject owning the `PhysicsConstraintComponent`. T
 - **WHEN** `Init()` processes a `HingeJointDef` with `m_hinge_axis_obj1` whose normalized length is below 1e-6
 - **THEN** an `SDL_LogError` is emitted and the hinge joint is not submitted
 
-### Requirement: GpuHingeJoint stores initial relative transform (COM-local)
+### Requirement: HingeJointComDescriptor stores initial relative transform (COM-local)
 
-The `GpuHingeJoint` struct (std430 compatible, 80 bytes) SHALL contain:
+The `HingeJointComDescriptor` struct (std430 compatible, 80 bytes, formerly named `GpuHingeJoint`) SHALL be defined in `engine/Physics/PhysicsDescriptors.h` and SHALL contain:
 - `uint32_t obj1_index`, `uint32_t obj2_index`, `float compliance`, `float _pad`
 - `glm::vec4 hinge_axis_obj1` — hinge axis in obj1's COM-local frame
 - `glm::vec4 hinge_anchor_obj1` — hinge anchor in obj1's COM-local frame
 - `glm::vec4 initial_rel_pos_local` — `q1_com_init⁻¹ * (pos2_com_init - pos1_com_init)` in COM-local space
 - `glm::vec4 initial_rel_rotation` — `q1_com_init⁻¹ * q2_com_init` as a quaternion (xyzw)
 
-The struct SHALL NOT contain `obj2_local_aligned_axis`, `obj2_local_attach_point`, `obj1_local_aligned_axis`, or `obj1_local_attach_point` fields.
+The struct SHALL NOT contain `obj2_local_aligned_axis`, `obj2_local_attach_point`, `obj1_local_aligned_axis`, or `obj1_local_attach_point` fields. The struct SHALL be declared with `PHYSICS_API`.
 
-#### Scenario: GpuHingeJoint size remains 80 bytes
+#### Scenario: HingeJointComDescriptor size remains 80 bytes
 
-- **WHEN** `sizeof(GpuHingeJoint)` is evaluated in C++
+- **WHEN** `sizeof(HingeJointComDescriptor)` is evaluated in C++
 - **THEN** the size is 80 bytes (5 × vec4 equivalent)
 
 #### Scenario: Fields match between C++ and GLSL
 
-- **WHEN** the C++ `GpuHingeJoint` struct and the GLSL `GpuHingeJoint` struct are compared
+- **WHEN** the C++ `HingeJointComDescriptor` struct and the GLSL `HingeJointComDescriptor` struct are compared
 - **THEN** field names, types, and ordering match for std430 compatibility
 
 ### Requirement: Joint registration uses Allocate + Submit pattern
@@ -81,11 +81,11 @@ The struct SHALL NOT contain `obj2_local_aligned_axis`, `obj2_local_attach_point
 
 - `PhysicsAdaptor::AllocateHingeJoint()` (via `PhysicsConstraintComponent::Awake`) reserves a slot and returns its index
 - `PhysicsAdaptor::SubmitHingeJoint(uint32_t, const HingeJointSubmitData &)` (via `PhysicsConstraintComponent::Init`) stores the GO-local submission data in `m_pending_hinge_joints`
-- `PhysicsAdaptor::Flush` converts pending submissions to COM-local `GpuHingeJoint` values via `JointConverter::ConvertHinge` and calls `PhysicsScene::SubmitHingeJoint(uint32_t, const GpuHingeJoint &)` to write the slot
+- `PhysicsAdaptor::Flush` converts pending submissions to COM-local `HingeJointComDescriptor` values via `JointConverter::ConvertHinge` and calls `PhysicsScene::SubmitHingeJoint(uint32_t, const HingeJointComDescriptor &)` to write the slot
 
 #### Scenario: PhysicsScene SubmitHingeJoint fills a pre-allocated slot
 
-- **WHEN** `AllocateHingeJoint()` returns index `j`, and `SubmitHingeJoint(j, joint)` is called with a converted `GpuHingeJoint`
+- **WHEN** `AllocateHingeJoint()` returns index `j`, and `SubmitHingeJoint(j, joint)` is called with a converted `HingeJointComDescriptor`
 - **THEN** slot `j` in `m_hinge_joints` is populated with the provided values
 
 ### Requirement: Shader derives obj2-local values from initial relative transform
@@ -119,7 +119,7 @@ The derived local variables SHALL be used in place of removed struct fields `obj
 
 All identifiers across the codebase SHALL use `hinge_axis` and `hinge_anchor` in place of `aligned_axis` / `AlignedAxis` and `attach_point` / `AttachPoint`. This includes:
 
-- CPU: `GpuHingeJoint` fields, `HingeJointDef` fields, `HingeJointSubmitData` fields
+- CPU: `HingeJointComDescriptor` fields, `HingeJointDef` fields, `HingeJointSubmitData` fields
 - Shader structs: field names in `accumulate_hinge_position.comp`
 - Shader buffers: `HingeAxisLagrange` and `HingeAnchorLagrange` (replacing `HingeAlignedAxisLagrange` and `HingePositionLagrange`)
 - Shader accessors: `hinge_axis_lagrange` and `hinge_anchor_lagrange`

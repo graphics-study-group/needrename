@@ -1,6 +1,7 @@
 #ifndef ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED
 #define ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED
 
+#include "../physics_export.h"
 #include "ISolver.h"
 
 #include <glm.hpp>
@@ -49,7 +50,7 @@ namespace Engine {
      *   3. PreGPUStep() -- shader loading, buffer sizing, CPU uploads, detector Configure.
      *   4. GPUStep(cb) -- record compute dispatches with manual barriers.
      */
-    class XpbdGpuSolver : public ISolver {
+    class PHYSICS_API XpbdGpuSolver : public ISolver {
     public:
         explicit XpbdGpuSolver(Rhi::DeviceContext &device_context);
         ~XpbdGpuSolver() override;

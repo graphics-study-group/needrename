@@ -1,10 +1,6 @@
-# module-target-naming Specification
+# module-target-naming
 
-## Purpose
-
-Defines the shared-library CMake target naming convention: standalone DLL targets use the `Engine` prefix (`EngineCore`, `EngineRhi`, `EnginePhysics`, `Engine`, `EngineEditor`) and produce DLLs of the same names, while the `EngineLib*` OBJECT libraries, `EngineDep*` interface targets, and `meta_*` reflection targets keep their existing names.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Shared library targets use Engine prefix
 
@@ -45,12 +41,3 @@ The naming convention SHALL NOT alter the remaining `EngineLib*` OBJECT librarie
 - **WHEN** the CMake configuration is generated
 - **THEN** targets named `EngineLibFramework`, `EngineLibRender`, `EngineLibUserInterface`, `EngineLibHeaderInterface`, `EngineDep*`, and `meta_core`/`meta_rhi`/`meta_physics`/`meta_engine`/`meta_editor` SHALL exist unchanged
 - **AND** no target named `EngineLibPhysics` SHALL exist
-
-### Requirement: Renaming preserves module behavior
-
-The target and DLL renames SHALL be a pure naming change: build configuration, include paths, namespaces, and runtime behavior SHALL remain unchanged, and the build output SHALL land in the same unified `bin/` directory.
-
-#### Scenario: Build and tests stay green after rename
-
-- **WHEN** `cmake --build --preset debug` and `ctest --preset debug` are run after the rename
-- **THEN** the build SHALL succeed and all tests SHALL pass with the same count as before the rename

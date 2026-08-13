@@ -198,8 +198,6 @@ namespace Engine {
             CollisionShapeComDescriptor com_desc;
             com_desc.type = static_cast<uint32_t>(shape_desc.type);
             com_desc.feature = detail::ToVec4(shape_desc.feature);
-            com_desc.world_position = detail::ToVec4(shape_desc.world_position);
-            com_desc.world_rotation = detail::ToVec4(shape_desc.world_rotation);
 
             auto pose_it = shape_poses.find(shape_idx);
             if (pose_it != shape_poses.end()) {
@@ -294,7 +292,7 @@ namespace Engine {
             auto c2_it = m_com_offsets.find(data.obj2_index);
             glm::vec3 c1 = (c1_it != m_com_offsets.end()) ? c1_it->second : glm::vec3(0.0f);
             glm::vec3 c2 = (c2_it != m_com_offsets.end()) ? c2_it->second : glm::vec3(0.0f);
-            GpuFixedJoint joint = detail::JointConverter::ConvertFixed(data, c1, c2);
+            FixedJointComDescriptor joint = detail::JointConverter::ConvertFixed(data, c1, c2);
             m_physics_scene.SubmitFixedJoint(joint_idx, joint);
         }
 
@@ -304,7 +302,7 @@ namespace Engine {
             auto c2_it = m_com_offsets.find(data.obj2_index);
             glm::vec3 c1 = (c1_it != m_com_offsets.end()) ? c1_it->second : glm::vec3(0.0f);
             glm::vec3 c2 = (c2_it != m_com_offsets.end()) ? c2_it->second : glm::vec3(0.0f);
-            GpuHingeJoint joint = detail::JointConverter::ConvertHinge(data, c1, c2);
+            HingeJointComDescriptor joint = detail::JointConverter::ConvertHinge(data, c1, c2);
             m_physics_scene.SubmitHingeJoint(joint_idx, joint);
         }
 

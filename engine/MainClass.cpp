@@ -29,6 +29,7 @@ extern "C"
     void RegisterCoreTypes();
     void RegisterRhiTypes();
     void RegisterAssetCoreTypes();
+    void RegisterPhysicsTypes();
 }
 
 namespace Engine {
@@ -138,6 +139,7 @@ namespace Engine {
         RegisterCoreTypes();
         RegisterRhiTypes();
         RegisterAssetCoreTypes();
+        RegisterPhysicsTypes();
         RegisterAllTypes();
 
         // if in editor mode

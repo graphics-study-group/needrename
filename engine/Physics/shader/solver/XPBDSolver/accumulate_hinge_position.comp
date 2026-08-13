@@ -15,7 +15,7 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 #include "common/xpbd_joint_math.glsl"
 
 // ---- Joint definition buffer (PhysicsScene-owned, read-only) ----
-struct GpuHingeJoint {
+struct HingeJointComDescriptor {
     uint obj1_index;
     uint obj2_index;
     float compliance;
@@ -26,7 +26,7 @@ struct GpuHingeJoint {
     vec4 initial_rel_rotation;
 };
 
-layout(set = 0, binding = 0)  readonly buffer HingeJoints        { GpuHingeJoint v[]; } hinge_joints;
+layout(set = 0, binding = 0)  readonly buffer HingeJoints        { HingeJointComDescriptor v[]; } hinge_joints;
 
 // ---- Per-dispatch constants (push constant, recorded by the solver) ----
 layout(push_constant) uniform XpbdPush {
@@ -58,7 +58,7 @@ void main() {
 
     if (hinge_joint_alive.v[cidx] == 0u) return;
 
-    GpuHingeJoint constraint = hinge_joints.v[cidx];
+    HingeJointComDescriptor constraint = hinge_joints.v[cidx];
     uint obj1_idx = constraint.obj1_index;
     uint obj2_idx = constraint.obj2_index;
     uint body_count = rigid_body_alive.v.length();

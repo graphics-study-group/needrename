@@ -31,7 +31,7 @@ Physics GLSL source code MUST NOT be embedded as string literals inside C++ sour
 
 The CMake build SHALL discover all GLSL source files under `engine/Physics/shader/` and compile each to SPIR-V using `Vulkan_GLSLANG_VALIDATOR_EXECUTABLE` during the build phase. Output SHALL be written to `${CMAKE_BINARY_DIR}/engine/Physics/spirv/<same-relative-path-as-source>.spv`, preserving the directory structure beneath `engine/Physics/shader/`.
 
-The pipeline SHALL be exposed as a CMake target named `physics_shader`. The `EngineLibPhysics` target and the `engine` shared library target SHALL declare a build dependency on `physics_shader` so that any successful engine build produces all physics SPIR-V artefacts.
+The pipeline SHALL be exposed as a CMake target named `physics_shader`, declared under `engine/Physics/CMakeLists.txt`. The `EnginePhysics` target SHALL declare a build dependency on `physics_shader`, and the `engine` shared library target SHALL obtain it transitively through its link dependency on `EnginePhysics`, so that any successful engine build produces all physics SPIR-V artefacts.
 
 Each shader file SHALL be its own incremental compilation unit: editing a single `.comp` SHALL trigger recompilation of only that file's `.spv`.
 
@@ -56,6 +56,11 @@ The pipeline SHALL NOT require the developer to list shader files manually in CM
 - **WHEN** a physics shader contains invalid GLSL
 - **THEN** the build fails with `glslangValidator`'s diagnostic
 - **AND** no stale `.spv` is left in place for that source file
+
+#### Scenario: Engine builds physics_shader transitively
+- **WHEN** the developer builds only the `engine` target
+- **THEN** `physics_shader` runs before `EnginePhysics` completes
+- **AND** the engine build does not declare a direct dependency on `physics_shader`
 
 ### Requirement: Runtime SPIR-V root exposed via cmake_config.h
 

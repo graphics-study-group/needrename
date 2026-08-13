@@ -8,7 +8,9 @@ Define the GO-space descriptor structs in `PhysicsDescriptors.h` used to carry d
 
 ### Requirement: RigidBodyDescriptor struct
 
-A `RigidBodyDescriptor` struct SHALL exist in `PhysicsDescriptors.h` containing the following fields: `mass` (float), `static_friction` (float), `dynamic_friction` (float), `restitution` (float), `is_kinematic` (bool), `world_position` (vec3, GO world), `world_rotation` (quat, GO world), `linear_velocity` (vec3), `angular_velocity` (vec3), `external_force` (vec3), `external_torque` (vec3), `use_manual_inertia_com` (bool), `manual_inertia` (mat3), `manual_center_of_mass` (vec3, GO-local). The struct SHALL be copyable and movable.
+A `RigidBodyDescriptor` struct SHALL exist in `Framework/world/physics/PhysicsDescriptors.h` containing the following fields: `mass` (float), `static_friction` (float), `dynamic_friction` (float), `restitution` (float), `is_kinematic` (bool), `world_position` (vec3, GO world), `world_rotation` (quat, GO world), `linear_velocity` (vec3), `angular_velocity` (vec3), `external_force` (vec3), `external_torque` (vec3), `use_manual_inertia_com` (bool), `manual_inertia` (mat3), `manual_center_of_mass` (vec3, GO-local). The struct SHALL be copyable and movable.
+
+The GO-space descriptors SHALL be Framework-internal transport structs carrying data from Framework components into `PhysicsAdaptor`; they SHALL NOT be part of the physics-interface (`PhysicsScene`) input contract.
 
 #### Scenario: Descriptor built by RigidBodyComponent::Init
 - **WHEN** `RigidBodyComponent::Init` runs

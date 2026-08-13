@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 #define ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 
+#include "../physics_export.h"
+
 namespace vk {
     class CommandBuffer;
 }
@@ -25,7 +27,7 @@ namespace Engine {
      * the protected m_bound_scene member. Rhi::DeviceContext is stored by
      * each concrete solver at construction time.
      */
-    class ISolver {
+    class PHYSICS_API ISolver {
     public:
         virtual ~ISolver() = default;
 

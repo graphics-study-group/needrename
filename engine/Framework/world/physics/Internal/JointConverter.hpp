@@ -2,7 +2,7 @@
 #define FRAMEWORK_WORLD_PHYSICS_INTERNAL_JOINTCONVERTER_INCLUDED
 
 #include "../PhysicsDescriptors.h"
-#include <Physics/PhysicsScene.h>
+#include <Physics/PhysicsDescriptors.h>
 
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
@@ -20,19 +20,19 @@ namespace Engine {
         class JointConverter {
         public:
             /**
-             * @brief Convert fixed joint submit data to a GPU-ready GpuFixedJoint.
+             * @brief Convert fixed joint submit data to a GPU-ready FixedJointComDescriptor.
              *
              * Formula: com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1
              *
              * @param data The GO-space fixed joint submit data.
              * @param c1   COM offset of obj1 in GO-local space.
              * @param c2   COM offset of obj2 in GO-local space.
-             * @return GPU-ready fixed joint with COM-local relative transform.
+             * @return COM-space fixed joint with COM-local relative transform.
              */
-            static GpuFixedJoint ConvertFixed(
+            static FixedJointComDescriptor ConvertFixed(
                 const FixedJointSubmitData &data, const glm::vec3 &c1, const glm::vec3 &c2
             ) {
-                GpuFixedJoint joint{};
+                FixedJointComDescriptor joint{};
                 joint.obj1_index = data.obj1_index;
                 joint.obj2_index = data.obj2_index;
                 joint.compliance = data.compliance;
@@ -50,7 +50,7 @@ namespace Engine {
             }
 
             /**
-             * @brief Convert hinge joint submit data to a GPU-ready GpuHingeJoint.
+             * @brief Convert hinge joint submit data to a GPU-ready HingeJointComDescriptor.
              *
              * Formulas: anchor_com = anchor_go - c1; com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1.
              * The hinge axis is a direction vector unaffected by COM offset translation.
@@ -58,12 +58,12 @@ namespace Engine {
              * @param data The GO-space hinge joint submit data.
              * @param c1   COM offset of obj1 in GO-local space.
              * @param c2   COM offset of obj2 in GO-local space.
-             * @return GPU-ready hinge joint with COM-local anchor point and relative transform.
+             * @return COM-space hinge joint with COM-local anchor point and relative transform.
              */
-            static GpuHingeJoint ConvertHinge(
+            static HingeJointComDescriptor ConvertHinge(
                 const HingeJointSubmitData &data, const glm::vec3 &c1, const glm::vec3 &c2
             ) {
-                GpuHingeJoint joint{};
+                HingeJointComDescriptor joint{};
                 joint.obj1_index = data.obj1_index;
                 joint.obj2_index = data.obj2_index;
                 joint.compliance = data.compliance;

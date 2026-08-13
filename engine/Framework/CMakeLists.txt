@@ -8,6 +8,7 @@ target_link_libraries(EngineLibFramework
     PRIVATE 
     EngineLibHeaderInterface
     EngineLibExternalDependency
+    EnginePhysics
 )
 target_link_libraries(EngineLibFramework
     PUBLIC

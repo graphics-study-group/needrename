@@ -11,8 +11,6 @@
 #include <cassert>
 #include <span>
 
-#include <Framework/world/physics/PhysicsDescriptors.h>
-
 namespace {
     template <typename T>
     std::span<const std::byte> MakeSpan(const std::vector<T> &source) {
@@ -155,7 +153,7 @@ namespace Engine {
     }
 
     uint32_t PhysicsScene::AllocateFixedJoint() {
-        GpuFixedJoint joint{};
+        FixedJointComDescriptor joint{};
         joint.obj1_index = INVALID_INDEX;
         joint.obj2_index = INVALID_INDEX;
         joint.compliance = 0.0f;
@@ -165,7 +163,7 @@ namespace Engine {
     }
 
     uint32_t PhysicsScene::AllocateHingeJoint() {
-        GpuHingeJoint joint{};
+        HingeJointComDescriptor joint{};
         joint.obj1_index = INVALID_INDEX;
         joint.obj2_index = INVALID_INDEX;
         joint.compliance = 0.0f;
@@ -217,8 +215,6 @@ namespace Engine {
         m_shape_feature[shape_index] = desc.feature;
         m_shape_local_position[shape_index] = desc.local_position;
         m_shape_local_rotation[shape_index] = desc.local_rotation;
-        m_shape_world_position[shape_index] = desc.world_position;
-        m_shape_world_rotation[shape_index] = desc.world_rotation;
         m_shape_to_rigid_body[shape_index] = desc.bound_rigid_body;
     }
 
@@ -227,13 +223,13 @@ namespace Engine {
         m_shape_filter_data = filter_data;
     }
 
-    void PhysicsScene::SubmitFixedJoint(uint32_t joint_idx, const GpuFixedJoint &joint) {
+    void PhysicsScene::SubmitFixedJoint(uint32_t joint_idx, const FixedJointComDescriptor &joint) {
         if (joint_idx >= m_fixed_joints.size()) return;
         m_fixed_joints[joint_idx] = joint;
         m_fixed_joint_alive[joint_idx] = 1u;
     }
 
-    void PhysicsScene::SubmitHingeJoint(uint32_t joint_idx, const GpuHingeJoint &joint) {
+    void PhysicsScene::SubmitHingeJoint(uint32_t joint_idx, const HingeJointComDescriptor &joint) {
         if (joint_idx >= m_hinge_joints.size()) return;
         m_hinge_joints[joint_idx] = joint;
         m_hinge_joint_alive[joint_idx] = 1u;
@@ -366,9 +362,9 @@ namespace Engine {
 
         const uint32_t fixed_joint_count = static_cast<uint32_t>(m_fixed_joints.size());
         const uint32_t hinge_joint_count = static_cast<uint32_t>(m_hinge_joints.size());
-        EnsureBuffer<GpuFixedJoint>(m_gpu_fixed_joints, allocator, fixed_joint_count, "Physics FixedJoints");
+        EnsureBuffer<FixedJointComDescriptor>(m_gpu_fixed_joints, allocator, fixed_joint_count, "Physics FixedJoints");
         EnsureBuffer<uint32_t>(m_gpu_fixed_joint_alive, allocator, fixed_joint_count, "Physics FixedJoint Alive");
-        EnsureBuffer<GpuHingeJoint>(m_gpu_hinge_joints, allocator, hinge_joint_count, "Physics HingeJoints");
+        EnsureBuffer<HingeJointComDescriptor>(m_gpu_hinge_joints, allocator, hinge_joint_count, "Physics HingeJoints");
         EnsureBuffer<uint32_t>(m_gpu_hinge_joint_alive, allocator, hinge_joint_count, "Physics HingeJoint Alive");
 
         auto &submission = submission_helper;

@@ -13,6 +13,15 @@
 namespace Engine {
 
     /**
+     * @brief Framework-internal GO-space transport structs.
+     *
+     * These descriptors carry data from Framework components into PhysicsAdaptor and are
+     * NOT part of the physics-interface (PhysicsScene) input contract. All spatial values
+     * are in GO space; the Adaptor converts them to COM space during Flush using the
+     * COM-space descriptors declared in <Physics/PhysicsDescriptors.h>.
+     */
+
+    /**
      * @brief GO-space rigid body descriptor submitted from component to PhysicsAdaptor during Init.
      *
      * Carries component field values plus the owning GameObject's world transform.
@@ -77,46 +86,6 @@ namespace Engine {
         glm::vec3 hinge_anchor_obj1{0.0f, 0.0f, 0.0f};
         glm::vec3 initial_rel_pos_local{0.0f, 0.0f, 0.0f};
         glm::quat initial_rel_rotation{1.0f, 0.0f, 0.0f, 0.0f};
-    };
-
-    /**
-     * @brief COM-space rigid body descriptor submitted from PhysicsAdaptor to PhysicsScene during Flush.
-     *
-     * All spatial fields are in COM space. The Adaptor has already computed
-     * center-of-mass position, rotation, inertia, and inverse inertia.
-     * This descriptor writes directly into PhysicsScene SoA columns.
-     */
-    struct RigidBodyComDescriptor {
-        float mass{1.0f};
-        float static_friction{0.5f};
-        float dynamic_friction{0.5f};
-        float restitution{0.0f};
-        bool is_kinematic{false};
-        glm::vec4 center_world_position{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec4 center_world_rotation{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::mat4 inertia{0.0f};
-        glm::mat4 inverse_inertia{0.0f};
-        glm::vec4 linear_velocity{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec4 angular_velocity{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec4 external_force{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec4 external_torque{0.0f, 0.0f, 0.0f, 0.0f};
-    };
-
-    /**
-     * @brief COM-space collision shape descriptor submitted from PhysicsAdaptor to PhysicsScene during Flush.
-     *
-     * local_position and local_rotation are COM-local values computed by the Adaptor.
-     * world_position and world_rotation are GO-world values for GPU collision detection.
-     * bound_rigid_body links the shape to its owning rigid body (INVALID_INDEX if unbound).
-     */
-    struct CollisionShapeComDescriptor {
-        uint32_t type{0};
-        glm::vec4 feature{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec4 local_position{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec4 local_rotation{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec4 world_position{0.0f, 0.0f, 0.0f, 0.0f};
-        glm::vec4 world_rotation{0.0f, 0.0f, 0.0f, 0.0f};
-        uint32_t bound_rigid_body{PhysicsScene::INVALID_INDEX};
     };
 
 } // namespace Engine

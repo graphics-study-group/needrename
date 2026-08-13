@@ -59,7 +59,7 @@ During `PhysicsAdaptor::Flush`, joint submission data SHALL be converted from GO
    - HingeJoint: `hinge_anchor_com = anchor_go - c1`
    - HingeJoint `hinge_axis`: unchanged (direction vector)
    - `initial_rel_rotation`: unchanged (COM rotation equals GO rotation)
-3. Write the converted COM-local values into the final `GpuFixedJoint` or `GpuHingeJoint` via `JointConverter::ConvertFixed` / `JointConverter::ConvertHinge`
+3. Write the converted COM-local values into the final `FixedJointComDescriptor` or `HingeJointComDescriptor` via `JointConverter::ConvertFixed` / `JointConverter::ConvertHinge` (formerly named `GpuFixedJoint` / `GpuHingeJoint`)
 
 `PhysicsConstraintComponent::Init` SHALL pass GO-local values to the adaptor without performing COM conversion.
 

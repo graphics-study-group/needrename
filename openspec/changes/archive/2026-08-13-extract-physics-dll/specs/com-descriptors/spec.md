@@ -1,10 +1,6 @@
 # com-descriptors
 
-## Purpose
-
-Define the COM-space descriptor structs in `PhysicsDescriptors.h` (`RigidBodyComDescriptor`, `CollisionShapeComDescriptor`) and the `PhysicsScene` COM-space submission interface (`Submit*` methods, `Allocate*Slot` methods, `SyncGpuBuffers`, shape-to-rigid-body mapping) used after `PhysicsAdaptor::Flush`.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: RigidBodyComDescriptor struct
 
@@ -63,31 +59,3 @@ The struct SHALL NOT contain `world_position`, `world_rotation`, or filter-list 
 #### Scenario: Hinge joint submitted
 - **WHEN** `physics_scene.SubmitHingeJoint(j, joint)` is called with a `HingeJointComDescriptor`
 - **THEN** slot `j` in `m_hinge_joints` is populated with the provided values
-
-### Requirement: PhysicsScene Allocate*Slot methods
-
-`PhysicsScene` SHALL provide slot allocation methods that only create a slot (mark alive=1, zero-initialize columns) without requiring property values:
-- `AllocateRigidBodySlot()` returns index
-- `AllocateCollisionShapeSlot()` returns index
-- `AllocateFixedJoint()` returns index (allocates with INVALID_INDEX placeholders)
-- `AllocateHingeJoint()` returns index (allocates with INVALID_INDEX placeholders)
-
-#### Scenario: Slot allocated with zero values
-- **WHEN** `AllocateRigidBodySlot()` is called
-- **THEN** a new index is returned with alive=1 and all SoA columns zero-initialized
-
-### Requirement: PhysicsScene SyncGpuBuffers
-
-`PhysicsScene::SyncGpuBuffers(RenderSystem&)` SHALL create or resize all GPU buffers matching the current SoA slot counts, upload all SoA and joint data via staging, and execute the submission immediately.
-
-#### Scenario: GPU buffers created on first sync
-- **WHEN** `SyncGpuBuffers` is called for the first time after slot allocation
-- **THEN** all GPU buffers are created and populated with current SoA data
-
-### Requirement: PhysicsScene retains shape-to-rigid-body mapping
-
-`PhysicsScene` SHALL maintain `m_shape_to_rigid_body[]` as a simple `vector<uint32_t>` mapping shape index to rigid body index. This is the only topology mapping in PhysicsScene. The mapping SHALL be populated from `CollisionShapeComDescriptor::bound_rigid_body` during `SubmitCollisionShape`.
-
-#### Scenario: Shape binding established via descriptor
-- **WHEN** `SubmitCollisionShape(1, desc)` is called with `desc.bound_rigid_body = 0`
-- **THEN** `m_shape_to_rigid_body[1]` is set to 0

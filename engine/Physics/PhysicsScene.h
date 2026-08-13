@@ -1,9 +1,10 @@
 #ifndef ENGINE_PHYSICS_PHYSICSSCENE_INCLUDED
 #define ENGINE_PHYSICS_PHYSICSSCENE_INCLUDED
 
+#include "PhysicsDescriptors.h"
+
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
-
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
@@ -23,33 +24,7 @@ namespace Engine {
         Cylinder = 2
     };
 
-    struct GpuFixedJoint {
-        uint32_t obj1_index;
-        uint32_t obj2_index;
-        float compliance;
-        float _pad;
-        glm::vec4 initial_rel_pos_local;
-        glm::vec4 initial_rel_rotation;
-    };
-
-    struct GpuHingeJoint {
-        uint32_t obj1_index;
-        uint32_t obj2_index;
-        float compliance;
-        float _pad;
-        glm::vec4 hinge_axis_obj1;
-        glm::vec4 hinge_anchor_obj1;
-        glm::vec4 initial_rel_pos_local;
-        glm::vec4 initial_rel_rotation;
-    };
-
-    static_assert(sizeof(GpuFixedJoint) == 48, "GpuFixedJoint must be 48 bytes (std430)");
-    static_assert(sizeof(GpuHingeJoint) == 80, "GpuHingeJoint must be 80 bytes (std430)");
-
-    struct RigidBodyComDescriptor;
-    struct CollisionShapeComDescriptor;
-
-    class PhysicsScene {
+    class PHYSICS_API PhysicsScene {
     public:
         static constexpr uint32_t INVALID_INDEX = 0xFFFFFFFFu;
         static constexpr uint32_t MAX_FILTER_ENTRIES = 8;
@@ -78,12 +53,12 @@ namespace Engine {
         void SubmitRigidBody(uint32_t rigid_body_index, const RigidBodyComDescriptor &desc);
         void SubmitCollisionShape(uint32_t shape_index, const CollisionShapeComDescriptor &desc);
         void SetShapeFilters(const std::vector<uint32_t> &filter_data, uint32_t shape_count);
-        void SubmitFixedJoint(uint32_t joint_idx, const GpuFixedJoint &joint);
-        void SubmitHingeJoint(uint32_t joint_idx, const GpuHingeJoint &joint);
+        void SubmitFixedJoint(uint32_t joint_idx, const FixedJointComDescriptor &joint);
+        void SubmitHingeJoint(uint32_t joint_idx, const HingeJointComDescriptor &joint);
 
         void SyncGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper);
 
-        struct PhysicsGpuBuffers {
+        struct PHYSICS_API PhysicsGpuBuffers {
             const Rhi::ComputeBuffer *rigid_body_alive{};
             const Rhi::ComputeBuffer *rigid_body_mass{};
             const Rhi::ComputeBuffer *rigid_body_static_friction{};
@@ -193,9 +168,9 @@ namespace Engine {
 
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_model_matrices{};
 
-        std::vector<GpuFixedJoint> m_fixed_joints{};
+        std::vector<FixedJointComDescriptor> m_fixed_joints{};
         std::vector<uint32_t> m_fixed_joint_alive{};
-        std::vector<GpuHingeJoint> m_hinge_joints{};
+        std::vector<HingeJointComDescriptor> m_hinge_joints{};
         std::vector<uint32_t> m_hinge_joint_alive{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_fixed_joints{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_fixed_joint_alive{};

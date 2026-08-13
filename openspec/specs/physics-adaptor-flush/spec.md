@@ -49,7 +49,7 @@ For each pending joint descriptor, the Adaptor SHALL convert the GO-local fields
 - Fixed: `com_rel_pos = go_rel_pos + go_rel_rot * c2 - c1`; `initial_rel_rotation` unchanged
 - Hinge: `anchor_com = anchor_go - c1`; `hinge_axis` unchanged (direction vector invariant under translation)
 
-Converted joints SHALL be written into `GpuFixedJoint` / `GpuHingeJoint` values via `JointConverter::ConvertFixed` / `ConvertHinge`.
+Converted joints SHALL be written into `FixedJointComDescriptor` / `HingeJointComDescriptor` values via `JointConverter::ConvertFixed` / `ConvertHinge` (these types were formerly named `GpuFixedJoint` / `GpuHingeJoint`).
 
 #### Scenario: Fixed joint converted
 - **WHEN** a fixed joint has `go_rel_pos = (0, 0, 1)`, `go_rel_rot = identity`, `c1 = (0.2, 0, 0)`, `c2 = (0, 0, 0)`

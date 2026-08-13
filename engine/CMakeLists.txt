@@ -69,7 +69,6 @@ add_library(Engine SHARED
     "MainClass.cpp"
     $<TARGET_OBJECTS:imgui>
     $<TARGET_OBJECTS:EngineLibFramework>
-    $<TARGET_OBJECTS:EngineLibPhysics>
     $<TARGET_OBJECTS:EngineLibRender>
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
@@ -82,13 +81,13 @@ target_link_libraries(Engine
     EngineCore
     EngineRhi
     EngineAssetCore
+    EnginePhysics
 )
 
 # Dependencies only used in a small module are marked as private to avoid pollution
 target_link_libraries(Engine 
     PRIVATE
     EngineLibFramework
-    EngineLibPhysics
     EngineLibRender
     EngineLibUserInterface
 )
@@ -101,8 +100,9 @@ add_custom_command(TARGET Engine POST_BUILD
     $<TARGET_FILE:ktx>
     $<TARGET_FILE:EngineCore>
     $<TARGET_FILE:EngineAssetCore>
+    $<TARGET_FILE:EnginePhysics>
     $<TARGET_FILE_DIR:Engine>
-    COMMENT "Copying SDL3, libktx, and EngineCore DLLs to output directory"
+    COMMENT "Copying SDL3, libktx, and engine DLLs to output directory"
 )
 
 # TODO: Use relative paths when install.
@@ -119,6 +119,7 @@ list(FILTER HEADERS EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Tests/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Core/.*")
 list(FILTER HEADERS EXCLUDE REGEX "Rhi/.*")
+list(FILTER HEADERS EXCLUDE REGEX "Physics/.*")
 # Asset core types are registered by meta_asset_core in EngineAssetCore
 list(FILTER HEADERS EXCLUDE REGEX "Asset/Asset\\.h")
 list(FILTER HEADERS EXCLUDE REGEX "Asset/AssetRef\\.h")
@@ -135,10 +136,8 @@ add_dependencies(Engine meta_engine)
 target_link_libraries(Engine PRIVATE meta_engine)
 
 add_dependencies(Engine shader)
-add_dependencies(Engine physics_shader)
 
 add_dependencies(EngineLibFramework meta_engine)
-add_dependencies(EngineLibPhysics meta_engine)
 add_dependencies(EngineLibRender meta_engine)
 add_dependencies(EngineLibUserInterface meta_engine)
 

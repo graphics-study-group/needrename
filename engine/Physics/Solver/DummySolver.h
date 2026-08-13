@@ -5,6 +5,8 @@
 
 #include <memory>
 
+#include "../physics_export.h"
+
 namespace vk {
     class CommandBuffer;
 }
@@ -30,7 +32,7 @@ namespace Engine {
      * Compute dispatch is recorded directly to the command buffer in GPUStep
      * (no RenderGraph).
      */
-    class DummySolver : public ISolver {
+    class PHYSICS_API DummySolver : public ISolver {
         struct Impl;
         std::unique_ptr<Impl> m_impl;
 
