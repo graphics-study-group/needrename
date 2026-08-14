@@ -1,7 +1,7 @@
 #include "RenderResourceHandle.h"
 
-#include "Framework/MainClass.h"
 #include "IRenderResourceManager.h"
+#include "Render/RenderRuntime.h"
 #include "Render/RenderSystem.h"
 
 namespace Engine::RenderSystemState {
@@ -10,10 +10,7 @@ namespace Engine::RenderSystemState {
     RenderResourceHandle<ResourceType>::~RenderResourceHandle() {
         if (!is_acquired) return;
 
-        auto cmc = MainClass::GetInstance();
-        if (!cmc) return;
-
-        auto rs = cmc->GetRenderSystem();
+        auto *rs = GetRenderRuntime().render_system;
         if (!rs) return;
 
         auto *mgr = rs->GetRenderResourceManager<typename ResourceTraits<ResourceType>::ManagerType>();

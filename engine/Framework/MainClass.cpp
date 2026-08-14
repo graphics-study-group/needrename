@@ -14,6 +14,7 @@
 #include <Physics/Solver/XPBDGpuSolver.h>
 #include <Render/FullRenderSystem.h>
 #include <Render/Material/MaterialAsset.h>
+#include <Render/RenderRuntime.h>
 #include <Render/Shader/ShaderCompiler.h>
 #include <Render/UserInterface/GUISystem.h>
 
@@ -51,6 +52,7 @@ namespace Engine {
     }
 
     MainClass::~MainClass() {
+        SetRenderRuntime({});
         SetAssetRuntime({});
         SDL_Quit();
     }
@@ -143,7 +145,9 @@ namespace Engine {
         RegisterAllTypes();
 
         // if in editor mode
-        this->shader_compiler = std::make_shared<ShaderCompiler>();
+        auto *fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(this->asset_database).get();
+        this->shader_compiler = std::make_shared<ShaderCompiler>(fs_db->GetProjectAssetsPath());
+        SetRenderRuntime({renderer.get(), shader_compiler.get()});
     }
 
     void MainClass::MainLoop() {

@@ -18,14 +18,14 @@ Execution rule: after each numbered group below, the build and tests MUST be gre
 
 ## 2. Cut Render's upward dependencies
 
-- [ ] 2.1 Create `engine/Render/RenderRuntime.h/.cpp`: `RenderRuntimeContext { RenderSystem* render_system; ShaderCompiler* shader_compiler; }` + `SetRenderRuntime`/`GetRenderRuntime`
-- [ ] 2.2 Seed the registry in `MainClass::Initialize` (after `RenderSystem` and editor-mode `ShaderCompiler` exist); clear it in `MainClass::~MainClass`
-- [ ] 2.3 Rewrite `RenderResourceHandle::~RenderResourceHandle` to resolve `GetRenderRuntime().render_system` instead of `MainClass::GetInstance()`; keep all null checks
-- [ ] 2.4 Add `virtual AssetPath GetAssetPath(GUID guid) const = 0` to `AssetDatabase`; mark `FileSystemDatabase::GetAssetPath` as `override`
-- [ ] 2.5 Rewrite `ShaderAsset::Compile`: source path via `GetAssetRuntime().asset_database->GetAssetPath(GetGUID())`; compiler via `GetRenderRuntime().shader_compiler`; log + return false when the compiler is absent
-- [ ] 2.6 Add `const std::filesystem::path &project_assets_path` parameter to `ShaderCompiler`'s constructor, forwarded to `DirStackFileIncluder::addSystemPath`; remove the `MainClass` query from `ShaderIncluder.cpp`; pass `FileSystemDatabase::GetProjectAssetsPath()` from `MainClass`
-- [ ] 2.7 Remove the dead `#include <MainClass.h>` (and unused `GUISystem.h` include) from `RenderSystem.cpp`
-- [ ] 2.8 Verify: grep confirms zero `MainClass.h`/`Framework/` includes under `engine/Render/`; build + ctest green. **STOP for user review + commit**
+- [x] 2.1 Create `engine/Render/RenderRuntime.h/.cpp`: `RenderRuntimeContext { RenderSystem* render_system; ShaderCompiler* shader_compiler; }` + `SetRenderRuntime`/`GetRenderRuntime`
+- [x] 2.2 Seed the registry in `MainClass::Initialize` (after `RenderSystem` and editor-mode `ShaderCompiler` exist); clear it in `MainClass::~MainClass`
+- [x] 2.3 Rewrite `RenderResourceHandle::~RenderResourceHandle` to resolve `GetRenderRuntime().render_system` instead of `MainClass::GetInstance()`; keep all null checks
+- [x] 2.4 Add `virtual AssetPath GetAssetPath(GUID guid) const = 0` to `AssetDatabase`; mark `FileSystemDatabase::GetAssetPath` as `override`
+- [x] 2.5 Rewrite `ShaderAsset::Compile`: source path via `GetAssetRuntime().asset_database->GetAssetPath(GetGUID())`; compiler via `GetRenderRuntime().shader_compiler`; log + return false when the compiler is absent
+- [x] 2.6 Add `const std::filesystem::path &project_assets_path` parameter to `ShaderCompiler`'s constructor, forwarded to `DirStackFileIncluder::addSystemPath`; remove the `MainClass` query from `ShaderIncluder.cpp`; pass `FileSystemDatabase::GetProjectAssetsPath()` from `MainClass`
+- [x] 2.7 Remove the dead `#include <MainClass.h>` (and unused `GUISystem.h` include) from `RenderSystem.cpp`
+- [x] 2.8 Verify: grep confirms zero `MainClass.h`/`Framework/` includes under `engine/Render/`; build + ctest green. **STOP for user review + commit**
 
 ## 3. Reflection split
 

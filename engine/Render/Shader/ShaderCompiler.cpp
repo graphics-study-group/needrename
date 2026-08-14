@@ -29,7 +29,8 @@ namespace {
 } // namespace
 
 namespace Engine {
-    ShaderCompiler::ShaderCompiler() {
+    ShaderCompiler::ShaderCompiler(const std::filesystem::path &project_assets_path) :
+        m_project_assets_path(project_assets_path) {
         glslang::InitializeProcess();
     }
 
@@ -55,6 +56,7 @@ namespace Engine {
 
         DirStackFileIncluder includer;
         includer.setLocalPath(shader_directory);
+        if (!m_project_assets_path.empty()) includer.addSystemPath(m_project_assets_path);
         EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
         if (!shader.parse(&m_built_in_resource, 110, false, messages, includer)) {
             SDL_LogError(
@@ -127,6 +129,7 @@ namespace Engine {
 
         DirStackFileIncluder includer;
         includer.setLocalPath(shader_abs_path.parent_path().lexically_normal().generic_string());
+        if (!m_project_assets_path.empty()) includer.addSystemPath(m_project_assets_path);
         EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
         if (emit_debug_info) {
             messages = (EShMessages)(messages | EShMsgDebugInfo);

@@ -15,13 +15,12 @@
 #include "Render/Renderer/Camera.h"
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 #include "Rhi/Device/Structs.h"
 
 #include <Core/Functional/SDLWindow.h>
-#include <Framework/MainClass.h>
-#include <Render/UserInterface/GUISystem.h>
 
 #include <iostream>
 #include <vulkan/vulkan.hpp>

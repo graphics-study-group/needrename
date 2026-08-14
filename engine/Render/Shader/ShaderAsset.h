@@ -56,7 +56,7 @@ namespace Engine {
         );
 
         /**
-         * @brief Compile a shader via the compiled provided by the MainClass.
+         * @brief Compile a shader via the compiler provided by the render runtime registry.
          */
         bool Compile(std::filesystem::path shader_path_abs = std::filesystem::path{});
     };

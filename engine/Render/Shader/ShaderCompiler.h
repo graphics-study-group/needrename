@@ -13,7 +13,7 @@ namespace Engine {
 
     class ShaderCompiler {
     public:
-        ShaderCompiler();
+        ShaderCompiler(const std::filesystem::path &project_assets_path = {});
         ~ShaderCompiler();
 
         /**
@@ -43,6 +43,8 @@ namespace Engine {
         );
 
     protected:
+        /// @brief Project assets include path, registered as a system include path during compilation.
+        std::filesystem::path m_project_assets_path;
         TBuiltInResource m_built_in_resource = {
             .maxLights = 32,
             .maxClipPlanes = 6,

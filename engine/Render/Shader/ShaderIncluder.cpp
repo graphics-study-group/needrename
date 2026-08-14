@@ -1,20 +1,10 @@
 #include "ShaderIncluder.h"
 
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Framework/MainClass.h>
 #include <cmake_config.h>
 #include <filesystem>
 
 namespace Engine {
     DirStackFileIncluder::DirStackFileIncluder() {
-        // Automatically add the project asset directory to system paths
-        if (auto main_instance = MainClass::GetInstance()) {
-            if (auto asset_db = main_instance->GetAssetDatabase()) {
-                if (auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(asset_db)) {
-                    addSystemPath(fs_db->GetProjectAssetsPath());
-                }
-            }
-        }
         // Add engine built-in asset directory to system paths
         addSystemPath(ENGINE_BUILTIN_ASSETS_DIR "/shaders/include");
     }

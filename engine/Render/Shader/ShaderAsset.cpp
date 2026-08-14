@@ -3,8 +3,9 @@
 #include <fstream>
 
 #include <AnnoRefl/serialization.h>
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Framework/MainClass.h>
+#include <Asset/AssetDatabase/AssetDatabase.h>
+#include <Asset/AssetRuntime.h>
+#include <Render/RenderRuntime.h>
 #include <Render/Shader/ShaderCompiler.h>
 
 namespace Engine {
@@ -117,14 +118,20 @@ namespace Engine {
         }
 
         if (shader_path_abs.empty()) {
-            auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-            assert(fs_db);
-            shader_path_abs = fs_db->GetAssetPath(GetGUID()).to_absolute_path();
+            auto *asset_db = GetAssetRuntime().asset_database;
+            assert(asset_db);
+            shader_path_abs = asset_db->GetAssetPath(GetGUID()).to_absolute_path();
             // XXX: We need to generalize here.
             shader_path_abs = shader_path_abs.replace_extension("0.glsl");
         }
         assert(shader_path_abs.is_absolute());
-        return MainClass::GetInstance()->GetShaderCompiler()->CompileGLSLtoSPV(binary, shader_path_abs);
+
+        auto *compiler = GetRenderRuntime().shader_compiler;
+        if (!compiler) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot compile shader: no shader compiler registered.");
+            return false;
+        }
+        return compiler->CompileGLSLtoSPV(binary, shader_path_abs);
     }
 } // namespace Engine
 
