@@ -59,10 +59,12 @@ namespace Engine::detail::import_shared {
         attr.buffer_size = float_count * sizeof(float);
     }
 
-    AssetPath MakeAssetPath(
-        FileSystemDatabase &database, const std::filesystem::path &path_in_project, const std::string &asset_name
-    ) {
-        return AssetPath(database, path_in_project / (asset_name + ".asset"));
+    AssetPath MakeAssetPath(const std::filesystem::path &path_in_project, const std::string &asset_name) {
+        std::string subpath = (path_in_project / (asset_name + ".asset")).generic_string();
+        if (!subpath.empty() && (subpath.front() == '/' || subpath.front() == '\\')) {
+            subpath.erase(subpath.begin());
+        }
+        return AssetPath(AssetPath::k_scheme_res, subpath);
     }
 
     void SaveAsset(
@@ -74,6 +76,6 @@ namespace Engine::detail::import_shared {
         AnnoRefl::Archive archive;
         archive.prepare_save();
         asset.save_asset_to_archive(archive);
-        database.SaveArchive(archive, MakeAssetPath(database, path_in_project, asset_name));
+        database.SaveArchive(archive, MakeAssetPath(path_in_project, asset_name));
     }
 } // namespace Engine::detail::import_shared

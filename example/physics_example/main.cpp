@@ -32,14 +32,14 @@ using namespace Engine;
 
 void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb, glm::vec3 global_offset) {
     // --- Load preset solid color materials ---
-    auto red_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
-    auto green_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
-    auto blue_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"});
-    auto yellow_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_yellow.asset"});
-    auto cyan_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_cyan.asset"});
-    auto magenta_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_magenta.asset"});
-    auto orange_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_orange.asset"});
-    auto white_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
+    auto red_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_red.asset"});
+    auto green_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_green.asset"});
+    auto blue_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_blue.asset"});
+    auto yellow_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_yellow.asset"});
+    auto cyan_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_cyan.asset"});
+    auto magenta_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_magenta.asset"});
+    auto orange_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_orange.asset"});
+    auto white_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_white.asset"});
 
     // ---- Falling boxes (dynamic, stacked at various Z heights) ----
     // Red box — drops from center.
@@ -134,14 +134,14 @@ void AddTemplateScene(SceneBuilder &builder, FileSystemDatabase &adb, glm::vec3 
 
 void AddTemplateScene2(SceneBuilder &builder, FileSystemDatabase &adb, glm::vec3 global_offset) {
     // --- Load preset solid color materials ---
-    auto red_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
-    auto green_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
-    auto blue_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"});
-    auto yellow_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_yellow.asset"});
-    auto cyan_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_cyan.asset"});
-    auto magenta_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_magenta.asset"});
-    auto orange_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_orange.asset"});
-    auto white_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
+    auto red_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_red.asset"});
+    auto green_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_green.asset"});
+    auto blue_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_blue.asset"});
+    auto yellow_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_yellow.asset"});
+    auto cyan_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_cyan.asset"});
+    auto magenta_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_magenta.asset"});
+    auto orange_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_orange.asset"});
+    auto white_mat = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_white.asset"});
 
     float wall_half_height = 3.0f;
     float wall_half_size = 15.0f;
@@ -299,7 +299,7 @@ int main(int /*argc*/, char ** /*argv*/) {
         .half_extents = {100.0f, 100.0f, 0.5f},
         .mass = 0.0f,
         .kinematic = true,
-        .material = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"}),
+        .material = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_white.asset"}),
     });
 
     // AddTemplateScene(builder, adb, glm::vec3(0.0f, 5.0f, 0.0f));
@@ -316,7 +316,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     //         .half_extents = {2.0f, 0.5f, 0.5f},
     //         .mass = 6.0f,
     //         .kinematic = false,
-    //         .material = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"}),
+    //         .material = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_blue.asset"}),
     //     });
 
     //     auto &box2 = builder.AddCylinder({
@@ -325,7 +325,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     //         .half_height = 2.0f,
     //         .mass = 0.1f,
     //         .kinematic = false,
-    //         .material = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"}),
+    //         .material = adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_red.asset"}),
     //     });
 
     //     auto &constraint = box2.AddComponent<PhysicsConstraintComponent>();

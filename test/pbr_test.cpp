@@ -32,8 +32,8 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto lib_asset = am->CreateAsset<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/pbr_base.vert.asset"});
-    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/lambertian_cook_torrance.frag.asset"});
+    auto vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/pbr_base.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/lambertian_cook_torrance.frag.asset"});
 
     test_asset->name = "LambertianCookTorrancePBR";
 
@@ -274,7 +274,7 @@ int main(int argc, char **argv) {
     rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
 
     // Setup compute shader
-    auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
+    auto cs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/bloom.comp.asset"});
     auto bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(rsys->GetDeviceContext());
     bloom_compute_stage->Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
     auto &bloom_compute_binding =

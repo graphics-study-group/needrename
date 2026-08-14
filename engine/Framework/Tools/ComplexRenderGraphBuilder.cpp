@@ -26,7 +26,7 @@ namespace Engine {
     ComplexRenderGraphBuilder::ComplexRenderGraphBuilder(RenderSystem &system) : m_system(system) {
         // XXX: Hardcoded bloom shader. Should use AssetManager to load shader when we have pipeline asset.
         auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-        m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
+        m_bloom_shader = adb.GetNewAssetRef(AssetPath{"builtin://shaders/bloom.comp.asset"});
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(

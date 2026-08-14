@@ -58,8 +58,8 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto test_lib_asset = am->CreateAsset<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough.vert.asset"});
-    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough_mrt.frag.asset"});
+    auto vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/debug_writethrough.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/debug_writethrough_mrt.frag.asset"});
 
     test_asset->name = "Writethrough";
 

@@ -348,15 +348,15 @@ namespace Engine {
         auto &temp_scene = MainClass::GetInstance()->GetWorldSystem()->CreateScene();
 
         static const std::vector<const char *> kBuiltinMaterials = {
-            "~/materials/solid_color_red.asset",
-            "~/materials/solid_color_blue.asset",
-            "~/materials/solid_color_green.asset",
-            "~/materials/solid_color_orange.asset",
-            "~/materials/solid_color_white.asset",
-            "~/materials/solid_color_dark_grey.asset",
-            "~/materials/solid_color_cyan.asset",
-            "~/materials/solid_color_magenta.asset",
-            "~/materials/solid_color_yellow.asset",
+            "builtin://materials/solid_color_red.asset",
+            "builtin://materials/solid_color_blue.asset",
+            "builtin://materials/solid_color_green.asset",
+            "builtin://materials/solid_color_orange.asset",
+            "builtin://materials/solid_color_white.asset",
+            "builtin://materials/solid_color_dark_grey.asset",
+            "builtin://materials/solid_color_cyan.asset",
+            "builtin://materials/solid_color_magenta.asset",
+            "builtin://materials/solid_color_yellow.asset",
         };
 
         // ── 1. Create one GO per link ──
@@ -524,25 +524,25 @@ namespace Engine {
 
             size_t hash = std::hash<std::string>{}(link.name);
             const char *mat_path = kBuiltinMaterials[hash % kBuiltinMaterials.size()];
-            auto mat_ref = db.GetNewAssetRef(AssetPath(db, mat_path));
+            auto mat_ref = db.GetNewAssetRef(AssetPath(mat_path));
 
             for (size_t i = 0; i < link.collisions.size(); ++i) {
                 const auto &col = link.collisions[i];
-                AssetPath mesh_path(db, "");
+                AssetPath mesh_path{};
                 glm::vec3 mesh_scale(1.0f);
                 switch (col.geometry.type) {
                 case UrdfGeometryType::Box:
-                    mesh_path = AssetPath(db, "~/mesh/cube.asset");
+                    mesh_path = AssetPath("builtin://mesh/cube.asset");
                     mesh_scale = glm::vec3(
                         col.geometry.box_size.x * 0.5f, col.geometry.box_size.y * 0.5f, col.geometry.box_size.z * 0.5f
                     );
                     break;
                 case UrdfGeometryType::Sphere:
-                    mesh_path = AssetPath(db, "~/mesh/sphere.asset");
+                    mesh_path = AssetPath("builtin://mesh/sphere.asset");
                     mesh_scale = glm::vec3(col.geometry.sphere_radius);
                     break;
                 case UrdfGeometryType::Cylinder:
-                    mesh_path = AssetPath(db, "~/mesh/cylinder.asset");
+                    mesh_path = AssetPath("builtin://mesh/cylinder.asset");
                     mesh_scale = glm::vec3(
                         col.geometry.cylinder_radius, col.geometry.cylinder_radius, col.geometry.cylinder_length * 0.5f
                     );

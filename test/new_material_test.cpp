@@ -57,8 +57,8 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto lib_asset = am->CreateAsset<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
-    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
+    auto vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/blinn_phong.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/blinn_phong.frag.asset"});
 
     test_asset->name = "Blinn-Phong";
 
@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
 
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
-    auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/gaussian_blur.comp.asset"});
+    auto cs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/gaussian_blur.comp.asset"});
     Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
     cstage.Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
 

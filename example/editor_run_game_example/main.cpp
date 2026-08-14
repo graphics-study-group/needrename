@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
                     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "File dropped: %s", event.drop.data);
                     try {
                         const std::filesystem::path source_path(dropped);
-                        const std::filesystem::path target_dir(project_widget->GetCurrentPath().generic_string());
+                        const std::filesystem::path target_dir = project_widget->GetCurrentPath().GetSubPath();
                         Importer::ImportExternalResource(source_path, target_dir);
                         project_widget->RefreshCurrentDirectory();
                         SDL_LogInfo(

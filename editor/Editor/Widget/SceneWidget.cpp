@@ -53,7 +53,7 @@ namespace Editor {
                                 Engine::MainClass::GetInstance()->GetAssetDatabase()
                             );
                             auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
-                            auto asset_ref = db->GetNewAssetRef(Engine::AssetPath(*db, std::filesystem::path(raw)));
+                            auto asset_ref = db->GetNewAssetRef(Engine::AssetPath(raw));
                             auto *scene_asset = asset_ref.as<Engine::SceneAsset>();
                             scene_asset->AddToScene(scene);
                             scene.FlushCmdQueue();
@@ -92,7 +92,7 @@ namespace Editor {
                     Engine::MainClass::GetInstance()->GetAssetDatabase()
                 );
                 auto level_asset =
-                    adb.GetNewAssetRef(Engine::AssetPath{adb, "/default_level.asset"}).as<Engine::LevelAsset>();
+                    adb.GetNewAssetRef(Engine::AssetPath{"res://default_level.asset"}).as<Engine::LevelAsset>();
                 Engine::MainClass::GetInstance()->GetWorldSystem()->SaveLevelToAsset(*level_asset);
                 AnnoRefl::Archive archive;
                 archive.prepare_save();

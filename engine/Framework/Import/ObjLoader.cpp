@@ -172,7 +172,7 @@ namespace Engine {
         }
 
         const AssetRef fallback_material =
-            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/materials/solid_color_dark_grey.asset")));
+            db.GetNewAssetRef(AssetPath("builtin://materials/solid_color_dark_grey.asset"));
         result.mesh_material_assets.reserve(parsed.shapes.size());
         for (const auto &shape : parsed.shapes) {
             int material_id = -1;
@@ -326,7 +326,7 @@ namespace Engine {
         ) {
             material_asset.m_name = material.name.empty() ? "material" : material.name;
             material_asset.m_library =
-                db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")));
+                db.GetNewAssetRef(AssetPath("builtin://material_libraries/BlinnPhongLibrary.asset"));
 
             auto load_texture =
                 [&](const std::string &texture_name, const std::string &suffix, const char *property_name) {

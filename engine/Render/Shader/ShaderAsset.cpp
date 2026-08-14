@@ -4,6 +4,7 @@
 
 #include <AnnoRefl/serialization.h>
 #include <Asset/AssetDatabase/AssetDatabase.h>
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetRuntime.h>
 #include <Render/RenderRuntime.h>
 #include <Render/Shader/ShaderCompiler.h>
@@ -119,8 +120,15 @@ namespace Engine {
 
         if (shader_path_abs.empty()) {
             auto *asset_db = GetAssetRuntime().asset_database;
-            assert(asset_db);
-            shader_path_abs = asset_db->GetAssetPath(GetGUID()).to_absolute_path();
+            auto *fs_db = dynamic_cast<FileSystemDatabase *>(asset_db);
+            if (!fs_db) {
+                SDL_LogError(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "Cannot compile shader: asset database is not a FileSystemDatabase."
+                );
+                return false;
+            }
+            shader_path_abs = fs_db->ToAbsolutePath(asset_db->GetAssetPath(GetGUID()));
             // XXX: We need to generalize here.
             shader_path_abs = shader_path_abs.replace_extension("0.glsl");
         }

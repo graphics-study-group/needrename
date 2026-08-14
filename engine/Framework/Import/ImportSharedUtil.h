@@ -59,14 +59,11 @@ namespace Engine {
         /**
          * @brief Build a project-relative asset path with ".asset" suffix.
          *
-         * @param database Database object used by AssetPath wrapper.
          * @param path_in_project Target folder relative to project asset root.
          * @param asset_name Logical asset name without extension.
          * @return Resolved asset path object.
          */
-        AssetPath MakeAssetPath(
-            FileSystemDatabase &database, const std::filesystem::path &path_in_project, const std::string &asset_name
-        );
+        AssetPath MakeAssetPath(const std::filesystem::path &path_in_project, const std::string &asset_name);
 
         /**
          * @brief Serialize and persist one runtime asset into database archive.

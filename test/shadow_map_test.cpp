@@ -69,9 +69,9 @@ std::array<MaterialTemplateAsset *, 2> ConstructMaterialTemplate() {
 
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
 
-    auto shadow_map_vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/shadowmap.vert.asset"});
-    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
-    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
+    auto shadow_map_vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/shadowmap.vert.asset"});
+    auto vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/blinn_phong.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/blinn_phong.frag.asset"});
 
     templates[0]->name = "Blinn-Phong Lit";
     templates[1]->name = "Shadow map pass";
