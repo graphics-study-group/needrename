@@ -3,7 +3,9 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
+#include <Asset/AssetRuntime.h>
 #include <Core/Math/Transform.h>
+#include <Framework/Import/ImportSharedUtil.h>
 #include <Framework/Scene/SceneAsset.h>
 #include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/component/physics/CollisionShapeComponent.h>
@@ -13,7 +15,6 @@
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <Render/Loader/ImportSharedUtil.h>
 
 #include <SDL3/SDL.h>
 #include <tinyxml2.h>
@@ -587,8 +588,9 @@ namespace Engine {
     // ══════════════════════════════════════════════════════════
 
     UrdfLoader::UrdfLoader() {
-        m_asset_manager = MainClass::GetInstance()->GetAssetManager();
-        m_database = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
+        const auto &runtime = GetAssetRuntime();
+        m_asset_manager = runtime.asset_manager;
+        m_database = dynamic_cast<FileSystemDatabase *>(runtime.asset_database);
     }
 
     UrdfLoader::~UrdfLoader() = default;
@@ -596,12 +598,12 @@ namespace Engine {
     void UrdfLoader::LoadUrdfResource(
         const std::filesystem::path &urdf_path, const std::filesystem::path &path_in_project
     ) {
-        auto am = m_asset_manager.lock();
-        auto db = m_database.lock();
-        if (!am || !db) {
+        if (!m_asset_manager || !m_database) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "UrdfLoader: AssetManager or Database unavailable");
             return;
         }
+        auto &am = *m_asset_manager;
+        auto &db = *m_database;
 
         SDL_LogInfo(
             SDL_LOG_CATEGORY_APPLICATION,
@@ -620,7 +622,7 @@ namespace Engine {
             static_cast<unsigned>(robot.joints.size())
         );
 
-        BuildAndSaveSceneAsset(robot, path_in_project, *am, *db);
+        BuildAndSaveSceneAsset(robot, path_in_project, am, db);
 
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "UrdfLoader: Saved SceneAsset as GO_%s.asset", robot.name.c_str());
     }

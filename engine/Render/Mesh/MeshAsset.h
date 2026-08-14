@@ -9,7 +9,6 @@
 #include <vector>
 
 namespace Engine {
-    class ObjLoader;
     struct VertexAttribute;
 
     /**
@@ -24,8 +23,6 @@ namespace Engine {
     public:
         REFL_ENABLE MeshAsset();
         virtual ~MeshAsset();
-
-        friend class ObjLoader;
 
         /**
          * @brief A submesh.

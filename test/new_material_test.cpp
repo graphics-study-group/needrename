@@ -5,10 +5,10 @@
 
 #include "Asset/AssetManager/AssetManager.h"
 #include "Core/Functional/SDLWindow.h"
+#include "Framework/Import/TextureImportUtils.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Loader/TextureImportUtils.h"
 #include "Render/Material/MaterialTemplateAsset.h"
 #include "Render/Mesh/PlaneMeshAsset.h"
 #include "Render/RenderSystem/IPresentProvider.h"

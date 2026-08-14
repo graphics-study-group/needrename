@@ -5,6 +5,7 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
+#include <Asset/AssetRuntime.h>
 #include <Core/Math/Transform.h>
 #include <Framework/Scene/SceneAsset.h>
 #include <Framework/component/RenderComponent/StaticMeshComponent.h>
@@ -354,22 +355,13 @@ namespace Engine {
         ImportResult ImportGltf(
             const std::filesystem::path &path,
             const std::optional<std::filesystem::path> &path_in_project,
-            const std::weak_ptr<AssetManager> &asset_manager,
-            const std::weak_ptr<FileSystemDatabase> &database,
+            AssetManager &am,
+            FileSystemDatabase &db,
             bool persist_assets,
             bool create_scene_asset
         ) {
             if (persist_assets && !path_in_project.has_value()) {
                 throw std::invalid_argument("Persisted glTF import requires a valid path_in_project.");
-            }
-
-            auto db = database.lock();
-            if (!db) {
-                throw std::runtime_error("GltfLoader: AssetDatabase has been destroyed.");
-            }
-            auto am = asset_manager.lock();
-            if (!am) {
-                throw std::runtime_error("GltfLoader: AssetManager has been destroyed.");
             }
 
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering glTF loader: %s", path.string().c_str());
@@ -425,7 +417,7 @@ namespace Engine {
                     source_mesh.name.empty() ? fallback_mesh_name : std::string(source_mesh.name), name_counters
                 );
 
-                mesh_imports[mesh_index] = BuildMeshAssetFromGltfMesh(asset, source_mesh, *am, mesh_name);
+                mesh_imports[mesh_index] = BuildMeshAssetFromGltfMesh(asset, source_mesh, am, mesh_name);
                 if (mesh_imports[mesh_index].mesh_asset == nullptr) {
                     continue;
                 }
@@ -453,7 +445,7 @@ namespace Engine {
 
             // Stage 3: build textures/materials and then map submesh material slots to concrete material refs.
             Engine::detail::MaterialBuildOutput material_output = Engine::detail::BuildMaterialsFromGltf(
-                asset, path, *am, *db, model_name, required_material_indices, name_counters
+                asset, path, am, db, model_name, required_material_indices, name_counters
             );
 
             for (size_t mesh_index = 0; mesh_index < mesh_imports.size(); ++mesh_index) {
@@ -492,15 +484,15 @@ namespace Engine {
                 for (const auto &mesh_entry : mesh_runtime) {
                     if (mesh_entry.mesh_asset != nullptr) {
                         Engine::detail::import_shared::SaveAsset(
-                            *db, *mesh_entry.mesh_asset, target_path, mesh_entry.mesh_asset->m_name
+                            db, *mesh_entry.mesh_asset, target_path, mesh_entry.mesh_asset->m_name
                         );
                     }
                 }
                 for (const auto *material_asset : material_output.created_material_assets) {
-                    Engine::detail::import_shared::SaveAsset(*db, *material_asset, target_path, material_asset->m_name);
+                    Engine::detail::import_shared::SaveAsset(db, *material_asset, target_path, material_asset->m_name);
                 }
                 for (const auto *texture_asset : material_output.created_texture_assets) {
-                    Engine::detail::import_shared::SaveAsset(*db, *texture_asset, target_path, texture_asset->m_name);
+                    Engine::detail::import_shared::SaveAsset(db, *texture_asset, target_path, texture_asset->m_name);
                 }
             }
 
@@ -602,10 +594,10 @@ namespace Engine {
 
                 temp_scene.FlushCmdQueue();
 
-                auto *scene_asset = am->CreateAsset<SceneAsset>();
+                auto *scene_asset = am.CreateAsset<SceneAsset>();
                 scene_asset->SaveFromScene(temp_scene);
                 if (persist_assets) {
-                    Engine::detail::import_shared::SaveAsset(*db, *scene_asset, *path_in_project, "GO_" + model_name);
+                    Engine::detail::import_shared::SaveAsset(db, *scene_asset, *path_in_project, "GO_" + model_name);
                 }
                 result.scene_asset = AssetRef(scene_asset->GetGUID());
             }
@@ -616,17 +608,18 @@ namespace Engine {
 
     // Captures shared services used by glTF import APIs.
     GltfLoader::GltfLoader() {
-        m_asset_manager = MainClass::GetInstance()->GetAssetManager();
-        m_database = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
+        const auto &runtime = GetAssetRuntime();
+        m_asset_manager = runtime.asset_manager;
+        m_database = dynamic_cast<FileSystemDatabase *>(runtime.asset_database);
     }
 
     // Public entry: import glTF and persist mesh/material/texture/scene assets into project database.
     void GltfLoader::LoadGltfResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project) {
-        static_cast<void>(ImportGltf(path, path_in_project, m_asset_manager, m_database, true, true));
+        static_cast<void>(ImportGltf(path, path_in_project, *m_asset_manager, *m_database, true, true));
     }
 
     // Public entry: import glTF for runtime-only usage without writing assets to disk.
     ImportResult GltfLoader::LoadGltfInMemory(const std::filesystem::path &path) {
-        return ImportGltf(path, std::nullopt, m_asset_manager, m_database, false, false);
+        return ImportGltf(path, std::nullopt, *m_asset_manager, *m_database, false, false);
     }
 } // namespace Engine

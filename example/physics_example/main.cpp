@@ -3,6 +3,7 @@
 #include "SimulationToggleComponent.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
+#include "Framework/Tools/ComplexRenderGraphBuilder.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/LightComponent.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
@@ -16,7 +17,6 @@
 #include "Physics/PhysicsSystem.h"
 #include "Physics/Solver/XPBDGpuSolver.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "UserInterface/Input.h"

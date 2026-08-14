@@ -8,12 +8,15 @@
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
+#include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
 #include <Render/Shader/ShaderAsset.h>
 #include <Rhi/Pipeline/ComputeResourceBinding.h>
+#include <Rhi/Pipeline/ComputeStage.h>
+#include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <vulkan/vulkan.hpp>
 

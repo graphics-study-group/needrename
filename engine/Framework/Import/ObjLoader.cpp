@@ -5,6 +5,7 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Asset/AssetRuntime.h>
 #include <Framework/Scene/SceneAsset.h>
 #include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/object/GameObject.h>
@@ -56,8 +57,8 @@ namespace Engine {
             MaterialAsset &material_asset,
             const tinyobj::material_t &material,
             const std::filesystem::path &base_path,
-            const std::weak_ptr<AssetManager> &asset_manager,
-            const std::weak_ptr<FileSystemDatabase> &database
+            AssetManager &am,
+            FileSystemDatabase &db
         );
 
         ParsedObjData ParseAndSplitObjByMaterial(const std::filesystem::path &path) {
@@ -126,24 +127,22 @@ namespace Engine {
     } // namespace
 
     ObjLoader::ObjLoader() {
-        m_asset_manager = MainClass::GetInstance()->GetAssetManager();
-        m_database = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-        if (m_asset_manager.expired() || m_database.expired()) {
+        const auto &runtime = GetAssetRuntime();
+        m_asset_manager = runtime.asset_manager;
+        m_database = dynamic_cast<FileSystemDatabase *>(runtime.asset_database);
+        if (!m_asset_manager || !m_database) {
             throw std::runtime_error("ObjLoader requires initialized AssetManager and FileSystemDatabase.");
         }
     }
 
     ImportResult ObjLoader::LoadObjInMemory(const std::filesystem::path &path) {
-        auto am = m_asset_manager.lock();
-        auto db = m_database.lock();
-        if (!am || !db) {
-            throw std::runtime_error("ObjLoader dependencies are not available.");
-        }
+        auto &am = *m_asset_manager;
+        auto &db = *m_database;
 
         ParsedObjData parsed = ParseAndSplitObjByMaterial(path);
         ImportResult result{};
 
-        auto *mesh_asset = am->CreateAsset<MeshAsset>();
+        auto *mesh_asset = am.CreateAsset<MeshAsset>();
         mesh_asset->m_name = detail::import_shared::SanitizeAssetName(path.stem().string());
         LoadMeshAssetFromTinyObj(*mesh_asset, parsed.attrib, parsed.shapes);
         result.mesh_asset = AssetRef(mesh_asset);
@@ -152,10 +151,8 @@ namespace Engine {
         material_refs.reserve(parsed.materials.size());
 
         for (size_t i = 0; i < parsed.materials.size(); ++i) {
-            auto *material_asset = am->CreateAsset<MaterialAsset>();
-            LoadMaterialAssetFromTinyObj(
-                *material_asset, parsed.materials[i], path.parent_path(), m_asset_manager, m_database
-            );
+            auto *material_asset = am.CreateAsset<MaterialAsset>();
+            LoadMaterialAssetFromTinyObj(*material_asset, parsed.materials[i], path.parent_path(), am, db);
             if (material_asset->m_name.empty()) {
                 material_asset->m_name = mesh_asset->m_name + "_material_" + std::to_string(i);
             }
@@ -175,7 +172,7 @@ namespace Engine {
         }
 
         const AssetRef fallback_material =
-            db->GetNewAssetRef(AssetPath(*db, std::filesystem::path("~/materials/solid_color_dark_grey.asset")));
+            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/materials/solid_color_dark_grey.asset")));
         result.mesh_material_assets.reserve(parsed.shapes.size());
         for (const auto &shape : parsed.shapes) {
             int material_id = -1;
@@ -193,10 +190,7 @@ namespace Engine {
     }
 
     void ObjLoader::LoadObjResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project) {
-        auto db = m_database.lock();
-        if (!db) {
-            throw std::runtime_error("ObjLoader database is not available.");
-        }
+        auto &db = *m_database;
 
         ImportResult imported = LoadObjInMemory(path);
         if (!imported.mesh_asset.IsValid()) {
@@ -204,16 +198,16 @@ namespace Engine {
         }
 
         auto *mesh_asset = imported.mesh_asset.as<MeshAsset>();
-        detail::import_shared::SaveAsset(*db, *mesh_asset, path_in_project, mesh_asset->m_name);
+        detail::import_shared::SaveAsset(db, *mesh_asset, path_in_project, mesh_asset->m_name);
 
         for (auto material_ref : imported.created_material_assets) {
             auto *material = material_ref.as<MaterialAsset>();
-            detail::import_shared::SaveAsset(*db, *material, path_in_project, material->m_name);
+            detail::import_shared::SaveAsset(db, *material, path_in_project, material->m_name);
         }
 
         for (auto texture_ref : imported.created_texture_assets) {
             auto *texture = texture_ref.as<TextureAsset>();
-            detail::import_shared::SaveAsset(*db, *texture, path_in_project, texture->m_name);
+            detail::import_shared::SaveAsset(db, *texture, path_in_project, texture->m_name);
         }
 
         auto &temp_scene = MainClass::GetInstance()->GetWorldSystem()->CreateScene();
@@ -227,7 +221,7 @@ namespace Engine {
         auto scene_asset = std::make_unique<SceneAsset>();
         scene_asset->SaveFromScene(temp_scene);
         const std::string scene_name = "GO_" + mesh_asset->m_name;
-        detail::import_shared::SaveAsset(*db, *scene_asset, path_in_project, scene_name);
+        detail::import_shared::SaveAsset(db, *scene_asset, path_in_project, scene_name);
     }
 
     namespace {
@@ -327,26 +321,19 @@ namespace Engine {
             MaterialAsset &material_asset,
             const tinyobj::material_t &material,
             const std::filesystem::path &base_path,
-            const std::weak_ptr<AssetManager> &asset_manager,
-            const std::weak_ptr<FileSystemDatabase> &database
+            AssetManager &am,
+            FileSystemDatabase &db
         ) {
-            auto db = database.lock();
-            auto am = asset_manager.lock();
-            if (!db || !am) {
-                throw std::runtime_error("ObjLoader dependencies are not available.");
-            }
-
             material_asset.m_name = material.name.empty() ? "material" : material.name;
-            material_asset.m_library = db->GetNewAssetRef(
-                AssetPath(*db, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"))
-            );
+            material_asset.m_library =
+                db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")));
 
             auto load_texture =
                 [&](const std::string &texture_name, const std::string &suffix, const char *property_name) {
                     if (texture_name.empty()) {
                         return;
                     }
-                    auto *texture = am->CreateAsset<Image2DTextureAsset>();
+                    auto *texture = am.CreateAsset<Image2DTextureAsset>();
                     detail::texture_import::LoadImage2DTextureAssetFromFile(
                         *texture, base_path / texture_name, Rhi::ImageFormat::R8G8B8A8SRGB
                     );

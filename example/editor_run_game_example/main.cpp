@@ -13,6 +13,7 @@
 #include <Core/Delegate/FuncDelegate.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
+#include <Framework/Import/Importer.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/EventQueue.h>
@@ -22,7 +23,6 @@
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
 #include <Render/FullRenderSystem.h>
-#include <Render/Loader/Importer.h>
 #include <SDL3/SDL.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>

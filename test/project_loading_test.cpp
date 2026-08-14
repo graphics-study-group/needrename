@@ -6,11 +6,11 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Core/Functional/SDLWindow.h>
+#include <Framework/Tools/ComplexRenderGraphBuilder.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/FullRenderSystem.h>
-#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <cmake_config.h>
 
 using namespace Engine;

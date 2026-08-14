@@ -1,7 +1,7 @@
 #ifndef ENGINE_ASSET_LOADER_URDFLOADER_H
 #define ENGINE_ASSET_LOADER_URDFLOADER_H
 
-#include <Framework/Loader/UrdfTypes.h>
+#include <Framework/Import/UrdfTypes.h>
 #include <Framework/world/Handle.h>
 #include <filesystem>
 #include <string>
@@ -54,8 +54,8 @@ namespace Engine {
         /// GameObject's subtree.
         static std::vector<ComponentHandle> CollectCollisionComponentHandles(GameObject &root, Scene &scene);
 
-        std::weak_ptr<AssetManager> m_asset_manager{};
-        std::weak_ptr<FileSystemDatabase> m_database{};
+        AssetManager *m_asset_manager{nullptr};
+        FileSystemDatabase *m_database{nullptr};
     };
 
 } // namespace Engine

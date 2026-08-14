@@ -13,4 +13,7 @@ target_link_libraries(EngineLibFramework
 target_link_libraries(EngineLibFramework
     PUBLIC
     tinyxml2
+    tinyobjloader
+    stb
+    fastgltf::fastgltf
 )

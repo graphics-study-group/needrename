@@ -7,6 +7,7 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
+#include <Framework/Tools/ComplexRenderGraphBuilder.h>
 #include <Framework/component/Component.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
@@ -14,7 +15,6 @@
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/FullRenderSystem.h>
-#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <UserInterface/Input.h>
 #include <cmake_config.h>
 

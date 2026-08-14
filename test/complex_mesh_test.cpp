@@ -13,10 +13,10 @@
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
+#include <Framework/Import/ObjLoader.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
-#include <Render/Loader/ObjLoader.h>
 #include <Render/Mesh/MeshAsset.h>
 
 #include "cmake_config.h"

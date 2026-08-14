@@ -30,8 +30,8 @@ namespace Engine {
         ImportResult LoadGltfInMemory(const std::filesystem::path &path);
 
     private:
-        std::weak_ptr<AssetManager> m_asset_manager{};
-        std::weak_ptr<FileSystemDatabase> m_database{};
+        AssetManager *m_asset_manager{nullptr};
+        FileSystemDatabase *m_database{nullptr};
     };
 } // namespace Engine
 
