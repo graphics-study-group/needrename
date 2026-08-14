@@ -7,7 +7,7 @@
 #include <gtc/matrix_transform.hpp>
 
 #include "Core/Functional/SDLWindow.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
 

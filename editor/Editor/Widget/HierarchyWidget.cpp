@@ -1,14 +1,14 @@
 #include "HierarchyWidget.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
+#include "Framework/Component/RenderComponent/CameraComponent.h"
+#include "Framework/Component/RenderComponent/LightComponent.h"
+#include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/MainClass.h"
+#include "Framework/Object/GameObject.h"
 #include "Framework/Scene/SceneAsset.h"
-#include "Framework/component/RenderComponent/CameraComponent.h"
-#include "Framework/component/RenderComponent/LightComponent.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "Framework/object/GameObject.h"
-#include "Framework/world/Scene.h"
-#include "Framework/world/WorldSystem.h"
-#include "MainClass.h"
+#include "Framework/World/Scene.h"
+#include "Framework/World/WorldSystem.h"
 #include "Render/RenderSystem.h"
 
 #include <algorithm>

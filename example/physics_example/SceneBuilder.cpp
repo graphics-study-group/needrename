@@ -3,12 +3,12 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetRef.h>
 #include <Core/Math/Transform.h>
-#include <Framework/component/RenderComponent/StaticMeshComponent.h>
-#include <Framework/component/physics/CollisionShapeComponent.h>
-#include <Framework/component/physics/PhysicsConstraintComponent.h>
-#include <Framework/component/physics/RigidBodyComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
+#include <Framework/Component/RenderComponent/StaticMeshComponent.h>
+#include <Framework/Component/physics/CollisionShapeComponent.h>
+#include <Framework/Component/physics/PhysicsConstraintComponent.h>
+#include <Framework/Component/physics/RigidBodyComponent.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Scene.h>
 #include <Physics/PhysicsScene.h>
 #include <Render/RenderSystem.h>
 

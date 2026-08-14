@@ -5,16 +5,16 @@
 #include <Asset/AssetRef.h>
 #include <Asset/AssetRuntime.h>
 #include <Core/Math/Transform.h>
+#include <Framework/Component/RenderComponent/StaticMeshComponent.h>
+#include <Framework/Component/physics/CollisionShapeComponent.h>
+#include <Framework/Component/physics/PhysicsConstraintComponent.h>
+#include <Framework/Component/physics/RigidBodyComponent.h>
 #include <Framework/Import/ImportSharedUtil.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
 #include <Framework/Scene/SceneAsset.h>
-#include <Framework/component/RenderComponent/StaticMeshComponent.h>
-#include <Framework/component/physics/CollisionShapeComponent.h>
-#include <Framework/component/physics/PhysicsConstraintComponent.h>
-#include <Framework/component/physics/RigidBodyComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
 
 #include <SDL3/SDL.h>
 #include <tinyxml2.h>

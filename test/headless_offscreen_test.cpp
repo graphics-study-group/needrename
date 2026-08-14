@@ -4,7 +4,7 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
 

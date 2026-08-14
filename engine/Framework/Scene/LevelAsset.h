@@ -8,7 +8,7 @@
 
 #include "SceneAsset.h"
 #include <Asset/AssetRef.h>
-#include <Framework/world/Handle.h>
+#include <Framework/World/Handle.h>
 
 namespace Engine {
     class Camera;

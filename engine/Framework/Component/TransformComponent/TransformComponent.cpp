@@ -1,0 +1,28 @@
+#include "Framework/Component/TransformComponent/TransformComponent.h"
+#include "TransformComponent.h"
+#include <Framework/Object/GameObject.h>
+
+namespace Engine {
+    TransformComponent::TransformComponent(const GameObject &parent) : Component(parent) {
+    }
+
+    TransformComponent::~TransformComponent() {
+    }
+
+    void TransformComponent::Tick() {
+    }
+
+    void TransformComponent::SetTransform(const Transform &transform) {
+        m_transform = transform;
+    }
+
+    const Transform &TransformComponent::GetTransform() const {
+        return m_transform;
+    }
+
+    Transform &TransformComponent::GetTransformRef() {
+        return m_transform;
+    }
+} // namespace Engine
+
+#include "__generated__/TransformComponent.h.inc"

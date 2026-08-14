@@ -10,11 +10,11 @@ Execution rule: after each numbered group below, the build and tests MUST be gre
 - [x] 1.4 Remove `friend class ObjLoader;` from `engine/Render/Mesh/MeshAsset.h`
 - [x] 1.5 Switch `GltfLoader`/`ObjLoader`/`UrdfLoader` constructors from `MainClass::GetInstance()` to `GetAssetRuntime()`; change their `weak_ptr` members to raw pointers (`AssetManager*`/`FileSystemDatabase*`) and rewrite `lock()`/`expired()` uses to direct pointer dereference (user decision)
 - [x] 1.6 Move `fastgltf`/`tinyobjloader`/`stb` link deps from `EngineLibRender` to `EngineLibFramework`; keep `ktx` on Render
-- [ ] 1.7 `git mv` `GUISystem.h/.cpp` → `engine/Render/UserInterface/`; update includes (`<UserInterface/GUISystem.h>` → `<Render/UserInterface/GUISystem.h>` in MainClass and any referrer)
-- [ ] 1.8 `git mv` `Input.h/.cpp` → `engine/Framework/Input/`; add `float delta_time` parameter to `Input::Update`; remove the `MainClass.h` include from `Input.cpp`; pass `time->GetDeltaTime()` from `MainClass::RunOneFrame`
-- [ ] 1.9 `git mv` `MainClass.h/.cpp` → `engine/Framework/`; update every `#include <MainClass.h>` / `"MainClass.h"` to `<Framework/MainClass.h>` (Framework internals ~10, moved loaders 3, Tests 2, all example `main.cpp`, engine CMake source list)
-- [ ] 1.10 Unify Framework directory casing via `git mv`: `world/` → `World/`, `object/` → `Object/`, `component/` → `Component/`, `world/physics/` → `Bridge/`; update all include paths
-- [ ] 1.11 Verify: full build green, `ctest --preset debug` green (Engine.dll still produced). **STOP for user review + commit**
+- [x] 1.7 `git mv` `GUISystem.h/.cpp` → `engine/Render/UserInterface/`; update includes (`<UserInterface/GUISystem.h>` → `<Render/UserInterface/GUISystem.h>` in MainClass and any referrer)
+- [x] 1.8 `git mv` `Input.h/.cpp` → `engine/Framework/Input/`; add `float delta_time` parameter to `Input::Update`; remove the `MainClass.h` include from `Input.cpp`; pass `time->GetDeltaTime()` from `MainClass::RunOneFrame`
+- [x] 1.9 `git mv` `MainClass.h/.cpp` → `engine/Framework/`; update every `#include <MainClass.h>` / `"MainClass.h"` to `<Framework/MainClass.h>` (Framework internals ~10, moved loaders 3, Tests 2, all example `main.cpp`, engine CMake source list)
+- [x] 1.10 Unify Framework directory casing via `git mv`: `world/` → `World/`, `object/` → `Object/`, `component/` → `Component/`, `world/physics/` → `Bridge/`; update all include paths
+- [x] 1.11 Verify: full build green, `ctest --preset debug` green (Engine.dll still produced). **STOP for user review + commit**
 
 ## 2. Cut Render's upward dependencies
 

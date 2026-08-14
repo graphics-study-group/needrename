@@ -3,7 +3,7 @@
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Shader/ShaderAsset.h"
 #include <cmake_config.h>

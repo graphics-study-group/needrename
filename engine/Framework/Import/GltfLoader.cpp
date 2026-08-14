@@ -7,12 +7,12 @@
 #include <Asset/AssetRef.h>
 #include <Asset/AssetRuntime.h>
 #include <Core/Math/Transform.h>
+#include <Framework/Component/RenderComponent/StaticMeshComponent.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
 #include <Framework/Scene/SceneAsset.h>
-#include <Framework/component/RenderComponent/StaticMeshComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
 #include <Render/Material/MaterialAsset.h>
 #include <Render/Mesh/MeshAsset.h>
 #include <Render/Texture/TextureAsset.h>

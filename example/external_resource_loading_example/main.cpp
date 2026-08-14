@@ -10,15 +10,15 @@
 #include <Asset/AssetRef.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Math/Transform.h>
+#include <Framework/Component/RenderComponent/CameraComponent.h>
 #include <Framework/Import/Importer.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
 #include <Framework/Scene/LevelAsset.h>
 #include <Framework/Scene/SceneAsset.h>
 #include <Framework/Tools/ComplexRenderGraphBuilder.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
 #include <Render/FullRenderSystem.h>
 #include <cmake_config.h>
 

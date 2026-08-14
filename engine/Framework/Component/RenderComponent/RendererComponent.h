@@ -1,0 +1,44 @@
+#ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
+#define FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
+
+#include <AnnoRefl/macros.h>
+#include <AnnoRefl/serialization_vector.h>
+#include <Asset/AssetRef.h>
+#include <Core/Math/Transform.h>
+#include <Framework/Component/Component.h>
+#include <Render/RenderSystem/RendererManager.h>
+#include <vector>
+
+namespace Engine {
+    class REFL_SER_CLASS(REFL_WHITELIST) RendererComponent : public Component {
+        REFL_SER_BODY_OVERRIDE(RendererComponent)
+    protected:
+        RendererList m_renderer_handles{};
+
+    public:
+        REFL_SER_ENABLE RendererComponent(const GameObject &parent);
+        virtual ~RendererComponent();
+
+        /// @brief Get the transform which transforms local coordinate
+        /// to world coordinate (i.e. the model matrix)
+        /// @return Transform
+        virtual Transform GetWorldTransform() const;
+
+        virtual void UnregisterFromRenderSystem();
+        virtual void Awake() override;
+        virtual void Tick() override;
+
+        void PreRenderUpdate();
+
+        REFL_SER_ENABLE std::vector<AssetRef> m_material_assets{};
+        /// @brief Is this renderer eagerly loaded onto the GPU instead of loaded on use?
+        REFL_SER_ENABLE bool m_is_eagerly_loaded{false};
+        /// @brief Do this renderer cast shadow (viz. rendered onto shadowmaps)?
+        REFL_SER_ENABLE bool m_cast_shadow{false};
+        /// @brief Bits of the layers of the renderer (eg. opaque, transparent or HUD).
+        REFL_SER_ENABLE uint32_t m_layer{0xFFFFFFFF};
+        /// @brief Currently unused.
+        REFL_SER_ENABLE uint32_t m_priority{0};
+    };
+} // namespace Engine
+#endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED

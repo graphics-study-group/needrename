@@ -2,7 +2,7 @@
 #include <cassert>
 
 #include "Core/Functional/SDLWindow.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
 
 using namespace Engine;
 

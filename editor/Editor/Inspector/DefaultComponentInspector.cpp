@@ -2,7 +2,7 @@
 #include "ComponentInspectorRegistry.h"
 #include "DefaultVarInspector.h"
 #include <Editor/EditorMainClass.h>
-#include <Framework/component/Component.h>
+#include <Framework/Component/Component.h>
 
 #include <AnnoRefl/Type.h>
 #include <AnnoRefl/reflection.h>

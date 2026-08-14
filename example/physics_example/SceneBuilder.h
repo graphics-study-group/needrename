@@ -2,7 +2,7 @@
 #define EXAMPLE_PHYSICS_EXAMPLE_SCENEBUILDER_H
 
 #include <Asset/AssetRef.h>
-#include <Framework/component/Component.h>
+#include <Framework/Component/Component.h>
 #include <glm.hpp>
 #include <vector>
 

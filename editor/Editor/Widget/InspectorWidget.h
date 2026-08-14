@@ -2,7 +2,7 @@
 #define EDITOR_WIDGET_INSPECTORWIDGET_INCLUDED
 
 #include "Widget.h"
-#include <Framework/world/Handle.h>
+#include <Framework/World/Handle.h>
 #include <any>
 #include <string>
 

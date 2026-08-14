@@ -1,4 +1,6 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
+# MainClass is compiled directly into the Engine target in this phase.
+list(FILTER SOURCE EXCLUDE REGEX "MainClass\\.cpp")
 
 add_library(EngineLibFramework
     OBJECT

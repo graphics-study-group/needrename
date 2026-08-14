@@ -1,10 +1,10 @@
 #include "SimulationToggleComponent.h"
 
-#include "Framework/component/Component.h"
-#include "Framework/world/Scene.h"
-#include "MainClass.h"
+#include "Framework/Component/Component.h"
+#include "Framework/Input/Input.h"
+#include "Framework/MainClass.h"
+#include "Framework/World/Scene.h"
 #include "Physics/PhysicsScene.h"
-#include "UserInterface/Input.h"
 
 #include <SDL3/SDL.h>
 

@@ -1,6 +1,6 @@
 #include "SceneCamera.h"
 #include <Core/Functional/Time.h>
-#include <MainClass.h>
+#include <Framework/MainClass.h>
 #include <Render/Renderer/Camera.h>
 
 namespace Editor {

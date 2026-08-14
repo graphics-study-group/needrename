@@ -2,11 +2,11 @@
 #include <AnnoRefl/Archive.h>
 #include <AnnoRefl/reflection.h>
 #include <AnnoRefl/serialization.h>
-#include <Framework/component/Component.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Handle.h>
-#include <Framework/world/HandleResolver.h>
-#include <Framework/world/Scene.h>
+#include <Framework/Component/Component.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Handle.h>
+#include <Framework/World/HandleResolver.h>
+#include <Framework/World/Scene.h>
 #include <unordered_map>
 
 namespace Engine {

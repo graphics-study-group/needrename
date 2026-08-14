@@ -1,11 +1,11 @@
 #include "SceneWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Core/Functional/SDLWindow.h>
+#include <Framework/MainClass.h>
 #include <Framework/Scene/LevelAsset.h>
 #include <Framework/Scene/SceneAsset.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>

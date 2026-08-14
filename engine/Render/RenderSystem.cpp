@@ -20,8 +20,8 @@
 #include "Rhi/Device/Structs.h"
 
 #include <Core/Functional/SDLWindow.h>
-#include <MainClass.h>
-#include <UserInterface/GUISystem.h>
+#include <Framework/MainClass.h>
+#include <Render/UserInterface/GUISystem.h>
 
 #include <iostream>
 #include <vulkan/vulkan.hpp>

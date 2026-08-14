@@ -4,9 +4,9 @@
 #include <fstream>
 
 #include "Core/Functional/SDLWindow.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "UserInterface/GUISystem.h"
+#include "Render/UserInterface/GUISystem.h"
 
 using namespace Engine;
 namespace sch = std::chrono;

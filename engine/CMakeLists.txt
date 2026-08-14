@@ -63,14 +63,12 @@ add_subdirectory(Asset)
 add_subdirectory(Framework)
 add_subdirectory(Physics)
 add_subdirectory(Render)
-add_subdirectory(UserInterface)
 
 add_library(Engine SHARED 
-    "MainClass.cpp"
+    "Framework/MainClass.cpp"
     $<TARGET_OBJECTS:imgui>
     $<TARGET_OBJECTS:EngineLibFramework>
     $<TARGET_OBJECTS:EngineLibRender>
-    $<TARGET_OBJECTS:EngineLibUserInterface>
 )
 
 # Widely used dependencies such as SDL and Vulkan are marked as public
@@ -89,7 +87,6 @@ target_link_libraries(Engine
     PRIVATE
     EngineLibFramework
     EngineLibRender
-    EngineLibUserInterface
 )
 
 # Copy third-party DLLs that are not natively built into the bin directory.
@@ -139,7 +136,6 @@ add_dependencies(Engine shader)
 
 add_dependencies(EngineLibFramework meta_engine)
 add_dependencies(EngineLibRender meta_engine)
-add_dependencies(EngineLibUserInterface meta_engine)
 
 # Doxygen support
 find_package(Doxygen)

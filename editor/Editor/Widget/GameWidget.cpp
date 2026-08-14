@@ -4,8 +4,8 @@
 #include <Rhi/Texture/ImageUtils.h>
 
 #include <Core/Functional/SDLWindow.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/MainClass.h>
+#include <Framework/World/WorldSystem.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/RenderSystem.h>

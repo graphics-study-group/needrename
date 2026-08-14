@@ -13,19 +13,19 @@
 #include <Core/Delegate/FuncDelegate.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
+#include <Framework/Bridge/PhysicsAdaptor.h>
+#include <Framework/Component/RenderComponent/CameraComponent.h>
 #include <Framework/Import/Importer.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/EventQueue.h>
-#include <Framework/world/WorldSystem.h>
-#include <Framework/world/physics/PhysicsAdaptor.h>
-#include <MainClass.h>
+#include <Framework/Input/Input.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/EventQueue.h>
+#include <Framework/World/WorldSystem.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/UserInterface/GUISystem.h>
 #include <SDL3/SDL.h>
-#include <UserInterface/GUISystem.h>
-#include <UserInterface/Input.h>
 #include <cmake_config.h>
 
 #include <Editor/EditorMainClass.h>
@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
             if (game_widget->m_accept_input) cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        if (game_widget->m_accept_input) cmc->GetInputSystem()->Update();
+        if (game_widget->m_accept_input) cmc->GetInputSystem()->Update(cmc->GetTimeSystem()->GetDeltaTime());
         else cmc->GetInputSystem()->ResetAxes();
         world->GetMainSceneRef().FlushCmdQueue();
 

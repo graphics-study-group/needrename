@@ -1,7 +1,7 @@
 #include "PhysicsConstraintComponentInspector.h"
-#include <Framework/component/physics/PhysicsConstraintComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
+#include <Framework/Component/physics/PhysicsConstraintComponent.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Scene.h>
 #include <imgui.h>
 #include <variant>
 

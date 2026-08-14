@@ -2,9 +2,9 @@
 #include "CustomComponent.h"
 
 #include "Core/Functional/Time.h"
-#include "Framework/object/GameObject.h"
-#include "MainClass.h"
-#include "UserInterface/Input.h"
+#include "Framework/Input/Input.h"
+#include "Framework/MainClass.h"
+#include "Framework/Object/GameObject.h"
 
 #include <SDL3/SDL.h>
 

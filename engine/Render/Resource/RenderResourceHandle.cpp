@@ -1,7 +1,7 @@
 #include "RenderResourceHandle.h"
 
+#include "Framework/MainClass.h"
 #include "IRenderResourceManager.h"
-#include "MainClass.h"
 #include "Render/RenderSystem.h"
 
 namespace Engine::RenderSystemState {

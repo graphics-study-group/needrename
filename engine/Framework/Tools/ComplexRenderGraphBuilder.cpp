@@ -1,7 +1,7 @@
 #include "ComplexRenderGraphBuilder.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/MainClass.h>
+#include <Framework/World/WorldSystem.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>

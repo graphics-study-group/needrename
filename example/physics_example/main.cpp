@@ -3,27 +3,27 @@
 #include "SimulationToggleComponent.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
+#include "Framework/Bridge/PhysicsAdaptor.h"
+#include "Framework/Component/RenderComponent/CameraComponent.h"
+#include "Framework/Component/RenderComponent/LightComponent.h"
+#include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/Component/TransformComponent/TransformComponent.h"
+#include "Framework/Input/Input.h"
+#include "Framework/MainClass.h"
+#include "Framework/Object/GameObject.h"
 #include "Framework/Tools/ComplexRenderGraphBuilder.h"
-#include "Framework/component/RenderComponent/CameraComponent.h"
-#include "Framework/component/RenderComponent/LightComponent.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "Framework/component/TransformComponent/TransformComponent.h"
-#include "Framework/object/GameObject.h"
-#include "Framework/world/Scene.h"
-#include "Framework/world/WorldSystem.h"
-#include "Framework/world/physics/PhysicsAdaptor.h"
-#include "MainClass.h"
+#include "Framework/World/Scene.h"
+#include "Framework/World/WorldSystem.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/PhysicsSystem.h"
 #include "Physics/Solver/XPBDGpuSolver.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
-#include "UserInterface/Input.h"
 #include "cmake_config.h"
-#include <Framework/component/physics/PhysicsConstraintComponent.h>
+#include <Framework/Component/physics/PhysicsConstraintComponent.h>
 
-#include <Framework/component/physics/RigidBodyComponent.h>
+#include <Framework/Component/physics/RigidBodyComponent.h>
 
 #include <SDL3/SDL.h>
 #include <cassert>

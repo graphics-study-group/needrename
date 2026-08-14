@@ -1,10 +1,10 @@
 #include "HandleInspectors.h"
-#include <Framework/component/Component.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Handle.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/Component/Component.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Handle.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
 
 #include <AnnoRefl/reflection.h>
 #include <imgui.h>

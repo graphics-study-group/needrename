@@ -7,13 +7,13 @@
 #include "Asset/AssetManager/AssetManager.h"
 #include "Core/Math/Transform.h"
 #include "Framework/Import/TextureImportUtils.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Material/MaterialAsset.h"
 #include "Render/Material/MaterialTemplateAsset.h"
 #include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/Texture/ImageCubemapAsset.h"
-#include "UserInterface/GUISystem.h"
+#include "Render/UserInterface/GUISystem.h"
 
 #include "cmake_config.h"
 #include <ext/matrix_transform.hpp>

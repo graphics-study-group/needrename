@@ -1,8 +1,8 @@
 #include "EditorRenderGraphBuilder.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetRef.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/MainClass.h>
+#include <Framework/World/WorldSystem.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
@@ -14,11 +14,11 @@
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
 #include <Render/Shader/ShaderAsset.h>
+#include <Render/UserInterface/GUISystem.h>
 #include <Rhi/Buffer/ComputeBuffer.h>
 #include <Rhi/Pipeline/ComputeResourceBinding.h>
 #include <Rhi/Pipeline/ComputeStage.h>
 #include <Rhi/Pipeline/ShaderResourceBinding.h>
-#include <UserInterface/GUISystem.h>
 
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/SceneWidget.h>

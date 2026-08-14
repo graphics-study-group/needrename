@@ -1,7 +1,7 @@
 #ifndef EXAMPLE_PHYSICS_EXAMPLE_CAMERACONTROLLERCOMPONENT_H
 #define EXAMPLE_PHYSICS_EXAMPLE_CAMERACONTROLLERCOMPONENT_H
 
-#include <Framework/component/Component.h>
+#include <Framework/Component/Component.h>
 
 namespace Engine {
     class GameObject;
