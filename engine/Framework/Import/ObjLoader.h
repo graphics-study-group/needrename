@@ -1,6 +1,7 @@
 #ifndef ASSET_LOADER_OBJLOADER_INCLUDED
 #define ASSET_LOADER_OBJLOADER_INCLUDED
 
+#include "Framework/framework_export.h"
 #include "ImportTypes.h"
 
 #include <filesystem>
@@ -10,7 +11,7 @@ namespace Engine {
     class AssetManager;
     class FileSystemDatabase;
 
-    class ObjLoader {
+    class FRAMEWORK_API ObjLoader {
     public:
         ObjLoader();
         virtual ~ObjLoader() = default;

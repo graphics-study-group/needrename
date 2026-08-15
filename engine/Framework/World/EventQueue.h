@@ -1,13 +1,14 @@
 #ifndef ENGINE_FUNCTIONAL_EVENTQUEUE_H
 #define ENGINE_FUNCTIONAL_EVENTQUEUE_H
 
+#include "Framework/framework_export.h"
 #include <Framework/Component/ComponentDelegate.h>
 #include <Framework/World/Scene.h>
 #include <memory>
 #include <queue>
 
 namespace Engine {
-    class EventQueue {
+    class FRAMEWORK_API EventQueue {
         using DelegatePtr = std::unique_ptr<DelegateBase<>>;
 
     public:

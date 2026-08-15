@@ -1,6 +1,7 @@
 #ifndef ASSET_SCENE_LEVELASSET_H
 #define ASSET_SCENE_LEVELASSET_H
 
+#include "Framework/framework_export.h"
 #include <memory>
 #include <vector>
 
@@ -21,7 +22,7 @@ namespace Engine {
      * It will break the process of deserializing smart pointer
      * Note 2: ObjectHandle and ComponentHandle can not be serialized out of m_archive in SceneAsset.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) LevelAsset : public SceneAsset {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) LevelAsset : public SceneAsset {
         REFL_SER_BODY_OVERRIDE(LevelAsset)
     public:
         REFL_ENABLE LevelAsset() = default;

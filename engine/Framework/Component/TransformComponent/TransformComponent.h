@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_TRANSFORMCOMPONENT_TRANSFORMCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_TRANSFORMCOMPONENT_TRANSFORMCOMPONENT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <Core/Math/Transform.h>
 #include <Framework/Component/Component.h>
@@ -10,7 +11,7 @@ namespace Engine {
     class Transform;
     class GameObject;
 
-    class REFL_SER_CLASS(REFL_WHITELIST) TransformComponent : public Component {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) TransformComponent : public Component {
         REFL_SER_BODY_OVERRIDE(TransformComponent)
     public:
         REFL_ENABLE TransformComponent(const GameObject &parent);

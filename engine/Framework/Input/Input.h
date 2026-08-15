@@ -1,6 +1,7 @@
 #ifndef ENGINE_USERINTERFACE_INPUT_INCLUDED
 #define ENGINE_USERINTERFACE_INPUT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <AnnoRefl/serialization_vector.h>
@@ -11,7 +12,7 @@
 #include <vector>
 
 namespace Engine {
-    class REFL_SER_CLASS(REFL_WHITELIST) Input {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) Input {
         REFL_SER_BODY(Input)
     public:
         const static std::unordered_map<std::string, uint32_t> k_name_code_map;
@@ -33,7 +34,7 @@ namespace Engine {
         };
 
         // Base class for virtual input axis
-        class REFL_SER_CLASS(REFL_BLACKLIST) InputAxis {
+        class FRAMEWORK_API REFL_SER_CLASS(REFL_BLACKLIST) InputAxis {
             REFL_SER_BODY(InputAxis)
         public:
             InputAxis() = default;
@@ -73,7 +74,7 @@ namespace Engine {
 
         // ButtonAxis is a virtual axis that is controlled by a positive and negative button such as keyboard, mouse and
         // gamepad button. It will be clamped to -1.0f or 1.0f.
-        class REFL_SER_CLASS(REFL_BLACKLIST) ButtonAxis : public InputAxis {
+        class FRAMEWORK_API REFL_SER_CLASS(REFL_BLACKLIST) ButtonAxis : public InputAxis {
             REFL_SER_BODY_OVERRIDE(ButtonAxis)
         public:
             ButtonAxis() = default;
@@ -98,7 +99,7 @@ namespace Engine {
 
         // MotionAxis is a virtual axis that will aggregate control signals during one frame. It is used for mouse
         // movement and mouse wheel.
-        class REFL_SER_CLASS(REFL_BLACKLIST) MotionAxis : public InputAxis {
+        class FRAMEWORK_API REFL_SER_CLASS(REFL_BLACKLIST) MotionAxis : public InputAxis {
             REFL_SER_BODY_OVERRIDE(MotionAxis)
         public:
             MotionAxis() = default;
@@ -124,7 +125,7 @@ namespace Engine {
         };
 
         // GamepadAxis is a virtual axis that is controlled by a gamepad axis or trigger.
-        class REFL_SER_CLASS(REFL_BLACKLIST) GamepadAxis : public InputAxis {
+        class FRAMEWORK_API REFL_SER_CLASS(REFL_BLACKLIST) GamepadAxis : public InputAxis {
             REFL_SER_BODY_OVERRIDE(GamepadAxis)
         public:
             GamepadAxis() = default;

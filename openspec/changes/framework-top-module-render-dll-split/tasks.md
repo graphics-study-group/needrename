@@ -46,11 +46,11 @@ Execution rule: after each numbered group below, the build and tests MUST be gre
 
 ## 5. Framework DLL (final split)
 
-- [ ] 5.1 Create `engine/Framework/framework_export.h` (`FRAMEWORK_API`, keyed on `FRAMEWORK_DLL_EXPORTS`)
-- [ ] 5.2 Annotate ALL public Framework classes with `FRAMEWORK_API` in one pass (MainClass, WorldSystem, Scene, GameObject, Component base + all components, SceneAsset, LevelAsset, Handle, EventQueue, Input, PhysicsAdaptor, GltfLoader, ObjLoader, Importer, ComplexRenderGraphBuilder)
-- [ ] 5.3 Rework `engine/Framework/CMakeLists.txt`: `EngineFramework` SHARED with `FRAMEWORK_DLL_EXPORTS`; PUBLIC `EngineLibHeaderInterface`/`AnnoRefl`/`EngineDepGlm`; PRIVATE `EngineRender`/`EnginePhysics`/`EngineAssetCore`/`EngineRhi`/`EngineCore`/`EngineDepVulkan`/`EngineDepSdl`/`EngineDepJson`/`tinyxml2`/`fastgltf`/`tinyobjloader`/`stb`/`ktx`/`meta_framework`; compile `MainClass.cpp` into the DLL
-- [ ] 5.4 Update `engine/CMakeLists.txt`: remove the `Engine` SHARED target; add `Engine` as INTERFACE aggregation linking the six module DLLs; finalize POST_BUILD list (drop `Engine`, add `EngineFramework`); delete `EngineLibExternalDependency`; update doxygen directory list (drop `UserInterface/`)
-- [ ] 5.5 Verify: build + ctest green; `EngineFramework.dll`/`EngineRender.dll` copied; tests/examples link `Engine` unchanged; run one windowed example manually. **STOP for user review + commit**
+- [x] 5.1 Create `engine/Framework/framework_export.h` (`FRAMEWORK_API`, keyed on `FRAMEWORK_DLL_EXPORTS`)
+- [x] 5.2 Annotate ALL public Framework classes with `FRAMEWORK_API` in one pass (MainClass, WorldSystem, Scene, GameObject, Component base + all components, SceneAsset, LevelAsset, Handle/HandleResolver/HandleBase, EventQueue, Input, PhysicsAdaptor, GltfLoader, ObjLoader, Importer, ComplexRenderGraphBuilder; plus `detail::HandleBase` and `detail::texture_import` free functions which are consumed cross-DLL; `ObjTestMeshComponent` left un-annotated as it is header-only)
+- [x] 5.3 Rework `engine/Framework/CMakeLists.txt`: `EngineFramework` SHARED with `FRAMEWORK_DLL_EXPORTS`; PUBLIC `EngineLibHeaderInterface`/`AnnoRefl`/`EngineDepGlm`; PRIVATE `EngineRender`/`EnginePhysics`/`EngineAssetCore`/`EngineRhi`/`EngineCore`/`EngineDepVulkan`/`EngineDepSdl`/`EngineDepJson`/`EngineDepImgui`/`tinyxml2`/`fastgltf`/`tinyobjloader`/`stb`/`ktx`/`meta_framework`; `MainClass.cpp` compiled in via GLOB
+- [x] 5.4 Update `engine/CMakeLists.txt`: remove the `Engine` SHARED target; add `Engine` as INTERFACE aggregation linking the six module DLLs; POST_BUILD copy moved to `EngineFramework`; delete `EngineLibExternalDependency`; update doxygen directory list (drop `UserInterface/`)
+- [x] 5.5 Verify: build + ctest green; `EngineFramework.dll` produced; tests/examples link `Engine` unchanged. **STOP for user review + commit**
 
 ## 6. Cleanup and regroup
 

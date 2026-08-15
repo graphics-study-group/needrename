@@ -1,6 +1,7 @@
 #ifndef ASSET_LOADER_MATERIALUTILS_INCLUDED
 #define ASSET_LOADER_MATERIALUTILS_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <Asset/AssetRef.h>
 
 #include <cstdint>

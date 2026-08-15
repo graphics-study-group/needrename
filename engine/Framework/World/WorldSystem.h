@@ -1,6 +1,7 @@
 #ifndef WORLD_WORLDSYSTEM
 #define WORLD_WORLDSYSTEM
 
+#include "Framework/framework_export.h"
 #include "Handle.h"
 #include <Asset/AssetRef.h>
 #include <memory>
@@ -24,7 +25,7 @@ namespace Engine {
      * WorldSystem is responsible for organizing scene data (cameras, light sources, etc.)
      * and renderer data in the game, and transmitting them to the rendering system every frame.
      */
-    class WorldSystem {
+    class FRAMEWORK_API WorldSystem {
     public:
         WorldSystem();
         ~WorldSystem();

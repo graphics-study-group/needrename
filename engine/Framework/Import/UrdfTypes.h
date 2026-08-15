@@ -1,6 +1,7 @@
 #ifndef ENGINE_ASSET_LOADER_URDFTYPES_H
 #define ENGINE_ASSET_LOADER_URDFTYPES_H
 
+#include "Framework/framework_export.h"
 #include <glm.hpp>
 #include <optional>
 #include <string>
@@ -17,7 +18,7 @@ namespace Engine {
     };
 
     /// Raw geometry data extracted from a URDF <geometry> element.
-    struct UrdfGeometry {
+    struct FRAMEWORK_API UrdfGeometry {
         UrdfGeometryType type{UrdfGeometryType::Box};
         glm::vec3 box_size{0.0f};    // Full size (x, y, z) for Box
         float sphere_radius{0.0f};   // Radius for Sphere
@@ -28,14 +29,14 @@ namespace Engine {
     };
 
     /// A positioned element (visual, collision) with origin + geometry.
-    struct UrdfPosedElement {
+    struct FRAMEWORK_API UrdfPosedElement {
         glm::vec3 origin_xyz{0.0f}; // URDF coordinates
         glm::vec3 origin_rpy{0.0f}; // Euler angles in radians (URDF frame)
         UrdfGeometry geometry{};
     };
 
     /// Inertial parameters for a link.
-    struct UrdfInertial {
+    struct FRAMEWORK_API UrdfInertial {
         glm::vec3 origin_xyz{0.0f}; // COM offset in link frame (URDF coords)
         glm::vec3 origin_rpy{0.0f}; // COM orientation (URDF frame)
         float mass{0.0f};
@@ -54,7 +55,7 @@ namespace Engine {
     };
 
     /// A URDF <joint> element.
-    struct UrdfJoint {
+    struct FRAMEWORK_API UrdfJoint {
         std::string name{};
         UrdfJointType type{UrdfJointType::Fixed};
         std::string parent_link{};
@@ -71,7 +72,7 @@ namespace Engine {
     };
 
     /// A URDF <link> element.
-    struct UrdfLink {
+    struct FRAMEWORK_API UrdfLink {
         std::string name{};
         std::vector<UrdfPosedElement> visuals{};
         std::vector<UrdfPosedElement> collisions{};
@@ -79,13 +80,13 @@ namespace Engine {
     };
 
     /// A URDF <material> definition.
-    struct UrdfMaterial {
+    struct FRAMEWORK_API UrdfMaterial {
         std::string name{};
         glm::vec4 color_rgba{1.0f, 1.0f, 1.0f, 1.0f};
     };
 
     /// Complete parsed URDF robot.
-    struct UrdfRobot {
+    struct FRAMEWORK_API UrdfRobot {
         std::string name{};
         std::vector<UrdfLink> links{};
         std::vector<UrdfJoint> joints{};

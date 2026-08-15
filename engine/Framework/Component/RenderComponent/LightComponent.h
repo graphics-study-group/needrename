@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_LIGHTCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_LIGHTCOMPONENT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
 #include <Framework/Component/Component.h>
@@ -16,7 +17,7 @@ namespace Engine {
     };
 
     /// @brief A perspective camera component
-    class REFL_SER_CLASS(REFL_WHITELIST) LightComponent : public Component {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) LightComponent : public Component {
         REFL_SER_BODY_OVERRIDE(LightComponent)
     public:
         REFL_ENABLE LightComponent(const GameObject &parent);

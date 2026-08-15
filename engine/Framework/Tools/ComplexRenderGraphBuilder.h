@@ -1,6 +1,7 @@
 #ifndef RENDER_PIPELINE_RENDERGRAPH_COMPLEXGRAPHBUILDER_H
 #define RENDER_PIPELINE_RENDERGRAPH_COMPLEXGRAPHBUILDER_H
 
+#include "Framework/framework_export.h"
 #include "Asset/AssetRef.h"
 #include <Render/Pipeline/RenderGraph/RGAttachmentDesc.h>
 
@@ -18,7 +19,7 @@ namespace Engine {
      * @brief A render graph that integrates all current rendering features (Shadow, PBR, Blinn-Phong, etc.)
      * TODO: Need better way to manage the render graph.
      */
-    class ComplexRenderGraphBuilder {
+    class FRAMEWORK_API ComplexRenderGraphBuilder {
         static const uint32_t SHADOWMAP_WIDTH = 2048;
         static const uint32_t SHADOWMAP_HEIGHT = 2048;
 

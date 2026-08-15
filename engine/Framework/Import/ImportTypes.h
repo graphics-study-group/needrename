@@ -1,6 +1,7 @@
 #ifndef ASSET_LOADER_IMPORTTYPES_INCLUDED
 #define ASSET_LOADER_IMPORTTYPES_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <Asset/AssetRef.h>
 
 #include <cstdint>
@@ -11,7 +12,7 @@ namespace Engine {
     /**
      * @brief Runtime output bundle produced by one model import operation.
      */
-    struct ImportResult {
+    struct FRAMEWORK_API ImportResult {
         /// Primary mesh asset generated from imported model geometry.
         AssetRef mesh_asset{};
 

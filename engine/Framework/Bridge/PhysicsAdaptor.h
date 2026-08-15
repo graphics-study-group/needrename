@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_WORLD_PHYSICS_PHYSICSADAPTOR_INCLUDED
 #define FRAMEWORK_WORLD_PHYSICS_PHYSICSADAPTOR_INCLUDED
 
+#include "Framework/framework_export.h"
 #include "PhysicsDescriptors.h"
 
 #include <Framework/World/Handle.h>
@@ -30,7 +31,7 @@ namespace Engine {
      * and coordinate conversions during Flush, then submits COM-space descriptors
      * to PhysicsScene.
      */
-    class PhysicsAdaptor {
+    class FRAMEWORK_API PhysicsAdaptor {
     public:
         /**
          * @brief Construct the adaptor bound to a physics scene and owning scene.

@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_COMPONENTDELEGATE_H
 #define FRAMEWORK_COMPONENT_COMPONENTDELEGATE_H
 
+#include "Framework/framework_export.h"
 #include <Core/Delegate/DelegateBase.h>
 #include <Framework/World/Scene.h>
 #include <functional>

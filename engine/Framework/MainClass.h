@@ -1,6 +1,7 @@
 #ifndef ENGINE_MAINCLASS_INCLUDED
 #define ENGINE_MAINCLASS_INCLUDED
 
+#include "Framework/framework_export.h"
 #include "Core/Functional/OptionHandler.h"
 #include "Rhi/Device/DeviceContext.h"
 
@@ -26,7 +27,7 @@ namespace Engine {
     class RenderGraph;
     enum class RGTextureHandle : int32_t;
 
-    class MainClass {
+    class FRAMEWORK_API MainClass {
     public:
         /**
          * @brief Obtain a shared pointer to the main class singleton.

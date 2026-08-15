@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_vector.h>
 #include <Asset/AssetRef.h>
@@ -10,7 +11,7 @@
 #include <vector>
 
 namespace Engine {
-    class REFL_SER_CLASS(REFL_WHITELIST) RendererComponent : public Component {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) RendererComponent : public Component {
         REFL_SER_BODY_OVERRIDE(RendererComponent)
     protected:
         RendererList m_renderer_handles{};

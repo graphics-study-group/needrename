@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED
 #define FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <AnnoRefl/serialization_vector.h>
@@ -22,7 +23,7 @@ namespace Engine {
      * GameObject can only be created by Scene's factory function.
      * GameObject's reference or pointer can only be obtained from Scene via ObjectHandle.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) GameObject {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) GameObject {
         REFL_SER_BODY(GameObject)
     protected:
         friend class Scene;

@@ -1,6 +1,7 @@
 #ifndef COMPONENT_RENDERCOMPONENT_STATICMESHCOMPONENT_INCLUDED
 #define COMPONENT_RENDERCOMPONENT_STATICMESHCOMPONENT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include "RendererComponent.h"
 
 namespace Engine {
@@ -13,7 +14,7 @@ namespace Engine {
      * All static mesh components that are instantiated by the same asset will
      * share their memory for vertex and index buffers.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) StaticMeshComponent : public RendererComponent {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) StaticMeshComponent : public RendererComponent {
         REFL_SER_BODY_OVERRIDE(StaticMeshComponent)
     public:
         REFL_ENABLE StaticMeshComponent(const GameObject &parent) : RendererComponent(parent) {};

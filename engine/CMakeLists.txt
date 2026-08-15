@@ -1,12 +1,13 @@
 ###########################################
-# Thirdparty and common interface setting #
+# Common interface and dependency shims   #
 ###########################################
 
-# Header files and some deps are shared across these modules, so we use an interface to manage them
+# Header files are shared across all engine modules; expose the engine source
+# root as a single INTERFACE so every module can include its peers.
 add_library(EngineLibHeaderInterface INTERFACE)
 target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
 
-# Granular external dependency targets - each DLL links only what it needs
+# Granular external dependency targets - each DLL links only what it needs.
 add_library(EngineDepGlm INTERFACE)
 target_link_libraries(EngineDepGlm INTERFACE glm)
 target_compile_definitions(EngineDepGlm INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
@@ -30,81 +31,56 @@ endif()
 add_library(EngineDepImgui INTERFACE)
 target_link_libraries(EngineDepImgui INTERFACE imgui)
 
-# Backward-compatible aggregate for remaining OBJECT libraries still in engine.dll
-add_library(EngineLibExternalDependency INTERFACE)
-target_link_libraries(EngineLibExternalDependency
-    INTERFACE
-    EngineDepGlm
-    EngineDepJson
-    EngineDepSdl
-    EngineDepVulkan
-    EngineDepImgui
-    AnnoRefl
-)
-
 ###########################################
-# The parts that are already separated    #
+# Module DLLs (in dependency order)       #
 ###########################################
-
-add_subdirectory(Core)
-add_subdirectory(Rhi)
-
-#################################################
-# The parts that are still mixed in engine      #
-# (needs to be refactored in the future)        #
-#################################################
 
 # Root directory for physics shader SPIR-V artefacts (build tree only).
 # Set before add_subdirectory(Physics) so the Physics subdir and the later
 # configure_file() call both see it.
 set(PHYSICS_SPIRV_ROOT "${CMAKE_BINARY_DIR}/engine/Physics/spirv")
 
+add_subdirectory(Core)
+add_subdirectory(Rhi)
 add_subdirectory(Asset)
 add_subdirectory(Physics)
 add_subdirectory(Render)
 add_subdirectory(Framework)
 
-add_library(Engine SHARED 
-    "Framework/MainClass.cpp"
-    $<TARGET_OBJECTS:EngineLibFramework>
-)
+###########################################
+# Engine aggregate interface              #
+###########################################
 
-# Widely used dependencies such as SDL and Vulkan are marked as public
+# Consumers link `Engine` only; it forwards to every module DLL and its headers.
+add_library(Engine INTERFACE)
 target_link_libraries(Engine
-    PUBLIC
+    INTERFACE
     EngineLibHeaderInterface
-    EngineLibExternalDependency
+    EngineDepGlm
+    EngineDepJson
+    EngineDepSdl
+    EngineDepVulkan
+    EngineDepImgui
+    AnnoRefl
     EngineCore
     EngineRhi
     EngineAssetCore
     EnginePhysics
     EngineRender
+    EngineFramework
 )
 
-# Dependencies only used in a small module are marked as private to avoid pollution
-target_link_libraries(Engine 
-    PRIVATE
-    EngineLibFramework
-)
-
-# Copy third-party DLLs that are not natively built into the bin directory.
-# SDL3 is an imported target from MSYS2; libktx overrides LIBRARY_OUTPUT_DIRECTORY.
-add_custom_command(TARGET Engine POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3-shared>
-    $<TARGET_FILE:ktx>
-    $<TARGET_FILE:EngineCore>
-    $<TARGET_FILE:EngineAssetCore>
-    $<TARGET_FILE:EnginePhysics>
-    $<TARGET_FILE:EngineRender>
-    $<TARGET_FILE_DIR:Engine>
-    COMMENT "Copying SDL3, libktx, and engine DLLs to output directory"
-)
+###########################################
+# Build-tree configuration                #
+###########################################
 
 # TODO: Use relative paths when install.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
-# Doxygen support
+###########################################
+# Documentation                           #
+###########################################
+
 find_package(Doxygen)
 if(Doxygen_FOUND)
     set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
@@ -132,12 +108,14 @@ if(Doxygen_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/Core/
         ${CMAKE_CURRENT_SOURCE_DIR}/Framework/
         ${CMAKE_CURRENT_SOURCE_DIR}/Render/
-        ${CMAKE_CURRENT_SOURCE_DIR}/UserInterface/
     )
 else()
     message("Doxygen need to be installed to generate the doxygen documentation")
 endif()
 
-# CTest support
+###########################################
+# Tests                                   #
+###########################################
+
 include(CTest)
 add_subdirectory(Tests)

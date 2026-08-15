@@ -1,6 +1,7 @@
 #ifndef ASSET_LOADER_TEXTUREIMPORTUTILS_INCLUDED
 #define ASSET_LOADER_TEXTUREIMPORTUTILS_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <Rhi/Texture/ImageUtils.h>
 
 #include <array>
@@ -20,7 +21,7 @@ namespace Engine::detail::texture_import {
      * @param path Path to the image file.
      * @param format Expected memory format of the texture. It affects only how the image should be represented on the GPU memory, and does not reflect its actual format on the disk.
      */
-    void LoadImage2DTextureAssetFromFile(
+    FRAMEWORK_API void LoadImage2DTextureAssetFromFile(
         Engine::Image2DTextureAsset &asset,
         const std::filesystem::path &path,
         Rhi::ImageFormat format = Rhi::ImageFormat::R8G8B8A8SRGB
@@ -34,7 +35,7 @@ namespace Engine::detail::texture_import {
      * @param size Size of the image data in bytes.
      * @param format Expected memory format of the texture. It affects only how the image should be represented on the GPU memory, and does not reflect its actual format on the disk.
      */
-    void LoadImage2DTextureAssetFromMemory(
+    FRAMEWORK_API void LoadImage2DTextureAssetFromMemory(
         Engine::Image2DTextureAsset &asset,
         const std::byte *bytes,
         size_t size,
@@ -52,7 +53,7 @@ namespace Engine::detail::texture_import {
      * @param height Height of each face of the cubemap.
      * @param format Expected memory format of the cubemap. It affects only how the image should be represented on the GPU memory, and does not reflect its actual format on the disk.
      */
-    void LoadImageCubemapAssetFromEquirectangularFile(
+    FRAMEWORK_API void LoadImageCubemapAssetFromEquirectangularFile(
         Engine::ImageCubemapAsset &asset,
         const std::filesystem::path &path,
         int width,
@@ -70,7 +71,7 @@ namespace Engine::detail::texture_import {
      * @param paths Paths to the six image files.
      * @param format Expected memory format of the cubemap. It affects only how the image should be represented on the GPU memory, and does not reflect its actual format on the disk.
      */
-    void LoadImageCubemapAssetFromSixFiles(
+    FRAMEWORK_API void LoadImageCubemapAssetFromSixFiles(
         Engine::ImageCubemapAsset &asset,
         const std::array<std::filesystem::path, 6> &paths,
         Rhi::ImageFormat format = Rhi::ImageFormat::R8G8B8A8SRGB
@@ -87,7 +88,7 @@ namespace Engine::detail::texture_import {
      * @param sizes Sizes of the six images in bytes.
      * @param format Expected memory format of the cubemap. It affects only how the image should be represented on the GPU memory, and does not reflect its actual format on the disk.
      */
-    void LoadImageCubemapAssetFromEquirectangularMemory(
+    FRAMEWORK_API void LoadImageCubemapAssetFromEquirectangularMemory(
         Engine::ImageCubemapAsset &asset,
         const std::byte *bytes,
         size_t size,
@@ -107,7 +108,7 @@ namespace Engine::detail::texture_import {
      * @param sizes Sizes of the six images in bytes.
      * @param format Expected memory format of the cubemap. It affects only how the image should be represented on the GPU memory, and does not reflect its actual format on the disk.
      */
-    void LoadImageCubemapAssetFromSixMemory(
+    FRAMEWORK_API void LoadImageCubemapAssetFromSixMemory(
         Engine::ImageCubemapAsset &asset,
         const std::array<const std::byte *, 6> &bytes,
         const std::array<size_t, 6> &sizes,

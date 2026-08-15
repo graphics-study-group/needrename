@@ -1,6 +1,7 @@
 #ifndef ENGINE_FRAMEWORK_WORLD_HANDLE_INCLUDED
 #define ENGINE_FRAMEWORK_WORLD_HANDLE_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <cstdint>
 #include <functional>
 
@@ -21,7 +22,7 @@ namespace Engine {
          * It contains the scene ID and the ID of the GameObject or Component.
          * IDs are usually assigned in integer order
          */
-        class HandleBase {
+        class FRAMEWORK_API HandleBase {
         public:
             HandleBase() = default;
             HandleBase(uint32_t ID);
@@ -83,7 +84,7 @@ namespace Engine {
      * It contains the scene ID and the ID of the GameObject.
      * IDs are usually assigned in integer order
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) ObjectHandle : public detail::HandleBase {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) ObjectHandle : public detail::HandleBase {
         REFL_SER_BODY(ObjectHandle)
     public:
         ObjectHandle() = default;
@@ -114,7 +115,7 @@ namespace Engine {
      * It contains the scene ID and the ID of the Component.
      * IDs are usually assigned in integer order
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) ComponentHandle : public detail::HandleBase {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) ComponentHandle : public detail::HandleBase {
         REFL_SER_BODY(ComponentHandle)
     public:
         ComponentHandle() = default;

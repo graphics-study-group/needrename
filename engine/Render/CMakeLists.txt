@@ -27,8 +27,11 @@ include(${ANROREFL_PARSER_DIR}/parser.cmake)
 filter_files_with_reflection_macros(RENDER_HEADERS RENDER_REFLECTION_HEADERS)
 
 set(render_include_dirs)
-get_include_directories_for_target(EngineLibHeaderInterface render_include_dirs)
-get_include_directories_for_target(EngineLibExternalDependency render_include_dirs)
+foreach(dep IN ITEMS
+    EngineLibHeaderInterface AnnoRefl EngineDepGlm EngineDepJson EngineDepSdl
+    EngineDepVulkan EngineDepImgui ktx stb)
+    get_include_directories_for_target(${dep} render_include_dirs)
+endforeach()
 
 add_reflection_parser(
     target_name meta_render

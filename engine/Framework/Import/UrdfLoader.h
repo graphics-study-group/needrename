@@ -1,6 +1,7 @@
 #ifndef ENGINE_ASSET_LOADER_URDFLOADER_H
 #define ENGINE_ASSET_LOADER_URDFLOADER_H
 
+#include "Framework/framework_export.h"
 #include <Framework/Import/UrdfTypes.h>
 #include <Framework/World/Handle.h>
 #include <filesystem>
@@ -22,7 +23,7 @@ namespace Engine {
      * collision shapes, joint constraints, and visual meshes, then serializes
      * the result as a SceneAsset.
      */
-    class UrdfLoader {
+    class FRAMEWORK_API UrdfLoader {
     public:
         UrdfLoader();
         ~UrdfLoader();

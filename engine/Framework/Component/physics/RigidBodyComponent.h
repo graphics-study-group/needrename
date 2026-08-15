@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_PHYSICS_RIGIDBODYCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_PHYSICS_RIGIDBODYCOMPONENT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
 #include <Framework/Bridge/PhysicsDescriptors.h>
@@ -17,7 +18,7 @@ namespace Engine {
      * This component owns rigid body material and motion properties, and
      * aggregates collision shapes from an object hierarchy via PhysicsAdaptor.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) RigidBodyComponent : public Component {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) RigidBodyComponent : public Component {
         REFL_SER_BODY_OVERRIDE(RigidBodyComponent)
     public:
         /**

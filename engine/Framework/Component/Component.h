@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <Framework/Object/GameObject.h>
@@ -20,7 +21,7 @@ namespace Engine {
      * Init() is called when the parent GameObject is added to a running scene.
      * Tick() is called every frame.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) Component {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) Component {
         REFL_SER_BODY(Component)
 
     protected:

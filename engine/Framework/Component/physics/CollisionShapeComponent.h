@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_PHYSICS_COLLISIONSHAPECOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_PHYSICS_COLLISIONSHAPECOMPONENT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
 #include <Core/Math/Transform.h>
@@ -15,7 +16,7 @@ namespace Engine {
      * This component stores editable collision shape parameters and registers
      * one shape record into PhysicsScene during Awake.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) CollisionShapeComponent : public Component {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) CollisionShapeComponent : public Component {
         REFL_SER_BODY_OVERRIDE(CollisionShapeComponent)
     public:
         /**

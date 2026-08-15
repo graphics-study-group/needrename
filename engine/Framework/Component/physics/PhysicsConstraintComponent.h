@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_PHYSICS_PHYSICSCONSTRAINTCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_PHYSICS_PHYSICSCONSTRAINTCOMPONENT_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
 #include <Framework/Component/Component.h>
@@ -50,7 +51,7 @@ namespace Engine {
      * indices, computes implicit FixedJoint initial relative transforms, and
      * registers joints with PhysicsScene.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) PhysicsConstraintComponent : public Component {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) PhysicsConstraintComponent : public Component {
         REFL_SER_BODY_OVERRIDE(PhysicsConstraintComponent)
     public:
         /**

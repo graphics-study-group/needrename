@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_WORLD_PHYSICS_PHYSICSDESCRIPTORS_INCLUDED
 #define FRAMEWORK_WORLD_PHYSICS_PHYSICSDESCRIPTORS_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <Framework/World/Handle.h>
 #include <Physics/PhysicsScene.h>
 
@@ -27,7 +28,7 @@ namespace Engine {
      * Carries component field values plus the owning GameObject's world transform.
      * All spatial values are in GO space; the Adaptor converts them to COM space during Flush.
      */
-    struct RigidBodyDescriptor {
+    struct FRAMEWORK_API RigidBodyDescriptor {
         float mass{1.0f};
         float static_friction{0.5f};
         float dynamic_friction{0.5f};
@@ -50,7 +51,7 @@ namespace Engine {
      * Carries shape type, feature, GO-world pose, and unresolved collision filter ComponentHandles.
      * The Adaptor resolves filters and converts to COM-local pose during Flush.
      */
-    struct CollisionShapeDescriptor {
+    struct FRAMEWORK_API CollisionShapeDescriptor {
         CollisionShapeType type{CollisionShapeType::Box};
         glm::vec3 feature{0.5f, 0.5f, 0.5f};
         glm::vec3 world_position{0.0f, 0.0f, 0.0f};
@@ -64,7 +65,7 @@ namespace Engine {
      * obj1_index and obj2_index are rigid body slot indices.
      * initial_rel_pos_local and initial_rel_rotation are expressed in obj1's GO-local frame.
      */
-    struct FixedJointSubmitData {
+    struct FRAMEWORK_API FixedJointSubmitData {
         uint32_t obj1_index{0};
         uint32_t obj2_index{0};
         float compliance{0.0f};
@@ -78,7 +79,7 @@ namespace Engine {
      * Hinge axis, anchor point, and initial relative transform are expressed in obj1's GO-local frame.
      * The Adaptor converts them to COM-local during Flush.
      */
-    struct HingeJointSubmitData {
+    struct FRAMEWORK_API HingeJointSubmitData {
         uint32_t obj1_index{0};
         uint32_t obj2_index{0};
         float compliance{0.0f};

@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_WORLD_SCENE_INCLUDED
 #define FRAMEWORK_WORLD_SCENE_INCLUDED
 
+#include "Framework/framework_export.h"
 #include "Handle.h"
 #include <memory>
 #include <random>
@@ -31,7 +32,7 @@ namespace Engine {
      * Creation and deletion operations about GameObjects and Components are queued and
      * processed via Scene::FlushCmdQueue() for safe lifetime management.
      */
-    class Scene {
+    class FRAMEWORK_API Scene {
     protected:
         friend class WorldSystem;
         Scene(uint32_t sceneID, bool enable_rendering, bool enable_physics);

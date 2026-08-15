@@ -1,6 +1,7 @@
 #ifndef ASSET_LOADER_IMPORTSHAREDUTIL_INCLUDED
 #define ASSET_LOADER_IMPORTSHAREDUTIL_INCLUDED
 
+#include "Framework/framework_export.h"
 #include <Render/Mesh/MeshAsset.h>
 
 #include <cstddef>

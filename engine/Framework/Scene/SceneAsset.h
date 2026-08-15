@@ -1,6 +1,7 @@
 #ifndef ASSET_SCENE_SCENEASSET_H
 #define ASSET_SCENE_SCENEASSET_H
 
+#include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
 #include <Asset/Asset.h>
 #include <memory>
@@ -16,7 +17,7 @@ namespace Engine {
      * It stores an Archive directly.
      * The data should be deserialized into Scene directly
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) SceneAsset : public Asset {
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) SceneAsset : public Asset {
         REFL_SER_BODY_OVERRIDE(SceneAsset)
     public:
         SceneAsset() = default;
