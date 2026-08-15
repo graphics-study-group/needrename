@@ -1,5 +1,5 @@
-#ifndef RENDER_RENDERER_VERTEXATTRIBUTE_INCLUDED
-#define RENDER_RENDERER_VERTEXATTRIBUTE_INCLUDED
+#ifndef RENDER_PIPELINE_RENDERER_VERTEXATTRIBUTE_INCLUDED
+#define RENDER_PIPELINE_RENDERER_VERTEXATTRIBUTE_INCLUDED
 
 #include "Render/render_export.h"
 #include <cstdint>
@@ -179,4 +179,4 @@ namespace Engine {
     using VertexAttributeSemantic = VertexAttribute::VertexAttributeSemantic;
 } // namespace Engine
 
-#endif // RENDER_RENDERER_VERTEXATTRIBUTE_INCLUDED
+#endif // RENDER_PIPELINE_RENDERER_VERTEXATTRIBUTE_INCLUDED

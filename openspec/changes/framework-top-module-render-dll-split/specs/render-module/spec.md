@@ -8,7 +8,7 @@ Define the Render module as a standalone shared library `EngineRender.dll`: the 
 
 ### Requirement: Render builds as EngineRender shared library
 
-The Render module SHALL build as a shared library target named `EngineRender` producing `EngineRender.dll`, compiled from all sources under `engine/Render/`. The target SHALL define `RENDER_DLL_EXPORTS` privately and SHALL compile the imgui OBJECT objects (`$<TARGET_OBJECTS:imgui>`) into the DLL.
+The Render module SHALL build as a shared library target named `EngineRender` producing `EngineRender.dll`, compiled from all sources under `engine/Render/`. The target SHALL define `RENDER_DLL_EXPORTS` privately. The imgui library SHALL build as its own shared DLL (`imgui` SHARED target in `third_party/CMakeLists.txt`, producing `libimgui.dll`), linked by `EngineRender` through `EngineDepImgui`.
 
 The target SHALL declare the following dependencies:
 
@@ -25,7 +25,8 @@ The `EngineLibRender` OBJECT library target SHALL NOT exist.
 #### Scenario: Build produces EngineRender.dll with imgui
 - **WHEN** `cmake --build --preset debug` completes
 - **THEN** `EngineRender.dll` exists in the build output directory
-- **AND** the imgui symbols resolve inside the DLL
+- **AND** `libimgui.dll` exists in the build output directory
+- **AND** the imgui symbols resolve inside `libimgui.dll`
 
 ### Requirement: Render has no MainClass or Framework dependencies
 

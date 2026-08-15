@@ -1,5 +1,5 @@
-#ifndef ENGINE_ASSET_LOADER_IMPORTER_H
-#define ENGINE_ASSET_LOADER_IMPORTER_H
+#ifndef FRAMEWORK_IMPORT_IMPORTER_INCLUDED
+#define FRAMEWORK_IMPORT_IMPORTER_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <filesystem>
@@ -13,4 +13,4 @@ namespace Engine::Importer {
     );
 } // namespace Engine::Importer
 
-#endif // ENGINE_ASSET_LOADER_IMPORTER_H
+#endif // FRAMEWORK_IMPORT_IMPORTER_INCLUDED

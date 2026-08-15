@@ -1,5 +1,5 @@
-#ifndef ASSET_MESH_MESHASSET
-#define ASSET_MESH_MESHASSET
+#ifndef RENDER_ASSET_MESH_MESHASSET_INCLUDED
+#define RENDER_ASSET_MESH_MESHASSET_INCLUDED
 
 #include "Render/Pipeline/Renderer/VertexAttribute.h"
 #include "Render/render_export.h"
@@ -111,4 +111,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_MESH_MESHASSET
+#endif // RENDER_ASSET_MESH_MESHASSET_INCLUDED

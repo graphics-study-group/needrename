@@ -615,11 +615,19 @@ namespace Engine {
 
     // Public entry: import glTF and persist mesh/material/texture/scene assets into project database.
     void GltfLoader::LoadGltfResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project) {
+        if (!m_asset_manager || !m_database) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GltfLoader: AssetManager or Database unavailable");
+            return;
+        }
         static_cast<void>(ImportGltf(path, path_in_project, *m_asset_manager, *m_database, true, true));
     }
 
     // Public entry: import glTF for runtime-only usage without writing assets to disk.
     ImportResult GltfLoader::LoadGltfInMemory(const std::filesystem::path &path) {
+        if (!m_asset_manager || !m_database) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GltfLoader: AssetManager or Database unavailable");
+            return {};
+        }
         return ImportGltf(path, std::nullopt, *m_asset_manager, *m_database, false, false);
     }
 } // namespace Engine

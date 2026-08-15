@@ -1,5 +1,5 @@
-#ifndef ASSET_LOADER_MATERIALUTILS_INCLUDED
-#define ASSET_LOADER_MATERIALUTILS_INCLUDED
+#ifndef FRAMEWORK_IMPORT_MATERIALUTILS_INCLUDED
+#define FRAMEWORK_IMPORT_MATERIALUTILS_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <Asset/AssetRef.h>
@@ -63,4 +63,4 @@ namespace Engine {
     } // namespace detail
 } // namespace Engine
 
-#endif // ASSET_LOADER_MATERIALUTILS_INCLUDED
+#endif // FRAMEWORK_IMPORT_MATERIALUTILS_INCLUDED

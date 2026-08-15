@@ -1,5 +1,5 @@
-#ifndef ASSET_MESH_PLANEMESHASSET
-#define ASSET_MESH_PLANEMESHASSET
+#ifndef RENDER_ASSET_MESH_PLANEMESHASSET_INCLUDED
+#define RENDER_ASSET_MESH_PLANEMESHASSET_INCLUDED
 
 #include "AnnoRefl/macros.h"
 #include "Render/Asset/Mesh/MeshAsset.h"
@@ -114,4 +114,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_MESH_PLANEMESHASSET
+#endif // RENDER_ASSET_MESH_PLANEMESHASSET_INCLUDED

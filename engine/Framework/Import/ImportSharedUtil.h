@@ -1,5 +1,5 @@
-#ifndef ASSET_LOADER_IMPORTSHAREDUTIL_INCLUDED
-#define ASSET_LOADER_IMPORTSHAREDUTIL_INCLUDED
+#ifndef FRAMEWORK_IMPORT_IMPORTSHAREDUTIL_INCLUDED
+#define FRAMEWORK_IMPORT_IMPORTSHAREDUTIL_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <Render/Asset/Mesh/MeshAsset.h>
@@ -83,4 +83,4 @@ namespace Engine {
     } // namespace detail::import_shared
 } // namespace Engine
 
-#endif // ASSET_LOADER_IMPORTSHAREDUTIL_INCLUDED
+#endif // FRAMEWORK_IMPORT_IMPORTSHAREDUTIL_INCLUDED

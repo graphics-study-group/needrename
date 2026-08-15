@@ -1,5 +1,5 @@
-#ifndef ENGINE_USERINTERFACE_INPUT_INCLUDED
-#define ENGINE_USERINTERFACE_INPUT_INCLUDED
+#ifndef FRAMEWORK_INPUT_INPUT_INCLUDED
+#define FRAMEWORK_INPUT_INPUT_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
@@ -160,4 +160,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ENGINE_USERINTERFACE_INPUT_INCLUDED
+#endif // FRAMEWORK_INPUT_INPUT_INCLUDED

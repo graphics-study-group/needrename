@@ -1,5 +1,5 @@
-#ifndef ASSET_MATERIAL_SHADERASSET_INCLUDED
-#define ASSET_MATERIAL_SHADERASSET_INCLUDED
+#ifndef RENDER_ASSET_SHADER_SHADERASSET_INCLUDED
+#define RENDER_ASSET_SHADER_SHADERASSET_INCLUDED
 
 #include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
@@ -63,4 +63,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_MATERIAL_SHADERASSET_INCLUDED
+#endif // RENDER_ASSET_SHADER_SHADERASSET_INCLUDED

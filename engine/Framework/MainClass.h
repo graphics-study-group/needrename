@@ -1,5 +1,5 @@
-#ifndef ENGINE_MAINCLASS_INCLUDED
-#define ENGINE_MAINCLASS_INCLUDED
+#ifndef FRAMEWORK_MAINCLASS_INCLUDED
+#define FRAMEWORK_MAINCLASS_INCLUDED
 
 #include "Core/Functional/OptionHandler.h"
 #include "Framework/framework_export.h"
@@ -92,4 +92,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ENGINE_MAINCLASS_INCLUDED
+#endif // FRAMEWORK_MAINCLASS_INCLUDED

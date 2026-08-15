@@ -1,5 +1,5 @@
-#ifndef ASSET_LOADER_OBJLOADER_INCLUDED
-#define ASSET_LOADER_OBJLOADER_INCLUDED
+#ifndef FRAMEWORK_IMPORT_OBJLOADER_INCLUDED
+#define FRAMEWORK_IMPORT_OBJLOADER_INCLUDED
 
 #include "Framework/framework_export.h"
 #include "ImportTypes.h"
@@ -37,4 +37,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_LOADER_OBJLOADER_INCLUDED
+#endif // FRAMEWORK_IMPORT_OBJLOADER_INCLUDED

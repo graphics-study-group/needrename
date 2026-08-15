@@ -1,5 +1,5 @@
-#ifndef ENGINE_FUNCTIONAL_EVENTQUEUE_H
-#define ENGINE_FUNCTIONAL_EVENTQUEUE_H
+#ifndef FRAMEWORK_WORLD_EVENTQUEUE_INCLUDED
+#define FRAMEWORK_WORLD_EVENTQUEUE_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <Framework/Component/ComponentDelegate.h>
@@ -30,4 +30,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ENGINE_FUNCTIONAL_EVENTQUEUE_H
+#endif // FRAMEWORK_WORLD_EVENTQUEUE_INCLUDED

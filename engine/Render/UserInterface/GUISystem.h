@@ -1,5 +1,5 @@
-#ifndef ENGINE_GUI_GUISYSTEM_INCLUDED
-#define ENGINE_GUI_GUISYSTEM_INCLUDED
+#ifndef RENDER_USERINTERFACE_GUISYSTEM_INCLUDED
+#define RENDER_USERINTERFACE_GUISYSTEM_INCLUDED
 
 #include "Render/render_export.h"
 #include <SDL3/SDL.h>
@@ -119,4 +119,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ENGINE_GUI_GUISYSTEM_INCLUDED
+#endif // RENDER_USERINTERFACE_GUISYSTEM_INCLUDED

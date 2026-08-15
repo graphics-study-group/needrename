@@ -18,6 +18,7 @@
 #include <Render/RenderRuntime.h>
 #include <Render/UserInterface/GUISystem.h>
 
+#include <cassert>
 #include <exception>
 #include <fstream>
 #include <glslang/Public/ShaderLang.h>
@@ -147,6 +148,7 @@ namespace Engine {
 
         // if in editor mode
         auto *fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(this->asset_database).get();
+        assert(fs_db);
         this->shader_compiler = std::make_shared<ShaderCompiler>(fs_db->GetProjectAssetsPath());
         SetRenderRuntime({renderer.get(), shader_compiler.get()});
     }

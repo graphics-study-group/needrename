@@ -1,5 +1,5 @@
-#ifndef ASSET_LOADER_IMPORTTYPES_INCLUDED
-#define ASSET_LOADER_IMPORTTYPES_INCLUDED
+#ifndef FRAMEWORK_IMPORT_IMPORTTYPES_INCLUDED
+#define FRAMEWORK_IMPORT_IMPORTTYPES_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <Asset/AssetRef.h>
@@ -33,4 +33,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_LOADER_IMPORTTYPES_INCLUDED
+#endif // FRAMEWORK_IMPORT_IMPORTTYPES_INCLUDED

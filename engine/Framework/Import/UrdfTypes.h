@@ -1,5 +1,5 @@
-#ifndef ENGINE_ASSET_LOADER_URDFTYPES_H
-#define ENGINE_ASSET_LOADER_URDFTYPES_H
+#ifndef FRAMEWORK_IMPORT_URDFTYPES_INCLUDED
+#define FRAMEWORK_IMPORT_URDFTYPES_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <glm.hpp>
@@ -96,4 +96,4 @@ namespace Engine {
 
 } // namespace Engine
 
-#endif // ENGINE_ASSET_LOADER_URDFTYPES_H
+#endif // FRAMEWORK_IMPORT_URDFTYPES_INCLUDED

@@ -1,5 +1,5 @@
-#ifndef ASSET_MATERIAL_PIPELINEPROPERTY
-#define ASSET_MATERIAL_PIPELINEPROPERTY
+#ifndef RENDER_ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED
+#define RENDER_ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED
 
 #include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
@@ -245,4 +245,4 @@ namespace Engine {
     } // namespace PipelineProperties
 } // namespace Engine
 
-#endif // ASSET_MATERIAL_PIPELINEPROPERTY
+#endif // RENDER_ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED

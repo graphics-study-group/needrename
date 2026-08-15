@@ -1,5 +1,5 @@
-#ifndef ASSET_SCENE_LEVELASSET_H
-#define ASSET_SCENE_LEVELASSET_H
+#ifndef FRAMEWORK_SCENE_LEVELASSET_INCLUDED
+#define FRAMEWORK_SCENE_LEVELASSET_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <memory>
@@ -38,4 +38,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_SCENE_LEVELASSET_H
+#endif // FRAMEWORK_SCENE_LEVELASSET_INCLUDED

@@ -1,5 +1,5 @@
-#ifndef RENDER_RENDERER_CAMERA_INCLUDED
-#define RENDER_RENDERER_CAMERA_INCLUDED
+#ifndef RENDER_PIPELINE_RENDERER_CAMERA_INCLUDED
+#define RENDER_PIPELINE_RENDERER_CAMERA_INCLUDED
 
 #include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
@@ -63,4 +63,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // RENDER_RENDERER_CAMERA_INCLUDED
+#endif // RENDER_PIPELINE_RENDERER_CAMERA_INCLUDED

@@ -1,5 +1,5 @@
-#ifndef ENGINE_ASSET_LOADER_URDFLOADER_H
-#define ENGINE_ASSET_LOADER_URDFLOADER_H
+#ifndef FRAMEWORK_IMPORT_URDFLOADER_INCLUDED
+#define FRAMEWORK_IMPORT_URDFLOADER_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <Framework/Import/UrdfTypes.h>
@@ -61,4 +61,4 @@ namespace Engine {
 
 } // namespace Engine
 
-#endif // ENGINE_ASSET_LOADER_URDFLOADER_H
+#endif // FRAMEWORK_IMPORT_URDFLOADER_INCLUDED

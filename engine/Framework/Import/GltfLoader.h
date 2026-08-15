@@ -1,5 +1,5 @@
-#ifndef ASSET_LOADER_GLTFLOADER_INCLUDED
-#define ASSET_LOADER_GLTFLOADER_INCLUDED
+#ifndef FRAMEWORK_IMPORT_GLTFLOADER_INCLUDED
+#define FRAMEWORK_IMPORT_GLTFLOADER_INCLUDED
 
 #include "Framework/framework_export.h"
 #include "ImportTypes.h"
@@ -36,4 +36,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_LOADER_GLTFLOADER_INCLUDED
+#endif // FRAMEWORK_IMPORT_GLTFLOADER_INCLUDED

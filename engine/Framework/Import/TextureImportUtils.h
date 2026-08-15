@@ -1,5 +1,5 @@
-#ifndef ASSET_LOADER_TEXTUREIMPORTUTILS_INCLUDED
-#define ASSET_LOADER_TEXTUREIMPORTUTILS_INCLUDED
+#ifndef FRAMEWORK_IMPORT_TEXTUREIMPORTUTILS_INCLUDED
+#define FRAMEWORK_IMPORT_TEXTUREIMPORTUTILS_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <Rhi/Texture/ImageUtils.h>
@@ -116,4 +116,4 @@ namespace Engine::detail::texture_import {
     );
 } // namespace Engine::detail::texture_import
 
-#endif // ASSET_LOADER_TEXTUREIMPORTUTILS_INCLUDED
+#endif // FRAMEWORK_IMPORT_TEXTUREIMPORTUTILS_INCLUDED

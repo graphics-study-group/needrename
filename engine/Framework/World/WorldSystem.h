@@ -1,5 +1,5 @@
-#ifndef WORLD_WORLDSYSTEM
-#define WORLD_WORLDSYSTEM
+#ifndef FRAMEWORK_WORLD_WORLDSYSTEM_INCLUDED
+#define FRAMEWORK_WORLD_WORLDSYSTEM_INCLUDED
 
 #include "Framework/framework_export.h"
 #include "Handle.h"
@@ -107,4 +107,4 @@ namespace Engine {
         void UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager);
     };
 } // namespace Engine
-#endif // WORLD_WORLDSYSTEM
+#endif // FRAMEWORK_WORLD_WORLDSYSTEM_INCLUDED

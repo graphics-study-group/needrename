@@ -1,5 +1,5 @@
-#ifndef ASSET_SCENE_SCENEASSET_H
-#define ASSET_SCENE_SCENEASSET_H
+#ifndef FRAMEWORK_SCENE_SCENEASSET_INCLUDED
+#define FRAMEWORK_SCENE_SCENEASSET_INCLUDED
 
 #include "Framework/framework_export.h"
 #include <AnnoRefl/macros.h>
@@ -33,4 +33,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_SCENE_SCENEASSET_H
+#endif // FRAMEWORK_SCENE_SCENEASSET_INCLUDED

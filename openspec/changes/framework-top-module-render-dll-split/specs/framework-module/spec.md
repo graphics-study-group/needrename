@@ -13,7 +13,7 @@ The Framework module SHALL build as a shared library target named `EngineFramewo
 The target SHALL declare the following dependencies:
 
 - PUBLIC: `EngineLibHeaderInterface`, `AnnoRefl`, `EngineDepGlm`
-- PRIVATE: `EngineRender`, `EnginePhysics`, `EngineAssetCore`, `EngineRhi`, `EngineCore`, `EngineDepVulkan`, `EngineDepSdl`, `EngineDepJson`, `tinyxml2`, `fastgltf`, `tinyobjloader`, `stb`, `ktx`, `meta_framework`
+- PRIVATE: `EngineRender`, `EnginePhysics`, `EngineAssetCore`, `EngineRhi`, `EngineCore`, `EngineDepVulkan`, `EngineDepSdl`, `EngineDepJson`, `EngineDepImgui`, `tinyxml2`, `fastgltf`, `tinyobjloader`, `stb`, `ktx`, `meta_framework`
 
 The `EngineLibFramework` OBJECT library target SHALL NOT exist.
 
