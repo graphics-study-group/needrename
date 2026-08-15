@@ -6,11 +6,11 @@
 #include <Framework/Scene/SceneAsset.h>
 #include <Framework/World/Scene.h>
 #include <Framework/World/WorldSystem.h>
-#include <Render/Memory/RenderTargetTexture.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
-#include <Render/Renderer/Camera.h>
+#include <Render/Resource/RenderTargetTexture.h>
 
 #include <AnnoRefl/serialization.h>
 #include <SDL3/SDL.h>

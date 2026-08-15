@@ -14,10 +14,10 @@
 #include "Framework/Object/GameObject.h"
 #include "Framework/World/Scene.h"
 #include "Framework/World/WorldSystem.h"
-#include "Render/Material/MaterialAsset.h"
-#include "Render/Material/MaterialTemplateAsset.h"
-#include "Render/Mesh/MeshAsset.h"
-#include "Render/Texture/Image2DTextureAsset.h"
+#include "Render/Asset/Material/MaterialAsset.h"
+#include "Render/Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Asset/Mesh/MeshAsset.h"
+#include "Render/Asset/Texture/Image2DTextureAsset.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "Render/UserInterface/GUISystem.h"

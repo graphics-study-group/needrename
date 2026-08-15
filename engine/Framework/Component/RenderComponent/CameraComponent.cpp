@@ -2,8 +2,8 @@
 
 #include <Framework/MainClass.h>
 #include <Framework/Object/GameObject.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderSystem.h>
-#include <Render/Renderer/Camera.h>
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>

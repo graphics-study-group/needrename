@@ -7,12 +7,12 @@
 #include "Core/Functional/SDLWindow.h"
 #include "Framework/Component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/MainClass.h"
+#include "Render/Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Asset/Mesh/PlaneMeshAsset.h"
+#include "Render/Asset/Texture/Image2DTextureAsset.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Material/MaterialTemplateAsset.h"
-#include "Render/Mesh/PlaneMeshAsset.h"
+#include "Render/Pipeline/Renderer/StaticHomogeneousMesh.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
-#include "Render/Texture/Image2DTextureAsset.h"
 #include "Render/UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 

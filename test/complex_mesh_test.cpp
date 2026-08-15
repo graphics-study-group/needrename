@@ -8,8 +8,8 @@
 #include "Core/Functional/SDLWindow.h"
 #include "Framework/Component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/MainClass.h"
+#include "Render/Asset/Material/MaterialAsset.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Material/MaterialAsset.h"
 #include "Render/UserInterface/GUISystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
@@ -17,7 +17,7 @@
 #include <Framework/Object/GameObject.h>
 #include <Framework/World/Scene.h>
 #include <Framework/World/WorldSystem.h>
-#include <Render/Mesh/MeshAsset.h>
+#include <Render/Asset/Mesh/MeshAsset.h>
 
 #include "cmake_config.h"
 

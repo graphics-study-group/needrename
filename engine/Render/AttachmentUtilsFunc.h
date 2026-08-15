@@ -2,7 +2,7 @@
 #define RENDER_ATTACHMENTUTILSFUNC
 
 #include "AttachmentUtils.h"
-#include "Render/Memory/RenderTargetTexture.h"
+#include "Render/Resource/RenderTargetTexture.h"
 #include "Render/render_export.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
 

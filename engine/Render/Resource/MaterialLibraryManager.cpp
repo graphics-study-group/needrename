@@ -1,7 +1,7 @@
 #include "MaterialLibraryManager.h"
 
 #include "Asset/AssetRef.h"
-#include "Render/Material/MaterialLibraryAsset.h"
+#include "Render/Asset/Material/MaterialLibraryAsset.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
 

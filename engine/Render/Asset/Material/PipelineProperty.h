@@ -11,7 +11,7 @@
 #include <Rhi/Texture/ImageUtils.h>
 
 #include <Asset/AssetRef.h>
-#include <Render/Shader/ShaderAsset.h>
+#include <Render/Asset/Shader/ShaderAsset.h>
 
 namespace Engine {
     namespace PipelineProperties {

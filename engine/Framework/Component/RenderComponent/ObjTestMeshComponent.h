@@ -1,11 +1,11 @@
 #ifndef COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 #define COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 
-#include "Framework/framework_export.h"
 #include "Asset/AssetManager/AssetManager.h"
 #include "Framework/Component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/Import/ObjLoader.h"
 #include "Framework/MainClass.h"
+#include "Framework/framework_export.h"
 
 namespace Engine {
     /**

@@ -1,6 +1,6 @@
 #include "MeshAsset.h"
 
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 #include <AnnoRefl/serialization.h>
 
 #include <cassert>

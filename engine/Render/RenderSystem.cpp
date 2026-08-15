@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "Render/Pipeline/CommandBuffer.h"
+#include "Render/Pipeline/Renderer/Camera.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/HeadlessPresentProvider.h"
@@ -12,7 +13,6 @@
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/SwapchainPresentProvider.h"
-#include "Render/Renderer/Camera.h"
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DeviceContext.h"

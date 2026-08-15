@@ -6,12 +6,12 @@
 #include <Core/Functional/SDLWindow.h>
 #include <Framework/MainClass.h>
 #include <Framework/World/WorldSystem.h>
-#include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
-#include <Render/Renderer/Camera.h>
+#include <Render/Resource/RenderTargetTexture.h>
 
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_vulkan.h>

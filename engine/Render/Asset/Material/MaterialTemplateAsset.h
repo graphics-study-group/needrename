@@ -8,8 +8,8 @@
 #include <AnnoRefl/serialization_vector.h>
 #include <Asset/Asset.h>
 #include <Asset/AssetRef.h>
-#include <Render/Material/PipelineProperty.h>
-#include <Render/Shader/ShaderAsset.h>
+#include <Render/Asset/Material/PipelineProperty.h>
+#include <Render/Asset/Shader/ShaderAsset.h>
 #include <Rhi/Texture/ImageUtils.h>
 
 namespace Engine {

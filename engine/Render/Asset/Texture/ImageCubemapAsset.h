@@ -1,7 +1,7 @@
 #ifndef ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
 #define ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
 
-#include "Render/Texture/TextureAsset.h"
+#include "Render/Asset/Texture/TextureAsset.h"
 #include "Render/render_export.h"
 #include <Rhi/Texture/ImageTexture.h>
 #include <Rhi/Texture/ImageUtils.h>

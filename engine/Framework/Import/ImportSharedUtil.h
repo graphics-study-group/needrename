@@ -2,7 +2,7 @@
 #define ASSET_LOADER_IMPORTSHAREDUTIL_INCLUDED
 
 #include "Framework/framework_export.h"
-#include <Render/Mesh/MeshAsset.h>
+#include <Render/Asset/Mesh/MeshAsset.h>
 
 #include <cstddef>
 #include <cstdint>

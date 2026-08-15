@@ -1,7 +1,7 @@
 #ifndef ASSET_MESH_MESHASSET
 #define ASSET_MESH_MESHASSET
 
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 #include "Render/render_export.h"
 
 #include <AnnoRefl/macros.h>

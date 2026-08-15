@@ -4,9 +4,9 @@
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
-#include "Render/Material/MaterialAsset.h"
-#include "Render/Texture/Image2DTextureAsset.h"
-#include "Render/Texture/SolidColorTextureAsset.h"
+#include "Render/Asset/Material/MaterialAsset.h"
+#include "Render/Asset/Texture/Image2DTextureAsset.h"
+#include "Render/Asset/Texture/SolidColorTextureAsset.h"
 
 #include <SDL3/SDL.h>
 #include <fastgltf/core.hpp>

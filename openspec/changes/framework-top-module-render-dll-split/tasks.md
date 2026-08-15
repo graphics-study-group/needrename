@@ -54,7 +54,7 @@ Execution rule: after each numbered group below, the build and tests MUST be gre
 
 ## 6. Cleanup and regroup
 
-- [ ] 6.1 Regroup Render internals with `git mv` only (no logic changes): asset classes → `Render/Asset/`, managers + handle + Memory → `Render/Resource/`, `Render/Pipeline/` + `Renderer/` → `Render/Pipeline/`, `RenderSystem/` stays, GUISystem in `UserInterface/`; update include paths
-- [ ] 6.2 `git rm -r engine/UserInterface/` (empty after 1.7/1.8); confirm `EngineLibUserInterface` target and references are gone
-- [ ] 6.3 Verify PCH (`FullRenderSystem.h`) still resolves; check `cmake_config.h.in` has no stale path references
-- [ ] 6.4 Final verification: full clean build + `ctest --preset debug` green; `Engine.dll` no longer produced. **STOP for user review + commit**
+- [x] 6.1 Regroup Render internals with `git mv` only (no logic changes): asset classes → `Render/Asset/` (Material/Texture/Mesh/Shader), managers + handle + Memory → `Render/Resource/`, `Render/Pipeline/` + `Renderer/` → `Render/Pipeline/Renderer/`, `RenderSystem/` stays, GUISystem in `UserInterface/`; update include paths
+- [x] 6.2 `git rm -r engine/UserInterface/` (empty after 1.7/1.8); confirm `EngineLibUserInterface` target and references are gone
+- [x] 6.3 Verify PCH (`FullRenderSystem.h`) still resolves; check `cmake_config.h.in` has no stale path references
+- [x] 6.4 Final verification: full clean build + `ctest --preset debug` green; `Engine.dll` no longer produced. **STOP for user review + commit**

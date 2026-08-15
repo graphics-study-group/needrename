@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "Render/Material/PipelineProperty.h"
+#include "Render/Asset/Material/PipelineProperty.h"
 #include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Pipeline/PipelineEnums.h"
 

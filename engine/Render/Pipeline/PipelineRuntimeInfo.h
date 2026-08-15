@@ -1,7 +1,7 @@
 #ifndef RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
 #define RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
 
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 #include "Render/render_export.h"
 #include "Rhi/Texture/ImageUtils.h"
 

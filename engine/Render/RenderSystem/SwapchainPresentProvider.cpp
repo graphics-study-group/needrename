@@ -1,7 +1,7 @@
 #include "SwapchainPresentProvider.h"
 
-#include "Render/Memory/MemoryAccessHelper.hpp"
-#include "Render/Memory/RenderTargetTexture.h"
+#include "Render/Resource/MemoryAccessHelper.hpp"
+#include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Device/DeviceInterface.h"
 
 #include <SDL3/SDL.h>

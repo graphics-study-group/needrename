@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <variant>
 
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 
 namespace vk {
     class Pipeline;

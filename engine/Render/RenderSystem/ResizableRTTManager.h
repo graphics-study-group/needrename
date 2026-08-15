@@ -1,7 +1,7 @@
 #ifndef RENDER_RENDERSYSTEM_RESIZABLERTTMANAGER
 #define RENDER_RENDERSYSTEM_RESIZABLERTTMANAGER
 
-#include "Render/Memory/RenderTargetTexture.h"
+#include "Render/Resource/RenderTargetTexture.h"
 #include "Render/render_export.h"
 
 #include <cstdint>

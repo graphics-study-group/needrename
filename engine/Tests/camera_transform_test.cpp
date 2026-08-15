@@ -5,7 +5,7 @@
 
 #include <Core/Math/Transform.h>
 #include <Framework/MainClass.h>
-#include <Render/Renderer/Camera.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 #include <cmake_config.h>
 
 using namespace Engine;

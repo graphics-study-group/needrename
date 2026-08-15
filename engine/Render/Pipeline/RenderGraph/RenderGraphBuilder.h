@@ -1,7 +1,7 @@
 #ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPHBUILDER2
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPHBUILDER2
 
-#include "Render/Memory/RenderTargetTexture.h"
+#include "Render/Resource/RenderTargetTexture.h"
 #include "Render/render_export.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 

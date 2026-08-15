@@ -34,14 +34,14 @@
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/Material/MaterialTemplate.h"
 
-#include "Render/Renderer/Camera.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/Camera.h"
+#include "Render/Pipeline/Renderer/StaticHomogeneousMesh.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 
 #include "Rhi/Device/MemoryAccessTypes.h"
 #include "Rhi/Device/MemoryTypes.h"
 
-#include "Render/Memory/RenderTargetTexture.h"
+#include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Texture/ImageTexture.h"
 #include "Rhi/Texture/Texture.h"
 #include "Rhi/Texture/TextureSubresourceView.h"

@@ -4,7 +4,7 @@
 #include "Render/render_export.h"
 #include <Asset/Asset.h>
 #include <Asset/AssetRef.h>
-#include <Render/Shader/ShaderAsset.h>
+#include <Render/Asset/Shader/ShaderAsset.h>
 
 #include <AnnoRefl/macros.h>
 

@@ -1,11 +1,11 @@
 #include "MaterialInstance.h"
 
-#include "Render/Material/MaterialAsset.h"
+#include "Render/Asset/Material/MaterialAsset.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/MaterialLibraryManager.h"
 #include "Rhi/Buffer/StructuredBufferPlacer.h"
 #include "Rhi/Device/DeviceInterface.h"
@@ -14,10 +14,10 @@
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
 #include "Rhi/Submission/SubmissionHelper.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
-#include <Render/Material/MaterialAsset.h>
-#include <Render/Texture/Image2DTextureAsset.h>
-#include <Render/Texture/ImageCubemapAsset.h>
-#include <Render/Texture/SolidColorTextureAsset.h>
+#include <Render/Asset/Material/MaterialAsset.h>
+#include <Render/Asset/Texture/Image2DTextureAsset.h>
+#include <Render/Asset/Texture/ImageCubemapAsset.h>
+#include <Render/Asset/Texture/SolidColorTextureAsset.h>
 #include <Rhi/Buffer/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <bitset>

@@ -12,10 +12,10 @@
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
 #include <Physics/Solver/XPBDGpuSolver.h>
+#include <Render/Asset/Material/MaterialAsset.h>
+#include <Render/Asset/Shader/ShaderCompiler.h>
 #include <Render/FullRenderSystem.h>
-#include <Render/Material/MaterialAsset.h>
 #include <Render/RenderRuntime.h>
-#include <Render/Shader/ShaderCompiler.h>
 #include <Render/UserInterface/GUISystem.h>
 
 #include <exception>

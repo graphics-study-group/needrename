@@ -1,7 +1,7 @@
 #include "SceneCamera.h"
 #include <Core/Functional/Time.h>
 #include <Framework/MainClass.h>
-#include <Render/Renderer/Camera.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 
 namespace Editor {
     SceneCamera::SceneCamera() {

@@ -1,6 +1,6 @@
 #include "RenderGraph.h"
 
-#include "Render/Memory/MemoryAccessHelper.hpp"
+#include "Render/Resource/MemoryAccessHelper.hpp"
 #include "RenderGraphStruct.hpp"
 
 namespace Engine {

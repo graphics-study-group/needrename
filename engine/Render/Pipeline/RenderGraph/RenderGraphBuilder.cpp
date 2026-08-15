@@ -3,12 +3,12 @@
 #include <SDL3/SDL.h>
 #include <unordered_set>
 
-#include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphPass.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphStruct.hpp"
 #include "Render/RenderSystem/ResizableRTTManager.h"
+#include "Render/Resource/MemoryAccessHelper.hpp"
 
 namespace {
     constexpr vk::PipelineStageFlagBits2 AffinityToPipelineStage(Engine::RenderGraphPassAffinity affinity) {

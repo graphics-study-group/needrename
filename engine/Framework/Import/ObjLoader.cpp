@@ -12,9 +12,9 @@
 #include <Framework/Scene/SceneAsset.h>
 #include <Framework/World/Scene.h>
 #include <Framework/World/WorldSystem.h>
-#include <Render/Material/MaterialAsset.h>
-#include <Render/Mesh/MeshAsset.h>
-#include <Render/Texture/Image2DTextureAsset.h>
+#include <Render/Asset/Material/MaterialAsset.h>
+#include <Render/Asset/Mesh/MeshAsset.h>
+#include <Render/Asset/Texture/Image2DTextureAsset.h>
 #include <SDL3/SDL.h>
 #include <tiny_obj_loader.h>
 

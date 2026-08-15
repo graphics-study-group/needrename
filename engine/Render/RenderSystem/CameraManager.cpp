@@ -1,6 +1,6 @@
 #include "CameraManager.h"
 
-#include "Render/Renderer/Camera.h"
+#include "Render/Pipeline/Renderer/Camera.h"
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include <Rhi/Buffer/IndexedBuffer.h>

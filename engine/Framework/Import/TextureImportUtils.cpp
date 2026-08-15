@@ -1,7 +1,7 @@
 #include "TextureImportUtils.h"
 
-#include "Render/Texture/Image2DTextureAsset.h"
-#include "Render/Texture/ImageCubemapAsset.h"
+#include "Render/Asset/Texture/Image2DTextureAsset.h"
+#include "Render/Asset/Texture/ImageCubemapAsset.h"
 
 #include <glm.hpp>
 #include <numbers>

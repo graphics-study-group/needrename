@@ -1,6 +1,6 @@
 #include "StaticMeshResource.h"
 
-#include "Render/Mesh/MeshAsset.h"
+#include "Render/Asset/Mesh/MeshAsset.h"
 
 #include <cassert>
 
