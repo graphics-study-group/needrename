@@ -16,7 +16,7 @@ add_reflection_parser(
     reflection_search_files "${CMAKE_CURRENT_SOURCE_DIR}/CustomComponent.h"
     generated_code_dir "${CMAKE_CURRENT_LIST_DIR}/__generated__"
     reflection_search_include_dirs "${all_include_dirs}"
-    parent_projects meta_engine_generation
+    parent_projects meta_framework_generation meta_render_generation
 )
 add_dependencies(${ProjectId} meta_${ProjectId})
 target_link_libraries(${ProjectId} PRIVATE meta_${ProjectId})

@@ -60,9 +60,9 @@ add_subdirectory(Rhi)
 set(PHYSICS_SPIRV_ROOT "${CMAKE_BINARY_DIR}/engine/Physics/spirv")
 
 add_subdirectory(Asset)
-add_subdirectory(Framework)
 add_subdirectory(Physics)
 add_subdirectory(Render)
+add_subdirectory(Framework)
 
 add_library(Engine SHARED 
     "Framework/MainClass.cpp"
@@ -105,37 +105,7 @@ add_custom_command(TARGET Engine POST_BUILD
 # TODO: Use relative paths when install.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
-# Setup meta parser for engine reflection
-include(${ANROREFL_PARSER_DIR}/parser.cmake)
-set(all_include_dirs)
-get_include_directories_for_target(Engine all_include_dirs)
-
-file(GLOB_RECURSE HEADERS "./*.h")
-# Exclude the parts that are already separated
-list(FILTER HEADERS EXCLUDE REGEX "__generated__/.*")
-list(FILTER HEADERS EXCLUDE REGEX "Tests/.*")
-list(FILTER HEADERS EXCLUDE REGEX "Core/.*")
-list(FILTER HEADERS EXCLUDE REGEX "Rhi/.*")
-list(FILTER HEADERS EXCLUDE REGEX "Physics/.*")
-# Asset core types are registered by meta_asset_core in EngineAssetCore
-list(FILTER HEADERS EXCLUDE REGEX "Asset/Asset\\.h")
-list(FILTER HEADERS EXCLUDE REGEX "Asset/AssetRef\\.h")
-filter_files_with_reflection_macros(HEADERS REFLECTION_SEARCH_HEADERS)
-
-add_reflection_parser(
-    target_name meta_engine
-    reflection_search_files "${REFLECTION_SEARCH_HEADERS}"
-    generated_code_dir "${ENGINE_SOURCE_DIR}/__generated__"
-    reflection_search_include_dirs "${all_include_dirs}" "${all_ext_include_dirs}"
-    parent_projects meta_core_generation
-)
-add_dependencies(Engine meta_engine)
-target_link_libraries(Engine PRIVATE meta_engine)
-
 add_dependencies(Engine shader)
-
-add_dependencies(EngineLibFramework meta_engine)
-add_dependencies(EngineLibRender meta_engine)
 
 # Doxygen support
 find_package(Doxygen)

@@ -23,14 +23,14 @@
 #include <glslang/Public/ShaderLang.h>
 #include <nlohmann/json.hpp>
 
-#include "meta_engine/reflection_init.inc"
-
 extern "C"
 {
     void RegisterCoreTypes();
     void RegisterRhiTypes();
     void RegisterAssetCoreTypes();
     void RegisterPhysicsTypes();
+    void RegisterRenderTypes();
+    void RegisterFrameworkTypes();
 }
 
 namespace Engine {
@@ -142,7 +142,8 @@ namespace Engine {
         RegisterRhiTypes();
         RegisterAssetCoreTypes();
         RegisterPhysicsTypes();
-        RegisterAllTypes();
+        RegisterRenderTypes();
+        RegisterFrameworkTypes();
 
         // if in editor mode
         auto *fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(this->asset_database).get();

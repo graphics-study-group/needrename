@@ -29,13 +29,13 @@ Execution rule: after each numbered group below, the build and tests MUST be gre
 
 ## 3. Reflection split
 
-- [ ] 3.1 `engine/Render/CMakeLists.txt`: add `meta_render` (GLOB `Render/*.h`, `filter_files_with_reflection_macros`, `add_reflection_parser` into `Render/__generated__`)
-- [ ] 3.2 `engine/Framework/CMakeLists.txt`: add `meta_framework` (GLOB `Framework/*.h` — includes `MainClass.h` and `Input.h`)
-- [ ] 3.3 Create `engine/Render/RenderReflectionRegistration.cpp` exposing `extern "C" RENDER_API void RegisterRenderTypes()` (mirror `AssetReflectionRegistration.cpp`)
-- [ ] 3.4 Create `engine/Framework/FrameworkReflectionRegistration.cpp` exposing `extern "C" FRAMEWORK_API void RegisterFrameworkTypes()`
-- [ ] 3.5 Update `MainClass.cpp`: include both `reflection_init.inc` files, declare the two new registrars, call them in order Core → Rhi → AssetCore → Physics → Render → Framework before `RegisterAllTypes()`
-- [ ] 3.6 Remove the `meta_engine` block from `engine/CMakeLists.txt` (GLOB/excludes/`filter_files_with_reflection_macros`/`add_reflection_parser`/`add_dependencies`)
-- [ ] 3.7 Verify: build + ctest green; serialization tests (`shader_refl_test` etc.) pass. **STOP for user review + commit**
+- [x] 3.1 `engine/Render/CMakeLists.txt`: add `meta_render` (GLOB `Render/*.h`, `filter_files_with_reflection_macros`, `add_reflection_parser` into `Render/__generated__`)
+- [x] 3.2 `engine/Framework/CMakeLists.txt`: add `meta_framework` (GLOB `Framework/*.h` — includes `MainClass.h` and `Input.h`)
+- [x] 3.3 Create `engine/Render/RenderReflectionRegistration.cpp` exposing `extern "C" void RegisterRenderTypes()` (export macro `RENDER_API` deferred to 4.1 — Render is still an OBJECT lib here)
+- [x] 3.4 Create `engine/Framework/FrameworkReflectionRegistration.cpp` exposing `extern "C" void RegisterFrameworkTypes()` (export macro `FRAMEWORK_API` deferred to 5.1)
+- [x] 3.5 Update `MainClass.cpp`: declare the two new registrars, call them in order Core → Rhi → AssetCore → Physics → Render → Framework (drops the deleted `meta_engine` `RegisterAllTypes`)
+- [x] 3.6 Remove the `meta_engine` block from `engine/CMakeLists.txt` (GLOB/excludes/`filter_files_with_reflection_macros`/`add_reflection_parser`/`add_dependencies`)
+- [x] 3.7 Verify: build + ctest green; serialization tests (`shader_refl_test` etc.) pass. **STOP for user review + commit**
 
 ## 4. Render DLL
 
