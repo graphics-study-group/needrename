@@ -2,6 +2,7 @@
 #define RENDER_RENDERSYSTEM_SWAPCHAINPRESENTPROVIDER_INCLUDED
 
 #include "IPresentProvider.h"
+#include "Render/render_export.h"
 #include <memory>
 #include <vector>
 
@@ -11,7 +12,7 @@ namespace Engine {
     }
     namespace RenderSystemState {
 
-        class SwapchainPresentProvider : public IPresentProvider {
+        class RENDER_API SwapchainPresentProvider : public IPresentProvider {
             struct impl;
             std::unique_ptr<impl> pimpl;
 

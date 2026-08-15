@@ -39,11 +39,10 @@ Execution rule: after each numbered group below, the build and tests MUST be gre
 
 ## 4. Render DLL
 
-- [ ] 4.1 Create `engine/Render/render_export.h` (`RENDER_API`, keyed on `RENDER_DLL_EXPORTS`)
-- [ ] 4.2 Annotate ALL public Render classes with `RENDER_API` in one pass (RenderSystem, RenderSystem/ managers, present providers, RenderGraph/pipeline/CommandBuffer, all `*Asset`, resource managers + handle, ShaderCompiler, GUISystem)
-- [ ] 4.3 Rework `engine/Render/CMakeLists.txt`: `EngineRender` SHARED with `RENDER_DLL_EXPORTS`; PUBLIC `EngineLibHeaderInterface`/`AnnoRefl`/`EngineDepGlm`; PRIVATE `EngineAssetCore`/`EngineRhi`/`EngineCore`/`EngineDepVulkan`/`EngineDepSdl`/`EngineDepImgui`/`glslang`/`ktx`/`stb`/`meta_render`; compile `$<TARGET_OBJECTS:imgui>` into the DLL
-- [ ] 4.4 Update `engine/CMakeLists.txt`: drop `$<TARGET_OBJECTS:EngineLibRender>`, link `EngineRender` PUBLIC; move `add_dependencies(Engine shader)` to `EngineRender`; add `$<TARGET_FILE:EngineRender>` to POST_BUILD copy
-- [ ] 4.5 Verify: build + ctest green; `EngineRender.dll` copied to output. **STOP for user review + commit**
+- [x] 4.1 Create `engine/Render/render_export.h` (`RENDER_API`, keyed on `RENDER_DLL_EXPORTS`)
+- [x] 4.2 Annotate ALL public Render classes with `RENDER_API` in one pass (RenderSystem, RenderSystem/ managers, present providers, RenderGraph/pipeline/CommandBuffer, all `*Asset`, resource managers + handle, ShaderCompiler, GUISystem)
+- [x] 4.3 Rework `engine/Render/CMakeLists.txt`: `EngineRender` SHARED with `RENDER_DLL_EXPORTS`; PUBLIC `EngineLibHeaderInterface`/`AnnoRefl`/`EngineDepGlm`; PRIVATE `EngineAssetCore`/`EngineRhi`/`EngineCore`/`EngineDepVulkan`/`EngineDepSdl`/`EngineDepImgui`/`glslang`/`ktx`/`stb`/`meta_render`; `imgui` becomes its own `SHARED` DLL (`third_party/CMakeLists.txt`) instead of being compiled into the DLL
+- [x] 4.4 Update `engine/CMakeLists.txt`: drop `$<TARGET_OBJECTS:EngineLibRender>` and `imgui`, link `EngineRender` PUBLIC; move `add_dependencies(Engine shader)` to `EngineRender`; add `$<TARGET_FILE:EngineRender>` to POST_BUILD copy- [x] 4.5 Verify: build + ctest green; `EngineRender.dll` copied to output. **STOP for user review + commit**
 
 ## 5. Framework DLL (final split)
 

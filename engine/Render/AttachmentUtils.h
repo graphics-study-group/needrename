@@ -1,6 +1,7 @@
 #ifndef ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
 #define ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
 
+#include "Render/render_export.h"
 #include <cstdint>
 #include <variant>
 
@@ -34,12 +35,12 @@ namespace Engine {
         };
 
         /// @brief Clear value for color aspects.
-        struct ColorClearValue {
+        struct RENDER_API ColorClearValue {
             float r{0.0f}, g{0.0f}, b{0.0f}, a{1.0f};
         };
 
         /// @brief Clear value for depth-stencil aspects.
-        struct DepthClearValue {
+        struct RENDER_API DepthClearValue {
             float depth{1.0f};
             uint32_t stencil{0U};
         };
@@ -49,7 +50,7 @@ namespace Engine {
         /**
          * @brief Description of an attachment during rendering.
          */
-        struct AttachmentDescription {
+        struct RENDER_API AttachmentDescription {
             /// @brief Which RTT to be written to.
             RenderTargetTexture *texture{nullptr};
             /// @brief What subresources are used by the rendering pass.

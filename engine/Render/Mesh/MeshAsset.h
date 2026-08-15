@@ -2,6 +2,7 @@
 #define ASSET_MESH_MESHASSET
 
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/render_export.h"
 
 #include <AnnoRefl/macros.h>
 #include <Asset/Asset.h>
@@ -17,7 +18,7 @@ namespace Engine {
      * It can have multiple submeshes. Each submesh has a dedicated binary
      * buffer that contains all vertex information.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset {
         REFL_SER_BODY_OVERRIDE(MeshAsset)
 
     public:

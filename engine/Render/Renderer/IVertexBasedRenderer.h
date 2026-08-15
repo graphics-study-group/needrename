@@ -1,6 +1,7 @@
 #ifndef RENDER_RENDERER_IVERTEXBASEDRENDERER_INCLUDED
 #define RENDER_RENDERER_IVERTEXBASEDRENDERER_INCLUDED
 
+#include "Render/render_export.h"
 #include <cstdint>
 #include <vector>
 
@@ -15,10 +16,10 @@ namespace Engine {
      *
      * Supplies necessary interfaces for vertex based draw calls.
      */
-    class IVertexBasedRenderer {
+    class RENDER_API IVertexBasedRenderer {
     public:
         /// @brief How this vertex renderer is bound to vertex buffers
-        struct BufferBindingInfo {
+        struct RENDER_API BufferBindingInfo {
             /// Buffer object pointer
             const Rhi::DeviceBuffer *buffer;
             /// Offset into the buffer

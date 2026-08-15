@@ -1,6 +1,7 @@
 #ifndef RENDER_RENDERER_VERTEXATTRIBUTE_INCLUDED
 #define RENDER_RENDERER_VERTEXATTRIBUTE_INCLUDED
 
+#include "Render/render_export.h"
 #include <cstdint>
 #include <vector>
 
@@ -23,7 +24,7 @@ namespace Engine {
      * Types of vertex attributes are packed and stored in order as a
      * bitset, with each contingous 8 bits representing a semantic.
      */
-    struct VertexAttribute {
+    struct RENDER_API VertexAttribute {
 
         /**
          * @brief Type of the vertex attribute.

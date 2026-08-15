@@ -1,6 +1,7 @@
 #ifndef ENGINE_ASSET_SHADER_SHADERCOMPILER_H
 #define ENGINE_ASSET_SHADER_SHADERCOMPILER_H
 
+#include "Render/render_export.h"
 #include "ShaderIncluder.h"
 #include <cstdint>
 #include <filesystem>
@@ -11,7 +12,7 @@
 
 namespace Engine {
 
-    class ShaderCompiler {
+    class RENDER_API ShaderCompiler {
     public:
         ShaderCompiler(const std::filesystem::path &project_assets_path = {});
         ~ShaderCompiler();

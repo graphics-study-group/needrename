@@ -2,6 +2,7 @@
 #define RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
 
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/render_export.h"
 #include "Rhi/Texture/ImageUtils.h"
 
 namespace Engine {
@@ -12,7 +13,7 @@ namespace Engine {
      *
      * Mainly includes mesh vertex attributes.
      */
-    struct PipelineRuntimeInfoPerDraw {
+    struct RENDER_API PipelineRuntimeInfoPerDraw {
 
         /// @brief Vertex attribute expectation of the draw call.
         VertexAttribute va;
@@ -20,7 +21,7 @@ namespace Engine {
         bool operator==(const PipelineRuntimeInfoPerDraw &) const noexcept = default;
     };
 
-    struct PipelineRuntimeInfoPerRenderingHeader {
+    struct RENDER_API PipelineRuntimeInfoPerRenderingHeader {
         /**
          * How many samples are used for multisampling?
          * 0 and 1 are equivalent and always accepted.
@@ -44,7 +45,7 @@ namespace Engine {
      *
      * Mainly includes attachment information and multisample counts.
      */
-    struct PipelineRuntimeInfoPerRendering : PipelineRuntimeInfoPerRenderingHeader {
+    struct RENDER_API PipelineRuntimeInfoPerRendering : PipelineRuntimeInfoPerRenderingHeader {
         /**
          *
          * Color attachment format, terminated by UNDEFINED.
@@ -72,7 +73,7 @@ namespace Engine {
     /**
      * @brief Runtime information necessary to build a graphics pipeline.
      */
-    struct PipelineRuntimeInfo : PipelineRuntimeInfoPerDraw, PipelineRuntimeInfoPerRendering {
+    struct RENDER_API PipelineRuntimeInfo : PipelineRuntimeInfoPerDraw, PipelineRuntimeInfoPerRendering {
         bool operator==(const PipelineRuntimeInfo &) const noexcept = default;
     };
     static_assert(std::is_aggregate_v<PipelineRuntimeInfo>, "PipelineRuntimeInfo is not an aggregate.");

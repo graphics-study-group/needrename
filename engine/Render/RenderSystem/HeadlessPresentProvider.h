@@ -2,6 +2,7 @@
 #define RENDER_RENDERSYSTEM_HEADLESSPRESENTPROVIDER_INCLUDED
 
 #include "IPresentProvider.h"
+#include "Render/render_export.h"
 #include <memory>
 
 namespace Engine {
@@ -10,7 +11,7 @@ namespace Engine {
     }
     namespace RenderSystemState {
 
-        class HeadlessPresentProvider : public IPresentProvider {
+        class RENDER_API HeadlessPresentProvider : public IPresentProvider {
             struct impl;
             std::unique_ptr<impl> pimpl;
 

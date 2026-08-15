@@ -2,6 +2,7 @@
 #define RENDER_RESOURCE_IRENDERRESOURCEPROVIDER_INCLUDED
 
 #include "Core/guid.h"
+#include "Render/render_export.h"
 #include "RenderResourceHandle.h"
 
 #include <cstdint>

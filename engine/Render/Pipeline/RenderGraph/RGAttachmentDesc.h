@@ -2,6 +2,7 @@
 #define PIPELINE_RENDERGRAPH_RGATTACHMENTDESC
 
 #include "Render/AttachmentUtils.h"
+#include "Render/render_export.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
 
 namespace Engine {
@@ -18,7 +19,7 @@ namespace Engine {
      * @see `Engine::AttachmentUtils::AttachmentDescription`
      */
     template <class T>
-    struct RGAttachmentDescTemplate {
+    struct RENDER_API RGAttachmentDescTemplate {
         /// Load operation of the attachment.
         using LoadOp = AttachmentUtils::LoadOperation;
         /// Store operation of the attachment.

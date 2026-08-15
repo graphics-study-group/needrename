@@ -1,6 +1,7 @@
 #ifndef ASSET_MATERIAL_MATERIALLIBRARYASSET_INCLUDED
 #define ASSET_MATERIAL_MATERIALLIBRARYASSET_INCLUDED
 
+#include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <AnnoRefl/serialization_unordered_map.h>
@@ -17,10 +18,10 @@ namespace Engine {
      * (i.e. pipelines) that can be dispatched by tags and the type
      * of the mesh to be drawn.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) MaterialLibraryAsset : public Asset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) MaterialLibraryAsset : public Asset {
         REFL_SER_BODY_OVERRIDE(MaterialLibraryAsset)
     public:
-        struct REFL_SER_CLASS(REFL_BLACKLIST) MaterialTemplateReference {
+        struct RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) MaterialTemplateReference {
             REFL_SER_SIMPLE_STRUCT(MaterialTemplateReference)
             /// Expected mesh type of this template
             /// @deprecated now determined at runtime and is unused.

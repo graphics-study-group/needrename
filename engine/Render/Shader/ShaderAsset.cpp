@@ -123,8 +123,7 @@ namespace Engine {
             auto *fs_db = dynamic_cast<FileSystemDatabase *>(asset_db);
             if (!fs_db) {
                 SDL_LogError(
-                    SDL_LOG_CATEGORY_APPLICATION,
-                    "Cannot compile shader: asset database is not a FileSystemDatabase."
+                    SDL_LOG_CATEGORY_APPLICATION, "Cannot compile shader: asset database is not a FileSystemDatabase."
                 );
                 return false;
             }

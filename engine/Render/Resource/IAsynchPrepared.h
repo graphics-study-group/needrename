@@ -18,7 +18,7 @@ namespace Engine {
      * - `IsReady`: report whether the resource is currently usable by render passes.
      * - `Remove`: release GPU-side allocations and reset internal prepared state.
      */
-    class IAsynchPrepared {
+    class RENDER_API IAsynchPrepared {
     public:
         IAsynchPrepared() noexcept = default;
         virtual ~IAsynchPrepared() noexcept = default;

@@ -215,14 +215,10 @@ namespace Engine::detail {
         MaterialBuildOutput output{};
         std::unordered_map<std::string, AssetRef> texture_refs_by_image;
 
-        const AssetRef default_pbr_albedo =
-            db.GetNewAssetRef(AssetPath("builtin://textures/dark_grey.asset"));
-        const AssetRef default_pbr_mrao =
-            db.GetNewAssetRef(AssetPath("builtin://textures/white.asset"));
-        const AssetRef default_pbr_normal =
-            db.GetNewAssetRef(AssetPath("builtin://textures/default_normal.asset"));
-        const AssetRef default_pbr_emissive =
-            db.GetNewAssetRef(AssetPath("builtin://textures/white.asset"));
+        const AssetRef default_pbr_albedo = db.GetNewAssetRef(AssetPath("builtin://textures/dark_grey.asset"));
+        const AssetRef default_pbr_mrao = db.GetNewAssetRef(AssetPath("builtin://textures/white.asset"));
+        const AssetRef default_pbr_normal = db.GetNewAssetRef(AssetPath("builtin://textures/default_normal.asset"));
+        const AssetRef default_pbr_emissive = db.GetNewAssetRef(AssetPath("builtin://textures/white.asset"));
 
         // Lambda: create a solid-color texture fallback from baseColorFactor when albedo map is missing.
         auto create_solid_color_texture = [&](const glm::vec4 &color, const std::string &name_suffix) -> AssetRef {
@@ -235,8 +231,7 @@ namespace Engine::detail {
 
         auto *default_material = am.CreateAsset<MaterialAsset>();
         default_material->m_name = import_shared::MakeUniqueAssetName(model_name + "_default_pbr", name_counters);
-        default_material->m_library =
-            db.GetNewAssetRef(AssetPath("builtin://material_libraries/PBRLibrary.asset"));
+        default_material->m_library = db.GetNewAssetRef(AssetPath("builtin://material_libraries/PBRLibrary.asset"));
         default_material->m_properties["albedoSampler"] =
             MaterialProperty(default_pbr_albedo, MaterialProperty::Type::Texture);
         default_material->m_properties["MRAOSampler"] =
@@ -349,8 +344,7 @@ namespace Engine::detail {
             const std::string base_name =
                 source_material.name.empty() ? fallback_name : std::string(source_material.name);
             material_asset->m_name = import_shared::MakeUniqueAssetName(base_name, name_counters);
-            material_asset->m_library =
-                db.GetNewAssetRef(AssetPath("builtin://material_libraries/PBRLibrary.asset"));
+            material_asset->m_library = db.GetNewAssetRef(AssetPath("builtin://material_libraries/PBRLibrary.asset"));
 
             const glm::vec4 base_color_factor = glm::vec4{
                 source_material.pbrData.baseColorFactor.x(),

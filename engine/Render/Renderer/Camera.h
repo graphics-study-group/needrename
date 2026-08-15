@@ -1,13 +1,14 @@
 #ifndef RENDER_RENDERER_CAMERA_INCLUDED
 #define RENDER_RENDERER_CAMERA_INCLUDED
 
+#include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
 #include <glm.hpp>
 
 namespace Engine {
     class Transform;
 
-    class REFL_SER_CLASS(REFL_BLACKLIST) Camera {
+    class RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) Camera {
         REFL_SER_BODY(Camera)
     public:
         Camera();

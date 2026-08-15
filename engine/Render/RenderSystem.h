@@ -1,6 +1,7 @@
 #ifndef RENDER_RENDERSYSTEM
 #define RENDER_RENDERSYSTEM
 
+#include "Render/render_export.h"
 #include <glm.hpp>
 #include <memory>
 #include <tuple>
@@ -51,7 +52,7 @@ namespace Engine {
     /**
      * @brief Main locator for the rendering system services.
      */
-    class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
+    class RENDER_API RenderSystem : public std::enable_shared_from_this<RenderSystem> {
     private:
         class impl;
         std::unique_ptr<impl> pimpl;

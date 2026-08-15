@@ -1,6 +1,7 @@
 #ifndef ENGINE_ASSET_SHADER_SHADERINCLUDER_H
 #define ENGINE_ASSET_SHADER_SHADERINCLUDER_H
 
+#include "Render/render_export.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -15,7 +16,7 @@ namespace Engine {
     // through the stack of active include paths (for nested includes).
     // Can be overridden to customize.
     // reference: glslang/StandAlone/DirStackFileIncluder.h
-    class DirStackFileIncluder : public glslang::TShader::Includer {
+    class RENDER_API DirStackFileIncluder : public glslang::TShader::Includer {
     public:
         DirStackFileIncluder();
 

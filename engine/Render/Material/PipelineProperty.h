@@ -1,6 +1,7 @@
 #ifndef ASSET_MATERIAL_PIPELINEPROPERTY
 #define ASSET_MATERIAL_PIPELINEPROPERTY
 
+#include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <AnnoRefl/serialization_unordered_map.h>
@@ -16,7 +17,7 @@ namespace Engine {
     namespace PipelineProperties {
         /// Rasterizer configuration of the pipeline
         /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRasterizationStateCreateInfo.html
-        struct REFL_SER_CLASS(REFL_BLACKLIST) RasterizerProperties {
+        struct RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) RasterizerProperties {
             REFL_SER_SIMPLE_STRUCT(RasterizerProperties)
 
             /// Filling mode of the rasterizer
@@ -58,7 +59,7 @@ namespace Engine {
         };
 
         /// @brief Stencil test state of a pipeline
-        struct REFL_SER_CLASS(REFL_BLACKLIST) StencilState {
+        struct RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) StencilState {
             REFL_SER_SIMPLE_STRUCT(StencilState)
 
             /// @brief Stencil operation that can be used.
@@ -87,7 +88,7 @@ namespace Engine {
 
         /// Depth stencil configuration of the pipeline
         /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineDepthStencilStateCreateInfo.html
-        struct REFL_SER_CLASS(REFL_BLACKLIST) DSProperties {
+        struct RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) DSProperties {
             REFL_SER_SIMPLE_STRUCT(DSProperties)
 
             /// @brief Comparator that can be used.
@@ -119,7 +120,7 @@ namespace Engine {
 
         /// @brief Shaders used by the pipeline
         /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineShaderStageCreateInfo.html
-        struct REFL_SER_CLASS(REFL_BLACKLIST) Shaders {
+        struct RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) Shaders {
             REFL_SER_SIMPLE_STRUCT(Shaders)
 
             /// @brief A vector of all shader programs used in the pipeline
@@ -134,7 +135,7 @@ namespace Engine {
 
         /// @brief Color blending operation of the color attachments
         /// @see https://registry.khronos.org/vulkan/specs/latest/man/html/VkPipelineColorBlendAttachmentState.html
-        struct REFL_SER_CLASS(REFL_BLACKLIST) ColorBlendingProperties {
+        struct RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) ColorBlendingProperties {
             REFL_SER_SIMPLE_STRUCT(ColorBlendingProperties)
 
             /// Blending operation.
@@ -197,7 +198,7 @@ namespace Engine {
 
         /// @brief Attachment information for the pipeline.
         /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRenderingCreateInfo.html
-        struct REFL_SER_CLASS(REFL_BLACKLIST) Attachments {
+        struct RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) Attachments {
             REFL_SER_SIMPLE_STRUCT(Attachments)
 
             /// @brief Color attachments. If they and depth attachment are all left empty,
@@ -229,7 +230,7 @@ namespace Engine {
          *
          * @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineMultisampleStateCreateInfo.html
          */
-        struct REFL_SER_CLASS(REFL_BLACKLIST) Multisampling {
+        struct RENDER_API REFL_SER_CLASS(REFL_BLACKLIST) Multisampling {
             REFL_SER_SIMPLE_STRUCT(Multisampling)
             /**
              * @brief Enable alpha-to-coverage technique for multisampling.

@@ -1,11 +1,13 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
-#include <functional>
+#include "Render/render_export.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
+
 // May be safe to include here as this header is not included in other headers.
 #include <vulkan/vulkan.hpp>
 
-#include "Rhi/Device/MemoryAccessTypes.h"
+#include <functional>
 
 namespace Engine {
     namespace Rhi {
@@ -22,7 +24,7 @@ namespace Engine {
         class FrameSemaphore;
 
         /// @brief Multiple frame in flight manager
-        class FrameManager final {
+        class RENDER_API FrameManager final {
         public:
             /**
              * @brief Expected frames-in-flight of the current application.

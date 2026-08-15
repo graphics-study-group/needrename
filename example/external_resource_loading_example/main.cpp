@@ -76,8 +76,7 @@ int main(int argc, char **argv) {
     auto &main_scene = cmc->GetWorldSystem()->GetMainSceneRef();
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
     AssetPath prefab_path(
-        AssetPath::k_scheme_res,
-        (path_in_project / ("GO_" + mesh_path.stem().string() + ".asset")).generic_string()
+        AssetPath::k_scheme_res, (path_in_project / ("GO_" + mesh_path.stem().string() + ".asset")).generic_string()
     );
     auto prefab_ref = adb->GetNewAssetRef(prefab_path);
     prefab_ref.as<SceneAsset>()->AddToScene(main_scene);

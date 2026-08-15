@@ -2,6 +2,7 @@
 #define ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
 
 #include "Render/Texture/TextureAsset.h"
+#include "Render/render_export.h"
 #include <Rhi/Texture/ImageTexture.h>
 #include <Rhi/Texture/ImageUtils.h>
 
@@ -20,7 +21,7 @@ namespace Engine {
     /**
      * @brief An asset for a cubemap
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) ImageCubemapAsset : public TextureAsset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) ImageCubemapAsset : public TextureAsset {
         REFL_SER_BODY_OVERRIDE(ImageCubemapAsset)
     public:
         REFL_ENABLE ImageCubemapAsset();

@@ -3,6 +3,7 @@
 
 #include "IVertexBasedRenderer.h"
 #include "Render/Resource/StaticMeshResource.h"
+#include "Render/render_export.h"
 
 #include <memory>
 
@@ -13,7 +14,7 @@ namespace Engine {
      * GPU data ownership stays in StaticMeshResource. This class only selects
      * one submesh from that shared resource for draw submission.
      */
-    class StaticHomogeneousMesh : public IVertexBasedRenderer {
+    class RENDER_API StaticHomogeneousMesh : public IVertexBasedRenderer {
     public:
         using StaticHMeshSharedDataBlock = StaticMeshResource::StaticHMeshSharedDataBlock;
 

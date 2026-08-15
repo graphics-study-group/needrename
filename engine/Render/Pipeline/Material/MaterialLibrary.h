@@ -1,6 +1,7 @@
 #ifndef PIPELINE_MATERIAL_MATERIALLIBRARY_INCLUDED
 #define PIPELINE_MATERIAL_MATERIALLIBRARY_INCLUDED
 
+#include "Render/render_export.h"
 #include <memory>
 
 #include "Asset/InstantiatedFromAsset.h"
@@ -24,7 +25,7 @@ namespace Engine {
      * of renders to their corresponding pipeline based on the tag
      * and other runtime configurations such as vertex attributes.
      */
-    class MaterialLibrary : public IInstantiatedFromAsset<MaterialLibraryAsset> {
+    class RENDER_API MaterialLibrary : public IInstantiatedFromAsset<MaterialLibraryAsset> {
         RenderSystem &m_system;
         struct impl;
         std::unique_ptr<impl> pimpl;

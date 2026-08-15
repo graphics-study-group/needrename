@@ -4,6 +4,7 @@
 #include "Asset/AssetRef.h"
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/IAsynchPrepared.h"
+#include "Render/render_export.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
 
 #include <memory>
@@ -22,10 +23,10 @@ namespace Engine {
      * One StaticMeshResource owns the prepared data for all submeshes of a mesh
      * asset. Individual submesh renderers read from this resource at draw time.
      */
-    class StaticMeshResource : public IAsynchPrepared {
+    class RENDER_API StaticMeshResource : public IAsynchPrepared {
     public:
-        struct StaticHMeshSharedDataBlock {
-            struct PerSubmeshData {
+        struct RENDER_API StaticHMeshSharedDataBlock {
+            struct RENDER_API PerSubmeshData {
                 VertexAttribute attributes{};
                 uint32_t vertex_attribute_count{0};
                 uint32_t index_count{0};

@@ -1,20 +1,25 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
 file(GLOB_RECURSE HEADER_PRIVATE "./*.hpp")
 
-add_library(EngineLibRender
-    OBJECT
-    ${SOURCE}
-)
-target_link_libraries(EngineLibRender 
-    PRIVATE 
-    EngineLibHeaderInterface
-    EngineLibExternalDependency
-)
-target_link_libraries(EngineLibRender
+add_library(EngineRender SHARED ${SOURCE})
+target_compile_definitions(EngineRender PRIVATE RENDER_DLL_EXPORTS)
+target_link_libraries(EngineRender
     PUBLIC
+    EngineLibHeaderInterface
+    AnnoRefl
+    EngineDepGlm
+    PRIVATE
+    EngineAssetCore
+    EngineRhi
+    EngineCore
+    EngineDepVulkan
+    EngineDepSdl
+    EngineDepImgui
+    glslang
     ktx
+    stb
 )
-target_precompile_headers(EngineLibRender PRIVATE "FullRenderSystem.h")
+target_precompile_headers(EngineRender PRIVATE "FullRenderSystem.h")
 
 # Reflection: per-DLL registration for Render types.
 file(GLOB_RECURSE RENDER_HEADERS "./*.h")
@@ -32,5 +37,6 @@ add_reflection_parser(
     reflection_search_include_dirs "${render_include_dirs}"
     parent_projects meta_core_generation meta_rhi_generation meta_asset_core_generation
 )
-add_dependencies(EngineLibRender meta_render)
-target_link_libraries(EngineLibRender PRIVATE meta_render)
+add_dependencies(EngineRender meta_render)
+target_link_libraries(EngineRender PRIVATE meta_render)
+add_dependencies(EngineRender shader)

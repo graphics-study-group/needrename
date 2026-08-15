@@ -1,6 +1,7 @@
 #ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS_INCLUDED
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS_INCLUDED
 
+#include "Render/render_export.h"
 #include <functional>
 #include <unordered_map>
 
@@ -28,7 +29,7 @@ namespace Engine {
      * @see `Engine::RenderGraphPassBuilder`
      * The builder should be used instead of manually constructing this struct.
      */
-    struct RenderGraphPass {
+    struct RENDER_API RenderGraphPass {
         // Metadata
         std::string name{};
         /// If a render graph has side effects, it will never be culled from
@@ -51,7 +52,7 @@ namespace Engine {
     /**
      * @brief Helper for building a pass of the render graph.
      */
-    class RenderGraphPassBuilder {
+    class RENDER_API RenderGraphPassBuilder {
         RenderSystem &system;
         RenderGraphPass pass{};
 

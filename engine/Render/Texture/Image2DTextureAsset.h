@@ -1,6 +1,7 @@
 #ifndef ASSET_TEXTURE_IMAGE2DTEXTUREASSET_INCLUDED
 #define ASSET_TEXTURE_IMAGE2DTEXTUREASSET_INCLUDED
 
+#include "Render/render_export.h"
 #include "TextureAsset.h"
 #include <Rhi/Texture/ImageTexture.h>
 #include <Rhi/Texture/ImageUtils.h>
@@ -20,7 +21,7 @@ namespace Engine {
     /**
      * @brief An asset for a 2D texture.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset {
         REFL_SER_BODY_OVERRIDE(Image2DTextureAsset)
     public:
         REFL_ENABLE Image2DTextureAsset();

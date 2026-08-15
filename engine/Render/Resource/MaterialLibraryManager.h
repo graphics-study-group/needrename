@@ -2,6 +2,7 @@
 #define RENDER_RESOURCE_MATERIALLIBRARYPROVIDER_INCLUDED
 
 #include "IRenderResourceManager.h"
+#include "Render/render_export.h"
 
 namespace Engine {
     class MaterialLibrary;
@@ -31,7 +32,7 @@ namespace Engine::RenderSystemState {
      *   reference the same MaterialLibrary (deduplication via CreateOrReuseFromAsset).
      * - MaterialInstance holds a handle to MaterialLibrary to ensure it stays alive.
      */
-    class MaterialLibraryManager final : public IRenderResourceManager<MaterialLibrary> {
+    class RENDER_API MaterialLibraryManager final : public IRenderResourceManager<MaterialLibrary> {
     public:
         using IRenderResourceManager<MaterialLibrary>::IRenderResourceManager;
 

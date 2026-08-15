@@ -1,6 +1,7 @@
 #ifndef RENDER_MEMORY_RENDERTARGETTEXTURE
 #define RENDER_MEMORY_RENDERTARGETTEXTURE
 
+#include "Render/render_export.h"
 #include "Rhi/Texture/Texture.h"
 
 #include <string>
@@ -13,11 +14,11 @@ namespace Engine {
     namespace Rhi {
         class DeviceContext;
     }
-    class RenderTargetTexture : public Rhi::Texture {
+    class RENDER_API RenderTargetTexture : public Rhi::Texture {
     public:
         /// @brief Description of a render target texture.
         /// @see `Engine::Rhi::TextureDesc`
-        struct RenderTargetTextureDesc {
+        struct RENDER_API RenderTargetTextureDesc {
 
 #define COPY_ENUM_VALUE(x) x = (int)Rhi::ImageFormat::x
             /**

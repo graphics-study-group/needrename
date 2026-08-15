@@ -1,6 +1,7 @@
 #ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPH2
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPH2
 
+#include "Render/render_export.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace vk {
@@ -23,7 +24,7 @@ namespace Engine {
      * It holds ownerships of transient render target textures, and compiles
      * image barriers accordingly.
      */
-    class RenderGraph {
+    class RENDER_API RenderGraph {
         struct impl;
         std::unique_ptr<impl> pimpl;
 

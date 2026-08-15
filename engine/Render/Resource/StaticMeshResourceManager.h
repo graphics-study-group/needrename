@@ -2,6 +2,7 @@
 #define RENDER_RESOURCE_STATICMESHRESOURCEPROVIDER_INCLUDED
 
 #include "IRenderResourceManager.h"
+#include "Render/render_export.h"
 
 namespace Engine {
     class StaticMeshResource;
@@ -41,7 +42,7 @@ namespace Engine::RenderSystemState {
      * - Deferred submission reduces startup cost when creating many meshes but only
      *   using some.
      */
-    class StaticMeshResourceManager final : public IRenderResourceManager<StaticMeshResource> {
+    class RENDER_API StaticMeshResourceManager final : public IRenderResourceManager<StaticMeshResource> {
     public:
         using IRenderResourceManager<StaticMeshResource>::IRenderResourceManager;
 

@@ -2,6 +2,7 @@
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPHBUILDER2
 
 #include "Render/Memory/RenderTargetTexture.h"
+#include "Render/render_export.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace Engine {
@@ -13,7 +14,7 @@ namespace Engine {
     class RenderSystem;
     struct RRTTHandle;
 
-    class RenderGraphBuilder {
+    class RENDER_API RenderGraphBuilder {
         struct impl;
         RenderSystem &system;
         std::unique_ptr<impl> pimpl;

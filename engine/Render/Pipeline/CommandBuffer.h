@@ -3,6 +3,7 @@
 
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/RendererManager.h"
+#include "Render/render_export.h"
 
 #include <optional>
 #include <vulkan/vulkan.hpp>
@@ -41,7 +42,7 @@ namespace Engine {
      * The command buffer lifecycle (begin/end) is managed by RenderGraph,
      * not by this class.
      */
-    class CommandBuffer {
+    class RENDER_API CommandBuffer {
     public:
         /**
          * @brief A sub-region of a texture, used for specifying source and
@@ -50,7 +51,7 @@ namespace Engine {
          * @note The coordinates (x0,y0,z0) to (x1,y1,z1) define an inclusive
          * region in 3D pixel space. Asserted that x0 < x1, y0 < y1, z0 < z1.
          */
-        struct TextureArea {
+        struct RENDER_API TextureArea {
             uint32_t mip_level;         ///< Mip level to operate on.
             uint32_t array_layer_base;  ///< First array layer.
             uint32_t array_layer_count; ///< Number of array layers.

@@ -1,6 +1,7 @@
 #ifndef ASSET_MATERIAL_SHADERASSET_INCLUDED
 #define ASSET_MATERIAL_SHADERASSET_INCLUDED
 
+#include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
 #include <Asset/Asset.h>
 #include <string>
@@ -10,7 +11,7 @@ namespace Engine {
     /**
      * @brief An asset that refers to a shader.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) ShaderAsset : public Asset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) ShaderAsset : public Asset {
         REFL_SER_BODY_OVERRIDE(ShaderAsset)
     public:
         REFL_ENABLE ShaderAsset() = default;

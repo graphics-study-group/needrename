@@ -1,6 +1,7 @@
 #ifndef RENDER_RENDERSYSTEM_IPRESENTPROVIDER_INCLUDED
 #define RENDER_RENDERSYSTEM_IPRESENTPROVIDER_INCLUDED
 
+#include "Render/render_export.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 #include <vulkan/vulkan.hpp>
@@ -23,7 +24,7 @@ namespace Engine {
      * lends it, the provider consumes it, meaning "present must wait until
      * this frame (including the copy) has completed".
      */
-    class IPresentProvider {
+    class RENDER_API IPresentProvider {
     public:
         virtual ~IPresentProvider() = default;
 

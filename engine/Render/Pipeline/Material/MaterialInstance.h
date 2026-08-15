@@ -4,6 +4,7 @@
 #include "Asset/InstantiatedFromAsset.h"
 #include "MaterialTemplate.h"
 #include "Render/Resource/RenderResourceHandle.h"
+#include "Render/render_export.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
 
 #include <any>
@@ -34,7 +35,7 @@ namespace Engine {
      *
      * It holds a pointer to the material library to facilitate draw calls.
      */
-    class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
+    class RENDER_API MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     protected:
         RenderSystem &m_system;
         RenderSystemState::MaterialLibraryHandle m_library;

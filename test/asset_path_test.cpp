@@ -70,8 +70,10 @@ int main() {
         db.RegisterScheme(AssetPath::k_scheme_builtin, nested_builtin, false);
 
         // ToAbsolutePath resolves per scheme.
-        assert(db.ToAbsolutePath(AssetPath("res://meshes/cube.asset")).generic_string()
-               == (res_dir / "meshes/cube.asset").generic_string());
+        assert(
+            db.ToAbsolutePath(AssetPath("res://meshes/cube.asset")).generic_string()
+            == (res_dir / "meshes/cube.asset").generic_string()
+        );
 
         // Unmounted scheme throws.
         bool threw = false;
@@ -93,8 +95,10 @@ int main() {
 
         // Custom scheme registration.
         db.RegisterScheme(AssetPath::k_scheme_usr, res_dir / "usr", true);
-        assert(db.ToAbsolutePath(AssetPath("usr://settings.cfg")).generic_string()
-               == (res_dir / "usr/settings.cfg").generic_string());
+        assert(
+            db.ToAbsolutePath(AssetPath("usr://settings.cfg")).generic_string()
+            == (res_dir / "usr/settings.cfg").generic_string()
+        );
 
         std::error_code ec;
         std::filesystem::remove_all(res_dir, ec);

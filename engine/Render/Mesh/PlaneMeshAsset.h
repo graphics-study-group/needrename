@@ -3,6 +3,7 @@
 
 #include "AnnoRefl/macros.h"
 #include "Render/Mesh/MeshAsset.h"
+#include "Render/render_export.h"
 #include <cassert>
 #include <cstring>
 
@@ -12,7 +13,7 @@ namespace Engine {
      *
      * This asset should not be serialized or deserialized.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) PlaneMeshAsset : public MeshAsset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) PlaneMeshAsset : public MeshAsset {
         REFL_SER_BODY_OVERRIDE(PlaneMeshAsset)
         constexpr static std::array<float, 4 * (3 * 3 + 2)> ATTRIBUTE_BUFFERS = {
             // Position

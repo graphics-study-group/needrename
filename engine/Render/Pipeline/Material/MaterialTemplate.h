@@ -1,6 +1,7 @@
 #ifndef PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
 #define PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
 
+#include "Render/render_export.h"
 #include <optional>
 #include <unordered_map>
 #include <variant>
@@ -97,7 +98,7 @@ namespace Engine {
      * 3. For other variables (i.e. opaque types), only combined image samplers
      * are currently supported. Arrays are not supported either.
      */
-    class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
+    class RENDER_API MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
     public:
         using PoolInfo = PipelineInfo::MaterialPoolInfo;
 

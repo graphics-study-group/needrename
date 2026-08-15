@@ -66,9 +66,7 @@ add_subdirectory(Framework)
 
 add_library(Engine SHARED 
     "Framework/MainClass.cpp"
-    $<TARGET_OBJECTS:imgui>
     $<TARGET_OBJECTS:EngineLibFramework>
-    $<TARGET_OBJECTS:EngineLibRender>
 )
 
 # Widely used dependencies such as SDL and Vulkan are marked as public
@@ -80,13 +78,13 @@ target_link_libraries(Engine
     EngineRhi
     EngineAssetCore
     EnginePhysics
+    EngineRender
 )
 
 # Dependencies only used in a small module are marked as private to avoid pollution
 target_link_libraries(Engine 
     PRIVATE
     EngineLibFramework
-    EngineLibRender
 )
 
 # Copy third-party DLLs that are not natively built into the bin directory.
@@ -98,14 +96,13 @@ add_custom_command(TARGET Engine POST_BUILD
     $<TARGET_FILE:EngineCore>
     $<TARGET_FILE:EngineAssetCore>
     $<TARGET_FILE:EnginePhysics>
+    $<TARGET_FILE:EngineRender>
     $<TARGET_FILE_DIR:Engine>
     COMMENT "Copying SDL3, libktx, and engine DLLs to output directory"
 )
 
 # TODO: Use relative paths when install.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
-
-add_dependencies(Engine shader)
 
 # Doxygen support
 find_package(Doxygen)

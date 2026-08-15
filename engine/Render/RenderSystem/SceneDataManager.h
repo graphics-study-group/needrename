@@ -2,6 +2,7 @@
 #define RENDERSYSTEM_SCENEDATAMANAGER
 
 #include "Render/Resource/RenderResourceHandle.h"
+#include "Render/render_export.h"
 
 #include <fwd.hpp>
 #include <memory>
@@ -23,7 +24,7 @@ namespace Engine {
         /**
          * @brief Aggregated manager for scene data, such as lights and skybox.
          */
-        class SceneDataManager {
+        class RENDER_API SceneDataManager {
         public:
             /**
              * @brief Maximal shadow casting lights available to the shader.

@@ -1,13 +1,14 @@
 #ifndef ASSET_TEXTURE_SOLIDCOLORTEXTUREASSET_INCLUDED
 #define ASSET_TEXTURE_SOLIDCOLORTEXTUREASSET_INCLUDED
 
+#include "Render/render_export.h"
 #include "TextureAsset.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
 #include <glm.hpp>
 
 namespace Engine {
-    class REFL_SER_CLASS(REFL_WHITELIST) SolidColorTextureAsset : public TextureAsset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) SolidColorTextureAsset : public TextureAsset {
         REFL_SER_BODY_OVERRIDE(SolidColorTextureAsset)
     public:
         REFL_ENABLE SolidColorTextureAsset() = default;

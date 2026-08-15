@@ -3,6 +3,7 @@
 
 /** THIS FILE IS USED AS INTERFACE ONLY, DO NOT INCLUDE IT IN THE INTERNAL ENGINE LIBRARY. **/
 
+#include "Render/render_export.h"
 #include <vulkan/vulkan.hpp>
 
 #include "Render/AttachmentUtilsFunc.h"

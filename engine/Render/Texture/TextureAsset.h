@@ -1,13 +1,14 @@
 #ifndef ASSET_TEXTURE_TEXTUREASSET_INCLUDED
 #define ASSET_TEXTURE_TEXTUREASSET_INCLUDED
 
+#include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
 #include <Asset/Asset.h>
 #include <string>
 
 namespace Engine {
     /// @brief Base class of all texture assets.
-    class REFL_SER_CLASS(REFL_WHITELIST) TextureAsset : public Asset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) TextureAsset : public Asset {
         REFL_SER_BODY_OVERRIDE(TextureAsset)
     public:
         REFL_ENABLE TextureAsset() = default;

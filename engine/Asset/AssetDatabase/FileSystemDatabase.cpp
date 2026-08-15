@@ -97,9 +97,7 @@ namespace Engine {
         return it != m_mounts.end() && it->second.writable;
     }
 
-    void FileSystemDatabase::RegisterScheme(
-        std::string_view scheme, const std::filesystem::path &root, bool writable
-    ) {
+    void FileSystemDatabase::RegisterScheme(std::string_view scheme, const std::filesystem::path &root, bool writable) {
         m_mounts[std::string(scheme)] = Mount{.root = root, .writable = writable};
     }
 

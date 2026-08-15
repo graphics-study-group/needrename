@@ -1,6 +1,7 @@
 #ifndef ASSET_MATERIAL_MATERIALTEMPLATEASSET_INCLUDED
 #define ASSET_MATERIAL_MATERIALTEMPLATEASSET_INCLUDED
 
+#include "Render/render_export.h"
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <AnnoRefl/serialization_unordered_map.h>
@@ -32,7 +33,7 @@ namespace Engine {
     /// 5th, which is always dynamic and unspecified until rendering;
     /// 7th, which is always determined by attachment samples at runtime;
     /// 10th, which is always fixed to be viewports and scissors.
-    struct REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateSinglePassProperties {
+    struct RENDER_API REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateSinglePassProperties {
         REFL_SER_SIMPLE_STRUCT(MaterialTemplateSinglePassProperties)
 
         REFL_ENABLE MaterialTemplateSinglePassProperties() = default;
@@ -77,7 +78,7 @@ namespace Engine {
      * construct a single Vulkan pipeline. Refer to
      * `MaterialTemplateSinglePassProperties` for more details.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateAsset : public Asset {
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateAsset : public Asset {
         REFL_SER_BODY_OVERRIDE(MaterialTemplateAsset)
     public:
         REFL_ENABLE MaterialTemplateAsset() = default;

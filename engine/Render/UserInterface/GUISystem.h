@@ -1,6 +1,7 @@
 #ifndef ENGINE_GUI_GUISYSTEM_INCLUDED
 #define ENGINE_GUI_GUISYSTEM_INCLUDED
 
+#include "Render/render_export.h"
 #include <SDL3/SDL.h>
 #include <imgui.h>
 #include <memory>
@@ -18,7 +19,7 @@ namespace Engine {
     }
     class CommandBuffer;
 
-    class GUISystem {
+    class RENDER_API GUISystem {
     protected:
         struct impl;
         std::unique_ptr<impl> pimpl;
