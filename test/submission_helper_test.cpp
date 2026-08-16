@@ -126,6 +126,40 @@ int main() {
         destructing_helper.ExecuteSubmission({timeline.get(), 9});
     }
 
+    // Case 9: a partial upload with a non-zero offset writes exactly the
+    // requested region and leaves the rest of the destination untouched.
+    // Uses a host-mapped readback buffer so the result is verifiable on the
+    // CPU without a separate download pass.
+    {
+        constexpr size_t kSize = 64;
+        constexpr size_t kOffset = 32;
+        constexpr size_t kChunk = 16;
+        auto rb = Rhi::DeviceBuffer::CreateUnique(
+            allocator, {Rhi::BufferTypeBits::ReadbackFromDevice}, kSize, "Partial upload readback"
+        );
+        std::byte *mapped = rb->GetVMAddress();
+        for (size_t i = 0; i < kSize; ++i) mapped[i] = std::byte{0x01};
+        rb->Flush();
+
+        std::vector<std::byte> chunk(kChunk, std::byte{0x77});
+        helper.EnqueueBufferSubmission(*rb, chunk, kOffset);
+        helper.ExecuteSubmissionImmediately();
+
+        rb->Invalidate();
+        const std::byte *view = rb->GetVMAddress();
+        bool ok = true;
+        for (size_t i = 0; i < kSize; ++i) {
+            std::byte expected = (i >= kOffset && i < kOffset + kChunk) ? std::byte{0x77} : std::byte{0x01};
+            if (view[i] != expected) {
+                std::cerr << "FAILED: partial upload byte mismatch at " << i << " (got " << std::to_integer<int>(view[i])
+                          << ")" << std::endl;
+                ok = false;
+                break;
+            }
+        }
+        CHECK(ok);
+    }
+
     device.waitIdle();
     if (!g_pass) {
         std::cerr << "Rhi::SubmissionHelper standalone test FAILED." << std::endl;
