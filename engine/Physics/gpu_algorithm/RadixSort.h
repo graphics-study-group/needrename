@@ -4,10 +4,16 @@
 #include <cstdint>
 #include <memory>
 
-namespace Engine {
+namespace vk {
     class CommandBuffer;
-    class ComputeBuffer;
-    class RenderSystem;
+}
+namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief GPU 8-bit LSD radix sort for uvec2 pairs.
@@ -53,7 +59,7 @@ namespace Engine {
          * @param max_elem_count  Maximum number of uvec2 pairs this instance
          *                        will ever sort.  Used for dispatch bounds.
          */
-        explicit RadixSort(RenderSystem &render_system, uint32_t max_elem_count);
+        explicit RadixSort(Rhi::DeviceContext &device_context, uint32_t max_elem_count);
 
         ~RadixSort();
 
@@ -104,12 +110,12 @@ namespace Engine {
          * @throws std::runtime_error if max_shape_count > kMaxShapeCount
          */
         void Record(
-            CommandBuffer &cb,
-            ComputeBuffer &pairs_buf_a,
-            ComputeBuffer &pairs_buf_b,
-            ComputeBuffer &scratch_buf,
+            vk::CommandBuffer cb,
+            Rhi::ComputeBuffer &pairs_buf_a,
+            Rhi::ComputeBuffer &pairs_buf_b,
+            Rhi::ComputeBuffer &scratch_buf,
             uint32_t elem_capacity,
-            ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t max_shape_count
         );
 
@@ -117,16 +123,6 @@ namespace Engine {
 
         /// Get the maximum element count this instance was configured for.
         uint32_t GetMaxElemCount() const noexcept;
-
-        /**
-         * @brief Reset the per-pass parameter buffer pool.
-         *
-         * Frees all allocated parameter buffers so they can be reused in
-         * subsequent Record calls.  This is typically called after a
-         * Record operation completes to ensure fresh allocation for the next
-         * dispatch.
-         */
-        void ResetParamPool();
 
     private:
         struct Impl;

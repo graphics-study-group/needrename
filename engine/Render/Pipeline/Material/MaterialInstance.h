@@ -3,19 +3,22 @@
 
 #include "Asset/InstantiatedFromAsset.h"
 #include "MaterialTemplate.h"
-#include "Render/Memory/DeviceBuffer.h"
 #include "Render/Resource/RenderResourceHandle.h"
+#include "Render/render_export.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
 
 #include <any>
 #include <fwd.hpp>
 
 namespace Engine {
-    class Texture;
-    class DeviceBuffer;
+    namespace Rhi {
+        class DeviceBuffer;
+        class Texture;
+        struct TextureSubresourceRange;
+    } // namespace Rhi
     class MaterialAsset;
     class MaterialLibrary;
     struct VertexAttribute;
-    struct TextureSubresourceRange;
 
     /**
      * @brief A light-weight instance of a given material library.
@@ -32,7 +35,7 @@ namespace Engine {
      *
      * It holds a pointer to the material library to facilitate draw calls.
      */
-    class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
+    class RENDER_API MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     protected:
         RenderSystem &m_system;
         RenderSystemState::MaterialLibraryHandle m_library;
@@ -50,11 +53,13 @@ namespace Engine {
         void AssignVectorVariable(const std::string &name, std::variant<glm::vec4, glm::mat4> value);
         /// @overload void MaterialInstance::AssignTexture()
         /// Defaults to the full subresource range with no swizzling.
-        void AssignTexture(const std::string &name, std::shared_ptr<Texture> texture);
-        /// @brief Assign Texture reference to a variable.
-        void AssignTexture(const std::string &name, std::shared_ptr<Texture> texture, TextureSubresourceRange range);
+        void AssignTexture(const std::string &name, std::shared_ptr<Rhi::Texture> texture);
+        /// @brief Assign Rhi::Texture reference to a variable.
+        void AssignTexture(
+            const std::string &name, std::shared_ptr<Rhi::Texture> texture, Rhi::TextureSubresourceRange range
+        );
         /// @brief Assign buffer reference to a variable.
-        void AssignBuffer(const std::string &name, std::shared_ptr<const DeviceBuffer> buffer);
+        void AssignBuffer(const std::string &name, std::shared_ptr<const Rhi::DeviceBuffer> buffer);
 
         /**
          * @brief Upload current state of this instance to GPU:

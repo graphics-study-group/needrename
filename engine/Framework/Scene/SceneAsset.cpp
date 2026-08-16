@@ -1,0 +1,95 @@
+#include "SceneAsset.h"
+#include <AnnoRefl/Archive.h>
+#include <AnnoRefl/reflection.h>
+#include <AnnoRefl/serialization.h>
+#include <Framework/Component/Component.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Handle.h>
+#include <Framework/World/HandleResolver.h>
+#include <Framework/World/Scene.h>
+#include <unordered_map>
+
+namespace Engine {
+    SceneAsset::~SceneAsset() {
+    }
+
+    void SceneAsset::save_asset_to_archive(AnnoRefl::Archive &archive) const {
+        if (m_archive) {
+            archive.m_context->json = m_archive->m_context->json;
+            archive.m_context->extra_data = m_archive->m_context->extra_data;
+        }
+        archive.m_cursor = &archive.m_context->json["%main_data"];
+        Asset::save_asset_to_archive(archive);
+    }
+    void SceneAsset::load_asset_from_archive(AnnoRefl::Archive &archive) {
+        m_archive = std::make_unique<AnnoRefl::Archive>();
+        m_archive->m_context->json = archive.m_context->json;
+        m_archive->m_context->extra_data = archive.m_context->extra_data;
+        Asset::load_asset_from_archive(archive);
+    }
+
+    void SceneAsset::SaveFromScene(const Scene &scene) {
+        m_archive = std::make_unique<AnnoRefl::Archive>();
+        m_archive->prepare_save();
+        auto &json = *m_archive->m_cursor;
+        json["SceneAsset::objects"] = AnnoRefl::Json::array();
+        for (auto &object : scene.GetGameObjects()) {
+            json["SceneAsset::objects"].push_back(AnnoRefl::Json::object());
+            auto &object_json = json["SceneAsset::objects"].back();
+            AnnoRefl::Archive temp(*m_archive, &object_json);
+            AnnoRefl::serialize(*object, temp);
+        }
+        json["SceneAsset::components"] = AnnoRefl::Json::array();
+        for (auto &component : scene.GetComponents()) {
+            json["SceneAsset::components"].push_back(AnnoRefl::Json::object());
+            auto &component_json = json["SceneAsset::components"].back();
+            AnnoRefl::Archive temp(*m_archive, &component_json);
+            AnnoRefl::serialize(*component, temp);
+        }
+    }
+
+    void SceneAsset::AddToScene(Scene &scene) {
+        if (!m_archive) {
+            return;
+        }
+        m_archive->prepare_load();
+        auto &json = *m_archive->m_cursor;
+        auto &resolver = m_archive->GetOrCreateResolver<HandleResolver>();
+        // Add zero handle
+        resolver.m_obj_map[0] = scene.GetNullObjectHandle();
+        resolver.m_comp_map[0] = scene.GetNullComponentHandle();
+        // Create GO and Comps and setup HandleResolver
+        for (auto &object_json : json["SceneAsset::objects"]) {
+            auto &go = scene.CreateGameObject();
+            resolver.m_obj_map[object_json["GameObject::m_handle"].get<uint32_t>()] = go.GetHandle();
+        }
+        for (auto &component_json : json["SceneAsset::components"]) {
+            auto &parent_go = scene.GetGameObjectRef(
+                resolver.m_obj_map[component_json["Component::m_parentGameObject"].get<uint32_t>()]
+            );
+            auto type = AnnoRefl::GetType(component_json["%type"].get<std::string>());
+            // Transform Component is already created when creating GameObject
+            if (type->GetName() == "Engine::TransformComponent") {
+                resolver.m_comp_map[component_json["Component::m_handle"].get<uint32_t>()] =
+                    parent_go.m_transformComponent;
+            } else {
+                auto &comp = scene.CreateComponent(parent_go, *type);
+                resolver.m_comp_map[component_json["Component::m_handle"].get<uint32_t>()] = comp.GetHandle();
+            }
+        }
+        // Deserialize GO and Comps
+        for (auto &object_json : json["SceneAsset::objects"]) {
+            auto &go = scene.GetGameObjectRef(resolver.m_obj_map[object_json["GameObject::m_handle"].get<uint32_t>()]);
+            AnnoRefl::Archive temp(*m_archive, &object_json);
+            AnnoRefl::deserialize(go, temp);
+        }
+        for (auto &component_json : json["SceneAsset::components"]) {
+            auto &comp =
+                scene.GetComponentRef(resolver.m_comp_map[component_json["Component::m_handle"].get<uint32_t>()]);
+            AnnoRefl::Archive temp(*m_archive, &component_json);
+            AnnoRefl::deserialize(comp, temp);
+        }
+    }
+} // namespace Engine
+
+#include "__generated__/SceneAsset.h.inc"

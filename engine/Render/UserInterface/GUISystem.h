@@ -1,0 +1,122 @@
+#ifndef RENDER_USERINTERFACE_GUISYSTEM_INCLUDED
+#define RENDER_USERINTERFACE_GUISYSTEM_INCLUDED
+
+#include "Render/render_export.h"
+#include <SDL3/SDL.h>
+#include <imgui.h>
+#include <memory>
+
+namespace vk {
+    struct Extent2D;
+    struct CommandBuffer;
+    enum class Format;
+} // namespace vk
+
+namespace Engine {
+    class RenderSystem;
+    namespace AttachmentUtils {
+        struct AttachmentDescription;
+    }
+    class CommandBuffer;
+
+    class RENDER_API GUISystem {
+    protected:
+        struct impl;
+        std::unique_ptr<impl> pimpl;
+
+    public:
+        GUISystem();
+        ~GUISystem();
+
+        GUISystem(const GUISystem &) = delete;
+        GUISystem(GUISystem &&) = delete;
+        void operator=(const GUISystem &) = delete;
+        void operator=(GUISystem &&) = delete;
+
+        /**
+         * @brief Check whether the GUI system will capture mouse events instead
+         * of the main application.
+         *
+         * @retval true If the mouse event should be intercepted by the GUI system
+         */
+        bool WantCaptureMouse() const;
+
+        /**
+         * @brief Check whether the GUI system will capture key events instead
+         * of the main application.
+         *
+         * @retval true If the keyboard event should be intercepted by the GUI system
+         */
+        bool WantCaptureKeyboard() const;
+
+        /**
+         * @brief Let the GUI system process an event.
+         */
+        void ProcessEvent(SDL_Event *event) const;
+
+        /**
+         * @brief Prepare the GUI for state updates and rendering.
+         *
+         * Call this function once before any operations are performed via ImGUI
+         */
+        void PrepareGUI() const;
+
+        /**
+         * @brief Record GUI rendering code on the given command buffer.
+         * This member records a
+         * new render pass on the given command buffer with a single color attachment
+         * specified by the
+         * `color_attachment_format` parameter of `CreateVulkanBackend()` call. If a previously
+         * used
+         * attachment is used again, synchronization barriers must be set up correctly.
+         */
+        void DrawGUI(
+            const AttachmentUtils::AttachmentDescription &attachment, vk::Extent2D extent, CommandBuffer &cb
+        ) const;
+
+        /**
+         * @brief Record GUI rendering code on the given command buffer.
+         *
+         * This method effectively only records draw calls onto the command buffer.
+         */
+        void DrawGUI(vk::CommandBuffer cb) const noexcept;
+
+        /**
+         * @brief Initialize GUISystem.
+         * This method only initalizes ImGUI front-end states. To
+         * actually render anything you need to create
+         * the Vulkan backend by calling `CreateVulkanBackend()`
+         * method with attachment formats.
+         */
+        void Create(SDL_Window *window);
+
+        /**
+         * @brief Update the attachment formats for GUI rendering pipeline
+         * by re-initializing the
+         * ImGUI Vulkan backend.
+         *
+         * @param color_attachment_format Format of the color attachment.
+         * If UNDEFINED will use swapchain format.
+         * @param samples Multisample state. Reserved for future use.
+         */
+        void CreateVulkanBackend(RenderSystem &render_system, vk::Format color_attachment_format, uint8_t samples = 1);
+
+        /**
+         * @brief Get current ImGui context for drawing.
+         *
+         * As the context is not shared across DLL boundaries, you might
+         * have to manually call `ImGui::SetCurrentContext()` before
+         * building a GUI.
+         */
+        ImGuiContext *GetCurrentContext() const;
+
+        /**
+         * @brief Reset the color attachment format.
+         *
+         * This will recreate the rendering pipeline used by the Dear ImGui backend.
+         */
+        void ResetColorAttachmentFormat(vk::Format format, uint8_t samples = 1) noexcept;
+    };
+} // namespace Engine
+
+#endif // RENDER_USERINTERFACE_GUISYSTEM_INCLUDED

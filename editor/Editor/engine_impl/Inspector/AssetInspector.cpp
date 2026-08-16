@@ -4,7 +4,7 @@
 #include <imgui.h>
 
 namespace Editor {
-    void AssetRefInspector::Inspect(const std::string &name, Engine::Reflection::Var var) {
+    void AssetRefInspector::Inspect(const std::string &name, AnnoRefl::Var var) {
         Engine::GUID asset_guid = var.InvokeMethod("GetGUID").Get<Engine::GUID>();
         ImGui::Text("%s: [Asset]%s", name.c_str(), asset_guid.string().c_str());
     }

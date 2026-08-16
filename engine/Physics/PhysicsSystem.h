@@ -7,11 +7,14 @@
 #include <vector>
 
 #include "Solver/ISolver.h"
+#include "physics_export.h"
+
+namespace vk {
+    class CommandBuffer;
+}
 
 namespace Engine {
     class PhysicsScene;
-    class RenderSystem;
-    class CommandBuffer;
 
     /**
      * @brief Physics scene manager at engine-system scope.
@@ -24,7 +27,7 @@ namespace Engine {
      * registration time. The three-phase PreGPUStep / GPUStep / PostGPUStep
      * iterate all scenes and dispatch to each scene's registered solvers.
      */
-    class PhysicsSystem {
+    class PHYSICS_API PhysicsSystem {
     public:
         /**
          * @brief Construct the physics system.
@@ -117,9 +120,9 @@ namespace Engine {
          * Calls GPUStep on each registered solver for every scene.
          * Must be called BETWEEN cb.begin() and cb.end().
          *
-         * @param cb CommandBuffer in Recording state.
+         * @param cb Raw command buffer in Recording state.
          */
-        void GPUStep(CommandBuffer &cb);
+        void GPUStep(vk::CommandBuffer cb);
 
         /**
          * @brief Post-GPU work (readback, cleanup).

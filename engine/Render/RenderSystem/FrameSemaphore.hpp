@@ -8,7 +8,7 @@ namespace Engine::RenderSystemState {
     /**
      * @brief Simple, frame-based wrapper around Vulkan timeline semaphore.
      */
-    class FrameSemaphore {
+    class RENDER_API FrameSemaphore {
         vk::UniqueSemaphore timeline_semaphore{nullptr};
         uint32_t current_frame_expected_timepoints{0};
         uint64_t total_elapsed_timepoints{0};

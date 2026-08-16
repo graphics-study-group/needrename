@@ -1,11 +1,12 @@
 #ifndef RENDER_RENDERSYSTEM
 #define RENDER_RENDERSYSTEM
 
+#include "Render/render_export.h"
 #include <glm.hpp>
 #include <memory>
 #include <tuple>
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -19,23 +20,26 @@ namespace vk {
 } // namespace vk
 
 namespace Engine {
+    namespace Rhi {
+        class AllocatorState;
+        class DeviceContext;
+        class DeviceInterface;
+        class ImmutableResourceCache;
+    } // namespace Rhi
     class SDLWindow;
     class RendererComponent;
     class Camera;
     class CommandBuffer;
     class RenderTargetTexture;
+    class IPresentProvider;
 
     namespace ConstantData {
         struct PerCameraStruct;
     };
 
     namespace RenderSystemState {
-        class DeviceInterface;
-        class Swapchain;
-        class AllocatorState;
         class FrameManager;
         class RendererManager;
-        class ImmutableResourceCache;
         class CameraManager;
         class SceneDataManager;
         class ResizableRTTManager;
@@ -48,7 +52,7 @@ namespace Engine {
     /**
      * @brief Main locator for the rendering system services.
      */
-    class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
+    class RENDER_API RenderSystem : public std::enable_shared_from_this<RenderSystem> {
     private:
         class impl;
         std::unique_ptr<impl> pimpl;
@@ -60,7 +64,7 @@ namespace Engine {
             m_resource_managers{};
 
     public:
-        RenderSystem(std::weak_ptr<SDLWindow> parent_window);
+        RenderSystem(std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context);
 
         RenderSystem(const RenderSystem &) = delete;
         RenderSystem(RenderSystem &&) = delete;
@@ -70,7 +74,7 @@ namespace Engine {
         /**
          * @brief Create the render system and initialize all subsystems.
          *
-         * @see RenderSystemState::DeviceInterface
+         * @see Rhi::DeviceInterface
          * for details on how the Vulkan abstraction layer is initialized.
          */
         void Create();
@@ -100,35 +104,19 @@ namespace Engine {
         /**
          * @brief Complete the rendering of the current frame.
          *
-         * Blits the present_texture to the swapchain image that is currently
-         * allocated for the frame (via `FrameManager::GetFramebuffer()`).
-         * This is the only time in a frame that the swapchain image is written
-         * to.
+         * Ends the main command buffer, records the copy command buffer via
+         * `IPresentProvider::PrepareCopy`, submits ONE batch containing the
+         * main render CB and the copy CB, then presents (see
+         * `FrameManager::SubmitFrame`). This is the only time in a frame that
+         * the swapchain image is written to.
          *
          * This method also does resource (i.e. swapchain) recreation if necessary.
-         * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
-         * then you must make sure that these resources are recreated correctly yourself.
+         *
+         * @param present_texture Final render target to present.
+         * @param last_access Access mode of `present_texture` in its last pass
+         *                    (used to derive the copy source barrier).
          */
-        void CompleteFrame(
-            const RenderTargetTexture &present_texture,
-            MemoryAccessTypeImageBits last_access,
-            uint32_t width,
-            uint32_t height,
-            uint32_t offset_x = 0,
-            uint32_t offset_y = 0
-        );
-
-        /**
-         * @brief Complete the rendering of the current frame.
-         * Defaults last_access to color attachment write.
-         */
-        void CompleteFrame(
-            const RenderTargetTexture &present_texture,
-            uint32_t width,
-            uint32_t height,
-            uint32_t offset_x = 0,
-            uint32_t offset_y = 0
-        );
+        void CompleteFrame(const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access);
 
         /**
          * @brief Get a handle to the Vulkan logical device that the current Render
@@ -142,18 +130,20 @@ namespace Engine {
          * @brief Get interfaces to all unique Vulkan low-level objects managed by the
          * system.
          */
-        const RenderSystemState::DeviceInterface &GetDeviceInterface() const;
+        const Rhi::DeviceInterface &GetDeviceInterface() const;
 
         /// @brief Get the allocator service
-        const RenderSystemState::AllocatorState &GetAllocatorState() const;
-        /// @brief Get the swapchain manager
-        const RenderSystemState::Swapchain &GetSwapchain() const;
+        const Rhi::AllocatorState &GetAllocatorState() const;
+        /// @brief Get the device-scoped GPU facilities (device, allocator, resource cache)
+        Rhi::DeviceContext &GetDeviceContext();
+        /// @brief Get the present provider (windowed or headless)
+        IPresentProvider &GetPresentProvider();
         /// @brief Get the frame manager
         RenderSystemState::FrameManager &GetFrameManager();
         /// @brief Get the renderer manager
         RenderSystemState::RendererManager &GetRendererManager();
         /// @brief Get the immutable resource cache
-        RenderSystemState::ImmutableResourceCache &GetIRCache();
+        Rhi::ImmutableResourceCache &GetIRCache();
         /// @brief Get the camera manager
         RenderSystemState::CameraManager &GetCameraManager();
         /// @brief Get the manager for scene data (e.g lightings)

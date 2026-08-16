@@ -6,7 +6,7 @@
 // Bindings:
 //   binding 0: readonly source vec4[]
 //   binding 1: writeonly destination vec4[]
-//   binding 2: readonly buffer containing element count (uint)
+// Element count is passed via push constants at record time.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -18,13 +18,15 @@ layout(set = 0, binding = 1) writeonly buffer DstBuffer {
     vec4 v[];
 } dst;
 
-layout(set = 0, binding = 2) readonly buffer ElemCount {
-    uint count;
-} elem_count;
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+
+layout(push_constant) uniform ElemCountPush {
+    uint elem_count;
+} params;
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
-    if (index >= elem_count.count) {
+    if (index >= params.elem_count) {
         return;
     }
     dst.v[index] = src.v[index];

@@ -1,0 +1,89 @@
+#ifndef RENDER_ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
+#define RENDER_ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED
+
+#include "Render/Asset/Texture/TextureAsset.h"
+#include "Render/render_export.h"
+#include <Rhi/Texture/ImageTexture.h>
+#include <Rhi/Texture/ImageUtils.h>
+
+#include "AnnoRefl/macros.h"
+
+#include <memory>
+#include <vector>
+
+struct ktxTexture2;
+
+namespace Engine {
+    namespace detail::texture_import {
+        struct Access;
+    }
+
+    /**
+     * @brief An asset for a cubemap
+     */
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) ImageCubemapAsset : public TextureAsset {
+        REFL_SER_BODY_OVERRIDE(ImageCubemapAsset)
+    public:
+        REFL_ENABLE ImageCubemapAsset();
+        virtual ~ImageCubemapAsset() override;
+
+        /**
+         * @brief Get pixel data of the cubemap.
+         *
+         * @return Data of the cubemap.
+         * Its layout conforms to the Vulkan spec: six layers of 2D images of
+         * the same size, in the order of +X, -X, +Y, -Y, +Z, -Z.
+         */
+        const std::byte *GetPixelData() const;
+        size_t GetPixelDataSize() const;
+
+        /**
+         * @brief Create a cubemap image texture from this asset.
+         *
+         * Width and height are read from the asset. Its format is defaulted
+         * to R8G8B8A8 SRGB. The created texture's content is not uploaded
+         * until submitted.
+         *
+         * @param device_context Device context used to create the texture.
+         * @return The created cubemap image texture.
+         */
+        std::unique_ptr<Rhi::ImageTexture> CreateImageTexture(Rhi::DeviceContext &device_context) const;
+
+        /// @brief Width of each face of the cubemap.
+        REFL_SER_ENABLE int m_width{};
+        /// @brief Height of each face of the cubemap.
+        REFL_SER_ENABLE int m_height{};
+        /// @brief Channel count of each face of the cubemap.
+        REFL_SER_ENABLE int m_channel{};
+
+        /**
+         * @brief Expected memory format of the cubemap.
+         *
+         * This member affects only how the image should be represented on the
+         * GPU memory. It does not reflect its actual format on the desk.
+         */
+        REFL_SER_ENABLE Rhi::ImageFormat m_format{};
+
+        virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const override;
+        virtual void load_asset_from_archive(AnnoRefl::Archive &archive) override;
+
+    protected:
+        friend struct detail::texture_import::Access;
+        /**
+         * @brief Set the decoded pixel data of the cubemap.
+         *
+         * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
+         */
+        void SetDecodedData(int width, int height, int channel, std::vector<std::byte> data, Rhi::ImageFormat format);
+
+    private:
+        ktxTexture2 *m_texture{};
+
+        /**
+         * @brief Reset the texture with a new ktxTexture2 object. The old texture will be destroyed.
+         */
+        void ResetTexture(ktxTexture2 *texture);
+    };
+} // namespace Engine
+
+#endif // RENDER_ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED

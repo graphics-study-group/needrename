@@ -1,12 +1,13 @@
 #include "AssetManager.h"
 
-#include "Asset/Loader/ObjLoader.h"
 #include <Asset/Asset.h>
 #include <Asset/AssetDatabase/AssetDatabase.h>
 #include <Asset/AssetRef.h>
-#include <MainClass.h>
-#include <Reflection/reflection.h>
-#include <Reflection/serialization.h>
+#include <Asset/AssetRuntime.h>
+
+#include <AnnoRefl/reflection.h>
+#include <AnnoRefl/serialization.h>
+
 #include <cassert>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -34,11 +35,11 @@ namespace Engine {
                 continue;
             }
 
-            Serialization::Archive archive;
-            MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, guid);
+            AnnoRefl::Archive archive;
+            GetAssetRuntime().asset_database->LoadArchive(archive, guid);
             archive.prepare_load();
 
-            auto asset_type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
+            auto asset_type = AnnoRefl::GetType(archive.GetMainDataProperty("%type").get<std::string>());
             if (!asset_type || !asset_type->IsReflectable()) {
                 throw std::runtime_error(
                     "Asset type from archive is not reflectable: "
@@ -46,7 +47,7 @@ namespace Engine {
                 );
             }
             // TODO: asset memory management
-            auto var = asset_type->CreateInstance(Serialization::SerializationMarker{});
+            auto var = asset_type->CreateInstance(AnnoRefl::SerializationMarker{});
             auto asset_ptr = std::unique_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
             var.SetNeedFree(false);
             asset_ptr->load_asset_from_archive(archive);
@@ -60,15 +61,15 @@ namespace Engine {
         if (IsAssetLoaded(guid)) {
             return m_loaded_assets[guid].get();
         }
-        Serialization::Archive archive;
-        MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, guid);
-        auto type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
+        AnnoRefl::Archive archive;
+        GetAssetRuntime().asset_database->LoadArchive(archive, guid);
+        auto type = AnnoRefl::GetType(archive.GetMainDataProperty("%type").get<std::string>());
         if (!type || !type->IsReflectable()) {
             throw std::runtime_error(
                 "Asset type from archive is not reflectable: " + archive.GetMainDataProperty("%type").get<std::string>()
             );
         }
-        auto var = type->CreateInstance(Serialization::SerializationMarker{});
+        auto var = type->CreateInstance(AnnoRefl::SerializationMarker{});
         std::unique_ptr<Asset> new_asset = std::unique_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
         var.SetNeedFree(false);
         archive.prepare_load();

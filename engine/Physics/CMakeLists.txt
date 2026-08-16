@@ -1,13 +1,16 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
 
-add_library(EngineLibPhysics
-    OBJECT
-    ${SOURCE}
-)
-target_link_libraries(EngineLibPhysics
-    PRIVATE
+add_library(EnginePhysics SHARED ${SOURCE})
+target_compile_definitions(EnginePhysics PRIVATE PHYSICS_DLL_EXPORTS)
+target_link_libraries(EnginePhysics
+    PUBLIC
     EngineLibHeaderInterface
-    EngineLibExternalDependency
+    AnnoRefl
+    EngineDepGlm
+    PRIVATE
+    EngineRhi
+    EngineDepVulkan
+    EngineDepSdl
 )
 
 # --- Physics shader build pipeline ---
@@ -49,4 +52,21 @@ add_custom_target(physics_shader DEPENDS ${PHYSICS_SPIRV_OUTPUTS})
 set_target_properties(physics_shader PROPERTIES
     ADDITIONAL_CLEAN_FILES "${PHYSICS_SPIRV_OUTPUTS}"
 )
-add_dependencies(EngineLibPhysics physics_shader)
+add_dependencies(EnginePhysics physics_shader)
+
+# --- Reflection: per-DLL registration for Physics types ---
+file(GLOB_RECURSE PHYSICS_HEADERS "./*.h")
+include(${ANROREFL_PARSER_DIR}/parser.cmake)
+filter_files_with_reflection_macros(PHYSICS_HEADERS PHYSICS_REFLECTION_HEADERS)
+
+set(physics_include_dirs)
+get_include_directories_for_target(EnginePhysics physics_include_dirs)
+
+add_reflection_parser(
+    target_name meta_physics
+    reflection_search_files "${PHYSICS_REFLECTION_HEADERS}"
+    generated_code_dir "${CMAKE_CURRENT_SOURCE_DIR}/__generated__"
+    reflection_search_include_dirs "${physics_include_dirs}"
+)
+add_dependencies(EnginePhysics meta_physics)
+target_link_libraries(EnginePhysics PRIVATE meta_physics)

@@ -4,11 +4,17 @@
 #include <glm.hpp>
 #include <memory>
 
-namespace Engine {
+namespace vk {
     class CommandBuffer;
-    class ComputeBuffer;
+}
+namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class PhysicsScene;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief Spatial hash grid configuration.
@@ -27,8 +33,8 @@ namespace Engine {
      * detector's lifetime.
      */
     struct BroadDetectorOutputBuffers {
-        const ComputeBuffer *pair_buffer{};
-        const ComputeBuffer *pair_count_buffer{};
+        const Rhi::ComputeBuffer *pair_buffer{};
+        const Rhi::ComputeBuffer *pair_count_buffer{};
         uint32_t max_pairs{};
     };
 
@@ -42,14 +48,14 @@ namespace Engine {
      * pipeline is skipped in favour of direct all-pairs generation.
      *
      * Lifecycle:
-     *   1. Construct with RenderSystem& only (no GPU allocation).
+     *   1. Construct with Rhi::DeviceContext& only (no GPU allocation).
      *   2. Configure(scene, shape_count, grid_config, threshold) -- CPU prep,
      *      buffer allocation, shader loading, binding creation.
      *   3. Record(cb) -- dispatch compute passes directly to cb, return void.
      */
     class SpatialHashBroadDetector {
     public:
-        explicit SpatialHashBroadDetector(RenderSystem &render_system);
+        explicit SpatialHashBroadDetector(Rhi::DeviceContext &device_context);
         ~SpatialHashBroadDetector();
 
         SpatialHashBroadDetector(const SpatialHashBroadDetector &) = delete;
@@ -72,7 +78,7 @@ namespace Engine {
          * The path (fallback vs spatial-hash) is selected via if-else based on the
          * threshold cached in Configure().
          */
-        void Record(CommandBuffer &cb);
+        void Record(vk::CommandBuffer cb);
 
         bool IsInitialized() const noexcept;
 

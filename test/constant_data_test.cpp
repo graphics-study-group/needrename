@@ -7,8 +7,9 @@
 #include <gtc/matrix_transform.hpp>
 
 #include "Core/Functional/SDLWindow.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -78,11 +79,11 @@ int main(int, char **) {
         system->WritePerCameraConstants(transform, in_flight_frame_id);
 
         cb.Begin();
-        vk::Extent2D extent{system->GetSwapchain().GetExtent()};
+        vk::Extent2D extent{system->GetPresentProvider().GetExtent()};
         cb.BeginRendering(rts, extent, index);
 
         cb.BindMaterial(material, 0);
-        vk::Rect2D scissor{{0, 0}, system->GetSwapchain().GetExtent()};
+        vk::Rect2D scissor{{0, 0}, system->GetPresentProvider().GetExtent()};
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.DrawMesh(mesh);
         cb.EndRendering();

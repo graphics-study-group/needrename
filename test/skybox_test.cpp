@@ -5,14 +5,15 @@
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Loader/TextureImportUtils.h"
-#include "Asset/Material/MaterialAsset.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Texture/ImageCubemapAsset.h"
 #include "Core/Math/Transform.h"
-#include "MainClass.h"
+#include "Framework/Import/TextureImportUtils.h"
+#include "Framework/MainClass.h"
+#include "Render/Asset/Material/MaterialAsset.h"
+#include "Render/Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Asset/Texture/ImageCubemapAsset.h"
 #include "Render/FullRenderSystem.h"
-#include "UserInterface/GUISystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
+#include "Render/UserInterface/GUISystem.h"
 
 #include "cmake_config.h"
 #include <ext/matrix_transform.hpp>
@@ -49,19 +50,19 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto lib_asset = am->CreateAsset<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.vert.asset"});
-    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.frag.asset"});
+    auto vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/skybox.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/skybox.frag.asset"});
 
     test_asset->name = "Skybox";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    mtspp.attachments.color = {Rhi::ImageFormat::R8G8B8A8UNorm};
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp{};
     mtspp.attachments.color_blending = {cbp};
-    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    mtspp.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
-    mtspp.depth_stencil.depth_comparator = PipelineUtils::DSComparator::LEqual;
+    mtspp.depth_stencil.depth_comparator = Rhi::DSComparator::LEqual;
 
     test_asset->properties = mtspp;
 
@@ -101,22 +102,22 @@ int main(int argc, char **argv) {
     uint32_t width = 1024;
     uint32_t height = 1024;
 
-    std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
-        *rsys,
-        ImageTexture::ImageTextureDesc{
+    std::shared_ptr skybox_texture = Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(),
+        Rhi::ImageTexture::ImageTextureDesc{
             .dimensions = 2,
             .width = width,
             .height = height,
             .depth = 1,
             .mipmap_levels = 1,
             .array_layers = 6,
-            .format = ImageTexture::ITFormat::R8G8B8A8SRGB,
+            .format = Rhi::ImageTexture::ITFormat::R8G8B8A8SRGB,
             .is_cube_map = true
         },
-        ImageUtils::SamplerDesc{
-            .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-            .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-            .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+        Rhi::SamplerDesc{
+            .u_address = Rhi::SamplerDesc::AddressMode::ClampToEdge,
+            .v_address = Rhi::SamplerDesc::AddressMode::ClampToEdge,
+            .w_address = Rhi::SamplerDesc::AddressMode::ClampToEdge
         },
         "Skybox"
     );
@@ -191,7 +192,7 @@ int main(int argc, char **argv) {
                 glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
                 glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
                 rsys->GetSceneDataManager().DrawSkybox(
-                    cb, rsys->GetFrameManager().GetFrameInFlight(), pv, rsys->GetSwapchain().GetExtent()
+                    cb, rsys->GetFrameManager().GetFrameInFlight(), pv, rsys->GetPresentProvider().GetExtent()
                 );
             })
             .WrapRenderPass()
@@ -243,13 +244,17 @@ int main(int argc, char **argv) {
             }
         }
 
-        rsys->StartFrame();
+        if (rsys->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
 
         Transform t;
         t.SetPosition({0.0f, 0.0f, 0.0f}).SetRotationEuler(euler_angle_rotation);
         camera->UpdateViewMatrix(t);
-        rg->Execute(*rsys);
-        rsys->CompleteFrame(*rg->GetInternalTextureResource(crt), 800, 800);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
+        rsys->CompleteFrame(*rg->GetInternalTextureResource(crt), Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

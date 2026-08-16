@@ -6,7 +6,7 @@ This document describes how the engine uses the Python version of **libclang** t
 
 1. **Parser Integration with CMake**
 
-    - During engine build, **CMake** triggers the parser written in Python, located in the **`reflection_parser`** folder. CMake will create a config file which stores the current target name, the files to be parsed, the output directory for generated code and compiler options (e.g., std=c++20, ignoring header file errors).
+    - During engine build, **CMake** triggers the parser written in Python, located in the **`third_party/AnnoRefl/parser`** folder. CMake will create a config file which stores the current target name, the files to be parsed, the output directory for generated code and compiler options (e.g., std=c++20, ignoring header file errors).
 
     - If you want to parse some files in your own target, you can use following CMake code.
 
@@ -36,7 +36,7 @@ This document describes how the engine uses the Python version of **libclang** t
 
 3. **Reflection and Serialization Annotations**
 
-    - The parser detects reflection and serialization information in the code through annotations, such as `[[clang::annotate("")]]`. These annotations are defined in the **`Reflection/macros.h`** file.
+    - The parser detects reflection and serialization information in the code through annotations, such as `[[clang::annotate("")]]`. These annotations are defined in the **`AnnoRefl/macros.h`** file.
 
 4. **Class Reflection and Serialization Modes**
 
@@ -51,7 +51,7 @@ This document describes how the engine uses the Python version of **libclang** t
     - Use **`REFL_ENABLE`** and **`REFL_DISABLE`** macros to control whether functions are reflected.
     - Use **`SER_ENABLE`** and **`SER_DISABLE`** macros to control whether member variables are serialized.
     - **`REFL_SER_ENABLE`** and **`REFL_SER_DISABLE`** control both reflection and serialization for member variables.
-    - If you mark some vector, map or smart pointer for serialization, you need to include `Reflection/serialization_vector.h` , `Reflection/serialization_map.h` , etc.
+    - If you mark some vector, map or smart pointer for serialization, you need to include `AnnoRefl/serialization_vector.h` , `AnnoRefl/serialization_map.h` , etc.
 
 6. **Generated Code Location**
 
@@ -59,7 +59,7 @@ This document describes how the engine uses the Python version of **libclang** t
 
         This folder only contains implementations of some reflection and serialization functions. Users don't need to include any file in this folder except `reflection_init.cpp` which is for initialization.
 
-    - Every target that is parsed requires the inclusion of **`#include "meta_${target}/reflection_init.ipp"`**. And ```RegisterAllTypes()``` should be called at the beginning of the executable to ensure the proper initialization of the reflection system, even if the engine's reflection system has already been initialized.
+    - Every target that is parsed requires the inclusion of **`#include "meta_${target}/reflection_init.inc"`**. The generated code provides a static `RegisterAllTypes()` function that registers every reflected type; each engine module DLL wraps it in an exported `RegisterXxxTypes()` function (e.g. `RegisterCoreTypes`, `RegisterRenderTypes`) that `MainClass` calls at startup. For a standalone executable, call `RegisterAllTypes()` at the beginning of `main` to ensure the reflection system is initialized, even if the engine's reflection system has already been initialized.
 
 ## Reflection System
 
@@ -114,7 +114,7 @@ The parser generates reflection for several key classes:
         - **`load_from_archive(Archive&)`**
     - The serialization system follows the priority:
         - Internal serialization functions > External serialization functions > Generated serialization functions.
-    - You must include `Reflection/serialization.h` where you want to implement custom serialization functions.
+    - You must include `AnnoRefl/serialization.h` where you want to implement custom serialization functions.
 
 3. **Serialization and Deserialization**
     - Developers can use the templates:

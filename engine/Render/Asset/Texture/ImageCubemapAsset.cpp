@@ -1,0 +1,234 @@
+#include "ImageCubemapAsset.h"
+
+#include <Rhi/Texture/ImageUtilsFunc.h>
+#include <SDL3/SDL_log.h>
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <ktx.h>
+#include <stdexcept>
+#include <thread>
+
+#include <memory>
+
+#include <AnnoRefl/serialization.h>
+
+namespace {
+    /**
+     * @brief Try to compress the texture to Basis Universal format.
+     *
+     * If the compression fails, it will log a warning and keep the original uncompressed texture.
+     */
+    bool TryCompressTextureToBasis(ktxTexture2 *texture) {
+        ktxBasisParams params{};
+        params.structSize = sizeof(params);
+        params.codec = KTX_BASIS_CODEC_UASTC_LDR_4x4;
+        params.uastcFlags = static_cast<ktx_pack_uastc_flags>(KTX_PACK_UASTC_LEVEL_FASTEST);
+        params.uastcRDO = KTX_FALSE;
+        params.threadCount = std::max(1u, std::thread::hardware_concurrency());
+
+        const auto compress_error = ktxTexture2_CompressBasisEx(texture, &params);
+        if (compress_error != KTX_SUCCESS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "ktxTexture2_CompressBasisEx failed (%s). Falling back to uncompressed KTX2.",
+                ktxErrorString(compress_error)
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @brief Create a ktxTexture2 from raw pixel data.
+     *
+     * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
+     */
+    ktxTexture2 *CreateCubemapTextureData(
+        int width, int height, vk::Format format, const std::byte *data, size_t size
+    ) {
+        if (size % 6 != 0) {
+            throw std::runtime_error("Cubemap data size must be divisible by 6.");
+        }
+
+        ktxTextureCreateInfo create_info{};
+        create_info.vkFormat = static_cast<ktx_uint32_t>(format);
+        create_info.baseWidth = static_cast<ktx_uint32_t>(width);
+        create_info.baseHeight = static_cast<ktx_uint32_t>(height);
+        create_info.baseDepth = 1;
+        create_info.numDimensions = 2;
+        create_info.numLevels = 1;
+        create_info.numLayers = 1;
+        create_info.numFaces = 6;
+        create_info.isArray = KTX_FALSE;
+        create_info.generateMipmaps = KTX_FALSE;
+
+        ktxTexture2 *texture = nullptr;
+        const auto create_error = ktxTexture2_Create(&create_info, KTX_TEXTURE_CREATE_ALLOC_STORAGE, &texture);
+        if (create_error != KTX_SUCCESS || texture == nullptr) {
+            return nullptr;
+        }
+
+        const size_t face_size = size / 6;
+        for (int face = 0; face < 6; ++face) {
+            const auto set_image_error = ktxTexture_SetImageFromMemory(
+                ktxTexture(texture),
+                0,
+                0,
+                static_cast<ktx_uint32_t>(face),
+                reinterpret_cast<const ktx_uint8_t *>(data + face * face_size),
+                static_cast<ktx_size_t>(face_size)
+            );
+            if (set_image_error != KTX_SUCCESS) {
+                ktxTexture2_Destroy(texture);
+                return nullptr;
+            }
+        }
+
+        return texture;
+    }
+} // namespace
+
+namespace Engine {
+    ImageCubemapAsset::ImageCubemapAsset() {
+    }
+
+    ImageCubemapAsset::~ImageCubemapAsset() {
+        if (m_texture != nullptr) {
+            ktxTexture2_Destroy(m_texture);
+        }
+    }
+
+    void ImageCubemapAsset::SetDecodedData(
+        int width, int height, int channel, std::vector<std::byte> data, Rhi::ImageFormat format
+    ) {
+        const vk::Format vk_format = Rhi::GetVkFormat(format);
+        if (vk_format == vk::Format::eUndefined) {
+            throw std::runtime_error("Unsupported image format for cubemap.");
+        }
+
+        ktxTexture2 *texture = CreateCubemapTextureData(width, height, vk_format, data.data(), data.size());
+        if (texture == nullptr) {
+            throw std::runtime_error("Failed to create KTX2 cubemap from decoded data.");
+        }
+
+        ResetTexture(texture);
+        m_width = width;
+        m_height = height;
+        m_channel = channel;
+        m_format = format;
+    }
+
+    const std::byte *ImageCubemapAsset::GetPixelData() const {
+        if (m_texture == nullptr) {
+            return nullptr;
+        }
+        return reinterpret_cast<const std::byte *>(ktxTexture_GetData(ktxTexture(m_texture)));
+    }
+
+    size_t ImageCubemapAsset::GetPixelDataSize() const {
+        if (m_texture == nullptr) {
+            return 0;
+        }
+        return ktxTexture_GetDataSize(ktxTexture(m_texture));
+    }
+
+    std::unique_ptr<Rhi::ImageTexture> ImageCubemapAsset::CreateImageTexture(Rhi::DeviceContext &device_context) const {
+        return Rhi::ImageTexture::CreateUnique(
+            device_context,
+            Rhi::ImageTexture::ImageTextureDesc{
+                .dimensions = 2,
+                .width = static_cast<uint32_t>(m_width),
+                .height = static_cast<uint32_t>(m_height),
+                .depth = 1,
+                .mipmap_levels = 1,
+                .array_layers = 6,
+                .format = Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8SRGB,
+                .is_cube_map = true
+            },
+            Rhi::Texture::SamplerDesc{
+                .u_address = Rhi::Texture::SamplerDesc::AddressMode::ClampToEdge,
+                .v_address = Rhi::Texture::SamplerDesc::AddressMode::ClampToEdge,
+                .w_address = Rhi::Texture::SamplerDesc::AddressMode::ClampToEdge
+            },
+            m_name
+        );
+    }
+
+    void ImageCubemapAsset::save_asset_to_archive(AnnoRefl::Archive &archive) const {
+        if (m_texture == nullptr) {
+            throw std::runtime_error("Cannot save ImageCubemapAsset: texture data is not set.");
+        }
+
+        auto &json = *archive.m_cursor;
+        size_t extra_data_id = archive.create_new_extra_data_buffer(".ktx2");
+        json["%extra_data_id"] = extra_data_id;
+        auto &data = archive.m_context->extra_data[extra_data_id];
+
+        ktxTexture2 *saved_texture = nullptr;
+        auto create_error = ktxTexture2_CreateCopy(m_texture, &saved_texture);
+        if (create_error != KTX_SUCCESS || saved_texture == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to copy KTX2 cubemap for saving: ") + ktxErrorString(create_error)
+            );
+        }
+        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(saved_texture, ktxTexture2_Destroy);
+
+        if (Rhi::CanCompressToBasis(m_format)) {
+            TryCompressTextureToBasis(saved_texture);
+        }
+
+        ktx_uint8_t *raw_ktx_data = nullptr;
+        ktx_size_t raw_ktx_size = 0;
+        const auto write_error = ktxTexture_WriteToMemory(ktxTexture(saved_texture), &raw_ktx_data, &raw_ktx_size);
+        if (write_error != KTX_SUCCESS || raw_ktx_data == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to serialize KTX2 cubemap to memory: ") + ktxErrorString(write_error)
+            );
+        }
+
+        data.resize(static_cast<size_t>(raw_ktx_size));
+        std::memcpy(data.data(), raw_ktx_data, static_cast<size_t>(raw_ktx_size));
+        std::free(raw_ktx_data);
+
+        TextureAsset::save_asset_to_archive(archive);
+    }
+
+    void ImageCubemapAsset::load_asset_from_archive(AnnoRefl::Archive &archive) {
+        auto &json = *archive.m_cursor;
+        TextureAsset::load_asset_from_archive(archive);
+        auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
+        ktxTexture2 *loaded_texture = nullptr;
+        auto create_error = ktxTexture2_CreateFromMemory(
+            reinterpret_cast<const ktx_uint8_t *>(data.data()), data.size(), 0, &loaded_texture
+        );
+        if (create_error != KTX_SUCCESS || loaded_texture == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to load KTX2 cubemap from archive: ") + ktxErrorString(create_error)
+            );
+        }
+        ResetTexture(loaded_texture);
+
+        if (ktxTexture2_NeedsTranscoding(m_texture)) {
+            const auto transcode_error = ktxTexture2_TranscodeBasis(m_texture, KTX_TTF_RGBA32, 0);
+            if (transcode_error != KTX_SUCCESS) {
+                throw std::runtime_error(
+                    std::string("Cubemap transcode to RGBA32 failed: ") + ktxErrorString(transcode_error)
+                );
+            }
+        }
+        if (m_texture->numFaces != 6) {
+            throw std::runtime_error("Loaded KTX cubemap does not have 6 faces.");
+        }
+    }
+
+    void ImageCubemapAsset::ResetTexture(ktxTexture2 *texture) {
+        if (m_texture != nullptr) {
+            ktxTexture2_Destroy(m_texture);
+        }
+        m_texture = texture;
+    }
+} // namespace Engine
+
+#include "__generated__/ImageCubemapAsset.h.inc"

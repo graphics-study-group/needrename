@@ -1,0 +1,482 @@
+#include "Rhi/Submission/SubmissionHelper.h"
+
+#include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/Structs.h"
+#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Texture/Texture.h"
+#include <SDL3/SDL.h>
+
+namespace {
+    enum class TextureTransferType {
+        TextureUploadBefore,
+        TextureUploadAfter,
+        TextureClearBefore,
+        TextureClearAfter
+    };
+
+    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope1Image(TextureTransferType type) {
+        using enum TextureTransferType;
+        switch (type) {
+        case TextureUploadBefore:
+        case TextureClearBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
+        case TextureUploadAfter:
+        case TextureClearAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        }
+        __builtin_unreachable();
+    }
+    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope2Image(TextureTransferType type) {
+        using enum TextureTransferType;
+        switch (type) {
+        case TextureUploadBefore:
+        case TextureClearBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        case TextureUploadAfter:
+        case TextureClearAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
+        }
+        __builtin_unreachable();
+    }
+    std::pair<vk::ImageLayout, vk::ImageLayout> GetLayouts(TextureTransferType type) {
+        using enum TextureTransferType;
+        switch (type) {
+        case TextureUploadBefore:
+        case TextureClearBefore:
+            return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+        case TextureUploadAfter:
+        case TextureClearAfter:
+            return std::make_pair(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eReadOnlyOptimal);
+        }
+        __builtin_unreachable();
+    }
+
+    vk::ImageMemoryBarrier2 GetTextureBarrier(TextureTransferType type, vk::Image image, vk::ImageAspectFlags aspect) {
+        auto [scope1, scope2, layouts] = std::tuple{GetScope1Image(type), GetScope2Image(type), GetLayouts(type)};
+        vk::ImageSubresourceRange subresource{aspect, 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers};
+        vk::ImageMemoryBarrier2 barrier{
+            scope1.first,
+            scope1.second,
+            scope2.first,
+            scope2.second,
+            layouts.first,
+            layouts.second,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            image,
+            subresource
+        };
+        return barrier;
+    }
+
+    enum class BufferTransferType {
+        // Barrier before writing to a vertex buffer.
+        VertexBefore,
+        // Barrier after writing to a vertex buffer.
+        VertexAfter,
+        // General transfer to a unknown buffer
+        GeneralTransferBefore,
+        // General transfer to a unknown buffer
+        GeneralTransferAfter
+    };
+
+    std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope1Buffer(BufferTransferType type) {
+        switch (type) {
+        case BufferTransferType::VertexBefore:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eVertexInput,
+                vk::AccessFlagBits2::eVertexAttributeRead | vk::AccessFlagBits2::eIndexRead
+            );
+        case BufferTransferType::VertexAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        case BufferTransferType::GeneralTransferBefore:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eAllCommands,
+                vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite
+            );
+        case BufferTransferType::GeneralTransferAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eCopy, vk::AccessFlagBits2::eTransferWrite);
+        default:
+            assert(false && "Unexpected buffer transfer type.");
+            return std::make_pair(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone);
+        }
+    }
+    std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope2Buffer(BufferTransferType type) {
+        switch (type) {
+        case BufferTransferType::VertexBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        case BufferTransferType::VertexAfter:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eVertexInput,
+                vk::AccessFlagBits2::eVertexAttributeRead | vk::AccessFlagBits2::eIndexRead
+            );
+        case BufferTransferType::GeneralTransferBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eCopy, vk::AccessFlagBits2::eTransferWrite);
+        case BufferTransferType::GeneralTransferAfter:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eAllCommands,
+                vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite
+            );
+        default:
+            assert(false && "Unexpected buffer transfer type.");
+            return std::make_pair(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone);
+        }
+    }
+
+    vk::MemoryBarrier2 GetBufferBarrier(BufferTransferType type) {
+        return vk::MemoryBarrier2{
+            GetScope1Buffer(type).first,
+            GetScope1Buffer(type).second,
+            GetScope2Buffer(type).first,
+            GetScope2Buffer(type).second
+        };
+    }
+} // namespace
+
+namespace Engine::Rhi {
+    enum class BatchState {
+        Reset,
+        Submitted
+    };
+
+    struct SubmissionHelper::impl {
+        BatchState m_state{BatchState::Reset};
+
+        std::queue<CmdOperation> m_pending_operations{};
+        // Staging buffers of operations enqueued but not yet submitted.
+        std::vector<std::unique_ptr<DeviceBuffer>> m_pending_staging{};
+        // Staging buffers of the deferred batch currently in flight, awaiting
+        // reclamation by OnBatchComplete.
+        std::vector<std::unique_ptr<DeviceBuffer>> m_active_staging{};
+
+        vk::UniqueCommandBuffer m_one_time_cb{};
+        vk::UniqueFence m_completion_fence{};
+    };
+
+    SubmissionHelper::SubmissionHelper(const DeviceInterface &device_interface, const AllocatorState &allocator) :
+        m_device_interface(device_interface), m_allocator(allocator), pimpl(std::make_unique<impl>()) {
+        // Pre-allocate a fence
+        vk::FenceCreateInfo fcinfo{};
+        pimpl->m_completion_fence = m_device_interface.GetDevice().createFenceUnique(fcinfo);
+    }
+
+    SubmissionHelper::~SubmissionHelper() {
+        // A pending deferred batch must finish executing before its command
+        // buffer and staging buffers are destroyed.
+        if (pimpl->m_state == BatchState::Submitted) {
+            m_device_interface.GetDevice().waitForFences(
+                {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
+            );
+        }
+    }
+
+    void SubmissionHelper::EnqueueBufferSubmission(
+        const DeviceBuffer &buffer, std::span<const std::byte> data, size_t buffer_offset
+    ) {
+        if (buffer_offset + data.size_bytes() > buffer.GetSize()) {
+            throw std::invalid_argument("Too many bytes of data are submitted to the buffer.");
+        }
+
+        auto staging_buffer = DeviceBuffer::CreateUnique(
+            this->m_allocator, {BufferTypeBits::StagingToDevice}, buffer.GetSize(), "Staging buffer"
+        );
+        std::memcpy(staging_buffer->GetVMAddress(), data.data(), buffer.GetSize());
+        staging_buffer->Flush();
+
+        auto enqueued = [data, &buffer, pbuf = staging_buffer.get(), buffer_offset](vk::CommandBuffer cb) {
+            auto mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferBefore);
+            std::array<vk::BufferMemoryBarrier2, 1> barriers{};
+            barriers[0] = {
+                mbarrier.srcStageMask,
+                mbarrier.srcAccessMask,
+                mbarrier.dstStageMask,
+                mbarrier.dstAccessMask,
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                buffer.GetBuffer(),
+                buffer_offset,
+                data.size_bytes()
+            };
+
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
+            vk::BufferCopy copy{0, buffer_offset, static_cast<vk::DeviceSize>(data.size_bytes())};
+            cb.copyBuffer(pbuf->GetBuffer(), buffer.GetBuffer(), {copy});
+
+            mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferAfter);
+            barriers[0] = {
+                mbarrier.srcStageMask,
+                mbarrier.srcAccessMask,
+                mbarrier.dstStageMask,
+                mbarrier.dstAccessMask,
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                buffer.GetBuffer(),
+                buffer_offset,
+                data.size_bytes()
+            };
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
+        };
+        pimpl->m_pending_staging.push_back(std::move(staging_buffer));
+        pimpl->m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueTextureBufferSubmission(const Texture &texture, std::span<const std::byte> data) {
+        if (!(Rhi::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
+            throw std::invalid_argument("Selected texture does not contain color aspect.");
+        }
+        auto staging_buffer = DeviceBuffer::CreateUnique(
+            this->m_allocator,
+            {BufferTypeBits::StagingToDevice},
+            texture.CalculateStagingBufferSizeNoMipmap(),
+            "Staging buffer"
+        );
+        if (data.size_bytes() > staging_buffer->GetSize()) {
+            throw std::invalid_argument("Too many data to be uploaded to texture.");
+        }
+
+        std::byte *mapped_ptr = staging_buffer->GetVMAddress();
+        std::memcpy(mapped_ptr, data.data(), data.size_bytes());
+        staging_buffer->Flush();
+
+        auto enqueued = [&texture, pbuf = staging_buffer.get()](vk::CommandBuffer cb) {
+            // Transit layout to TransferDstOptimal
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
+                TextureTransferType::TextureUploadBefore,
+                texture.GetImage(),
+                Rhi::GetVkAspect(texture.GetTextureDescription().format)
+            )};
+            vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
+            cb.pipelineBarrier2(dinfo);
+
+            // Copy buffer to image
+            vk::BufferImageCopy copy{
+                0,
+                0,
+                0,
+                vk::ImageSubresourceLayers{
+                    Rhi::GetVkAspect(texture.GetTextureDescription().format),
+                    0,
+                    0,
+                    texture.GetTextureDescription().array_layers
+                },
+                vk::Offset3D{0, 0, 0},
+                vk::Extent3D{
+                    texture.GetTextureDescription().width,
+                    texture.GetTextureDescription().height,
+                    texture.GetTextureDescription().depth
+                }
+            };
+            cb.copyBufferToImage(pbuf->GetBuffer(), texture.GetImage(), vk::ImageLayout::eTransferDstOptimal, {copy});
+
+            // Transfer image for sampling
+            barriers[0] = GetTextureBarrier(
+                TextureTransferType::TextureUploadAfter,
+                texture.GetImage(),
+                Rhi::GetVkAspect(texture.GetTextureDescription().format)
+            );
+            dinfo.setImageMemoryBarriers(barriers);
+            cb.pipelineBarrier2(dinfo);
+        };
+        pimpl->m_pending_staging.push_back(std::move(staging_buffer));
+        pimpl->m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color) {
+        if (!(Rhi::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
+            throw std::invalid_argument("Selected texture does not contain color aspect.");
+        }
+
+        auto enqueued = [&texture, color](vk::CommandBuffer cb) {
+            // Transit layout to TransferDstOptimal
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
+                TextureTransferType::TextureClearBefore, texture.GetImage(), vk::ImageAspectFlagBits::eColor
+            )};
+            vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
+            cb.pipelineBarrier2(dinfo);
+            auto [r, g, b, a] = color;
+            cb.clearColorImage(
+                texture.GetImage(),
+                vk::ImageLayout::eTransferDstOptimal,
+                vk::ClearColorValue{r, g, b, a},
+                {vk::ImageSubresourceRange{
+                    vk::ImageAspectFlagBits::eColor, 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+                }}
+            );
+
+            // Transfer image for sampling
+            barriers[0] = GetTextureBarrier(
+                TextureTransferType::TextureClearAfter, texture.GetImage(), vk::ImageAspectFlagBits::eColor
+            );
+            dinfo.setImageMemoryBarriers(barriers);
+            cb.pipelineBarrier2(dinfo);
+        };
+        pimpl->m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueTextureClear(const Texture &texture, float depth) {
+        if (!(0.0f <= depth && depth <= 1.0f)) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Depth clear value %f is not in the range of [0.0, 1.0].", depth);
+        }
+        if (!(Rhi::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eDepth)) {
+            throw std::invalid_argument("Selected texture does not contain depth aspect.");
+        }
+
+        auto enqueued = [&texture, depth](vk::CommandBuffer cb) {
+            // Transit layout to TransferDstOptimal
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
+                TextureTransferType::TextureClearBefore, texture.GetImage(), vk::ImageAspectFlagBits::eDepth
+            )};
+            vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
+            cb.pipelineBarrier2(dinfo);
+            cb.clearDepthStencilImage(
+                texture.GetImage(),
+                vk::ImageLayout::eTransferDstOptimal,
+                vk::ClearDepthStencilValue{depth, 0U},
+                {vk::ImageSubresourceRange{
+                    vk::ImageAspectFlagBits::eDepth, 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+                }}
+            );
+
+            // Transfer image for sampling
+            barriers[0] = GetTextureBarrier(
+                TextureTransferType::TextureClearAfter, texture.GetImage(), vk::ImageAspectFlagBits::eDepth
+            );
+            dinfo.setImageMemoryBarriers(barriers);
+            cb.pipelineBarrier2(dinfo);
+        };
+        pimpl->m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::ExecuteSubmission(vk::SemaphoreSignalInfo signal_info) {
+        if (pimpl->m_state != BatchState::Reset) {
+            throw std::runtime_error(
+                "ExecuteSubmission called while a previous batch is still pending. Call OnBatchComplete() first."
+            );
+        }
+
+        auto device = m_device_interface.GetDevice();
+        if (pimpl->m_pending_operations.empty()) {
+            // We do not need to worry about synchronization too much
+            // as timeline semaphores are guaranteed to be monotonically increasing.
+            device.signalSemaphore(signal_info);
+            return;
+        }
+
+        // Allocate one-time command buffer
+        const auto &queue_info = m_device_interface.GetQueueInfo();
+        vk::CommandBufferAllocateInfo cbainfo{queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
+        auto cbs = device.allocateCommandBuffersUnique(cbainfo);
+        assert(cbs.size() == 1);
+        pimpl->m_one_time_cb = std::move(cbs[0]);
+        DEBUG_SET_NAME_TEMPLATE(device, pimpl->m_one_time_cb.get(), "One-time submission CB");
+
+        // Record all operations
+        vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
+        pimpl->m_one_time_cb->begin(cbbinfo);
+        DEBUG_CMD_START_LABEL(pimpl->m_one_time_cb.get(), "Resource Submission");
+
+        while (!pimpl->m_pending_operations.empty()) {
+            auto enqueued = pimpl->m_pending_operations.front();
+            enqueued(pimpl->m_one_time_cb.get());
+            pimpl->m_pending_operations.pop();
+        }
+
+        DEBUG_CMD_END_LABEL(pimpl->m_one_time_cb.get());
+        pimpl->m_one_time_cb->end();
+
+        // The batch's staging buffers must stay alive until the fence is
+        // reaped by OnBatchComplete.
+        pimpl->m_active_staging = std::move(pimpl->m_pending_staging);
+
+        vk::SemaphoreSubmitInfo signal{
+            signal_info.semaphore, signal_info.value, vk::PipelineStageFlagBits2::eAllTransfer
+        };
+        vk::CommandBufferSubmitInfo cbsinfo{pimpl->m_one_time_cb.get()};
+        // The batch is guaranteed to be sequential: either this is the first
+        // submission, or the previous batch has been reaped (state == Reset).
+        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {signal}};
+        queue_info.graphicsQueue.submit2(sinfo, pimpl->m_completion_fence.get());
+
+        pimpl->m_state = BatchState::Submitted;
+    }
+
+    void SubmissionHelper::ExecuteSubmissionImmediately() {
+        if (pimpl->m_state != BatchState::Reset) {
+            throw std::runtime_error(
+                "ExecuteSubmissionImmediately called while a delayed batch is still pending. Call OnBatchComplete() "
+                "first."
+            );
+        }
+        if (pimpl->m_pending_operations.empty()) return;
+
+        auto device = m_device_interface.GetDevice();
+        vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
+
+        const auto &queue_info = m_device_interface.GetQueueInfo();
+        vk::CommandBufferAllocateInfo cbainfo{queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
+        auto cbs = device.allocateCommandBuffersUnique(cbainfo);
+        assert(cbs.size() == 1);
+        auto cb = std::move(cbs[0]);
+        DEBUG_SET_NAME_TEMPLATE(device, cb.get(), "One-time submission CB");
+
+        // Record all operations
+        vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
+        cb->begin(cbbinfo);
+        DEBUG_CMD_START_LABEL(cb.get(), "Resource Submission");
+
+        while (!pimpl->m_pending_operations.empty()) {
+            auto enqueued = pimpl->m_pending_operations.front();
+            enqueued(cb.get());
+            pimpl->m_pending_operations.pop();
+        }
+
+        DEBUG_CMD_END_LABEL(cb.get());
+        cb->end();
+
+        // Take only this batch's staging buffers; in-flight staging of the
+        // deferred path (if any) is never touched here.
+        auto this_batch_staging = std::move(pimpl->m_pending_staging);
+
+        // Submit and wait for the fence.
+        vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
+        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {}};
+        queue_info.graphicsQueue.submit2(sinfo, fence.get());
+        auto ret = device.waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
+        if (ret != vk::Result::eSuccess) {
+            throw std::runtime_error(vk::to_string(ret) + " happened when waiting for immediate submission fences.");
+        }
+        this_batch_staging.clear();
+    }
+
+    void SubmissionHelper::OnBatchComplete() {
+        if (pimpl->m_state == BatchState::Submitted) {
+            auto device = m_device_interface.GetDevice();
+            auto wfresult =
+                device.waitForFences({pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max());
+            if (wfresult != vk::Result::eSuccess) {
+                throw std::runtime_error(vk::to_string(wfresult) + " happened when waiting for submission fences.");
+            }
+
+            device.resetFences({pimpl->m_completion_fence.get()});
+            pimpl->m_one_time_cb.reset();
+            pimpl->m_active_staging.clear();
+            pimpl->m_state = BatchState::Reset;
+            return;
+        }
+
+        // Reset + unsubmitted operations: the frame ends while enqueued
+        // uploads would never be submitted. All engine-internal Enqueues
+        // happen before ExecuteSubmission in the frame loop; readback
+        // callbacks must not perform uploads.
+        if (!pimpl->m_pending_operations.empty()) {
+            throw std::runtime_error(
+                "OnBatchComplete called with unsubmitted operations. Enqueue operations must be submitted before "
+                "the frame ends."
+            );
+        }
+    }
+
+} // namespace Engine::Rhi

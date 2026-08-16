@@ -1,6 +1,6 @@
 #include "RenderGraph.h"
 
-#include "Render/Memory/MemoryAccessHelper.hpp"
+#include "Render/Resource/MemoryAccessHelper.hpp"
 #include "RenderGraphStruct.hpp"
 
 namespace Engine {
@@ -10,11 +10,12 @@ namespace Engine {
 
         const PipelineRuntimeInfoPerRendering *pripr_ptr{nullptr};
 
-        std::vector<std::tuple<const RenderTargetTexture *, MemoryAccessTypeImageBits, MemoryAccessTypeImageBits>>
+        std::vector<
+            std::tuple<const RenderTargetTexture *, Rhi::MemoryAccessTypeImageBits, Rhi::MemoryAccessTypeImageBits>>
             pre_barrier_info{}, post_barrier_info{};
 
         vk::ImageMemoryBarrier2 GetImageBarrier(
-            const RenderTargetTexture &t, MemoryAccessTypeImageBits src, MemoryAccessTypeImageBits dst
+            const RenderTargetTexture &t, Rhi::MemoryAccessTypeImageBits src, Rhi::MemoryAccessTypeImageBits dst
         ) {
             return vk::ImageMemoryBarrier2{
                 vk::PipelineStageFlagBits2::eAllCommands,
@@ -27,7 +28,7 @@ namespace Engine {
                 vk::QueueFamilyIgnored,
                 t.GetImage(),
                 vk::ImageSubresourceRange{
-                    ImageUtils::GetVkAspect(t.GetTextureDescription().format),
+                    Rhi::GetVkAspect(t.GetTextureDescription().format),
                     0,
                     vk::RemainingMipLevels,
                     0,
@@ -51,7 +52,7 @@ namespace Engine {
         }
     };
 
-    void RenderGraph::AddExternalInputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access) {
+    void RenderGraph::AddExternalInputDependency(RGTextureHandle rt_handle, Rhi::MemoryAccessTypeImageBits access) {
         auto itr = pimpl->extra_info.first_persistent_texture_access.find(rt_handle);
         if (itr == pimpl->extra_info.first_persistent_texture_access.end()) {
             throw std::invalid_argument("Cannot find render target texture.");
@@ -66,7 +67,7 @@ namespace Engine {
         );
     }
 
-    void RenderGraph::AddExternalOutputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access) {
+    void RenderGraph::AddExternalOutputDependency(RGTextureHandle rt_handle, Rhi::MemoryAccessTypeImageBits access) {
         auto itr = pimpl->extra_info.last_persistent_texture_access.find(rt_handle);
         if (itr == pimpl->extra_info.last_persistent_texture_access.end()) {
             throw std::invalid_argument("Cannot find render target texture.");
@@ -158,16 +159,17 @@ namespace Engine {
         RecordPostPass(cb);
     }
 
-    void RenderGraph::Execute(RenderSystem &system) {
+    void RenderGraph::RecordIntoMainCommandBuffer(RenderSystem &system) {
         /**
          * @note Currently all passes are recorded onto a single command buffer
-         * and submitted to the main (graphics) queue. The `affinity` and
-         * `cross_queue_dep` infrastructure in RenderGraphBuilder already
-         * detects cross-queue dependencies and splits passes into merge groups
-         * with appropriate signal/wait pipeline stages, but the actual
-         * multi-queue submission (separate vkQueueSubmit calls with
-         * semaphores for graphics / compute / transfer queues) is not yet
-         * implemented.
+         * and submitted to the main (graphics) queue by FrameManager's
+         * frame-completion batch (see `FrameManager::SubmitFrame`). The
+         * `affinity` and `cross_queue_dep` infrastructure in
+         * RenderGraphBuilder already detects cross-queue dependencies and
+         * splits passes into merge groups with appropriate signal/wait
+         * pipeline stages, but the actual multi-queue submission (separate
+         * vkQueueSubmit calls with semaphores for graphics / compute /
+         * transfer queues) is not yet implemented.
          *
          * When async compute is enabled, this method should:
          * 1. Group passes by their queue affinity
@@ -176,6 +178,9 @@ namespace Engine {
          * 4. Use timeline semaphores (or binary semaphores) between groups
          *    with cross-queue dependencies, using the signal_stage /
          *    wait_stage already computed in RenderGraphCompiledPass.
+         * 5. Signal a "render complete" signal (supplied by FrameManager)
+         *    after the last group; `SubmitFrame` then waits on it instead of
+         *    relying on in-batch ordering.
          *
          * @see RenderGraphPassAffinity
          * @see RenderGraphBuilder::AnalysisCrossQueueDependency
@@ -183,10 +188,7 @@ namespace Engine {
         auto &fm = system.GetFrameManager();
         auto cb = fm.GetRawMainCommandBuffer();
 
-        cb.begin(vk::CommandBufferBeginInfo{});
         RecordAllPasses(cb);
-        cb.end();
-        fm.SubmitMainCommandBuffer();
     }
 
     uint32_t RenderGraph::GetNumPasses() const noexcept {

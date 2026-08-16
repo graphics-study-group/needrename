@@ -1,9 +1,9 @@
 #include "CameraManager.h"
 
-#include "Render/DebugUtils.h"
-#include "Render/Memory/IndexedBuffer.h"
-#include "Render/RenderSystem/DeviceInterface.h"
-#include "Render/Renderer/Camera.h"
+#include "Render/Pipeline/Renderer/Camera.h"
+#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include <Rhi/Buffer/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <glm.hpp>
 #include <vulkan/vulkan.h>
@@ -37,7 +37,7 @@ namespace Engine::RenderSystemState {
         std::array<CameraData, MAX_CAMERAS> front_buffer{};
 
         // Back buffer for each frame in flight
-        std::unique_ptr<IndexedBuffer> back_buffer{};
+        std::unique_ptr<Rhi::IndexedBuffer> back_buffer{};
 
         // Descriptors for each frame in flight
         std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
@@ -96,12 +96,12 @@ namespace Engine::RenderSystemState {
 
         // Allocate the back buffer.
         static_assert(sizeof(impl::CameraData) * MAX_CAMERAS == sizeof(impl::front_buffer));
-        pimpl->back_buffer = IndexedBuffer::CreateUnique(
+        pimpl->back_buffer = Rhi::IndexedBuffer::CreateUnique(
             allocator,
-            {BufferTypeBits::HostAccessibleUniform},
+            {Rhi::BufferTypeBits::HostAccessibleUniform},
             sizeof(impl::front_buffer),
             m_system.GetDeviceInterface().QueryLimit(
-                DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
+                Rhi::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
             ),
             pimpl->descriptors.size(),
             "Aggregated Camera Uniform Buffer"

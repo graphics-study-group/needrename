@@ -1,19 +1,15 @@
 #include "PhysicsScene.h"
 
-#include <Render/Memory/ComputeBuffer.h>
-#include <Render/RenderSystem.h>
-#include <Render/RenderSystem/FrameManager.h>
-#include <Render/RenderSystem/SceneDataManager.h>
-#include <Render/RenderSystem/SubmissionHelper.h>
-#include <vulkan/vulkan.hpp>
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Device/DeviceContext.h>
+#include <Rhi/Submission/SubmissionHelper.h>
 
 #include <SDL3/SDL.h>
+#include <vulkan/vulkan.hpp>
 
 #include <algorithm>
 #include <cassert>
 #include <span>
-
-#include <Framework/world/physics/PhysicsDescriptors.h>
 
 namespace {
     template <typename T>
@@ -27,15 +23,15 @@ namespace {
 
     template <typename T>
     void EnsureBuffer(
-        std::unique_ptr<Engine::ComputeBuffer> &buffer,
-        const Engine::RenderSystemState::AllocatorState &allocator,
+        std::unique_ptr<Engine::Rhi::ComputeBuffer> &buffer,
+        const Engine::Rhi::AllocatorState &allocator,
         size_t element_count,
         const std::string &name
     ) {
         const size_t safe_count = std::max<size_t>(1, element_count);
         const size_t byte_size = safe_count * sizeof(T);
         if (!buffer || buffer->GetSize() != byte_size) {
-            buffer = Engine::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
+            buffer = Engine::Rhi::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
         }
     }
 } // namespace
@@ -157,7 +153,7 @@ namespace Engine {
     }
 
     uint32_t PhysicsScene::AllocateFixedJoint() {
-        GpuFixedJoint joint{};
+        FixedJointComDescriptor joint{};
         joint.obj1_index = INVALID_INDEX;
         joint.obj2_index = INVALID_INDEX;
         joint.compliance = 0.0f;
@@ -167,7 +163,7 @@ namespace Engine {
     }
 
     uint32_t PhysicsScene::AllocateHingeJoint() {
-        GpuHingeJoint joint{};
+        HingeJointComDescriptor joint{};
         joint.obj1_index = INVALID_INDEX;
         joint.obj2_index = INVALID_INDEX;
         joint.compliance = 0.0f;
@@ -219,8 +215,6 @@ namespace Engine {
         m_shape_feature[shape_index] = desc.feature;
         m_shape_local_position[shape_index] = desc.local_position;
         m_shape_local_rotation[shape_index] = desc.local_rotation;
-        m_shape_world_position[shape_index] = desc.world_position;
-        m_shape_world_rotation[shape_index] = desc.world_rotation;
         m_shape_to_rigid_body[shape_index] = desc.bound_rigid_body;
     }
 
@@ -229,22 +223,21 @@ namespace Engine {
         m_shape_filter_data = filter_data;
     }
 
-    void PhysicsScene::SubmitFixedJoint(uint32_t joint_idx, const GpuFixedJoint &joint) {
+    void PhysicsScene::SubmitFixedJoint(uint32_t joint_idx, const FixedJointComDescriptor &joint) {
         if (joint_idx >= m_fixed_joints.size()) return;
         m_fixed_joints[joint_idx] = joint;
         m_fixed_joint_alive[joint_idx] = 1u;
     }
 
-    void PhysicsScene::SubmitHingeJoint(uint32_t joint_idx, const GpuHingeJoint &joint) {
+    void PhysicsScene::SubmitHingeJoint(uint32_t joint_idx, const HingeJointComDescriptor &joint) {
         if (joint_idx >= m_hinge_joints.size()) return;
         m_hinge_joints[joint_idx] = joint;
         m_hinge_joint_alive[joint_idx] = 1u;
     }
 
-    void PhysicsScene::SyncGpuBuffers(RenderSystem &render_system) {
-        RefreshGpuBuffers(render_system);
-        render_system.GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
-        render_system.GetSceneDataManager().SetModelMatricesBuffer(m_gpu_model_matrices.get());
+    void PhysicsScene::SyncGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper) {
+        RefreshGpuBuffers(device_context, submission_helper);
+        submission_helper.ExecuteSubmissionImmediately();
     }
 
     PhysicsScene::PhysicsGpuBuffers PhysicsScene::GetGpuBuffers() const noexcept {
@@ -300,11 +293,11 @@ namespace Engine {
         return m_simulation_enabled;
     }
 
-    void PhysicsScene::RefreshGpuBuffers(RenderSystem &render_system) {
+    void PhysicsScene::RefreshGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper) {
         m_gpu_rigid_body_slot_count = static_cast<uint32_t>(m_rigid_body_alive.size());
         m_gpu_shape_slot_count = static_cast<uint32_t>(m_shape_alive.size());
 
-        const auto &allocator = render_system.GetAllocatorState();
+        const auto &allocator = device_context.GetAllocatorState();
         EnsureBuffer<uint32_t>(m_gpu_rigid_body_alive, allocator, m_gpu_rigid_body_slot_count, "Physics RB Alive");
         EnsureBuffer<float>(m_gpu_rigid_body_mass, allocator, m_gpu_rigid_body_slot_count, "Physics RB Mass");
         EnsureBuffer<float>(
@@ -369,12 +362,12 @@ namespace Engine {
 
         const uint32_t fixed_joint_count = static_cast<uint32_t>(m_fixed_joints.size());
         const uint32_t hinge_joint_count = static_cast<uint32_t>(m_hinge_joints.size());
-        EnsureBuffer<GpuFixedJoint>(m_gpu_fixed_joints, allocator, fixed_joint_count, "Physics FixedJoints");
+        EnsureBuffer<FixedJointComDescriptor>(m_gpu_fixed_joints, allocator, fixed_joint_count, "Physics FixedJoints");
         EnsureBuffer<uint32_t>(m_gpu_fixed_joint_alive, allocator, fixed_joint_count, "Physics FixedJoint Alive");
-        EnsureBuffer<GpuHingeJoint>(m_gpu_hinge_joints, allocator, hinge_joint_count, "Physics HingeJoints");
+        EnsureBuffer<HingeJointComDescriptor>(m_gpu_hinge_joints, allocator, hinge_joint_count, "Physics HingeJoints");
         EnsureBuffer<uint32_t>(m_gpu_hinge_joint_alive, allocator, hinge_joint_count, "Physics HingeJoint Alive");
 
-        auto &submission = render_system.GetFrameManager().GetSubmissionHelper();
+        auto &submission = submission_helper;
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_alive, MakeSpan(m_rigid_body_alive));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_mass, MakeSpan(m_rigid_body_mass));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_static_friction, MakeSpan(m_rigid_body_static_friction));

@@ -4,9 +4,10 @@
 #include <fstream>
 
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
-#include "MainClass.h"
+#include "Framework/Component/RenderComponent/MeshComponent.h"
+#include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -86,7 +87,7 @@ int main(int, char **) {
         assert(index < 3);
 
         cb.Begin();
-        vk::Extent2D extent{system->GetSwapchain().GetExtent()};
+        vk::Extent2D extent{system->GetPresentProvider().GetExtent()};
         cb.BeginRendering(rts, extent, index);
         system->DrawMeshes(in_flight_frame_id);
         cb.EndRendering();

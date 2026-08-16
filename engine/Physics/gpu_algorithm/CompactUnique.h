@@ -4,11 +4,17 @@
 #include <cstdint>
 #include <memory>
 
-namespace Engine {
+namespace vk {
     class CommandBuffer;
-    class ComputeBuffer;
+}
+namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class ParallelScan;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief GPU compact-unique post-processing pass.
@@ -38,7 +44,7 @@ namespace Engine {
      */
     class CompactUnique {
     public:
-        explicit CompactUnique(RenderSystem &render_system, uint32_t max_elem_count);
+        explicit CompactUnique(Rhi::DeviceContext &device_context, uint32_t max_elem_count);
 
         ~CompactUnique();
 
@@ -71,14 +77,14 @@ namespace Engine {
          * @pre elem_capacity <= max_elem_count
          */
         void Record(
-            CommandBuffer &cb,
-            ComputeBuffer &pairs_buf,
-            ComputeBuffer &flags_buf,
-            ComputeBuffer &offsets_buf,
-            ComputeBuffer &count_buf,
-            ComputeBuffer &scan_scratch_buf,
+            vk::CommandBuffer cb,
+            Rhi::ComputeBuffer &pairs_buf,
+            Rhi::ComputeBuffer &flags_buf,
+            Rhi::ComputeBuffer &offsets_buf,
+            Rhi::ComputeBuffer &count_buf,
+            Rhi::ComputeBuffer &scan_scratch_buf,
             ParallelScan &scan,
-            ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         );
 

@@ -4,10 +4,16 @@
 #include <cstdint>
 #include <memory>
 
-namespace Engine {
+namespace vk {
     class CommandBuffer;
-    class ComputeBuffer;
-    class RenderSystem;
+}
+namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief GPU parallel exclusive prefix-sum (Blelloch work-efficient scan).
@@ -26,7 +32,7 @@ namespace Engine {
      *   3. add_block_offset shader: add prefix-summed block offsets back to data
      *
      * Input and output buffers are always separate bindings.  The caller may
-     * pass the same ComputeBuffer for both to achieve in-place scan.
+     * pass the same Rhi::ComputeBuffer for both to achieve in-place scan.
      *
      * Scratch buffer sizing:
      *   Use GetRequiredBlockSumsBytes(max_elem_count) to determine the minimum
@@ -41,7 +47,6 @@ namespace Engine {
      * Owned GPU resources:
      *   - Scan compute stage (parallel_scan.comp, modes 0 & 1)
      *   - Offset-addition compute stage (add_block_offset.comp)
-     *   - Per-pass parameter buffer pool
      *
      * Caller-provided resources:
      *   - Input / output data buffers
@@ -57,7 +62,7 @@ namespace Engine {
          *                        ever scan.  Used for bounds-checking in
          *                        Record and sizing via GetRequiredBlockSumsBytes.
          */
-        explicit ParallelScan(RenderSystem &render_system, uint32_t max_elem_count);
+        explicit ParallelScan(Rhi::DeviceContext &device_context, uint32_t max_elem_count);
 
         ~ParallelScan();
 
@@ -101,26 +106,16 @@ namespace Engine {
          * @pre elem_count > 0 && elem_count <= max_elem_count
          */
         void Record(
-            CommandBuffer &cb,
-            ComputeBuffer &input_buf,
-            ComputeBuffer &output_buf,
-            ComputeBuffer &block_sums_buf,
+            vk::CommandBuffer cb,
+            Rhi::ComputeBuffer &input_buf,
+            Rhi::ComputeBuffer &output_buf,
+            Rhi::ComputeBuffer &block_sums_buf,
             uint32_t elem_count
         );
 
         bool IsInitialized() const noexcept;
 
         uint32_t GetMaxElemCount() const noexcept;
-
-        /**
-         * @brief Reset the per-pass parameter buffer pool.
-         *
-         * Frees all allocated parameter buffers so they can be reused in
-         * subsequent Record calls.  This is typically called after a
-         * Record operation completes to ensure fresh allocation for the next
-         * dispatch.
-         */
-        void ResetParamPool();
 
     private:
         struct Impl;

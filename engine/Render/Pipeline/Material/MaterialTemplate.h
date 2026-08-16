@@ -1,11 +1,12 @@
 #ifndef PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
 #define PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
 
+#include "Render/render_export.h"
 #include <optional>
 #include <unordered_map>
 #include <variant>
 
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 
 namespace vk {
     class Pipeline;
@@ -18,6 +19,9 @@ namespace vk {
 } // namespace vk
 
 namespace Engine {
+    namespace Rhi {
+        class SPLayout;
+    }
     class MaterialInstance;
     class Pipeline;
     class PipelineLayout;
@@ -33,7 +37,6 @@ namespace Engine {
 
     namespace ShdrRfl {
         class SPVariable;
-        class SPLayout;
     } // namespace ShdrRfl
 
     /**
@@ -57,7 +60,7 @@ namespace Engine {
      * The only descriptor set that can be changed freely is therefore set
      * index 2.
      * This descriptor set is dynamically reflected from the shader code via
-     * `Engine::ShdrRfl::SPLayout` class.
+     * `Engine::Rhi::SPLayout` class.
      * Descriptor sets of index 0 and 1 are hardcoded and defined in the GLSL
      * file "builtin_assets/shaders/include/engine/interface.glsl".
      * These two sets cooperates closely with
@@ -84,7 +87,7 @@ namespace Engine {
      * @endcode
      * To modify them dynamically.
      * The placement of variables in UBOs into the memory are handled by the
-     * `Engine::StructuredBuffer` and `Engine::StructuredBufferPlacer` classes.
+     * `Engine::Rhi::StructuredBuffer` and `Engine::Rhi::StructuredBufferPlacer` classes.
      *
      * However, the following restrictions apply:
      * 1. For all shaders that are linked into the same pipeline, their
@@ -95,7 +98,7 @@ namespace Engine {
      * 3. For other variables (i.e. opaque types), only combined image samplers
      * are currently supported. Arrays are not supported either.
      */
-    class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
+    class RENDER_API MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
     public:
         using PoolInfo = PipelineInfo::MaterialPoolInfo;
 
@@ -117,7 +120,7 @@ namespace Engine {
             const std::vector<vk::ShaderModule> &shaders,
             vk::PipelineLayout layout,
             vk::DescriptorPool pool,
-            const ShdrRfl::SPLayout &reflected,
+            const Rhi::SPLayout &reflected,
             const PipelineRuntimeInfo &attribute,
             const std::string &name = ""
         );
@@ -150,7 +153,7 @@ namespace Engine {
         /**
          * @brief Get all reflected shader info.
          */
-        const ShdrRfl::SPLayout &GetReflectedShaderInfo() const noexcept;
+        const Rhi::SPLayout &GetReflectedShaderInfo() const noexcept;
 
         /**
          * @brief Query whether this material template has data to be submitted

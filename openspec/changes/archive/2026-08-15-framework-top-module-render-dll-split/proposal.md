@@ -1,0 +1,36 @@
+# Proposal: Framework Top Module and Render DLL Split
+
+## Why
+
+`Framework`, `Render`, and `UserInterface` are the last three OBJECT libraries still compiled into `engine.dll`. They form a circular include dependency (Framework → Render in 14 files, Render → Framework in 12) and, worse, `MainClass::GetInstance()` is used as a global service locator from 21 sites across all layers, including deep inside Render (shader compilation, render-resource handle destruction). With Core / Rhi / AssetCore / Physics already extracted as standalone DLLs, this change finishes the module split: Render becomes a consumer DLL with clean one-way dependencies, and Framework becomes the top-level orchestrator module that owns `MainClass`, depends on every module, and absorbs the external-asset import layer (Loader/Importer) plus `Input`.
+
+## What Changes
+
+- **New `EngineFramework` shared library (top-level)**: `EngineLibFramework` OBJECT library becomes `EngineFramework.dll`, containing the world/object/component core, `MainClass` (moved to the `Framework/` root), `Input`, the external-asset import layer (`GltfLoader`, `ObjLoader`, `Importer`, `UrdfLoader`, import utilities), the physics bridge (`PhysicsAdaptor`, GO-space descriptors), and `ComplexRenderGraphBuilder` (temporary tool). Directories are unified to PascalCase (`World/`, `Object/`, `Component/`, `Import/`, `Bridge/`, `Input/`, `Tools/`). **BREAKING**: `MainClass.h` include path becomes `<Framework/MainClass.h>`; the `EngineLibFramework` CMake target no longer exists.
+- **New `EngineRender` shared library**: `EngineLibRender` OBJECT library becomes `EngineRender.dll`, containing the render system, pipelines, render assets, resource managers, and `GUISystem` (moved to `Render/UserInterface/`). Internal layout is grouped by lifecycle: `Asset/`, `Resource/`, `Pipeline/`, `RenderSystem/`. **BREAKING**: the `EngineLibRender` CMake target no longer exists; `GUISystem.h` include path becomes `<Render/UserInterface/GUISystem.h>`.
+- **`engine.dll` is removed**: `Engine` becomes an INTERFACE aggregation target linking the six module DLLs (`EngineFramework`, `EngineRender`, `EnginePhysics`, `EngineAssetCore`, `EngineRhi`, `EngineCore`). Tests and examples keep linking `Engine` unchanged. **BREAKING**: `Engine.dll` no longer exists as a binary.
+- **`UserInterface` module is removed**: `GUISystem` merges into Render, `Input` merges into Framework; the `UserInterface/` directory and `EngineLibUserInterface` target are deleted. `Input::Update()` gains a `float delta_time` parameter instead of fetching `TimeSystem` through `MainClass`. **BREAKING**: `Input::Update` signature.
+- **Render loses all `MainClass`/`Framework` dependencies**: `RenderRuntimeContext` registry (patterned after `AssetRuntimeContext`) exposes the active `RenderSystem` and the editor-only `ShaderCompiler`; `RenderResourceHandle` destruction resolves the manager through it; `AssetDatabase` gains a pure-virtual `GetAssetPath(GUID)` so `ShaderAsset` no longer casts to `FileSystemDatabase`; `ShaderCompiler` receives the project-assets include path at construction; the dead `MainClass.h` include in `RenderSystem.cpp` is removed. **BREAKING**: `AssetDatabase` interface gains a pure-virtual method; `ShaderCompiler` constructor signature.
+- **Loader layer moves to Framework**: `Render/Loader/` (GltfLoader, ObjLoader, Importer, import utilities) moves to `Framework/Import/`; third-party deps (fastgltf, tinyobjloader, stb, ktx) follow. `MeshAsset`'s `friend class ObjLoader` is removed (all accessed fields are public).
+- **Per-DLL reflection**: `meta_engine` is deleted; `meta_render` + `meta_framework` scan their own headers (Framework includes `MainClass.h` and `Input.h`); `RenderReflectionRegistration.cpp` / `FrameworkReflectionRegistration.cpp` expose `RegisterRenderTypes()` / `RegisterFrameworkTypes()`; the MainClass registration chain becomes Core → Rhi → AssetCore → Physics → Render → Framework.
+- **Export contracts**: new `framework_export.h` (`FRAMEWORK_API`) and `render_export.h` (`RENDER_API`); all public classes of both modules are annotated in one pass.
+- **Dependency wiring**: inter-module dependencies are PRIVATE everywhere (header visibility flows through `EngineLibHeaderInterface`); `EngineFramework` explicitly PRIVATE-links `EngineRhi` (PhysicsAdaptor uses Rhi symbols); POST_BUILD copy list drops `Engine` and adds `EngineRender.dll` / `EngineFramework.dll`; the `shader` build dependency moves to `EngineRender`.
+
+## Capabilities
+
+### New Capabilities
+- `framework-module`: the Framework module builds as a standalone top-level `EngineFramework.dll` (owns MainClass, Input, the import layer, the physics bridge, and the temporary render-graph builder), with PascalCase internal layout, PRIVATE inter-module dependencies, export macros, and per-DLL reflection.
+- `render-module`: the Render module builds as a standalone `EngineRender.dll` (owns GUISystem and the render-asset/pipeline/render-system layers), is free of MainClass/Framework dependencies, and provides the `RenderRuntimeContext` service registry plus the shader compile service contract.
+
+### Modified Capabilities
+- `module-target-naming`: `Engine` stops being a shared library and becomes an INTERFACE aggregation target; `Engine.dll` is no longer produced; `EngineFramework` / `EngineRender` join the `Engine`-prefixed family; `EngineLibFramework` / `EngineLibRender` / `EngineLibUserInterface` targets cease to exist.
+- `reflection-module`: `meta_engine` is removed; code generation moves to `meta_render` (Render headers) and `meta_framework` (Framework headers including `MainClass.h` and `Input.h`); registration chain gains `RegisterRenderTypes()` and `RegisterFrameworkTypes()`.
+- `raii-render-resource-handle`: the destructor resolves the `RenderSystem` through the `RenderRuntimeContext` registry instead of `MainClass::GetInstance()`; shutdown-safety semantics (silently skip when the render system is gone) are preserved.
+- `asset-core-module`: `AssetDatabase` interface gains `virtual AssetPath GetAssetPath(GUID guid) const = 0`; `FileSystemDatabase` overrides it; `ShaderAsset` resolves source paths through the interface instead of downcasting to `FileSystemDatabase`.
+
+## Impact
+
+- **Code**: `engine/CMakeLists.txt` (target family rework, meta targets, POST_BUILD, shader dependency, doxygen), `engine/Framework/` (MainClass move, Loader merge, Input merge, Bridge move, Tools move, directory PascalCase, export macros, reflection registration, CMake), `engine/Render/` (Loader move out, GUISystem move in, RenderRuntime + shader compile service, export macros, reflection registration, internal regrouping, CMake), `engine/UserInterface/` (deleted), `engine/Asset/AssetDatabase/AssetDatabase.h` (new pure-virtual), `engine/Tests/` + `example/` (MainClass include path only).
+- **Build artifacts**: `EngineFramework.dll` and `EngineRender.dll` produced and copied; `Engine.dll` no longer produced.
+- **Third-party dependency movement**: fastgltf, tinyobjloader, stb, ktx link to Framework instead of Render; imgui OBJECT objects compile into `EngineRender`.
+- **No runtime behavior change**: main-loop orchestration, serialized asset formats, and GPU resource lifetimes are unchanged; only symbol resolution paths change.

@@ -1,6 +1,7 @@
 #ifndef RENDERSYSTEM_CAMERAMANAGER
 #define RENDERSYSTEM_CAMERAMANAGER
 
+#include "Render/render_export.h"
 #include <memory>
 // GLM forward declarations.
 #include <fwd.hpp>
@@ -20,7 +21,7 @@ namespace Engine {
          * @brief A class offering unified access to underlying
          * camera data (mainly view and projection matrices).
          */
-        class CameraManager {
+        class RENDER_API CameraManager {
         public:
             static constexpr uint32_t MAX_CAMERAS = 16;
 

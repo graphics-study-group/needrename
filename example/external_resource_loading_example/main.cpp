@@ -8,18 +8,18 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
-#include <Asset/Loader/Importer.h>
-#include <Asset/Scene/LevelAsset.h>
-#include <Asset/Scene/SceneAsset.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Math/Transform.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+#include <Framework/Component/RenderComponent/CameraComponent.h>
+#include <Framework/Import/Importer.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/Scene/LevelAsset.h>
+#include <Framework/Scene/SceneAsset.h>
+#include <Framework/Tools/ComplexRenderGraphBuilder.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
 #include <Render/FullRenderSystem.h>
-#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <cmake_config.h>
 
 using namespace Engine;
@@ -75,7 +75,9 @@ int main(int argc, char **argv) {
 
     auto &main_scene = cmc->GetWorldSystem()->GetMainSceneRef();
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
-    AssetPath prefab_path{*adb, path_in_project / ("GO_" + mesh_path.stem().string() + ".asset")};
+    AssetPath prefab_path(
+        AssetPath::k_scheme_res, (path_in_project / ("GO_" + mesh_path.stem().string() + ".asset")).generic_string()
+    );
     auto prefab_ref = adb->GetNewAssetRef(prefab_path);
     prefab_ref.as<SceneAsset>()->AddToScene(main_scene);
 
@@ -97,7 +99,7 @@ int main(int argc, char **argv) {
     // cmc->LoopFinite(60, 0.0f);
     // auto level_asset = adb->GetNewAssetRef(AssetPath{*adb, path_in_project / "default_level.asset"}).as<LevelAsset>();
     // cmc->GetWorldSystem()->SaveLevelToAsset(*level_asset);
-    // Serialization::Archive archive;
+    // AnnoRefl::Archive archive;
     // archive.prepare_save();
     // level_asset->save_asset_to_archive(archive);
     // adb->SaveArchive(archive, adb->GetAssetPath(level_asset->GetGUID()));

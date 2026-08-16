@@ -3,8 +3,8 @@
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Shader/ShaderAsset.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
+#include "Render/Asset/Shader/ShaderAsset.h"
 #include "Render/FullRenderSystem.h"
 #include <cmake_config.h>
 
@@ -17,19 +17,19 @@ auto BuildRenderGraph(
     RenderTargetTexture &color_in,
     RenderTargetTexture &color_out,
     RenderTargetTexture &color_present,
-    ComputeStage &compute,
-    ComputeResourceBinding &cbinding
+    Rhi::ComputeStage &compute,
+    Rhi::ComputeResourceBinding &cbinding
 ) {
     RenderGraphBuilder rgb{rsys};
-    auto ci = rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
+    auto ci = rgb.ImportExternalResource(color_in, Rhi::MemoryAccessTypeImageBits::TransferWrite);
     auto co = rgb.ImportExternalResource(color_out);
     auto cp = rgb.ImportExternalResource(color_present);
     rgb.AddPass(
         RenderGraphPassBuilder{rsys}
             .SetName("Fluid simulation")
-            .UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead)
-            .UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite)
-            .UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite)
+            .UseImage(ci, Rhi::MemoryAccessTypeImageBits::ShaderRandomRead)
+            .UseImage(co, Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite)
+            .UseImage(cp, Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite)
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &) -> void {
                 cb.BindComputeStage(compute);
@@ -42,8 +42,8 @@ auto BuildRenderGraph(
     rgb.AddPass(
         RenderGraphPassBuilder{rsys}
             .SetName("Blitting")
-            .UseImage(ci, MemoryAccessTypeImageBits::TransferWrite)
-            .UseImage(co, MemoryAccessTypeImageBits::TransferRead)
+            .UseImage(ci, Rhi::MemoryAccessTypeImageBits::TransferWrite)
+            .UseImage(co, Rhi::MemoryAccessTypeImageBits::TransferRead)
             .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &) -> void {
                 cb.BlitColorImage(color_out, color_in);
             })
@@ -88,17 +88,20 @@ int main(int argc, char *argv[]) {
         .is_cube_map = false
     };
 
-    std::shared_ptr color_input =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Input");
-    std::shared_ptr color_output =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Output");
+    std::shared_ptr color_input = Engine::RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Compute Input"
+    );
+    std::shared_ptr color_output = Engine::RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Compute Output"
+    );
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    std::shared_ptr color_present =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Present");
+    std::shared_ptr color_present = Engine::RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Present"
+    );
 
-    ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs);
-    auto &cbinding = cstage.AllocateResourceBinding();
+    Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
+    cstage.Instantiate(cs->binary, cs->m_name);
+    auto &cbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
     cbinding.GetShaderResourceBinding().BindTexture("outputImage", *color_output);
     cbinding.GetShaderResourceBinding().BindTexture("inputImage", *color_input);
     cbinding.GetShaderResourceBinding().BindTexture("outputColorImage", *color_present);
@@ -118,18 +121,17 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        rsys->StartFrame();
+        if (rsys->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
         cbinding.GetStructuredBuffer().SetVariable<uint32_t>("UBO::frame_count", static_cast<uint32_t>(frame_count));
 
-        if (frame_count == 1) rg->AddExternalInputDependency(g_color_in_handle, MemoryAccessTypeImageBits::None);
-        rg->Execute(*rsys);
+        if (frame_count == 1) rg->AddExternalInputDependency(g_color_in_handle, Rhi::MemoryAccessTypeImageBits::None);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
 
-        rsys->CompleteFrame(
-            *color_present,
-            MemoryAccessTypeImageBits::ShaderRandomWrite,
-            color_present->GetTextureDescription().width,
-            color_present->GetTextureDescription().height
-        );
+        rsys->CompleteFrame(*color_present, Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite);
 
         SDL_Delay(15);
     }

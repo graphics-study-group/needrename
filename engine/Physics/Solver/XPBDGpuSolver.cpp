@@ -7,14 +7,14 @@
 #include <Physics/Collision/ConvexCollisionDetector.h>
 #include <Physics/Collision/SpatialHashBroadDetector.h>
 #include <Physics/PhysicsScene.h>
-#include <Render/Memory/ComputeBuffer.h>
-#include <Render/Memory/DeviceBuffer.h>
-#include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
-#include <Render/Pipeline/Compute/ComputeStage.h>
-#include <Render/RenderSystem.h>
-#include <Render/RenderSystem/SceneDataManager.h>
+#include <Rhi/Device/DeviceContext.h>
+#include <Rhi/Pipeline/ComputeHelpers.h>
+
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Buffer/DeviceBuffer.h>
+#include <Rhi/Pipeline/ComputeResourceBinding.h>
+#include <Rhi/Pipeline/ComputeStage.h>
+#include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <filesystem>
 #include <fstream>
@@ -41,12 +41,33 @@ namespace {
         vk::PipelineStageFlagBits2::eComputeShader,
         vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite
     };
+
+    // Push-constant layouts, matching the per-shader blocks in
+    // engine/Physics/shader/solver/XPBDSolver/. The reflected size is the
+    // declared size (std430 member layout, no struct-level 16 padding), so
+    // vec4 members must come before scalar members (glm::vec4 aligns to 4).
+    struct XpbdPushParams {
+        glm::vec4 gravity_dt; // xyz = gravity, w = substep dt
+    };
+    static_assert(sizeof(XpbdPushParams) == 16, "XpbdPushParams must match shader push block");
+
+    struct HingePushParams {
+        glm::vec4 gravity_dt;
+        uint32_t hinge_joint_count;
+    };
+    static_assert(sizeof(HingePushParams) == 20, "HingePushParams must match shader push block");
+
+    struct FixedPushParams {
+        glm::vec4 gravity_dt;
+        uint32_t fixed_joint_count;
+    };
+    static_assert(sizeof(FixedPushParams) == 20, "FixedPushParams must match shader push block");
 } // namespace
 
 namespace Engine {
 
     struct XpbdGpuSolver::Impl {
-        RenderSystem &render_system;
+        Rhi::DeviceContext &device_context;
 
         bool shaders_loaded = false;
         XpbdConfig config{};
@@ -56,74 +77,70 @@ namespace Engine {
         std::unique_ptr<ConvexCollisionDetector> narrow_detector{};
 
         // ---- Compute stages ----
-        std::unique_ptr<ComputeStage> clear_int_stage{};
-        std::unique_ptr<ComputeStage> snapshot_stage{};
-        std::unique_ptr<ComputeStage> update_shape_world_pose_stage{};
-        std::unique_ptr<ComputeStage> integrate_stage{};
-        std::unique_ptr<ComputeStage> accum_pos_stage{};
-        std::unique_ptr<ComputeStage> apply_pos_stage{};
-        std::unique_ptr<ComputeStage> update_vel_stage{};
-        std::unique_ptr<ComputeStage> accum_vel_stage{};
-        std::unique_ptr<ComputeStage> apply_vel_stage{};
-        std::unique_ptr<ComputeStage> model_matrix_stage{};
-        std::unique_ptr<ComputeStage> clear_hinge_lagrange_stage{};
-        std::unique_ptr<ComputeStage> clear_fixed_lagrange_stage{};
-        std::unique_ptr<ComputeStage> accum_hinge_pos_stage{};
-        std::unique_ptr<ComputeStage> accum_fixed_pos_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_int_stage{};
+        std::unique_ptr<Rhi::ComputeStage> snapshot_stage{};
+        std::unique_ptr<Rhi::ComputeStage> update_shape_world_pose_stage{};
+        std::unique_ptr<Rhi::ComputeStage> integrate_stage{};
+        std::unique_ptr<Rhi::ComputeStage> accum_pos_stage{};
+        std::unique_ptr<Rhi::ComputeStage> apply_pos_stage{};
+        std::unique_ptr<Rhi::ComputeStage> update_vel_stage{};
+        std::unique_ptr<Rhi::ComputeStage> accum_vel_stage{};
+        std::unique_ptr<Rhi::ComputeStage> apply_vel_stage{};
+        std::unique_ptr<Rhi::ComputeStage> model_matrix_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_hinge_lagrange_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_fixed_lagrange_stage{};
+        std::unique_ptr<Rhi::ComputeStage> accum_hinge_pos_stage{};
+        std::unique_ptr<Rhi::ComputeStage> accum_fixed_pos_stage{};
 
         // ---- Pre-allocated bindings ----
-        ComputeResourceBinding *clear_int_binding = nullptr;
-        ComputeResourceBinding *snapshot_binding = nullptr;
-        ComputeResourceBinding *update_shape_world_pose_binding = nullptr;
-        ComputeResourceBinding *integrate_binding = nullptr;
-        ComputeResourceBinding *accum_pos_binding = nullptr;
-        ComputeResourceBinding *apply_pos_binding = nullptr;
-        ComputeResourceBinding *update_vel_binding = nullptr;
-        ComputeResourceBinding *accum_vel_binding = nullptr;
-        ComputeResourceBinding *apply_vel_binding = nullptr;
-        ComputeResourceBinding *model_matrix_binding = nullptr;
-        ComputeResourceBinding *clear_hinge_lagrange_binding = nullptr;
-        ComputeResourceBinding *clear_fixed_lagrange_binding = nullptr;
-        ComputeResourceBinding *accum_hinge_pos_binding = nullptr;
-        ComputeResourceBinding *accum_fixed_pos_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_int_binding = nullptr;
+        Rhi::ComputeResourceBinding *snapshot_binding = nullptr;
+        Rhi::ComputeResourceBinding *update_shape_world_pose_binding = nullptr;
+        Rhi::ComputeResourceBinding *integrate_binding = nullptr;
+        Rhi::ComputeResourceBinding *accum_pos_binding = nullptr;
+        Rhi::ComputeResourceBinding *apply_pos_binding = nullptr;
+        Rhi::ComputeResourceBinding *update_vel_binding = nullptr;
+        Rhi::ComputeResourceBinding *accum_vel_binding = nullptr;
+        Rhi::ComputeResourceBinding *apply_vel_binding = nullptr;
+        Rhi::ComputeResourceBinding *model_matrix_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_hinge_lagrange_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_fixed_lagrange_binding = nullptr;
+        Rhi::ComputeResourceBinding *accum_hinge_pos_binding = nullptr;
+        Rhi::ComputeResourceBinding *accum_fixed_pos_binding = nullptr;
 
         // ---- Intermediate GPU buffers ----
-        std::unique_ptr<ComputeBuffer> gpu_pre_contact_linear_vel{};
-        std::unique_ptr<ComputeBuffer> gpu_pre_contact_angular_vel{};
-        std::unique_ptr<ComputeBuffer> gpu_substep_start_position{};
-        std::unique_ptr<ComputeBuffer> gpu_substep_start_orientation{};
-        std::unique_ptr<ComputeBuffer> gpu_linear_position_delta{};
-        std::unique_ptr<ComputeBuffer> gpu_angular_position_delta{};
-        std::unique_ptr<ComputeBuffer> gpu_position_delta_count{};
-        std::unique_ptr<ComputeBuffer> gpu_linear_velocity_delta{};
-        std::unique_ptr<ComputeBuffer> gpu_angular_velocity_delta{};
-        std::unique_ptr<ComputeBuffer> gpu_velocity_delta_count{};
-        std::unique_ptr<ComputeBuffer> gpu_contact_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_hinge_axis_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_hinge_anchor_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_fixed_rotation_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_fixed_position_lagrange{};
-        std::unique_ptr<ComputeBuffer> gpu_hinge_joint_count_buffer{};
-        std::unique_ptr<ComputeBuffer> gpu_fixed_joint_count_buffer{};
-        std::unique_ptr<ComputeBuffer> gpu_uniforms{};
-        std::unique_ptr<ComputeBuffer> gpu_body_count_buffer{};
-        std::unique_ptr<ComputeBuffer> gpu_contact_count_buffer{};
-        std::unique_ptr<ComputeBuffer> gpu_shape_slot_count_buffer{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_pre_contact_linear_vel{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_pre_contact_angular_vel{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_substep_start_position{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_substep_start_orientation{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_linear_position_delta{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_angular_position_delta{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_position_delta_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_linear_velocity_delta{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_angular_velocity_delta{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_velocity_delta_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_axis_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_anchor_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_rotation_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_position_lagrange{};
 
-        explicit Impl(RenderSystem &rs) : render_system(rs) {
+        // CPU-side per-dispatch constants, recorded as push constants in GPUStep.
+        glm::vec4 push_gravity_dt{0.0f, 0.0f, -9.81f, 0.0f};
+
+        explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
-        void EnsureBuffer(std::unique_ptr<ComputeBuffer> &buf, size_t bytes, const char *name) {
-            const auto &alloc = render_system.GetAllocatorState();
+        void EnsureBuffer(std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name) {
+            const auto &alloc = device_context.GetAllocatorState();
             if (!buf || buf->GetSize() != bytes) {
-                buf = ComputeBuffer::CreateUnique(alloc, bytes, false, false, false, false, name);
+                buf = Rhi::ComputeBuffer::CreateUnique(alloc, bytes, false, false, false, false, name);
             }
         }
 
         void EnsureIntermediateBuffers(
             uint32_t body_count, uint32_t max_contacts, uint32_t hinge_joint_count, uint32_t fixed_joint_count
         ) {
-            const auto &alloc = render_system.GetAllocatorState();
             size_t body_bytes = static_cast<size_t>(body_count) * sizeof(glm::vec4);
             size_t body_int3 = static_cast<size_t>(body_count) * 3 * sizeof(float);
             size_t body_int1 = static_cast<size_t>(body_count) * sizeof(float);
@@ -146,56 +163,6 @@ namespace Engine {
             EnsureBuffer(gpu_hinge_anchor_lagrange, hinge_fbytes, "XPBD HingeAnchorLagrange");
             EnsureBuffer(gpu_fixed_rotation_lagrange, fixed_fbytes, "XPBD FixedRotLagrange");
             EnsureBuffer(gpu_fixed_position_lagrange, fixed_fbytes, "XPBD FixedPosLagrange");
-
-            {
-                size_t sz = sizeof(uint32_t);
-                if (!gpu_body_count_buffer || gpu_body_count_buffer->GetSize() != sz) {
-                    gpu_body_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD BodyCount");
-                }
-                auto *addr = reinterpret_cast<uint32_t *>(gpu_body_count_buffer->GetVMAddress());
-                *addr = body_count;
-            }
-            {
-                size_t sz = sizeof(uint32_t);
-                if (!gpu_contact_count_buffer || gpu_contact_count_buffer->GetSize() != sz) {
-                    gpu_contact_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD ContactCount");
-                }
-                auto *addr = reinterpret_cast<uint32_t *>(gpu_contact_count_buffer->GetVMAddress());
-                *addr = max_contacts;
-            }
-            {
-                size_t sz = sizeof(uint32_t);
-                if (!gpu_shape_slot_count_buffer || gpu_shape_slot_count_buffer->GetSize() != sz) {
-                    gpu_shape_slot_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD ShapeSlotCount");
-                }
-            }
-            {
-                size_t sz = sizeof(glm::vec4);
-                if (!gpu_uniforms || gpu_uniforms->GetSize() != sz) {
-                    gpu_uniforms = ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD Uniforms");
-                }
-            }
-            {
-                size_t sz = sizeof(uint32_t);
-                if (!gpu_hinge_joint_count_buffer || gpu_hinge_joint_count_buffer->GetSize() != sz) {
-                    gpu_hinge_joint_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD HingeJointCnt");
-                }
-                auto *addr = reinterpret_cast<uint32_t *>(gpu_hinge_joint_count_buffer->GetVMAddress());
-                *addr = hinge_joint_count;
-            }
-            {
-                size_t sz = sizeof(uint32_t);
-                if (!gpu_fixed_joint_count_buffer || gpu_fixed_joint_count_buffer->GetSize() != sz) {
-                    gpu_fixed_joint_count_buffer =
-                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD FixedJointCnt");
-                }
-                auto *addr = reinterpret_cast<uint32_t *>(gpu_fixed_joint_count_buffer->GetVMAddress());
-                *addr = fixed_joint_count;
-            }
         }
 
         void EnsureShadersLoaded() {
@@ -204,7 +171,7 @@ namespace Engine {
 
             auto load = [this](const char *path, const char *name) {
                 auto spirv = LoadSpirv(path);
-                auto stage = std::make_unique<ComputeStage>(render_system);
+                auto stage = std::make_unique<Rhi::ComputeStage>(device_context);
                 stage->Instantiate(spirv, name);
                 return stage;
             };
@@ -251,42 +218,9 @@ namespace Engine {
             accum_fixed_pos_stage = load("solver/XPBDSolver/accumulate_fixed_position.comp.spv", "XPBD AccumFixedPos");
             accum_fixed_pos_binding = &accum_fixed_pos_stage->AllocateResourceBinding();
         }
-
-        // ---- Dispatch helpers ----
-        void Dispatch(
-            vk::CommandBuffer cb,
-            ComputeStage &stage,
-            ComputeResourceBinding &binding,
-            uint32_t wg_x,
-            uint32_t wg_y = 1,
-            uint32_t wg_z = 1
-        ) {
-            cb.bindPipeline(vk::PipelineBindPoint::eCompute, stage.GetPipeline());
-            cb.bindDescriptorSets(
-                vk::PipelineBindPoint::eCompute, stage.GetPipelineLayout(), 0, {binding.GetDescriptorSet(0)}, {}
-            );
-            cb.dispatch(wg_x, wg_y, wg_z);
-        }
-
-        void DispatchClearInt(
-            vk::CommandBuffer cb, ComputeResourceBinding &binding, ComputeBuffer &target, ComputeBuffer &count
-        ) {
-            auto &srb = binding.GetShaderResourceBinding();
-            srb.BindBuffer("Target", target);
-            srb.BindBuffer("ElemCount", count);
-            Dispatch(cb, *clear_int_stage, binding, (count.GetSize() / sizeof(uint32_t) + 63u) / 64u);
-        }
-
-        void DispatchSnapshot(vk::CommandBuffer cb, ComputeBuffer &src, ComputeBuffer &dst, uint32_t body_count) {
-            auto &srb = snapshot_binding->GetShaderResourceBinding();
-            srb.BindBuffer("SrcBuffer", src);
-            srb.BindBuffer("DstBuffer", dst);
-            srb.BindBuffer("ElemCount", *gpu_body_count_buffer);
-            Dispatch(cb, *snapshot_stage, *snapshot_binding, (body_count + 63u) / 64u);
-        }
     };
 
-    XpbdGpuSolver::XpbdGpuSolver(RenderSystem &render_system) : m_impl(std::make_unique<Impl>(render_system)) {
+    XpbdGpuSolver::XpbdGpuSolver(Rhi::DeviceContext &device_context) : m_impl(std::make_unique<Impl>(device_context)) {
     }
 
     XpbdGpuSolver::~XpbdGpuSolver() = default;
@@ -317,19 +251,14 @@ namespace Engine {
 
         m_impl->EnsureIntermediateBuffers(body_count, max_contacts, gpu.hinge_joint_count, gpu.fixed_joint_count);
 
-        *reinterpret_cast<uint32_t *>(m_impl->gpu_shape_slot_count_buffer->GetVMAddress()) = shape_count;
-
         const float substep_dt =
             m_impl->config.time_step / static_cast<float>(std::max(1u, m_impl->config.num_substep_perstep));
-        {
-            auto *uniform_addr = reinterpret_cast<glm::vec4 *>(m_impl->gpu_uniforms->GetVMAddress());
-            *uniform_addr =
-                glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, substep_dt);
-        }
+        m_impl->push_gravity_dt =
+            glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, substep_dt);
 
         {
             if (!m_impl->broad_detector) {
-                m_impl->broad_detector = std::make_unique<SpatialHashBroadDetector>(m_impl->render_system);
+                m_impl->broad_detector = std::make_unique<SpatialHashBroadDetector>(m_impl->device_context);
             }
             GridConfig grid_config{};
             grid_config.world_min = m_impl->config.grid_world_min;
@@ -346,7 +275,7 @@ namespace Engine {
             auto broad_buffers = m_impl->broad_detector->GetResultBuffers();
 
             if (!m_impl->narrow_detector) {
-                m_impl->narrow_detector = std::make_unique<ConvexCollisionDetector>(m_impl->render_system);
+                m_impl->narrow_detector = std::make_unique<ConvexCollisionDetector>(m_impl->device_context);
             }
             uint32_t broad_max_pairs = m_impl->broad_detector->GetMaxPairs();
             uint32_t narrow_max_contacts =
@@ -362,7 +291,7 @@ namespace Engine {
         }
     }
 
-    void XpbdGpuSolver::GPUStep(CommandBuffer &command_buffer) {
+    void XpbdGpuSolver::GPUStep(vk::CommandBuffer cb) {
         const auto gpu = m_bound_scene->GetGpuBuffers();
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) return;
 
@@ -371,27 +300,26 @@ namespace Engine {
         const uint32_t body_wg = (body_count + 63u) / 64u;
         const uint32_t shape_wg = (shape_count + 63u) / 64u;
 
-        auto barrier = [&command_buffer]() {
-            command_buffer.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        auto barrier = [&cb]() { cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}}); };
+
+        auto dispatch = [&cb](
+                            Rhi::ComputeStage &stage,
+                            Rhi::ComputeResourceBinding &binding,
+                            uint32_t x,
+                            uint32_t y = 1,
+                            uint32_t z = 1
+                        ) {
+            Rhi::BindComputeStage(cb, stage);
+            Rhi::BindComputeResource(cb, stage, binding);
+            Rhi::DispatchCompute(cb, x, y, z);
         };
 
-        auto dispatch =
-            [&command_buffer](
-                ComputeStage &stage, ComputeResourceBinding &binding, uint32_t x, uint32_t y = 1, uint32_t z = 1
-            ) {
-                command_buffer.BindComputeStage(stage);
-                command_buffer.BindComputeResource(binding);
-                command_buffer.DispatchCompute(x, y, z);
-            };
-
-        auto dispatch_clear = [this, &dispatch](ComputeBuffer &tgt, ComputeBuffer &cnt, uint32_t wg) {
+        auto dispatch_clear = [this, &cb, &dispatch](Rhi::ComputeBuffer &tgt, uint32_t elem_count, uint32_t wg) {
+            Rhi::PushConstants(cb, *m_impl->clear_int_stage, elem_count);
             auto &srb = m_impl->clear_int_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", tgt);
-            srb.BindBuffer("ElemCount", cnt);
             dispatch(*m_impl->clear_int_stage, *m_impl->clear_int_binding, wg);
         };
-
-        m_impl->render_system.GetSceneDataManager().SetModelMatricesBuffer(gpu.model_matrices);
 
         if (m_bound_scene->IsSimulationEnabled()) {
             const uint32_t substep_count = std::max(1u, m_impl->config.num_substep_perstep);
@@ -406,7 +334,7 @@ namespace Engine {
                     auto &srb = m_impl->snapshot_binding->GetShaderResourceBinding();
                     srb.BindBuffer("SrcBuffer", *gpu.rigid_body_center_world_position);
                     srb.BindBuffer("DstBuffer", *m_impl->gpu_substep_start_position);
-                    srb.BindBuffer("ElemCount", *m_impl->gpu_body_count_buffer);
+                    Rhi::PushConstants(cb, *m_impl->snapshot_stage, body_count);
                     dispatch(*m_impl->snapshot_stage, *m_impl->snapshot_binding, body_wg);
                 }
                 barrier();
@@ -415,7 +343,7 @@ namespace Engine {
                     auto &srb = m_impl->snapshot_binding->GetShaderResourceBinding();
                     srb.BindBuffer("SrcBuffer", *gpu.rigid_body_center_world_rotation);
                     srb.BindBuffer("DstBuffer", *m_impl->gpu_substep_start_orientation);
-                    srb.BindBuffer("ElemCount", *m_impl->gpu_body_count_buffer);
+                    Rhi::PushConstants(cb, *m_impl->snapshot_stage, body_count);
                     dispatch(*m_impl->snapshot_stage, *m_impl->snapshot_binding, body_wg);
                 }
                 barrier();
@@ -433,7 +361,7 @@ namespace Engine {
                     srb.BindBuffer("RigidBodyExternalForce", *gpu.rigid_body_external_force);
                     srb.BindBuffer("RigidBodyExternalTorque", *gpu.rigid_body_external_torque);
                     srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+                    Rhi::PushConstants(cb, *m_impl->integrate_stage, m_impl->push_gravity_dt);
                     dispatch(*m_impl->integrate_stage, *m_impl->integrate_binding, body_wg);
                 }
                 barrier();
@@ -442,7 +370,7 @@ namespace Engine {
                     auto &srb = m_impl->snapshot_binding->GetShaderResourceBinding();
                     srb.BindBuffer("SrcBuffer", *gpu.rigid_body_linear_velocity);
                     srb.BindBuffer("DstBuffer", *m_impl->gpu_pre_contact_linear_vel);
-                    srb.BindBuffer("ElemCount", *m_impl->gpu_body_count_buffer);
+                    Rhi::PushConstants(cb, *m_impl->snapshot_stage, body_count);
                     dispatch(*m_impl->snapshot_stage, *m_impl->snapshot_binding, body_wg);
                 }
                 barrier();
@@ -451,7 +379,7 @@ namespace Engine {
                     auto &srb = m_impl->snapshot_binding->GetShaderResourceBinding();
                     srb.BindBuffer("SrcBuffer", *gpu.rigid_body_angular_velocity);
                     srb.BindBuffer("DstBuffer", *m_impl->gpu_pre_contact_angular_vel);
-                    srb.BindBuffer("ElemCount", *m_impl->gpu_body_count_buffer);
+                    Rhi::PushConstants(cb, *m_impl->snapshot_stage, body_count);
                     dispatch(*m_impl->snapshot_stage, *m_impl->snapshot_binding, body_wg);
                 }
                 barrier();
@@ -472,18 +400,18 @@ namespace Engine {
                 }
 
                 // ====== Collision Detection ======
-                m_impl->broad_detector->Record(command_buffer);
-                m_impl->narrow_detector->Record(command_buffer);
+                m_impl->broad_detector->Record(cb);
+                m_impl->narrow_detector->Record(cb);
 
                 // ====== PostCollision PreIter ======
                 barrier();
 
-                dispatch_clear(*m_impl->gpu_position_delta_count, *m_impl->gpu_body_count_buffer, body_wg);
+                dispatch_clear(*m_impl->gpu_position_delta_count, body_count, body_wg);
                 barrier();
 
                 dispatch_clear(
                     *m_impl->gpu_contact_lagrange,
-                    *m_impl->gpu_contact_count_buffer,
+                    static_cast<uint32_t>(m_impl->gpu_contact_lagrange->GetSize() / sizeof(float)),
                     (static_cast<uint32_t>(m_impl->gpu_contact_lagrange->GetSize() / sizeof(float)) + 63u) / 64u
                 );
                 barrier();
@@ -492,7 +420,7 @@ namespace Engine {
                     auto &srb = m_impl->clear_hinge_lagrange_binding->GetShaderResourceBinding();
                     srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
                     srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
-                    srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
+                    Rhi::PushConstants(cb, *m_impl->clear_hinge_lagrange_stage, gpu.hinge_joint_count);
                     dispatch(
                         *m_impl->clear_hinge_lagrange_stage,
                         *m_impl->clear_hinge_lagrange_binding,
@@ -505,7 +433,7 @@ namespace Engine {
                     auto &srb = m_impl->clear_fixed_lagrange_binding->GetShaderResourceBinding();
                     srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
                     srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
-                    srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
+                    Rhi::PushConstants(cb, *m_impl->clear_fixed_lagrange_stage, gpu.fixed_joint_count);
                     dispatch(
                         *m_impl->clear_fixed_lagrange_stage,
                         *m_impl->clear_fixed_lagrange_binding,
@@ -521,7 +449,6 @@ namespace Engine {
 
                     {
                         auto &srb = m_impl->accum_pos_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count_buffer);
                         srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
                         srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
                         srb.BindBuffer("RigidBodyCenterPosition", *g.rigid_body_center_world_position);
@@ -545,7 +472,6 @@ namespace Engine {
                         srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
                         srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
                         srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
-                        srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
                         dispatch(
                             *m_impl->accum_pos_stage,
                             *m_impl->accum_pos_binding,
@@ -557,7 +483,6 @@ namespace Engine {
                     if (g.hinge_joint_count > 0u) {
                         auto &srb = m_impl->accum_hinge_pos_binding->GetShaderResourceBinding();
                         srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
-                        srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
                         srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
                         srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
                         srb.BindBuffer("HingeJointAlive", *gpu.gpu_hinge_joint_alive);
@@ -571,7 +496,8 @@ namespace Engine {
                         srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
                         srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
                         srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
-                        srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+                        const HingePushParams hinge_params{m_impl->push_gravity_dt, g.hinge_joint_count};
+                        Rhi::PushConstants(cb, *m_impl->accum_hinge_pos_stage, hinge_params);
                         dispatch(
                             *m_impl->accum_hinge_pos_stage,
                             *m_impl->accum_hinge_pos_binding,
@@ -583,7 +509,6 @@ namespace Engine {
                     if (g.fixed_joint_count > 0u) {
                         auto &srb = m_impl->accum_fixed_pos_binding->GetShaderResourceBinding();
                         srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
-                        srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
                         srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
                         srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
                         srb.BindBuffer("FixedJointAlive", *gpu.gpu_fixed_joint_alive);
@@ -597,7 +522,8 @@ namespace Engine {
                         srb.BindBuffer("LinearPositionDelta", *m_impl->gpu_linear_position_delta);
                         srb.BindBuffer("AngularPositionDelta", *m_impl->gpu_angular_position_delta);
                         srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
-                        srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+                        const FixedPushParams fixed_params{m_impl->push_gravity_dt, g.fixed_joint_count};
+                        Rhi::PushConstants(cb, *m_impl->accum_fixed_pos_stage, fixed_params);
                         dispatch(
                             *m_impl->accum_fixed_pos_stage,
                             *m_impl->accum_fixed_pos_binding,
@@ -632,7 +558,7 @@ namespace Engine {
                     srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
                     srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
                     srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
-                    srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+                    Rhi::PushConstants(cb, *m_impl->update_vel_stage, m_impl->push_gravity_dt);
                     dispatch(*m_impl->update_vel_stage, *m_impl->update_vel_binding, body_wg);
                 }
 
@@ -640,9 +566,7 @@ namespace Engine {
                 for (uint32_t iter = 0; iter < vel_iters; ++iter) {
                     barrier();
 
-                    dispatch_clear(
-                        *m_impl->gpu_velocity_delta_count, *m_impl->gpu_body_count_buffer, (body_count + 63u) / 64u
-                    );
+                    dispatch_clear(*m_impl->gpu_velocity_delta_count, body_count, (body_count + 63u) / 64u);
                     barrier();
 
                     {
@@ -673,7 +597,7 @@ namespace Engine {
                         srb.BindBuffer("AngularVelocityDelta", *m_impl->gpu_angular_velocity_delta);
                         srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
                         srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-                        srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+                        Rhi::PushConstants(cb, *m_impl->accum_vel_stage, m_impl->push_gravity_dt);
                         dispatch(
                             *m_impl->accum_vel_stage,
                             *m_impl->accum_vel_binding,
@@ -706,7 +630,6 @@ namespace Engine {
             srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
             srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
             srb.BindBuffer("ModelMatrices", *gpu.model_matrices);
-            srb.BindBuffer("ElemCount", *m_impl->gpu_body_count_buffer);
             dispatch(*m_impl->model_matrix_stage, *m_impl->model_matrix_binding, body_wg);
         }
     }

@@ -1,5 +1,5 @@
-#include "../Render/Memory/StructuredBuffer.h"
-#include "../Render/Memory/StructuredBufferPlacer.h"
+#include "Rhi/Buffer/StructuredBuffer.h"
+#include "Rhi/Buffer/StructuredBufferPlacer.h"
 #include <format>
 #include <glm.hpp>
 #include <gtc/type_ptr.hpp>
@@ -19,7 +19,7 @@ struct [[gnu::packed]] super_buffer {
 
 int main() {
     using namespace Engine;
-    StructuredBufferPlacer sub_placer, super_placer;
+    Rhi::StructuredBufferPlacer sub_placer, super_placer;
 
     sub_placer.AddVariable<uint32_t>("v1", offsetof(sub_buffer, v1));
     sub_placer.AddVariable<double>("v2", offsetof(sub_buffer, v2));
@@ -40,7 +40,7 @@ int main() {
     std::vector<std::byte> buffer;
     buffer.resize(1024);
 
-    StructuredBuffer subsb, supersb;
+    Rhi::StructuredBuffer subsb, supersb;
     glm::vec3 v{1.0f, 2.0f, 3.0f};
     glm::mat4 m{1.0f};
 

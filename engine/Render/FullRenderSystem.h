@@ -3,28 +3,28 @@
 
 /** THIS FILE IS USED AS INTERFACE ONLY, DO NOT INCLUDE IT IN THE INTERNAL ENGINE LIBRARY. **/
 
+#include "Render/render_export.h"
 #include <vulkan/vulkan.hpp>
 
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/ImageUtilsFunc.h"
+#include "Rhi/Texture/ImageUtilsFunc.h"
 
 #include "Render/RenderSystem/CameraManager.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/ImmutableResourceCache.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/SceneDataManager.h"
-#include "Render/RenderSystem/Structs.h"
-#include "Render/RenderSystem/SubmissionHelper.h"
-#include "Render/RenderSystem/Swapchain.h"
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Render/Resource/StaticMeshResource.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/Structs.h"
+#include "Rhi/Resource/ImmutableResourceCache.h"
+#include "Rhi/Submission/SubmissionHelper.h"
 
 #include "Render/Pipeline/CommandBuffer.h"
 
-#include "Render/Pipeline/Compute/ComputeResourceBinding.h"
-#include "Render/Pipeline/Compute/ComputeStage.h"
+#include "Rhi/Pipeline/ComputeResourceBinding.h"
+#include "Rhi/Pipeline/ComputeStage.h"
 
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
@@ -34,23 +34,23 @@
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/Material/MaterialTemplate.h"
 
-#include "Render/Renderer/Camera.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/Camera.h"
+#include "Render/Pipeline/Renderer/StaticHomogeneousMesh.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 
-#include "Render/Memory/MemoryAccessTypes.h"
-#include "Render/Memory/MemoryTypes.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
+#include "Rhi/Device/MemoryTypes.h"
 
-#include "Render/Memory/ImageTexture.h"
-#include "Render/Memory/RenderTargetTexture.h"
-#include "Render/Memory/Texture.h"
-#include "Render/Memory/TextureSubresourceView.h"
+#include "Render/Resource/RenderTargetTexture.h"
+#include "Rhi/Texture/ImageTexture.h"
+#include "Rhi/Texture/Texture.h"
+#include "Rhi/Texture/TextureSubresourceView.h"
 
-#include "Render/Memory/ComputeBuffer.h"
-#include "Render/Memory/DeviceBuffer.h"
-#include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
-#include "Render/Memory/StructuredBuffer.h"
-#include "Render/Memory/StructuredBufferPlacer.h"
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Buffer/StructuredBuffer.h"
+#include "Rhi/Buffer/StructuredBufferPlacer.h"
+#include "Rhi/Pipeline/ShaderResourceBinding.h"
 
 #include "Render/RenderSystem.h"
 

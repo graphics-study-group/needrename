@@ -46,7 +46,7 @@ find . -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | xargs clang-format -i
 ### 2.5 命名空间
 
 - **常规命名空间**：PascalCase
-  - 示例：`namespace Engine`, `namespace Serialization`
+  - 示例：`namespace Engine`, `namespace AnnoRefl`
 - **`detail` 命名空间**：全小写，用于内部实现细节
   - 用于不属于公共 API 的辅助类型/函数
 - **匿名命名空间**：文件本地符号

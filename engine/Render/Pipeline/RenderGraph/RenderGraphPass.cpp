@@ -1,9 +1,9 @@
 #include "RenderGraphPass.h"
 
-#include "Render/DebugUtils.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"
+#include "Rhi/Device/DebugUtils.h"
 
 namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetPassFunction(
@@ -91,7 +91,7 @@ namespace Engine {
                     AttachmentUtils::GetVkClearValue(da.clear_value)
                 };
 
-                if (ImageUtils::GetVkAspect(t->GetTextureDescription().format) & vk::ImageAspectFlagBits::eStencil) {
+                if (Rhi::GetVkAspect(t->GetTextureDescription().format) & vk::ImageAspectFlagBits::eStencil) {
                     sai = dai;
                 } else {
                     sai = {nullptr};

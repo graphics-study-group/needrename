@@ -1,0 +1,29 @@
+#ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED
+#define FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED
+
+#include "Framework/framework_export.h"
+#include <AnnoRefl/macros.h>
+#include <Framework/Component/Component.h>
+#include <glm.hpp>
+
+namespace Engine {
+    class Camera;
+    /// @brief A perspective camera component
+    class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) CameraComponent : public Component {
+        REFL_SER_BODY_OVERRIDE(CameraComponent)
+    public:
+        REFL_ENABLE CameraComponent(const GameObject &parent);
+        virtual ~CameraComponent() = default;
+
+        virtual void Tick() override;
+
+    public:
+        REFL_SER_ENABLE std::shared_ptr<Camera> m_camera{};
+
+    protected:
+        void UpdateViewMatrix();
+        void UpdateProjectionMatrix();
+    };
+} // namespace Engine
+
+#endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED

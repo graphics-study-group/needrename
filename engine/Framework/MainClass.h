@@ -1,0 +1,95 @@
+#ifndef FRAMEWORK_MAINCLASS_INCLUDED
+#define FRAMEWORK_MAINCLASS_INCLUDED
+
+#include "Core/Functional/OptionHandler.h"
+#include "Framework/framework_export.h"
+#include "Rhi/Device/DeviceContext.h"
+
+#include <SDL3/SDL.h>
+#include <filesystem>
+#include <memory>
+#include <mutex>
+#include <vector>
+
+namespace Engine {
+    class RenderSystem;
+    class WorldSystem;
+    class PhysicsSystem;
+    class AssetDatabase;
+    class AssetManager;
+    class GUISystem;
+    class Input;
+    class SDLWindow;
+    class TimeSystem;
+    class ShaderCompiler;
+
+    class ComplexRenderGraphBuilder;
+    class RenderGraph;
+    enum class RGTextureHandle : int32_t;
+
+    class FRAMEWORK_API MainClass {
+    public:
+        /**
+         * @brief Obtain a shared pointer to the main class singleton.
+         *
+         * @note Due to shared library unloading problems, the application
+         * that calls this member must hold the returned shared pointer
+         * until exit of main function.
+         */
+        [[nodiscard]]
+        static std::shared_ptr<MainClass> GetInstance();
+
+        MainClass() = default;
+        virtual ~MainClass();
+
+        void Initialize(
+            const StartupOptions *opt,
+            Uint32 sdl_init_flags,
+            SDL_LogPriority = SDL_LOG_PRIORITY_INFO,
+            Uint32 sdl_window_flags = 0
+        );
+
+        void LoadBuiltinAssets(const std::filesystem::path &path);
+        void LoadProject(const std::filesystem::path &path);
+        void MainLoop();
+        void LoopFinite(uint64_t max_frame_count = 0u, float max_time_seconds = 0.0f);
+
+        std::shared_ptr<SDLWindow> GetWindow() const;
+        std::shared_ptr<TimeSystem> GetTimeSystem() const;
+        std::shared_ptr<RenderSystem> GetRenderSystem() const;
+        std::shared_ptr<WorldSystem> GetWorldSystem() const;
+        std::shared_ptr<PhysicsSystem> GetPhysicsSystem() const;
+        std::shared_ptr<AssetDatabase> GetAssetDatabase() const;
+        std::shared_ptr<AssetManager> GetAssetManager() const;
+        std::shared_ptr<GUISystem> GetGUISystem() const;
+        std::shared_ptr<Input> GetInputSystem() const;
+        std::shared_ptr<ShaderCompiler> GetShaderCompiler() const;
+
+        void SetRenderGraph(std::unique_ptr<RenderGraph> render_graph, RGTextureHandle final_color_attachment_id);
+
+    protected:
+        std::unique_ptr<Rhi::DeviceContext> m_device_context{};
+        std::shared_ptr<RenderSystem> renderer{};
+        std::shared_ptr<SDLWindow> window{};
+        std::shared_ptr<TimeSystem> time{};
+        std::shared_ptr<PhysicsSystem> physics{};
+        std::shared_ptr<WorldSystem> world{};
+        std::shared_ptr<AssetDatabase> asset_database{};
+        std::shared_ptr<AssetManager> asset_manager{};
+        std::shared_ptr<GUISystem> gui{};
+        std::shared_ptr<Input> input{};
+        std::shared_ptr<ShaderCompiler> shader_compiler{};
+
+        std::unique_ptr<RenderGraph> render_graph{};
+        RGTextureHandle m_final_color_attachment_id{0};
+
+        static std::weak_ptr<MainClass> m_instance;
+        static std::once_flag m_instance_ready;
+
+        bool m_on_quit = false;
+
+        void RunOneFrame();
+    };
+} // namespace Engine
+
+#endif // FRAMEWORK_MAINCLASS_INCLUDED

@@ -1,18 +1,18 @@
 #include "SceneWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Asset/Scene/LevelAsset.h>
-#include <Asset/Scene/SceneAsset.h>
 #include <Core/Functional/SDLWindow.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
-#include <Reflection/serialization.h>
-#include <Render/Memory/RenderTargetTexture.h>
+#include <Framework/MainClass.h>
+#include <Framework/Scene/LevelAsset.h>
+#include <Framework/Scene/SceneAsset.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
-#include <Render/Renderer/Camera.h>
+#include <Render/Resource/RenderTargetTexture.h>
 
+#include <AnnoRefl/serialization.h>
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <vulkan/vulkan.hpp>
@@ -53,7 +53,7 @@ namespace Editor {
                                 Engine::MainClass::GetInstance()->GetAssetDatabase()
                             );
                             auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
-                            auto asset_ref = db->GetNewAssetRef(Engine::AssetPath(*db, std::filesystem::path(raw)));
+                            auto asset_ref = db->GetNewAssetRef(Engine::AssetPath(raw));
                             auto *scene_asset = asset_ref.as<Engine::SceneAsset>();
                             scene_asset->AddToScene(scene);
                             scene.FlushCmdQueue();
@@ -92,9 +92,9 @@ namespace Editor {
                     Engine::MainClass::GetInstance()->GetAssetDatabase()
                 );
                 auto level_asset =
-                    adb.GetNewAssetRef(Engine::AssetPath{adb, "/default_level.asset"}).as<Engine::LevelAsset>();
+                    adb.GetNewAssetRef(Engine::AssetPath{"res://default_level.asset"}).as<Engine::LevelAsset>();
                 Engine::MainClass::GetInstance()->GetWorldSystem()->SaveLevelToAsset(*level_asset);
-                Engine::Serialization::Archive archive;
+                AnnoRefl::Archive archive;
                 archive.prepare_save();
                 level_asset->save_asset_to_archive(archive);
                 adb.SaveArchive(archive, adb.GetAssetPath(level_asset->GetGUID()));

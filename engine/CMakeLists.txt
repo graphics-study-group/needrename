@@ -1,62 +1,85 @@
-message("COMPILE engine library")
-file(GLOB_RECURSE HEADER "./*.h")
+###########################################
+# Common interface and dependency shims   #
+###########################################
 
-list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
-list(FILTER HEADER EXCLUDE REGEX "Tests/.*")
-
-# Header files and some deps are shared across these modules, so we use an interface to manage them
+# Header files are shared across all engine modules; expose the engine source
+# root as a single INTERFACE so every module can include its peers.
 add_library(EngineLibHeaderInterface INTERFACE)
 target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
-add_library(EngineLibExternalDependency INTERFACE)
-target_link_libraries(EngineLibExternalDependency
-    INTERFACE
-    SDL3::SDL3
-    Vulkan::Vulkan
-    glm
-    json
-    imgui
-    vma
-    glslang
-)
-target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
-target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_STORAGE_SHARED)
-target_compile_definitions(EngineLibExternalDependency INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
+
+# Granular external dependency targets - each DLL links only what it needs.
+add_library(EngineDepGlm INTERFACE)
+target_link_libraries(EngineDepGlm INTERFACE glm)
+target_compile_definitions(EngineDepGlm INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
+
+add_library(EngineDepJson INTERFACE)
+target_link_libraries(EngineDepJson INTERFACE json)
+
+add_library(EngineDepSdl INTERFACE)
+target_link_libraries(EngineDepSdl INTERFACE SDL3::SDL3)
+
+# Consumers of the Rhi DLL import the dynamic dispatch loader from it.
+add_library(EngineDepVulkan INTERFACE)
+target_link_libraries(EngineDepVulkan INTERFACE Vulkan::Vulkan vma glslang)
+target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+if (WIN32 AND (NOT MSVC))
+    target_compile_definitions(EngineDepVulkan INTERFACE "VULKAN_HPP_STORAGE_API=__declspec(dllimport)")
+else()
+    target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_STORAGE_SHARED=1)
+endif()
+
+add_library(EngineDepImgui INTERFACE)
+target_link_libraries(EngineDepImgui INTERFACE imgui)
+
+###########################################
+# Module DLLs (in dependency order)       #
+###########################################
 
 # Root directory for physics shader SPIR-V artefacts (build tree only).
 # Set before add_subdirectory(Physics) so the Physics subdir and the later
 # configure_file() call both see it.
 set(PHYSICS_SPIRV_ROOT "${CMAKE_BINARY_DIR}/engine/Physics/spirv")
 
-add_subdirectory(Asset)
 add_subdirectory(Core)
-add_subdirectory(Framework)
+add_subdirectory(Rhi)
+add_subdirectory(Asset)
 add_subdirectory(Physics)
-add_subdirectory(Reflection)
 add_subdirectory(Render)
-add_subdirectory(UserInterface)
+add_subdirectory(Framework)
 
-add_library(engine SHARED 
-    "MainClass.cpp"
-    $<TARGET_OBJECTS:imgui>
-    $<TARGET_OBJECTS:EngineLibAsset>
-    $<TARGET_OBJECTS:EngineLibCore>
-    $<TARGET_OBJECTS:EngineLibFramework>
-    $<TARGET_OBJECTS:EngineLibPhysics>
-    $<TARGET_OBJECTS:EngineLibReflection>
-    $<TARGET_OBJECTS:EngineLibRender>
-    $<TARGET_OBJECTS:EngineLibUserInterface>
+###########################################
+# Engine aggregate interface              #
+###########################################
+
+# Consumers link `Engine` only; it forwards to every module DLL and its headers.
+add_library(Engine INTERFACE)
+target_link_libraries(Engine
+    INTERFACE
+    EngineLibHeaderInterface
+    EngineDepGlm
+    EngineDepJson
+    EngineDepSdl
+    EngineDepVulkan
+    EngineDepImgui
+    AnnoRefl
+    EngineCore
+    EngineRhi
+    EngineAssetCore
+    EnginePhysics
+    EngineRender
+    EngineFramework
 )
 
-add_dependencies(engine shader)
-add_dependencies(engine physics_shader)
+###########################################
+# Build-tree configuration                #
+###########################################
 
-add_dependencies(EngineLibAsset meta_engine)
-add_dependencies(EngineLibCore meta_engine)
-add_dependencies(EngineLibFramework meta_engine)
-add_dependencies(EngineLibPhysics meta_engine)
-add_dependencies(EngineLibReflection meta_engine)
-add_dependencies(EngineLibRender meta_engine)
-add_dependencies(EngineLibUserInterface meta_engine)
+# TODO: Use relative paths when install.
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
+
+###########################################
+# Documentation                           #
+###########################################
 
 find_package(Doxygen)
 if(Doxygen_FOUND)
@@ -84,45 +107,15 @@ if(Doxygen_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/Asset/
         ${CMAKE_CURRENT_SOURCE_DIR}/Core/
         ${CMAKE_CURRENT_SOURCE_DIR}/Framework/
-        ${CMAKE_CURRENT_SOURCE_DIR}/Reflection/
         ${CMAKE_CURRENT_SOURCE_DIR}/Render/
-        ${CMAKE_CURRENT_SOURCE_DIR}/UserInterface/
     )
 else()
     message("Doxygen need to be installed to generate the doxygen documentation")
 endif()
 
-# Widely used dependencies such as SDL and Vulkan are marked as public
-target_link_libraries(engine
-    PUBLIC
-    EngineLibHeaderInterface
-    EngineLibExternalDependency
-)
-
-# Dependencies only used in a small module are marked as private to avoid pollution
-target_link_libraries(engine 
-    PRIVATE
-    EngineLibAsset
-    EngineLibCore
-    EngineLibFramework
-    EngineLibPhysics
-    EngineLibReflection
-    EngineLibRender
-    EngineLibUserInterface
-)
-
-# Copy third-party DLLs that are not natively built into the bin directory.
-# SDL3 is an imported target from MSYS2; libktx overrides LIBRARY_OUTPUT_DIRECTORY.
-add_custom_command(TARGET engine POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3-shared>
-    $<TARGET_FILE:ktx>
-    $<TARGET_FILE_DIR:engine>
-    COMMENT "Copying SDL3 and libktx DLLs to output directory"
-)
-
-# TODO: Use relative paths when install.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
+###########################################
+# Tests                                   #
+###########################################
 
 include(CTest)
 add_subdirectory(Tests)

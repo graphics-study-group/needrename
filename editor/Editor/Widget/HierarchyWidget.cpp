@@ -1,14 +1,14 @@
 #include "HierarchyWidget.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
-#include "Asset/Scene/SceneAsset.h"
-#include "Framework/component/RenderComponent/CameraComponent.h"
-#include "Framework/component/RenderComponent/LightComponent.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "Framework/object/GameObject.h"
-#include "Framework/world/Scene.h"
-#include "Framework/world/WorldSystem.h"
-#include "MainClass.h"
+#include "Framework/Component/RenderComponent/CameraComponent.h"
+#include "Framework/Component/RenderComponent/LightComponent.h"
+#include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/MainClass.h"
+#include "Framework/Object/GameObject.h"
+#include "Framework/Scene/SceneAsset.h"
+#include "Framework/World/Scene.h"
+#include "Framework/World/WorldSystem.h"
 #include "Render/RenderSystem.h"
 
 #include <algorithm>
@@ -70,7 +70,7 @@ namespace Editor {
                     const char *raw = static_cast<const char *>(payload->Data);
                     if (raw && raw[0] != '\0') {
                         try {
-                            auto asset_ref = adb.GetNewAssetRef(Engine::AssetPath(adb, std::filesystem::path(raw)));
+                            auto asset_ref = adb.GetNewAssetRef(Engine::AssetPath(raw));
                             auto *scene_asset = asset_ref.as<Engine::SceneAsset>();
                             scene_asset->AddToScene(scene);
                             scene.FlushCmdQueue();
@@ -130,18 +130,18 @@ namespace Editor {
                         auto &go = scene.CreateGameObject();
                         go.m_name = "Cube";
                         auto &comp = go.AddComponent<Engine::StaticMeshComponent>();
-                        comp.m_mesh_asset = adb.GetNewAssetRef(Engine::AssetPath(adb, "~/mesh/cube.asset"));
+                        comp.m_mesh_asset = adb.GetNewAssetRef(Engine::AssetPath("builtin://mesh/cube.asset"));
                         comp.m_material_assets.push_back(
-                            adb.GetNewAssetRef(Engine::AssetPath(adb, "~/materials/solid_color_dark_grey.asset"))
+                            adb.GetNewAssetRef(Engine::AssetPath("builtin://materials/solid_color_dark_grey.asset"))
                         );
                     }
                     if (ImGui::MenuItem("Sphere")) {
                         auto &go = scene.CreateGameObject();
                         go.m_name = "Sphere";
                         auto &comp = go.AddComponent<Engine::StaticMeshComponent>();
-                        comp.m_mesh_asset = adb.GetNewAssetRef(Engine::AssetPath(adb, "~/mesh/sphere.asset"));
+                        comp.m_mesh_asset = adb.GetNewAssetRef(Engine::AssetPath("builtin://mesh/sphere.asset"));
                         comp.m_material_assets.push_back(
-                            adb.GetNewAssetRef(Engine::AssetPath(adb, "~/materials/solid_color_dark_grey.asset"))
+                            adb.GetNewAssetRef(Engine::AssetPath("builtin://materials/solid_color_dark_grey.asset"))
                         );
                     }
                     ImGui::EndMenu();

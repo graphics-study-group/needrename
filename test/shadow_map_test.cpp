@@ -4,19 +4,20 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Material/MaterialAsset.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Mesh/PlaneMeshAsset.h"
-#include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "Framework/object/GameObject.h"
-#include "Framework/world/Scene.h"
-#include "Framework/world/WorldSystem.h"
-#include "MainClass.h"
+#include "Framework/Component/RenderComponent/ObjTestMeshComponent.h"
+#include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/MainClass.h"
+#include "Framework/Object/GameObject.h"
+#include "Framework/World/Scene.h"
+#include "Framework/World/WorldSystem.h"
+#include "Render/Asset/Material/MaterialAsset.h"
+#include "Render/Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Asset/Mesh/PlaneMeshAsset.h"
+#include "Render/Asset/Texture/Image2DTextureAsset.h"
 #include "Render/FullRenderSystem.h"
-#include "UserInterface/GUISystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
+#include "Render/UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "cmake_config.h"
@@ -68,23 +69,23 @@ std::array<MaterialTemplateAsset *, 2> ConstructMaterialTemplate() {
 
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
 
-    auto shadow_map_vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/shadowmap.vert.asset"});
-    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
-    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
+    auto shadow_map_vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/shadowmap.vert.asset"});
+    auto vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/blinn_phong.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/blinn_phong.frag.asset"});
 
     templates[0]->name = "Blinn-Phong Lit";
     templates[1]->name = "Shadow map pass";
 
     MaterialTemplateSinglePassProperties shadow_map_pass{}, lit_pass{};
     shadow_map_pass.shaders.shaders = std::vector{shadow_map_vs_ref};
-    shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    shadow_map_pass.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
     shadow_map_pass.rasterizer.depth_bias_constant = 0.05f;
     shadow_map_pass.rasterizer.depth_bias_slope = 1.0f;
 
     lit_pass.shaders.shaders = std::vector{vs_ref, fs_ref};
-    lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    lit_pass.attachments.color = std::vector{Rhi::ImageFormat::R8G8B8A8UNorm};
     lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
-    lit_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    lit_pass.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
 
     templates[0]->properties = lit_pass;
     templates[1]->properties = shadow_map_pass;
@@ -137,20 +138,22 @@ int main(int argc, char **argv) {
     rsys->GetSceneDataManager().SetLightDirectional(0, glm::vec3{1.0f, 1.0f, 1.0f}, glm::vec3{1.0f, 1.0f, 1.0f});
     rsys->GetSceneDataManager().SetLightCount(1);
 
-    auto idesc = ImageTexture::ImageTextureDesc{
+    auto idesc = Rhi::ImageTexture::ImageTextureDesc{
         .dimensions = 2,
         .width = 16,
         .height = 16,
         .depth = 1,
         .mipmap_levels = 1,
         .array_layers = 1,
-        .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+        .format = Rhi::ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
         .is_cube_map = false
     };
-    std::shared_ptr blank_color_red =
-        Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color red");
-    std::shared_ptr blank_color_gray =
-        Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color gray");
+    std::shared_ptr blank_color_red = Engine::Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), idesc, Rhi::Texture::SamplerDesc{}, "Blank color red"
+    );
+    std::shared_ptr blank_color_gray = Engine::Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), idesc, Rhi::Texture::SamplerDesc{}, "Blank color gray"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_red, {1.0f, 0.0f, 0.0f, 0.0f});
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_gray, {0.5f, 0.5f, 0.5f, 0.0f});
 
@@ -237,7 +240,7 @@ int main(int argc, char **argv) {
     desc.width = desc.height = 2048;
     auto s = rgb.RequestRenderTargetTexture(desc, {});
 
-    using IAT = MemoryAccessTypeImageBits;
+    using IAT = Rhi::MemoryAccessTypeImageBits;
 
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
@@ -256,7 +259,7 @@ int main(int argc, char **argv) {
                 cb.BeginRendering(
                     {nullptr},
                     {sm,
-                     Engine::TextureSubresourceRange::GetSingleRange(),
+                     Engine::Rhi::TextureSubresourceRange::GetSingleRange(),
                      AttachmentUtils::LoadOperation::Clear,
                      AttachmentUtils::StoreOperation::Store,
                      AttachmentUtils::DepthClearValue{1.0f, 0U}},
@@ -290,7 +293,7 @@ int main(int argc, char **argv) {
             )
             .UseImage(s, IAT::ShaderSampledRead)
             .SetPassFunction([rsys](CommandBuffer &cb, const RenderGraph &) {
-                vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
+                vk::Extent2D extent{rsys->GetPresentProvider().GetExtent()};
                 vk::Rect2D scissor{{0, 0}, extent};
                 cb.SetupViewport(extent.width, extent.height, scissor);
                 cb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
@@ -317,15 +320,20 @@ int main(int argc, char **argv) {
         }
 
         auto index = rsys->StartFrame();
+        if (index == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
         assert(index < 3);
 
         floor_mesh_comp.PreRenderUpdate();
         cube_mesh_comp.PreRenderUpdate();
         sphere_mesh_comp.PreRenderUpdate();
 
-        rg->Execute(*rsys);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(c);
-        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
+        rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

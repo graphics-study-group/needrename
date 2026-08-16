@@ -1,7 +1,8 @@
 #ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPH2
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPH2
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include "Render/render_export.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace vk {
     struct CommandBuffer;
@@ -23,7 +24,7 @@ namespace Engine {
      * It holds ownerships of transient render target textures, and compiles
      * image barriers accordingly.
      */
-    class RenderGraph {
+    class RENDER_API RenderGraph {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
@@ -39,7 +40,7 @@ namespace Engine {
          * a full pipeline barrier to effectuate the desired access, so use this
          * method sparingly.
          */
-        void AddExternalInputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access);
+        void AddExternalInputDependency(RGTextureHandle rt_handle, Rhi::MemoryAccessTypeImageBits access);
 
         /**
          * @brief Add an external output dependency on a texture for this frame.
@@ -49,7 +50,7 @@ namespace Engine {
          * a full pipeline barrier to effectuate the desired access, so use this
          * method sparingly.
          */
-        void AddExternalOutputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access);
+        void AddExternalOutputDependency(RGTextureHandle rt_handle, Rhi::MemoryAccessTypeImageBits access);
 
         /**
          * @brief Get a internally managed render target texture.
@@ -106,13 +107,22 @@ namespace Engine {
         uint32_t GetNumPasses() const noexcept;
 
         /**
-         * @brief Execute the render graph by recording all commands onto the
-         * main command buffer and submitting it for execution.
+         * @brief Record all passes of this render graph onto the main command
+         * buffer of the given render system.
+         *
+         * Recording only — the command buffer is NOT ended or submitted here.
+         * The caller must have started the main command buffer (via
+         * `FrameManager::BeginMainCommandBuffer`) and must submit afterwards
+         * via `RenderSystem::CompleteFrame` (→ `FrameManager::SubmitFrame`),
+         * which ends, submits (main CB + copy CB in one batch) and presents.
          *
          * This method disregards task affinities, and enforces serialized
          * start of execution on GPU.
+         *
+         * @param system The render system whose current frame-in-flight main
+         *               command buffer receives the recorded passes.
          */
-        void Execute(RenderSystem &system);
+        void RecordIntoMainCommandBuffer(RenderSystem &system);
     };
 } // namespace Engine
 

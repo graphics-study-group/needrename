@@ -4,9 +4,9 @@
 #include <fstream>
 
 #include "Core/Functional/SDLWindow.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "UserInterface/GUISystem.h"
+#include "Render/UserInterface/GUISystem.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
     auto rsys = cmc->GetRenderSystem();
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
 
     RenderGraphBuilder rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
                 gsys->DrawGUI(
                     AttachmentUtils::AttachmentDescription{
                         color,
-                        TextureSubresourceRange::GetSingleRange(),
+                        Rhi::TextureSubresourceRange::GetSingleRange(),
                         AttachmentUtils::LoadOperation::Clear,
                         AttachmentUtils::StoreOperation::Store,
                     },
@@ -81,10 +81,15 @@ int main(int argc, char **argv) {
         ImGui::ShowDemoWindow();
 
         auto index = rsys->StartFrame();
+        if (index == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
         assert(index < 3);
-        rg->Execute(*rsys);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(c);
-        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
+        rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);
 

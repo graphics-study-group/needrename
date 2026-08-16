@@ -3,7 +3,7 @@
 #include <Editor/Widget/HierarchyWidget.h>
 #include <Editor/Widget/InspectorWidget.h>
 #include <Editor/Widget/ProjectWidget.h>
-#include <MainClass.h>
+#include <Framework/MainClass.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui_internal.h>

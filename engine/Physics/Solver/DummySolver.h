@@ -5,11 +5,19 @@
 
 #include <memory>
 
-namespace Engine {
+#include "../physics_export.h"
+
+namespace vk {
     class CommandBuffer;
-    class ComputeBuffer;
-    class ComputeStage;
-    class RenderSystem;
+}
+namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+        class ComputeStage;
+    } // namespace Rhi
+    namespace Rhi {
+        class DeviceContext;
+    }
     class PhysicsScene;
     struct XpbdConfig;
 
@@ -24,12 +32,12 @@ namespace Engine {
      * Compute dispatch is recorded directly to the command buffer in GPUStep
      * (no RenderGraph).
      */
-    class DummySolver : public ISolver {
+    class PHYSICS_API DummySolver : public ISolver {
         struct Impl;
         std::unique_ptr<Impl> m_impl;
 
     public:
-        explicit DummySolver(RenderSystem &render_system);
+        explicit DummySolver(Rhi::DeviceContext &device_context);
         ~DummySolver() override;
 
         DummySolver(const DummySolver &) = delete;
@@ -38,7 +46,7 @@ namespace Engine {
         DummySolver &operator=(DummySolver &&) = delete;
 
         void PreGPUStep() override;
-        void GPUStep(CommandBuffer &command_buffer) override;
+        void GPUStep(vk::CommandBuffer cb) override;
 
         [[nodiscard]]
         bool IsInitialized() const noexcept override;

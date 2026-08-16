@@ -1,24 +1,24 @@
 #include "EditorRenderGraphBuilder.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetRef.h>
-#include <Asset/Shader/ShaderAsset.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
-#include <Render/Memory/ComputeBuffer.h>
-#include <Render/Memory/RenderTargetTexture.h>
-#include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
+#include <Framework/MainClass.h>
+#include <Framework/World/WorldSystem.h>
+#include <Render/Asset/Shader/ShaderAsset.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
-#include <Render/Pipeline/Compute/ComputeStage.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
-#include <Render/Renderer/Camera.h>
-#include <UserInterface/GUISystem.h>
+#include <Render/Resource/RenderTargetTexture.h>
+#include <Render/UserInterface/GUISystem.h>
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Pipeline/ComputeResourceBinding.h>
+#include <Rhi/Pipeline/ComputeStage.h>
+#include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/SceneWidget.h>
@@ -31,7 +31,7 @@ namespace Editor {
     EditorRenderGraphBuilder::EditorRenderGraphBuilder(RenderSystem &system) : m_system(system) {
         // XXX: Hardcoded bloom shader. Should use AssetManager to load shader when we have pipeline asset.
         auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-        m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
+        m_bloom_shader = adb.GetNewAssetRef(AssetPath{"builtin://shaders/bloom.comp.asset"});
     }
 
     std::unique_ptr<RenderGraph> EditorRenderGraphBuilder::BuildEditorRenderGraph(
@@ -42,7 +42,7 @@ namespace Editor {
         RGTextureHandle &scene_widget_color_id,
         RGTextureHandle &game_widget_color_id,
         RGTextureHandle &final_color_target_id,
-        const ComputeBuffer *model_matrices_buffer
+        const Rhi::ComputeBuffer *model_matrices_buffer
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -58,17 +58,21 @@ namespace Editor {
             .multisample = 1,
             .is_cube_map = false
         };
-        scene_widget_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Scene Widget Color");
-        game_widget_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Game Widget Color");
-        final_color_target_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Final Color");
+        scene_widget_color_id =
+            rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Scene Widget Color");
+        game_widget_color_id =
+            rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Game Widget Color");
+        final_color_target_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Final Color");
 
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat;
-        auto scene_hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Scene HDR Color");
-        auto game_hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Game HDR Color");
+        auto scene_hdr_color_id =
+            rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Scene HDR Color");
+        auto game_hdr_color_id =
+            rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Game HDR Color");
 
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-        auto scene_depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Scene Depth");
-        auto game_depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{}, "Game Depth");
+        auto scene_depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Scene Depth");
+        auto game_depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Game Depth");
 
         // Shadow map targets
         RenderTargetTexture::RenderTargetTextureDesc shadow_desc{
@@ -85,22 +89,27 @@ namespace Editor {
         std::vector<RGTextureHandle> shadow_ids;
         shadow_ids.resize(RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS);
         for (size_t i = 0; i < shadow_ids.size(); i++) {
-            shadow_ids[i] =
-                rgb.RequestRenderTargetTexture(shadow_desc, Texture::SamplerDesc{}, "Shadow Map " + std::to_string(i));
+            shadow_ids[i] = rgb.RequestRenderTargetTexture(
+                shadow_desc, Rhi::Texture::SamplerDesc{}, "Shadow Map " + std::to_string(i)
+            );
         }
 
         // Init compute stages
-        m_game_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        m_game_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
-        m_scene_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
+        m_game_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system.GetDeviceContext());
+        m_game_bloom_compute_stage->Instantiate(
+            m_bloom_shader.as<ShaderAsset>()->binary, m_bloom_shader.as<ShaderAsset>()->m_name
+        );
+        m_scene_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system.GetDeviceContext());
+        m_scene_bloom_compute_stage->Instantiate(
+            m_bloom_shader.as<ShaderAsset>()->binary, m_bloom_shader.as<ShaderAsset>()->m_name
+        );
 
-        using IBT = MemoryAccessTypeBufferBits;
+        using IBT = Rhi::MemoryAccessTypeBufferBits;
         RGBufferHandle mm_handle{};
         bool has_model_matrices = (model_matrices_buffer != nullptr);
         if (has_model_matrices) {
             mm_handle =
-                rgb.ImportExternalResource(*model_matrices_buffer, MemoryAccessTypeBuffer(IBT::ShaderRandomWrite));
+                rgb.ImportExternalResource(*model_matrices_buffer, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomWrite));
         }
 
         auto &system = m_system;
@@ -109,7 +118,7 @@ namespace Editor {
         auto &scene_bloom = *m_scene_bloom_compute_stage;
         auto &game_bloom = *m_game_bloom_compute_stage;
 
-        using IAT = MemoryAccessTypeImageBits;
+        using IAT = Rhi::MemoryAccessTypeImageBits;
 
         /**
          * Shadowmap passes — one per shadow-casting light.
@@ -125,7 +134,7 @@ namespace Editor {
                                            AttachmentUtils::DepthClearValue{1.0f, 0U}}
                                       );
             if (has_model_matrices) {
-                shadow_builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
+                shadow_builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
             }
             auto shadow_pass =
                 shadow_builder
@@ -137,7 +146,7 @@ namespace Editor {
                             cb.BeginRendering(
                                 {nullptr},
                                 {shadow_map_target,
-                                 TextureSubresourceRange::GetSingleRange(),
+                                 Rhi::TextureSubresourceRange::GetSingleRange(),
                                  AttachmentUtils::LoadOperation::Clear,
                                  AttachmentUtils::StoreOperation::Store,
                                  AttachmentUtils::DepthClearValue{1.0f, 0U}},
@@ -167,7 +176,7 @@ namespace Editor {
                 builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
             }
             if (has_model_matrices) {
-                builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
+                builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
             }
             builder
                 .AppendColorAttachment(
@@ -211,7 +220,8 @@ namespace Editor {
         /**
          * Scene widget bloom compute pass.
          */
-        auto &scene_bloom_binding = scene_bloom.AllocateResourceBinding();
+        auto &scene_bloom_binding =
+            scene_bloom.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Scene Bloom FX pass")
@@ -246,7 +256,7 @@ namespace Editor {
                 builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
             }
             if (has_model_matrices) {
-                builder.UseBuffer(mm_handle, MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
+                builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
             }
             builder
                 .AppendColorAttachment(
@@ -294,7 +304,8 @@ namespace Editor {
         /**
          * Game widget bloom compute pass.
          */
-        auto &game_bloom_binding = game_bloom.AllocateResourceBinding();
+        auto &game_bloom_binding =
+            game_bloom.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Game Bloom FX pass")

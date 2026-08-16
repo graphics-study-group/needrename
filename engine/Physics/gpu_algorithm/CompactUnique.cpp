@@ -5,12 +5,13 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include <Render/Memory/ComputeBuffer.h>
-#include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
-#include <Render/Pipeline/Compute/ComputeStage.h>
-#include <Render/RenderSystem.h>
+#include <Rhi/Device/DeviceContext.h>
+#include <Rhi/Pipeline/ComputeHelpers.h>
+
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Pipeline/ComputeResourceBinding.h>
+#include <Rhi/Pipeline/ComputeStage.h>
+#include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <cassert>
 #include <filesystem>
@@ -46,30 +47,28 @@ namespace {
 namespace Engine {
 
     struct CompactUnique::Impl {
-        RenderSystem &render_system;
+        Rhi::DeviceContext &device_context;
         uint32_t max_elem_count = 1u;
         bool initialized = false;
 
-        std::unique_ptr<ComputeStage> flag_stage{};
+        std::unique_ptr<Rhi::ComputeStage> flag_stage{};
         std::vector<uint32_t> flag_spirv{};
 
-        std::unique_ptr<ComputeStage> scatter_stage{};
+        std::unique_ptr<Rhi::ComputeStage> scatter_stage{};
         std::vector<uint32_t> scatter_spirv{};
 
-        std::unique_ptr<ComputeStage> copy_stage{};
+        std::unique_ptr<Rhi::ComputeStage> copy_stage{};
         std::vector<uint32_t> copy_spirv{};
 
-        std::unique_ptr<ComputeStage> memset_stage{};
+        std::unique_ptr<Rhi::ComputeStage> memset_stage{};
         std::vector<uint32_t> memset_spirv{};
 
-        std::unique_ptr<ComputeBuffer> gpu_const_one{};
+        Rhi::ComputeResourceBinding *flag_binding = nullptr;
+        Rhi::ComputeResourceBinding *scatter_binding = nullptr;
+        Rhi::ComputeResourceBinding *copy_binding = nullptr;
+        Rhi::ComputeResourceBinding *memset_binding = nullptr;
 
-        ComputeResourceBinding *flag_binding = nullptr;
-        ComputeResourceBinding *scatter_binding = nullptr;
-        ComputeResourceBinding *copy_binding = nullptr;
-        ComputeResourceBinding *memset_binding = nullptr;
-
-        explicit Impl(RenderSystem &rs, uint32_t mec) : render_system(rs), max_elem_count(mec) {
+        explicit Impl(Rhi::DeviceContext &ctx, uint32_t mec) : device_context(ctx), max_elem_count(mec) {
             if (max_elem_count == 0u) {
                 throw std::invalid_argument("CompactUnique: max_elem_count must be > 0");
             }
@@ -86,39 +85,34 @@ namespace Engine {
 
             const char *flag_path = "algorithm/flag_unique.comp.spv";
             flag_spirv = LoadPhysicsSpirvBytes(flag_path);
-            flag_stage = std::make_unique<ComputeStage>(render_system);
+            flag_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             flag_stage->Instantiate(flag_spirv, "FlagUnique");
             flag_binding = &flag_stage->AllocateResourceBinding();
 
             const char *scatter_path = "algorithm/compact_scatter.comp.spv";
             scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
-            scatter_stage = std::make_unique<ComputeStage>(render_system);
+            scatter_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             scatter_stage->Instantiate(scatter_spirv, "CompactScatter");
             scatter_binding = &scatter_stage->AllocateResourceBinding();
 
             const char *copy_path = "collision/SpatialHashBroadDetector/copy_uint.comp.spv";
             copy_spirv = LoadPhysicsSpirvBytes(copy_path);
-            copy_stage = std::make_unique<ComputeStage>(render_system);
+            copy_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             copy_stage->Instantiate(copy_spirv, "CompactUnique Copy");
             copy_binding = &copy_stage->AllocateResourceBinding();
 
             const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
-            memset_stage = std::make_unique<ComputeStage>(render_system);
+            memset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
             memset_stage->Instantiate(memset_spirv, "CompactUnique Memset");
             memset_binding = &memset_stage->AllocateResourceBinding();
-
-            const auto &alloc = render_system.GetAllocatorState();
-            gpu_const_one =
-                ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "CompactUnique Const1");
-            *reinterpret_cast<uint32_t *>(gpu_const_one->GetVMAddress()) = 1u;
         }
 
         void RecordFlagPass(
-            CommandBuffer &cb,
-            ComputeBuffer &pairs_buf,
-            ComputeBuffer &flags_buf,
-            ComputeBuffer &pair_count_buf,
+            vk::CommandBuffer cb,
+            Rhi::ComputeBuffer &pairs_buf,
+            Rhi::ComputeBuffer &flags_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         ) {
             auto &srb = flag_binding->GetShaderResourceBinding();
@@ -128,16 +122,16 @@ namespace Engine {
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            cb.BindComputeStage(*flag_stage);
-            cb.BindComputeResource(*flag_binding);
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::BindComputeStage(cb, *flag_stage);
+            Rhi::BindComputeResource(cb, *flag_stage, *flag_binding);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
         void RecordCopyPass(
-            CommandBuffer &cb,
-            ComputeBuffer &src_buf,
-            ComputeBuffer &dst_buf,
-            ComputeBuffer &pair_count_buf,
+            vk::CommandBuffer cb,
+            Rhi::ComputeBuffer &src_buf,
+            Rhi::ComputeBuffer &dst_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         ) {
             auto &srb = copy_binding->GetShaderResourceBinding();
@@ -147,28 +141,28 @@ namespace Engine {
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            cb.BindComputeStage(*copy_stage);
-            cb.BindComputeResource(*copy_binding);
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::BindComputeStage(cb, *copy_stage);
+            Rhi::BindComputeResource(cb, *copy_stage, *copy_binding);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
 
-        void RecordClearCountPass(CommandBuffer &cb, ComputeBuffer &count_buf) {
+        void RecordClearCountPass(vk::CommandBuffer cb, Rhi::ComputeBuffer &count_buf) {
             auto &srb = memset_binding->GetShaderResourceBinding();
             srb.BindBuffer("Target", count_buf);
-            srb.BindBuffer("ElemCount", *gpu_const_one);
 
-            cb.BindComputeStage(*memset_stage);
-            cb.BindComputeResource(*memset_binding);
-            cb.DispatchCompute(1, 1, 1);
+            Rhi::PushConstants(cb, *memset_stage, 1u);
+            Rhi::BindComputeStage(cb, *memset_stage);
+            Rhi::BindComputeResource(cb, *memset_stage, *memset_binding);
+            Rhi::DispatchCompute(cb, 1, 1, 1);
         }
 
         void RecordScatterPass(
-            CommandBuffer &cb,
-            ComputeBuffer &pairs_buf,
-            ComputeBuffer &flags_buf,
-            ComputeBuffer &offsets_buf,
-            ComputeBuffer &count_buf,
-            ComputeBuffer &pair_count_buf,
+            vk::CommandBuffer cb,
+            Rhi::ComputeBuffer &pairs_buf,
+            Rhi::ComputeBuffer &flags_buf,
+            Rhi::ComputeBuffer &offsets_buf,
+            Rhi::ComputeBuffer &count_buf,
+            Rhi::ComputeBuffer &pair_count_buf,
             uint32_t elem_capacity
         ) {
             auto &srb = scatter_binding->GetShaderResourceBinding();
@@ -181,14 +175,14 @@ namespace Engine {
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            cb.BindComputeStage(*scatter_stage);
-            cb.BindComputeResource(*scatter_binding);
-            cb.DispatchCompute(wg, 1, 1);
+            Rhi::BindComputeStage(cb, *scatter_stage);
+            Rhi::BindComputeResource(cb, *scatter_stage, *scatter_binding);
+            Rhi::DispatchCompute(cb, wg, 1, 1);
         }
     };
 
-    CompactUnique::CompactUnique(RenderSystem &render_system, uint32_t max_elem_count) :
-        m_impl(std::make_unique<Impl>(render_system, max_elem_count)) {
+    CompactUnique::CompactUnique(Rhi::DeviceContext &device_context, uint32_t max_elem_count) :
+        m_impl(std::make_unique<Impl>(device_context, max_elem_count)) {
     }
 
     CompactUnique::~CompactUnique() = default;
@@ -202,14 +196,14 @@ namespace Engine {
     }
 
     void CompactUnique::Record(
-        CommandBuffer &cb,
-        ComputeBuffer &pairs_buf,
-        ComputeBuffer &flags_buf,
-        ComputeBuffer &offsets_buf,
-        ComputeBuffer &count_buf,
-        ComputeBuffer &scan_scratch_buf,
+        vk::CommandBuffer cb,
+        Rhi::ComputeBuffer &pairs_buf,
+        Rhi::ComputeBuffer &flags_buf,
+        Rhi::ComputeBuffer &offsets_buf,
+        Rhi::ComputeBuffer &count_buf,
+        Rhi::ComputeBuffer &scan_scratch_buf,
         ParallelScan &scan,
-        ComputeBuffer &pair_count_buf,
+        Rhi::ComputeBuffer &pair_count_buf,
         uint32_t elem_capacity
     ) {
         if (elem_capacity == 0u) {
@@ -225,16 +219,16 @@ namespace Engine {
         m_impl->EnsureInitialized();
 
         m_impl->RecordFlagPass(cb, pairs_buf, flags_buf, pair_count_buf, elem_capacity);
-        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         m_impl->RecordCopyPass(cb, flags_buf, offsets_buf, pair_count_buf, elem_capacity);
-        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         scan.Record(cb, offsets_buf, offsets_buf, scan_scratch_buf, elem_capacity);
-        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         m_impl->RecordClearCountPass(cb, count_buf);
-        cb.GetCommandBuffer().pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         m_impl->RecordScatterPass(cb, pairs_buf, flags_buf, offsets_buf, count_buf, pair_count_buf, elem_capacity);
     }

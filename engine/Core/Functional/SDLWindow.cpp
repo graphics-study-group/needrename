@@ -1,9 +1,5 @@
 #include "SDLWindow.h"
 
-#include <MainClass.h>
-#include <Render/Memory/RenderTargetTexture.h>
-#include <vulkan/vulkan.hpp>
-
 namespace Engine {
     SDLWindow::SDLWindow(const char *title, int width, int height, Uint32 flags) {
         m_window = SDL_CreateWindow(title, width, height, flags);

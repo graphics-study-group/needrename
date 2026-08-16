@@ -1,0 +1,16 @@
+#ifndef FRAMEWORK_IMPORT_IMPORTER_INCLUDED
+#define FRAMEWORK_IMPORT_IMPORTER_INCLUDED
+
+#include "Framework/framework_export.h"
+#include <filesystem>
+
+namespace Engine::Importer {
+    /// @brief Load an external resource, copy to the project asset directory.
+    /// @param resourcePath Path to the external resource
+    /// @param path_in_project Path to the output asset file
+    FRAMEWORK_API void ImportExternalResource(
+        std::filesystem::path resourcePath, std::filesystem::path path_in_project
+    );
+} // namespace Engine::Importer
+
+#endif // FRAMEWORK_IMPORT_IMPORTER_INCLUDED

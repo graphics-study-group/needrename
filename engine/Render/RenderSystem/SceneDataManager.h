@@ -2,6 +2,7 @@
 #define RENDERSYSTEM_SCENEDATAMANAGER
 
 #include "Render/Resource/RenderResourceHandle.h"
+#include "Render/render_export.h"
 
 #include <fwd.hpp>
 #include <memory>
@@ -13,15 +14,17 @@ namespace vk {
 } // namespace vk
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class RenderSystem;
     class CommandBuffer;
-    class ComputeBuffer;
 
     namespace RenderSystemState {
         /**
          * @brief Aggregated manager for scene data, such as lights and skybox.
          */
-        class SceneDataManager {
+        class RENDER_API SceneDataManager {
         public:
             /**
              * @brief Maximal shadow casting lights available to the shader.
@@ -221,7 +224,7 @@ namespace Engine {
              * vertex shaders via set 0 binding 2.  Pass nullptr to revert
              * to the default dummy buffer.
              */
-            void SetModelMatricesBuffer(const ComputeBuffer *buffer) noexcept;
+            void SetModelMatricesBuffer(const Rhi::ComputeBuffer *buffer) noexcept;
 
             /**
              * @brief Get the currently bound model matrices buffer.
@@ -229,7 +232,7 @@ namespace Engine {
              * @return Current model matrices buffer, or the dummy buffer
              *         if no physics buffer has been set.
              */
-            const ComputeBuffer *GetModelMatricesBuffer() const noexcept;
+            const Rhi::ComputeBuffer *GetModelMatricesBuffer() const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

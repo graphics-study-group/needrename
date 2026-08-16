@@ -1,8 +1,11 @@
 #ifndef ASSET_ASSETREF_INCLUDED
 #define ASSET_ASSETREF_INCLUDED
 
+#include "Asset/asset_export.h"
 #include <Core/guid.h>
-#include <Reflection/macros.h>
+
+#include <AnnoRefl/macros.h>
+
 #include <memory>
 #include <optional>
 
@@ -19,7 +22,7 @@ namespace Engine {
      * When the acquire flag is true, it counts as a reference in the asset manager.
      * And The asset will be loaded eagerly or asynchronously in the asset manager.
      */
-    class REFL_SER_CLASS(REFL_WHITELIST) AssetRef final {
+    class ASSET_CORE_API REFL_SER_CLASS(REFL_WHITELIST) AssetRef final {
         REFL_SER_BODY_FINAL(AssetRef)
     public:
         REFL_ENABLE AssetRef();
@@ -31,10 +34,10 @@ namespace Engine {
 
         /// @brief Save the asset to the archive. Only used for automatic serialization when it is a member of another
         /// class. Only save the GUID of the asset
-        void save_to_archive(Serialization::Archive &archive) const;
+        void save_to_archive(AnnoRefl::Archive &archive) const;
         /// @brief Load the asset from the archive. Only used for automatic serialization when it is a member of another
         /// class. Only load the GUID of the asset
-        void load_from_archive(Serialization::Archive &archive);
+        void load_from_archive(AnnoRefl::Archive &archive);
 
         /**
          * @brief Acquire the asset (increment reference count).

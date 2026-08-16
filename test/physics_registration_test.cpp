@@ -1,14 +1,14 @@
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/CameraComponent.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "Framework/component/TransformComponent/TransformComponent.h"
-#include "Framework/component/physics/CollisionShapeComponent.h"
-#include "Framework/component/physics/RigidBodyComponent.h"
-#include "Framework/object/GameObject.h"
-#include "Framework/world/Scene.h"
-#include "Framework/world/WorldSystem.h"
-#include "MainClass.h"
+#include "Framework/Component/RenderComponent/CameraComponent.h"
+#include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/Component/TransformComponent/TransformComponent.h"
+#include "Framework/Component/physics/CollisionShapeComponent.h"
+#include "Framework/Component/physics/RigidBodyComponent.h"
+#include "Framework/MainClass.h"
+#include "Framework/Object/GameObject.h"
+#include "Framework/World/Scene.h"
+#include "Framework/World/WorldSystem.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/PhysicsSystem.h"
 #include "Physics/Solver/XPBDGpuSolver.h"
@@ -127,8 +127,8 @@ int main(int argc, char **argv) {
 
     // Add mesh components to all physics objects for visualization.
     auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
-    AssetRef sphere_mesh = adb.GetNewAssetRef(AssetPath{adb, "/Sphere.asset"});
-    AssetRef pbr_material = adb.GetNewAssetRef(AssetPath{adb, "/red_brick.asset"});
+    AssetRef sphere_mesh = adb.GetNewAssetRef(AssetPath{"res://Sphere.asset"});
+    AssetRef pbr_material = adb.GetNewAssetRef(AssetPath{"res://red_brick.asset"});
 
     auto add_mesh = [&](GameObject &obj) -> StaticMeshComponent & {
         auto &mc = obj.AddComponent<StaticMeshComponent>();

@@ -1,8 +1,8 @@
 #ifndef CORE_MATH_TRANSFORM_INCLUDED
 #define CORE_MATH_TRANSFORM_INCLUDED
 
-#include <Reflection/macros.h>
-#include <Reflection/serialization_glm.h>
+#include "../core_export.h"
+#include <AnnoRefl/macros.h>
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/quaternion.hpp>
@@ -75,7 +75,7 @@ namespace Engine {
      *
      * @endinternal
      */
-    class REFL_SER_CLASS(REFL_BLACKLIST) Transform {
+    class CORE_API REFL_SER_CLASS(REFL_BLACKLIST) Transform {
         REFL_SER_BODY(Transform)
     public:
         Transform() = default;

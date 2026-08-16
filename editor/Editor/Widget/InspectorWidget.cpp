@@ -2,14 +2,16 @@
 #include <Core/guid.h>
 #include <Editor/Inspector/DefaultComponentInspector.h>
 #include <Editor/Inspector/DefaultVarInspector.h>
-#include <Framework/component/Component.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Handle.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
-#include <Reflection/reflection.h>
+#include <Framework/Component/Component.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Handle.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
+
+#include <AnnoRefl/reflection.h>
 #include <imgui.h>
+
 #include <iostream>
 #include <unordered_map>
 
@@ -50,7 +52,7 @@ namespace Editor {
                 if (ImGui::BeginPopup("AddComponentPopup")) {
                     for (const auto &component_type_name : m_component_types) {
                         if (ImGui::MenuItem(component_type_name.c_str())) {
-                            auto component_type = Engine::Reflection::GetType(component_type_name);
+                            auto component_type = AnnoRefl::GetType(component_type_name);
                             if (component_type) {
                                 scene.CreateComponent(*game_object, *component_type);
                             }
@@ -83,11 +85,11 @@ namespace Editor {
 
     void InspectorWidget::LoadAvailableComponentTypes() {
         m_component_types.clear();
-        const auto &registered_types = Engine::Reflection::Type::s_name_index_map;
-        auto component_type = Engine::Reflection::GetType("Engine::Component");
+        const auto &registered_types = AnnoRefl::Type::s_name_index_map;
+        auto component_type = AnnoRefl::GetType("Engine::Component");
         assert(component_type && component_type->IsReflectable() && "Component type must be registered");
         for (const auto &[type_name, type_index] : registered_types) {
-            auto type = Engine::Reflection::GetType(type_name);
+            auto type = AnnoRefl::GetType(type_name);
             if (type->IsDerivedFrom(component_type)) {
                 m_component_types.push_back(type->GetName());
             }

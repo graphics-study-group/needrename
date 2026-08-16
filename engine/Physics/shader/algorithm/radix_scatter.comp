@@ -27,16 +27,16 @@ layout(set = 0, binding = 2) buffer Histogram {
     uint v[256];
 } histogram;
 
-layout(set = 0, binding = 3) readonly buffer RadixParams {
-    uint byte_shift;    // 0, 8, 16, or 24
-    uint word_select;   // 0 = pair.y (secondary), 1 = pair.x (primary)
-    uint elem_capacity; // buffer capacity (used for dispatch sizing on CPU)
-    uint _pad;
-} radix_params;
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+
+layout(push_constant) uniform RadixParamsPush {
+    uint byte_shift;   // 0, 8, 16, or 24
+    uint word_select;  // 0 = pair.y (secondary), 1 = pair.x (primary)
+} params;
 
 // Actual pair count, written by the pair-generation passes earlier in the frame.
 // Read at GPU execution time — NOT a CPU constant baked at RG build time.
-layout(set = 0, binding = 4) readonly buffer PairCount {
+layout(set = 0, binding = 3) readonly buffer PairCount {
     uint count;
 } pair_count;
 
@@ -47,8 +47,8 @@ void main() {
     if (idx >= pair_count.count) return;
 
     uvec2 pair = pairs_in.v[idx];
-    uint key = (radix_params.word_select == 0u) ? pair.y : pair.x;
-    uint digit = (key >> radix_params.byte_shift) & 0xFFu;
+    uint key = (params.word_select == 0u) ? pair.y : pair.x;
+    uint digit = (key >> params.byte_shift) & 0xFFu;
 
     uint pos = atomicAdd(histogram.v[digit], 1u);
     pairs_out.v[pos] = pair;

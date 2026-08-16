@@ -3,12 +3,12 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetRef.h>
 #include <Core/Math/Transform.h>
-#include <Framework/component/RenderComponent/StaticMeshComponent.h>
-#include <Framework/component/physics/CollisionShapeComponent.h>
-#include <Framework/component/physics/PhysicsConstraintComponent.h>
-#include <Framework/component/physics/RigidBodyComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
+#include <Framework/Component/RenderComponent/StaticMeshComponent.h>
+#include <Framework/Component/physics/CollisionShapeComponent.h>
+#include <Framework/Component/physics/PhysicsConstraintComponent.h>
+#include <Framework/Component/physics/RigidBodyComponent.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Scene.h>
 #include <Physics/PhysicsScene.h>
 #include <Render/RenderSystem.h>
 
@@ -17,9 +17,9 @@ using namespace Engine;
 SceneBuilder::SceneBuilder(Scene &scene, FileSystemDatabase &adb, GameObject &root) :
     m_scene(scene), m_adb(adb), m_root(root) {
     // Load the builtin meshes once — all instances share them.
-    m_cube_mesh = adb.GetNewAssetRef(AssetPath{adb, "~/mesh/cube.asset"});
-    m_sphere_mesh = adb.GetNewAssetRef(AssetPath{adb, "~/mesh/sphere.asset"});
-    m_cylinder_mesh = adb.GetNewAssetRef(AssetPath{adb, "~/mesh/cylinder.asset"});
+    m_cube_mesh = adb.GetNewAssetRef(AssetPath{"builtin://mesh/cube.asset"});
+    m_sphere_mesh = adb.GetNewAssetRef(AssetPath{"builtin://mesh/sphere.asset"});
+    m_cylinder_mesh = adb.GetNewAssetRef(AssetPath{"builtin://mesh/cylinder.asset"});
 }
 
 GameObject &SceneBuilder::AddRigidBodyObject(
@@ -246,7 +246,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         .radius = kSphereRadius,
         .mass = 0.0f,
         .kinematic = true,
-        .material = m_adb.GetNewAssetRef(AssetPath{m_adb, "~/materials/solid_color_white.asset"}),
+        .material = m_adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_white.asset"}),
     });
 
     // --- 2. First pendulum box ---
@@ -256,7 +256,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         .rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
         .half_extents = glm::vec3(kBoxHalfX, kBoxHalfY, kBoxHalfZ),
         .mass = 1.0f,
-        .material = m_adb.GetNewAssetRef(AssetPath{m_adb, "~/materials/solid_color_red.asset"}),
+        .material = m_adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_red.asset"}),
     });
 
     // --- 3. Second pendulum box ---
@@ -266,7 +266,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         .rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
         .half_extents = glm::vec3(kBoxHalfX, kBoxHalfY, kBoxHalfZ),
         .mass = 1.0f,
-        .material = m_adb.GetNewAssetRef(AssetPath{m_adb, "~/materials/solid_color_green.asset"}),
+        .material = m_adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_green.asset"}),
     });
 
     // --- 4. Bottom cylinder (oriented horizontally for visible rotation) ---
@@ -277,7 +277,7 @@ GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
         .radius = kCylRadius,
         .half_height = kCylHalfH,
         .mass = 5.0f,
-        .material = m_adb.GetNewAssetRef(AssetPath{m_adb, "~/materials/solid_color_blue.asset"}),
+        .material = m_adb.GetNewAssetRef(AssetPath{"builtin://materials/solid_color_blue.asset"}),
     });
 
     // --- 5. HingeJoint: sphere → box1 ---

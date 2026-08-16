@@ -1,23 +1,22 @@
 #include "CommandBuffer.h"
 
-#include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/DebugUtils.h"
-#include "Render/Memory/DeviceBuffer.h"
-#include "Render/Memory/Texture.h"
-#include "Render/Pipeline/Compute/ComputeResourceBinding.h"
-#include "Render/Pipeline/Compute/ComputeStage.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
+#include "Render/Pipeline/Renderer/Camera.h"
+#include "Render/Pipeline/Renderer/IVertexBasedRenderer.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/RenderSystem/RendererManager.h"
-#include "Render/RenderSystem/Swapchain.h"
-#include "Render/Renderer/Camera.h"
-#include "Render/Renderer/IVertexBasedRenderer.h"
-#include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/MaterialInstanceManager.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Pipeline/ComputeResourceBinding.h"
+#include "Rhi/Pipeline/ComputeStage.h"
+#include "Rhi/Texture/Texture.h"
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>
@@ -31,7 +30,7 @@ namespace Engine {
 
     // ── Transfer ────────────────────────────────────────────────────────────
 
-    void CommandBuffer::BlitColorImage(const Texture &src, const Texture &dst) {
+    void CommandBuffer::BlitColorImage(const Rhi::Texture &src, const Rhi::Texture &dst) {
         const auto &src_desc{src.GetTextureDescription()}, &dst_desc{dst.GetTextureDescription()};
         BlitColorImage(
             src,
@@ -62,7 +61,7 @@ namespace Engine {
     }
 
     void CommandBuffer::BlitColorImage(
-        const Texture &src, const Texture &dst, TextureArea src_area, TextureArea dst_area
+        const Rhi::Texture &src, const Rhi::Texture &dst, TextureArea src_area, TextureArea dst_area
     ) {
         assert(0 <= src_area.x0 && 0 <= src_area.y0 && 0 <= src_area.z0);
         assert(0 <= dst_area.x0 && 0 <= dst_area.y0 && 0 <= dst_area.z0);
@@ -109,9 +108,9 @@ namespace Engine {
         if (color.texture) {
             color_attachment.push_back(GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal));
             m_pripr.color_attachment_format[0] = color.texture->GetTextureDescription().format;
-            m_pripr.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
+            m_pripr.color_attachment_format[1] = Rhi::ImageFormat::UNDEFINED;
         } else {
-            m_pripr.color_attachment_format[0] = ImageUtils::ImageFormat::UNDEFINED;
+            m_pripr.color_attachment_format[0] = Rhi::ImageFormat::UNDEFINED;
         }
 
         vk::RenderingAttachmentInfo depth_attachment;
@@ -121,7 +120,7 @@ namespace Engine {
             };
             m_pripr.depth_stencil_attachment_format = depth.texture->GetTextureDescription().format;
         } else {
-            m_pripr.depth_stencil_attachment_format = ImageUtils::ImageFormat::UNDEFINED;
+            m_pripr.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
         }
 
         vk::RenderingInfo info{
@@ -150,7 +149,7 @@ namespace Engine {
             m_pripr.color_attachment_format[i] = colors[i].texture->GetTextureDescription().format;
         }
         if (colors.size() < 8) {
-            m_pripr.color_attachment_format[colors.size()] = ImageUtils::ImageFormat::UNDEFINED;
+            m_pripr.color_attachment_format[colors.size()] = Rhi::ImageFormat::UNDEFINED;
         }
 
         vk::RenderingAttachmentInfo depth_attachment_info{};
@@ -158,7 +157,7 @@ namespace Engine {
             depth_attachment_info = GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthStencilAttachmentOptimal);
             m_pripr.depth_stencil_attachment_format = depth.texture->GetTextureDescription().format;
         } else {
-            m_pripr.depth_stencil_attachment_format = ImageUtils::ImageFormat::UNDEFINED;
+            m_pripr.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
         }
 
         vk::RenderingInfo info{
@@ -289,7 +288,10 @@ namespace Engine {
 
     void CommandBuffer::DrawRenderers(const std::string &tag, const RendererList &renderers) {
         this->DrawRenderers(
-            tag, renderers, m_system.GetCameraManager().GetActiveCameraIndex(), m_system.GetSwapchain().GetExtent()
+            tag,
+            renderers,
+            m_system.GetCameraManager().GetActiveCameraIndex(),
+            m_system.GetPresentProvider().GetExtent()
         );
     }
 
@@ -326,12 +328,12 @@ namespace Engine {
 
     // ── Compute ─────────────────────────────────────────────────────────────
 
-    void CommandBuffer::BindComputeStage(ComputeStage &stage) {
+    void CommandBuffer::BindComputeStage(Rhi::ComputeStage &stage) {
         m_bound_compute_stage = stage;
         this->cb.bindPipeline(vk::PipelineBindPoint::eCompute, stage.GetPipeline());
     }
 
-    void CommandBuffer::BindComputeResource(ComputeResourceBinding &binding) {
+    void CommandBuffer::BindComputeResource(Rhi::ComputeResourceBinding &binding) {
         assert(m_bound_compute_stage.has_value() && "Compute pipeline is not bound.");
 
         auto offsets = binding.UpdateGPUInfo(m_inflight_frame_index);

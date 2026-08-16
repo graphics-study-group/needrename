@@ -85,10 +85,11 @@ The SceneBuilder constructor SHALL load the builtin cube, sphere, and cylinder m
 #### Scenario: All meshes loaded on construction
 - **WHEN** a `SceneBuilder` is constructed with a valid `FileSystemDatabase`
 - **THEN** `m_cube_mesh`, `m_sphere_mesh`, and `m_cylinder_mesh` are all valid AssetRefs
-
 ### Requirement: SceneBuilder finalizes physics initialization
-`SceneBuilder::Finalize(PhysicsScene&)` SHALL call `InitializePendingRigidBodies`.
+
+`SceneBuilder::Finalize()` SHALL call `Scene::FlushPhysics(render_system)`. The method no longer takes a `PhysicsScene&` parameter directly — it operates through the Scene owning the created GameObjects.
 
 #### Scenario: Physics initialization
-- **WHEN** `Finalize(physics_scene)` is called
-- **THEN** `physics_scene.InitializePendingRigidBodies(render_system)` is invoked, and all rigid bodies are ready for simulation
+- **WHEN** `Finalize()` is called after creating all physics objects
+- **THEN** `scene.FlushPhysics(render_system)` is invoked, processing all pending descriptors through the Adaptor and syncing GPU buffers
+- **AND** all rigid bodies are ready for simulation

@@ -6,7 +6,7 @@
 namespace Editor {
     class AssetRefInspector : public VarInspectorBase {
     public:
-        void Inspect(const std::string &name, Engine::Reflection::Var var) override;
+        void Inspect(const std::string &name, AnnoRefl::Var var) override;
     };
 } // namespace Editor
 

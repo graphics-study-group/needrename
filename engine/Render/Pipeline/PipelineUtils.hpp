@@ -3,95 +3,91 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "Asset/Material/PipelineProperty.h"
-#include "Render/Hasher.hpp"
-#include "Render/Pipeline/PipelineEnums.h"
+#include "Render/Asset/Material/PipelineProperty.h"
+#include "Rhi/Device/Hasher.hpp"
+#include "Rhi/Pipeline/PipelineEnums.h"
 
 namespace Engine::PipelineUtils {
-    constexpr vk::PolygonMode ToVkPolygonMode(FillingMode mode) {
+    constexpr vk::PolygonMode ToVkPolygonMode(Rhi::FillingMode mode) {
         switch (mode) {
-        case FillingMode::Fill:
+        case Rhi::FillingMode::Fill:
             return vk::PolygonMode::eFill;
-        case FillingMode::Line:
+        case Rhi::FillingMode::Line:
             return vk::PolygonMode::eLine;
-        case FillingMode::Point:
+        case Rhi::FillingMode::Point:
             return vk::PolygonMode::ePoint;
         }
         __builtin_unreachable();
     }
 
-    constexpr vk::CullModeFlags ToVkCullMode(CullingMode mode) {
+    constexpr vk::CullModeFlags ToVkCullMode(Rhi::CullingMode mode) {
         switch (mode) {
-        case CullingMode::None:
+        case Rhi::CullingMode::None:
             return vk::CullModeFlagBits::eNone;
-        case CullingMode::Front:
+        case Rhi::CullingMode::Front:
             return vk::CullModeFlagBits::eFront;
-        case CullingMode::Back:
+        case Rhi::CullingMode::Back:
             return vk::CullModeFlagBits::eBack;
-        case CullingMode::All:
+        case Rhi::CullingMode::All:
             return vk::CullModeFlagBits::eFrontAndBack;
         }
         __builtin_unreachable();
     }
 
-    constexpr vk::FrontFace ToVkFrontFace(FrontFace face) {
+    constexpr vk::FrontFace ToVkFrontFace(Rhi::FrontFace face) {
         switch (face) {
-        case FrontFace::Counterclockwise:
+        case Rhi::FrontFace::Counterclockwise:
             return vk::FrontFace::eCounterClockwise;
-        case FrontFace::Clockwise:
+        case Rhi::FrontFace::Clockwise:
             return vk::FrontFace::eClockwise;
         }
         __builtin_unreachable();
     }
 
-    constexpr vk::CompareOp ToVkCompareOp(DSComparator comp) {
-        return static_cast<vk::CompareOp>(static_cast<int>(comp));
-    }
-
-    constexpr vk::StencilOp ToVkStencilOp(StencilOperation op) {
+    constexpr vk::StencilOp ToVkStencilOp(Rhi::StencilOperation op) {
         return static_cast<vk::StencilOp>(static_cast<int>(op));
     }
 
-    constexpr vk::BlendOp ToVkBlendOp(BlendOperation op) {
+    constexpr vk::BlendOp ToVkBlendOp(Rhi::BlendOperation op) {
         switch (op) {
-        case BlendOperation::None:
+        case Rhi::BlendOperation::None:
             throw std::invalid_argument("Requesting special blending operation \"None\"");
             return vk::BlendOp::eZeroEXT;
-        case BlendOperation::Add:
+        case Rhi::BlendOperation::Add:
             return vk::BlendOp::eAdd;
-        case BlendOperation::Substract:
+        case Rhi::BlendOperation::Substract:
             return vk::BlendOp::eSubtract;
-        case BlendOperation::ReverseSubstract:
+        case Rhi::BlendOperation::ReverseSubstract:
             return vk::BlendOp::eReverseSubtract;
-        case BlendOperation::Min:
+        case Rhi::BlendOperation::Min:
             return vk::BlendOp::eMin;
-        case BlendOperation::Max:
+        case Rhi::BlendOperation::Max:
             return vk::BlendOp::eMax;
         }
         __builtin_unreachable();
     }
 
-    constexpr vk::BlendFactor ToVkBlendFactor(BlendFactor factor) {
+    constexpr vk::BlendFactor ToVkBlendFactor(Rhi::BlendFactor factor) {
         switch (factor) {
-        case BlendFactor::Zero:
+        case Rhi::BlendFactor::Zero:
             return vk::BlendFactor::eZero;
-        case BlendFactor::One:
+        case Rhi::BlendFactor::One:
             return vk::BlendFactor::eOne;
-        case BlendFactor::SrcColor:
+        case Rhi::BlendFactor::SrcColor:
             return vk::BlendFactor::eSrcColor;
-        case BlendFactor::OneMinusSrcColor:
+        case Rhi::BlendFactor::OneMinusSrcColor:
             return vk::BlendFactor::eOneMinusSrcColor;
-        case BlendFactor::DstColor:
+        case Rhi::BlendFactor::DstColor:
             return vk::BlendFactor::eDstColor;
-        case BlendFactor::OneMinusDstColor:
+        case Rhi::BlendFactor::OneMinusDstColor:
             return vk::BlendFactor::eOneMinusDstColor;
-        case BlendFactor::SrcAlpha:
+        case Rhi::BlendFactor::SrcAlpha:
             return vk::BlendFactor::eSrcAlpha;
-        case BlendFactor::OneMinusSrcAlpha:
+        case Rhi::BlendFactor::OneMinusSrcAlpha:
             return vk::BlendFactor::eOneMinusSrcAlpha;
-        case BlendFactor::DstAlpha:
+        case Rhi::BlendFactor::DstAlpha:
             return vk::BlendFactor::eDstAlpha;
-        case BlendFactor::OneMinusDstAlpha:
+        case Rhi::BlendFactor::OneMinusDstAlpha:
             return vk::BlendFactor::eOneMinusDstAlpha;
         }
         __builtin_unreachable();
@@ -102,7 +98,7 @@ namespace Engine::PipelineUtils {
      */
     struct pipeline_runtime_info_hasher {
         size_t operator()(const Engine::PipelineRuntimeInfo &pri) const noexcept {
-            Engine::RenderResourceHasher h;
+            Engine::Rhi::RenderResourceHasher h;
 
             h.u64(pri.va.packed);
 
@@ -111,7 +107,7 @@ namespace Engine::PipelineUtils {
 
             h.u32(static_cast<uint32_t>(pri.depth_stencil_attachment_format));
             for (int i = 0; i < 8; i++) {
-                if (pri.color_attachment_format[i] == Engine::ImageUtils::ImageFormat::UNDEFINED) break;
+                if (pri.color_attachment_format[i] == Engine::Rhi::ImageFormat::UNDEFINED) break;
                 h.u32(static_cast<uint32_t>(pri.color_attachment_format[i]));
             }
 
@@ -256,22 +252,22 @@ namespace Engine::PipelineUtils {
     }
 
     /**
-     * @brief Convert a vector of `ImageUtils::ImageFormat`s to corresponding
+     * @brief Convert a vector of `Rhi::ImageFormat`s to corresponding
      * `vk::Format`s, and replace undefined formats to a default format.
      */
     inline std::vector<vk::Format> ToVulkanFormat(
-        const std::vector<Engine::ImageUtils::ImageFormat> &format, vk::Format default_color_format
+        const std::vector<Engine::Rhi::ImageFormat> &format, vk::Format default_color_format
     ) {
         std::vector<vk::Format> ret;
         std::transform(
             format.begin(),
             format.end(),
             std::back_inserter(ret),
-            [default_color_format](Engine::ImageUtils::ImageFormat fmt) -> vk::Format {
-                if (fmt == Engine::ImageUtils::ImageFormat::UNDEFINED) {
+            [default_color_format](Engine::Rhi::ImageFormat fmt) -> vk::Format {
+                if (fmt == Engine::Rhi::ImageFormat::UNDEFINED) {
                     return default_color_format;
                 } else {
-                    return Engine::ImageUtils::GetVkFormat(fmt);
+                    return Engine::Rhi::GetVkFormat(fmt);
                 }
             }
         );
@@ -302,19 +298,19 @@ namespace Engine::PipelineUtils {
         std::vector<vk::PipelineColorBlendAttachmentState> ret;
         ret.reserve(cbps.size());
         for (const auto &cbp : cbps) {
-            if (cbp.color_op == Engine::PipelineUtils::BlendOperation::None
-                || cbp.alpha_op == Engine::PipelineUtils::BlendOperation::None) {
+            if (cbp.color_op == Engine::Rhi::BlendOperation::None
+                || cbp.alpha_op == Engine::Rhi::BlendOperation::None) {
                 ret.push_back(default_state);
             } else {
                 ret.push_back(
                     vk::PipelineColorBlendAttachmentState{
                         vk::True,
-                        Engine::PipelineUtils::ToVkBlendFactor(cbp.src_color),
-                        Engine::PipelineUtils::ToVkBlendFactor(cbp.dst_color),
-                        Engine::PipelineUtils::ToVkBlendOp(cbp.color_op),
-                        Engine::PipelineUtils::ToVkBlendFactor(cbp.src_alpha),
-                        Engine::PipelineUtils::ToVkBlendFactor(cbp.dst_alpha),
-                        Engine::PipelineUtils::ToVkBlendOp(cbp.alpha_op),
+                        PipelineUtils::ToVkBlendFactor(cbp.src_color),
+                        PipelineUtils::ToVkBlendFactor(cbp.dst_color),
+                        PipelineUtils::ToVkBlendOp(cbp.color_op),
+                        PipelineUtils::ToVkBlendFactor(cbp.src_alpha),
+                        PipelineUtils::ToVkBlendFactor(cbp.dst_alpha),
+                        PipelineUtils::ToVkBlendOp(cbp.alpha_op),
                         static_cast<vk::ColorComponentFlags>(static_cast<int>(cbp.color_write_mask))
                     }
                 );

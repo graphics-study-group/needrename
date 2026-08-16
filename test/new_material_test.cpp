@@ -4,16 +4,17 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Loader/TextureImportUtils.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Mesh/PlaneMeshAsset.h"
-#include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "MainClass.h"
+#include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/Import/TextureImportUtils.h"
+#include "Framework/MainClass.h"
+#include "Render/Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Asset/Mesh/PlaneMeshAsset.h"
+#include "Render/Asset/Texture/Image2DTextureAsset.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
-#include "UserInterface/GUISystem.h"
+#include "Render/Pipeline/Renderer/StaticHomogeneousMesh.h"
+#include "Render/RenderSystem/IPresentProvider.h"
+#include "Render/UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "cmake_config.h"
@@ -56,13 +57,13 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto lib_asset = am->CreateAsset<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
-    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
+    auto vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/blinn_phong.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/blinn_phong.frag.asset"});
 
     test_asset->name = "Blinn-Phong";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    mtspp.attachments.color = {Rhi::ImageFormat::R8G8B8A8UNorm};
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp;
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
@@ -71,7 +72,7 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     cbp.src_alpha = CBP::BlendFactor::One;
     cbp.dst_alpha = CBP::BlendFactor::Zero;
     mtspp.attachments.color_blending = {cbp};
-    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    mtspp.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
     mtspp.shaders.specialization_constants = {{0, 1}};
 
@@ -93,10 +94,10 @@ auto BuildRenderGraph(
     MaterialInstance *material,
     IVertexBasedRenderer *mesh,
     RenderTargetTexture *blurred = nullptr,
-    ComputeStage *kernel = nullptr,
-    ComputeResourceBinding *kbinding = nullptr
+    Rhi::ComputeStage *kernel = nullptr,
+    Rhi::ComputeResourceBinding *kbinding = nullptr
 ) {
-    using IAT = Engine::MemoryAccessTypeImageBits;
+    using IAT = Engine::Rhi::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
     auto c = rgb.ImportExternalResource(*color);
     auto d = rgb.ImportExternalResource(*depth);
@@ -115,12 +116,12 @@ auto BuildRenderGraph(
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
             .SetPassFunction([rsys, color, depth, material, mesh](CommandBuffer &cb, const RenderGraph &) {
-                auto extent = rsys->GetSwapchain().GetExtent();
+                auto extent = rsys->GetPresentProvider().GetExtent();
 
                 PipelineRuntimeInfo pri{};
                 pri.va = mesh->GetVertexAttributeFormat();
                 pri.color_attachment_format[0] = color->GetTextureDescription().format;
-                pri.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
+                pri.color_attachment_format[1] = Rhi::ImageFormat::UNDEFINED;
                 pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
 
                 cb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
@@ -188,11 +189,9 @@ int main(int argc, char **argv) {
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     Engine::detail::texture_import::LoadImage2DTextureAssetFromFile(
-        *test_texture_asset,
-        std::string(ENGINE_ASSETS_DIR) + "/skybox/sky_cloudy.png",
-        ImageUtils::ImageFormat::R8G8B8A8SRGB
+        *test_texture_asset, std::string(ENGINE_ASSETS_DIR) + "/skybox/sky_cloudy.png", Rhi::ImageFormat::R8G8B8A8SRGB
     );
-    std::shared_ptr allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
+    std::shared_ptr allocated_image_texture = test_texture_asset->CreateImageTexture(rsys->GetDeviceContext());
 
     // Prepare material
     auto [test_library_asset, test_template_asset] = ConstructMaterial();
@@ -245,19 +244,24 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment");
-    std::shared_ptr postproc =
-        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Gaussian Blurred");
+    std::shared_ptr color = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment"
+    );
+    std::shared_ptr postproc = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Gaussian Blurred"
+    );
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
+    std::shared_ptr depth = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment"
+    );
 
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
-    auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/gaussian_blur.comp.asset"});
-    ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs_ref.as<ShaderAsset>());
+    auto cs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/gaussian_blur.comp.asset"});
+    Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
+    cstage.Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
 
-    auto &kbinding = cstage.AllocateResourceBinding();
+    auto &kbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
     kbinding.GetShaderResourceBinding().BindTexture("inputImage", *color);
     kbinding.GetShaderResourceBinding().BindTexture("outputImage", *postproc);
 
@@ -295,18 +299,21 @@ int main(int argc, char **argv) {
         );
 
         auto index = rsys->StartFrame();
+        if (index == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
+        rsys->GetFrameManager().BeginMainCommandBuffer();
         if (has_gaussian_blur) {
-            blur->Execute(*rsys);
+            blur->RecordIntoMainCommandBuffer(*rsys);
         } else {
-            nonblur->Execute(*rsys);
+            nonblur->RecordIntoMainCommandBuffer(*rsys);
         }
 
         rsys->CompleteFrame(
             has_gaussian_blur ? *postproc : *color,
-            has_gaussian_blur ? MemoryAccessTypeImageBits::ShaderRandomWrite
-                              : MemoryAccessTypeImageBits::ColorAttachmentWrite,
-            postproc->GetTextureDescription().width,
-            postproc->GetTextureDescription().height
+            has_gaussian_blur ? Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite
+                              : Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
         );
 
         SDL_Delay(10);

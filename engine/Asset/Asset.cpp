@@ -1,7 +1,7 @@
 #include "Asset.h"
 #include <Asset/AssetManager/AssetManager.h>
-#include <MainClass.h>
-#include <Reflection/serialization.h>
+
+#include <AnnoRefl/serialization.h>
 
 namespace Engine {
     Asset::Asset() {
@@ -11,23 +11,23 @@ namespace Engine {
     Asset::~Asset() {
     }
 
-    void Asset::save_to_archive(Serialization::Archive &) const {
+    void Asset::save_to_archive(AnnoRefl::Archive &) const {
         throw std::runtime_error("Asset serialization is not allowed. Use AssetRef instead.");
     }
 
-    void Asset::load_from_archive(Serialization::Archive &) {
+    void Asset::load_from_archive(AnnoRefl::Archive &) {
         throw std::runtime_error("Asset serialization is not allowed. Use AssetRef instead.");
     }
 
-    void Asset::save_asset_to_archive(Serialization::Archive &archive) const {
+    void Asset::save_asset_to_archive(AnnoRefl::Archive &archive) const {
         _SERIALIZATION_SAVE_(archive);
-        Serialization::Json &json = *archive.m_cursor;
+        AnnoRefl::Json &json = *archive.m_cursor;
         json["Asset::m_guid"] = m_guid.string();
     }
 
-    void Asset::load_asset_from_archive(Serialization::Archive &archive) {
+    void Asset::load_asset_from_archive(AnnoRefl::Archive &archive) {
         _SERIALIZATION_LOAD_(archive);
-        Serialization::Json &json = *archive.m_cursor;
+        AnnoRefl::Json &json = *archive.m_cursor;
         m_guid = GUID(json["Asset::m_guid"].get<std::string>());
     }
 

@@ -3,11 +3,17 @@
 
 #include <memory>
 
-namespace Engine {
+namespace vk {
     class CommandBuffer;
-    class ComputeBuffer;
+}
+namespace Engine {
+    namespace Rhi {
+        class ComputeBuffer;
+    }
     class PhysicsScene;
-    class RenderSystem;
+    namespace Rhi {
+        class DeviceContext;
+    }
 
     /**
      * @brief Bundle of read-only pointers to collision detection result buffers.
@@ -16,11 +22,11 @@ namespace Engine {
      * owned by the detector and live until the detector is destroyed.
      */
     struct CollisionResultBuffers {
-        const ComputeBuffer *collision_ids{};
-        const ComputeBuffer *collision_normals{};
-        const ComputeBuffer *contact_point_a{};
-        const ComputeBuffer *contact_point_b{};
-        const ComputeBuffer *collision_count{};
+        const Rhi::ComputeBuffer *collision_ids{};
+        const Rhi::ComputeBuffer *collision_normals{};
+        const Rhi::ComputeBuffer *contact_point_a{};
+        const Rhi::ComputeBuffer *contact_point_b{};
+        const Rhi::ComputeBuffer *collision_count{};
         uint32_t max_output_collision_pairs{0};
     };
 
@@ -32,7 +38,7 @@ namespace Engine {
      * broad-phase detector -- pair buffer references are cached during Configure().
      *
      * Lifecycle:
-     *   1. Construct with RenderSystem& only (no GPU allocation).
+     *   1. Construct with Rhi::DeviceContext& only (no GPU allocation).
      *   2. Configure(scene, max_pairs, margin, pair_buf, count_buf) -- CPU prep,
      *      buffer allocation, shader loading, binding creation.
      *   3. Record(cb) -- dispatch compute passes directly to cb, return void.
@@ -50,7 +56,7 @@ namespace Engine {
      */
     class ConvexCollisionDetector {
     public:
-        explicit ConvexCollisionDetector(RenderSystem &render_system);
+        explicit ConvexCollisionDetector(Rhi::DeviceContext &device_context);
         ~ConvexCollisionDetector();
 
         ConvexCollisionDetector(const ConvexCollisionDetector &) = delete;
@@ -76,8 +82,8 @@ namespace Engine {
             uint32_t max_input_collision_pairs,
             uint32_t max_output_collision_pairs,
             float contact_margin,
-            const ComputeBuffer &pair_buffer,
-            const ComputeBuffer &pair_count_buffer
+            const Rhi::ComputeBuffer &pair_buffer,
+            const Rhi::ComputeBuffer &pair_count_buffer
         );
 
         /**
@@ -87,7 +93,7 @@ namespace Engine {
          * All passes dispatch via BindComputeStage / DispatchCompute directly
          * (no RenderGraph).
          */
-        void Record(CommandBuffer &cb);
+        void Record(vk::CommandBuffer cb);
 
         bool IsInitialized() const noexcept;
 

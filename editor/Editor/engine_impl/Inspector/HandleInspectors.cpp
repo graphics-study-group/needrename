@@ -1,15 +1,16 @@
 #include "HandleInspectors.h"
-#include <Framework/component/Component.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Handle.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
-#include <Reflection/reflection.h>
+#include <Framework/Component/Component.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Handle.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
+
+#include <AnnoRefl/reflection.h>
 #include <imgui.h>
 
 namespace Editor {
-    void ObjectHandleInspector::Inspect(const std::string &name, Engine::Reflection::Var var) {
+    void ObjectHandleInspector::Inspect(const std::string &name, AnnoRefl::Var var) {
         const Engine::ObjectHandle &handle = var.Get<Engine::ObjectHandle>();
         const auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
         ImGui::Text(
@@ -19,7 +20,7 @@ namespace Editor {
         );
     }
 
-    void ComponentHandleInspector::Inspect(const std::string &name, Engine::Reflection::Var var) {
+    void ComponentHandleInspector::Inspect(const std::string &name, AnnoRefl::Var var) {
         const Engine::ComponentHandle &handle = var.Get<Engine::ComponentHandle>();
         const auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
         std::string display_text = "Invalid";
@@ -29,7 +30,7 @@ namespace Editor {
                 const auto *go = component->GetParentGameObject();
                 if (go) {
                     display_text =
-                        go->m_name + " -> " + std::string(Engine::Reflection::GetTypeFromObject(*component)->GetName());
+                        go->m_name + " -> " + std::string(AnnoRefl::GetTypeFromObject(*component)->GetName());
                 }
             }
         }

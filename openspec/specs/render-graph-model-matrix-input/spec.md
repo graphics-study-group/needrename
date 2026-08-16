@@ -27,11 +27,18 @@ When `model_matrices_buffer` is `nullptr`, the builder SHALL behave identically 
 - **THEN** no model matrices buffer SHALL be imported
 - **AND** the graph SHALL be identical to the pre-change implementation
 
-### Requirement: SceneDataManager receives model matrices buffer from physics
+### Requirement: SceneDataManager receives model matrices buffer from the assembly layer
 
-When a physics solver produces model matrices, `SceneDataManager::SetModelMatricesBuffer()` SHALL be called with the physics scene's `model_matrices` buffer pointer after the scene's GPU buffers are initialized.
+The model matrices buffer produced by physics SHALL be forwarded to `SceneDataManager::SetModelMatricesBuffer()` by the `MainClass` assembly layer — no longer by the physics solver or `PhysicsScene::SyncGpuBuffers`.
 
-#### Scenario: Model matrices buffer set before rendering
+#### Scenario: Model matrices buffer forwarded after physics step
 
-- **WHEN** `DummySolver::BuildRenderGraph()` is called and the scene has rigid bodies
-- **THEN** `SceneDataManager::SetModelMatricesBuffer()` SHALL be called with the scene's model matrices buffer pointer
+- **WHEN** `MainClass::RunOneFrame` runs and the main scene has a physics scene with GPU buffers
+- **THEN** after the physics flush/step, `SceneDataManager::SetModelMatricesBuffer()` is called with the physics scene's `model_matrices` buffer pointer (from `GetGpuBuffers().model_matrices`)
+- **AND** the buffer pointer is forwarded even when the physics scene's buffer set was initialized this frame
+
+#### Scenario: Physics no longer notifies SceneDataManager
+
+- **WHEN** `XpbdGpuSolver::GPUStep` or `PhysicsScene::SyncGpuBuffers` runs
+- **THEN** neither calls `SceneDataManager::SetModelMatricesBuffer`
+- **AND** no Render header is included by the physics module

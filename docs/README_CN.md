@@ -79,7 +79,7 @@ cmake --build --preset debug
 ```powershell
 $env:Path = "C:\msys2\clang64\bin;C:\msys2\usr\bin;$env:Path"
 $env:VK_LAYER_PATH = "C:\msys2\clang64\bin"
-./build/debug/test/project_loading_test.exe
+./build/debug/bin/project_loading_test.exe
 ```
 
 ### VS Code 配置
@@ -125,27 +125,35 @@ assets/                  # 原始资源文件
 builtin_assets/          # 内置资源，供所有项目通用
 editor/                  # 引擎编辑器代码
 engine/
-    Asset/               # 资源管理
+    Asset/               # 资源核心基础设施（Asset、AssetRef、AssetManager、AssetDatabase）
     Core/                # 核心功能（数学库、功能模块）
-    Framework/           # GameObject、Component、Scene
+    Framework/           # 顶层编排：MainClass、World/Scene/GameObject/Component、资源导入、Input
     Physics/             # GPU 加速的物理引擎
-    Reflection/          # 反射和序列化
-    Render/              # Vulkan 渲染系统
-    UserInterface/       # GUI 系统
+    Render/              # Vulkan 渲染系统、渲染资源与 GUISystem
+    Rhi/                 # GPU 抽象层（缓冲区、纹理、管线、提交）
 example/                 # 可运行的示例游戏
     physics_example/     # 物理仿真演示
 projects/                # 示例游戏项目
-reflection_parser/       # C++ 反射的 Python 解析器
 test/                    # 测试程序
-third_party/             # 第三方依赖（glm、SPIRV-Cross 等）
+third_party/             # 第三方依赖（glm、SPIRV-Cross、AnnoRefl 等）
+    AnnoRefl/            # 反射/序列化运行时与 Python 解析器
 ```
 
 ## 构建目标
 
-- **editor**：运行引擎编辑器界面的可执行文件
-- **engine**：包含核心引擎功能的静态库
-- **tests**：可运行的演示程序和测试用例（可通过 CTest 运行）
-- **third_party**：链接到 engine 的第三方静态库
+引擎被拆分为多个模块化的共享库（DLL），依赖关系单向，由单个 `Engine` INTERFACE 聚合目标统一对外，使用方只需链接 `Engine`：
+
+- **AnnoRefl** — 反射/序列化运行时与 Python 解析器（`third_party/AnnoRefl`）
+- **EngineCore** — 数学库与功能模块
+- **EngineRhi** — GPU 抽象层（缓冲区、纹理、管线、提交）
+- **EngineAssetCore** — 资源核心基础设施（Asset、AssetRef、AssetManager、AssetDatabase）
+- **EnginePhysics** — GPU 加速的物理引擎
+- **EngineRender** — Vulkan 渲染系统、渲染资源与 GUISystem
+- **EngineFramework** — 顶层编排（MainClass、World/Scene/GameObject/Component、资源导入、Input）
+- **EngineEditor** — 引擎编辑器，由编辑器示例可执行文件加载
+- **tests** — 可运行的演示程序和测试用例（可通过 CTest 运行）
+
+所有可执行文件与 DLL 统一输出到 `bin/` 目录（导入库输出到 `lib/`）。
 
 ## 核心特性
 

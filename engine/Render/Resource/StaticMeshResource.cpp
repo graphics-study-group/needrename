@@ -1,6 +1,6 @@
 #include "StaticMeshResource.h"
 
-#include "Asset/Mesh/MeshAsset.h"
+#include "Render/Asset/Mesh/MeshAsset.h"
 
 #include <cassert>
 
@@ -33,9 +33,7 @@ namespace Engine {
         m_data_block->submeshes.clear();
     }
 
-    void StaticMeshResource::Submit(
-        const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &helper
-    ) {
+    void StaticMeshResource::Submit(const Rhi::AllocatorState &allocator, Rhi::SubmissionHelper &helper) {
         // Eagerly load the mesh asset.
         // TODO: Use memory mapping after implementing it in AssetManager, and avoid loading the whole asset into memory at once.
         m_mesh_asset_ref.Acquire();
@@ -66,8 +64,10 @@ namespace Engine {
             auto buffer_size = submesh_ref.vertex_attribute_count * submesh_ref.attributes.GetTotalPerVertexSize()
                                + submesh_ref.index_count * sizeof(uint32_t);
 
-            submesh_ref.vi_buffer = DeviceBuffer::CreateUnique(
-                allocator, {BufferTypeBits::Vertex, BufferTypeBits::Index, BufferTypeBits::CopyTo}, buffer_size
+            submesh_ref.vi_buffer = Rhi::DeviceBuffer::CreateUnique(
+                allocator,
+                {Rhi::BufferTypeBits::Vertex, Rhi::BufferTypeBits::Index, Rhi::BufferTypeBits::CopyTo},
+                buffer_size
             );
 
             std::vector<std::byte> buf;

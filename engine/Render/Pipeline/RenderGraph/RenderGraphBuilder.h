@@ -1,17 +1,20 @@
 #ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPHBUILDER2
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPHBUILDER2
 
-#include "Render/Memory/MemoryAccessTypes.h"
-#include "Render/Memory/RenderTargetTexture.h"
+#include "Render/Resource/RenderTargetTexture.h"
+#include "Render/render_export.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace Engine {
+    namespace Rhi {
+        class DeviceBuffer;
+    }
     class RenderGraph;
     struct RenderGraphPass;
     class RenderSystem;
-    class DeviceBuffer;
     struct RRTTHandle;
 
-    class RenderGraphBuilder {
+    class RENDER_API RenderGraphBuilder {
         struct impl;
         RenderSystem &system;
         std::unique_ptr<impl> pimpl;
@@ -35,11 +38,12 @@ namespace Engine {
          */
         [[nodiscard]]
         RGTextureHandle ImportExternalResource(
-            RenderTargetTexture &texture, MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
+            RenderTargetTexture &texture,
+            Rhi::MemoryAccessTypeImageBits prev_access = Rhi::MemoryAccessTypeImageBits::None
         );
         [[nodiscard]]
         RGTextureHandle ImportExternalResource(
-            RRTTHandle texture, MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
+            RRTTHandle texture, Rhi::MemoryAccessTypeImageBits prev_access = Rhi::MemoryAccessTypeImageBits::None
         );
 
         /**
@@ -50,7 +54,8 @@ namespace Engine {
          */
         [[nodiscard]]
         RGBufferHandle ImportExternalResource(
-            const DeviceBuffer &buffer, MemoryAccessTypeBuffer prev_access = {MemoryAccessTypeBufferBits::None}
+            const Rhi::DeviceBuffer &buffer,
+            Rhi::MemoryAccessTypeBuffer prev_access = {Rhi::MemoryAccessTypeBufferBits::None}
         );
 
         /**

@@ -14,7 +14,7 @@ jobs:
     if: github.event.pull_request.draft == false
     steps:
       - uses: actions/checkout@v4
-      - uses: cpp-linter/cpp-linter-action@main
+      - uses: cpp-linter/cpp-linter-action@v2
         id: linter
         continue-on-error: true
         env:
@@ -26,8 +26,12 @@ jobs:
           # Spit out why it is not formatted
           format-review: true
           passive-reviews: true
+          # Large refactors can exceed GitHub's 300-file diff limit (API returns
+          # 406), which makes the diff-based file list crash on deleted files.
+          # Analyze the whole repository instead so the linter always runs.
+          files-changed-only: false
           # Many directories do not have cpp files nonetheless.
-          ignore: '.github | assets | builtin_assets | reflection_parser | shader | third_party'
+          ignore: '.github | assets | builtin_assets | shader | third_party'
 
       # - name: Failed
       #   if: steps.linter.outputs.checks-failed != 0

@@ -5,9 +5,9 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-#include "Render/Memory/MemoryAccessTypes.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace Engine {
     class RenderGraph;
@@ -19,7 +19,7 @@ namespace Engine {
     /**
      * @brief Visitor for render target textures.
      */
-    struct RenderTargetTextureVariantVisitor {
+    struct RENDER_API RenderTargetTextureVariantVisitor {
         RenderTargetTexture *operator()(RenderTargetTexture *p) {
             return p;
         }
@@ -35,10 +35,10 @@ namespace Engine {
      * Each pass corresponds to one command buffer and one submission. Multiple
      * render passes may be merged into one render graph pass after compilation.
      */
-    struct RenderGraphCompiledPass {
+    struct RENDER_API RenderGraphCompiledPass {
         vk::PipelineStageFlags2 wait_stage{}, signal_stage{};
 
-        struct Subpass {
+        struct RENDER_API Subpass {
             std::vector<std::pair<RGTextureHandle, vk::ImageMemoryBarrier2>> image_barriers{};
             std::vector<std::pair<RGBufferHandle, vk::BufferMemoryBarrier2>> buffer_barriers{};
             vk::MemoryBarrier2 global_memory_barrier{};
@@ -53,15 +53,15 @@ namespace Engine {
     /**
      * @brief Extra info used for constructing a render graph.
      */
-    struct RenderGraph2ExtraInfo {
-        std::unordered_map<RGTextureHandle, MemoryAccessTypeImageBits> first_persistent_texture_access,
+    struct RENDER_API RenderGraph2ExtraInfo {
+        std::unordered_map<RGTextureHandle, Rhi::MemoryAccessTypeImageBits> first_persistent_texture_access,
             last_persistent_texture_access;
 
         std::unordered_map<RGTextureHandle, OwnedRenderTargetTextureVariant> transient_texture_storage;
 
         std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
 
-        std::unordered_map<RGBufferHandle, const DeviceBuffer *> buffer_mapping;
+        std::unordered_map<RGBufferHandle, const Rhi::DeviceBuffer *> buffer_mapping;
     };
 } // namespace Engine
 

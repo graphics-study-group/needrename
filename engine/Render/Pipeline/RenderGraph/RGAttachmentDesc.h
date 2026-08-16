@@ -2,7 +2,8 @@
 #define PIPELINE_RENDERGRAPH_RGATTACHMENTDESC
 
 #include "Render/AttachmentUtils.h"
-#include "Render/Memory/TextureSubresourceView.h"
+#include "Render/render_export.h"
+#include "Rhi/Texture/TextureSubresourceView.h"
 
 namespace Engine {
     /// @brief Handle for textures in render graph.
@@ -18,7 +19,7 @@ namespace Engine {
      * @see `Engine::AttachmentUtils::AttachmentDescription`
      */
     template <class T>
-    struct RGAttachmentDescTemplate {
+    struct RENDER_API RGAttachmentDescTemplate {
         /// Load operation of the attachment.
         using LoadOp = AttachmentUtils::LoadOperation;
         /// Store operation of the attachment.
@@ -30,7 +31,7 @@ namespace Engine {
         T rt_handle{};
         /// @brief What subresources are used by the rendering pass.
         /// Component swizzles of the subresource range is ignored.
-        TextureSubresourceRange range{};
+        Rhi::TextureSubresourceRange range{};
         /// @brief Load operation of the attachment.
         LoadOp load_op{};
         /// @brief Store operation of the attachment.

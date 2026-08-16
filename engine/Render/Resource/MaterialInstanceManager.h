@@ -2,6 +2,7 @@
 #define RENDER_RESOURCE_MATERIALINSTANCEPROVIDER_INCLUDED
 
 #include "IRenderResourceManager.h"
+#include "Render/render_export.h"
 
 #include <unordered_map>
 
@@ -34,7 +35,7 @@ namespace Engine::RenderSystemState {
      *   MaterialInstance::UpdateGPUInfo() is called (typically during BindMaterial in rendering).
      * - This defers GPU state setup until actually needed, reducing upfront overhead.
      */
-    class MaterialInstanceManager final : public IRenderResourceManager<MaterialInstance> {
+    class RENDER_API MaterialInstanceManager final : public IRenderResourceManager<MaterialInstance> {
     public:
         using IRenderResourceManager<MaterialInstance>::IRenderResourceManager;
 

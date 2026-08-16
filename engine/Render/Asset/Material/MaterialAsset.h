@@ -1,0 +1,89 @@
+#ifndef RENDER_ASSET_MATERIAL_MATERIALASSET_INCLUDED
+#define RENDER_ASSET_MATERIAL_MATERIALASSET_INCLUDED
+
+#include "Render/render_export.h"
+#include <Asset/Asset.h>
+#include <Asset/AssetRef.h>
+#include <Render/Asset/Shader/ShaderAsset.h>
+
+#include <AnnoRefl/macros.h>
+
+#include <any>
+#include <glm.hpp>
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+namespace Engine {
+    /**
+     * @brief A single property of the material.
+     * Can be a variable (e.g. vec4) or a reference to an object (e.g. texture)
+     */
+    struct RENDER_API REFL_SER_CLASS(REFL_WHITELIST) MaterialProperty {
+        REFL_SER_BODY(MaterialProperty)
+
+        /// @brief Type of the variable
+        enum class InBlockVarType {
+            Undefined,
+            Float,
+            Int,
+            Vec4,
+            Mat4
+        };
+
+        /// @brief Type of the property
+        enum class Type {
+            Undefined,
+            // Uniform buffer object, i.e. a buffer for bulk uniform variables.
+            // This type of variable is automatically managed by the material system
+            // and should not appear in assets.
+            UBO,
+            // Shader storage buffer object.
+            SSBO,
+            // Texture to be sampled (or combined image sampler).
+            Texture,
+            // Cube texture to be sampled.
+            CubeTexture,
+            // Storage image. Generally used in compute shaders.
+            StorageImage,
+            // Simple variable that does not occupy a descriptor slot.
+            Simple,
+        } type{};
+
+        Type m_type{};
+        InBlockVarType m_ubo_type{};
+        std::any m_value{};
+
+        void save_to_archive(AnnoRefl::Archive &archive) const;
+        void load_from_archive(AnnoRefl::Archive &archive);
+
+        MaterialProperty() = default;
+        /// @brief Create the property from a variable
+        MaterialProperty(float value);
+        MaterialProperty(int value);
+        MaterialProperty(const glm::vec4 &value);
+        MaterialProperty(const glm::mat4 &value);
+        /// @brief Create the property from a reference to an object
+        MaterialProperty(const AssetRef &value, Type type);
+        virtual ~MaterialProperty() = default;
+    };
+
+    /**
+     * @brief Asset for a material.
+     * Contains a mapping from name to properties.
+     */
+    class RENDER_API REFL_SER_CLASS(REFL_WHITELIST) MaterialAsset : public Asset {
+        REFL_SER_BODY_OVERRIDE(MaterialAsset)
+    public:
+        REFL_ENABLE MaterialAsset() = default;
+        virtual ~MaterialAsset() = default;
+        /// @brief Name of the material
+        REFL_SER_ENABLE std::string m_name{};
+        /// @brief Library of the material
+        REFL_SER_ENABLE AssetRef m_library{};
+        /// @brief Name to property mapping
+        REFL_SER_ENABLE std::unordered_map<std::string, MaterialProperty> m_properties{};
+    };
+} // namespace Engine
+
+#endif // RENDER_ASSET_MATERIAL_MATERIALASSET_INCLUDED

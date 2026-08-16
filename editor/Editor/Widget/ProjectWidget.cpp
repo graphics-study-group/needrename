@@ -1,6 +1,6 @@
 #include "ProjectWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <MainClass.h>
+#include <Framework/MainClass.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <imgui.h>
@@ -94,7 +94,7 @@ namespace {
 
 namespace Editor {
     ProjectWidget::ProjectWidget(const std::string &name, Engine::FileSystemDatabase &database) :
-        Widget(name), m_database(database), m_current_path(database, "/") {
+        Widget(name), m_database(database), m_current_path("res://") {
     }
 
     ProjectWidget::~ProjectWidget() {
@@ -129,8 +129,7 @@ namespace Editor {
                     const std::string folder_name = m_create_folder_name;
                     if (!folder_name.empty() && folder_name.find('/') == std::string::npos
                         && folder_name.find('\\') == std::string::npos) {
-                        const std::filesystem::path base_parent(m_create_folder_parent->generic_string());
-                        const AssetPath target_path(m_database, base_parent / folder_name);
+                        const AssetPath target_path = *m_create_folder_parent / folder_name;
                         if (!m_database.CreateDirectory(target_path)) {
                             SDL_LogWarn(
                                 SDL_LOG_CATEGORY_APPLICATION,
@@ -215,7 +214,7 @@ namespace Editor {
     }
 
     void ProjectWidget::RenderBreadcrumb() {
-        std::string where = m_current_path.empty() ? std::string("/") : m_current_path.generic_string();
+        std::string where = m_current_path.IsEmpty() ? std::string("/") : m_current_path.generic_string();
         ImGui::TextUnformatted(where.c_str());
         ImGui::Separator();
     }
@@ -228,11 +227,11 @@ namespace Editor {
             ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
 
         // Project root '/'
-        AssetPath root_path(m_database, "/");
-        AssetPath builtin_root(m_database, "~");
+        AssetPath root_path("res://");
+        AssetPath builtin_root("builtin://");
         ImGui::PushID("root_project");
         ImGuiTreeNodeFlags flags = base_flags | ImGuiTreeNodeFlags_DefaultOpen;
-        if (m_current_path == root_path || m_current_path.empty()) flags |= ImGuiTreeNodeFlags_Selected;
+        if (m_current_path == root_path || m_current_path.IsEmpty()) flags |= ImGuiTreeNodeFlags_Selected;
         bool open = ImGui::TreeNodeEx("/", flags);
         if (ImGui::IsItemClicked()) {
             m_current_path = root_path;
@@ -277,14 +276,14 @@ namespace Editor {
             if (ce.is_directory) subdirs.emplace_back(ce.path);
         }
         std::sort(subdirs.begin(), subdirs.end(), [](const auto &a, const auto &b) {
-            return a.filename().generic_string() < b.filename().generic_string();
+            return a.filename() < b.filename();
         });
 
         ImGuiTreeNodeFlags base_flags =
             ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
 
         for (const auto &p : subdirs) {
-            std::string label = p.filename().generic_string();
+            std::string label = p.filename();
             if (label.empty()) label = p.generic_string();
             ImGui::PushID(p.generic_string().c_str());
             ImGuiTreeNodeFlags flags = base_flags;
@@ -337,7 +336,7 @@ namespace Editor {
         int current_col = 0;
 
         // Up tile
-        if (m_current_path != AssetPath(m_database, "/") && m_current_path != AssetPath(m_database, "~")) {
+        if (m_current_path != AssetPath("res://") && m_current_path != AssetPath("builtin://")) {
             AssetPath parent = m_current_path.parent_path();
             if (parent != m_current_path) {
                 ImGui::PushID("__up__");
@@ -379,10 +378,10 @@ namespace Editor {
             auto list = m_database.ListDirectory(dir);
             bucket.entries.reserve(list.size());
             for (auto &it : list) {
-                CachedEntry e{.path = AssetPath(m_database, "")};
+                CachedEntry e{.path = AssetPath{}};
                 e.path = it.path;
                 e.is_directory = it.is_directory;
-                e.display_name = it.path.filename().generic_string();
+                e.display_name = it.path.filename();
                 e.tooltip = MakeTooltip(it);
                 bucket.entries.emplace_back(std::move(e));
             }
@@ -440,11 +439,9 @@ namespace Editor {
             if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
                 const char *raw_path = static_cast<const char *>(payload->Data);
                 if (raw_path && raw_path[0] != '\0') {
-                    const AssetPath source_path(m_database, std::filesystem::path(raw_path));
+                    const AssetPath source_path(raw_path);
                     if (!(source_path == target_path)) {
-                        const std::filesystem::path target_dir(target_path.generic_string());
-                        const std::filesystem::path source_name(source_path.filename().generic_string());
-                        const AssetPath destination_path(m_database, target_dir / source_name);
+                        const AssetPath destination_path = target_path / source_path.filename();
                         if (!m_database.MovePath(source_path, destination_path)) {
                             SDL_LogWarn(
                                 SDL_LOG_CATEGORY_APPLICATION,

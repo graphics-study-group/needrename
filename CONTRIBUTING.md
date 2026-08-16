@@ -46,8 +46,9 @@ For non-trivial features and architecture changes, we use an **OpenSpec** spec-d
 
 1. **Explore** (`/openspec-explore`) — Investigate the problem space, clarify requirements, think through tradeoffs
 2. **Propose** (`/openspec-propose`) — Generate proposal, design, specs, and tasks in one step
-3. **Apply** (`/openspec-apply-change`) — Implement the change task by task
-4. **Archive** (`/openspec-archive-change`) — Finalize and archive the completed change
+3. **Design review** (`/grill-me`) — *(Optional)* Stress-test the proposal through relentless interview. Prefer `/grill-me` over `/grill-with-docs` — all decisions are recorded in OpenSpec artifacts, not separate ADR documents. See [grilling skill](https://github.com/mattpocock/skills).
+4. **Apply** (`/openspec-apply-change`) — Implement the change task by task
+5. **Archive** (`/openspec-archive-change`) — Finalize and archive the completed change
 
 All OpenSpec artifacts live under the `openspec/` directory:
 

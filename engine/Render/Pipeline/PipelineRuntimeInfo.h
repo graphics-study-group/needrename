@@ -1,8 +1,9 @@
 #ifndef RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
 #define RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
 
-#include "Render/ImageUtils.h"
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
+#include "Render/render_export.h"
+#include "Rhi/Texture/ImageUtils.h"
 
 namespace Engine {
 
@@ -12,7 +13,7 @@ namespace Engine {
      *
      * Mainly includes mesh vertex attributes.
      */
-    struct PipelineRuntimeInfoPerDraw {
+    struct RENDER_API PipelineRuntimeInfoPerDraw {
 
         /// @brief Vertex attribute expectation of the draw call.
         VertexAttribute va;
@@ -20,7 +21,7 @@ namespace Engine {
         bool operator==(const PipelineRuntimeInfoPerDraw &) const noexcept = default;
     };
 
-    struct PipelineRuntimeInfoPerRenderingHeader {
+    struct RENDER_API PipelineRuntimeInfoPerRenderingHeader {
         /**
          * How many samples are used for multisampling?
          * 0 and 1 are equivalent and always accepted.
@@ -44,16 +45,16 @@ namespace Engine {
      *
      * Mainly includes attachment information and multisample counts.
      */
-    struct PipelineRuntimeInfoPerRendering : PipelineRuntimeInfoPerRenderingHeader {
+    struct RENDER_API PipelineRuntimeInfoPerRendering : PipelineRuntimeInfoPerRenderingHeader {
         /**
          *
          * Color attachment format, terminated by UNDEFINED.
          */
-        ImageUtils::ImageFormat color_attachment_format[8];
+        Rhi::ImageFormat color_attachment_format[8];
         /**
          * Depth and stencil attachment format.
          */
-        ImageUtils::ImageFormat depth_stencil_attachment_format;
+        Rhi::ImageFormat depth_stencil_attachment_format;
 
         bool operator==(const PipelineRuntimeInfoPerRendering &rhs) const noexcept {
             auto ret = static_cast<const PipelineRuntimeInfoPerRenderingHeader *>(this)->operator==(rhs);
@@ -63,7 +64,7 @@ namespace Engine {
             for (int i = 0; i < 8; i++) {
                 if (color_attachment_format[i] != rhs.color_attachment_format[i]) return false;
                 // Both undefined -> terminated.
-                if (color_attachment_format[i] == ImageUtils::ImageFormat::UNDEFINED) return true;
+                if (color_attachment_format[i] == Rhi::ImageFormat::UNDEFINED) return true;
             }
             return true;
         };
@@ -72,7 +73,7 @@ namespace Engine {
     /**
      * @brief Runtime information necessary to build a graphics pipeline.
      */
-    struct PipelineRuntimeInfo : PipelineRuntimeInfoPerDraw, PipelineRuntimeInfoPerRendering {
+    struct RENDER_API PipelineRuntimeInfo : PipelineRuntimeInfoPerDraw, PipelineRuntimeInfoPerRendering {
         bool operator==(const PipelineRuntimeInfo &) const noexcept = default;
     };
     static_assert(std::is_aggregate_v<PipelineRuntimeInfo>, "PipelineRuntimeInfo is not an aggregate.");

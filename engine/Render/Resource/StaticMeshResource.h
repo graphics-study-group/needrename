@@ -2,18 +2,20 @@
 #define RENDER_RESOURCE_STATICMESHRESOURCE_INCLUDED
 
 #include "Asset/AssetRef.h"
-#include "Render/Memory/DeviceBuffer.h"
-#include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/Renderer/VertexAttribute.h"
 #include "Render/Resource/IAsynchPrepared.h"
+#include "Render/render_export.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
 
 #include <memory>
 #include <vector>
 
 namespace Engine {
-    namespace RenderSystemState {
+    namespace Rhi {
         class AllocatorState;
         class SubmissionHelper;
-    } // namespace RenderSystemState
+    } // namespace Rhi
+    namespace RenderSystemState {} // namespace RenderSystemState
 
     /**
      * @brief GPU-side static mesh resource prepared from one MeshAsset.
@@ -21,16 +23,16 @@ namespace Engine {
      * One StaticMeshResource owns the prepared data for all submeshes of a mesh
      * asset. Individual submesh renderers read from this resource at draw time.
      */
-    class StaticMeshResource : public IAsynchPrepared {
+    class RENDER_API StaticMeshResource : public IAsynchPrepared {
     public:
-        struct StaticHMeshSharedDataBlock {
-            struct PerSubmeshData {
+        struct RENDER_API StaticHMeshSharedDataBlock {
+            struct RENDER_API PerSubmeshData {
                 VertexAttribute attributes{};
                 uint32_t vertex_attribute_count{0};
                 uint32_t index_count{0};
 
                 std::vector<uint32_t> attribute_offsets{};
-                std::unique_ptr<DeviceBuffer> vi_buffer{};
+                std::unique_ptr<Rhi::DeviceBuffer> vi_buffer{};
             };
 
             std::vector<PerSubmeshData> submeshes{};
@@ -73,7 +75,7 @@ namespace Engine {
          * @param allocator_state The allocator state to use for preparing the submeshes.
          * @param submission_helper The submission helper to use for preparing the submeshes.
          */
-        void Submit(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &) override;
+        void Submit(const Rhi::AllocatorState &, Rhi::SubmissionHelper &) override;
     };
 } // namespace Engine
 

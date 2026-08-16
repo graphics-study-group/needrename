@@ -1,8 +1,9 @@
 #include "AssetRef.h"
 #include <Asset/Asset.h>
 #include <Asset/AssetManager/AssetManager.h>
-#include <MainClass.h>
-#include <Reflection/serialization.h>
+#include <Asset/AssetRuntime.h>
+
+#include <AnnoRefl/serialization.h>
 
 namespace Engine {
     AssetRef::AssetRef() {
@@ -26,8 +27,8 @@ namespace Engine {
         Release();
     }
 
-    void AssetRef::save_to_archive(Serialization::Archive &archive) const {
-        Serialization::Json &json = *archive.m_cursor;
+    void AssetRef::save_to_archive(AnnoRefl::Archive &archive) const {
+        AnnoRefl::Json &json = *archive.m_cursor;
         if (m_guid) {
             json = m_guid.string();
         } else {
@@ -35,8 +36,8 @@ namespace Engine {
         }
     }
 
-    void AssetRef::load_from_archive(Serialization::Archive &archive) {
-        Serialization::Json &json = *archive.m_cursor;
+    void AssetRef::load_from_archive(AnnoRefl::Archive &archive) {
+        AnnoRefl::Json &json = *archive.m_cursor;
         if (json.is_null()) {
             m_guid = GUID::Nil();
         } else {
@@ -46,7 +47,7 @@ namespace Engine {
 
     void AssetRef::Acquire() {
         if (IsValid() && !IsAcquired()) {
-            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            auto &amg = *GetAssetRuntime().asset_manager;
             if (!amg.IsAssetLoaded(m_guid)) {
                 amg.LoadAssetImmediately(m_guid);
             }
@@ -57,7 +58,7 @@ namespace Engine {
 
     void AssetRef::AcquireAsync() {
         if (IsValid() && !IsAcquired()) {
-            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            auto &amg = *GetAssetRuntime().asset_manager;
             if (!amg.IsAssetLoaded(m_guid)) {
                 amg.AddToLoadingQueue(m_guid);
             }
@@ -69,12 +70,9 @@ namespace Engine {
     void AssetRef::Release() {
         if (IsAcquired()) {
             m_is_acquired = false;
-            auto cmc = MainClass::GetInstance();
-            if (cmc) {
-                auto amg = cmc->GetAssetManager();
-                if (amg) {
-                    amg->DecrementRefCount(m_guid);
-                }
+            auto *amg = GetAssetRuntime().asset_manager;
+            if (amg) {
+                amg->DecrementRefCount(m_guid);
             }
         }
     }
@@ -93,13 +91,13 @@ namespace Engine {
 
     Asset *AssetRef::TryGetAsset() const {
         if (!IsAcquired()) return nullptr;
-        auto &amg = *MainClass::GetInstance()->GetAssetManager();
+        auto &amg = *GetAssetRuntime().asset_manager;
         return amg.GetAsset(m_guid);
     }
 
     void AssetRef::LoadEagerly() const {
         if (IsValid()) {
-            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            auto &amg = *GetAssetRuntime().asset_manager;
             if (!amg.IsAssetLoaded(m_guid)) {
                 amg.LoadAssetImmediately(m_guid);
             }

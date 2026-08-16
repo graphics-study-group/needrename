@@ -1,0 +1,28 @@
+#version 450 core
+
+// Copies a uint[] SSBO from src to dst. One thread per element.
+// Element count comes from push constants — used when the count is a
+// CPU-known value (e.g. grid_total_cells + 1, or a constant like 1).
+// (copy_uint.comp keeps an SSBO ElemCount for GPU-written counts.)
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SrcBuffer {
+    uint v[];
+} src;
+
+layout(set = 0, binding = 1) writeonly buffer DstBuffer {
+    uint v[];
+} dst;
+
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+
+layout(push_constant) uniform ElemCountPush {
+    uint elem_count;
+} params;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= params.elem_count) return;
+    dst.v[idx] = src.v[idx];
+}

@@ -2,10 +2,11 @@
 #define EDITOR_WIDGET_INSPECTORWIDGET_INCLUDED
 
 #include "Widget.h"
-#include <Framework/world/Handle.h>
-#include <Reflection/Var.h>
+#include <Framework/World/Handle.h>
 #include <any>
 #include <string>
+
+#include <AnnoRefl/Var.h>
 
 namespace Engine {
     class GameObject;

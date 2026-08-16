@@ -1,9 +1,5 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
-
-add_library(EngineLibCore
-    OBJECT
-    ${SOURCE}
-)
+file(GLOB_RECURSE CORE_HEADERS "./*.h")
 
 if(WIN32)
     set(UUID_LIBRARIES rpcrt4)
@@ -15,9 +11,30 @@ else()
     include_directories(${UUID_INCLUDE_DIRS})
 endif()
 
-target_link_libraries(EngineLibCore 
-    PRIVATE 
+add_library(EngineCore SHARED ${SOURCE})
+target_compile_definitions(EngineCore PRIVATE CORE_DLL_EXPORTS)
+target_link_libraries(EngineCore
+    PUBLIC
     EngineLibHeaderInterface
-    EngineLibExternalDependency
+    AnnoRefl
+    EngineDepGlm
+    EngineDepSdl
+    PRIVATE
     ${UUID_LIBRARIES}
 )
+
+include(${ANROREFL_PARSER_DIR}/parser.cmake)
+filter_files_with_reflection_macros(CORE_HEADERS CORE_REFLECTION_HEADERS)
+
+# Set up include dirs needed for parsing Core headers
+set(all_include_dirs)
+get_include_directories_for_target(EngineCore all_include_dirs)
+
+add_reflection_parser(
+    target_name meta_core
+    reflection_search_files "${CORE_REFLECTION_HEADERS}"
+    generated_code_dir "${CMAKE_CURRENT_SOURCE_DIR}/__generated__"
+    reflection_search_include_dirs "${all_include_dirs}"
+)
+add_dependencies(EngineCore meta_core)
+target_link_libraries(EngineCore PRIVATE meta_core)

@@ -1,0 +1,274 @@
+#ifndef ANROREFL_TYPE_INCLUDED
+#define ANROREFL_TYPE_INCLUDED
+
+#include "Export.h"
+#include "utils.h"
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <string>
+#include <typeindex>
+#include <typeinfo>
+#include <unordered_map>
+#include <vector>
+
+// Suppress warning from std::enable_shared_from_this
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+
+namespace AnnoRefl {
+    class Registrar;
+    class Field;
+    class ArrayField;
+    class Method;
+    class Var;
+
+    /// @brief The Type class represents a type in the reflection system.
+    /// It contains information about the type such as its name, base types, fields, and methods.
+    /// Note that only reflected types and some basic types use their own name. The other types use their type_info
+    /// name.
+    class ANROREFL_API Type : public std::enable_shared_from_this<Type> {
+    public:
+        // The name of the constructor method
+        static constexpr const char *k_constructor_name = "$Constructor";
+        // The map between std::type_index and type
+        static std::unordered_map<std::type_index, std::shared_ptr<const Type>> s_index_type_map;
+        // The map between type name and std::type_index
+        static std::unordered_map<std::string, std::type_index> s_name_index_map;
+
+        enum class TypeKind {
+            None,
+            Const,
+            Pointer,
+            Enum
+        };
+
+    public:
+        Type() = delete;
+        /// @brief Construct a new Type object.
+        /// @param name Type name
+        /// @param size Type size
+        /// @param reflectable whether the type is reflectable
+        /// @param deleter the deleter for the type
+        Type(
+            const std::string &name, size_t size, bool reflectable = false, const WrapperDeleter &deleter = nullptr
+        );
+
+        // suppress the warning of -Weffc++
+        Type(const Type &) = delete;
+        void operator=(const Type &) = delete;
+
+    public:
+        virtual ~Type() = default;
+
+    private:
+        std::shared_ptr<const Method> GetMethodFromMangledName(
+            const std::string &name, bool is_constructor = false
+        ) const;
+
+    protected:
+        std::vector<std::shared_ptr<const Type>> m_base_type{};
+        WrapperDeleter m_deleter = nullptr;
+        std::unordered_map<std::string, std::shared_ptr<const Field>> m_fields{};
+        std::unordered_map<std::string, std::shared_ptr<const ArrayField>> m_array_fields{};
+        std::unordered_map<std::string, std::shared_ptr<const Method>> m_methods{};
+
+        std::string m_name{};
+        // The size of the type in bytes
+        size_t m_size = 0;
+        // Whether the type is reflectable
+        bool m_reflectable = false;
+        TypeKind m_kind = TypeKind::None;
+
+    public:
+        // Set the deleter for the type (static cast a void pointer to the type pointer and call delete)
+        void SetDeleter(const WrapperDeleter &deleter);
+
+        // Delete an object of the type
+        void DeleteObject(void *obj) const;
+
+        // Add a constructor to the type
+        template <typename... Args>
+        void AddConstructor(const WrapperMemberFunc &func);
+
+        /// @brief Add a member function to the type.
+        /// @param name the name of the function
+        /// @param func the member function wrapper
+        /// @param return_type the return type of the function
+        /// @param is_const whether the function is const
+        /// @param return_value_needs_free whether the return value needs to be freed (only void functions should be false)
+        template <typename... Args>
+        void AddMethod(
+            const std::string &name,
+            const WrapperMemberFunc &func,
+            std::shared_ptr<const Type> return_type,
+            bool is_const,
+            bool return_value_needs_free
+        );
+
+        /// @brief Add a member function to the type.
+        void AddMethod(std::shared_ptr<const Method> method);
+        /// @brief Add a base type to the type.
+        /// @param base_type
+        void AddBaseType(std::shared_ptr<const Type> base_type);
+
+        /// @brief Add a field to the type.
+        /// @param field_type the type of the field
+        /// @param name
+        /// @param field_getter the wrapper function for getting the field
+        /// @param const_field_getter the wrapper function for getting the field when the object is const
+        void AddField(
+            const std::shared_ptr<const Type> field_type,
+            const std::string &name,
+            const WrapperFieldFunc &field_getter
+        );
+        /// @brief Add a field to the type.
+        void AddField(const std::shared_ptr<const Field> field);
+
+        /// @brief Add an array field to the type.
+        /// @param element_type the type of the elements in the array
+        /// @param name the name of the array field
+        /// @param array_getter_func the wrapper function for getting the array field
+        void AddArrayField(
+            const std::shared_ptr<const Type> element_type,
+            const std::string &name,
+            const WrapperArrayFieldFunc &array_getter_func,
+            const WrapperArrayFieldSize &array_size_getter_func,
+            const WrapperArrayResizeFunc &array_resize_func
+        );
+
+        // Get the name of the type
+        const std::string &GetName() const;
+
+        /**
+         * @brief Get the size of the type in bytes.
+         * @return size_t representing the size of the type in bytes
+         */
+        size_t GetTypeSize() const;
+        /**
+         * @brief Check if the type is reflectable.
+         */
+        bool IsReflectable() const;
+        /**
+         * @brief Check if the type is derived from another type.
+         * @param base_type the base type to check against
+         * @return true if the type is derived from base_type, false otherwise
+         */
+        bool IsDerivedFrom(std::shared_ptr<const Type> &base_type) const;
+        /**
+         * @brief Get the kind of the type.
+         * @return TypeKind enum value representing the kind of the type
+         */
+        TypeKind GetTypeKind() const;
+
+        /// @brief Create an instance of the type.
+        /// @param ...args arguments for the constructor
+        /// @return a Var object representing the instance
+        template <typename... Args>
+        Var CreateInstance(Args &&...args) const;
+
+        /// @brief Get a method of the type.
+        /// @param name the name of the method
+        /// @param ...args the arguments to the method. We need arguments to deal with overloaded methods.
+        /// @return the shared pointer to the Method object
+        template <typename... Args>
+        std::shared_ptr<const Method> GetMethod(const std::string &name, Args &&...args) const;
+
+        /// @brief Get a field of the type.
+        /// @param name the name of the field
+        /// @return the shared pointer to the Field object
+        std::shared_ptr<const Field> GetField(const std::string &name) const;
+
+        /// @brief Get an array field of the type.
+        /// @param name the name of the array field
+        /// @return the shared pointer to the ArrayField object
+        std::shared_ptr<const ArrayField> GetArrayField(const std::string &name) const;
+
+        /// @brief Get the unordered map of fields of the type (including inherited fields).
+        std::unordered_map<std::string, std::shared_ptr<const Field>> GetAllFields() const;
+
+        /// @brief Get the unordered map of array fields of the type (including inherited array fields).
+        std::unordered_map<std::string, std::shared_ptr<const ArrayField>> GetAllArrayFields() const;
+    };
+
+    class ANROREFL_API ConstType : public Type {
+    public:
+        ConstType(std::shared_ptr<const Type> base_type);
+        virtual ~ConstType() = default;
+
+        std::shared_ptr<const Type> m_base_type;
+    };
+
+    class ANROREFL_API PointerType : public Type {
+    public:
+        static std::unordered_map<std::type_index, WrapperSmartPointerGet> s_shared_pointer_getter_map;
+        static std::unordered_map<std::type_index, WrapperSmartPointerGet> s_weak_pointer_getter_map;
+        static std::unordered_map<std::type_index, WrapperSmartPointerGet> s_unique_pointer_getter_map;
+
+        template <typename T>
+        static void RegisterSmartPointerGetFunc() {
+            s_shared_pointer_getter_map[std::type_index(typeid(T))] = [](void *ptr) -> void * {
+                return static_cast<void *>(static_cast<std::shared_ptr<T> *>(ptr)->get());
+            };
+            s_weak_pointer_getter_map[std::type_index(typeid(T))] = [](void *ptr) -> void * {
+                return static_cast<void *>(static_cast<std::weak_ptr<T> *>(ptr)->lock().get());
+            };
+            s_unique_pointer_getter_map[std::type_index(typeid(T))] = [](void *ptr) -> void * {
+                return static_cast<void *>(static_cast<std::unique_ptr<T> *>(ptr)->get());
+            };
+        }
+
+    public:
+        enum class PointerTypeKind {
+            Raw,
+            Shared,
+            Weak,
+            Unique
+        };
+        PointerType(
+            std::shared_ptr<const Type> pointed_type,
+            size_t size,
+            PointerTypeKind kind,
+            const WrapperDeleter &deleter
+        );
+        virtual ~PointerType() = default;
+
+    protected:
+        std::shared_ptr<const Type> m_pointed_type;
+        PointerTypeKind m_pointer_kind;
+
+    public:
+        std::shared_ptr<const Type> GetPointedType() const;
+        PointerTypeKind GetPointerTypeKind() const;
+    };
+
+    class ANROREFL_API EnumType : public Type {
+    public:
+        EnumType(
+            const std::string &name,
+            size_t size,
+            bool reflectable = false,
+            const std::vector<uint64_t> &enum_values = {},
+            WrapperEnumToString to_string = nullptr,
+            WrapperEnumFromString from_string = nullptr
+        );
+        virtual ~EnumType() = default;
+
+    protected:
+        std::vector<uint64_t> m_enum_values;
+        WrapperEnumToString m_to_string;
+        WrapperEnumFromString m_from_string;
+
+    public:
+        std::string_view to_string(uint64_t value) const;
+        std::optional<uint64_t> from_string(std::string_view name) const;
+        const std::vector<uint64_t> &GetEnumValues() const;
+    };
+} // namespace AnnoRefl
+
+#pragma GCC diagnostic pop
+
+#include "Type.tpp"
+
+#endif // ANROREFL_TYPE_INCLUDED

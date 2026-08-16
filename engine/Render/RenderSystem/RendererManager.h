@@ -1,8 +1,8 @@
 #ifndef RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 
-#include "Framework/world/Handle.h"
 #include "Render/Resource/RenderResourceHandle.h"
+#include "Render/render_export.h"
 
 #include <glm.hpp>
 #include <memory>
@@ -39,7 +39,7 @@ namespace Engine {
          * This class intentionally stores no Component pointers/references and
          * acts as a pure runtime data/service layer.
          */
-        class RendererManager {
+        class RENDER_API RendererManager {
             RenderSystem &m_system;
             struct impl;
             std::unique_ptr<impl> pimpl;

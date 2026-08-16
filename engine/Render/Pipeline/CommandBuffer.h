@@ -3,6 +3,7 @@
 
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/RendererManager.h"
+#include "Render/render_export.h"
 
 #include <optional>
 #include <vulkan/vulkan.hpp>
@@ -11,15 +12,17 @@
 #include <fwd.hpp>
 
 namespace Engine {
+    namespace Rhi {
+        class ComputeResourceBinding;
+        class ComputeStage;
+        class DeviceBuffer;
+        class Texture;
+    } // namespace Rhi
     class RenderSystem;
-    class ComputeStage;
-    class ComputeResourceBinding;
     class MaterialTemplate;
     class MaterialInstance;
-    class DeviceBuffer;
     struct VertexAttribute;
     class IVertexBasedRenderer;
-    class Texture;
 
     namespace RenderSystemState {
         class SceneDataManager;
@@ -39,7 +42,7 @@ namespace Engine {
      * The command buffer lifecycle (begin/end) is managed by RenderGraph,
      * not by this class.
      */
-    class CommandBuffer {
+    class RENDER_API CommandBuffer {
     public:
         /**
          * @brief A sub-region of a texture, used for specifying source and
@@ -48,7 +51,7 @@ namespace Engine {
          * @note The coordinates (x0,y0,z0) to (x1,y1,z1) define an inclusive
          * region in 3D pixel space. Asserted that x0 < x1, y0 < y1, z0 < z1.
          */
-        struct TextureArea {
+        struct RENDER_API TextureArea {
             uint32_t mip_level;         ///< Mip level to operate on.
             uint32_t array_layer_base;  ///< First array layer.
             uint32_t array_layer_count; ///< Number of array layers.
@@ -94,7 +97,7 @@ namespace Engine {
          * @param src Source texture (expected in eTransferSrcOptimal layout).
          * @param dst Destination texture (expected in eTransferDstOptimal layout).
          */
-        void BlitColorImage(const Texture &src, const Texture &dst);
+        void BlitColorImage(const Rhi::Texture &src, const Rhi::Texture &dst);
 
         /**
          * @brief Blit a specified sub-region from one color texture to another
@@ -108,7 +111,9 @@ namespace Engine {
          * @param src_area Sub-region of the source texture to read from.
          * @param dst_area Sub-region of the destination texture to write to.
          */
-        void BlitColorImage(const Texture &src, const Texture &dst, TextureArea src_area, TextureArea dst_area);
+        void BlitColorImage(
+            const Rhi::Texture &src, const Rhi::Texture &dst, TextureArea src_area, TextureArea dst_area
+        );
 
         // ── Render pass ──────────────────────────────────────────────────
 
@@ -330,26 +335,26 @@ namespace Engine {
         /**
          * @brief Bind a compute shader pipeline for subsequent dispatch.
          *
-         * Records the pipeline binding and stores the ComputeStage reference
+         * Records the pipeline binding and stores the Rhi::ComputeStage reference
          * so that BindComputeResource and DispatchCompute can use it.
          *
-         * @param stage ComputeStage owning the compute pipeline, pipeline
+         * @param stage Rhi::ComputeStage owning the compute pipeline, pipeline
          *              layout, and descriptor set layout.
          */
-        void BindComputeStage(ComputeStage &stage);
+        void BindComputeStage(Rhi::ComputeStage &stage);
 
         /**
          * @brief Bind the descriptor set and upload UBO data for the
          * currently bound compute stage.
          *
          * Must be called after BindComputeStage. Calls
-         * ComputeResourceBinding::UpdateGPUInfo to write UBO data, then binds
+         * Rhi::ComputeResourceBinding::UpdateGPUInfo to write UBO data, then binds
          * descriptor set 0 with dynamic offsets.
          *
-         * @param binding ComputeResourceBinding owning the UBO data, texture
+         * @param binding Rhi::ComputeResourceBinding owning the UBO data, texture
          *                bindings, and descriptor set.
          */
-        void BindComputeResource(ComputeResourceBinding &binding);
+        void BindComputeResource(Rhi::ComputeResourceBinding &binding);
 
         /**
          * @brief Dispatch workgroups for the currently bound compute pipeline.
@@ -384,7 +389,7 @@ namespace Engine {
 
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>>
             m_bound_material_pipeline{}; ///< Cached bound material pipeline + layout to skip redundant binds.
-        std::optional<std::reference_wrapper<ComputeStage>> m_bound_compute_stage{
+        std::optional<std::reference_wrapper<Rhi::ComputeStage>> m_bound_compute_stage{
             std::nullopt
         }; ///< Currently bound compute stage for BindComputeResource / DispatchCompute.
 

@@ -8,11 +8,15 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(set = 0, binding = 0) buffer FixedRotationLagrange { float v[]; } fixed_rotation_lagrange;
 layout(set = 0, binding = 1) buffer FixedPositionLagrange  { float v[]; } fixed_position_lagrange;
-layout(set = 0, binding = 2) readonly buffer FixedJointCount { uint count; } fixed_joint_count;
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform JointCountPush {
+    uint joint_count;
+} params;
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
-    if (idx >= fixed_joint_count.count) return;
+    if (idx >= params.joint_count) return;
 
     fixed_rotation_lagrange.v[idx] = 0.0;
     fixed_position_lagrange.v[idx] = 0.0;

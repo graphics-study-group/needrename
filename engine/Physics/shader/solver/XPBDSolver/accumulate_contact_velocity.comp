@@ -44,7 +44,8 @@ layout(set = 0, binding = 21) buffer VelocityDeltaCount    { float v[]; } vel_de
 // ---- Lagrange (readonly) ----
 layout(set = 0, binding = 22) readonly buffer ContactLagrange { float v[]; } lagrange;
 
-layout(set = 0, binding = 23) readonly buffer XpbdUniforms { vec4 gravity; } uniforms;
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform XpbdPush { vec4 gravity_dt; } params;  // w = substep_dt
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
@@ -125,7 +126,7 @@ void main() {
     // Dynamic friction (tangent).
     vec3 tangent_vel = rel_vel - vn * n;
     float tangent_speed = length(tangent_vel);
-    float dt = uniforms.gravity.w;
+    float dt = params.gravity_dt.w;
     if (tangent_speed > 1e-8 && dt > 1e-8) {
         float friction_coef = 0.5 * (rigid_body_dynamic_friction.v[body_a]
                                      + rigid_body_dynamic_friction.v[body_b]);

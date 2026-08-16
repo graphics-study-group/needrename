@@ -1,9 +1,9 @@
 #include "RendererManager.h"
 
-#include "Asset/Mesh/MeshAsset.h"
+#include "Render/Asset/Mesh/MeshAsset.h"
+#include "Render/Pipeline/Renderer/StaticHomogeneousMesh.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "Render/Resource/StaticMeshResource.h"
 
 #include <SDL3/SDL.h>

@@ -55,9 +55,11 @@ layout(set = 0, binding = 10) readonly buffer RigidBodyIsKinematic {
     uint v[];
 } rigid_body_is_kinematic;
 
-layout(set = 0, binding = 11) readonly buffer XpbdUniforms {
-    vec4 gravity;  // xyz = gravity direction, w = dt
-} uniforms;
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+
+layout(push_constant) uniform XpbdPush {
+    vec4 gravity_dt; // xyz = gravity, w = dt
+} params;
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
@@ -66,8 +68,8 @@ void main() {
 
     float inv_mass = 1.0 / max(rigid_body_mass.v[idx], 1e-12);
 
-    vec3 gravity_vec = uniforms.gravity.xyz;
-    float dt = uniforms.gravity.w;
+    vec3 gravity_vec = params.gravity_dt.xyz;
+    float dt = params.gravity_dt.w;
 
     // ---- Linear integration ----
     vec3 total_linear_accel = gravity_vec + rigid_body_external_force.v[idx].xyz * inv_mass;

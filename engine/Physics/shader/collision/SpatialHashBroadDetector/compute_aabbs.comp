@@ -20,17 +20,16 @@ layout(set = 0, binding = 5) writeonly buffer AabbMin  { vec4 v[]; } aabb_min;
 layout(set = 0, binding = 6) writeonly buffer AabbMax  { vec4 v[]; } aabb_max;
 layout(set = 0, binding = 7) writeonly buffer GlobalFlags { uint v[]; } global_flags;
 
-// --- Config ---
-layout(set = 0, binding = 8) readonly buffer ShapeSlotCount { uint count; } shape_slot_count;
+// --- Config (push constant, recorded by the detector) ---
 
-layout(set = 0, binding = 9) readonly buffer GridConfig {
-    vec4 world_min;       // xyz = bounds min, w = cell_size
-    ivec4 grid_dims;      // xyz = grid dimensions, w = max_cells_per_shape
-    uint total_cells;
-} grid_config;
+layout(push_constant) uniform GridPush {
+    vec4  world_min_cell_size;  // xyz = bounds min, w = cell_size
+    ivec4 grid_dims_max_cells;  // xyz = grid dimensions, w = max_cells_per_shape
+    uint  shape_slot_count;
+} params;
 
-layout(set = 0, binding = 10) writeonly buffer GlobalList  { uint v[]; } global_list;
-layout(set = 0, binding = 11) buffer GlobalCount           { uint v[]; } global_count;
+layout(set = 0, binding = 8) writeonly buffer GlobalList  { uint v[]; } global_list;
+layout(set = 0, binding = 9) buffer GlobalCount           { uint v[]; } global_count;
 
 // --- Shape type constants ---
 #define SHAPE_TYPE_BOX      0u
@@ -55,7 +54,7 @@ void compute_box_aabb(vec3 pos, vec4 rot, vec3 half_ext, out vec3 mn, out vec3 m
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
-    if (idx >= shape_slot_count.count) return;
+    if (idx >= params.shape_slot_count) return;
 
     // Default: zero AABB, not global.
     aabb_min.v[idx] = vec4(0.0);
@@ -100,11 +99,11 @@ void main() {
     aabb_max.v[idx] = vec4(mx, 0.0);
 
     // --- Check if entirely outside grid bounds ---
-    float cell_size = grid_config.world_min.w;
-    vec3 wmin = grid_config.world_min.xyz;
-    ivec3 dims = grid_config.grid_dims.xyz;
+    float cell_size = params.world_min_cell_size.w;
+    vec3 wmin = params.world_min_cell_size.xyz;
+    ivec3 dims = params.grid_dims_max_cells.xyz;
     vec3 wmax = wmin + vec3(dims) * cell_size;
-    int max_cells = grid_config.grid_dims.w;
+    int max_cells = params.grid_dims_max_cells.w;
 
     if (any(lessThan(mx, wmin)) || any(greaterThan(mn, wmax))) {
         // Shape is entirely outside the grid — ignore completely.

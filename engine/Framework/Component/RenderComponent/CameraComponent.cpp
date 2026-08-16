@@ -1,0 +1,36 @@
+#include "CameraComponent.h"
+
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
+#include <Render/Pipeline/Renderer/Camera.h>
+#include <Render/RenderSystem.h>
+
+#include <SDL3/SDL.h>
+#include <glm.hpp>
+#include <gtc/matrix_transform.hpp>
+
+namespace Engine {
+    CameraComponent::CameraComponent(const GameObject &parent) : Component(parent) {
+        m_camera = std::make_shared<Camera>();
+        UpdateViewMatrix();
+        UpdateProjectionMatrix();
+    }
+
+    void CameraComponent::Tick() {
+        UpdateViewMatrix();
+    }
+
+    void CameraComponent::UpdateProjectionMatrix() {
+        m_camera->UpdateProjectionMatrix();
+    }
+    void CameraComponent::UpdateViewMatrix() {
+        auto parent = this->GetParentGameObject();
+        if (!parent) {
+            SDL_LogWarn(0, "Missing parent game object for camera");
+            return;
+        }
+        m_camera->UpdateViewMatrix(parent->GetWorldTransform());
+    }
+}; // namespace Engine
+
+#include "__generated__/CameraComponent.h.inc"

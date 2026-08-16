@@ -10,22 +10,22 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
-#include <Asset/Loader/Importer.h>
 #include <Core/Delegate/FuncDelegate.h>
-#include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/WorldSystem.h>
-#include <Framework/world/physics/PhysicsAdaptor.h>
-#include <MainClass.h>
+#include <Framework/Bridge/PhysicsAdaptor.h>
+#include <Framework/Component/RenderComponent/CameraComponent.h>
+#include <Framework/Import/Importer.h>
+#include <Framework/Input/Input.h>
+#include <Framework/MainClass.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/EventQueue.h>
+#include <Framework/World/WorldSystem.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/UserInterface/GUISystem.h>
 #include <SDL3/SDL.h>
-#include <UserInterface/GUISystem.h>
-#include <UserInterface/Input.h>
 #include <cmake_config.h>
 
 #include <Editor/EditorMainClass.h>
@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
     auto asys = cmc->GetAssetManager();
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
-    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
+    gui->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
                     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "File dropped: %s", event.drop.data);
                     try {
                         const std::filesystem::path source_path(dropped);
-                        const std::filesystem::path target_dir(project_widget->GetCurrentPath().generic_string());
+                        const std::filesystem::path target_dir = project_widget->GetCurrentPath().GetSubPath();
                         Importer::ImportExternalResource(source_path, target_dir);
                         project_widget->RefreshCurrentDirectory();
                         SDL_LogInfo(
@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
             if (game_widget->m_accept_input) cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        if (game_widget->m_accept_input) cmc->GetInputSystem()->Update();
+        if (game_widget->m_accept_input) cmc->GetInputSystem()->Update(cmc->GetTimeSystem()->GetDeltaTime());
         else cmc->GetInputSystem()->ResetAxes();
         world->GetMainSceneRef().FlushCmdQueue();
 
@@ -292,33 +292,39 @@ int main(int argc, char **argv) {
         }
 
         world->UpdateRendererData(*rsys);
+        // Physics → render bridge: forward the physics model matrices buffer
+        // to the scene data manager (physics itself no longer touches Render).
+        if (auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene()) {
+            rsys->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+        }
 
         gui->PrepareGUI();
         main_window.Render();
 
-        rsys->StartFrame();
+        if (rsys->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after the recreation retry: skip this
+            // frame (frame state untouched, next frame resumes cleanly).
+            continue;
+        }
 
         if (main_window.m_is_playing) {
             cmc->GetPhysicsSystem()->PreGPUStep();
         }
 
-        auto cb = rsys->GetFrameManager().GetCommandBuffer();
-        cb.GetCommandBuffer().begin(vk::CommandBufferBeginInfo{});
+        auto cb = rsys->GetFrameManager().BeginMainCommandBuffer();
 
         if (main_window.m_is_playing) {
-            cmc->GetPhysicsSystem()->GPUStep(cb);
+            cmc->GetPhysicsSystem()->GPUStep(cb.GetCommandBuffer());
         }
         rg->RecordAllPasses(cb.GetCommandBuffer());
 
-        cb.GetCommandBuffer().end();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rsys->CompleteFrame(
+            *rg->GetInternalTextureResource(final_color_id), Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
+        );
 
         if (main_window.m_is_playing) {
             cmc->GetPhysicsSystem()->PostGPUStep();
         }
-
-        auto [w, h] = cmc->GetWindow()->GetSize();
-        rsys->CompleteFrame(*rg->GetInternalTextureResource(final_color_id), w, h);
     }
     rsys->WaitForIdle();
 

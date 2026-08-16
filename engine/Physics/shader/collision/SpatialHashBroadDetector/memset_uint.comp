@@ -9,12 +9,14 @@ layout(set = 0, binding = 0) buffer Target {
     uint v[];
 } target;
 
-layout(set = 0, binding = 1) readonly buffer ElemCount {
-    uint count;
-} elem_count;
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+
+layout(push_constant) uniform ElemCountPush {
+    uint elem_count;
+} params;
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
-    if (idx >= elem_count.count) return;
+    if (idx >= params.elem_count) return;
     target.v[idx] = 0u;
 }

@@ -2,111 +2,148 @@
 
 ## Purpose
 
-Govern per-shape collision ignore lists: specifying ignored objects via `ObjectHandle` arrays on `CollisionShapeComponent`, deferred resolution to shape indices, symmetric GPU filter data, and binary-search filtering during broad-phase pair generation.
+Govern per-shape collision ignore lists: `CollisionShapeComponent` declares ignored shapes via `ComponentHandle` arrays, `PhysicsAdaptor` manages and resolves filter declarations during `Flush`, GPU filter data uses a fixed-stride buffer with greedy symmetric allocation, and broad-phase pair generation checks filters via linear scan.
 
 ## Requirements
 
 ### Requirement: CollisionShapeComponent stores ignore list
 
-`CollisionShapeComponent` SHALL have a reflected member `std::vector<ObjectHandle> m_ignore_collision_objects` that stores the ObjectHandles of GameObjects whose directly-attached `CollisionShapeComponent` should not collide with this shape. Each ObjectHandle in the array SHALL refer to a GameObject that itself has a `CollisionShapeComponent`. The field SHALL be serializable and editable in the editor.
+`CollisionShapeComponent` SHALL have a reflected member `std::vector<ComponentHandle> m_ignore_collision_shapes` that stores the ComponentHandles of `CollisionShapeComponent`s that should not collide with this shape. Each ComponentHandle in the array SHALL refer to a `CollisionShapeComponent`. The field SHALL be serializable and editable in the editor.
 
 #### Scenario: Empty ignore list by default
 
 - **WHEN** a `CollisionShapeComponent` is default-constructed
-- **THEN** `m_ignore_collision_objects` is an empty vector
+- **THEN** `m_ignore_collision_shapes` is an empty vector
 
 #### Scenario: Ignore list serialized
 
-- **WHEN** a scene containing a `CollisionShapeComponent` with `m_ignore_collision_objects = [handle_A, handle_B]` is saved and loaded
-- **THEN** the loaded component has the same two ObjectHandles in its ignore list
+- **WHEN** a scene containing a `CollisionShapeComponent` with `m_ignore_collision_shapes = [comp_A, comp_B]` is saved and loaded
+- **THEN** the loaded component has the same two ComponentHandles in its ignore list
 
-### Requirement: PhysicsScene stores unresolved filter ObjectHandles
+#### Scenario: Multiple shapes on same GameObject distinguished
 
-`PhysicsScene` SHALL store the raw `std::vector<ObjectHandle>` per shape upon registration. During `RegisterCollisionShape`, the ignore list from the component is stored in a pending filter handles array keyed by shape index.
+- **WHEN** a GameObject has two `CollisionShapeComponent`s with handles `comp_A` and `comp_B`
+- **AND** another component sets `m_ignore_collision_shapes = [comp_A]`
+- **THEN** only `comp_A` is ignored; `comp_B` still collides normally
 
-#### Scenario: Filter handles stored at registration
+### Requirement: PhysicsAdaptor manages filter declarations
 
-- **WHEN** `RegisterCollisionShape` is called for a component with `m_ignore_collision_objects = [handle_X]`
-- **THEN** the ObjectHandle `[handle_X]` is stored in `m_pending_filter_handles[shape_index]`
+`PhysicsAdaptor` SHALL maintain `m_filter_map: unordered_map<ComponentHandle, unordered_set<ComponentHandle>>` storing each component's declared ignore targets. When a `CollisionShapeComponent` submits its descriptor during `Init`, `PhysicsAdaptor` SHALL replace that component's entry in `m_filter_map` with the new declaration set from `CollisionShapeDescriptor::ignore_collision_shapes`. The map SHALL NOT store symmetry-pushed entries — each entry represents only the declaring component's own intent.
 
-### Requirement: Deferred filter resolution
+#### Scenario: Filter declaration stored on Init
 
-`PhysicsScene` SHALL provide a `ResolveCollisionFilters(Scene &scene)` method that resolves all pending filter ObjectHandles to shape indices. For each unresolved ObjectHandle:
-1. Look up the `GameObject` in the `Scene`
-2. Find the `CollisionShapeComponent` directly attached to that `GameObject` (not through rigid body ancestry). Each GameObject is expected to have exactly one `CollisionShapeComponent`.
-3. Get its `GetPhysicsShapeIndex()`
+- **WHEN** `CollisionShapeComponent` with handle `comp_0` submits descriptor with `ignore_collision_shapes = [comp_3]`
+- **THEN** `m_filter_map[comp_0] == {comp_3}`
 
-As a safety measure, if the GameObject happens to have multiple `CollisionShapeComponent`s (atypical but not prevented by the engine), all of their shape indices SHALL be collected.
+#### Scenario: Filter declaration replaced on re-Init
 
-The method SHALL be called once after all GameObjects have been Awake'd and before the first physics step. After resolution, `m_pending_filter_handles` SHALL be cleared.
+- **WHEN** `m_filter_map[comp_0] == {comp_3, comp_5}`
+- **AND** `comp_0` re-submits with `ignore_collision_shapes = [comp_7]`
+- **THEN** `m_filter_map[comp_0] == {comp_7}` (old entries replaced, not merged)
 
-#### Scenario: ObjectHandle resolved to shape index
+#### Scenario: Filter declaration cleared
 
-- **WHEN** GameObject B has a `CollisionShapeComponent` with shape index 3
-- **AND** shape 0's pending filter contains `ObjectHandle_B`
-- **THEN** after resolution, shape 0's filter data contains `[3]`
+- **WHEN** `m_filter_map[comp_0] == {comp_3}`
+- **AND** `comp_0` re-submits with `ignore_collision_shapes = []`
+- **THEN** `m_filter_map[comp_0]` is empty
 
-#### Scenario: ObjectHandle with no CollisionShapeComponent produces empty filter
+#### Scenario: Invalid ComponentHandle produces warning
 
-- **WHEN** GameObject B has no `CollisionShapeComponent`
-- **AND** shape 0's pending filter contains `ObjectHandle_B`
-- **THEN** after resolution, shape 0's filter data is empty (the handle is silently ignored)
+- **WHEN** a descriptor's `ignore_collision_shapes` contains a ComponentHandle that does not refer to a `CollisionShapeComponent`
+- **THEN** a warning is logged and the handle is skipped (application continues)
 
-#### Scenario: Unregistered shape handle skipped
+### Requirement: Deferred filter resolution in PhysicsAdaptor
 
-- **WHEN** GameObject B's `CollisionShapeComponent` is not yet registered (`GetPhysicsShapeIndex() == INVALID_INDEX`)
-- **AND** shape 0's pending filter contains `ObjectHandle_B`
-- **THEN** that handle is skipped during resolution (the target shape index is not added)
+`PhysicsAdaptor::Flush` SHALL resolve all `ComponentHandle`s in `m_filter_map` to shape indices using the existing `m_shape_component_to_index` map. For each `(src_handle, target_set)` entry:
 
-### Requirement: Symmetric filter data on CPU
+1. Look up `src_handle` in `m_shape_component_to_index` to get `src_idx`
+2. For each `tgt_handle` in `target_set`, look up `m_shape_component_to_index[tgt_handle]` to get `tgt_idx`
+3. If source or target handle resolves to `INVALID_INDEX` or the target shape is not alive (`m_shape_alive[tgt_idx] == 0`), skip it with a warning
 
-`ResolveCollisionFilters` SHALL ensure symmetry: if shape A resolves to filtering shape B (from the target ObjectHandle), then shape B's filter SHALL also contain A. After building the initial per-shape filter lists from the ignore handles, a second pass SHALL add reverse references.
+After resolution, the Adaptor derives all unordered filter pairs `{min(a,b), max(a,b)}` and applies greedy allocation (see symmetry requirement). The resulting flat filter data is submitted to `PhysicsScene::SetShapeFilters`.
 
-#### Scenario: Bidirectional filtering enforced
+#### Scenario: ComponentHandle resolved to shape index
 
-- **WHEN** shape 0 (from object A) resolves ObjectHandle_B to shape index 3
-- **THEN** shape 3's filter contains 0 and shape 0's filter contains 3
+- **WHEN** `CollisionShapeComponent` with handle `comp_B` has shape index 3
+- **AND** `m_filter_map[comp_0]` contains `comp_B`
+- **THEN** the pair `(0, 3)` is emitted (assuming `comp_0` maps to shape index 0)
 
-### Requirement: GPU filter data buffers
+#### Scenario: Unregistered ComponentHandle skipped
 
-`PhysicsScene` SHALL own GPU buffers for collision filter data:
-- `shape_filter_offset[]`: `uint` per shape slot, start index in the flat filter data array
-- `shape_filter_count[]`: `uint` per shape slot, number of filtered shape indices
-- `shape_filter_data[]`: `uint` flat array, concatenated sorted filter lists for all shapes
+- **WHEN** `comp_B` has not been allocated a shape slot (`m_shape_component_to_index` has no entry)
+- **AND** `m_filter_map[comp_0]` contains `comp_B`
+- **THEN** a warning is logged and `comp_B` is skipped
 
-For shapes with no filter entries, `shape_filter_count[i] = 0` and `shape_filter_offset[i]` SHALL point to an arbitrary valid location (its value is unused when count is zero).
+#### Scenario: Non-alive target shape skipped
+
+- **WHEN** `comp_B` maps to shape index 3 but `m_shape_alive[3] == 0`
+- **THEN** the target is skipped with a warning
+
+### Requirement: Symmetric filter data via greedy allocation
+
+`PhysicsAdaptor::Flush` SHALL guarantee filter symmetry using greedy allocation. For each unique unordered pair `(a, b)` derived from `m_filter_map` declarations (with `a < b`), processed in sorted order, the pair is accepted only if both shape `a` and shape `b` have fewer than `MAX_FILTER_ENTRIES` entries in their per-shape filter lists. If accepted, `b` is appended to shape `a`'s list and `a` is appended to shape `b`'s list. If either side is full, the ENTIRE pair is discarded and a warning is logged.
+
+The invariant is: shape B's index appears in shape A's GPU filter data if and only if shape A's index appears in shape B's GPU filter data. This is guaranteed because every pair is either written to both sides or skipped entirely.
+
+#### Scenario: Bidirectional filtering from single declaration
+
+- **WHEN** shape 0 declares `ignore = [comp_B]` and `comp_B` resolves to shape index 3
+- **AND** shape 3 has no declaration targeting shape 0
+- **THEN** after flush, shape 0's filter data contains 3 and shape 3's filter data contains 0
+
+#### Scenario: Pair discarded when one side is full
+
+- **WHEN** shape 5 already has 8 filter entries
+- **AND** a new declaration creates pair `(5, 12)`
+- **THEN** the pair is discarded entirely (neither 5 nor 12 receives the other in filter data)
+- **AND** a warning is logged
+
+#### Scenario: Self-reference ignored
+
+- **WHEN** a component declares `m_ignore_collision_shapes` containing its own ComponentHandle
+- **THEN** no filter pair is generated for the self-reference
+
+### Requirement: GPU fixed-stride filter data buffer
+
+`PhysicsScene` SHALL own a single GPU buffer for collision filter data:
+- `shape_filter_data[]`: `uint` flat array with size `shape_slot_count * MAX_FILTER_ENTRIES`
+
+The data for shape `i` is stored at `filter_data[i * MAX_FILTER_ENTRIES + k]` for `k` in `[0, MAX_FILTER_ENTRIES)`. Valid entries are sorted in ascending order and occupy the first N slots; remaining slots hold `INVALID_INDEX (0xFFFFFFFFu)`.
+
+`PhysicsScene::SetShapeFilters(const vector<uint32_t>& filter_data, uint32_t shape_count)` SHALL replace the entire `m_shape_filter_data` with the provided data via assignment. `AllocateCollisionShapeSlot` SHALL pre-allocate `MAX_FILTER_ENTRIES` entries initialized to `INVALID_INDEX`.
 
 #### Scenario: Filter data uploaded to GPU
 
-- **WHEN** `RefreshGpuBuffers` is called after filter resolution
-- **THEN** `m_gpu_shape_filter_offset`, `m_gpu_shape_filter_count`, and `m_gpu_shape_filter_data` are created or updated
-- **AND** their contents match the resolved CPU-side filter arrays
+- **WHEN** `RefreshGpuBuffers` is called after `SetShapeFilters`
+- **THEN** `m_gpu_shape_filter_data` is created or updated
+- **AND** its size equals `m_shape_alive.size() * MAX_FILTER_ENTRIES`
 
-### Requirement: Filter data cleaned on shape unregistration
+#### Scenario: Unused slots set to INVALID_INDEX
 
-When `UnregisterCollisionShape(shape_index)` is called, `PhysicsScene` SHALL remove all references to `shape_index` from all other shapes' filter data arrays and rebuild the flat GPU buffers. The unregistered shape's own filter data SHALL be cleared.
+- **WHEN** shape 0 has 3 filter entries [3, 7, 12]
+- **THEN** `filter_data[0..2]` = [3, 7, 12] and `filter_data[3..7]` = [INVALID_INDEX, ..., INVALID_INDEX]
 
-#### Scenario: Filter references removed on unregistration
+### Requirement: GPU linear scan filter check
 
-- **WHEN** shape 0's filter contains {3, 7} and shape 3's filter contains {0, 5}
-- **AND** shape 0 is unregistered
-- **THEN** shape 3's filter is updated to {5} (reference to 0 removed)
-- **AND** shape 7's filter is unchanged (0 was not in it)
+The broad-phase pair generation shader SHALL check filter membership using linear scan. For a candidate pair `(a, b)`, the shader SHALL iterate over `filter_data[a * MAX_FILTER_ENTRIES]` through `filter_data[a * MAX_FILTER_ENTRIES + MAX_FILTER_ENTRIES - 1]`, comparing each entry to `b`. The scan SHALL stop early on encountering `INVALID_INDEX` (end of valid entries). Since filter lists are symmetric (guaranteed by CPU), the shader SHALL only check one direction with `a = min(shape_a, shape_b)`.
 
-### Requirement: GPU binary search filter check
+`MAX_FILTER_ENTRIES` SHALL be defined as `#define MAX_FILTER_ENTRIES 8` in each broad-phase shader.
 
-The broad-phase pair generation shader SHALL check filter membership using binary search. For a candidate pair `(a, b)`, the shader SHALL search for `b` in `shape_filter_data[shape_filter_offset[a] .. shape_filter_offset[a] + shape_filter_count[a]]`. Since filter lists are sorted ascending, binary search SHALL complete in O(log K) time where K is the filter count.
+#### Scenario: Linear scan finds match
 
-Since filter lists are symmetric (guaranteed by CPU), the shader SHALL only check one direction (`b` in `a`'s list).
-
-#### Scenario: Binary search finds match
-
-- **WHEN** `shape_filter_data` for shape 0 contains `[3, 7, 12]` and candidate pair is (0, 7)
-- **THEN** binary search finds 7 at index 1
+- **WHEN** `filter_data` for shape 0 contains `[3, 7, 12, INVALID, ...]` and candidate pair is (0, 7)
+- **THEN** linear scan finds 7 at iteration 2
 - **AND** the pair is skipped
 
-#### Scenario: Binary search finds no match
+#### Scenario: Linear scan finds no match
 
-- **WHEN** `shape_filter_data` for shape 0 contains `[3, 7, 12]` and candidate pair is (0, 5)
-- **THEN** binary search finds no match
+- **WHEN** `filter_data` for shape 0 contains `[3, 7, 12, INVALID, ...]` and candidate pair is (0, 5)
+- **THEN** linear scan hits INVALID_INDEX at iteration 4
 - **AND** the pair is emitted (subject to other checks)
+
+#### Scenario: Empty filter list exits early
+
+- **WHEN** `filter_data` for shape 0 starts with `INVALID_INDEX` at slot 0
+- **AND** candidate pair is (0, 3)
+- **THEN** linear scan exits at iteration 1 (first entry is INVALID)
+- **AND** the pair is emitted

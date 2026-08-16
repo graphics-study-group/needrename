@@ -1,6 +1,7 @@
 #ifndef ENGINE_RENDER_RESOURCE_RENDERRESOURCEHANDLE_INCLUDED
 #define ENGINE_RENDER_RESOURCE_RENDERRESOURCEHANDLE_INCLUDED
 
+#include "Render/render_export.h"
 #include <cstdint>
 #include <typeindex>
 #include <utility>
@@ -22,7 +23,7 @@ namespace Engine {
         class StaticMeshResourceManager;
 
         template <typename ResourceType>
-        struct RenderResourceHandle {
+        struct RENDER_API RenderResourceHandle {
             uint32_t index{0xFFFFFFFFu};
             uint32_t generation{0};
             bool is_acquired{false};
@@ -62,7 +63,7 @@ namespace Engine {
             }
         };
 
-        struct MaterialInstanceHandle : public RenderResourceHandle<MaterialInstance> {
+        struct RENDER_API MaterialInstanceHandle : public RenderResourceHandle<MaterialInstance> {
             using RenderResourceHandle::RenderResourceHandle;
         };
 
@@ -72,7 +73,7 @@ namespace Engine {
             using ManagerType = MaterialInstanceManager;
         };
 
-        struct MaterialLibraryHandle : public RenderResourceHandle<MaterialLibrary> {
+        struct RENDER_API MaterialLibraryHandle : public RenderResourceHandle<MaterialLibrary> {
             using RenderResourceHandle::RenderResourceHandle;
         };
 
@@ -82,7 +83,7 @@ namespace Engine {
             using ManagerType = MaterialLibraryManager;
         };
 
-        struct StaticMeshResourceHandle : public RenderResourceHandle<StaticMeshResource> {
+        struct RENDER_API StaticMeshResourceHandle : public RenderResourceHandle<StaticMeshResource> {
             using RenderResourceHandle::RenderResourceHandle;
         };
 

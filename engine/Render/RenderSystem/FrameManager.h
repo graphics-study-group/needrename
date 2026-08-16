@@ -1,24 +1,30 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
-#include <functional>
+#include "Render/render_export.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
+
 // May be safe to include here as this header is not included in other headers.
 #include <vulkan/vulkan.hpp>
 
-#include "Render/Memory/MemoryAccessTypes.h"
+#include <functional>
 
 namespace Engine {
+    namespace Rhi {
+        class DeviceBuffer;
+        class SubmissionHelper;
+    } // namespace Rhi
     class RenderSystem;
     class Texture;
-    class DeviceBuffer;
     class CommandBuffer;
+    class RenderTargetTexture;
+    class IPresentProvider;
 
     namespace RenderSystemState {
-        class SubmissionHelper;
         class FrameSemaphore;
 
         /// @brief Multiple frame in flight manager
-        class FrameManager final {
+        class RENDER_API FrameManager final {
         public:
             /**
              * @brief Expected frames-in-flight of the current application.
@@ -46,7 +52,7 @@ namespace Engine {
              * Allocate synchronization primitives such as fences and semaphores.
              * Also allocates reused command buffers (i.e main command buffers).
              */
-            void Create();
+            void Create(IPresentProvider &present_provider);
 
             /// @brief Get the current frame-in-flight count.
             uint32_t GetFrameInFlight() const noexcept;
@@ -63,15 +69,21 @@ namespace Engine {
             uint32_t GetFramebuffer() const noexcept;
 
             /**
-             * @brief Get the command buffer assigned to the current frame in flight.
+             * @brief Begin recording the main command buffer of the current
+             * frame in flight.
              *
-             * Must be called between `StartFrame()` and `CompleteFrame()`
+             * The main command buffer lifecycle (begin/end/submit) belongs to
+             * FrameManager: begin here, record render/physics commands, then
+             * call `SubmitFrame()` which ends and submits it.
+             *
+             * @warning Must be called between `StartFrame()` and `SubmitFrame()`,
+             * once each frame.
              */
-            [[deprecated]]
-            CommandBuffer GetCommandBuffer();
+            CommandBuffer BeginMainCommandBuffer();
 
             /**
-             * @brief Request the current main command buffer
+             * @brief Get the raw main command buffer handle of the current
+             * frame in flight.
              */
             vk::CommandBuffer GetRawMainCommandBuffer();
 
@@ -95,43 +107,29 @@ namespace Engine {
             uint32_t StartFrame(uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             /**
-             * @brief Submit the main command buffer to the graphics queue for execution.
+             * @brief Frame completion: the single per-frame submit + present.
              *
-             * Also performs staged resource submission.
+             * Ends the main command buffer, records the copy command buffer via
+             * `IPresentProvider::PrepareCopy` (nullptr when headless), submits
+             * ONE `vkQueueSubmit2` batch containing both the main render CB and
+             * the copy CB (in-order execution, zero signals between them;
+             * barriers handle layout), then presents waiting on the frame
+             * completion credential.
              *
-             * @warning Must be called before `PresentToFramebuffer`, once each frame.
+             * The batch unconditionally signals `timeline@4` + the
+             * command-executed fence, so the frame sync chain closes even in
+             * headless mode (no deadlock).
              *
-             * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
-             */
-            void SubmitMainCommandBuffer();
-
-            /**
-             * @brief Present an image to the swapchain by blitting.
-             * The area specified by extent and offset will be blitted
-             * to the whole swapchain image.
-             *
-             * This method inserts appopriate barriers to ensure memory dependencies for the image.
-             * The layout of the image is assumed to be in `COLOR_ATTACHMENT_OPTIMAL`.
-             *
-             * Exactly one call of this method is expected each frame.
-             * You should probably use `RenderSystem::CompleteFrame()`
-             * if you have no idea what to use.
-             *
+             * @param present_texture Final render target to present.
+             * @param last_access Access mode of `present_texture` in its last
+             *                    pass (used to derive the copy source barrier).
              * @return True if the swapchain needs to be recreated.
-             *
-             * @todo Revisit sychronization methods for this command.
              */
             [[nodiscard]]
-            bool PresentToFramebuffer(
-                vk::Image image,
-                MemoryAccessTypeImageBits last_access,
-                vk::Extent2D extentSrc,
-                vk::Offset2D offsetSrc = {0, 0},
-                vk::Filter filter = vk::Filter::eLinear
-            );
+            bool SubmitFrame(const RenderTargetTexture &present_texture, Rhi::MemoryAccessTypeImageBits last_access);
 
             /// @brief Get the submission helper.
-            SubmissionHelper &GetSubmissionHelper();
+            Rhi::SubmissionHelper &GetSubmissionHelper();
 
             /// @brief Get the current frame semaphore.
             const FrameSemaphore &GetFrameSemaphore() const noexcept;
@@ -142,7 +140,7 @@ namespace Engine {
              * Data retrieved from the device is stored in the device buffer.
              * This buffer can be mapped to the host VM for reading.
              */
-            using ReadbackCallback = std::function<void(std::unique_ptr<DeviceBuffer>)>;
+            using ReadbackCallback = std::function<void(std::unique_ptr<Rhi::DeviceBuffer>)>;
             /**
              * @brief Register a callback for buffer or texture readback.
              *
@@ -163,7 +161,7 @@ namespace Engine {
              * If too many readback requests are not fulfilled, the registering
              * might fail.
              */
-            bool RegisterReadbackCallback(const DeviceBuffer &buffer, ReadbackCallback cb);
+            bool RegisterReadbackCallback(const Rhi::DeviceBuffer &buffer, ReadbackCallback cb);
         };
     } // namespace RenderSystemState
 } // namespace Engine

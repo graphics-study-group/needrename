@@ -5,19 +5,19 @@
 #include <fstream>
 #include <stb_image.h>
 
-#include "Asset/Material/MaterialAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "MainClass.h"
+#include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/MainClass.h"
+#include "Render/Asset/Material/MaterialAsset.h"
 #include "Render/FullRenderSystem.h"
-#include "UserInterface/GUISystem.h"
+#include "Render/UserInterface/GUISystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
-#include <Asset/Loader/ObjLoader.h>
-#include <Asset/Mesh/MeshAsset.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
+#include <Framework/Import/ObjLoader.h>
+#include <Framework/Object/GameObject.h>
+#include <Framework/World/Scene.h>
+#include <Framework/World/WorldSystem.h>
+#include <Render/Asset/Mesh/MeshAsset.h>
 
 #include "cmake_config.h"
 
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
     auto rsys = cmc->GetRenderSystem();
 
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
 
     RenderGraphBuilder rgb{*rsys};
 
@@ -157,9 +157,9 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto ca = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto ca = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{});
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto da = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto da = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{});
 
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
@@ -241,9 +241,14 @@ int main(int argc, char **argv) {
         tmc.PreRenderUpdate();
 
         auto index = rsys->StartFrame();
-        rg->Execute(*rsys);
+        if (index == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(ca);
-        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
+        rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(5);
 

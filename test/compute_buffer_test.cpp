@@ -1,11 +1,12 @@
-#include "Asset/Shader/ShaderCompiler.h"
-#include "MainClass.h"
+#include "Framework/MainClass.h"
+#include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Render/FullRenderSystem.h"
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <random>
 
 using namespace Engine;
+using namespace Engine::Rhi;
 
 constexpr const char GLSL_CODE[] = {
     R"(
@@ -64,9 +65,9 @@ int main(int argc, char *argv[]) {
     std::cout << std::endl;
 
     auto spirv = GetSpirvBinaryFromGLSL(GLSL_CODE, EShLangCompute);
-    auto cstage = ComputeStage{*rsys};
+    auto cstage = Rhi::ComputeStage{rsys->GetDeviceContext()};
     cstage.Instantiate(spirv, "Test Compute Shader");
-    auto &cbinding = cstage.AllocateResourceBinding();
+    auto &cbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
     cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
     cbinding.GetShaderResourceBinding().BindBuffer("Output", compbuf2->GetComputeBuffer());
 
@@ -77,8 +78,8 @@ int main(int argc, char *argv[]) {
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("Compute")
-            .UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-            .UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
+            .UseBuffer(cbi1, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead})
+            .UseBuffer(cbi2, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction([&cstage, &cbinding](CommandBuffer &cb, const RenderGraph &) -> void {
                 cb.BindComputeStage(cstage);

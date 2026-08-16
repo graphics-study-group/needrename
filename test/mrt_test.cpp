@@ -4,15 +4,16 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Mesh/PlaneMeshAsset.h"
-#include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "MainClass.h"
+#include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/MainClass.h"
+#include "Render/Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Asset/Mesh/PlaneMeshAsset.h"
+#include "Render/Asset/Texture/Image2DTextureAsset.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
-#include "UserInterface/GUISystem.h"
+#include "Render/Pipeline/Renderer/StaticHomogeneousMesh.h"
+#include "Render/RenderSystem/IPresentProvider.h"
+#include "Render/UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "cmake_config.h"
@@ -57,23 +58,23 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto test_lib_asset = am->CreateAsset<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough.vert.asset"});
-    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough_mrt.frag.asset"});
+    auto vs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/debug_writethrough.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/debug_writethrough_mrt.frag.asset"});
 
     test_asset->name = "Writethrough";
 
     MaterialTemplateSinglePassProperties mtspp{};
     mtspp.attachments.color = {
-        ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        ImageUtils::ImageFormat::R8G8B8A8UNorm
+        Rhi::ImageFormat::R8G8B8A8UNorm,
+        Rhi::ImageFormat::R8G8B8A8UNorm,
+        Rhi::ImageFormat::R8G8B8A8UNorm,
+        Rhi::ImageFormat::R8G8B8A8UNorm
     };
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp;
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::None;
     mtspp.attachments.color_blending = {cbp, cbp, cbp, cbp};
-    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    mtspp.attachments.depth = Rhi::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
 
     test_asset->properties = mtspp;
@@ -91,7 +92,7 @@ std::array<RGTextureHandle, 4> g_color_handles = {};
 
 auto BuildRenderGraph(
     RenderSystem *rsys,
-    DeviceBuffer *readback,
+    Rhi::DeviceBuffer *readback,
     RenderTargetTexture *color_1,
     RenderTargetTexture *color_2,
     RenderTargetTexture *color_3,
@@ -115,25 +116,25 @@ auto BuildRenderGraph(
             .SetName("Main")
             .AppendColorAttachment(
                 {c1,
-                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 Engine::Rhi::TextureSubresourceRange::GetSingleRange(),
                  AttachmentUtils::LoadOperation::Clear,
                  AttachmentUtils::StoreOperation::Store}
             )
             .AppendColorAttachment(
                 {c2,
-                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 Engine::Rhi::TextureSubresourceRange::GetSingleRange(),
                  AttachmentUtils::LoadOperation::Clear,
                  AttachmentUtils::StoreOperation::Store}
             )
             .AppendColorAttachment(
                 {c3,
-                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 Engine::Rhi::TextureSubresourceRange::GetSingleRange(),
                  AttachmentUtils::LoadOperation::Clear,
                  AttachmentUtils::StoreOperation::Store}
             )
             .AppendColorAttachment(
                 {c4,
-                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 Engine::Rhi::TextureSubresourceRange::GetSingleRange(),
                  AttachmentUtils::LoadOperation::Clear,
                  AttachmentUtils::StoreOperation::Store}
             )
@@ -147,7 +148,7 @@ auto BuildRenderGraph(
             .SetPassFunction([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](
                                  CommandBuffer &cb, const RenderGraph &
                              ) {
-                auto extent = rsys->GetSwapchain().GetExtent();
+                auto extent = rsys->GetPresentProvider().GetExtent();
                 cb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
                 cb.BindSceneResources(rsys->GetSceneDataManager());
                 cb.BindCameraResources(rsys->GetCameraManager());
@@ -161,7 +162,7 @@ auto BuildRenderGraph(
                 pri.color_attachment_format[1] = color_2->GetTextureDescription().format;
                 pri.color_attachment_format[2] = color_3->GetTextureDescription().format;
                 pri.color_attachment_format[3] = color_4->GetTextureDescription().format;
-                pri.color_attachment_format[4] = ImageUtils::ImageFormat::UNDEFINED;
+                pri.color_attachment_format[4] = Rhi::ImageFormat::UNDEFINED;
                 pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
 
                 auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
@@ -185,8 +186,8 @@ auto BuildRenderGraph(
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("Transfer")
-            .UseBuffer(b1, {MemoryAccessTypeBufferBits::TransferWrite})
-            .UseImage(c1, MemoryAccessTypeImageBits::TransferRead)
+            .UseBuffer(b1, {Rhi::MemoryAccessTypeBufferBits::TransferWrite})
+            .UseImage(c1, Rhi::MemoryAccessTypeImageBits::TransferRead)
             .SetAffinity(RenderGraphPassAffinity::Transfer)
             .SetPassFunction([readback, c1](CommandBuffer &cb, const RenderGraph &rg) {
                 auto rt = rg.GetInternalTextureResource(c1);
@@ -264,17 +265,27 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
+    auto depth = RenderTargetTexture::CreateUnique(
+        rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Depth Attachment"
+    );
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
     std::array colors{
-        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Position)"),
-        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Vertex color)"),
-        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)"),
-        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Texcoord)")
+        RenderTargetTexture::CreateUnique(
+            rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Position)"
+        ),
+        RenderTargetTexture::CreateUnique(
+            rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Vertex color)"
+        ),
+        RenderTargetTexture::CreateUnique(
+            rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Normal)"
+        ),
+        RenderTargetTexture::CreateUnique(
+            rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Attachment (Texcoord)"
+        )
     };
-    auto readback_buffer = DeviceBuffer::CreateUnique(
+    auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
         rsys->GetAllocatorState(),
-        Engine::BufferType{Engine::BufferTypeBits::CopyTo, Engine::BufferTypeBits::CopyFrom},
+        Engine::Rhi::BufferType{Engine::Rhi::BufferTypeBits::CopyTo, Engine::Rhi::BufferTypeBits::CopyFrom},
         colors[0]->CalculateStagingBufferSizeNoMipmap()
     );
 
@@ -309,8 +320,12 @@ int main(int argc, char **argv) {
         }
 
         auto index = rsys->StartFrame();
+        if (index == std::numeric_limits<uint32_t>::max()) {
+            // Swapchain out of date after retry — skip this frame.
+            continue;
+        }
 
-        rsys->GetFrameManager().RegisterReadbackCallback(*readback_buffer, [](std::unique_ptr<DeviceBuffer> in) {
+        rsys->GetFrameManager().RegisterReadbackCallback(*readback_buffer, [](std::unique_ptr<Rhi::DeviceBuffer> in) {
             auto byte = in->GetVMAddress();
 
             for (int i = 0; i < 16; i++) {
@@ -321,13 +336,13 @@ int main(int argc, char **argv) {
             }
         });
 
-        rg->Execute(*rsys);
+        rsys->GetFrameManager().BeginMainCommandBuffer();
+        rg->RecordIntoMainCommandBuffer(*rsys);
 
         rsys->CompleteFrame(
             *colors[color],
-            color == 0 ? MemoryAccessTypeImageBits::TransferRead : MemoryAccessTypeImageBits::ColorAttachmentWrite,
-            colors[color]->GetTextureDescription().width,
-            colors[color]->GetTextureDescription().height
+            color == 0 ? Rhi::MemoryAccessTypeImageBits::TransferRead
+                       : Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
         );
 
         SDL_Delay(10);

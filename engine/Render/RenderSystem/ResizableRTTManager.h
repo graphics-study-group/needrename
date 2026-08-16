@@ -1,10 +1,11 @@
 #ifndef RENDER_RENDERSYSTEM_RESIZABLERTTMANAGER
 #define RENDER_RENDERSYSTEM_RESIZABLERTTMANAGER
 
+#include "Render/Resource/RenderTargetTexture.h"
+#include "Render/render_export.h"
+
 #include <cstdint>
 #include <memory>
-
-#include "Render/Memory/RenderTargetTexture.h"
 #include <string>
 
 namespace Engine {
@@ -20,7 +21,7 @@ namespace Engine {
          * This manager facilitates management of render target textures whose sizes
          * are determined externally such as swapchain images.
          */
-        class ResizableRTTManager {
+        class RENDER_API ResizableRTTManager {
 
             RenderSystem &m_system;
             struct impl;
@@ -115,7 +116,7 @@ namespace Engine {
     /**
      * @brief Handle to a Resizable RTT, associated with a manager class.
      */
-    struct RRTTHandle {
+    struct RENDER_API RRTTHandle {
         std::reference_wrapper<RenderSystemState::ResizableRTTManager> manager;
         RenderSystemState::RRTTHandleEnum handle;
 
