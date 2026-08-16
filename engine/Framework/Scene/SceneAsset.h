@@ -7,9 +7,6 @@
 #include <memory>
 
 namespace Engine {
-    namespace Serialization {
-        class Archive;
-    }
     class Scene;
 
     /**

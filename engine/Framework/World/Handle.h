@@ -8,9 +8,6 @@
 #include <AnnoRefl/macros.h>
 
 namespace Engine {
-    namespace Serialization {
-        class Archive;
-    }
     class Scene;
     class Component;
     class GameObject;
