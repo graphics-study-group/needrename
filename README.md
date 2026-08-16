@@ -79,7 +79,7 @@ From PowerShell:
 ```powershell
 $env:Path = "C:\msys2\clang64\bin;C:\msys2\usr\bin;$env:Path"
 $env:VK_LAYER_PATH = "C:\msys2\clang64\bin"
-./build/debug/test/project_loading_test.exe
+./build/debug/bin/project_loading_test.exe
 ```
 
 ### VS Code Setup
@@ -125,27 +125,35 @@ assets/                  # Raw resources
 builtin_assets/          # Built-in assets used across all projects
 editor/                  # Engine editor code
 engine/
-    Asset/               # Asset management
+    Asset/               # Asset core infrastructure (Asset, AssetRef, AssetManager, AssetDatabase)
     Core/                # Core features (Math, Functional)
-    Framework/           # GameObject, Component, Scene
+    Framework/           # Top-level orchestrator: MainClass, World/Scene/GameObject/Component, asset import, Input
     Physics/             # GPU-accelerated physics engine
-    Reflection/          # Reflection and serialization
-    Render/              # Vulkan rendering systems
-    UserInterface/       # GUI system
+    Render/              # Vulkan rendering systems, render assets, and GUISystem
+    Rhi/                 # GPU abstraction layer (buffers, textures, pipelines, submission)
 example/                 # Runnable game examples
     physics_example/     # Physics simulation demo
 projects/                # Example game projects
-reflection_parser/       # Python parser for C++ reflection
 test/                    # Test executables
-third_party/             # External dependencies (glm, SPIRV-Cross)
+third_party/             # External dependencies (glm, SPIRV-Cross, AnnoRefl)
+    AnnoRefl/            # Reflection/serialization runtime and Python parser
 ```
 
 ## Build Targets
 
-- **editor**: Executable that runs the engine editor interface
-- **engine**: Static library containing core engine functionality
-- **tests**: Executable demos and test cases (runnable via CTest)
-- **third_party**: Static libraries for dependencies
+The engine is split into modular shared libraries (DLLs) with one-way dependencies, aggregated by a single `Engine` INTERFACE target that consumers link against:
+
+- **AnnoRefl** — Reflection/serialization runtime and Python parser (`third_party/AnnoRefl`)
+- **EngineCore** — Math and functional utilities
+- **EngineRhi** — GPU abstraction layer (buffers, textures, pipelines, submission)
+- **EngineAssetCore** — Asset core infrastructure (Asset, AssetRef, AssetManager, AssetDatabase)
+- **EnginePhysics** — GPU-accelerated physics engine
+- **EngineRender** — Vulkan rendering systems, render assets, and GUISystem
+- **EngineFramework** — Top-level orchestrator (MainClass, World/Scene/GameObject/Component, asset import, Input)
+- **EngineEditor** — Engine editor, loaded by the editor example executable
+- **tests** — Executable demos and test cases (runnable via CTest)
+
+All executables and DLLs are written to a unified `bin/` output directory (import libraries to `lib/`).
 
 ## Key Features
 

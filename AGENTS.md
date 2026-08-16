@@ -6,7 +6,7 @@ C++20 game engine: Vulkan rendering, GPU physics, Python/libclang reflection, co
 
 **Toolchain**: MSYS2 CLANG64, Clang 22, target `x86_64-w64-windows-gnu`, Ninja generator. See `README.md` for dependencies.
 
-Reflection parser uses a virtualenv at `reflection_parser/parser_env/`.
+Reflection parser uses a virtualenv at `build/parser_env/` (configurable via `ANROREFL_PARSER_ENV_DIR`).
 
 Use the path that follows.
 

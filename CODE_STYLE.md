@@ -46,7 +46,7 @@ find . -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | xargs clang-format -i
 ### 2.5 Namespaces
 
 - **Regular namespaces**: PascalCase
-  - Examples: `namespace Engine`, `namespace Serialization`
+  - Examples: `namespace Engine`, `namespace AnnoRefl`
 - **`detail` namespace**: lowercase, reserved for internal implementation details
   - Used for helper types/functions not part of public API
 - **Anonymous namespaces**: file-local symbols

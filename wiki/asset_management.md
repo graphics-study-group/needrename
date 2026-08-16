@@ -146,7 +146,7 @@ public:
     void SaveFromScene(const Scene &scene);
     void AddToScene(Scene &scene);
 
-    std::unique_ptr<Serialization::Archive> m_archive{};
+    std::unique_ptr<AnnoRefl::Archive> m_archive{};
 };
 ```
 
@@ -200,5 +200,5 @@ This two-phase approach ensures correct handle resolution when `GameObject` or `
 
 ## Importing External Resources
 
-- When importing external resources (e.g., `.obj` files), the appropriate `Loader` is used to read the external file, convert it into an internal asset format, and store it via the `save_asset_to_archive` function.
-- For assets like models (`.obj` files), various asset components such as models, materials, and textures are separated. When importing, a `GameObjectAsset` prefab is created to ensure the engine can later place the entire model into the world.
+- When importing external resources (e.g., `.obj` files), `Importer::ImportExternalResource` or a dedicated loader (`ObjLoader`, `GltfLoader`, `UrdfLoader` under `Framework/Import/`) reads the external file, converts it into internal asset formats, and stores them via the `save_asset_to_archive` function.
+- For assets like models (`.obj` files), various asset components such as models, materials, and textures are separated and imported as individual assets so the engine can later assemble the whole model in the world.
