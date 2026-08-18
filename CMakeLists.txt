@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(ENGINE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ENGINE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
-set(ENGINE_EDITOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/editor)
+set(ENGINE_EDITOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/app/editor)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 set(BUILTIN_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/builtin_assets)
@@ -45,7 +45,7 @@ add_compile_options($<$<CONFIG:Release>:-O3>)
 add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
 
 add_subdirectory(engine)
-add_subdirectory(editor)
+add_subdirectory(app)
 add_subdirectory(example)
 add_subdirectory(shader)
 

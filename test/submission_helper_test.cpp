@@ -151,8 +151,8 @@ int main() {
         for (size_t i = 0; i < kSize; ++i) {
             std::byte expected = (i >= kOffset && i < kOffset + kChunk) ? std::byte{0x77} : std::byte{0x01};
             if (view[i] != expected) {
-                std::cerr << "FAILED: partial upload byte mismatch at " << i << " (got " << std::to_integer<int>(view[i])
-                          << ")" << std::endl;
+                std::cerr << "FAILED: partial upload byte mismatch at " << i << " (got "
+                          << std::to_integer<int>(view[i]) << ")" << std::endl;
                 ok = false;
                 break;
             }
