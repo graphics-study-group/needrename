@@ -30,8 +30,10 @@ namespace Engine {
         /**
          * @brief Build the default rendering render graph.
          *
-         * @param texture_width             Viewport width.
-         * @param texture_height            Viewport height.
+         * Render-time dimensions (viewport, rendering area, compute dispatch) are
+         * derived at record time from the currently-resolved textures or the
+         * present provider extent, so resizing does not require rebuilding the graph.
+         *
          * @param final_color_target_id     Output handle for the final (post-bloom) color target.
          * @param model_matrices_buffer     Optional physics-owned model matrices buffer.
          *                                  When non-null, shadow map and lit passes read
@@ -39,10 +41,7 @@ namespace Engine {
          * @return Compiled RenderGraph.
          */
         std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            uint32_t texture_width,
-            uint32_t texture_height,
-            RGTextureHandle &final_color_target_id,
-            const Rhi::ComputeBuffer *model_matrices_buffer = nullptr
+            RGTextureHandle &final_color_target_id, const Rhi::ComputeBuffer *model_matrices_buffer = nullptr
         );
 
     protected:

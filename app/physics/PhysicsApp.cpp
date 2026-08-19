@@ -70,7 +70,7 @@ namespace AppPhysics {
         };
 
         // Declared first so it is destroyed last: engine subsystems (VMA allocator, asset manager, render system) must outlive the
-        // app-owned resources declared below (render graph textures, compute stages, asset refs). 
+        // app-owned resources declared below (render graph textures, compute stages, asset refs).
         std::shared_ptr<MainClass> main_class{};
 
         Phase phase{Phase::Building};
@@ -95,6 +95,12 @@ namespace AppPhysics {
 
         uint32_t resol_x{1280};
         uint32_t resol_y{720};
+
+        // FOV baseline read from the camera's vertical FOV at creation; used to
+        // stabilize the view when the aspect ratio crosses 1.0 (see design D4).
+        float camera_fov{45.0f};
+        uint32_t last_present_width{0};
+        uint32_t last_present_height{0};
 
         bool should_quit{false};
         bool paused{true};
@@ -167,6 +173,7 @@ namespace AppPhysics {
         );
         impl.camera_component = &camera_comp;
         impl.camera_controller = &camera_object.AddComponent<CameraControllerComponent>();
+        impl.camera_fov = camera_comp.m_camera->m_fov_vertical;
         impl.world->SetActiveCamera(camera_comp.GetHandle(), &impl.renderer->GetCameraManager());
 
         // Default camera pose looking at the origin.
@@ -178,7 +185,12 @@ namespace AppPhysics {
     PhysicsApp::PhysicsApp() : m_impl(std::make_unique<Impl>()) {
     }
 
-    PhysicsApp::~PhysicsApp() = default;
+    PhysicsApp::~PhysicsApp() {
+        // Drain the GPU before destroying the render graph / resizable RTT...
+        if (m_impl && m_impl->renderer) {
+            m_impl->renderer->WaitForIdle();
+        }
+    }
 
     // ── Building phase ──────────────────────────────────────────────────
 
@@ -297,10 +309,7 @@ namespace AppPhysics {
         impl.rg_builder = std::make_unique<ComplexRenderGraphBuilder>(*impl.renderer);
         RGTextureHandle final_color_id{0};
         auto mm_buf = impl.scene->GetPhysicsScene()->GetGpuBuffers().model_matrices;
-        const auto present_extent = impl.renderer->GetPresentProvider().GetExtent();
-        auto rg = impl.rg_builder->BuildDefaultRenderGraph(
-            present_extent.width, present_extent.height, final_color_id, mm_buf
-        );
+        auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id, mm_buf);
         impl.render_graph = std::move(rg);
         impl.final_color_id = final_color_id;
 
@@ -403,6 +412,30 @@ namespace AppPhysics {
         // Step). Kept per-frame to mirror the main loop behavior.
         if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
             impl.renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+        }
+
+        // Keep the active camera's aspect ratio aligned with the present extent,
+        // and mirror the SceneWidget FOV heuristic: fixed vertical FOV in
+        // landscape, fixed horizontal FOV in portrait, so the visible extent is
+        // stable across a resize (see design D4). Interim shim — no camera-API
+        // commitment.
+        if (impl.camera_component) {
+            const vk::Extent2D present_extent = impl.renderer->GetPresentProvider().GetExtent();
+            if ((present_extent.width > 0 && present_extent.height > 0)
+                && (present_extent.width != impl.last_present_width
+                    || present_extent.height != impl.last_present_height)) {
+                impl.last_present_width = present_extent.width;
+                impl.last_present_height = present_extent.height;
+                if (auto active_camera = impl.world->GetActiveCamera()) {
+                    float aspect = static_cast<float>(present_extent.width) / static_cast<float>(present_extent.height);
+                    active_camera->set_aspect_ratio(aspect);
+                    if (aspect > 1.0f) {
+                        active_camera->set_fov_vertical(impl.camera_fov);
+                    } else {
+                        active_camera->set_fov_horizontal(impl.camera_fov);
+                    }
+                }
+            }
         }
 
         if (impl.renderer->StartFrame() == std::numeric_limits<uint32_t>::max()) {

@@ -88,6 +88,9 @@ namespace Engine {
 
         bool m_on_quit = false;
 
+        uint32_t m_last_present_width{0};
+        uint32_t m_last_present_height{0};
+
         void RunOneFrame();
     };
 } // namespace Engine

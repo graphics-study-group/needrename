@@ -162,6 +162,13 @@ namespace Engine {
         uint32_t width, height;
         int w, h;
         SDL_GetWindowSizeInPixels(pimpl->m_window.lock()->GetWindow(), &w, &h);
+        if (w <= 0 || h <= 0) {
+            // Minimized window (0x0 pixels): skip recreation and keep the last
+            // valid reference size. The subsequent acquire fails and the
+            // existing skip-frame path handles it; on restore this runs normally.
+            SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Skipping swapchain re-creation: zero window size.");
+            return;
+        }
         width = static_cast<uint32_t>(w);
         height = static_cast<uint32_t>(h);
         pimpl->m_present_provider->Recreate({width, height});
