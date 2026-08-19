@@ -23,6 +23,7 @@
 #include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
+#include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Rhi/Device/MemoryAccessTypes.h>
 #include <Rhi/Device/Structs.h>
@@ -68,6 +69,10 @@ namespace AppPhysics {
             Committed
         };
 
+        // Declared first so it is destroyed last: engine subsystems (VMA allocator, asset manager, render system) must outlive the
+        // app-owned resources declared below (render graph textures, compute stages, asset refs). 
+        std::shared_ptr<MainClass> main_class{};
+
         Phase phase{Phase::Building};
 
         // Raw pointers to subsystems owned by MainClass.
@@ -94,9 +99,6 @@ namespace AppPhysics {
         bool should_quit{false};
         bool paused{true};
         bool toggle_was_pressed{false};
-
-        // Destroyed last: guarantees engine subsystems outlive the app.
-        std::shared_ptr<MainClass> main_class{};
     };
 
     std::unique_ptr<PhysicsApp> PhysicsApp::Create(const CreateInfo &info) {
@@ -295,7 +297,10 @@ namespace AppPhysics {
         impl.rg_builder = std::make_unique<ComplexRenderGraphBuilder>(*impl.renderer);
         RGTextureHandle final_color_id{0};
         auto mm_buf = impl.scene->GetPhysicsScene()->GetGpuBuffers().model_matrices;
-        auto rg = impl.rg_builder->BuildDefaultRenderGraph(impl.resol_x, impl.resol_y, final_color_id, mm_buf);
+        const auto present_extent = impl.renderer->GetPresentProvider().GetExtent();
+        auto rg = impl.rg_builder->BuildDefaultRenderGraph(
+            present_extent.width, present_extent.height, final_color_id, mm_buf
+        );
         impl.render_graph = std::move(rg);
         impl.final_color_id = final_color_id;
 
