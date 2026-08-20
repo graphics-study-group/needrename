@@ -6,9 +6,19 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 
 namespace AppPhysics {
+
+    /**
+     * @brief Execution form of a physics app, fixed at Create time.
+     */
+    enum class AppMode {
+        Headless,  ///< Physics only: no rendering, no window, no camera.
+        Offscreen, ///< Physics + render into an internal CPU-readable texture, no window.
+        Windowed   ///< Physics + render + window (pre-existing behavior).
+    };
 
     /**
      * @brief Options for creating the physics app.
@@ -17,6 +27,7 @@ namespace AppPhysics {
      * internally from cmake_config.h for this iteration.
      */
     struct CreateInfo {
+        AppMode mode{AppMode::Windowed};
         uint32_t resol_x{1280};
         uint32_t resol_y{720};
         std::string window_title{"Physics App"};
@@ -25,6 +36,49 @@ namespace AppPhysics {
     /// Opaque handle identifying a created body. Not a pointer; do not dereference.
     using BodyId = uint32_t;
     constexpr BodyId INVALID_BODY_ID = ~0u;
+
+    /**
+     * @brief Single body's dynamic state, assembled from the readback arrays.
+     *
+     * All values are in physics (COM) space.
+     */
+    struct BodyState {
+        glm::vec3 position;         ///< Center-of-mass world position.
+        glm::quat rotation;         ///< Orientation (quaternion).
+        glm::vec3 linear_velocity;  ///< Velocity of the center of mass.
+        glm::vec3 angular_velocity; ///< Angular velocity.
+    };
+
+    /**
+     * @brief Batch view over all bodies' readback state, in SoA form.
+     *
+     * All spans are indexed by the rigid-body slot index carried in
+     * `slot_indices`; `positions`/`rotations`/`linear_velocities`/
+     * `angular_velocities` store vec4 (rotation is quaternion xyzw, velocity
+     * `.w` is padding). `com_offsets` is GO-local and static (zero for
+     * self-built shapes). Valid until the next `Step`.
+     */
+    struct BodyStatesView {
+        std::span<const uint32_t> slot_indices;        ///< BodyId → slot index mapping.
+        std::span<const glm::vec3> com_offsets;        ///< Per-slot COM offset (GO-local).
+        std::span<const glm::vec4> positions;          ///< Per-slot COM positions.
+        std::span<const glm::vec4> rotations;          ///< Per-slot quaternions (xyzw).
+        std::span<const glm::vec4> linear_velocities;  ///< Per-slot linear velocities.
+        std::span<const glm::vec4> angular_velocities; ///< Per-slot angular velocities.
+    };
+
+    /**
+     * @brief Latest rendered frame's pixels.
+     *
+     * `pixels` is tight-packed RGBA8, row-major, top-to-bottom, valid until the
+     * next `RenderNextFrame` that produces a new capture.
+     */
+    struct RenderOutput {
+        const void *pixels{nullptr};
+        uint32_t width{0};
+        uint32_t height{0};
+        uint64_t frame_id{0};
+    };
 
     /**
      * @brief Descriptor for creating a physics box object.
@@ -273,6 +327,51 @@ namespace AppPhysics {
          * @return True if the simulation is paused.
          */
         bool IsPaused() const;
+
+        // ── Drive-phase readback (legal after CommitScene) ──────────────
+
+        /**
+         * @brief Get a single body's dynamic state.
+         *
+         * @param id BodyId returned by an Add method.
+         * @return The body's COM position, rotation and velocities.
+         * @throws std::logic_error before CommitScene.
+         * @throws std::out_of_range when `id` is invalid.
+         */
+        BodyState GetBodyState(BodyId id) const;
+
+        /**
+         * @brief Get the SoA batch view of all bodies' dynamic state.
+         *
+         * @return BodyStatesView over the readback arrays (slot-indexed).
+         * @throws std::logic_error before CommitScene.
+         */
+        BodyStatesView GetBodyStates() const;
+
+        /**
+         * @brief Toggle recording of a CPU readback of the final render target.
+         *
+         * Defaults to disabled (no staging allocated, no copy recorded). When
+         * enabled, the next `RenderNextFrame` copies the final RTT into a
+         * resident host-visible staging buffer (rebuilt if the present extent
+         * changes). Disabling retains the staging to avoid reallocation
+         * thrash.
+         *
+         * @param enabled True to capture rendered pixels each frame.
+         * @throws std::logic_error in headless mode.
+         */
+        void SetRenderReadbackEnabled(bool enabled);
+
+        /**
+         * @brief Block until the most recently submitted frame completes and
+         * return its rendered pixels.
+         *
+         * @return RenderOutput to the staging buffer (see struct docs for
+         * layout and validity).
+         * @throws std::logic_error in headless mode, when disabled, or before
+         * any frame was captured.
+         */
+        RenderOutput GetRenderOutput();
 
         // ── Legal in both phases ────────────────────────────────────────
 

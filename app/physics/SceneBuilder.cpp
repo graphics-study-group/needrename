@@ -114,12 +114,16 @@ namespace AppPhysics {
 
     // ── Scene builder ───────────────────────────────────────────────────
 
-    SceneBuilder::SceneBuilder(Engine::Scene &scene, Engine::FileSystemDatabase &adb, Engine::GameObject &root) :
-        m_scene(scene), m_adb(adb), m_physics(scene, root) {
-        // Load the builtin meshes once — all instances share them.
-        m_cube_mesh = adb.GetNewAssetRef(Engine::AssetPath{"builtin://mesh/cube.asset"});
-        m_sphere_mesh = adb.GetNewAssetRef(Engine::AssetPath{"builtin://mesh/sphere.asset"});
-        m_cylinder_mesh = adb.GetNewAssetRef(Engine::AssetPath{"builtin://mesh/cylinder.asset"});
+    SceneBuilder::SceneBuilder(
+        Engine::Scene &scene, Engine::FileSystemDatabase &adb, Engine::GameObject &root, bool with_visuals
+    ) : m_scene(scene), m_adb(adb), m_physics(scene, root), m_with_visuals(with_visuals) {
+        // Load the builtin meshes once — all instances share them. Skipped when
+        // visuals are disabled (headless form).
+        if (m_with_visuals) {
+            m_cube_mesh = adb.GetNewAssetRef(Engine::AssetPath{"builtin://mesh/cube.asset"});
+            m_sphere_mesh = adb.GetNewAssetRef(Engine::AssetPath{"builtin://mesh/sphere.asset"});
+            m_cylinder_mesh = adb.GetNewAssetRef(Engine::AssetPath{"builtin://mesh/cylinder.asset"});
+        }
     }
 
     BodyId SceneBuilder::RegisterBody(Engine::GameObject &parent) {
@@ -140,16 +144,18 @@ namespace AppPhysics {
         );
 
         // Mesh child: visual cube (scale = half_extents maps the 2x2x2 cube).
-        Engine::GameObject &mesh_child = m_scene.CreateGameObject();
-        mesh_child.SetParent(parent.GetHandle());
-        Transform t;
-        mesh_child.SetTransform(t);
-        mesh_child.GetTransformRef().SetScale(desc.half_extents);
+        if (m_with_visuals) {
+            Engine::GameObject &mesh_child = m_scene.CreateGameObject();
+            mesh_child.SetParent(parent.GetHandle());
+            Transform t;
+            mesh_child.SetTransform(t);
+            mesh_child.GetTransformRef().SetScale(desc.half_extents);
 
-        auto &mc = mesh_child.AddComponent<Engine::StaticMeshComponent>();
-        mc.m_mesh_asset = m_cube_mesh;
-        mc.m_material_assets.push_back(ResolveColor(desc.color));
-        mc.m_is_eagerly_loaded = true;
+            auto &mc = mesh_child.AddComponent<Engine::StaticMeshComponent>();
+            mc.m_mesh_asset = m_cube_mesh;
+            mc.m_material_assets.push_back(ResolveColor(desc.color));
+            mc.m_is_eagerly_loaded = true;
+        }
 
         m_physics.AddBoxCollision(parent, desc.half_extents);
 
@@ -168,16 +174,18 @@ namespace AppPhysics {
         );
 
         // Mesh child: visual sphere (scale = radius maps the 1m sphere).
-        Engine::GameObject &mesh_child = m_scene.CreateGameObject();
-        mesh_child.SetParent(parent.GetHandle());
-        Transform t;
-        mesh_child.SetTransform(t);
-        mesh_child.GetTransformRef().SetScale(glm::vec3(desc.radius));
+        if (m_with_visuals) {
+            Engine::GameObject &mesh_child = m_scene.CreateGameObject();
+            mesh_child.SetParent(parent.GetHandle());
+            Transform t;
+            mesh_child.SetTransform(t);
+            mesh_child.GetTransformRef().SetScale(glm::vec3(desc.radius));
 
-        auto &mc = mesh_child.AddComponent<Engine::StaticMeshComponent>();
-        mc.m_mesh_asset = m_sphere_mesh;
-        mc.m_material_assets.push_back(ResolveColor(desc.color));
-        mc.m_is_eagerly_loaded = true;
+            auto &mc = mesh_child.AddComponent<Engine::StaticMeshComponent>();
+            mc.m_mesh_asset = m_sphere_mesh;
+            mc.m_material_assets.push_back(ResolveColor(desc.color));
+            mc.m_is_eagerly_loaded = true;
+        }
 
         m_physics.AddSphereCollision(parent, desc.radius);
 
@@ -197,16 +205,18 @@ namespace AppPhysics {
 
         // Mesh child: visual cylinder (scale = (r, r, half_height) maps the
         // 1m-radius, 2m-height Z-up cylinder).
-        Engine::GameObject &mesh_child = m_scene.CreateGameObject();
-        mesh_child.SetParent(parent.GetHandle());
-        Transform t;
-        mesh_child.SetTransform(t);
-        mesh_child.GetTransformRef().SetScale(glm::vec3(desc.radius, desc.radius, desc.half_height));
+        if (m_with_visuals) {
+            Engine::GameObject &mesh_child = m_scene.CreateGameObject();
+            mesh_child.SetParent(parent.GetHandle());
+            Transform t;
+            mesh_child.SetTransform(t);
+            mesh_child.GetTransformRef().SetScale(glm::vec3(desc.radius, desc.radius, desc.half_height));
 
-        auto &mc = mesh_child.AddComponent<Engine::StaticMeshComponent>();
-        mc.m_mesh_asset = m_cylinder_mesh;
-        mc.m_material_assets.push_back(ResolveColor(desc.color));
-        mc.m_is_eagerly_loaded = true;
+            auto &mc = mesh_child.AddComponent<Engine::StaticMeshComponent>();
+            mc.m_mesh_asset = m_cylinder_mesh;
+            mc.m_material_assets.push_back(ResolveColor(desc.color));
+            mc.m_is_eagerly_loaded = true;
+        }
 
         m_physics.AddCylinderCollision(parent, desc.radius, desc.half_height);
 
@@ -226,6 +236,17 @@ namespace AppPhysics {
             throw std::out_of_range("PhysicsApp: invalid BodyId");
         }
         return m_scene.GetGameObjectRef(m_bodies[id]);
+    }
+
+    uint32_t SceneBuilder::GetBodyCount() const {
+        return static_cast<uint32_t>(m_bodies.size());
+    }
+
+    Engine::ObjectHandle SceneBuilder::GetBodyHandle(BodyId id) const {
+        if (id == INVALID_BODY_ID || id >= m_bodies.size()) {
+            throw std::out_of_range("PhysicsApp: invalid BodyId");
+        }
+        return m_bodies[id];
     }
 
     Engine::AssetRef SceneBuilder::ResolveColor(std::string color) const {

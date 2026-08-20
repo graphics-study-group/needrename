@@ -3,13 +3,16 @@
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
+#include <cstdlib>
+#include <string>
+
 using namespace AppPhysics;
 
 namespace {
-    constexpr uint32_t kScreenWidth = 1960;
-    constexpr uint32_t kScreenHeight = 1080;
+    constexpr uint32_t kScreenWidth = 1024;
+    constexpr uint32_t kScreenHeight = 768;
 
-    // ── Double pendulum rebuilt from primitives + joint API ─────────────
+    // ── Scene builders relocated from example/physics_example ───────────
     void AddDoublePendulum(PhysicsApp &app, const glm::vec3 &anchor) {
         constexpr float kSphereRadius = 0.1f;
         constexpr float kBoxHalfX = 0.05f;
@@ -74,32 +77,26 @@ namespace {
             .mass = 1.0f,
             .color = "green",
         });
-        app.AddSphere({
-            .position = glm::vec3(1.2f, 0.0f, 7.0f) + global_offset,
-            .radius = 0.5f,
-            .mass = 1.0f,
-            .color = "green",
-        });
-        app.AddCylinder({
-            .position = glm::vec3(0.0f, 1.2f, 6.0f) + global_offset,
-            .radius = 0.2f,
-            .half_height = 1.0f,
-            .mass = 1.0f,
-            .color = "blue",
-        });
-        app.AddSphere({
-            .position = glm::vec3(-1.0f, -0.5f, 8.0f) + global_offset,
-            .radius = 0.4f,
-            .mass = 2.0f,
-            .color = "yellow",
-        });
-        app.AddCylinder({
-            .position = glm::vec3(2.0f, -1.0f, 9.0f) + global_offset,
-            .radius = 0.8f,
-            .half_height = 0.3f,
-            .mass = 0.5f,
-            .color = "cyan",
-        });
+        app.AddSphere(
+            {.position = glm::vec3(1.2f, 0.0f, 7.0f) + global_offset, .radius = 0.5f, .mass = 1.0f, .color = "green"}
+        );
+        app.AddCylinder(
+            {.position = glm::vec3(0.0f, 1.2f, 6.0f) + global_offset,
+             .radius = 0.2f,
+             .half_height = 1.0f,
+             .mass = 1.0f,
+             .color = "blue"}
+        );
+        app.AddSphere(
+            {.position = glm::vec3(-1.0f, -0.5f, 8.0f) + global_offset, .radius = 0.4f, .mass = 2.0f, .color = "yellow"}
+        );
+        app.AddCylinder(
+            {.position = glm::vec3(2.0f, -1.0f, 9.0f) + global_offset,
+             .radius = 0.8f,
+             .half_height = 0.3f,
+             .mass = 0.5f,
+             .color = "cyan"}
+        );
         app.AddCylinder({
             .position = glm::vec3(-2.0f, 1.0f, 10.0f) + global_offset,
             .rotation = glm::angleAxis(glm::radians(90.0f), glm::normalize(glm::vec3(0.5f, 0.0f, 1.0f))),
@@ -116,7 +113,6 @@ namespace {
             .color = "orange",
         });
 
-        // Rigid bricks pyramid.
         constexpr int n = 6;
         const glm::vec3 brick_size(0.5f, 0.8f, 0.5f);
         const glm::vec3 offset = glm::vec3(5.0f, 0.7f, 0.0f) + global_offset;
@@ -132,13 +128,9 @@ namespace {
             }
         }
 
-        // Double pendulum demo (kept as scene content; scene 2 is commented out
-        // in main).
         AddDoublePendulum(app, glm::vec3(6.5f, 0.0f, 4.5f) + global_offset);
     }
 
-    // Large walled arena + dense rigid body grid. Retained but not executed by
-    // default (see main).
     void AddTemplateScene2(PhysicsApp &app, const glm::vec3 &global_offset) {
         constexpr float kWallHalfHeight = 3.0f;
         constexpr float kWallHalfSize = 15.0f;
@@ -188,13 +180,13 @@ namespace {
                     );
                     switch (type) {
                     case 0:
-                        app.AddBox({
-                            .position = pos,
-                            .rotation = rot,
-                            .half_extents = {0.5f, 0.7f, 0.5f},
-                            .mass = 1.0f,
-                            .color = "red",
-                        });
+                        app.AddBox(
+                            {.position = pos,
+                             .rotation = rot,
+                             .half_extents = {0.5f, 0.7f, 0.5f},
+                             .mass = 1.0f,
+                             .color = "red"}
+                        );
                         break;
                     case 1:
                         app.AddSphere(
@@ -218,11 +210,18 @@ namespace {
     }
 } // namespace
 
-int main() {
+int main(int argc, char **argv) {
+    // ctest path: a trailing frame-count runs that many frames then exits and
+    // auto-resumes after commit. Manual path (no arg): runs indefinitely,
+    // starting paused (SPACE resumes) — the former example UX.
+    bool finite = argc > 1;
+    uint32_t frame_count = finite ? static_cast<uint32_t>(std::stoul(argv[1])) : 0;
+
     CreateInfo info{};
+    info.mode = AppMode::Windowed;
     info.resol_x = kScreenWidth;
     info.resol_y = kScreenHeight;
-    info.window_title = "Physics Example";
+    info.window_title = "Physics App (windowed test)";
 
     auto app = PhysicsApp::Create(info);
 
@@ -238,20 +237,24 @@ int main() {
     // AddTemplateScene(*app, glm::vec3(0.0f, 5.0f, 0.0f));
     AddTemplateScene2(*app, glm::vec3(0.0f, 0.0f, 0.0f));
 
-    // Lights.
     app->AddDirectionalLight({.direction = {0.0f, 0.0f, -1.0f}, .intensity = 1.5f, .cast_shadow = true});
     app->AddDirectionalLight({.direction = {1.0f, 1.0f, -1.0f}, .intensity = 1.0f, .cast_shadow = true});
 
-    // Camera (optional; a default pose is used otherwise).
     app->SetCameraPose(glm::vec3(6.0f, -5.0f, 4.0f), glm::vec3(0.0f, 0.0f, 3.0f));
 
-    // Freeze the scene; simulation starts paused (SPACE resumes).
     app->CommitScene();
 
-    // Drive loop.
+    if (finite) {
+        app->Resume();
+    }
+
+    uint32_t frames = 0;
     while (!app->ShouldQuit()) {
         app->Step();
         app->RenderNextFrame();
+        if (finite && ++frames >= frame_count) {
+            break;
+        }
     }
 
     return 0;

@@ -8,6 +8,8 @@
 
 #include "Rhi/Device/MemoryAccessTypes.h"
 
+#include <vulkan/vulkan.hpp>
+
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
@@ -64,7 +66,11 @@ namespace Engine {
             m_resource_managers{};
 
     public:
-        RenderSystem(std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context);
+        RenderSystem(
+            std::weak_ptr<SDLWindow> parent_window,
+            Rhi::DeviceContext &device_context,
+            vk::Extent2D headless_extent = {1920, 1080}
+        );
 
         RenderSystem(const RenderSystem &) = delete;
         RenderSystem(RenderSystem &&) = delete;

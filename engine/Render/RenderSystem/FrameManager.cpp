@@ -88,6 +88,11 @@ namespace Engine::RenderSystemState {
 
         uint64_t total_frame_count{0};
 
+        // Last frame-completion fence, captured at submit time (before
+        // CompleteFrame advances the FIF counter). Null until the first submit.
+        vk::Fence m_last_submitted_fence = nullptr;
+        bool m_has_submitted = false;
+
         RenderSystem &m_system;
         IPresentProvider *m_present_provider = nullptr;
 
@@ -320,6 +325,11 @@ namespace Engine::RenderSystemState {
             sinfo, pimpl->command_executed_fences[fif].get()
         );
 
+        // Capture the fence BEFORE CompleteFrame advances the FIF counter, so a
+        // later WaitForFrameCompletion() targets the just-submitted frame.
+        pimpl->m_last_submitted_fence = pimpl->command_executed_fences[fif].get();
+        pimpl->m_has_submitted = true;
+
         // Present (waits on the frame completion credential).
         bool needs_recreating = pimpl->m_present_provider->Present(
             pimpl->m_system.GetDevice(), GetFramebuffer(), pimpl->frame_completed_semaphores[fif].get()
@@ -378,6 +388,18 @@ namespace Engine::RenderSystemState {
 
     Rhi::SubmissionHelper &FrameManager::GetSubmissionHelper() {
         return *(pimpl->m_submission_helper);
+    }
+
+    void FrameManager::WaitForFrameCompletion() const {
+        if (!pimpl->m_has_submitted || pimpl->m_last_submitted_fence == nullptr) {
+            return;
+        }
+        auto device = pimpl->m_system.GetDevice();
+        auto result =
+            device.waitForFences({pimpl->m_last_submitted_fence}, vk::True, std::numeric_limits<uint64_t>::max());
+        if (result != vk::Result::eSuccess) {
+            throw std::runtime_error(vk::to_string(result) + " happened when waiting for frame completion.");
+        }
     }
     const FrameSemaphore &FrameManager::GetFrameSemaphore() const noexcept {
         return pimpl->timeline_semaphores[GetFrameInFlight()];

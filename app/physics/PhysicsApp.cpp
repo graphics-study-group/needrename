@@ -25,7 +25,12 @@
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
+#include <Render/Resource/ImageToBufferCopy.hpp>
+#include <Render/Resource/RenderTargetTexture.h>
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Buffer/DeviceBuffer.h>
 #include <Rhi/Device/MemoryAccessTypes.h>
+#include <Rhi/Device/MemoryTypes.h>
 #include <Rhi/Device/Structs.h>
 #include <SDL3/SDL.h>
 #include <cmake_config.h>
@@ -75,6 +80,8 @@ namespace AppPhysics {
 
         Phase phase{Phase::Building};
 
+        AppMode mode{AppMode::Windowed};
+
         // Raw pointers to subsystems owned by MainClass.
         WorldSystem *world{};
         RenderSystem *renderer{};
@@ -105,6 +112,131 @@ namespace AppPhysics {
         bool should_quit{false};
         bool paused{true};
         bool toggle_was_pressed{false};
+
+        // ── Physics state readback ──────────────────────────────────────
+        bool physics_readback_built{false};
+        uint32_t slot_count{0};
+        std::vector<uint32_t> body_to_slot{}; // BodyId -> rigid-body slot index.
+        std::vector<glm::vec3> com_offsets{}; // Per-slot COM offset (GO-local).
+
+        const Rhi::ComputeBuffer *pos_src{};
+        const Rhi::ComputeBuffer *rot_src{};
+        const Rhi::ComputeBuffer *linvel_src{};
+        const Rhi::ComputeBuffer *angvel_src{};
+
+        std::unique_ptr<Rhi::DeviceBuffer> pos_staging{};
+        std::unique_ptr<Rhi::DeviceBuffer> rot_staging{};
+        std::unique_ptr<Rhi::DeviceBuffer> linvel_staging{};
+        std::unique_ptr<Rhi::DeviceBuffer> angvel_staging{};
+
+        // ── Render readback ─────────────────────────────────────────────
+        bool render_readback_enabled{false};
+        bool has_render_capture{false};
+        uint64_t render_frame_id{0};
+        uint32_t render_staging_w{0};
+        uint32_t render_staging_h{0};
+        std::unique_ptr<Rhi::DeviceBuffer> render_staging{};
+
+        /// @brief Record the physics SoA -> staging copies into a command buffer.
+        void RecordBodyStateCopy(vk::CommandBuffer cb) {
+            if (slot_count == 0) {
+                return;
+            }
+            const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
+            cb.copyBuffer(pos_src->GetBuffer(), pos_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(rot_src->GetBuffer(), rot_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(linvel_src->GetBuffer(), linvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(angvel_src->GetBuffer(), angvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+        }
+
+        /// @brief Build the BodyId->slot mapping, allocate staging, and seed it.
+        void BuildPhysicsReadback() {
+            auto *phys_scene = scene->GetPhysicsScene();
+            if (!phys_scene) {
+                throw std::logic_error("PhysicsApp: no physics scene available for readback");
+            }
+            auto gpu = phys_scene->GetGpuBuffers();
+            slot_count = gpu.rigid_body_slot_count;
+            pos_src = gpu.rigid_body_center_world_position;
+            rot_src = gpu.rigid_body_center_world_rotation;
+            linvel_src = gpu.rigid_body_linear_velocity;
+            angvel_src = gpu.rigid_body_angular_velocity;
+
+            auto &adaptor = scene->GetPhysicsAdaptor();
+            const uint32_t n = builder->GetBodyCount();
+            body_to_slot.assign(n, ~0u);
+            for (BodyId id = 0; id < n; ++id) {
+                const uint32_t slot = adaptor.FindRigidBodyByObjectHandle(builder->GetBodyHandle(id));
+                if (slot == PhysicsScene::INVALID_INDEX) {
+                    throw std::logic_error("PhysicsApp: body has no rigid-body slot at CommitScene");
+                }
+                body_to_slot[id] = slot;
+            }
+
+            // Mapping uniqueness sanity check.
+            std::vector<bool> seen(slot_count, false);
+            for (const uint32_t s : body_to_slot) {
+                if (s >= slot_count || seen[s]) {
+                    throw std::logic_error("PhysicsApp: non-unique or out-of-range rigid-body slot mapping");
+                }
+                seen[s] = true;
+            }
+
+            com_offsets.assign(slot_count, glm::vec3(0.0f));
+            for (BodyId id = 0; id < n; ++id) {
+                const uint32_t slot = body_to_slot[id];
+                com_offsets[slot] = adaptor.GetComOffsetLocal(slot);
+            }
+
+            // Allocate the four resident readback buffers (fixed size, frozen).
+            const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
+            const Rhi::BufferType rt{Rhi::BufferTypeBits::ReadbackFromDevice};
+            const auto &alloc = renderer->GetAllocatorState();
+            pos_staging = Rhi::DeviceBuffer::CreateUnique(alloc, rt, bytes, "Physics pos readback");
+            rot_staging = Rhi::DeviceBuffer::CreateUnique(alloc, rt, bytes, "Physics rot readback");
+            linvel_staging = Rhi::DeviceBuffer::CreateUnique(alloc, rt, bytes, "Physics linvel readback");
+            angvel_staging = Rhi::DeviceBuffer::CreateUnique(alloc, rt, bytes, "Physics angvel readback");
+
+            // One-time seed copy so state reads are legal before the first Step.
+            auto &dc = renderer->GetDeviceContext();
+            const auto &dev_iface = dc.GetDeviceInterface();
+            auto device = dev_iface.GetDevice();
+            auto cbs = device.allocateCommandBuffersUnique(
+                vk::CommandBufferAllocateInfo{
+                    dev_iface.GetQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
+                }
+            );
+            auto cb = std::move(cbs[0]);
+            cb->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+            RecordBodyStateCopy(cb.get());
+            cb->end();
+
+            vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
+            vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
+            vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {}};
+            dev_iface.GetQueueInfo().graphicsQueue.submit2(sinfo, fence.get());
+            auto wait_result = device.waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
+            if (wait_result != vk::Result::eSuccess) {
+                throw std::runtime_error("PhysicsApp: physics readback seed copy wait failed");
+            }
+
+            physics_readback_built = true;
+        }
+
+        /// @brief Ensure the render readback staging matches the current extent.
+        void EnsureRenderStaging(const RenderTargetTexture &final_tex) {
+            const auto &desc = final_tex.GetTextureDescription();
+            const uint32_t w = desc.width, h = desc.height;
+            if (render_staging && render_staging_w == w && render_staging_h == h) {
+                return;
+            }
+            const Rhi::BufferType rt{Rhi::BufferTypeBits::ReadbackFromDevice};
+            render_staging = Rhi::DeviceBuffer::CreateUnique(
+                renderer->GetAllocatorState(), rt, size_t(w) * h * 4u, "Render readback"
+            );
+            render_staging_w = w;
+            render_staging_h = h;
+        }
     };
 
     std::unique_ptr<PhysicsApp> PhysicsApp::Create(const CreateInfo &info) {
@@ -112,12 +244,18 @@ namespace AppPhysics {
         auto &impl = *app->m_impl;
         impl.resol_x = info.resol_x;
         impl.resol_y = info.resol_y;
+        impl.mode = info.mode;
+
+        if (impl.mode != AppMode::Windowed && impl.mode != AppMode::Offscreen && impl.mode != AppMode::Headless) {
+            throw std::invalid_argument("PhysicsApp: unknown AppMode");
+        }
 
         auto cmc = MainClass::GetInstance();
         StartupOptions opt{};
         opt.resol_x = static_cast<int>(info.resol_x);
         opt.resol_y = static_cast<int>(info.resol_y);
         opt.title = info.window_title;
+        opt.headless = (impl.mode != AppMode::Windowed);
         cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_INFO);
         cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
         cmc->LoadProject(std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_with_sky");
@@ -131,7 +269,7 @@ namespace AppPhysics {
         impl.scene = &impl.world->GetMainSceneRef();
 
         // Register input axes used by the built-in camera controls and the
-        // SPACE pause toggle.
+        // SPACE pause toggle (only when a window/input exists).
         auto input = impl.input;
         if (input) {
             input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
@@ -161,23 +299,30 @@ namespace AppPhysics {
         impl.root = &root;
 
         auto *adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase()).get();
-        impl.builder = std::make_unique<SceneBuilder>(*impl.scene, *adb, root);
+        const bool with_visuals = (impl.mode != AppMode::Headless);
+        impl.builder = std::make_unique<SceneBuilder>(*impl.scene, *adb, root, with_visuals);
 
-        // Built-in camera with fly controls.
-        auto &camera_object = impl.scene->CreateGameObject();
-        camera_object.SetParent(root.GetHandle());
-        impl.camera_object = &camera_object;
-        auto &camera_comp = camera_object.AddComponent<CameraComponent>();
-        camera_comp.m_camera->set_aspect_ratio(
-            1.0f * static_cast<float>(info.resol_x) / static_cast<float>(info.resol_y)
-        );
-        impl.camera_component = &camera_comp;
-        impl.camera_controller = &camera_object.AddComponent<CameraControllerComponent>();
-        impl.camera_fov = camera_comp.m_camera->m_fov_vertical;
-        impl.world->SetActiveCamera(camera_comp.GetHandle(), &impl.renderer->GetCameraManager());
+        // Built-in camera with fly controls (skipped in headless mode).
+        if (impl.mode != AppMode::Headless) {
+            auto &camera_object = impl.scene->CreateGameObject();
+            camera_object.SetParent(root.GetHandle());
+            impl.camera_object = &camera_object;
+            auto &camera_comp = camera_object.AddComponent<CameraComponent>();
+            camera_comp.m_camera->set_aspect_ratio(
+                1.0f * static_cast<float>(info.resol_x) / static_cast<float>(info.resol_y)
+            );
+            impl.camera_component = &camera_comp;
+            // The fly-controls controller needs window input; add it only in
+            // windowed mode. Offscreen renders with a static camera.
+            if (impl.mode == AppMode::Windowed) {
+                impl.camera_controller = &camera_object.AddComponent<CameraControllerComponent>();
+            }
+            impl.camera_fov = camera_comp.m_camera->m_fov_vertical;
+            impl.world->SetActiveCamera(camera_comp.GetHandle(), &impl.renderer->GetCameraManager());
 
-        // Default camera pose looking at the origin.
-        app->SetCameraPose(glm::vec3(6.0f, -5.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+            // Default camera pose looking at the origin.
+            app->SetCameraPose(glm::vec3(6.0f, -5.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+        }
 
         return app;
     }
@@ -230,6 +375,9 @@ namespace AppPhysics {
     }
 
     void PhysicsApp::AddDirectionalLight(const DirectionalLightParams &params) {
+        if (m_impl->mode == AppMode::Headless) {
+            throw std::logic_error("PhysicsApp: AddDirectionalLight not available in headless mode");
+        }
         if (m_impl->phase != Impl::Phase::Building) {
             throw std::logic_error("PhysicsApp: scene is frozen after CommitScene");
         }
@@ -258,6 +406,9 @@ namespace AppPhysics {
     }
 
     void PhysicsApp::SetCameraPose(const glm::vec3 &position, const glm::vec3 &look_target) {
+        if (m_impl->mode == AppMode::Headless) {
+            throw std::logic_error("PhysicsApp: SetCameraPose not available in headless mode");
+        }
         auto &impl = *m_impl;
         if (!impl.camera_object) return;
 
@@ -299,19 +450,28 @@ namespace AppPhysics {
         // One-time CPU -> GPU sync of physics descriptors.
         impl.scene->FlushPhysics(*impl.renderer);
 
-        // Physics -> render bridge for model matrices.
-        if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
-            impl.renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+        // Build the BodyId->slot readback BEFORE freezing: FlushPhysics has
+        // assigned slots, and the GPU buffers exist. Seeds the initial state so
+        // reads are legal before the first Step.
+        impl.BuildPhysicsReadback();
+
+        // Physics -> render bridge for model matrices (skipped headless).
+        if (impl.mode != AppMode::Headless) {
+            if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
+                impl.renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+            }
         }
 
         // Build the default render graph once. The builder must outlive the graph:
-        // its pass lambdas capture references into it.
-        impl.rg_builder = std::make_unique<ComplexRenderGraphBuilder>(*impl.renderer);
-        RGTextureHandle final_color_id{0};
-        auto mm_buf = impl.scene->GetPhysicsScene()->GetGpuBuffers().model_matrices;
-        auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id, mm_buf);
-        impl.render_graph = std::move(rg);
-        impl.final_color_id = final_color_id;
+        // its pass lambdas capture references into it. (Skipped headless.)
+        if (impl.mode != AppMode::Headless) {
+            impl.rg_builder = std::make_unique<ComplexRenderGraphBuilder>(*impl.renderer);
+            RGTextureHandle final_color_id{0};
+            auto mm_buf = impl.scene->GetPhysicsScene()->GetGpuBuffers().model_matrices;
+            auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id, mm_buf);
+            impl.render_graph = std::move(rg);
+            impl.final_color_id = final_color_id;
+        }
 
         // Freeze the scene and start paused (mirrors the previous example UX).
         impl.phase = Impl::Phase::Committed;
@@ -349,6 +509,9 @@ namespace AppPhysics {
         vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
         cb->begin(cbbinfo);
         impl.physics->GPUStep(cb.get());
+        // Physics readback: copy the SoA into resident staging in the same CB,
+        // so the existing fence wait makes the state CPU-visible on return.
+        impl.RecordBodyStateCopy(cb.get());
         cb->end();
 
         vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
@@ -371,35 +534,41 @@ namespace AppPhysics {
         if (impl.phase != Impl::Phase::Committed) {
             throw std::logic_error("PhysicsApp: RenderNextFrame called before CommitScene");
         }
+        if (impl.mode == AppMode::Headless) {
+            throw std::logic_error("PhysicsApp: RenderNextFrame not available in headless mode");
+        }
 
         impl.time->NextFrame();
 
-        // Input events are processed inside the render frame.
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) {
-                impl.should_quit = true;
+        // Window input is processed only in windowed mode; offscreen has no
+        // window/input and no SPACE toggle.
+        if (impl.mode == AppMode::Windowed) {
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_EVENT_QUIT) {
+                    impl.should_quit = true;
+                }
+                if (impl.input) {
+                    impl.input->ProcessEvent(&event);
+                }
             }
             if (impl.input) {
-                impl.input->ProcessEvent(&event);
+                impl.input->Update(impl.time->GetDeltaTimeInSeconds());
             }
-        }
-        if (impl.input) {
-            impl.input->Update(impl.time->GetDeltaTimeInSeconds());
-        }
 
-        // Built-in SPACE pause toggle.
-        if (impl.input) {
-            float toggle = impl.input->GetAxisRaw("toggle simulation");
-            if (toggle > 0.0f && !impl.toggle_was_pressed) {
-                if (impl.paused) {
-                    Resume();
-                } else {
-                    Pause();
+            // Built-in SPACE pause toggle.
+            if (impl.input) {
+                float toggle = impl.input->GetAxisRaw("toggle simulation");
+                if (toggle > 0.0f && !impl.toggle_was_pressed) {
+                    if (impl.paused) {
+                        Resume();
+                    } else {
+                        Pause();
+                    }
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Simulation %s", impl.paused ? "paused" : "resumed");
                 }
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Simulation %s", impl.paused ? "paused" : "resumed");
+                impl.toggle_was_pressed = (toggle > 0.0f);
             }
-            impl.toggle_was_pressed = (toggle > 0.0f);
         }
 
         // Component ticks: camera controller + CameraComponent view update.
@@ -440,16 +609,27 @@ namespace AppPhysics {
 
         if (impl.renderer->StartFrame() == std::numeric_limits<uint32_t>::max()) {
             // Swapchain out of date / minimized: skip this frame and try again
-            // next call.
+            // next call. A previous render-readback capture remains valid.
             return;
         }
         auto cb = impl.renderer->GetFrameManager().BeginMainCommandBuffer();
         if (impl.render_graph && impl.render_graph->GetNumPasses() > 0) {
             impl.render_graph->RecordAllPasses(cb.GetCommandBuffer());
         }
+
+        // Opt-in render readback: record a copy of the final RTT into the
+        // resident staging buffer after all passes.
+        Rhi::MemoryAccessTypeImageBits final_last_access = Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite;
+        if (impl.render_readback_enabled && impl.render_graph) {
+            auto *final_tex = impl.render_graph->GetInternalTextureResource(impl.final_color_id);
+            impl.EnsureRenderStaging(*final_tex);
+            RecordCopyImageToBuffer(cb.GetCommandBuffer(), *final_tex, *impl.render_staging, final_last_access);
+            impl.render_frame_id = impl.has_render_capture ? impl.render_frame_id + 1 : 0;
+            impl.has_render_capture = true;
+        }
+
         impl.renderer->CompleteFrame(
-            *impl.render_graph->GetInternalTextureResource(impl.final_color_id),
-            Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite
+            *impl.render_graph->GetInternalTextureResource(impl.final_color_id), final_last_access
         );
     }
 
@@ -482,6 +662,71 @@ namespace AppPhysics {
     }
 
     bool PhysicsApp::ShouldQuit() const {
+        // Headless/offscreen have no window close event source.
+        if (m_impl->mode != AppMode::Windowed) {
+            return false;
+        }
         return m_impl->should_quit;
+    }
+
+    // ── Drive-phase readback ───────────────────────────────────────────
+
+    void PhysicsApp::SetRenderReadbackEnabled(bool enabled) {
+        auto &impl = *m_impl;
+        if (impl.mode == AppMode::Headless && enabled) {
+            throw std::logic_error("PhysicsApp: render readback not available in headless mode");
+        }
+        impl.render_readback_enabled = enabled;
+    }
+
+    RenderOutput PhysicsApp::GetRenderOutput() {
+        auto &impl = *m_impl;
+        if (impl.mode == AppMode::Headless) {
+            throw std::logic_error("PhysicsApp: GetRenderOutput not available in headless mode");
+        }
+        if (!impl.render_readback_enabled) {
+            throw std::logic_error("PhysicsApp: GetRenderOutput called while readback is disabled");
+        }
+        if (!impl.has_render_capture) {
+            throw std::logic_error("PhysicsApp: GetRenderOutput called before any frame was captured");
+        }
+        impl.renderer->GetFrameManager().WaitForFrameCompletion();
+        return {
+            impl.render_staging->GetVMAddress(), impl.render_staging_w, impl.render_staging_h, impl.render_frame_id
+        };
+    }
+
+    BodyState PhysicsApp::GetBodyState(BodyId id) const {
+        const auto &impl = *m_impl;
+        if (!impl.physics_readback_built) {
+            throw std::logic_error("PhysicsApp: GetBodyState called before CommitScene");
+        }
+        if (id == INVALID_BODY_ID || id >= impl.body_to_slot.size()) {
+            throw std::out_of_range("PhysicsApp: invalid BodyId");
+        }
+        const auto *pos = reinterpret_cast<const glm::vec4 *>(impl.pos_staging->GetVMAddress());
+        const auto *rot = reinterpret_cast<const glm::vec4 *>(impl.rot_staging->GetVMAddress());
+        const auto *lvel = reinterpret_cast<const glm::vec4 *>(impl.linvel_staging->GetVMAddress());
+        const auto *avel = reinterpret_cast<const glm::vec4 *>(impl.angvel_staging->GetVMAddress());
+        const uint32_t slot = impl.body_to_slot[id];
+        const glm::vec4 p = pos[slot];
+        const glm::vec4 r = rot[slot];
+        return {glm::vec3(p), glm::quat(r.w, r.x, r.y, r.z), glm::vec3(lvel[slot]), glm::vec3(avel[slot])};
+    }
+
+    BodyStatesView PhysicsApp::GetBodyStates() const {
+        const auto &impl = *m_impl;
+        if (!impl.physics_readback_built) {
+            throw std::logic_error("PhysicsApp: GetBodyStates called before CommitScene");
+        }
+        const uint32_t cnt = impl.slot_count;
+        return {
+            {impl.body_to_slot.data(), impl.body_to_slot.size()},
+            {impl.com_offsets.data(), impl.com_offsets.size()},
+            {reinterpret_cast<const glm::vec4 *>(impl.pos_staging->GetVMAddress()), cnt},
+            {reinterpret_cast<const glm::vec4 *>(impl.rot_staging->GetVMAddress()), cnt},
+            {reinterpret_cast<const glm::vec4 *>(impl.linvel_staging->GetVMAddress()), cnt},
+            {reinterpret_cast<const glm::vec4 *>(impl.angvel_staging->GetVMAddress()), cnt}
+        };
     }
 } // namespace AppPhysics

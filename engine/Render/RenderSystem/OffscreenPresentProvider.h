@@ -1,5 +1,5 @@
-#ifndef RENDER_RENDERSYSTEM_HEADLESSPRESENTPROVIDER_INCLUDED
-#define RENDER_RENDERSYSTEM_HEADLESSPRESENTPROVIDER_INCLUDED
+#ifndef RENDER_RENDERSYSTEM_OFFSCREENPRESENTPROVIDER_INCLUDED
+#define RENDER_RENDERSYSTEM_OFFSCREENPRESENTPROVIDER_INCLUDED
 
 #include "IPresentProvider.h"
 #include "Render/render_export.h"
@@ -8,21 +8,33 @@
 namespace Engine {
     namespace Rhi {
         class DeviceInterface;
-    }
+        class AllocatorState;
+    } // namespace Rhi
     namespace RenderSystemState {
 
-        class RENDER_API HeadlessPresentProvider : public IPresentProvider {
+        /**
+         * @brief Offscreen present provider: real CPU-visible present targets.
+         *
+         * For headless/offscreen rendering. Lazily allocates one host-visible
+         * `ReadbackFromDevice` buffer per frame-in-flight (matching
+         * `GetImageCount()`) on the first `PrepareCopy` call, then records a
+         * real `copyImageToBuffer` into the target for the given image index.
+         * `Present` is a no-op returning `false`. A readback-callback API is
+         * intentionally out of scope.
+         */
+        class RENDER_API OffscreenPresentProvider : public IPresentProvider {
             struct impl;
             std::unique_ptr<impl> pimpl;
 
         public:
-            HeadlessPresentProvider(
+            OffscreenPresentProvider(
                 const Rhi::DeviceInterface &device_interface,
+                const Rhi::AllocatorState &allocator,
                 vk::Extent2D extent,
                 vk::Format color_format,
                 uint32_t image_count
             );
-            ~HeadlessPresentProvider() override;
+            ~OffscreenPresentProvider() override;
 
             vk::Extent2D GetExtent() const override;
             vk::Format GetColorFormat() const override;

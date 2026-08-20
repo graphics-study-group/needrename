@@ -135,14 +135,18 @@ namespace AppPhysics {
         /**
          * @brief Construct a scene builder.
          *
-         * Loads the builtin cube, sphere and cylinder meshes for the
-         * visualization assembly.
+         * When `with_visuals` is false the builtin meshes are not loaded and
+         * bodies get no mesh visualization children and no color material
+         * resolution (physics assembly unchanged) — the headless form.
          *
-         * @param scene Scene to create objects in.
-         * @param adb   Asset database used to resolve builtin meshes/materials.
-         * @param root  Root GameObject all created objects are parented to.
+         * @param scene       Scene to create objects in.
+         * @param adb         Asset database used to resolve builtin meshes/materials.
+         * @param root        Root GameObject all created objects are parented to.
+         * @param with_visuals Load visualization children/materials (default true).
          */
-        SceneBuilder(Engine::Scene &scene, Engine::FileSystemDatabase &adb, Engine::GameObject &root);
+        SceneBuilder(
+            Engine::Scene &scene, Engine::FileSystemDatabase &adb, Engine::GameObject &root, bool with_visuals = true
+        );
 
         /**
          * @brief Add a physics box to the scene.
@@ -207,6 +211,22 @@ namespace AppPhysics {
         Engine::GameObject &GetBodyGameObject(BodyId id) const;
 
         /**
+         * @brief Get the number of created bodies.
+         *
+         * @return Number of registered bodies (BodyIds 0..N-1 are valid).
+         */
+        uint32_t GetBodyCount() const;
+
+        /**
+         * @brief Get the ObjectHandle of a created body.
+         *
+         * @param id BodyId returned by an Add method.
+         * @return The body's ObjectHandle.
+         * @throws std::out_of_range when the id is invalid.
+         */
+        Engine::ObjectHandle GetBodyHandle(BodyId id) const;
+
+        /**
          * @brief Resolve a color string to a builtin solid color material asset.
          *
          * Empty string selects a random color; an invalid non-empty string
@@ -232,6 +252,8 @@ namespace AppPhysics {
         Engine::FileSystemDatabase &m_adb;
 
         PhysicsBuilder m_physics;
+
+        bool m_with_visuals{true};
 
         // Visualization assembly state (Asset-dependent).
         Engine::AssetRef m_cube_mesh{};

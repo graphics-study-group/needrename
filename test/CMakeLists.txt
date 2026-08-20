@@ -102,3 +102,18 @@ target_link_libraries(submission_helper_test Engine)
 add_test(NAME submission_helper_test COMMAND submission_helper_test)
 set_target_properties(submission_helper_test PROPERTIES FOLDER tests)
 
+add_executable(physics_app_headless_test physics_app_headless_test.cpp)
+target_link_libraries(physics_app_headless_test Engine PhysicsApp)
+add_test(NAME physics_app_headless_test COMMAND physics_app_headless_test)
+set_target_properties(physics_app_headless_test PROPERTIES FOLDER tests)
+
+add_executable(physics_app_offscreen_test physics_app_offscreen_test.cpp)
+target_link_libraries(physics_app_offscreen_test Engine PhysicsApp)
+add_test(NAME physics_app_offscreen_test COMMAND physics_app_offscreen_test)
+set_target_properties(physics_app_offscreen_test PROPERTIES FOLDER tests)
+
+add_executable(physics_app_windowed_test physics_app_windowed_test.cpp)
+target_link_libraries(physics_app_windowed_test Engine PhysicsApp)
+add_test(NAME physics_app_windowed_test COMMAND physics_app_windowed_test 120)
+set_target_properties(physics_app_windowed_test PROPERTIES FOLDER tests)
+
