@@ -5,9 +5,11 @@
 #include <gtc/quaternion.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <span>
 #include <string>
+#include <unordered_map>
 
 namespace AppPhysics {
 
@@ -78,6 +80,45 @@ namespace AppPhysics {
         uint32_t width{0};
         uint32_t height{0};
         uint64_t frame_id{0};
+    };
+
+    /**
+     * @brief Options for importing a URDF robot into the app.
+     *
+     * `position`/`rotation` place the robot as a whole (applied to the root
+     * link). The friction and restitution coefficients are applied uniformly to
+     * every created rigid body. Visual meshes are built in `Offscreen` and
+     * `Windowed` modes and not in `PhysicsOnly` — decided by the app's mode.
+     */
+    struct UrdfImportConfig {
+        std::filesystem::path urdf_path{};
+        glm::vec3 position{0.0f, 0.0f, 0.0f};
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        float static_friction{0.5f};
+        float dynamic_friction{0.5f};
+        float restitution{0.0f};
+    };
+
+    /**
+     * @brief A URDF joint's two endpoint bodies, in URDF parent/child order.
+     *
+     * `parent` is the link closer to the robot root.
+     */
+    struct JointBodyPair {
+        BodyId parent{};
+        BodyId child{};
+    };
+
+    /**
+     * @brief Result of importing a URDF robot.
+     *
+     * `link_bodies` maps link name → BodyId only for links that became physics
+     * bodies (have `<inertial>`). `joint_bodies` maps joint name →
+     * {parent, child} only for joints that produced a physical constraint.
+     */
+    struct UrdfImportResult {
+        std::unordered_map<std::string, BodyId> link_bodies{};
+        std::unordered_map<std::string, JointBodyPair> joint_bodies{};
     };
 
     /**
@@ -252,6 +293,25 @@ namespace AppPhysics {
          * @throws std::out_of_range when a BodyId is invalid.
          */
         void AddHingeJoint(BodyId obj1, BodyId obj2, const HingeJointParams &params);
+
+        /**
+         * @brief Import a URDF robot into the scene (Building phase only).
+         *
+         * Parses the URDF, builds the robot's GameObject hierarchy into the
+         * running scene under the app root, and registers every rigid-body link
+         * into the `BodyId` registry so the returned bodies work with the
+         * readback APIs. No asset files are written.
+         *
+         * `link_bodies` omits links without `<inertial>`; `joint_bodies` omits
+         * joints that did not produce a constraint (see the result struct).
+         *
+         * @param config Import configuration (path, placement, coefficients).
+         * @return Maps of physically realized links and joints to BodyIds.
+         * @throws std::logic_error after CommitScene.
+         * @throws std::runtime_error when the file is missing/unparseable or the
+         *         parsed robot has no links.
+         */
+        UrdfImportResult LoadUrdf(const UrdfImportConfig &config);
 
         /**
          * @brief Add a directional light (Building phase only).

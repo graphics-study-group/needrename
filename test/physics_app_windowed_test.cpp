@@ -1,9 +1,12 @@
 #include <PhysicsApp.h>
 
+#include <cassert>
+#include <cmake_config.h>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
 #include <cstdlib>
+#include <filesystem>
 #include <string>
 
 using namespace AppPhysics;
@@ -61,6 +64,35 @@ namespace {
         app.AddHingeJoint(sphere, box1, {.axis_obj1 = kHingeAxis, .anchor_obj1 = {0.0f, 0.0f, 0.0f}});
         app.AddHingeJoint(box1, box2, {.axis_obj1 = kHingeAxis, .anchor_obj1 = {0.0f, 0.0f, -kBoxHalfZ - 0.5f * kGap}});
         app.AddFixedJoint(box2, cylinder, {.compliance = 0.0f});
+    }
+
+    // ── URDF robot scene (A1) ────────────────────────────────────────
+    void AddUrdfRobotScene(PhysicsApp &app, glm::vec3 global_position, glm::quat global_rotation) {
+        const std::filesystem::path urdf = std::filesystem::path(ENGINE_ASSETS_DIR) / "a1_description/urdf/a1.urdf";
+
+        UrdfImportConfig cfg;
+        cfg.urdf_path = urdf;
+        cfg.position = global_position;
+        cfg.rotation = global_rotation;
+        cfg.static_friction = 0.5f;
+        cfg.dynamic_friction = 0.5f;
+        cfg.restitution = 0.0f;
+
+        UrdfImportResult res = app.LoadUrdf(cfg);
+
+        // Links with <inertial> become bodies.
+        assert(res.link_bodies.count("trunk") == 1);
+        assert(res.link_bodies.count("FR_thigh") == 1);
+        // Links without <inertial> are absent.
+        assert(res.link_bodies.count("base") == 0);
+        assert(res.link_bodies.count("FR_thigh_shoulder") == 0);
+
+        // Joints with bodies on both ends appear, in URDF parent/child order.
+        assert(res.joint_bodies.count("FR_thigh_joint") == 1);
+        assert(res.joint_bodies["FR_thigh_joint"].parent == res.link_bodies["FR_hip"]);
+        assert(res.joint_bodies["FR_thigh_joint"].child == res.link_bodies["FR_thigh"]);
+        // Joints with a bodyless end are absent.
+        assert(res.joint_bodies.count("floating_base") == 0);
     }
 
     void AddTemplateScene(PhysicsApp &app, const glm::vec3 &global_offset) {
@@ -129,6 +161,7 @@ namespace {
         }
 
         AddDoublePendulum(app, glm::vec3(6.5f, 0.0f, 4.5f) + global_offset);
+        AddUrdfRobotScene(app, glm::vec3(6.0f, 0.0f, 1.5f) + global_offset, glm::quat(0.0, 0.0, 0.0, 1.0));
     }
 
     void AddTemplateScene2(PhysicsApp &app, const glm::vec3 &global_offset) {
@@ -234,8 +267,8 @@ int main(int argc, char **argv) {
         .color = "white",
     });
 
-    // AddTemplateScene(*app, glm::vec3(0.0f, 5.0f, 0.0f));
-    AddTemplateScene2(*app, glm::vec3(0.0f, 0.0f, 0.0f));
+    AddTemplateScene(*app, glm::vec3(0.0f, 5.0f, 0.0f));
+    // AddTemplateScene2(*app, glm::vec3(0.0f, 0.0f, 0.0f));
 
     app->AddDirectionalLight({.direction = {0.0f, 0.0f, -1.0f}, .intensity = 1.5f, .cast_shadow = true});
     app->AddDirectionalLight({.direction = {1.0f, 1.0f, -1.0f}, .intensity = 1.0f, .cast_shadow = true});

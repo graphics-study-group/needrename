@@ -10,6 +10,7 @@
 #include <Framework/Bridge/PhysicsAdaptor.h>
 #include <Framework/Component/RenderComponent/CameraComponent.h>
 #include <Framework/Component/RenderComponent/LightComponent.h>
+#include <Framework/Import/UrdfLoader.h>
 #include <Framework/Input/Input.h>
 #include <Framework/MainClass.h>
 #include <Framework/Object/GameObject.h>
@@ -42,6 +43,7 @@
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <unordered_map>
 
 namespace AppPhysics {
 
@@ -371,6 +373,48 @@ namespace AppPhysics {
             throw std::logic_error("PhysicsApp: scene is frozen after CommitScene");
         }
         m_impl->builder->AddHingeJoint(obj1, obj2, params);
+    }
+
+    UrdfImportResult PhysicsApp::LoadUrdf(const UrdfImportConfig &config) {
+        auto &impl = *m_impl;
+        if (impl.phase != Impl::Phase::Building) {
+            throw std::logic_error("PhysicsApp: scene is frozen after CommitScene");
+        }
+
+        if (!std::filesystem::exists(config.urdf_path)) {
+            throw std::runtime_error("PhysicsApp: URDF file does not exist: " + config.urdf_path.string());
+        }
+
+        Engine::UrdfLoader loader;
+        Engine::UrdfRobot robot = loader.ParseUrdf(config.urdf_path);
+        if (robot.links.empty()) {
+            throw std::runtime_error(
+                "PhysicsApp: failed to parse URDF or robot has no links: " + config.urdf_path.string()
+            );
+        }
+
+        Engine::UrdfBuildOptions opts;
+        opts.position = config.position;
+        opts.rotation = config.rotation;
+        opts.static_friction = config.static_friction;
+        opts.dynamic_friction = config.dynamic_friction;
+        opts.restitution = config.restitution;
+        opts.with_visuals = impl.mode != AppMode::PhysicsOnly;
+
+        Engine::UrdfBuiltRobot built = loader.BuildRobotScene(robot, *impl.scene, impl.root, opts);
+
+        std::unordered_map<Engine::ObjectHandle, BodyId> handle_to_body;
+        UrdfImportResult result;
+        for (const auto &[name, handle] : built.link_objects) {
+            BodyId id = impl.builder->RegisterExistingBody(handle);
+            result.link_bodies[name] = id;
+            handle_to_body[handle] = id;
+        }
+        for (const auto &[name, pair] : built.joint_objects) {
+            result.joint_bodies[name] = {handle_to_body.at(pair.parent), handle_to_body.at(pair.child)};
+        }
+
+        return result;
     }
 
     void PhysicsApp::AddDirectionalLight(const DirectionalLightParams &params) {

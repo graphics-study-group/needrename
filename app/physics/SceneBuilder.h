@@ -218,6 +218,19 @@ namespace AppPhysics {
         uint32_t GetBodyCount() const;
 
         /**
+         * @brief Register an existing body GameObject into the body registry.
+         *
+         * Appends the given handle to the internal body list and returns its
+         * new BodyId. The referenced GameObject must already carry a
+         * `RigidBodyComponent`; no scene construction is performed (used to
+         * register URDF-imported bodies).
+         *
+         * @param handle ObjectHandle of the body GameObject.
+         * @return The new BodyId.
+         */
+        BodyId RegisterExistingBody(Engine::ObjectHandle handle);
+
+        /**
          * @brief Get the ObjectHandle of a created body.
          *
          * @param id BodyId returned by an Add method.

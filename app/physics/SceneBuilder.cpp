@@ -242,6 +242,12 @@ namespace AppPhysics {
         return static_cast<uint32_t>(m_bodies.size());
     }
 
+    BodyId SceneBuilder::RegisterExistingBody(Engine::ObjectHandle handle) {
+        BodyId id = static_cast<BodyId>(m_bodies.size());
+        m_bodies.push_back(handle);
+        return id;
+    }
+
     Engine::ObjectHandle SceneBuilder::GetBodyHandle(BodyId id) const {
         if (id == INVALID_BODY_ID || id >= m_bodies.size()) {
             throw std::out_of_range("PhysicsApp: invalid BodyId");
