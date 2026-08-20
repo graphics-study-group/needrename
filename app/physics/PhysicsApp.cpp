@@ -25,7 +25,6 @@
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
-#include <Render/Resource/ImageToBufferCopy.hpp>
 #include <Render/Resource/RenderTargetTexture.h>
 #include <Rhi/Buffer/ComputeBuffer.h>
 #include <Rhi/Buffer/DeviceBuffer.h>
@@ -246,7 +245,7 @@ namespace AppPhysics {
         impl.resol_y = info.resol_y;
         impl.mode = info.mode;
 
-        if (impl.mode != AppMode::Windowed && impl.mode != AppMode::Offscreen && impl.mode != AppMode::Headless) {
+        if (impl.mode != AppMode::Windowed && impl.mode != AppMode::Offscreen && impl.mode != AppMode::PhysicsOnly) {
             throw std::invalid_argument("PhysicsApp: unknown AppMode");
         }
 
@@ -299,11 +298,11 @@ namespace AppPhysics {
         impl.root = &root;
 
         auto *adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase()).get();
-        const bool with_visuals = (impl.mode != AppMode::Headless);
+        const bool with_visuals = (impl.mode != AppMode::PhysicsOnly);
         impl.builder = std::make_unique<SceneBuilder>(*impl.scene, *adb, root, with_visuals);
 
         // Built-in camera with fly controls (skipped in headless mode).
-        if (impl.mode != AppMode::Headless) {
+        if (impl.mode != AppMode::PhysicsOnly) {
             auto &camera_object = impl.scene->CreateGameObject();
             camera_object.SetParent(root.GetHandle());
             impl.camera_object = &camera_object;
@@ -375,7 +374,7 @@ namespace AppPhysics {
     }
 
     void PhysicsApp::AddDirectionalLight(const DirectionalLightParams &params) {
-        if (m_impl->mode == AppMode::Headless) {
+        if (m_impl->mode == AppMode::PhysicsOnly) {
             throw std::logic_error("PhysicsApp: AddDirectionalLight not available in headless mode");
         }
         if (m_impl->phase != Impl::Phase::Building) {
@@ -406,7 +405,7 @@ namespace AppPhysics {
     }
 
     void PhysicsApp::SetCameraPose(const glm::vec3 &position, const glm::vec3 &look_target) {
-        if (m_impl->mode == AppMode::Headless) {
+        if (m_impl->mode == AppMode::PhysicsOnly) {
             throw std::logic_error("PhysicsApp: SetCameraPose not available in headless mode");
         }
         auto &impl = *m_impl;
@@ -456,7 +455,7 @@ namespace AppPhysics {
         impl.BuildPhysicsReadback();
 
         // Physics -> render bridge for model matrices (skipped headless).
-        if (impl.mode != AppMode::Headless) {
+        if (impl.mode != AppMode::PhysicsOnly) {
             if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
                 impl.renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
             }
@@ -464,7 +463,7 @@ namespace AppPhysics {
 
         // Build the default render graph once. The builder must outlive the graph:
         // its pass lambdas capture references into it. (Skipped headless.)
-        if (impl.mode != AppMode::Headless) {
+        if (impl.mode != AppMode::PhysicsOnly) {
             impl.rg_builder = std::make_unique<ComplexRenderGraphBuilder>(*impl.renderer);
             RGTextureHandle final_color_id{0};
             auto mm_buf = impl.scene->GetPhysicsScene()->GetGpuBuffers().model_matrices;
@@ -534,7 +533,7 @@ namespace AppPhysics {
         if (impl.phase != Impl::Phase::Committed) {
             throw std::logic_error("PhysicsApp: RenderNextFrame called before CommitScene");
         }
-        if (impl.mode == AppMode::Headless) {
+        if (impl.mode == AppMode::PhysicsOnly) {
             throw std::logic_error("PhysicsApp: RenderNextFrame not available in headless mode");
         }
 
@@ -623,7 +622,7 @@ namespace AppPhysics {
         if (impl.render_readback_enabled && impl.render_graph) {
             auto *final_tex = impl.render_graph->GetInternalTextureResource(impl.final_color_id);
             impl.EnsureRenderStaging(*final_tex);
-            RecordCopyImageToBuffer(cb.GetCommandBuffer(), *final_tex, *impl.render_staging, final_last_access);
+            cb.RecordCopyImageToBuffer(*final_tex, *impl.render_staging, final_last_access);
             impl.render_frame_id = impl.has_render_capture ? impl.render_frame_id + 1 : 0;
             impl.has_render_capture = true;
         }
@@ -673,7 +672,7 @@ namespace AppPhysics {
 
     void PhysicsApp::SetRenderReadbackEnabled(bool enabled) {
         auto &impl = *m_impl;
-        if (impl.mode == AppMode::Headless && enabled) {
+        if (impl.mode == AppMode::PhysicsOnly && enabled) {
             throw std::logic_error("PhysicsApp: render readback not available in headless mode");
         }
         impl.render_readback_enabled = enabled;
@@ -681,7 +680,7 @@ namespace AppPhysics {
 
     RenderOutput PhysicsApp::GetRenderOutput() {
         auto &impl = *m_impl;
-        if (impl.mode == AppMode::Headless) {
+        if (impl.mode == AppMode::PhysicsOnly) {
             throw std::logic_error("PhysicsApp: GetRenderOutput not available in headless mode");
         }
         if (!impl.render_readback_enabled) {

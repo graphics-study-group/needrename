@@ -21,7 +21,7 @@
 
 ### D1: AppMode is a three-value enum in CreateInfo, immutable
 
-`AppMode { Headless, Offscreen, Windowed }`, `CreateInfo.mode` defaulting to `Windowed`. Chosen over a two-axis `(has_window × needs_render)` model — the three values map exactly to the user's mental model and to driver branches; the fourth axis combination (window without render) is meaningless. Immutable because hot-swapping the present provider / render graph mid-run is a much larger engine feature with no current user.
+`AppMode { PhysicsOnly, Offscreen, Windowed }`, `CreateInfo.mode` defaulting to `Windowed`. Chosen over a two-axis `(has_window × needs_render)` model — the three values map exactly to the user's mental model and to driver branches; the fourth axis combination (window without render) is meaningless. Immutable because hot-swapping the present provider / render graph mid-run is a much larger engine feature with no current user.
 
 ### D2: BodyId → slot mapping is built explicitly at CommitScene, not assumed by order
 
@@ -39,9 +39,9 @@ Four `DeviceBuffer` (`ReadbackFromDevice` = `CopyTo | HostRandomAccess`, auto-ma
 
 Two readback patterns already exist in tests (`headless_offscreen_test`, `mrt_test`): a render-graph pass declaring `UseImage(TransferRead)` + `UseBuffer(TransferWrite)`. That route is rejected for PhysicsApp because (a) `ImportExternalResource(DeviceBuffer)` stores a raw `&buffer` (RenderGraphBuilder.cpp:351) — rebuilding the staging on window resize (final RTT is resizable) would dangle, and there is no "update external buffer" semantics; (b) RG buffer deps currently introduce a global barrier. Instead the copy is recorded **in the main CB after `RecordAllPasses`**: a pre-barrier `eGeneral → eTransferSrcOptimal`, `copyImageToBuffer`, then a post-barrier back to `eGeneral`. The restoration keeps `CompleteFrame(present_texture, ShaderRandomWrite)`'s `last_access` contract intact (the swapchain blit's source-layout derivation is unaffected). `GetRenderOutput()` then calls the new `FrameManager::WaitForFrameCompletion()` and maps the staging — because the copy executes in-order inside the frame-completion batch, fence-signaled ⟹ copy complete ⟹ coherent memory is CPU-visible with no extra barrier.
 
-### D6: RecordCopyImageToBuffer is a pure function (caller-controlled enable)
+### D6: RecordCopyImageToBuffer lives on CommandBuffer (caller-controlled enable)
 
-Placed beside `GetImageLayout`/`GetAccessFlags` (MemoryAccessHelper.hpp or a sibling util), it is a stateless recorder with parameters `(cb, texture, dst_buffer, last_access)`. A pure function needs no enablement flag — whoever calls it opts in; unused means zero cost. It serves three consumers with differing call patterns: `PhysicsApp` (per-frame when readback enabled), `OffscreenPresentProvider::PrepareCopy` (every rendered frame), and any future engine user. Rejected alternatives: a `RenderSystem` state service (`SetReadbackTarget`) that adds per-frame enable checks and lifecycle state for a feature only PhysicsApp needs.
+A `CommandBuffer` member with parameters `(texture, dst_buffer, last_access)` recording against the wrapped `vk::CommandBuffer`; `PhysicsApp` calls it after `RecordAllPasses` when readback is enabled. `OffscreenPresentProvider` cannot use `CommandBuffer` (it only holds a raw `vk::CommandBuffer`), so it keeps its own small local copy in an anonymous namespace. This duplicates a subtle barrier recipe in two places; both consumers only ever change it together, and no shared helper header earned a file for one context. A member needs no enablement flag — whoever calls it opts in; unused means zero cost.
 
 ### D7: FrameManager::WaitForFrameCompletion() for precise waits
 
@@ -53,18 +53,18 @@ A new `FrameManager` method waits on the fence of the most recently submitted fr
 
 ### D9: OffscreenPresentProvider owns host-visible targets, lazily, no callback this round
 
-The provider allocates `GetImageCount()` `ReadbackFromDevice` buffers sized to the present extent, **lazily on first `PrepareCopy`** — so pure-physics headless loops that never render allocate nothing (one class covers both headless flavors). `Present` stays a no-op returning `false`. Host-visible targets were chosen over device-local images + blit because a future readback callback only needs to poll a fence and map — the target shape never changes; blit scaling is unnecessary since the target equals the RTT extent. The extent hard-code is removed: `RenderSystem` gains a defaulted `headless_extent` ctor parameter (`{1920,1080}` keeps existing call sites compiling), fed from `StartupOptions::resol_x/y` by `MainClass::Initialize`.
+The provider allocates `GetImageCount()` `ReadbackFromDevice` buffers sized to the present extent, **lazily on first `PrepareCopy`** — so pure-physics loops that never render allocate nothing (one class covers both windowless flavors). `Present` stays a no-op returning `false`. Host-visible targets were chosen over device-local images + blit because a future readback callback only needs to poll a fence and map — the target shape never changes; blit scaling is unnecessary since the target equals the RTT extent. The extent hard-code is removed: `RenderSystem` gains a unified `extent` ctor parameter (default `{0,0}`) — in windowed mode a zero extent is derived via `SDL_GetWindowSizeInPixels`; in headless mode a zero extent throws (no window to derive from), so `MainClass::Initialize` feeds it from `StartupOptions::resol_x/y` only in headless mode.
 
 ### D10: Mode branches live in PhysicsApp; Step keeps its WaitForIdle
 
-- `RenderNextFrame`: mode `Headless` → throw; mode `Offscreen` → run the render frame minus the input section (SDL polling, input update, SPACE toggle); mode `Windowed` → current behavior.
-- `CommitScene`: `Headless` skips render-graph build and model-matrix bridge; `SceneBuilder` gets a `with_visuals` ctor flag (skips mesh children + `ResolveColor`).
-- `ShouldQuit`: returns `false` in `Headless`/`Offscreen`.
+- `RenderNextFrame`: mode `PhysicsOnly` → throw; mode `Offscreen` → run the render frame minus the input section (SDL polling, input update, SPACE toggle); mode `Windowed` → current behavior.
+- `CommitScene`: `PhysicsOnly` skips render-graph build and model-matrix bridge; `SceneBuilder` gets a `with_visuals` ctor flag (skips mesh children + `ResolveColor`).
+- `ShouldQuit`: returns `false` in `PhysicsOnly`/`Offscreen`.
 - `Step`: keeps pre/post `WaitForIdle` in all modes — the physics submission fence already guarantees GPU physics completion; the waits are cheap on an idle device (fast-path queue check), keep one code path, and remain correct if physics/rendering step rates ever diverge.
 
 ### D11: Test strategy — three executables, example retired
 
-`example/physics_example` is deleted; its scene builders move into `test/physics_app_windowed_test.cpp`, which supports two launcher modes: with a frame-count argument it runs that many frames and auto-resumes after commit (ctest path); without arguments it runs indefinitely starting paused with SPACE resume (manual UX identical to the old example — requires a display). `physics_app_headless_test` covers mode-1 physics readback, mapping uniqueness, negative throws. `physics_app_offscreen_test` covers mode-2 render readback (dimensions, frame_id progression, disabled/enabled throws). All three link `Engine` + `PhysicsApp`. Windowed test deliberately has no readback assertion (kept as a smoke run).
+`example/physics_example` is deleted; its scene builders move into `test/physics_app_windowed_test.cpp`, which supports two launcher modes: with a frame-count argument it runs that many frames and auto-resumes after commit (ctest path); without arguments it runs indefinitely starting paused with SPACE resume (manual UX identical to the old example — requires a display). `physics_app_physics_only_test` covers mode-1 physics readback, mapping uniqueness, negative throws. `physics_app_offscreen_test` covers mode-2 render readback (dimensions, frame_id progression, disabled/enabled throws). All three link `Engine` + `PhysicsApp`. Windowed test deliberately has no readback assertion (kept as a smoke run).
 
 ## Risks / Trade-offs
 
@@ -78,7 +78,7 @@ The provider allocates `GetImageCount()` `ReadbackFromDevice` buffers sized to t
 
 ## Migration Plan
 
-1. Engine land first (independent, testable in isolation): `RecordCopyImageToBuffer` util, `FrameManager::WaitForFrameCompletion`, `RenderSystem` `headless_extent` ctor param + `MainClass` forwarding.
+1. Engine land first (independent, testable in isolation): `CommandBuffer::RecordCopyImageToBuffer` member, `FrameManager::WaitForFrameCompletion`, `RenderSystem` unified `extent` ctor param + `MainClass` forwarding.
 2. Replace `HeadlessPresentProvider` with `OffscreenPresentProvider` (lazy host-visible targets + real copy). Existing headless tests (`headless_offscreen_test`, `headless_compute_test`) remain green; `mrt_test` unaffected (uses its own RG pass + registered callback).
 3. PhysicsApp mode + physics readback (mapping, staging, `Step` copy, `GetBodyState(s)`).
 4. PhysicsApp render readback (`SetRenderReadbackEnabled`, `GetRenderOutput`, main-CB copy).
@@ -87,4 +87,4 @@ The provider allocates `GetImageCount()` `ReadbackFromDevice` buffers sized to t
 
 ## Open Questions
 
-- None blocking. Implementation details to settle during coding: exact placement of `RecordCopyImageToBuffer` (MemoryAccessHelper.hpp vs new header), the `SceneBuilder` accessor signatures, and the `PhysicsApp` CMake target name for test linking (to be read from CMake at implementation time).
+- None blocking. Implementation details to settle during coding: exact placement of `RecordCopyImageToBuffer` (resolved: `CommandBuffer` member + `OffscreenPresentProvider` local copy), the `SceneBuilder` accessor signatures, and the `PhysicsApp` CMake target name for test linking (to be read from CMake at implementation time).

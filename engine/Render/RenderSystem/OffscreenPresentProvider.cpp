@@ -1,13 +1,76 @@
 #include "OffscreenPresentProvider.h"
 
-#include "Render/Resource/ImageToBufferCopy.hpp"
+#include "Render/Resource/MemoryAccessHelper.hpp"
 #include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 #include "Rhi/Device/MemoryTypes.h"
 
 namespace Engine::RenderSystemState {
+
+    namespace {
+        /**
+         * @brief Record a CPU-readable copy of a final RTT into a present target.
+         *
+         * The present provider has no Engine::CommandBuffer wrapper, so it
+         * records the copy directly: a pre-barrier into `eTransferSrcOptimal`, a
+         * tight-packed `copyImageToBuffer` of mip 0 at the texture's full extent,
+         * then a post-barrier restoring `GetImageLayout(last_access)`.
+         *
+         * @param cb          Command buffer to record into.
+         * @param image       Source image to copy from.
+         * @param dst         Destination buffer (host-visible present target).
+         * @param last_access Access mode the source image was last used with.
+         */
+        void RecordCopyImageToBuffer(
+            vk::CommandBuffer cb,
+            const RenderTargetTexture &image,
+            const Rhi::DeviceBuffer &dst,
+            Rhi::MemoryAccessTypeImageBits last_access
+        ) {
+            const auto &desc = image.GetTextureDescription();
+
+            vk::ImageMemoryBarrier2 pre_barrier{
+                vk::PipelineStageFlagBits2::eAllCommands,
+                GetAccessFlags({last_access}),
+                vk::PipelineStageFlagBits2::eAllTransfer,
+                vk::AccessFlagBits2::eTransferRead,
+                GetImageLayout({last_access}),
+                vk::ImageLayout::eTransferSrcOptimal,
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                image.GetImage(),
+                vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+            };
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, pre_barrier});
+
+            vk::BufferImageCopy region{
+                0, // bufferOffset
+                0, // bufferRowLength (tight packing)
+                0, // bufferImageHeight
+                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                vk::Offset3D{0, 0, 0},
+                vk::Extent3D{desc.width, desc.height, desc.depth}
+            };
+            cb.copyImageToBuffer(image.GetImage(), vk::ImageLayout::eTransferSrcOptimal, dst.GetBuffer(), region);
+
+            vk::ImageMemoryBarrier2 post_barrier{
+                vk::PipelineStageFlagBits2::eAllTransfer,
+                vk::AccessFlagBits2::eTransferRead,
+                vk::PipelineStageFlagBits2::eAllCommands,
+                vk::AccessFlagBits2::eMemoryRead,
+                vk::ImageLayout::eTransferSrcOptimal,
+                GetImageLayout({last_access}),
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                image.GetImage(),
+                vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+            };
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, post_barrier});
+        }
+    } // namespace
     struct OffscreenPresentProvider::impl {
         const Rhi::DeviceInterface *m_device_interface;
         const Rhi::AllocatorState *m_allocator;

@@ -54,7 +54,7 @@ namespace {
 
 int main() {
     CreateInfo info{};
-    info.mode = AppMode::Headless;
+    info.mode = AppMode::PhysicsOnly;
     info.resol_x = 256;
     info.resol_y = 256;
 
@@ -64,9 +64,9 @@ int main() {
     Check(ThrowsLogic([&] { (void)app->GetBodyState(0); }), "GetBodyState before commit throws");
     Check(ThrowsLogic([&] { (void)app->GetBodyStates(); }), "GetBodyStates before commit throws");
 
-    // Render-only APIs throw in headless mode (allowed before commit too).
-    Check(ThrowsLogic([&] { app->SetCameraPose({0, 0, 0}, {1, 0, 0}); }), "SetCameraPose throws headless");
-    Check(ThrowsLogic([&] { app->AddDirectionalLight({}); }), "AddDirectionalLight throws headless");
+    // Render-only APIs throw in physics_only mode (allowed before commit too).
+    Check(ThrowsLogic([&] { app->SetCameraPose({0, 0, 0}, {1, 0, 0}); }), "SetCameraPose throws physics_only");
+    Check(ThrowsLogic([&] { app->AddDirectionalLight({}); }), "AddDirectionalLight throws physics_only");
 
     // Build a scene with two dynamic bodies.
     const glm::vec3 box0(0.0f, 0.0f, 2.0f);
@@ -108,10 +108,12 @@ int main() {
         "self-built body has zero com offset"
     );
 
-    // Render-readback APIs throw in headless mode.
-    Check(ThrowsLogic([&] { app->RenderNextFrame(); }), "RenderNextFrame throws headless");
-    Check(ThrowsLogic([&] { (void)app->GetRenderOutput(); }), "GetRenderOutput throws headless");
-    Check(ThrowsLogic([&] { app->SetRenderReadbackEnabled(true); }), "SetRenderReadbackEnabled(true) throws headless");
+    // Render-readback APIs throw in physics_only mode.
+    Check(ThrowsLogic([&] { app->RenderNextFrame(); }), "RenderNextFrame throws physics_only");
+    Check(ThrowsLogic([&] { (void)app->GetRenderOutput(); }), "GetRenderOutput throws physics_only");
+    Check(
+        ThrowsLogic([&] { app->SetRenderReadbackEnabled(true); }), "SetRenderReadbackEnabled(true) throws physics_only"
+    );
 
     // Advance physics; the dynamic body falls under gravity (Z-down). The
     // simulation starts paused (SetSimulationEnabled(false)), so resume first.
@@ -120,12 +122,12 @@ int main() {
     BodyState after = app->GetBodyState(b0);
     std::cout << "box0.z: " << box0.z << " ---> " << after.position.z << std::endl;
     Check(after.position.z < box0.z, "position falls under gravity after Step");
-    Check(!app->ShouldQuit(), "ShouldQuit false in headless mode");
+    Check(!app->ShouldQuit(), "ShouldQuit false in physics_only mode");
 
     if (g_failures == 0) {
-        std::cout << "physics_app_headless_test PASSED." << std::endl;
+        std::cout << "physics_app_physics_only_test PASSED." << std::endl;
         return 0;
     }
-    std::cerr << "physics_app_headless_test FAILED (" << g_failures << " failures)." << std::endl;
+    std::cerr << "physics_app_physics_only_test FAILED (" << g_failures << " failures)." << std::endl;
     return 1;
 }

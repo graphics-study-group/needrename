@@ -8,16 +8,16 @@ Extends `PhysicsApp` from a single windowed form into three executable modes (he
 
 ### Requirement: AppMode selects the execution form and is immutable
 
-`CreateInfo` SHALL carry an `AppMode` enum with exactly three values — `Headless` (physics only: no rendering, no window, no camera), `Offscreen` (physics + render into an internal CPU-accessible texture, no window), and `Windowed` (physics + render + window, the pre-existing behavior). It SHALL default to `Windowed`. The mode SHALL be fixed at `Create` time and SHALL NOT change afterwards.
+`CreateInfo` SHALL carry an `AppMode` enum with exactly three values — `PhysicsOnly` (physics only: no rendering, no window, no camera), `Offscreen` (physics + render into an internal CPU-accessible texture, no window), and `Windowed` (physics + render + window, the pre-existing behavior). It SHALL default to `Windowed`. The mode SHALL be fixed at `Create` time and SHALL NOT change afterwards.
 
 #### Scenario: Default mode is Windowed
 
 - **WHEN** `PhysicsApp::Create(info)` is called with an `info.mode` left at its default
 - **THEN** the app runs in windowed mode (window created, rendering enabled)
 
-#### Scenario: Headless mode creates no window
+#### Scenario: PhysicsOnly mode creates no window
 
-- **WHEN** `PhysicsApp::Create` is called with `info.mode == AppMode::Headless`
+- **WHEN** `PhysicsApp::Create` is called with `info.mode == AppMode::PhysicsOnly`
 - **THEN** no `SDLWindow`, `GUISystem`, or `Input` is created
 - **AND** `MainClass` runs with the headless startup option
 
@@ -32,13 +32,13 @@ Extends `PhysicsApp` from a single windowed form into three executable modes (he
 - **WHEN** any code attempts to change the mode after `Create` returns
 - **THEN** no such API exists; the mode is fixed for the app's lifetime
 
-### Requirement: Mode 1 (Headless) skips camera, lights, and render graph
+### Requirement: Mode 1 (PhysicsOnly) skips camera, lights, and render graph
 
-In `AppMode::Headless`, the scene builder SHALL create physics bodies only (no mesh visualization children, no color material resolution), the app SHALL NOT create the internal camera or set an active camera, and `CommitScene` SHALL NOT build the default render graph nor forward the physics model-matrices buffer to the render system. The scene root SHALL still be created for physics parenting.
+In `AppMode::PhysicsOnly`, the scene builder SHALL create physics bodies only (no mesh visualization children, no color material resolution), the app SHALL NOT create the internal camera or set an active camera, and `CommitScene` SHALL NOT build the default render graph nor forward the physics model-matrices buffer to the render system. The scene root SHALL still be created for physics parenting.
 
 #### Scenario: Physics bodies are created without visuals
 
-- **WHEN** `AddBox` is called in headless mode
+- **WHEN** `AddBox` is called in PhysicsOnly mode
 - **THEN** a rigid body and collision shape are created
 - **AND** no mesh child GameObject and no material AssetRef are created
 
@@ -50,13 +50,13 @@ In `AppMode::Headless`, the scene builder SHALL create physics bodies only (no m
 
 #### Scenario: CommitScene skips the render graph
 
-- **WHEN** `CommitScene` is called in headless mode
+- **WHEN** `CommitScene` is called in PhysicsOnly mode
 - **THEN** physics GPU buffers are synced and the scene is frozen
 - **AND** no default render graph is built
 
-#### Scenario: Render-only APIs throw in headless mode
+#### Scenario: Render-only APIs throw in PhysicsOnly mode
 
-- **WHEN** `RenderNextFrame`, `GetRenderOutput`, `SetRenderReadbackEnabled(true)`, `AddDirectionalLight`, or `SetCameraPose` is called in headless mode
+- **WHEN** `RenderNextFrame`, `GetRenderOutput`, `SetRenderReadbackEnabled(true)`, `AddDirectionalLight`, or `SetCameraPose` is called in PhysicsOnly mode
 - **THEN** a `std::logic_error` is thrown
 
 ### Requirement: BodyId maps to rigid body slot indices after commit
@@ -135,9 +135,9 @@ A `GetBodyState(BodyId)` SHALL return a single body's `{position, rotation, line
 
 ### Requirement: Frame flow and ShouldQuit vary by mode
 
-`RenderNextFrame` SHALL throw `std::logic_error` in headless mode. In offscreen mode it SHALL run the render frame while skipping window input processing (SDL event polling, input updates, SPACE toggle) and no-quit semantics. In windowed mode it SHALL retain current behavior including input processing. `ShouldQuit` SHALL return `false` in headless and offscreen modes (no window close event source).
+`RenderNextFrame` SHALL throw `std::logic_error` in PhysicsOnly mode. In offscreen mode it SHALL run the render frame while skipping window input processing (SDL event polling, input updates, SPACE toggle) and no-quit semantics. In windowed mode it SHALL retain current behavior including input processing. `ShouldQuit` SHALL return `false` in PhysicsOnly and offscreen modes (no window close event source).
 
-#### Scenario: RenderNextFrame throws in headless mode
+#### Scenario: RenderNextFrame throws in PhysicsOnly mode
 
 - **WHEN** `RenderNextFrame` is called on a headless app
 - **THEN** `std::logic_error` is thrown
@@ -148,18 +148,18 @@ A `GetBodyState(BodyId)` SHALL return a single body's `{position, rotation, line
 - **THEN** the render frame runs (timing, tick, render graph, readback, complete)
 - **AND** SDL events and input state are not processed
 
-#### Scenario: ShouldQuit is always false headlessly
+#### Scenario: ShouldQuit is always false in windowless modes
 
-- **WHEN** `ShouldQuit` is called on a headless or offscreen app
+- **WHEN** `ShouldQuit` is called on a PhysicsOnly or offscreen app
 - **THEN** it returns `false` regardless of elapsed frames
 
 ### Requirement: Example replaced by mode test executables
 
-`example/physics_example` SHALL be removed and its scene builders (template scenes, double pendulum) SHALL move into `test/physics_app_windowed_test.cpp`. Three test executables SHALL exist — `physics_app_headless_test`, `physics_app_offscreen_test`, `physics_app_windowed_test` — each linking `Engine` and `PhysicsApp`, and each registered with ctest. The windowed test SHALL accept an optional frame-count argument: with an argument it runs that many frames and resumes the simulation automatically after commit; without an argument it runs indefinitely starting paused (SPACE to resume), matching the former example UX.
+`example/physics_example` SHALL be removed and its scene builders (template scenes, double pendulum) SHALL move into `test/physics_app_windowed_test.cpp`. Three test executables SHALL exist — `physics_app_physics_only_test`, `physics_app_offscreen_test`, `physics_app_windowed_test` — each linking `Engine` and `PhysicsApp`, and each registered with ctest. The windowed test SHALL accept an optional frame-count argument: with an argument it runs that many frames and resumes the simulation automatically after commit; without an argument it runs indefinitely starting paused (SPACE to resume), matching the former example UX.
 
-#### Scenario: Headless test covers physics readback
+#### Scenario: PhysicsOnly test covers physics readback
 
-- **WHEN** `physics_app_headless_test` runs
+- **WHEN** `physics_app_physics_only_test` runs
 - **THEN** it builds bodies, commits, reads initial state, steps, and asserts the state mapping and readback behave per the physics readback requirement
 
 #### Scenario: Offscreen test covers render readback

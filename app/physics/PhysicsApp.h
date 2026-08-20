@@ -15,9 +15,9 @@ namespace AppPhysics {
      * @brief Execution form of a physics app, fixed at Create time.
      */
     enum class AppMode {
-        Headless,  ///< Physics only: no rendering, no window, no camera.
-        Offscreen, ///< Physics + render into an internal CPU-readable texture, no window.
-        Windowed   ///< Physics + render + window (pre-existing behavior).
+        PhysicsOnly, ///< Physics only: no rendering, no window, no camera.
+        Offscreen,   ///< Physics + render into an internal CPU-readable texture, no window.
+        Windowed     ///< Physics + render + window (pre-existing behavior).
     };
 
     /**

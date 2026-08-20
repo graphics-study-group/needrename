@@ -62,7 +62,7 @@ Replace the no-op `HeadlessPresentProvider` with a real `OffscreenPresentProvide
 - **WHEN** `RenderSystem::Create` is called with a valid `SDLWindow`
 - **THEN** it creates a `SwapchainPresentProvider` and stores it in `m_present_provider`
 - **WHEN** `RenderSystem::Create` is called with a null window (headless)
-- **THEN** it creates an `OffscreenPresentProvider` with the configured resolution, where the extent SHALL come from the `StartupOptions` resolution passed to the `RenderSystem` constructor (defaulted `headless_extent` parameter), not a hard-coded 1920×1080
+- **THEN** it creates an `OffscreenPresentProvider` with the configured resolution, where the extent SHALL be the non-zero `extent` passed to the `RenderSystem` constructor (fed from `StartupOptions::resol_x/resol_y` in headless mode; a zero extent in headless mode SHALL throw because there is no window to derive one from), not a hard-coded 1920×1080
 
 #### Scenario: RenderSystem exposes present provider
 
