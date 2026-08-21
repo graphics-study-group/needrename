@@ -38,6 +38,7 @@
 #include <gtc/quaternion.hpp>
 #include <vulkan/vulkan.hpp>
 
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <limits>
@@ -130,6 +131,14 @@ namespace AppPhysics {
         std::unique_ptr<Rhi::DeviceBuffer> linvel_staging{};
         std::unique_ptr<Rhi::DeviceBuffer> angvel_staging{};
 
+        // ── Physics state write (SetBodyValue) ──────────────────────────
+        // One persistent upload staging buffer per writable field, mirroring the
+        // readback design (fixed size, frozen after CommitScene). Whole-field
+        // dirty flags gate the upload copies in Step.
+        std::array<const Rhi::ComputeBuffer *, 6> write_src{};  // Slot-indexed GPU buffer per BodyField.
+        std::array<std::unique_ptr<Rhi::DeviceBuffer>, 6> write_staging{};
+        std::array<bool, 6> any_dirty{false, false, false, false, false, false};
+
         // ── Render readback ─────────────────────────────────────────────
         bool render_readback_enabled{false};
         bool has_render_capture{false};
@@ -148,6 +157,59 @@ namespace AppPhysics {
             cb.copyBuffer(rot_src->GetBuffer(), rot_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
             cb.copyBuffer(linvel_src->GetBuffer(), linvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
             cb.copyBuffer(angvel_src->GetBuffer(), angvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+        }
+
+        /// @brief Map a BodyField to the write-path slot index (declaration order).
+        static size_t BodyFieldIndex(BodyField field) {
+            return static_cast<size_t>(field);
+        }
+
+        /// @brief Record the dirty write staging -> GPU buffer copies into a command buffer.
+        /// Called before GPUStep so the solver reads the overridden values.
+        void RecordBodyStateUpload(vk::CommandBuffer cb) {
+            if (slot_count == 0) {
+                return;
+            }
+            const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
+            for (size_t i = 0; i < write_src.size(); ++i) {
+                if (!any_dirty[i] || !write_src[i] || !write_staging[i]) {
+                    continue;
+                }
+                cb.copyBuffer(
+                    write_staging[i]->GetBuffer(), write_src[i]->GetBuffer(), vk::BufferCopy{0, 0, bytes}
+                );
+            }
+        }
+
+        /// @brief Allocate the six write staging buffers and capture the GPU sources.
+        void BuildPhysicsWrite() {
+            auto *phys_scene = scene->GetPhysicsScene();
+            if (!phys_scene) {
+                throw std::logic_error("PhysicsApp: no physics scene available for writes");
+            }
+            auto gpu = phys_scene->GetGpuBuffers();
+            write_src[BodyFieldIndex(BodyField::Position)] = gpu.rigid_body_center_world_position;
+            write_src[BodyFieldIndex(BodyField::Rotation)] = gpu.rigid_body_center_world_rotation;
+            write_src[BodyFieldIndex(BodyField::LinearVelocity)] = gpu.rigid_body_linear_velocity;
+            write_src[BodyFieldIndex(BodyField::AngularVelocity)] = gpu.rigid_body_angular_velocity;
+            write_src[BodyFieldIndex(BodyField::ExternalForce)] = gpu.rigid_body_external_force;
+            write_src[BodyFieldIndex(BodyField::ExternalTorque)] = gpu.rigid_body_external_torque;
+
+            const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
+            const Rhi::BufferType ut{Rhi::BufferTypeBits::StagingToDevice};
+            const auto &alloc = renderer->GetAllocatorState();
+            write_staging[BodyFieldIndex(BodyField::Position)] =
+                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics pos write staging");
+            write_staging[BodyFieldIndex(BodyField::Rotation)] =
+                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics rot write staging");
+            write_staging[BodyFieldIndex(BodyField::LinearVelocity)] =
+                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics linvel write staging");
+            write_staging[BodyFieldIndex(BodyField::AngularVelocity)] =
+                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics angvel write staging");
+            write_staging[BodyFieldIndex(BodyField::ExternalForce)] =
+                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics extforce write staging");
+            write_staging[BodyFieldIndex(BodyField::ExternalTorque)] =
+                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics exttorque write staging");
         }
 
         /// @brief Build the BodyId->slot mapping, allocate staging, and seed it.
@@ -498,6 +560,9 @@ namespace AppPhysics {
         // reads are legal before the first Step.
         impl.BuildPhysicsReadback();
 
+        // Build the write staging for SetBodyValue (same frozen sizing as readback).
+        impl.BuildPhysicsWrite();
+
         // Physics -> render bridge for model matrices (skipped headless).
         if (impl.mode != AppMode::PhysicsOnly) {
             if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
@@ -517,10 +582,12 @@ namespace AppPhysics {
         }
 
         // Freeze the scene and start paused (mirrors the previous example UX).
+        // Pause is now an app-level flag; the scene simulation is enabled exactly
+        // once here and never toggled by the app afterwards.
         impl.phase = Impl::Phase::Committed;
         impl.paused = true;
         if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
-            phys_scene->SetSimulationEnabled(false);
+            phys_scene->SetSimulationEnabled(true);
         }
         impl.scene->GetPhysicsAdaptor().SetPhysicsActive(true);
     }
@@ -551,6 +618,8 @@ namespace AppPhysics {
         auto cb = std::move(cbs[0]);
         vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
         cb->begin(cbbinfo);
+        // Write staging -> GPU uploads first so the solver reads overridden values.
+        impl.RecordBodyStateUpload(cb.get());
         impl.physics->GPUStep(cb.get());
         // Physics readback: copy the SoA into resident staging in the same CB,
         // so the existing fence wait makes the state CPU-visible on return.
@@ -565,6 +634,10 @@ namespace AppPhysics {
         if (wait_result != vk::Result::eSuccess) {
             throw std::runtime_error("PhysicsApp: physics submission wait failed");
         }
+
+        // The recorded uploads have been submitted and executed; clear the dirty
+        // flags so unset fields are not re-uploaded next step.
+        impl.any_dirty.fill(false);
 
         impl.physics->PostGPUStep();
 
@@ -681,11 +754,7 @@ namespace AppPhysics {
         if (impl.phase != Impl::Phase::Committed) {
             throw std::logic_error("PhysicsApp: Pause called before CommitScene");
         }
-        if (impl.paused) return;
         impl.paused = true;
-        if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
-            phys_scene->SetSimulationEnabled(false);
-        }
     }
 
     void PhysicsApp::Resume() {
@@ -693,11 +762,7 @@ namespace AppPhysics {
         if (impl.phase != Impl::Phase::Committed) {
             throw std::logic_error("PhysicsApp: Resume called before CommitScene");
         }
-        if (!impl.paused) return;
         impl.paused = false;
-        if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
-            phys_scene->SetSimulationEnabled(true);
-        }
     }
 
     bool PhysicsApp::IsPaused() const {
@@ -771,5 +836,28 @@ namespace AppPhysics {
             {reinterpret_cast<const glm::vec4 *>(impl.linvel_staging->GetVMAddress()), cnt},
             {reinterpret_cast<const glm::vec4 *>(impl.angvel_staging->GetVMAddress()), cnt}
         };
+    }
+
+    void PhysicsApp::SetBodyValue(BodyId id, BodyField field, glm::vec4 value) {
+        auto &impl = *m_impl;
+        if (impl.phase != Impl::Phase::Committed) {
+            throw std::logic_error("PhysicsApp: SetBodyValue called before CommitScene");
+        }
+        if (id >= impl.body_to_slot.size()) {
+            throw std::out_of_range("PhysicsApp: SetBodyValue invalid BodyId");
+        }
+
+        if (field == BodyField::Rotation) {
+            glm::quat q(value.w, value.x, value.y, value.z);
+            q = glm::normalize(q);
+            value = glm::vec4(q.x, q.y, q.z, q.w);
+        }
+
+        const size_t idx = Impl::BodyFieldIndex(field);
+        const uint32_t slot = impl.body_to_slot[id];
+        auto *dst = reinterpret_cast<glm::vec4 *>(impl.write_staging[idx]->GetVMAddress());
+        dst[slot] = value;
+        impl.write_staging[idx]->Flush(slot * sizeof(glm::vec4), sizeof(glm::vec4));
+        impl.any_dirty[idx] = true;
     }
 } // namespace AppPhysics

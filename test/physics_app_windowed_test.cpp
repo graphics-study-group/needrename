@@ -283,7 +283,9 @@ int main(int argc, char **argv) {
 
     uint32_t frames = 0;
     while (!app->ShouldQuit()) {
-        app->Step();
+        if (!app->IsPaused()) {
+            app->Step();
+        }
         app->RenderNextFrame();
         if (finite && ++frames >= frame_count) {
             break;

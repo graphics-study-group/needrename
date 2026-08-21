@@ -40,6 +40,21 @@ namespace AppPhysics {
     constexpr BodyId INVALID_BODY_ID = ~0u;
 
     /**
+     * @brief Per-body writable field selector for `PhysicsApp::SetBodyValue`.
+     *
+     * Exactly these six fields are writable; no other body property can be set
+     * through the write API.
+     */
+    enum class BodyField {
+        Position,        ///< Center-of-mass world position (xyz; w = 0).
+        Rotation,        ///< World orientation as a quaternion (xyzw).
+        LinearVelocity,  ///< Velocity of the center of mass (xyz; w = 0).
+        AngularVelocity, ///< Angular velocity (xyz; w = 0).
+        ExternalForce,   ///< External linear force, caller-managed (xyz; w = 0).
+        ExternalTorque   ///< External torque, caller-managed (xyz; w = 0).
+    };
+
+    /**
      * @brief Single body's dynamic state, assembled from the readback arrays.
      *
      * All values are in physics (COM) space.
@@ -349,8 +364,9 @@ namespace AppPhysics {
          * @brief Advance the physics simulation by one fixed step.
          *
          * Uses a dedicated command buffer with device-level waits before and
-         * after; does not process input. Consecutive calls are allowed and the
-         * call is a no-op while paused.
+         * after; does not process input. The step always runs regardless of the
+         * pause flag — the caller's loop decides whether to call this by checking
+         * `IsPaused()`.
          *
          * @throws std::logic_error before CommitScene.
          */
@@ -368,21 +384,25 @@ namespace AppPhysics {
         void RenderNextFrame();
 
         /**
-         * @brief Pause the simulation (rendering continues).
+         * @brief Set the app-level pause flag (rendering continues).
+         *
+         * This only sets an app-level flag; it does not touch scene simulation
+         * state. `Step()` still runs if called; the caller's loop should honor
+         * `IsPaused()`.
          *
          * @throws std::logic_error before CommitScene.
          */
         void Pause();
 
         /**
-         * @brief Resume the simulation.
+         * @brief Clear the app-level pause flag.
          *
          * @throws std::logic_error before CommitScene.
          */
         void Resume();
 
         /**
-         * @brief Check whether the simulation is paused.
+         * @brief Check the app-level pause flag.
          *
          * @return True if the simulation is paused.
          */
@@ -407,6 +427,35 @@ namespace AppPhysics {
          * @throws std::logic_error before CommitScene.
          */
         BodyStatesView GetBodyStates() const;
+
+        /**
+         * @brief Override one writable field of a single body before the next step.
+         *
+         * Legal in the Drive phase (after `CommitScene`). The value directly
+         * replaces the corresponding GPU physics buffer slot at the next `Step`
+         * and persists until overwritten by another call:
+         *
+         * - Rotation is stored as a quaternion (xyzw); the other five fields
+         *   store their quantity in xyz with w = 0.
+         * - All values are in physics (COM) world space, matching `BodyState`.
+         * - External force/torque are NOT cleared by the solver: they keep being
+         *   applied by every subsequent step until the caller sets them to zero
+         *   (caller-managed lifetime). Position/rotation/velocity evolve under
+         *   integration after they are applied and are not re-applied on later
+         *   steps.
+         * - The write is applied on the next `Step`; it is not reflected by
+         *   `GetBodyState` before that step. Call between `Step` calls (the app
+         *   is single-threaded and waits on the device inside `Step`).
+         *
+         * The rotation quaternion is normalized on write.
+         *
+         * @param id    BodyId returned by an Add/LoadUrdf method.
+         * @param field Writable field to override.
+         * @param value Replacement value (layout depends on `field`).
+         * @throws std::logic_error before CommitScene.
+         * @throws std::out_of_range when `id` is invalid.
+         */
+        void SetBodyValue(BodyId id, BodyField field, glm::vec4 value);
 
         /**
          * @brief Toggle recording of a CPU readback of the final render target.
