@@ -125,6 +125,15 @@ namespace Engine {
     struct FRAMEWORK_API UrdfBuiltJoint {
         ObjectHandle parent{};
         ObjectHandle child{};
+
+        /**
+         * @brief Hinge axis of the joint in the parent link's GO frame,
+         * engine coordinates. Same value as the `HingeJointDef.m_hinge_axis_obj1`
+         * conversion (`UrdfAxisToEngine(joint.axis)`). Meaningful only for joints
+         * that produced a physical `HingeJointDef`; left at the `UrdfJoint.axis`
+         * default otherwise.
+         */
+        glm::vec3 axis{1.0f, 0.0f, 0.0f};
     };
 
     /**

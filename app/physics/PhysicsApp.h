@@ -1,12 +1,15 @@
 #ifndef APPPHYSICS_PHYSICSAPP_H
 #define APPPHYSICS_PHYSICSAPP_H
 
+#include "Actuator.h"
+
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -39,6 +42,11 @@ namespace AppPhysics {
     using BodyId = uint32_t;
     constexpr BodyId INVALID_BODY_ID = ~0u;
 
+    /// Opaque handle identifying a hinge joint (manual or URDF). Not a pointer;
+    /// assigned by `PhysicsApp` at joint creation and valid in both phases.
+    using JointId = uint32_t;
+    constexpr JointId INVALID_JOINT_ID = ~0u;
+
     /**
      * @brief Per-body writable field selector for `PhysicsApp::SetBodyValue`.
      *
@@ -64,6 +72,26 @@ namespace AppPhysics {
         glm::quat rotation;         ///< Orientation (quaternion).
         glm::vec3 linear_velocity;  ///< Velocity of the center of mass.
         glm::vec3 angular_velocity; ///< Angular velocity.
+    };
+
+    /**
+     * @brief Single joint's measured state, computed CPU-side from the body
+     * readback and the joint's recorded axis / initial relative rotation.
+     */
+    struct JointState {
+        float angle{};            ///< Signed joint angle [rad], relative to the loaded initial pose.
+        float angular_velocity{}; ///< Joint angular velocity [rad/s] about the hinge axis.
+    };
+
+    /**
+     * @brief URDF joint limits recorded for a joint. Data only: not enforced by
+     * the physics engine or by `PhysicsApp`.
+     */
+    struct JointLimits {
+        float lower{};    ///< Lower angle limit [rad].
+        float upper{};    ///< Upper angle limit [rad].
+        float effort{};   ///< Effort limit [N·m].
+        float velocity{}; ///< Velocity limit [rad/s].
     };
 
     /**
@@ -117,11 +145,14 @@ namespace AppPhysics {
     /**
      * @brief A URDF joint's two endpoint bodies, in URDF parent/child order.
      *
-     * `parent` is the link closer to the robot root.
+     * `parent` is the link closer to the robot root. `id` is the `JointId`
+     * assigned by `PhysicsApp` for this joint, valid for actuator / target /
+     * readback calls in both phases.
      */
     struct JointBodyPair {
         BodyId parent{};
         BodyId child{};
+        JointId id{INVALID_JOINT_ID};
     };
 
     /**
@@ -228,6 +259,15 @@ namespace AppPhysics {
      *   3. CommitScene() - one-way freeze; afterwards no scene changes are allowed.
      *   4. Drive phase - Step() / RenderNextFrame() / Pause() / Resume() / ShouldQuit().
      *
+     * Actuators (see AddActuator) run inside Step(): they read the joint state
+     * measured from the previous step and write equal-and-opposite torques about
+     * the joint axis to the child/parent bodies' ExternalTorque each step, so the
+     * torque channel is owned by the actuators — user SetBodyValue(ExternalTorque)
+     * writes on an actuated joint's bodies are overwritten. Joint limits recorded
+     * from a URDF are data only and are never enforced. Actuators on joints whose
+     * two bodies are both kinematic compute torques but they have no effect
+     * (the solver skips such joints).
+     *
      * Wrong-phase usage throws `std::logic_error`. Exceptions may cross the
      * DLL boundary; a future C API must convert them to error codes.
      */
@@ -304,10 +344,62 @@ namespace AppPhysics {
          * @param obj1   Owning body (hosts the constraint component).
          * @param obj2   Referenced body.
          * @param params Joint parameters (axis, anchor, compliance).
+         * @return The `JointId` assigned to the new joint.
          * @throws std::logic_error after CommitScene.
          * @throws std::out_of_range when a BodyId is invalid.
          */
-        void AddHingeJoint(BodyId obj1, BodyId obj2, const HingeJointParams &params);
+        JointId AddHingeJoint(BodyId obj1, BodyId obj2, const HingeJointParams &params);
+
+        /**
+         * @brief Register an actuator on a joint (Building phase only).
+         *
+         * At most one actuator SHALL exist per joint; the torque channel is owned
+         * by the actuator, which overwrites the joint bodies' external torque
+         * every `Step`. New actuator types need no `PhysicsApp` API change.
+         *
+         * @param joint    Joint to drive.
+         * @param actuator Actuator to take ownership of.
+         * @throws std::logic_error after CommitScene.
+         * @throws std::out_of_range when `joint` is invalid.
+         * @throws std::invalid_argument when `actuator` is null or `joint`
+         *         already has an actuator.
+         */
+        void AddActuator(JointId joint, std::unique_ptr<Actuator> actuator);
+
+        /**
+         * @brief Set an actuator's target joint angle (both phases legal).
+         *
+         * The target is relative to the joint's loaded initial pose. Legal before
+         * `CommitScene` to pre-set initial targets.
+         *
+         * @param joint  Joint whose actuator target to set.
+         * @param target Target angle [rad].
+         * @throws std::out_of_range when `joint` is invalid.
+         * @throws std::logic_error when `joint` has no actuator.
+         */
+        void SetTargetAngle(JointId joint, float target);
+
+        /**
+         * @brief Get a joint's measured state (Drive phase only).
+         *
+         * @param joint Joint to read.
+         * @return Current signed angle (relative to initial pose) and angular
+         *         velocity, computed CPU-side from the body readback.
+         * @throws std::logic_error before CommitScene.
+         * @throws std::out_of_range when `joint` is invalid.
+         */
+        JointState GetJointState(JointId joint) const;
+
+        /**
+         * @brief Get a joint's recorded URDF limits, if any (both phases legal).
+         *
+         * The limits are recorded data from the URDF and are NOT enforced.
+         *
+         * @param joint Joint to query.
+         * @return The limits, or std::nullopt if the joint has none recorded.
+         * @throws std::out_of_range when `joint` is invalid.
+         */
+        std::optional<JointLimits> GetJointLimits(JointId joint) const;
 
         /**
          * @brief Import a URDF robot into the scene (Building phase only).

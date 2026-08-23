@@ -38,6 +38,8 @@
 #include <gtc/quaternion.hpp>
 #include <vulkan/vulkan.hpp>
 
+#include <cstring>
+
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -139,6 +141,26 @@ namespace AppPhysics {
         std::array<std::unique_ptr<Rhi::DeviceBuffer>, 6> write_staging{};
         std::array<bool, 6> any_dirty{false, false, false, false, false, false};
 
+        // ── Joint registry & actuators ──────────────────────────────────
+        /// @brief Per-joint metadata needed to compute joint angle/torque CPU-side.
+        ///
+        /// The angle is measured in the parent-link GO frame (positive rotation
+        /// of the child about the positive axis relative to the parent). `axis`
+        /// holds the hinge axis in that parent frame; `axis_in_child_frame`
+        /// records that the raw axis was provided in the child frame (URDF
+        /// joints) so it is rotated into the parent frame at CommitScene.
+        struct JointRecord {
+            std::string name{};
+            BodyId parent{INVALID_BODY_ID};
+            BodyId child{INVALID_BODY_ID};
+            glm::vec3 axis{1.0f, 0.0f, 0.0f}; ///< Hinge axis in parent GO frame (normalized).
+            bool axis_in_child_frame{false};
+            glm::quat initial_rel_rotation{1.0f, 0.0f, 0.0f, 0.0f};
+            std::optional<JointLimits> limits{};
+        };
+        std::vector<JointRecord> m_joints{};                  // JointId -> record (index).
+        std::vector<std::unique_ptr<Actuator>> m_actuators{}; // JointId -> actuator (null = none).
+
         // ── Render readback ─────────────────────────────────────────────
         bool render_readback_enabled{false};
         bool has_render_capture{false};
@@ -208,6 +230,81 @@ namespace AppPhysics {
                 Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics extforce write staging");
             write_staging[BodyFieldIndex(BodyField::ExternalTorque)] =
                 Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics exttorque write staging");
+
+            // Zero the staging so untouched slots are clean. The whole field is
+            // uploaded whenever any slot is dirty (and actuators mark ExternalTorque
+            // dirty every step), so uninitialized slots would otherwise upload
+            // garbage for bodies the caller never wrote.
+            for (auto &sb : write_staging) {
+                std::memset(sb->GetVMAddress(), 0, bytes);
+                sb->Flush(0, bytes);
+            }
+        }
+
+        /// @brief Finalize per-joint initial relative rotation and parent-frame axis.
+        /// Called at CommitScene after FlushCmdQueue (world transforms are final),
+        /// using the same values `PhysicsConstraintComponent::Init` read.
+        void ComputeJointTransforms() {
+            for (auto &rec : m_joints) {
+                glm::quat q_parent = builder->GetBodyGameObject(rec.parent).GetWorldTransform().GetRotation();
+                glm::quat q_child = builder->GetBodyGameObject(rec.child).GetWorldTransform().GetRotation();
+                const glm::quat r0 = glm::inverse(q_parent) * q_child;
+                if (rec.axis_in_child_frame) {
+                    rec.axis = r0 * rec.axis; // child frame -> parent frame
+                }
+                if (glm::length(rec.axis) < 1e-6f) {
+                    rec.axis = glm::vec3(1.0f, 0.0f, 0.0f);
+                } else {
+                    rec.axis = glm::normalize(rec.axis);
+                }
+                rec.initial_rel_rotation = r0;
+            }
+        }
+
+        /// @brief Run every registered actuator: measure joint state from the CPU
+        /// readback staging, compute torque, and write it to the ExternalTorque
+        /// write staging so the next upload applies it. Called each Step before
+        /// the write upload.
+        void RunActuators() {
+            bool any_actuator = false;
+            for (const auto &a : m_actuators) {
+                any_actuator = any_actuator || (a != nullptr);
+            }
+            if (!any_actuator) {
+                return;
+            }
+
+            const auto *rot = reinterpret_cast<const glm::vec4 *>(rot_staging->GetVMAddress());
+            const auto *avel = reinterpret_cast<const glm::vec4 *>(angvel_staging->GetVMAddress());
+
+            const size_t torque_idx = BodyFieldIndex(BodyField::ExternalTorque);
+            auto *torque = reinterpret_cast<glm::vec4 *>(write_staging[torque_idx]->GetVMAddress());
+
+            for (size_t i = 0; i < m_actuators.size(); ++i) {
+                if (!m_actuators[i]) {
+                    continue;
+                }
+                const auto &rec = m_joints[i];
+                const uint32_t ps = body_to_slot[rec.parent];
+                const uint32_t cs = body_to_slot[rec.child];
+                const glm::quat rp(rot[ps].w, rot[ps].x, rot[ps].y, rot[ps].z);
+                const glm::quat rc(rot[cs].w, rot[cs].x, rot[cs].y, rot[cs].z);
+                const glm::quat q_rel = glm::inverse(rp) * rc * glm::inverse(rec.initial_rel_rotation);
+                const glm::vec3 axis_world = rp * rec.axis;
+                const float angle =
+                    2.0f * std::atan2(glm::dot(rec.axis, glm::vec3(q_rel.x, q_rel.y, q_rel.z)), q_rel.w);
+                const glm::vec3 omega_child(avel[cs]);
+                const glm::vec3 omega_parent(avel[ps]);
+                const float omega = glm::dot(omega_child - omega_parent, axis_world);
+
+                const float tau = m_actuators[i]->ComputeTorque(angle, omega);
+                const glm::vec3 child_torque = tau * axis_world;
+                torque[cs] = glm::vec4(child_torque, 0.0f);
+                torque[ps] = glm::vec4(-child_torque, 0.0f);
+            }
+
+            write_staging[torque_idx]->Flush(0, static_cast<size_t>(slot_count) * sizeof(glm::vec4));
+            any_dirty[torque_idx] = true;
         }
 
         /// @brief Build the BodyId->slot mapping, allocate staging, and seed it.
@@ -428,11 +525,29 @@ namespace AppPhysics {
         m_impl->builder->AddFixedJoint(obj1, obj2, params);
     }
 
-    void PhysicsApp::AddHingeJoint(BodyId obj1, BodyId obj2, const HingeJointParams &params) {
-        if (m_impl->phase != Impl::Phase::Building) {
+    JointId PhysicsApp::AddHingeJoint(BodyId obj1, BodyId obj2, const HingeJointParams &params) {
+        auto &impl = *m_impl;
+        if (impl.phase != Impl::Phase::Building) {
             throw std::logic_error("PhysicsApp: scene is frozen after CommitScene");
         }
-        m_impl->builder->AddHingeJoint(obj1, obj2, params);
+        impl.builder->AddHingeJoint(obj1, obj2, params);
+
+        Impl::JointRecord record;
+        record.parent = obj1;
+        record.child = obj2;
+        record.axis = params.axis_obj1;
+        if (glm::length(record.axis) < 1e-6f) {
+            record.axis = glm::vec3(1.0f, 0.0f, 0.0f);
+        } else {
+            record.axis = glm::normalize(record.axis);
+        }
+        // Manual joints: the constraint component is on obj1 (parent), so the
+        // axis is already in the parent frame.
+        record.axis_in_child_frame = false;
+
+        impl.m_joints.push_back(std::move(record));
+        impl.m_actuators.emplace_back();
+        return static_cast<JointId>(impl.m_joints.size() - 1);
     }
 
     UrdfImportResult PhysicsApp::LoadUrdf(const UrdfImportConfig &config) {
@@ -463,6 +578,11 @@ namespace AppPhysics {
 
         Engine::UrdfBuiltRobot built = loader.BuildRobotScene(robot, *impl.scene, impl.root, opts);
 
+        std::unordered_map<std::string, const Engine::UrdfJoint *> joint_by_name;
+        for (const auto &j : robot.joints) {
+            joint_by_name.emplace(j.name, &j);
+        }
+
         std::unordered_map<Engine::ObjectHandle, BodyId> handle_to_body;
         UrdfImportResult result;
         for (const auto &[name, handle] : built.link_objects) {
@@ -471,10 +591,68 @@ namespace AppPhysics {
             handle_to_body[handle] = id;
         }
         for (const auto &[name, pair] : built.joint_objects) {
-            result.joint_bodies[name] = {handle_to_body.at(pair.parent), handle_to_body.at(pair.child)};
+            const BodyId parent_id = handle_to_body.at(pair.parent);
+            const BodyId child_id = handle_to_body.at(pair.child);
+            const JointId id = static_cast<JointId>(impl.m_joints.size());
+
+            Impl::JointRecord record;
+            record.name = name;
+            record.parent = parent_id;
+            record.child = child_id;
+            record.axis = pair.axis;
+            if (glm::length(record.axis) < 1e-6f) {
+                record.axis = glm::vec3(1.0f, 0.0f, 0.0f);
+            } else {
+                record.axis = glm::normalize(record.axis);
+            }
+            // URDF joints put the constraint on the child link, so the axis the
+            // engine provides is in the child frame; it is rotated to the parent
+            // frame at CommitScene.
+            record.axis_in_child_frame = true;
+            if (auto it = joint_by_name.find(name);
+                it != joint_by_name.end() && it->second->type == Engine::UrdfJointType::Revolute) {
+                JointLimits lim;
+                lim.lower = it->second->limit_lower;
+                lim.upper = it->second->limit_upper;
+                lim.effort = it->second->limit_effort;
+                lim.velocity = it->second->limit_velocity;
+                record.limits = lim;
+            }
+
+            impl.m_joints.push_back(std::move(record));
+            impl.m_actuators.emplace_back();
+            result.joint_bodies[name] = {parent_id, child_id, id};
         }
 
         return result;
+    }
+
+    void PhysicsApp::AddActuator(JointId joint, std::unique_ptr<Actuator> actuator) {
+        auto &impl = *m_impl;
+        if (impl.phase != Impl::Phase::Building) {
+            throw std::logic_error("PhysicsApp: AddActuator called after CommitScene");
+        }
+        if (joint >= impl.m_actuators.size()) {
+            throw std::out_of_range("PhysicsApp: AddActuator invalid JointId");
+        }
+        if (!actuator) {
+            throw std::invalid_argument("PhysicsApp: AddActuator null actuator");
+        }
+        if (impl.m_actuators[joint]) {
+            throw std::invalid_argument("PhysicsApp: AddActuator joint already has an actuator");
+        }
+        impl.m_actuators[joint] = std::move(actuator);
+    }
+
+    void PhysicsApp::SetTargetAngle(JointId joint, float target) {
+        auto &impl = *m_impl;
+        if (joint >= impl.m_actuators.size()) {
+            throw std::out_of_range("PhysicsApp: SetTargetAngle invalid JointId");
+        }
+        if (!impl.m_actuators[joint]) {
+            throw std::logic_error("PhysicsApp: SetTargetAngle joint has no actuator");
+        }
+        impl.m_actuators[joint]->SetTargetAngle(target);
     }
 
     void PhysicsApp::AddDirectionalLight(const DirectionalLightParams &params) {
@@ -549,6 +727,10 @@ namespace AppPhysics {
         impl.scene->FlushCmdQueue();
         impl.scene->AddInitEvent();
         impl.scene->ProcessEvents();
+
+        // Finalize joint axis (parent frame) and initial relative rotation from
+        // the now-final GO world transforms, matching the engine's constraint math.
+        impl.ComputeJointTransforms();
 
         // One-time CPU -> GPU sync of physics descriptors.
         impl.scene->FlushPhysics(*impl.renderer);
@@ -646,6 +828,9 @@ namespace AppPhysics {
         auto cb = std::move(cbs[0]);
         vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
         cb->begin(cbbinfo);
+        // Measure joint state from the last readback and write actuator torques
+        // into the ExternalTorque write staging before the solver reads them.
+        impl.RunActuators();
         // Write staging -> GPU uploads first so the solver reads overridden values.
         impl.RecordBodyStateUpload(cb.get());
         impl.physics->GPUStep(cb.get());
@@ -857,6 +1042,35 @@ namespace AppPhysics {
         const glm::vec4 p = pos[slot];
         const glm::vec4 r = rot[slot];
         return {glm::vec3(p), glm::quat(r.w, r.x, r.y, r.z), glm::vec3(lvel[slot]), glm::vec3(avel[slot])};
+    }
+
+    JointState PhysicsApp::GetJointState(JointId joint) const {
+        const auto &impl = *m_impl;
+        if (!impl.physics_readback_built) {
+            throw std::logic_error("PhysicsApp: GetJointState called before CommitScene");
+        }
+        if (joint >= impl.m_joints.size()) {
+            throw std::out_of_range("PhysicsApp: GetJointState invalid JointId");
+        }
+        const auto &rec = impl.m_joints[joint];
+        const BodyState parent = GetBodyState(rec.parent);
+        const BodyState child = GetBodyState(rec.child);
+
+        // Deviation rotation of the child relative to the parent from the initial
+        // pose, expressed in the parent frame.
+        const glm::quat q_rel = glm::inverse(parent.rotation) * child.rotation * glm::inverse(rec.initial_rel_rotation);
+        const glm::vec3 axis_world = parent.rotation * rec.axis;
+        const float angle = 2.0f * std::atan2(glm::dot(rec.axis, glm::vec3(q_rel.x, q_rel.y, q_rel.z)), q_rel.w);
+        const float omega = glm::dot(child.angular_velocity - parent.angular_velocity, axis_world);
+        return {angle, omega};
+    }
+
+    std::optional<JointLimits> PhysicsApp::GetJointLimits(JointId joint) const {
+        const auto &impl = *m_impl;
+        if (joint >= impl.m_joints.size()) {
+            throw std::out_of_range("PhysicsApp: GetJointLimits invalid JointId");
+        }
+        return impl.m_joints[joint].limits;
     }
 
     BodyStatesView PhysicsApp::GetBodyStates() const {

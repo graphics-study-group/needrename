@@ -489,7 +489,9 @@ namespace Engine {
                 hinge.m_hinge_axis_obj1 = UrdfAxisToEngine(joint.axis);
                 hinge.m_hinge_anchor_obj1 = glm::vec3(0.0f);
                 constraint.m_joints.push_back(hinge);
-                result.joint_objects[joint.name] = {parent_go->GetHandle(), child_go->GetHandle()};
+                result.joint_objects[joint.name] = {
+                    parent_go->GetHandle(), child_go->GetHandle(), UrdfAxisToEngine(joint.axis)
+                };
             } else if (joint.type == UrdfJointType::Prismatic || joint.type == UrdfJointType::Floating) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_APPLICATION,
