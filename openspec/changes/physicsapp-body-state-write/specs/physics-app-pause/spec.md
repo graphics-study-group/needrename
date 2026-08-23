@@ -64,3 +64,29 @@ The app's own driver code (windowed test loop) SHALL call `Step()` only when `Is
 
 - **WHEN** the windowed test main loop runs while the pause flag is set
 - **THEN** `Step()` is not called during that frame and `RenderNextFrame()` still runs
+
+### Requirement: CommitScene seeds initial model matrices
+
+In rendering modes (`Windowed`, `Offscreen`), `CommitScene` SHALL run a one-time solver pass while scene simulation is still disabled (before `SetSimulationEnabled(true)`) so that only the solver's model-matrix computation executes and the initial model matrices are written from the `FlushPhysics`-seeded poses. Bodies SHALL NOT advance during this pass.
+
+Because the solver's model-matrix dispatch is the only writer of the GPU model-matrices buffer and `FlushPhysics` does not seed it, without this pass the renderer would read a zeroed buffer while paused and every body would be invisible (only the skybox would show).
+
+#### Scenario: Bodies are visible while paused
+
+- **WHEN** `CommitScene` returns in `Windowed` mode and `RenderNextFrame` runs while paused (before any `Step`)
+- **THEN** bodies render at their initial pose (the frame shows more than the skybox)
+- **AND** the bodies' state has not advanced (no physics integration ran)
+
+#### Scenario: Seed pass does not advance simulation
+
+- **WHEN** `CommitScene` returns and the first `Step` is then called
+- **THEN** the simulation advances from the initial poses (the seed pass did not integrate)
+
+### Requirement: Paused frames keep the renderer drained
+
+While the pause flag is set, `RenderNextFrame` SHALL drain the GPU (device idle wait) at the end of each rendered frame, because the caller's loop does not call `Step()` (whose device waits previously throttled the renderer). This SHALL prevent swapchain semaphores from being re-signaled before their previous present operation completes.
+
+#### Scenario: Paused loop is free of swapchain validation errors
+
+- **WHEN** the windowed app runs paused for many frames without any `Step`
+- **THEN** no swapchain semaphore-reuse validation errors occur (e.g. `VUID-vkQueueSubmit2-semaphore-03868`)

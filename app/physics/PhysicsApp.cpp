@@ -563,6 +563,36 @@ namespace AppPhysics {
         // Build the write staging for SetBodyValue (same frozen sizing as readback).
         impl.BuildPhysicsWrite();
 
+        // One-time seed "step" (rendering modes only): run PreGPUStep + GPUStep
+        // while scene simulation is still disabled (the enable call comes at the
+        // end of CommitScene), so the solver only executes its model-matrix dispatch 
+        // and writes initial model matrices from the FlushPhysics-seeded poses
+        if (impl.mode != AppMode::PhysicsOnly) {
+            impl.physics->PreGPUStep();
+            auto &dc = impl.renderer->GetDeviceContext();
+            const auto &dev_iface = dc.GetDeviceInterface();
+            auto device = dev_iface.GetDevice();
+            auto cbs = device.allocateCommandBuffersUnique(
+                vk::CommandBufferAllocateInfo{
+                    dev_iface.GetQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
+                }
+            );
+            auto cb = std::move(cbs[0]);
+            cb->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+            impl.physics->GPUStep(cb.get());
+            cb->end();
+
+            vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
+            vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
+            vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {}};
+            dev_iface.GetQueueInfo().graphicsQueue.submit2(sinfo, fence.get());
+            auto wait_result = device.waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
+            if (wait_result != vk::Result::eSuccess) {
+                throw std::runtime_error("PhysicsApp: physics model-matrix seed wait failed");
+            }
+            impl.physics->PostGPUStep();
+        }
+
         // Physics -> render bridge for model matrices (skipped headless).
         if (impl.mode != AppMode::PhysicsOnly) {
             if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
@@ -747,6 +777,15 @@ namespace AppPhysics {
         impl.renderer->CompleteFrame(
             *impl.render_graph->GetInternalTextureResource(impl.final_color_id), final_last_access
         );
+
+        // While paused the caller's loop does not call Step(), so nothing drains
+        // the renderer: the present queue lags the graphics queue and FrameManager
+        // re-signals its frame-completed semaphore before the previous present
+        // completes (VUID-vkQueueSubmit2-semaphore-03868). Drain here instead;
+        // when running, Step's own WaitForIdle calls cover this.
+        if (impl.paused) {
+            impl.renderer->WaitForIdle();
+        }
     }
 
     void PhysicsApp::Pause() {

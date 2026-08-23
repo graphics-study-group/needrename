@@ -27,3 +27,10 @@
 - [x] 4.2 Add `SetBodyValue` scenarios to `test/physics_app_physics_only_test.cpp`: pre-commit throw, invalid BodyId throw, position teleport applies on next Step, position does not snap back on later steps, velocity injection evolves, force persists across steps until zeroed, unset fields not re-uploaded
 - [x] 4.3 Add pause-model scenario: `Step()` advances physics while the paused flag is set; `IsSimulationEnabled()` stays true across Pause/Resume
 - [x] 4.4 Build and run `ctest --preset debug` (all physics app tests) with the MSYS2 CLANG64 environment per `docs/build_instructions/windows_msys2_clang64.md`
+
+## 5. Paused-loop robustness
+
+- [x] 5.1 `CommitScene` runs a one-time seed pass (`PreGPUStep` + `GPUStep` + `PostGPUStep`, fence-waited, simulation still disabled) in rendering modes so the initial model matrices are written and bodies are visible while paused
+- [x] 5.2 `RenderNextFrame` drains the device (`WaitForIdle`) at the end of each frame while paused, preventing swapchain semaphore-reuse validation errors (`VUID-vkQueueSubmit2-semaphore-03868`)
+- [x] 5.3 Update the change specs/design (`physics-app-pause` requirements, design D7/D8, proposal) and `PhysicsApp.h` doc comments
+- [x] 5.4 Build and run `ctest --preset debug`; run the windowed app in non-finite mode and verify a paused start shows bodies and emits no validation errors

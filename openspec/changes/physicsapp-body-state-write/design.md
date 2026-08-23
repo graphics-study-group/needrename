@@ -88,6 +88,30 @@ Alternatives considered:
 
 `BodyId` is the index into `SceneBuilder::m_bodies` (assigned at Add time, before slots exist). The rigid-body slot is allocated during `FlushPhysics` and resolved via `FindRigidBodyByObjectHandle`. The currently observed `BodyId == slot` equality is incidental (one rigid body per app body, same creation order) and is not guaranteed. The write path keeps using `body_to_slot`.
 
+### D7: CommitScene seeds initial model matrices with a no-advance solver pass
+
+The GPU `model_matrices` buffer has exactly one writer: the solver's `GPUStep` model-matrix dispatch (`PhysicsScene::RefreshGpuBuffers` allocates the buffer but never uploads initial data). Before this change the windowed loop called `Step()` every frame, and that dispatch runs regardless of `IsSimulationEnabled()`, so bodies were visible even while "paused". The new pause model skips `Step()` while paused, leaving the buffer zeroed → every body invisible (skybox only).
+
+`CommitScene` now runs a one-time `PreGPUStep` + `GPUStep` + `PostGPUStep` on a dedicated command buffer (fence-waited, same pattern as the readback seed in `BuildPhysicsReadback`) while scene simulation is still disabled — the enable call comes at the end of `CommitScene` — so the solver executes only the model-matrix dispatch and writes initial matrices from the `FlushPhysics`-seeded poses. Bodies do not advance; a later `Step` re-runs `PreGPUStep` idempotently. Gated to rendering modes (`!= PhysicsOnly`).
+
+Alternatives considered:
+
+- **Seed the buffer in `PhysicsScene::RefreshGpuBuffers` (engine change)** — CPU-side initial matrices would duplicate the shader's model-matrix math and diverge from solver semantics; violates the zero-engine-changes goal. Rejected.
+- **Have the test loop call `Step()` once after `CommitScene`** — with simulation enabled that advances bodies by one step before the first frame and breaks the "paused at initial pose" UX; also leaks app behavior into every driver. Rejected.
+
+### D8: Paused rendering drains the device each frame
+
+`Step()` calls `renderer->WaitForIdle()` (device `waitIdle`) before and after physics work; the old always-Step loop was therefore fully throttled and every present completed before the next frame. The new paused loop only calls `RenderNextFrame()` and runs uncapped (mailbox present mode does not block the acquire), so the present queue lags the graphics queue and `FrameManager` re-signals its per-FIF `frame_completed_semaphore` before the previous present that waits on it has completed — `VUID-vkQueueSubmit2-semaphore-03868` ("Swapchain image N was presented but was not re-acquired").
+
+`RenderNextFrame` now calls `renderer->WaitForIdle()` at the end of each frame while the pause flag is set, restoring the old pacing exactly where `Step` is absent. While running, `Step`'s own waits already cover this.
+
+Note: the underlying `FrameManager` pacing issue (binary present-wait semaphore indexed by FIF rather than by swapchain image, no present-completion wait) is a pre-existing engine bug exposed by the uncapped loop, not introduced here. A proper engine fix (per-image present semaphores, a present-completion fence, or `VK_KHR_swapchain_maintenance1`) is deferred to a follow-up change; the app-level drain is the in-scope mitigation.
+
+Alternatives considered:
+
+- **Skip rendering entirely while paused** — violates the requirement that rendering and input continue while paused (camera controls, SPACE toggle). Rejected.
+- **Wait only on the last frame fence (`WaitForFrameCompletion`)** — the fence is signaled when the graphics batch completes, which precedes present completion; the present queue can still lag. Rejected as insufficient.
+
 ## Risks / Trade-offs
 
 - **[Forgotten force zeroing keeps pushing a body]** → Caller-managed lifetime is the documented contract; identical to component constant-force semantics; tests assert persistence.
@@ -96,6 +120,8 @@ Alternatives considered:
 - **[Kinematic bodies ignore set forces]** → `integrate_forces` zeroes acceleration for kinematic bodies, so force writes have no visible effect on them (position/velocity writes still apply). Documented behavior.
 - **[Unnormalized rotation input]** → The solver normalizes the quaternion after integration; garbage input (zero quat) can still corrupt the body. The app normalizes on write to be safe.
 - **[Paused driver that ignores `IsPaused()` still advances physics]** → By design; the flag is informational for the loop.
+- **[Zeroed model matrices while paused hide all bodies]** → `model_matrices` is allocated but never seeded by `FlushPhysics`, and its only writer is the solver's `GPUStep` dispatch, which the paused loop never reaches. Addressed by D7 (commit-time seed pass).
+- **[Uncapped paused loop races the present queue]** → `Step`'s device waits previously throttled every frame; without them the renderer's per-FIF present-wait semaphore is re-signaled before its previous present completes. Addressed by D8 (paused drain); the engine-side pacing bug is tracked as a follow-up.
 
 ## Open Questions
 
