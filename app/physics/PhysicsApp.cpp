@@ -135,7 +135,7 @@ namespace AppPhysics {
         // One persistent upload staging buffer per writable field, mirroring the
         // readback design (fixed size, frozen after CommitScene). Whole-field
         // dirty flags gate the upload copies in Step.
-        std::array<const Rhi::ComputeBuffer *, 6> write_src{};  // Slot-indexed GPU buffer per BodyField.
+        std::array<const Rhi::ComputeBuffer *, 6> write_src{}; // Slot-indexed GPU buffer per BodyField.
         std::array<std::unique_ptr<Rhi::DeviceBuffer>, 6> write_staging{};
         std::array<bool, 6> any_dirty{false, false, false, false, false, false};
 
@@ -175,9 +175,7 @@ namespace AppPhysics {
                 if (!any_dirty[i] || !write_src[i] || !write_staging[i]) {
                     continue;
                 }
-                cb.copyBuffer(
-                    write_staging[i]->GetBuffer(), write_src[i]->GetBuffer(), vk::BufferCopy{0, 0, bytes}
-                );
+                cb.copyBuffer(write_staging[i]->GetBuffer(), write_src[i]->GetBuffer(), vk::BufferCopy{0, 0, bytes});
             }
         }
 
@@ -565,7 +563,7 @@ namespace AppPhysics {
 
         // One-time seed "step" (rendering modes only): run PreGPUStep + GPUStep
         // while scene simulation is still disabled (the enable call comes at the
-        // end of CommitScene), so the solver only executes its model-matrix dispatch 
+        // end of CommitScene), so the solver only executes its model-matrix dispatch
         // and writes initial model matrices from the FlushPhysics-seeded poses
         if (impl.mode != AppMode::PhysicsOnly) {
             impl.physics->PreGPUStep();

@@ -113,9 +113,4 @@ else()
     message("Doxygen need to be installed to generate the doxygen documentation")
 endif()
 
-###########################################
-# Tests                                   #
-###########################################
 
-include(CTest)
-add_subdirectory(Tests)

@@ -1,12 +1,8 @@
-#include <SDL3/SDL.h>
 #include <cassert>
-#include <fstream>
-#include <iostream>
+#include <cstdio>
 
 #include <Core/Math/Transform.h>
-#include <Framework/MainClass.h>
 #include <Render/Pipeline/Renderer/Camera.h>
-#include <cmake_config.h>
 
 using namespace Engine;
 
@@ -96,11 +92,6 @@ void test_rotation() {
 }
 
 int main() {
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "External Resource Loading Test"};
-
-    auto cmc = MainClass::GetInstance();
-    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-
     test_translation();
     test_rotation();
 

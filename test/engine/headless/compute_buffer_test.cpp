@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     }
 
     SDL_Init(SDL_INIT_VIDEO);
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Compute Shader Test"};
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Compute Buffer Test", .headless = true};
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
