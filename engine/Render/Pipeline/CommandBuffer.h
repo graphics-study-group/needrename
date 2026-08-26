@@ -4,6 +4,7 @@
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/render_export.h"
+#include "Rhi/Device/MemoryAccessTypes.h"
 
 #include <optional>
 #include <vulkan/vulkan.hpp>
@@ -23,6 +24,7 @@ namespace Engine {
     class MaterialInstance;
     struct VertexAttribute;
     class IVertexBasedRenderer;
+    class RenderTargetTexture;
 
     namespace RenderSystemState {
         class SceneDataManager;
@@ -113,6 +115,30 @@ namespace Engine {
          */
         void BlitColorImage(
             const Rhi::Texture &src, const Rhi::Texture &dst, TextureArea src_area, TextureArea dst_area
+        );
+
+        /**
+         * @brief Record a CPU-readable copy of an image into a device buffer.
+         *
+         * Records a pre-barrier that transitions the image from
+         * `GetImageLayout(last_access)` to `eTransferSrcOptimal`, a
+         * `copyImageToBuffer` of mip 0 at the texture's full extent (tight-packed
+         * rows, row-major, top-to-bottom, RGBA8 for R8G8B8A8 targets), then a
+         * post-barrier that restores the image to `GetImageLayout(last_access)` so
+         * downstream consumers keep their layout contract (e.g. the swapchain blit
+         * re-deriving the source layout).
+         *
+         * The destination buffer is expected to be host-visible/coherent
+         * (`ReadbackFromDevice`); its contents are CPU-visible once the enclosing
+         * batch's fence is signaled.
+         *
+         * @param image       Source image to copy from.
+         * @param dst         Destination buffer (host-visible readback target).
+         * @param last_access Access mode the source image was last used with, used
+         *                    to derive the pre/post layout and access barriers.
+         */
+        void RecordCopyImageToBuffer(
+            const RenderTargetTexture &image, const Rhi::DeviceBuffer &dst, Rhi::MemoryAccessTypeImageBits last_access
         );
 
         // ── Render pass ──────────────────────────────────────────────────

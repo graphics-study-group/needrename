@@ -60,6 +60,20 @@ namespace Engine {
             uint64_t GetTotalFrame() const noexcept;
 
             /**
+             * @brief Wait for the most recently submitted frame to complete.
+             *
+             * Waits on the command-executed fence of the last frame submitted via
+             * `SubmitFrame`. This is a precise wait (no full GPU drain) intended
+             * for same-frame readback paths: fence-signaled implies the frame's
+             * copy commands finished and its host-visible buffers are coherent.
+             * The fence is captured at submit time, not via `GetFrameInFlight()`
+             * (whose counter advances inside `CompleteFrame`).
+             *
+             * No-op when no frame has ever been submitted.
+             */
+            void WaitForFrameCompletion() const;
+
+            /**
              * @brief Get the current free image index in the swapchain.
              *
              * @note This method is in general only used by render system

@@ -12,6 +12,8 @@
 #include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/Resource/MaterialInstanceManager.h"
+#include "Render/Resource/MemoryAccessHelper.hpp"
+#include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Pipeline/ComputeResourceBinding.h"
@@ -93,6 +95,53 @@ namespace Engine {
             vk::Filter::eLinear
         };
         cb.blitImage2(bii);
+    }
+
+    void CommandBuffer::RecordCopyImageToBuffer(
+        const RenderTargetTexture &image, const Rhi::DeviceBuffer &dst, Rhi::MemoryAccessTypeImageBits last_access
+    ) {
+        const auto &desc = image.GetTextureDescription();
+
+        // Pre-barrier: source image into a copyable layout.
+        vk::ImageMemoryBarrier2 pre_barrier{
+            vk::PipelineStageFlagBits2::eAllCommands,
+            GetAccessFlags({last_access}),
+            vk::PipelineStageFlagBits2::eAllTransfer,
+            vk::AccessFlagBits2::eTransferRead,
+            GetImageLayout({last_access}),
+            vk::ImageLayout::eTransferSrcOptimal,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            image.GetImage(),
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+        };
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, pre_barrier});
+
+        vk::BufferImageCopy region{
+            0, // bufferOffset
+            0, // bufferRowLength (tight packing)
+            0, // bufferImageHeight
+            vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+            vk::Offset3D{0, 0, 0},
+            vk::Extent3D{desc.width, desc.height, desc.depth}
+        };
+        cb.copyImageToBuffer(image.GetImage(), vk::ImageLayout::eTransferSrcOptimal, dst.GetBuffer(), region);
+
+        // Post-barrier: restore the source image to its nominal layout so the
+        // frame-completion blit (or any later pass) still observes it.
+        vk::ImageMemoryBarrier2 post_barrier{
+            vk::PipelineStageFlagBits2::eAllTransfer,
+            vk::AccessFlagBits2::eTransferRead,
+            vk::PipelineStageFlagBits2::eAllCommands,
+            vk::AccessFlagBits2::eMemoryRead,
+            vk::ImageLayout::eTransferSrcOptimal,
+            GetImageLayout({last_access}),
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            image.GetImage(),
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+        };
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, post_barrier});
     }
 
     // ── Render pass ─────────────────────────────────────────────────────────

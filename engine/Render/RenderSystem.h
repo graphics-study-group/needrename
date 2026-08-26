@@ -8,6 +8,8 @@
 
 #include "Rhi/Device/MemoryAccessTypes.h"
 
+#include <vulkan/vulkan.hpp>
+
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
@@ -64,7 +66,23 @@ namespace Engine {
             m_resource_managers{};
 
     public:
-        RenderSystem(std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context);
+        /**
+         * @brief Construct the render system (before Create()).
+         *
+         * @param parent_window  The SDL window; pass an empty/null weak_ptr for
+         *                       headless operation without a window.
+         * @param device_context The Rhi device context.
+         * @param extent         Reference extent for the offscreen/present
+         *                       target. If either component is 0, Create()
+         *                       derives it: in windowed mode via
+         *                       SDL_GetWindowSizeInPixels; in headless mode a 0
+         *                       extent is invalid (no window to query), so
+         *                       headless callers must pass a non-zero size
+         *                       explicitly or Create() throws.
+         */
+        RenderSystem(
+            std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context, vk::Extent2D extent = {0, 0}
+        );
 
         RenderSystem(const RenderSystem &) = delete;
         RenderSystem(RenderSystem &&) = delete;

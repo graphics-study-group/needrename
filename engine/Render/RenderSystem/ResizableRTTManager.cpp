@@ -56,6 +56,11 @@ namespace Engine::RenderSystemState {
     }
 
     void ResizableRTTManager::SetReferenceSize(uint32_t width, uint32_t height) noexcept {
+        if (width == 0 || height == 0) {
+            // A zero reference size is degenerate (a 1x1 texture would be
+            // blit-mismatched). Keep the last valid reference size.
+            return;
+        }
         std::tie(pimpl->reference_width, pimpl->reference_height) = {width, height};
         this->RemoveAllCache();
     }

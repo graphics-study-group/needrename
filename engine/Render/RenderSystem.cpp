@@ -8,8 +8,8 @@
 #include "Render/Pipeline/Renderer/Camera.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/HeadlessPresentProvider.h"
 #include "Render/RenderSystem/IPresentProvider.h"
+#include "Render/RenderSystem/OffscreenPresentProvider.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/SwapchainPresentProvider.h"
@@ -23,12 +23,18 @@
 #include <Core/Functional/SDLWindow.h>
 
 #include <iostream>
+#include <stdexcept>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
     struct RenderSystem::impl {
-        impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context) :
-            m_window(parent_window), m_device_context(device_context), m_frame_manager(parent),
+        impl(
+            RenderSystem &parent,
+            std::weak_ptr<SDLWindow> parent_window,
+            Rhi::DeviceContext &device_context,
+            vk::Extent2D extent
+        ) :
+            m_window(parent_window), m_device_context(device_context), m_extent(extent), m_frame_manager(parent),
             m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent),
             m_resizable_rtt_manger(parent), m_material_instance_provider(parent), m_material_library_provider(parent),
             m_static_mesh_resource_provider(parent) {
@@ -36,6 +42,8 @@ namespace Engine {
             };
 
         std::weak_ptr<SDLWindow> m_window;
+
+        vk::Extent2D m_extent{0, 0};
 
         Rhi::DeviceContext &m_device_context;
 
@@ -51,8 +59,10 @@ namespace Engine {
         RenderSystemState::StaticMeshResourceManager m_static_mesh_resource_provider;
     };
 
-    RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context) :
-        pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window, device_context)),
+    RenderSystem::RenderSystem(
+        std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context, vk::Extent2D extent
+    ) :
+        pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window, device_context, extent)),
         m_resource_managers{
             &pimpl->m_material_instance_provider,
             &pimpl->m_material_library_provider,
@@ -67,23 +77,32 @@ namespace Engine {
         Rhi::DeviceInterface &device_interface = pimpl->m_device_context.GetDeviceInterface();
 
         if (is_headless) {
-            vk::Extent2D extent{1920, 1080};
-            pimpl->m_present_provider = std::make_unique<RenderSystemState::HeadlessPresentProvider>(
-                device_interface, extent, vk::Format::eR8G8B8A8Unorm, 3
+            if (pimpl->m_extent.width == 0 || pimpl->m_extent.height == 0) {
+                throw std::logic_error(
+                    "RenderSystem: headless mode requires a non-zero extent (no window to derive one from)"
+                );
+            }
+            pimpl->m_present_provider = std::make_unique<RenderSystemState::OffscreenPresentProvider>(
+                device_interface,
+                pimpl->m_device_context.GetAllocatorState(),
+                pimpl->m_extent,
+                vk::Format::eR8G8B8A8Unorm,
+                3
             );
-            pimpl->m_resizable_rtt_manger.SetReferenceSize(extent.width, extent.height);
+            pimpl->m_resizable_rtt_manger.SetReferenceSize(pimpl->m_extent.width, pimpl->m_extent.height);
         } else {
-            uint32_t width, height;
-            int w, h;
-            SDL_GetWindowSizeInPixels(sdl_window, &w, &h);
-            width = static_cast<uint32_t>(w);
-            height = static_cast<uint32_t>(h);
-            vk::Extent2D expected_extent{width, height};
+            vk::Extent2D expected_extent = pimpl->m_extent;
+            if (expected_extent.width == 0 || expected_extent.height == 0) {
+                int w, h;
+                SDL_GetWindowSizeInPixels(sdl_window, &w, &h);
+                expected_extent.width = static_cast<uint32_t>(w);
+                expected_extent.height = static_cast<uint32_t>(h);
+            }
 
             auto spp = std::make_unique<RenderSystemState::SwapchainPresentProvider>();
             spp->Initialize(device_interface, expected_extent);
             pimpl->m_present_provider = std::move(spp);
-            pimpl->m_resizable_rtt_manger.SetReferenceSize(w, h);
+            pimpl->m_resizable_rtt_manger.SetReferenceSize(expected_extent.width, expected_extent.height);
         }
 
         pimpl->m_frame_manager.Create(*pimpl->m_present_provider);
@@ -162,6 +181,13 @@ namespace Engine {
         uint32_t width, height;
         int w, h;
         SDL_GetWindowSizeInPixels(pimpl->m_window.lock()->GetWindow(), &w, &h);
+        if (w <= 0 || h <= 0) {
+            // Minimized window (0x0 pixels): skip recreation and keep the last
+            // valid reference size. The subsequent acquire fails and the
+            // existing skip-frame path handles it; on restore this runs normally.
+            SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Skipping swapchain re-creation: zero window size.");
+            return;
+        }
         width = static_cast<uint32_t>(w);
         height = static_cast<uint32_t>(h);
         pimpl->m_present_provider->Recreate({width, height});

@@ -97,39 +97,43 @@ The system SHALL provide an `IPresentProvider` interface that abstracts how fram
 - **THEN** it destroys the old swapchain and creates a new one with the given extent
 - **AND** re-allocates or re-fetches swapchain images and copy command buffers as needed
 
-### Requirement: HeadlessPresentProvider implements no-op copy and presentation
+### Requirement: OffscreenPresentProvider implements offscreen copy and presentation
 
-`HeadlessPresentProvider` SHALL implement `IPresentProvider` for headless mode without any swapchain or present.
+`OffscreenPresentProvider` SHALL implement `IPresentProvider` for headless/offscreen rendering. It SHALL lazily allocate one host-visible present buffer per frame-in-flight (matching `GetImageCount()`) on first `PrepareCopy` call, and SHALL record a `copyImageToBuffer` from the final RTT into the buffer for the given image index with barriers derived from `last_access`. `Present` SHALL return `false` with no Vulkan presentation. A readback-callback API is NOT part of this change.
 
 #### Scenario: AcquireNextImage returns synthetic index
 
-- **WHEN** `HeadlessPresentProvider::AcquireNextImage` is called
-- **THEN** it returns `(counter++) % GetImageCount()` and signals `image_ready_semaphore` via an empty submit (see acquire contract)
+- **WHEN** `OffscreenPresentProvider::AcquireNextImage` is called
+- **THEN** it returns `(counter++) % GetImageCount()` and signals `image_ready_semaphore` via an empty `vkQueueSubmit2` submit
 
-#### Scenario: PrepareCopy returns nullptr
+#### Scenario: Present targets are lazily allocated
 
-- **WHEN** `HeadlessPresentProvider::PrepareCopy` is called with any parameters
-- **THEN** it returns `nullptr` (the frame-completion batch carries no copy CB)
+- **WHEN** an offscreen render loop runs zero frames (no `PrepareCopy` call)
+- **THEN** no present buffers are allocated (zero memory footprint)
+- **WHEN** `PrepareCopy` is first called
+- **THEN** `GetImageCount()` host-visible `ReadbackFromDevice` buffers of the present extent size are allocated and retained
+
+#### Scenario: PrepareCopy records the offscreen copy
+
+- **WHEN** `PrepareCopy` is called with the final RTT, an image index, and `last_access`
+- **THEN** it records a `copyImageToBuffer` into the buffer for that image index
+- **AND** the copy source layout/access is derived from `last_access` via `GetImageLayout` / `GetAccessFlags`
+- **AND** it returns a non-null command buffer to be executed in the frame-completion batch
 
 #### Scenario: Present is a no-op
 
-- **WHEN** `HeadlessPresentProvider::Present` is called with any parameters
-- **THEN** it returns `false` without any Vulkan presentation operations
+- **WHEN** `OffscreenPresentProvider::Present` is called with any parameters
+- **THEN** it returns `false` without performing any Vulkan presentation operations
 
-#### Scenario: GetExtent returns configured resolution
+#### Scenario: Extent and format come from construction
 
 - **WHEN** `GetExtent` is called
-- **THEN** it returns the extent provided at construction time
+- **THEN** it returns the extent provided at construction time (the `StartupOptions` resolution, not a hard-coded value)
 
-#### Scenario: GetImageCount returns FRAMES_IN_FLIGHT
-
-- **WHEN** `GetImageCount` is called
-- **THEN** it returns `FRAMES_IN_FLIGHT` (3)
-
-#### Scenario: Recreate updates extent
+#### Scenario: Recreate replaces the target sizing
 
 - **WHEN** `Recreate` is called with a new extent
-- **THEN** it stores the new extent for future `GetExtent` calls
+- **THEN** the stored extent is updated and future target allocations use the new size
 
 ### Requirement: RenderSystem owns IPresentProvider instead of Swapchain
 
@@ -140,7 +144,7 @@ The system SHALL provide an `IPresentProvider` interface that abstracts how fram
 - **WHEN** `RenderSystem::Create` is called with a valid `SDLWindow`
 - **THEN** it creates a `SwapchainPresentProvider` and stores it in `m_present_provider`
 - **WHEN** `RenderSystem::Create` is called with a null window (headless)
-- **THEN** it creates a `HeadlessPresentProvider` with the configured resolution
+- **THEN** it creates an `OffscreenPresentProvider` with the configured resolution, where the extent SHALL be the non-zero `extent` passed to the `RenderSystem` constructor (fed from `StartupOptions::resol_x/resol_y` in headless mode; a zero extent in headless mode SHALL throw because there is no window to derive one from), not a hard-coded 1920×1080
 
 #### Scenario: RenderSystem exposes present provider
 
@@ -254,9 +258,9 @@ In headless mode, `MainClass::Initialize` SHALL not create `SDLWindow`, `GUISyst
 
 - **WHEN** `Initialize` is called with `StartupOptions::headless == true`
 - **THEN** `SDLWindow` is not created (`this->window` remains `nullptr`)
-- **AND** `RenderSystem` is constructed with an empty `std::weak_ptr<SDLWindow>`
+- **AND** `RenderSystem` is constructed with an empty `std::weak_ptr<SDLWindow>` and the headless extent taken from `StartupOptions::resol_x`/`resol_y`
 - **AND** `GUISystem` and `Input` are not created
-- **AND** `RenderSystem::Create()` produces a headless `HeadlessPresentProvider`
+- **AND** `RenderSystem::Create()` produces an `OffscreenPresentProvider`
 
 #### Scenario: Headless RunOneFrame does not crash
 
@@ -267,6 +271,6 @@ In headless mode, `MainClass::Initialize` SHALL not create `SDLWindow`, `GUISyst
 #### Scenario: Headless RenderSystem::CompleteFrame skips present
 
 - **WHEN** `CompleteFrame` is called in headless mode
-- **THEN** `HeadlessPresentProvider::PrepareCopy` returns `nullptr` and `Present` returns `false`
+- **THEN** `OffscreenPresentProvider::PrepareCopy` records an offscreen copy (lazily allocating targets) and `Present` returns `false`
 - **AND** no `vkQueuePresentKHR` is called
 - **AND** the frame-completion batch still signals `own@4` + fence

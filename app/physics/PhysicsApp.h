@@ -1,0 +1,593 @@
+#ifndef APPPHYSICS_PHYSICSAPP_H
+#define APPPHYSICS_PHYSICSAPP_H
+
+#include "Actuator.h"
+
+#include <glm.hpp>
+#include <gtc/quaternion.hpp>
+
+#include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <unordered_map>
+
+namespace AppPhysics {
+
+    /**
+     * @brief Execution form of a physics app, fixed at Create time.
+     */
+    enum class AppMode {
+        PhysicsOnly, ///< Physics only: no rendering, no window, no camera.
+        Offscreen,   ///< Physics + render into an internal CPU-readable texture, no window.
+        Windowed     ///< Physics + render + window (pre-existing behavior).
+    };
+
+    /**
+     * @brief Options for creating the physics app.
+     *
+     * Only window parameters are exposed. Asset and project paths are read
+     * internally from cmake_config.h for this iteration.
+     */
+    struct CreateInfo {
+        AppMode mode{AppMode::Windowed};
+        uint32_t resol_x{1280};
+        uint32_t resol_y{720};
+        std::string window_title{"Physics App"};
+    };
+
+    /// Opaque handle identifying a created body. Not a pointer; do not dereference.
+    using BodyId = uint32_t;
+    constexpr BodyId INVALID_BODY_ID = ~0u;
+
+    /// Opaque handle identifying a hinge joint (manual or URDF). Not a pointer;
+    /// assigned by `PhysicsApp` at joint creation and valid in both phases.
+    using JointId = uint32_t;
+    constexpr JointId INVALID_JOINT_ID = ~0u;
+
+    /**
+     * @brief Per-body writable field selector for `PhysicsApp::SetBodyValue`.
+     *
+     * Exactly these six fields are writable; no other body property can be set
+     * through the write API.
+     */
+    enum class BodyField {
+        Position,        ///< Center-of-mass world position (xyz; w = 0).
+        Rotation,        ///< World orientation as a quaternion (xyzw).
+        LinearVelocity,  ///< Velocity of the center of mass (xyz; w = 0).
+        AngularVelocity, ///< Angular velocity (xyz; w = 0).
+        ExternalForce,   ///< External linear force, caller-managed (xyz; w = 0).
+        ExternalTorque   ///< External torque, caller-managed (xyz; w = 0).
+    };
+
+    /**
+     * @brief Single body's dynamic state, assembled from the readback arrays.
+     *
+     * All values are in physics (COM) space.
+     */
+    struct BodyState {
+        glm::vec3 position;         ///< Center-of-mass world position.
+        glm::quat rotation;         ///< Orientation (quaternion).
+        glm::vec3 linear_velocity;  ///< Velocity of the center of mass.
+        glm::vec3 angular_velocity; ///< Angular velocity.
+    };
+
+    /**
+     * @brief Single joint's measured state, computed CPU-side from the body
+     * readback and the joint's recorded axis / initial relative rotation.
+     */
+    struct JointState {
+        float angle{};            ///< Signed joint angle [rad], relative to the loaded initial pose.
+        float angular_velocity{}; ///< Joint angular velocity [rad/s] about the hinge axis.
+    };
+
+    /**
+     * @brief URDF joint limits recorded for a joint. Data only: not enforced by
+     * the physics engine or by `PhysicsApp`.
+     */
+    struct JointLimits {
+        float lower{};    ///< Lower angle limit [rad].
+        float upper{};    ///< Upper angle limit [rad].
+        float effort{};   ///< Effort limit [N·m].
+        float velocity{}; ///< Velocity limit [rad/s].
+    };
+
+    /**
+     * @brief Batch view over all bodies' readback state, in SoA form.
+     *
+     * All spans are indexed by the rigid-body slot index carried in
+     * `slot_indices`; `positions`/`rotations`/`linear_velocities`/
+     * `angular_velocities` store vec4 (rotation is quaternion xyzw, velocity
+     * `.w` is padding). `com_offsets` is GO-local and static (zero for
+     * self-built shapes). Valid until the next `Step`.
+     */
+    struct BodyStatesView {
+        std::span<const uint32_t> slot_indices;        ///< BodyId → slot index mapping.
+        std::span<const glm::vec3> com_offsets;        ///< Per-slot COM offset (GO-local).
+        std::span<const glm::vec4> positions;          ///< Per-slot COM positions.
+        std::span<const glm::vec4> rotations;          ///< Per-slot quaternions (xyzw).
+        std::span<const glm::vec4> linear_velocities;  ///< Per-slot linear velocities.
+        std::span<const glm::vec4> angular_velocities; ///< Per-slot angular velocities.
+    };
+
+    /**
+     * @brief Latest rendered frame's pixels.
+     *
+     * `pixels` is tight-packed RGBA8, row-major, top-to-bottom, valid until the
+     * next `RenderNextFrame` that produces a new capture.
+     */
+    struct RenderOutput {
+        const void *pixels{nullptr};
+        uint32_t width{0};
+        uint32_t height{0};
+        uint64_t frame_id{0};
+    };
+
+    /**
+     * @brief Options for importing a URDF robot into the app.
+     *
+     * `position`/`rotation` place the robot as a whole (applied to the root
+     * link). The friction and restitution coefficients are applied uniformly to
+     * every created rigid body. Visual meshes are built in `Offscreen` and
+     * `Windowed` modes and not in `PhysicsOnly` — decided by the app's mode.
+     */
+    struct UrdfImportConfig {
+        std::filesystem::path urdf_path{};
+        glm::vec3 position{0.0f, 0.0f, 0.0f};
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        float static_friction{0.5f};
+        float dynamic_friction{0.5f};
+        float restitution{0.0f};
+    };
+
+    /**
+     * @brief A URDF joint's two endpoint bodies, in URDF parent/child order.
+     *
+     * `parent` is the link closer to the robot root. `id` is the `JointId`
+     * assigned by `PhysicsApp` for this joint, valid for actuator / target /
+     * readback calls in both phases.
+     */
+    struct JointBodyPair {
+        BodyId parent{};
+        BodyId child{};
+        JointId id{INVALID_JOINT_ID};
+    };
+
+    /**
+     * @brief Result of importing a URDF robot.
+     *
+     * `link_bodies` maps link name → BodyId only for links that became physics
+     * bodies (have `<inertial>`). `joint_bodies` maps joint name →
+     * {parent, child} only for joints that produced a physical constraint.
+     */
+    struct UrdfImportResult {
+        std::unordered_map<std::string, BodyId> link_bodies{};
+        std::unordered_map<std::string, JointBodyPair> joint_bodies{};
+    };
+
+    /**
+     * @brief Descriptor for creating a physics box object.
+     *
+     * @note `color` names a builtin solid color asset. Empty string selects a
+     * random color at Add time; an invalid non-empty string throws
+     * `std::invalid_argument`.
+     */
+    struct BoxDesc {
+        glm::vec3 position{0.0f, 0.0f, 0.0f};
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        glm::vec3 half_extents{0.5f, 0.5f, 0.5f};
+        float mass{1.0f};
+        bool kinematic{false};
+        float static_friction{0.5f};
+        float dynamic_friction{0.5f};
+        float restitution{0.0f};
+        std::string color{};
+    };
+
+    /**
+     * @brief Descriptor for creating a physics sphere object (Z-up world).
+     */
+    struct SphereDesc {
+        glm::vec3 position{0.0f, 0.0f, 0.0f};
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        float radius{0.5f};
+        float mass{1.0f};
+        bool kinematic{false};
+        float static_friction{0.5f};
+        float dynamic_friction{0.5f};
+        float restitution{0.0f};
+        std::string color{};
+    };
+
+    /**
+     * @brief Descriptor for creating a physics cylinder object (Z-up axis).
+     */
+    struct CylinderDesc {
+        glm::vec3 position{0.0f, 0.0f, 0.0f};
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        float radius{0.5f};
+        float half_height{0.5f};
+        float mass{1.0f};
+        bool kinematic{false};
+        float static_friction{0.5f};
+        float dynamic_friction{0.5f};
+        float restitution{0.0f};
+        std::string color{};
+    };
+
+    /**
+     * @brief Parameters for a fixed joint.
+     *
+     * @note obj1 (passed to PhysicsApp::AddFixedJoint) is the owning body;
+     * its initial relative transform to obj2 is derived at Awake time.
+     */
+    struct FixedJointParams {
+        float compliance{0.0f}; ///< Joint compliance (0 = hard constraint).
+    };
+
+    /**
+     * @brief Parameters for a hinge joint.
+     *
+     * Axis and anchor are expressed in obj1's local frame.
+     */
+    struct HingeJointParams {
+        glm::vec3 axis_obj1{1.0f, 0.0f, 0.0f};   ///< Hinge axis in obj1's local frame.
+        glm::vec3 anchor_obj1{0.0f, 0.0f, 0.0f}; ///< Hinge anchor point in obj1's local frame.
+        float compliance{0.0f};                  ///< Joint compliance (0 = hard constraint).
+    };
+
+    /**
+     * @brief Parameters for a directional light.
+     *
+     * The light is not a physics body. `color` is an rgb linear value.
+     */
+    struct DirectionalLightParams {
+        glm::vec3 direction{0.0f, 0.0f, -1.0f}; ///< Light direction in world space.
+        glm::vec3 color{1.0f, 1.0f, 1.0f};      ///< rgb linear color.
+        float intensity{1.0f};
+        bool cast_shadow{true};
+    };
+
+    /**
+     * @brief Minimal entry point for GPU physics simulation.
+     *
+     * Lifecycle:
+     *   1. Create(info) - full initialization (window, assets, project, input axes).
+     *   2. Building phase - add bodies, joints, lights, set camera pose.
+     *   3. CommitScene() - one-way freeze; afterwards no scene changes are allowed.
+     *   4. Drive phase - Step() / RenderNextFrame() / Pause() / Resume() / ShouldQuit().
+     *
+     * Actuators (see AddActuator) run inside Step(): they read the joint state
+     * measured from the previous step and write equal-and-opposite torques about
+     * the joint axis to the child/parent bodies' ExternalTorque each step, so the
+     * torque channel is owned by the actuators — user SetBodyValue(ExternalTorque)
+     * writes on an actuated joint's bodies are overwritten. Joint limits recorded
+     * from a URDF are data only and are never enforced. Actuators on joints whose
+     * two bodies are both kinematic compute torques but they have no effect
+     * (the solver skips such joints).
+     *
+     * Wrong-phase usage throws `std::logic_error`. Exceptions may cross the
+     * DLL boundary; a future C API must convert them to error codes.
+     */
+    class PhysicsApp {
+    public:
+        /**
+         * @brief Create a physics app with full initialization.
+         *
+         * Internally initializes MainClass, loads builtin assets and the
+         * `empty_with_sky` project, registers input axes, and sets up the scene
+         * builder and the built-in camera.
+         *
+         * @param info Create options (window resolution and title).
+         * @return Unique-ownership instance of the app.
+         * @throws std::runtime_error when initialization fails.
+         */
+        static std::unique_ptr<PhysicsApp> Create(const CreateInfo &info);
+
+        /**
+         * @brief Destroy the physics app.
+         *
+         * The held MainClass is released last so engine subsystems outlive the
+         * app.
+         */
+        ~PhysicsApp();
+        PhysicsApp(const PhysicsApp &) = delete;
+        PhysicsApp &operator=(const PhysicsApp &) = delete;
+        PhysicsApp(PhysicsApp &&) = delete;
+        PhysicsApp &operator=(PhysicsApp &&) = delete;
+
+        // ── Building phase ──────────────────────────────────────────────
+
+        /**
+         * @brief Add a physics box to the scene (Building phase only).
+         *
+         * @param desc Box configuration.
+         * @return BodyId identifying the created body.
+         * @throws std::logic_error after CommitScene.
+         */
+        BodyId AddBox(const BoxDesc &desc);
+
+        /**
+         * @brief Add a physics sphere to the scene (Building phase only).
+         *
+         * @param desc Sphere configuration.
+         * @return BodyId identifying the created body.
+         * @throws std::logic_error after CommitScene.
+         */
+        BodyId AddSphere(const SphereDesc &desc);
+
+        /**
+         * @brief Add a physics cylinder to the scene (Building phase only).
+         *
+         * @param desc Cylinder configuration.
+         * @return BodyId identifying the created body.
+         * @throws std::logic_error after CommitScene.
+         */
+        BodyId AddCylinder(const CylinderDesc &desc);
+
+        /**
+         * @brief Add a fixed joint between two bodies (Building phase only).
+         *
+         * @param obj1   Owning body (hosts the constraint component).
+         * @param obj2   Referenced body.
+         * @param params Joint parameters.
+         * @throws std::logic_error after CommitScene.
+         * @throws std::out_of_range when a BodyId is invalid.
+         */
+        void AddFixedJoint(BodyId obj1, BodyId obj2, const FixedJointParams &params);
+
+        /**
+         * @brief Add a hinge joint between two bodies (Building phase only).
+         *
+         * @param obj1   Owning body (hosts the constraint component).
+         * @param obj2   Referenced body.
+         * @param params Joint parameters (axis, anchor, compliance).
+         * @return The `JointId` assigned to the new joint.
+         * @throws std::logic_error after CommitScene.
+         * @throws std::out_of_range when a BodyId is invalid.
+         */
+        JointId AddHingeJoint(BodyId obj1, BodyId obj2, const HingeJointParams &params);
+
+        /**
+         * @brief Register an actuator on a joint (Building phase only).
+         *
+         * At most one actuator SHALL exist per joint; the torque channel is owned
+         * by the actuator, which overwrites the joint bodies' external torque
+         * every `Step`. New actuator types need no `PhysicsApp` API change.
+         *
+         * @param joint    Joint to drive.
+         * @param actuator Actuator to take ownership of.
+         * @throws std::logic_error after CommitScene.
+         * @throws std::out_of_range when `joint` is invalid.
+         * @throws std::invalid_argument when `actuator` is null or `joint`
+         *         already has an actuator.
+         */
+        void AddActuator(JointId joint, std::unique_ptr<Actuator> actuator);
+
+        /**
+         * @brief Set an actuator's target joint angle (both phases legal).
+         *
+         * The target is relative to the joint's loaded initial pose. Legal before
+         * `CommitScene` to pre-set initial targets.
+         *
+         * @param joint  Joint whose actuator target to set.
+         * @param target Target angle [rad].
+         * @throws std::out_of_range when `joint` is invalid.
+         * @throws std::logic_error when `joint` has no actuator.
+         */
+        void SetTargetAngle(JointId joint, float target);
+
+        /**
+         * @brief Get a joint's measured state (Drive phase only).
+         *
+         * @param joint Joint to read.
+         * @return Current signed angle (relative to initial pose) and angular
+         *         velocity, computed CPU-side from the body readback.
+         * @throws std::logic_error before CommitScene.
+         * @throws std::out_of_range when `joint` is invalid.
+         */
+        JointState GetJointState(JointId joint) const;
+
+        /**
+         * @brief Get a joint's recorded URDF limits, if any (both phases legal).
+         *
+         * The limits are recorded data from the URDF and are NOT enforced.
+         *
+         * @param joint Joint to query.
+         * @return The limits, or std::nullopt if the joint has none recorded.
+         * @throws std::out_of_range when `joint` is invalid.
+         */
+        std::optional<JointLimits> GetJointLimits(JointId joint) const;
+
+        /**
+         * @brief Import a URDF robot into the scene (Building phase only).
+         *
+         * Parses the URDF, builds the robot's GameObject hierarchy into the
+         * running scene under the app root, and registers every rigid-body link
+         * into the `BodyId` registry so the returned bodies work with the
+         * readback APIs. No asset files are written.
+         *
+         * `link_bodies` omits links without `<inertial>`; `joint_bodies` omits
+         * joints that did not produce a constraint (see the result struct).
+         *
+         * @param config Import configuration (path, placement, coefficients).
+         * @return Maps of physically realized links and joints to BodyIds.
+         * @throws std::logic_error after CommitScene.
+         * @throws std::runtime_error when the file is missing/unparseable or the
+         *         parsed robot has no links.
+         */
+        UrdfImportResult LoadUrdf(const UrdfImportConfig &config);
+
+        /**
+         * @brief Add a directional light (Building phase only).
+         *
+         * @param params Light parameters (direction, color, intensity, shadow).
+         * @throws std::logic_error after CommitScene.
+         */
+        void AddDirectionalLight(const DirectionalLightParams &params);
+
+        /**
+         * @brief Set the camera pose to look at a target.
+         *
+         * Legal in both phases; the camera is excluded from the scene freeze.
+         * When called after CommitScene the pose is applied immediately.
+         *
+         * @param position    Camera world position.
+         * @param look_target World-space point the camera looks at.
+         */
+        void SetCameraPose(const glm::vec3 &position, const glm::vec3 &look_target);
+
+        /**
+         * @brief Commit and freeze the scene.
+         *
+         * Flushes creation commands, runs component init, syncs physics GPU
+         * buffers, forwards model matrices to the renderer, builds the default
+         * render graph and freezes the scene. Simulation starts paused.
+         *
+         * @throws std::logic_error when called more than once.
+         */
+        void CommitScene();
+
+        // ── Drive phase (legal after CommitScene) ──────────────────────
+
+        /**
+         * @brief Advance the physics simulation by one fixed step.
+         *
+         * Uses a dedicated command buffer with device-level waits before and
+         * after; does not process input. The step always runs regardless of the
+         * pause flag — the caller's loop decides whether to call this by checking
+         * `IsPaused()`.
+         *
+         * @throws std::logic_error before CommitScene.
+         */
+        void Step();
+
+        /**
+         * @brief Render one frame, processing input and updating the camera.
+         *
+         * Polls SDL events, updates input and the built-in camera, updates
+         * renderer data, then renders a frame. The frame is skipped without
+         * throwing when the swapchain is out of date (e.g. window minimized).
+         *
+         * @throws std::logic_error before CommitScene.
+         */
+        void RenderNextFrame();
+
+        /**
+         * @brief Set the app-level pause flag (rendering continues).
+         *
+         * This only sets an app-level flag; it does not touch scene simulation
+         * state. `Step()` still runs if called; the caller's loop should honor
+         * `IsPaused()`.
+         *
+         * @throws std::logic_error before CommitScene.
+         */
+        void Pause();
+
+        /**
+         * @brief Clear the app-level pause flag.
+         *
+         * @throws std::logic_error before CommitScene.
+         */
+        void Resume();
+
+        /**
+         * @brief Check the app-level pause flag.
+         *
+         * @return True if the simulation is paused.
+         */
+        bool IsPaused() const;
+
+        // ── Drive-phase readback (legal after CommitScene) ──────────────
+
+        /**
+         * @brief Get a single body's dynamic state.
+         *
+         * @param id BodyId returned by an Add method.
+         * @return The body's COM position, rotation and velocities.
+         * @throws std::logic_error before CommitScene.
+         * @throws std::out_of_range when `id` is invalid.
+         */
+        BodyState GetBodyState(BodyId id) const;
+
+        /**
+         * @brief Get the SoA batch view of all bodies' dynamic state.
+         *
+         * @return BodyStatesView over the readback arrays (slot-indexed).
+         * @throws std::logic_error before CommitScene.
+         */
+        BodyStatesView GetBodyStates() const;
+
+        /**
+         * @brief Override one writable field of a single body before the next step.
+         *
+         * Legal in the Drive phase (after `CommitScene`). The value directly
+         * replaces the corresponding GPU physics buffer slot at the next `Step`
+         * and persists until overwritten by another call:
+         *
+         * - Rotation is stored as a quaternion (xyzw); the other five fields
+         *   store their quantity in xyz with w = 0.
+         * - All values are in physics (COM) world space, matching `BodyState`.
+         * - External force/torque are NOT cleared by the solver: they keep being
+         *   applied by every subsequent step until the caller sets them to zero
+         *   (caller-managed lifetime). Position/rotation/velocity evolve under
+         *   integration after they are applied and are not re-applied on later
+         *   steps.
+         * - The write is applied on the next `Step`; it is not reflected by
+         *   `GetBodyState` before that step. Call between `Step` calls (the app
+         *   is single-threaded and waits on the device inside `Step`).
+         *
+         * The rotation quaternion is normalized on write.
+         *
+         * @param id    BodyId returned by an Add/LoadUrdf method.
+         * @param field Writable field to override.
+         * @param value Replacement value (layout depends on `field`).
+         * @throws std::logic_error before CommitScene.
+         * @throws std::out_of_range when `id` is invalid.
+         */
+        void SetBodyValue(BodyId id, BodyField field, glm::vec4 value);
+
+        /**
+         * @brief Toggle recording of a CPU readback of the final render target.
+         *
+         * Defaults to disabled (no staging allocated, no copy recorded). When
+         * enabled, the next `RenderNextFrame` copies the final RTT into a
+         * resident host-visible staging buffer (rebuilt if the present extent
+         * changes). Disabling retains the staging to avoid reallocation
+         * thrash.
+         *
+         * @param enabled True to capture rendered pixels each frame.
+         * @throws std::logic_error in headless mode.
+         */
+        void SetRenderReadbackEnabled(bool enabled);
+
+        /**
+         * @brief Block until the most recently submitted frame completes and
+         * return its rendered pixels.
+         *
+         * @return RenderOutput to the staging buffer (see struct docs for
+         * layout and validity).
+         * @throws std::logic_error in headless mode, when disabled, or before
+         * any frame was captured.
+         */
+        RenderOutput GetRenderOutput();
+
+        // ── Legal in both phases ────────────────────────────────────────
+
+        /**
+         * @brief Check whether the app should quit.
+         *
+         * @return True when an SDL_QUIT (window close) event has been received.
+         */
+        bool ShouldQuit() const;
+
+    private:
+        PhysicsApp();
+        struct Impl;
+        std::unique_ptr<Impl> m_impl{};
+    };
+} // namespace AppPhysics
+
+#endif // APPPHYSICS_PHYSICSAPP_H

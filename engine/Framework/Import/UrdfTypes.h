@@ -2,9 +2,14 @@
 #define FRAMEWORK_IMPORT_URDFTYPES_INCLUDED
 
 #include "Framework/framework_export.h"
+#include <Framework/World/Handle.h>
+
 #include <glm.hpp>
+#include <gtc/quaternion.hpp>
+
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Engine {
@@ -92,6 +97,57 @@ namespace Engine {
         std::vector<UrdfJoint> joints{};
         std::vector<UrdfMaterial> materials{};
         std::string root_link_name{};
+    };
+
+    /**
+     * @brief Options controlling how a robot is built into a scene.
+     *
+     * `position`/`rotation` place the robot as a whole (applied to the root
+     * link). `static_friction`/`dynamic_friction`/`restitution` are applied
+     * uniformly to every created `RigidBodyComponent`. `with_visuals` toggles
+     * the visual mesh assembly.
+     */
+    struct FRAMEWORK_API UrdfBuildOptions {
+        glm::vec3 position{0.0f};
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        float static_friction{0.5f};
+        float dynamic_friction{0.5f};
+        float restitution{0.0f};
+        bool with_visuals{true};
+    };
+
+    /**
+     * @brief A joint's two endpoint objects, in URDF parent/child order.
+     *
+     * `parent` is the link closer to the robot root. Both handles belong to
+     * links that received a `RigidBodyComponent`.
+     */
+    struct FRAMEWORK_API UrdfBuiltJoint {
+        ObjectHandle parent{};
+        ObjectHandle child{};
+
+        /**
+         * @brief Hinge axis of the joint in the parent link's GO frame,
+         * engine coordinates. Same value as the `HingeJointDef.m_hinge_axis_obj1`
+         * conversion (`UrdfAxisToEngine(joint.axis)`). Meaningful only for joints
+         * that produced a physical `HingeJointDef`; left at the `UrdfJoint.axis`
+         * default otherwise.
+         */
+        glm::vec3 axis{1.0f, 0.0f, 0.0f};
+    };
+
+    /**
+     * @brief Result of building a robot into a scene.
+     *
+     * `link_objects` maps link name to its GameObject handle for links that
+     * received a `RigidBodyComponent` (links with `<inertial>`). `joint_objects`
+     * maps joint name to its endpoint handles for joints that produced a
+     * physical constraint. Both maps omit entities that were not physically
+     * realized.
+     */
+    struct FRAMEWORK_API UrdfBuiltRobot {
+        std::unordered_map<std::string, ObjectHandle> link_objects{};
+        std::unordered_map<std::string, UrdfBuiltJoint> joint_objects{};
     };
 
 } // namespace Engine

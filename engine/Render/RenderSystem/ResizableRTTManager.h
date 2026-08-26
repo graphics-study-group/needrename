@@ -59,6 +59,11 @@ namespace Engine {
              *
              * Invalidates all created RTTs. These RTTs will be recreated lazily
              * when resolved on the next time.
+             *
+             * @note A call with width == 0 or height == 0 is ignored: the last
+             * valid reference size is kept. This guards against a minimized
+             * (0x0) window, for which a newly created texture would be
+             * degenerate and the present blit mismatched.
              */
             void SetReferenceSize(uint32_t width, uint32_t height) noexcept;
 

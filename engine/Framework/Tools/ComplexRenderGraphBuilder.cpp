@@ -30,10 +30,7 @@ namespace Engine {
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        uint32_t texture_width,
-        uint32_t texture_height,
-        RGTextureHandle &final_color_target_id,
-        const Rhi::ComputeBuffer *model_matrices_buffer
+        RGTextureHandle &final_color_target_id, const Rhi::ComputeBuffer *model_matrices_buffer
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -45,11 +42,13 @@ namespace Engine {
             );
         }
 
-        // Request transient resources
+        // Request transient resources. Final/HDR/Depth textures are resizable
+        // (scale 1.0) and follow the ResizableRTTManager reference size, which the
+        // RenderSystem keeps equal to the swapchain/window size.
         RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
             .dimensions = 2,
-            .width = texture_width,
-            .height = texture_height,
+            .width = 0,
+            .height = 0,
             .depth = 1,
             .mipmap_levels = 1,
             .array_layers = 1,
@@ -57,12 +56,15 @@ namespace Engine {
             .multisample = 1,
             .is_cube_map = false
         };
-        auto color_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Final Color");
+        auto color_id =
+            rgb.RequestResizableRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, 1.0f, 1.0f, "Final Color");
         final_color_target_id = color_id;
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat;
-        auto hdr_color_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "HDR Color");
+        auto hdr_color_id =
+            rgb.RequestResizableRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, 1.0f, 1.0f, "HDR Color");
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-        auto depth_id = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, "Depth");
+        auto depth_id =
+            rgb.RequestResizableRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, 1.0f, 1.0f, "Depth");
 
         RenderTargetTexture::RenderTargetTextureDesc shadow_desc{
             .dimensions = 2,
@@ -177,6 +179,7 @@ namespace Engine {
                 )
                 .SetPassFunction([&system, world_system](CommandBuffer &cb, const RenderGraph &) {
                     vk::Extent2D extent{system.GetPresentProvider().GetExtent()};
+                    if (extent.width <= 0 || extent.height <= 0) return;
                     vk::Rect2D scissor{{0, 0}, extent};
                     cb.SetupViewport(extent.width, extent.height, scissor);
                     auto active_camera = world_system->GetActiveCamera();
@@ -213,21 +216,19 @@ namespace Engine {
                 .UseImage(hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(final_color_target_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
-                .SetPassFunction([&bloom_compute_stage,
-                                  texture_width,
-                                  texture_height,
-                                  &bloom_compute_binding,
-                                  hdr_color_id,
-                                  final_color_target_id](CommandBuffer &cb, const RenderGraph &rg) {
+                .SetPassFunction([&bloom_compute_stage, &bloom_compute_binding, hdr_color_id, final_color_target_id](
+                                     CommandBuffer &cb, const RenderGraph &rg
+                                 ) {
                     bloom_compute_binding.GetShaderResourceBinding().BindTexture(
                         "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                     );
                     bloom_compute_binding.GetShaderResourceBinding().BindTexture(
                         "outputImage", *rg.GetInternalTextureResource(final_color_target_id)
                     );
+                    const auto &hdr_desc = rg.GetInternalTextureResource(hdr_color_id)->GetTextureDescription();
                     cb.BindComputeStage(bloom_compute_stage);
                     cb.BindComputeResource(bloom_compute_binding);
-                    cb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
+                    cb.DispatchCompute(hdr_desc.width / 16 + 1, hdr_desc.height / 16 + 1, 1);
                 })
                 .Get()
         );

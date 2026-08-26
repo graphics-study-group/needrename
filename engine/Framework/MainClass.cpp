@@ -15,7 +15,9 @@
 #include <Render/Asset/Material/MaterialAsset.h>
 #include <Render/Asset/Shader/ShaderCompiler.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderRuntime.h>
+#include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/UserInterface/GUISystem.h>
 
 #include <cassert>
@@ -123,7 +125,10 @@ namespace Engine {
             .dynamic_dispatcher = nullptr,
         };
         this->m_device_context = std::make_unique<Rhi::DeviceContext>(cfg);
-        this->renderer = std::make_shared<RenderSystem>(this->window, *this->m_device_context);
+        const vk::Extent2D render_extent = is_headless
+                                               ? vk::Extent2D{(uint32_t)opt->resol_x, (uint32_t)opt->resol_y}
+                                               : vk::Extent2D{0, 0}; // windowed: render system derives from SDL pixels
+        this->renderer = std::make_shared<RenderSystem>(this->window, *this->m_device_context, render_extent);
         this->physics = std::make_shared<PhysicsSystem>();
         this->world = std::make_shared<WorldSystem>();
         this->asset_database = std::make_shared<FileSystemDatabase>();
@@ -254,6 +259,22 @@ namespace Engine {
         // to the scene data manager (physics itself no longer touches Render).
         if (auto *phys_scene = this->world->GetMainSceneRef().GetPhysicsScene()) {
             this->renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+        }
+
+        // Keep the active camera's aspect ratio aligned with the present extent,
+        // only when the extent changes. Interim shim (see design): the camera
+        // system lacks a size-notification mechanism; the projection matrix is
+        // lazily recomputed each frame, so no resize event is needed.
+        const vk::Extent2D present_extent = this->renderer->GetPresentProvider().GetExtent();
+        if ((present_extent.width > 0 && present_extent.height > 0)
+            && (present_extent.width != m_last_present_width || present_extent.height != m_last_present_height)) {
+            m_last_present_width = present_extent.width;
+            m_last_present_height = present_extent.height;
+            if (auto active_camera = this->world->GetActiveCamera()) {
+                active_camera->set_aspect_ratio(
+                    static_cast<float>(present_extent.width) / static_cast<float>(present_extent.height)
+                );
+            }
         }
 
         if (this->renderer->StartFrame() == std::numeric_limits<uint32_t>::max()) {

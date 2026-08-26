@@ -1,0 +1,8 @@
+anro_add_test(asset_path_test FOLDER tests/unit/core)
+anro_add_test(transform_test FOLDER tests/unit/core)
+anro_add_test(camera_transform_test FOLDER tests/unit/core)
+anro_add_test(delegate_test FOLDER tests/unit/core)
+anro_add_test(flag_bits_test FOLDER tests/unit/core)
+anro_add_test(vertex_attribute_test FOLDER tests/unit/core)
+anro_add_test(structured_buffer_test FOLDER tests/unit/core)
+anro_add_test(SDL_init_test FOLDER tests/unit/core)

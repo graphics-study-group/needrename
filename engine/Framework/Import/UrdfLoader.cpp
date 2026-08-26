@@ -339,13 +339,13 @@ namespace Engine {
     }
 
     // ══════════════════════════════════════════════════════════
-    //  SceneAsset builder
+    //  Robot scene builder
     // ══════════════════════════════════════════════════════════
 
-    void UrdfLoader::BuildAndSaveSceneAsset(
-        const UrdfRobot &robot, const std::filesystem::path &path_in_project, AssetManager &am, FileSystemDatabase &db
+    UrdfBuiltRobot UrdfLoader::BuildRobotScene(
+        const UrdfRobot &robot, Scene &scene, GameObject *root_parent, const UrdfBuildOptions &options
     ) {
-        auto &temp_scene = MainClass::GetInstance()->GetWorldSystem()->CreateScene();
+        UrdfBuiltRobot result;
 
         static const std::vector<const char *> kBuiltinMaterials = {
             "builtin://materials/solid_color_red.asset",
@@ -362,7 +362,7 @@ namespace Engine {
         // ── 1. Create one GO per link ──
         std::unordered_map<std::string, GameObject *> name_to_go;
         for (const auto &link : robot.links) {
-            auto &go = temp_scene.CreateGameObject();
+            auto &go = scene.CreateGameObject();
             go.m_name = link.name;
             name_to_go[link.name] = &go;
         }
@@ -380,6 +380,19 @@ namespace Engine {
             child_go->SetParent(parent_go->GetHandle());
         }
 
+        // ── 2b. Place the root link under root_parent with options placement ──
+        if (!robot.root_link_name.empty()) {
+            if (auto *root_go = name_to_go[robot.root_link_name]) {
+                if (root_parent) {
+                    root_go->SetParent(root_parent->GetHandle());
+                }
+                Transform t;
+                t.SetPosition(options.position);
+                t.SetRotation(options.rotation);
+                root_go->SetTransform(t);
+            }
+        }
+
         // ── 3. RigidBodyComponent for links with <inertial> ──
         for (const auto &link : robot.links) {
             if (!link.inertial.has_value()) continue;
@@ -391,6 +404,9 @@ namespace Engine {
             rb.m_mass = inertial.mass;
             rb.m_use_manual_inertia_com = true;
             rb.m_manual_center_of_mass = UrdfToEnginePos(inertial.origin_xyz);
+            rb.m_static_friction = options.static_friction;
+            rb.m_dynamic_friction = options.dynamic_friction;
+            rb.m_restitution = options.restitution;
 
             glm::mat3 I(
                 glm::vec3(inertial.ixx, inertial.ixy, inertial.ixz),
@@ -405,6 +421,8 @@ namespace Engine {
 
             rb.m_manual_inertia_diag = glm::vec3(I[0][0], I[1][1], I[2][2]);
             rb.m_manual_inertia_offdiag = glm::vec3(I[0][1], I[0][2], I[1][2]);
+
+            result.link_objects[link.name] = go->GetHandle();
         }
 
         // ── 4. CollisionShapeComponent (always on child GOs) ──
@@ -423,7 +441,7 @@ namespace Engine {
                     continue;
                 }
 
-                auto &sub_go = temp_scene.CreateGameObject();
+                auto &sub_go = scene.CreateGameObject();
                 sub_go.m_name = link.name + "_collision_" + std::to_string(i);
                 Transform local;
                 local.SetPosition(UrdfToEnginePos(col.origin_xyz));
@@ -462,6 +480,7 @@ namespace Engine {
                 fixed.m_obj2_handle = parent_go->GetHandle();
                 fixed.m_compliance = 0.0f;
                 constraint.m_joints.push_back(fixed);
+                result.joint_objects[joint.name] = {parent_go->GetHandle(), child_go->GetHandle()};
             } else if (joint.type == UrdfJointType::Revolute || joint.type == UrdfJointType::Continuous) {
                 auto &constraint = child_go->AddComponent<PhysicsConstraintComponent>();
                 HingeJointDef hinge;
@@ -470,6 +489,9 @@ namespace Engine {
                 hinge.m_hinge_axis_obj1 = UrdfAxisToEngine(joint.axis);
                 hinge.m_hinge_anchor_obj1 = glm::vec3(0.0f);
                 constraint.m_joints.push_back(hinge);
+                result.joint_objects[joint.name] = {
+                    parent_go->GetHandle(), child_go->GetHandle(), UrdfAxisToEngine(joint.axis)
+                };
             } else if (joint.type == UrdfJointType::Prismatic || joint.type == UrdfJointType::Floating) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_APPLICATION,
@@ -485,25 +507,25 @@ namespace Engine {
             auto *child_go = name_to_go[joint.child_link];
             if (!parent_go || !child_go) continue;
 
-            auto parent_collision_comps = CollectCollisionComponentHandles(*parent_go, temp_scene);
+            auto parent_collision_comps = CollectCollisionComponentHandles(*parent_go, scene);
             if (parent_collision_comps.empty()) continue;
 
             // Recursively add ignore entries to all CollisionShapeComponents in
             // the child link's subtree, stopping at child link GO boundaries.
             std::function<void(GameObject &)> add_ignores = [&](GameObject &go) {
                 for (ComponentHandle ch : go.m_components) {
-                    if (auto *shape = dynamic_cast<CollisionShapeComponent *>(temp_scene.GetComponent(ch))) {
+                    if (auto *shape = dynamic_cast<CollisionShapeComponent *>(scene.GetComponent(ch))) {
                         for (ComponentHandle h : parent_collision_comps) {
                             shape->m_ignore_collision_shapes.push_back(h);
                         }
                     }
                 }
                 for (ObjectHandle child_h : go.GetChildren()) {
-                    auto *sub = temp_scene.GetGameObject(child_h);
+                    auto *sub = scene.GetGameObject(child_h);
                     if (!sub) continue;
                     bool is_link_go = false;
                     for (ComponentHandle ch : sub->m_components) {
-                        if (dynamic_cast<RigidBodyComponent *>(temp_scene.GetComponent(ch))) {
+                        if (dynamic_cast<RigidBodyComponent *>(scene.GetComponent(ch))) {
                             is_link_go = true;
                             break;
                         }
@@ -518,64 +540,85 @@ namespace Engine {
         }
 
         // ── 7. StaticMeshComponent (render via collision geometry, on visual child GOs) ──
-        for (const auto &link : robot.links) {
-            auto *go = name_to_go[link.name];
-            if (!go || link.collisions.empty()) continue;
+        if (options.with_visuals && m_database) {
+            auto &db = *m_database;
+            for (const auto &link : robot.links) {
+                auto *go = name_to_go[link.name];
+                if (!go || link.collisions.empty()) continue;
 
-            size_t hash = std::hash<std::string>{}(link.name);
-            const char *mat_path = kBuiltinMaterials[hash % kBuiltinMaterials.size()];
-            auto mat_ref = db.GetNewAssetRef(AssetPath(mat_path));
+                size_t hash = std::hash<std::string>{}(link.name);
+                const char *mat_path = kBuiltinMaterials[hash % kBuiltinMaterials.size()];
+                auto mat_ref = db.GetNewAssetRef(AssetPath(mat_path));
 
-            for (size_t i = 0; i < link.collisions.size(); ++i) {
-                const auto &col = link.collisions[i];
-                AssetPath mesh_path{};
-                glm::vec3 mesh_scale(1.0f);
-                switch (col.geometry.type) {
-                case UrdfGeometryType::Box:
-                    mesh_path = AssetPath("builtin://mesh/cube.asset");
-                    mesh_scale = glm::vec3(
-                        col.geometry.box_size.x * 0.5f, col.geometry.box_size.y * 0.5f, col.geometry.box_size.z * 0.5f
-                    );
-                    break;
-                case UrdfGeometryType::Sphere:
-                    mesh_path = AssetPath("builtin://mesh/sphere.asset");
-                    mesh_scale = glm::vec3(col.geometry.sphere_radius);
-                    break;
-                case UrdfGeometryType::Cylinder:
-                    mesh_path = AssetPath("builtin://mesh/cylinder.asset");
-                    mesh_scale = glm::vec3(
-                        col.geometry.cylinder_radius, col.geometry.cylinder_radius, col.geometry.cylinder_length * 0.5f
-                    );
-                    break;
-                case UrdfGeometryType::Mesh:
-                    SDL_LogInfo(
-                        SDL_LOG_CATEGORY_APPLICATION,
-                        "UrdfLoader: Skipping mesh visual for link '%s' (Phase 2)",
-                        link.name.c_str()
-                    );
-                    continue;
+                for (size_t i = 0; i < link.collisions.size(); ++i) {
+                    const auto &col = link.collisions[i];
+                    AssetPath mesh_path{};
+                    glm::vec3 mesh_scale(1.0f);
+                    switch (col.geometry.type) {
+                    case UrdfGeometryType::Box:
+                        mesh_path = AssetPath("builtin://mesh/cube.asset");
+                        mesh_scale = glm::vec3(
+                            col.geometry.box_size.x * 0.5f,
+                            col.geometry.box_size.y * 0.5f,
+                            col.geometry.box_size.z * 0.5f
+                        );
+                        break;
+                    case UrdfGeometryType::Sphere:
+                        mesh_path = AssetPath("builtin://mesh/sphere.asset");
+                        mesh_scale = glm::vec3(col.geometry.sphere_radius);
+                        break;
+                    case UrdfGeometryType::Cylinder:
+                        mesh_path = AssetPath("builtin://mesh/cylinder.asset");
+                        mesh_scale = glm::vec3(
+                            col.geometry.cylinder_radius,
+                            col.geometry.cylinder_radius,
+                            col.geometry.cylinder_length * 0.5f
+                        );
+                        break;
+                    case UrdfGeometryType::Mesh:
+                        SDL_LogInfo(
+                            SDL_LOG_CATEGORY_APPLICATION,
+                            "UrdfLoader: Skipping mesh visual for link '%s' (Phase 2)",
+                            link.name.c_str()
+                        );
+                        continue;
+                    }
+
+                    auto mesh_ref = db.GetNewAssetRef(mesh_path);
+
+                    auto &visual_go = scene.CreateGameObject();
+                    visual_go.m_name = link.name + "_visual_" + std::to_string(i);
+
+                    Transform local;
+                    local.SetPosition(UrdfToEnginePos(col.origin_xyz));
+                    local.SetRotation(UrdfRpyToEngineQuat(col.origin_rpy));
+                    local.SetScale(mesh_scale);
+                    visual_go.SetTransform(local);
+                    visual_go.SetParent(go->GetHandle());
+
+                    auto &mc = visual_go.AddComponent<StaticMeshComponent>();
+                    mc.m_mesh_asset = mesh_ref;
+                    mc.m_material_assets = {mat_ref};
+                    mc.m_is_eagerly_loaded = true;
                 }
-
-                auto mesh_ref = db.GetNewAssetRef(mesh_path);
-
-                auto &visual_go = temp_scene.CreateGameObject();
-                visual_go.m_name = link.name + "_visual_" + std::to_string(i);
-
-                Transform local;
-                local.SetPosition(UrdfToEnginePos(col.origin_xyz));
-                local.SetRotation(UrdfRpyToEngineQuat(col.origin_rpy));
-                local.SetScale(mesh_scale);
-                visual_go.SetTransform(local);
-                visual_go.SetParent(go->GetHandle());
-
-                auto &mc = visual_go.AddComponent<StaticMeshComponent>();
-                mc.m_mesh_asset = mesh_ref;
-                mc.m_material_assets = {mat_ref};
-                mc.m_is_eagerly_loaded = true;
             }
         }
 
-        // ── 8. Flush and save ──
+        return result;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  SceneAsset builder (thin wrapper over BuildRobotScene)
+    // ══════════════════════════════════════════════════════════
+
+    void UrdfLoader::BuildAndSaveSceneAsset(
+        const UrdfRobot &robot, const std::filesystem::path &path_in_project, AssetManager &am, FileSystemDatabase &db
+    ) {
+        auto &temp_scene = MainClass::GetInstance()->GetWorldSystem()->CreateScene();
+
+        UrdfBuildOptions options; // defaults: no placement, default friction, visuals on
+        BuildRobotScene(robot, temp_scene, nullptr, options);
+
         temp_scene.FlushCmdQueue();
 
         auto *scene_asset = am.CreateAsset<SceneAsset>();

@@ -181,9 +181,9 @@ namespace Engine::Rhi {
         }
 
         auto staging_buffer = DeviceBuffer::CreateUnique(
-            this->m_allocator, {BufferTypeBits::StagingToDevice}, buffer.GetSize(), "Staging buffer"
+            this->m_allocator, {BufferTypeBits::StagingToDevice}, data.size_bytes(), "Staging buffer"
         );
-        std::memcpy(staging_buffer->GetVMAddress(), data.data(), buffer.GetSize());
+        std::memcpy(staging_buffer->GetVMAddress(), data.data(), data.size_bytes());
         staging_buffer->Flush();
 
         auto enqueued = [data, &buffer, pbuf = staging_buffer.get(), buffer_offset](vk::CommandBuffer cb) {
