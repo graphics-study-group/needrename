@@ -1,5 +1,6 @@
 .vscode/
 [Bb]uild/
+.venv/
 CMakeFiles/
 __*
 __generated__

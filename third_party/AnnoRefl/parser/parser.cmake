@@ -1,46 +1,55 @@
 set(_ANROREFL_PARSER_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
-function(create_python_venv)
-    # Find system Python3
-    find_package(Python3 COMPONENTS Interpreter)
-    execute_process(COMMAND ${Python3_EXECUTABLE} -m venv "${PARSER_ENV_DIR}")
-endfunction()
-
 function(setup_python_environment)
-    if (DEFINED ANROREFL_PARSER_ENV_DIR)
-        set(PARSER_ENV_DIR ${ANROREFL_PARSER_ENV_DIR})
-    else()
-        set(PARSER_ENV_DIR ${CMAKE_BINARY_DIR}/AnnoRefl/parser_env)
-    endif()
-
-    # Set up venv for the first time
-    if (NOT EXISTS "${PARSER_ENV_DIR}")
-        message(STATUS "Setting up virtual environment for the first time...")
-        create_python_venv()
-        if (NOT EXISTS "${PARSER_ENV_DIR}")
-            message(FATAL_ERROR "Failed to create virtual environment. Please check whether venv is supported and installed.")
+    # The interpreter is user-managed: CMakePresets.json points Python3_EXECUTABLE
+    # at <sourceDir>/.venv. Fall back to find_package only if it was not provided.
+    if (DEFINED Python3_EXECUTABLE)
+        # Venv layout differs between Windows Python (Scripts/) and MSYS2/Unix
+        # Python (bin/); accept either when the configured path misses.
+        get_filename_component(_ANROREFL_VENV_ROOT "${Python3_EXECUTABLE}" DIRECTORY)
+        get_filename_component(_ANROREFL_VENV_ROOT "${_ANROREFL_VENV_ROOT}" DIRECTORY)
+        if (NOT EXISTS "${Python3_EXECUTABLE}" AND EXISTS "${_ANROREFL_VENV_ROOT}/bin/python.exe")
+            set(Python3_EXECUTABLE "${_ANROREFL_VENV_ROOT}/bin/python.exe")
+        elseif (NOT EXISTS "${Python3_EXECUTABLE}" AND EXISTS "${_ANROREFL_VENV_ROOT}/Scripts/python.exe")
+            set(Python3_EXECUTABLE "${_ANROREFL_VENV_ROOT}/Scripts/python.exe")
         endif()
+        # Persist the resolved interpreter so subdirectories and later
+        # find_package(Python3) calls agree with this one.
+        set(Python3_EXECUTABLE "${Python3_EXECUTABLE}" CACHE FILEPATH "Python interpreter used by the AnnoRefl reflection parser" FORCE)
+    endif()
+    if (NOT DEFINED Python3_EXECUTABLE OR NOT EXISTS "${Python3_EXECUTABLE}")
+        find_package(Python3 COMPONENTS Interpreter)
     endif()
 
-    # Find Python3 in virtual environment
-    set(ENV{VIRTUAL_ENV} "${PARSER_ENV_DIR}")
-    set(Python3_FIND_VIRTUALENV ONLY)
-    unset(Python3_FOUND)
-    unset(Python3_EXECUTABLE)
-    find_package(Python3 COMPONENTS Interpreter)
-
-    if (NOT Python3_FOUND)
-        message(FATAL_ERROR "Python not found! Check if venv is setup correctly.")
-    else()
-        message(DEBUG "Python found: ${Python3_EXECUTABLE}")
+    if (NOT Python3_EXECUTABLE OR NOT EXISTS "${Python3_EXECUTABLE}")
+        message(FATAL_ERROR
+            "Python interpreter not found at ${Python3_EXECUTABLE}.\n"
+            "Create a user-managed virtual environment at <repo>/.venv and install the AnnoRefl\n"
+            "parser dependencies:\n"
+            "  python -m venv .venv\n"
+            "  .venv/bin/python -m pip install -r \"${_ANROREFL_PARSER_CMAKE_DIR}/requirements.txt\"\n"
+            "See docs/build_instructions/windows_msys2_clang64.md. Alternatively pass\n"
+            "-DPython3_EXECUTABLE=... to CMake.")
     endif()
-    
-    if (NOT EXISTS "${PARSER_ENV_DIR}/Lib/site-packages/clang")
-        message(STATUS "Installing requirements in venv.")
-        execute_process(COMMAND ${Python3_EXECUTABLE} -m pip install -r "${_ANROREFL_PARSER_CMAKE_DIR}/requirements.txt")
+    message(DEBUG "Python found: ${Python3_EXECUTABLE}")
+
+    # Configure-time check only: verify the parser dependencies are importable.
+    # No venv creation or pip install is performed here.
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}" -c "import clang, mako"
+        RESULT_VARIABLE _ANROREFL_IMPORT_RC
+        OUTPUT_VARIABLE _ANROREFL_IMPORT_OUT
+        ERROR_VARIABLE _ANROREFL_IMPORT_ERR)
+    if (NOT _ANROREFL_IMPORT_RC EQUAL 0)
+        string(STRIP "${_ANROREFL_IMPORT_ERR}" _ANROREFL_IMPORT_ERR)
+        message(FATAL_ERROR
+            "AnnoRefl parser dependencies (libclang, mako) are missing in ${Python3_EXECUTABLE}:\n"
+            "  ${_ANROREFL_IMPORT_ERR}\n"
+            "Install them with:\n"
+            "  \"${Python3_EXECUTABLE}\" -m pip install -r \"${_ANROREFL_PARSER_CMAKE_DIR}/requirements.txt\"")
     endif()
 
-    set(PYTHON_ENV_SETUP_DONE TRUE PARENT_SCOPE)
+    set(ANROREFL_PYTHON_CHECKED TRUE CACHE INTERNAL "AnnoRefl parser Python environment has been verified")
     set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
 endfunction()
 
@@ -110,7 +119,7 @@ function(add_reflection_parser)
         set(parent_projects ${PARSER_ARGS_parent_projects})
     endif()
 
-    if (NOT PYTHON_ENV_SETUP_DONE)
+    if (NOT ANROREFL_PYTHON_CHECKED)
         setup_python_environment()
     endif()
 

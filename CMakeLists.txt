@@ -9,7 +9,6 @@ set(ENGINE_EDITOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/app/editor)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 set(BUILTIN_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/builtin_assets)
-set(ANROREFL_PARSER_ENV_DIR "${CMAKE_SOURCE_DIR}/build/parser_env" CACHE STRING "Path to AnnoRefl parser Python virtualenv")
 set(EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/example)
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
@@ -23,6 +22,11 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 include(CTest)
+
+# Verify the user-managed Python environment (AnnoRefl parser) early so a
+# missing .venv fails with clear instructions instead of a raw FindPython error.
+include(${CMAKE_CURRENT_SOURCE_DIR}/third_party/AnnoRefl/parser/parser.cmake)
+setup_python_environment()
 
 find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)

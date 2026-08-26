@@ -16,6 +16,7 @@ We recommend using **MSYS2 CLANG64** subsystem to build projects and manage depe
 | CMake | `mingw-w64-clang-x86_64-cmake` |
 | Ninja | (included with CMake) |
 | Python 3 | `mingw-w64-clang-x86_64-python` |
+| Python pip (for Python 3) | `mingw-w64-clang-x86_64-python-pip` |
 | Vulkan loader + headers | `mingw-w64-clang-x86_64-vulkan-loader` `mingw-w64-clang-x86_64-vulkan-headers` |
 | Vulkan validation layers | `mingw-w64-clang-x86_64-vulkan-validation-layers` |
 | glslang (shader compiler) | `mingw-w64-clang-x86_64-glslang` |
@@ -32,6 +33,7 @@ pacman -S \
   mingw-w64-clang-x86_64-toolchain \
   mingw-w64-clang-x86_64-cmake \
   mingw-w64-clang-x86_64-python \
+  mingw-w64-clang-x86_64-python-pip \
   mingw-w64-clang-x86_64-vulkan-loader \
   mingw-w64-clang-x86_64-vulkan-headers \
   mingw-w64-clang-x86_64-vulkan-validation-layers \
@@ -40,6 +42,17 @@ pacman -S \
   mingw-w64-clang-x86_64-lldb \
   mingw-w64-clang-x86_64-lldb-mi
 ```
+
+### Python Environment (Reflection Parser)
+
+The reflection parser runs on Python and needs `libclang` and `mako`. Set up a **user-managed** virtual environment once before configuring (see the [Windows build instructions](./docs/build_instructions/windows_msys2_clang64.md) for details):
+
+```sh
+python -m venv .venv
+.venv/bin/python -m pip install -r third_party/AnnoRefl/parser/requirements.txt
+```
+
+The CMake presets point `Python3_EXECUTABLE` at this `.venv`.
 
 ### Build Steps
 

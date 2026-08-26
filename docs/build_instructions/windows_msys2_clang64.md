@@ -28,3 +28,12 @@ $env:VK_LAYER_PATH = "<msys2_root>\clang64\bin"
 ## Caching the Path
 
 Once `<msys2_root>` is found, save it to `<agent_config_dir>/msys2_path.txt` so future sessions can skip the search. The agent config dir is whichever of `.copilot` / `.claude` / `.codex` / `.kilo` (etc.) exists in the project root. This file must **NOT** be tracked by git.
+
+## Python Environment (AnnoRefl Parser)
+
+The reflection parser (`third_party/AnnoRefl/parser`) needs Python packages `libclang` and `mako`, installed in a user-managed virtual environment at the repository root. Create it once (from a shell with the CLANG64 environment active, per the env vars above):
+
+```powershell
+python -m venv .venv
+.venv\bin\python -m pip install -r third_party\AnnoRefl\parser\requirements.txt
+```

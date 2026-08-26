@@ -7,7 +7,8 @@
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Debug",
+                "Python3_EXECUTABLE": "${sourceDir}/.venv/bin/python.exe"
             }
         },
         {
@@ -16,7 +17,8 @@
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
+                "CMAKE_BUILD_TYPE": "Release",
+                "Python3_EXECUTABLE": "${sourceDir}/.venv/bin/python.exe"
             }
         }
     ],
