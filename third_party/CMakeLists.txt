@@ -29,6 +29,7 @@ set(FASTGLTF_ENABLE_DOCS OFF CACHE BOOL "Disable fastgltf docs" FORCE)
 set(FASTGLTF_ENABLE_INSTALL OFF CACHE BOOL "Disable fastgltf install targets" FORCE)
 add_subdirectory(fastgltf EXCLUDE_FROM_ALL SYSTEM)
 set_target_properties(fastgltf PROPERTIES FOLDER third_party)
+set_target_properties(fastgltf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # For some reasons the SPIRV-Cross in Vulkan SDK cannot be found by CMake...
 set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
@@ -36,7 +37,9 @@ set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)
 set(SPIRV_CROSS_ENABLE_HLSL OFF CACHE BOOL "Enable HLSL target support." FORCE)
 set(SPIRV_CROSS_ENABLE_MSL OFF CACHE BOOL "Enable MSL target support." FORCE)
 set(SPIRV_CROSS_ENABLE_C_API OFF CACHE BOOL "Enable C API wrapper support in static library." FORCE)
+set(SPIRV_CROSS_FORCE_PIC ON CACHE BOOL "Force position-independent code for all targets." FORCE)
 add_subdirectory(SPIRV-Cross EXCLUDE_FROM_ALL SYSTEM)
+
 set_target_properties(spirv-cross-core PROPERTIES FOLDER third_party)
 set_target_properties(spirv-cross-cpp PROPERTIES FOLDER third_party)
 set_target_properties(spirv-cross-glsl PROPERTIES FOLDER third_party)

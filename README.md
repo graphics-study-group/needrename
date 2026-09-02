@@ -6,115 +6,12 @@ An unnamed game engine with GPU-accelerated physics simulation, Vulkan-based ren
 
 ## Building the Engine
 
-We recommend using **MSYS2 CLANG64** subsystem to build projects and manage dependency packages.
+The engine builds on two platforms:
 
-### Dependencies
+- **Windows** — MSYS2 CLANG64 toolchain (Clang + Ninja). Full setup and build instructions: [`docs/build_instructions/windows_msys2_clang64.md`](./docs/build_instructions/windows_msys2_clang64.md)
+- **Linux** — Clang + Ninja with a manually installed LunarG Vulkan SDK and SDL3. Full setup and build instructions: [`docs/build_instructions/linux.md`](./docs/build_instructions/linux.md)
 
-| Dependency | MSYS2 Package |
-|---|---|
-| Clang 22 (toolchain) | `mingw-w64-clang-x86_64-toolchain` |
-| CMake | `mingw-w64-clang-x86_64-cmake` |
-| Ninja | (included with CMake) |
-| Python 3 | `mingw-w64-clang-x86_64-python` |
-| Vulkan loader + headers | `mingw-w64-clang-x86_64-vulkan-loader` `mingw-w64-clang-x86_64-vulkan-headers` |
-| Vulkan validation layers | `mingw-w64-clang-x86_64-vulkan-validation-layers` |
-| glslang (shader compiler) | `mingw-w64-clang-x86_64-glslang` |
-| SDL3 | `mingw-w64-clang-x86_64-sdl3` |
-| LLDB (debugger) | `mingw-w64-clang-x86_64-lldb` `mingw-w64-clang-x86_64-lldb-mi` |
-| Doxygen (optional) | `mingw-w64-clang-x86_64-doxygen` |
-
-Other vendored dependencies (glm, SPIRV-Cross, imgui, etc.) are in the `third_party` directory and built automatically by CMake.
-
-#### One-Command Setup
-
-```sh
-pacman -S \
-  mingw-w64-clang-x86_64-toolchain \
-  mingw-w64-clang-x86_64-cmake \
-  mingw-w64-clang-x86_64-python \
-  mingw-w64-clang-x86_64-vulkan-loader \
-  mingw-w64-clang-x86_64-vulkan-headers \
-  mingw-w64-clang-x86_64-vulkan-validation-layers \
-  mingw-w64-clang-x86_64-glslang \
-  mingw-w64-clang-x86_64-sdl3 \
-  mingw-w64-clang-x86_64-lldb \
-  mingw-w64-clang-x86_64-lldb-mi
-```
-
-### Build Steps
-
-1. Clone the repository with submodules:
-
-```sh
-git clone --recursive <repo-url>
-```
-
-2. Configure with CMake. Make sure your shell has the CLANG64 environment active (`MSYSTEM=CLANG64`, and `clang64/bin` + `usr/bin` in `PATH`):
-
-```sh
-cmake --preset debug
-```
-
-3. Build:
-
-```sh
-cmake --build --preset debug
-```
-
-A `release` preset is also available. See `CMakePresets.json` for details.
-
-### Runtime Environment
-
-Before running any executable built from this project, the following environment variables are required:
-
-| Variable | Value | Purpose |
-|---|---|---|
-| `PATH` | prepend `<msys2>/clang64/bin` and `<msys2>/usr/bin` | Find runtime DLLs (SDL3, Vulkan loader, libc++, etc.) |
-| `VK_LAYER_PATH` | `<msys2>/clang64/bin` | Find Vulkan validation layers (Debug builds) |
-
-Where `<msys2>` is your MSYS2 installation root (e.g. `C:\msys2`).
-
-From PowerShell:
-
-```powershell
-$env:Path = "C:\msys2\clang64\bin;C:\msys2\usr\bin;$env:Path"
-$env:VK_LAYER_PATH = "C:\msys2\clang64\bin"
-./build/debug/bin/project_loading_test.exe
-```
-
-### VS Code Setup
-
-The recommended VS Code extensions are:
-
-- **CMake Tools** (`ms-vscode.cmake-tools`)
-- **C/C++** (`ms-vscode.cpptools`)
-- **CodeLLDB** (`vadimcn.vscode-lldb`) — for debugging with LLDB
-
-Create `.vscode/settings.json` with the following content, adjusting paths to match your MSYS2 installation:
-
-```jsonc
-{
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-    "cmake.environment": {
-        "MSYSTEM": "CLANG64",
-        "PATH": "<msys2>\\clang64\\bin;<msys2>\\usr\\bin;${env:Path}",
-        "VK_LAYER_PATH": "<msys2>\\clang64\\bin"
-    },
-    "cmake.generator": "Ninja",
-    "C_Cpp.default.compilerPath": "<msys2>\\clang64\\bin\\clang++.exe",
-    "cmake.debugConfig": {
-        "type": "lldb",
-        "program": "${command:cmake.launchTargetPath}",
-        "cwd": "${workspaceFolder}",
-        "env": {
-            "PATH": "<msys2>\\clang64\\bin;<msys2>\\usr\\bin;${env:Path}",
-            "VK_LAYER_PATH": "<msys2>\\clang64\\bin"
-        }
-    }
-}
-```
-
-Replace `<msys2>` with your actual MSYS2 path (e.g. `C:\msys2`).
+Shared CMake presets (`debug` / `release`) are defined in `CMakePresets.json`; Linux adds `linux-debug` / `linux-release`. Platform-specific configuration (environment variables, toolchains, interpreters) lives in the per-platform docs above.
 
 ## Project Structure
 
@@ -201,6 +98,7 @@ All executables and DLLs are written to a unified `bin/` output directory (impor
 
 ## Documentation
 
+- [Build Instructions](./docs/build_instructions/) - Platform-specific build setup (Windows MSYS2 CLANG64 / Linux)
 - [Code Style Guide](./CODE_STYLE.md) - Coding conventions and best practices
 - [Contributing Guide](./CONTRIBUTING.md) - How to contribute to this project
 - [Technical Wiki](./wiki/) - Architecture and API documentation

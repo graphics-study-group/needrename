@@ -4,11 +4,16 @@ C++20 game engine: Vulkan rendering, GPU physics, Python/libclang reflection, co
 
 ## Build
 
-**Toolchain**: MSYS2 CLANG64, Clang 22, target `x86_64-w64-windows-gnu`, Ninja generator. See `README.md` for dependencies.
+**Toolchain**: Clang + Ninja.
 
-Reflection parser uses a virtualenv at `build/parser_env/` (configurable via `ANROREFL_PARSER_ENV_DIR`).
+Platform setup (dependencies, environment variables, interpreters) is **NOT** in this file — see:
+- Windows: `docs/build_instructions/windows_msys2_clang64.md`
+- Linux (WSL2): `docs/build_instructions/linux.md`
 
-Use the path that follows.
+These platforms may have the platform environment active **before any cmake, build, ctest, or executable command**. Read the relevant doc above first.
+
+Reflection parser uses a user-provided Python interpreter (discovered via CMake's `Python3_EXECUTABLE`, e.g. a `.venv`).
+No venv is auto-created.
 
 ```sh
 # Configure (debug or release)
@@ -20,10 +25,6 @@ cmake --build --preset debug
 # Test
 ctest --preset debug
 ```
-
-### CRITICAL: Environment Variables (Windows + MSYS2 CLANG64 only)
-
-On Windows, when building with the MSYS2 CLANG64 toolchain, you **MUST** set environment variables (`MSYSTEM`, `PATH`, `VK_LAYER_PATH`) before any cmake, build, ctest, or executable command. Read the full instructions at `docs/build_instructions/windows_msys2_clang64.md`. On other platforms or toolchains, skip this section.
 
 ## Architecture
 

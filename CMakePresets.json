@@ -18,6 +18,26 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
+        },
+        {
+            "name": "linux-debug",
+            "displayName": "Linux Debug (clang)",
+            "inherits": "debug",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "Python3_EXECUTABLE": "${sourceDir}/.venv/bin/python"
+            }
+        },
+        {
+            "name": "linux-release",
+            "displayName": "Linux Release (clang)",
+            "inherits": "release",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "Python3_EXECUTABLE": "${sourceDir}/.venv/bin/python"
+            }
         }
     ],
     "buildPresets": [
@@ -28,6 +48,14 @@
         {
             "name": "release",
             "configurePreset": "release"
+        },
+        {
+            "name": "linux-debug",
+            "configurePreset": "linux-debug"
+        },
+        {
+            "name": "linux-release",
+            "configurePreset": "linux-release"
         }
     ],
     "testPresets": [
@@ -38,6 +66,14 @@
         {
             "name": "release",
             "configurePreset": "release"
+        },
+        {
+            "name": "linux-debug",
+            "configurePreset": "linux-debug"
+        },
+        {
+            "name": "linux-release",
+            "configurePreset": "linux-release"
         }
     ]
 }

@@ -9,7 +9,6 @@ set(ENGINE_EDITOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/app/editor)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 set(BUILTIN_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/builtin_assets)
-set(ANROREFL_PARSER_ENV_DIR "${CMAKE_SOURCE_DIR}/build/parser_env" CACHE STRING "Path to AnnoRefl parser Python virtualenv")
 set(EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/example)
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
@@ -21,6 +20,10 @@ set(BUILD_SHARED_LIBS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# On Linux, executables in bin/ must find sibling .so files (the $ORIGIN RPATH)
+# the same way Windows finds DLLs in the executable directory.
+set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
 
 include(CTest)
 

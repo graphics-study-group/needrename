@@ -1,47 +1,96 @@
 set(_ANROREFL_PARSER_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
-function(create_python_venv)
-    # Find system Python3
-    find_package(Python3 COMPONENTS Interpreter)
-    execute_process(COMMAND ${Python3_EXECUTABLE} -m venv "${PARSER_ENV_DIR}")
-endfunction()
-
-function(setup_python_environment)
-    if (DEFINED ANROREFL_PARSER_ENV_DIR)
-        set(PARSER_ENV_DIR ${ANROREFL_PARSER_ENV_DIR})
-    else()
-        set(PARSER_ENV_DIR ${CMAKE_BINARY_DIR}/AnnoRefl/parser_env)
+# Verify the user-provided Python interpreter can import the parser requirements.
+# The interpreter is discovered through the standard CMake Python3 search (e.g.
+# Python3_EXECUTABLE set in CMakeUserPresets.json). No venv is created here.
+function(ensure_parser_python)
+    if (PARSER_PYTHON_READY)
+        return()
     endif()
 
-    # Set up venv for the first time
-    if (NOT EXISTS "${PARSER_ENV_DIR}")
-        message(STATUS "Setting up virtual environment for the first time...")
-        create_python_venv()
-        if (NOT EXISTS "${PARSER_ENV_DIR}")
-            message(FATAL_ERROR "Failed to create virtual environment. Please check whether venv is supported and installed.")
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "import clang, mako"
+        RESULT_VARIABLE _import_rc
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    if (NOT _import_rc EQUAL 0)
+        message(FATAL_ERROR
+            "Python interpreter '${Python3_EXECUTABLE}' cannot import the reflection parser requirements.\n"
+            "Point CMake at an interpreter that has 'clang' and 'mako' installed\n"
+            "(e.g. set Python3_EXECUTABLE in CMakeUserPresets.json to your .venv's python).\n"
+            "Install the requirements with:\n"
+            "  ${Python3_EXECUTABLE} -m pip install -r ${_ANROREFL_PARSER_CMAKE_DIR}/requirements.txt")
+    endif()
+
+    set(PARSER_PYTHON_READY TRUE PARENT_SCOPE)
+    set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
+endfunction()
+
+# Compute the libclang parsing arguments (EXTRA_ARGS) and the environment wrapper
+# needed to run the reflection parser with the correct libclang. On Windows the
+# parser uses the project toolchain's libclang; on other platforms it relies on
+# pip's bundled libclang but pins the builtin-header resource dir to the compiler.
+function(anrorefl_libclang_extra_args)
+    if(WIN32)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+            # --- Clang on Windows ---
+            # Try to use the system's libclang DLL.
+            get_filename_component(_CLANG_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+            if(EXISTS "${_CLANG_BIN_DIR}/libclang.dll")
+                set(ENV{LIBCLANG_LIBRARY_PATH} "${_CLANG_BIN_DIR}")
+
+                # Explicit paths: the C API doesn't auto-detect them.
+                set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu")
+
+                execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -print-resource-dir
+                                OUTPUT_VARIABLE _RD OUTPUT_STRIP_TRAILING_WHITESPACE
+                                ERROR_QUIET RESULT_VARIABLE _RC)
+                if(_RC EQUAL 0 AND EXISTS "${_RD}")
+                    set(EXTRA_ARGS "${EXTRA_ARGS} -resource-dir ${_RD}")
+                endif()
+
+                get_filename_component(_PREFIX "${_CLANG_BIN_DIR}" DIRECTORY)
+                if(EXISTS "${_PREFIX}/include/c++/v1")
+                    set(EXTRA_ARGS "${EXTRA_ARGS} -I ${_PREFIX}/include/c++/v1")
+                endif()
+                if(EXISTS "${_PREFIX}/include")
+                    set(EXTRA_ARGS "${EXTRA_ARGS} -I ${_PREFIX}/include")
+                endif()
+            else()
+                # System libclang not found — fall back to old pip-bundled approach.
+                set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
+            endif()
+        else()
+            # --- GCC / MinGW on Windows ---
+            # Pip-bundled libclang can find MinGW headers with this target.
+            set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
+        endif()
+    else()
+        # --- Other platforms ---
+        # Pin builtin headers to the project toolchain so pip's libclang sees the
+        # same C++ standard library headers as the actual compiler. GCC toolchain
+        # auto-detection supplies the libstdc++ include paths.
+        set(EXTRA_ARGS "")
+        execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -print-resource-dir
+                        OUTPUT_VARIABLE _RD OUTPUT_STRIP_TRAILING_WHITESPACE
+                        ERROR_QUIET RESULT_VARIABLE _RC)
+        if(_RC EQUAL 0 AND EXISTS "${_RD}")
+            set(EXTRA_ARGS "-resource-dir ${_RD}")
         endif()
     endif()
 
-    # Find Python3 in virtual environment
-    set(ENV{VIRTUAL_ENV} "${PARSER_ENV_DIR}")
-    set(Python3_FIND_VIRTUALENV ONLY)
-    unset(Python3_FOUND)
-    unset(Python3_EXECUTABLE)
-    find_package(Python3 COMPONENTS Interpreter)
+    # Define FLT_MAX and FLT_MIN to work around float.h inclusion
+    set(EXTRA_ARGS "${EXTRA_ARGS} -DFLT_MAX -DFLT_MIN")
+    set(ANROREFL_EXTRA_ARGS ${EXTRA_ARGS} PARENT_SCOPE)
 
-    if (NOT Python3_FOUND)
-        message(FATAL_ERROR "Python not found! Check if venv is setup correctly.")
+    if(DEFINED ENV{LIBCLANG_LIBRARY_PATH})
+        set(ANROREFL_PARSER_ENV_CMD ${CMAKE_COMMAND} -E env "LIBCLANG_LIBRARY_PATH=$ENV{LIBCLANG_LIBRARY_PATH}" PARENT_SCOPE)
     else()
-        message(DEBUG "Python found: ${Python3_EXECUTABLE}")
+        set(ANROREFL_PARSER_ENV_CMD PARENT_SCOPE)
     endif()
-    
-    if (NOT EXISTS "${PARSER_ENV_DIR}/Lib/site-packages/clang")
-        message(STATUS "Installing requirements in venv.")
-        execute_process(COMMAND ${Python3_EXECUTABLE} -m pip install -r "${_ANROREFL_PARSER_CMAKE_DIR}/requirements.txt")
-    endif()
-
-    set(PYTHON_ENV_SETUP_DONE TRUE PARENT_SCOPE)
-    set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
 endfunction()
 
 function(generate_cpp_names reflection_search_files)
@@ -110,50 +159,10 @@ function(add_reflection_parser)
         set(parent_projects ${PARSER_ARGS_parent_projects})
     endif()
 
-    if (NOT PYTHON_ENV_SETUP_DONE)
-        setup_python_environment()
-    endif()
-
-    if(WIN32)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            # --- Clang on Windows ---
-            # Try to use the system's libclang DLL.
-            get_filename_component(_CLANG_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
-            if(EXISTS "${_CLANG_BIN_DIR}/libclang.dll")
-                set(ENV{LIBCLANG_LIBRARY_PATH} "${_CLANG_BIN_DIR}")
-
-                # Explicit paths: the C API doesn't auto-detect them.
-                set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu")
-
-                execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -print-resource-dir
-                                OUTPUT_VARIABLE _RD OUTPUT_STRIP_TRAILING_WHITESPACE
-                                ERROR_QUIET RESULT_VARIABLE _RC)
-                if(_RC EQUAL 0 AND EXISTS "${_RD}")
-                    set(EXTRA_ARGS "${EXTRA_ARGS} -resource-dir ${_RD}")
-                endif()
-
-                get_filename_component(_PREFIX "${_CLANG_BIN_DIR}" DIRECTORY)
-                if(EXISTS "${_PREFIX}/include/c++/v1")
-                    set(EXTRA_ARGS "${EXTRA_ARGS} -I ${_PREFIX}/include/c++/v1")
-                endif()
-                if(EXISTS "${_PREFIX}/include")
-                    set(EXTRA_ARGS "${EXTRA_ARGS} -I ${_PREFIX}/include")
-                endif()
-            else()
-                # System libclang not found — fall back to old pip-bundled approach.
-                set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
-            endif()
-        else()
-            # --- GCC / MinGW on Windows ---
-            # Pip-bundled libclang can find MinGW headers with this target.
-            set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
-        endif()
-    else()
-        # On other platforms we leave it as default.    
-        set(EXTRA_ARGS "")
-    endif()
-    # Define FLT_MAX and FLT_MIN to work around float.h inclusion
-    set(EXTRA_ARGS "${EXTRA_ARGS} -DFLT_MAX -DFLT_MIN")
+    # Resolve the libclang parse arguments first (sets LIBCLANG_LIBRARY_PATH on
+    # Windows), then verify the Python interpreter can import the requirements.
+    anrorefl_libclang_extra_args()
+    ensure_parser_python()
 
     if (REFLECTION_VERBOSE)
         set(REFLECTION_VERBOSE --verbose)
@@ -165,7 +174,7 @@ function(add_reflection_parser)
     string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${reflection_search_include_dirs}")
     set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
     # set up parser args
-    set(REFLECTION_PARSER_ARGS "-xc++ -MG -M -ferror-limit=0 -std=c++20 ${EXTRA_ARGS} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+    set(REFLECTION_PARSER_ARGS "-xc++ -MG -M -ferror-limit=0 -std=c++20 ${ANROREFL_EXTRA_ARGS} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
     message(DEBUG "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
     # set up the generated filenames of the file to be parsed
@@ -184,18 +193,12 @@ function(add_reflection_parser)
 
     file(GLOB_RECURSE template_files ${_ANROREFL_PARSER_CMAKE_DIR}/template/*.template)
 
-    if(DEFINED ENV{LIBCLANG_LIBRARY_PATH})
-        set(PARSER_ENV_CMD ${CMAKE_COMMAND} -E env "LIBCLANG_LIBRARY_PATH=$ENV{LIBCLANG_LIBRARY_PATH}")
-    else()
-        set(PARSER_ENV_CMD)
-    endif()
-
     add_custom_command(
         OUTPUT ${TASK_STAMPED_FILE}
 
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile started ********** "
         COMMAND ${CMAKE_COMMAND} -E echo "[Precompile]: run parser python script"
-        COMMAND ${PARSER_ENV_CMD} ${Python3_EXECUTABLE} ${_ANROREFL_PARSER_CMAKE_DIR}/parser_main.py
+        COMMAND ${ANROREFL_PARSER_ENV_CMD} ${Python3_EXECUTABLE} ${_ANROREFL_PARSER_CMAKE_DIR}/parser_main.py
                     --config ${CONFIG_GENERATED_CODE_DIR}/config.json
                     ${REFLECTION_VERBOSE}
         COMMAND ${CMAKE_COMMAND} -E touch ${TASK_STAMPED_FILE}
