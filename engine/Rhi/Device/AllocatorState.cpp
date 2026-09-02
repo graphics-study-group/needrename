@@ -7,6 +7,8 @@
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan_hash.hpp>
 
+#include <unordered_map>
+
 namespace {
     constexpr std::tuple<vk::ImageUsageFlags, VmaMemoryUsage> GetImageFlags(Engine::Rhi::ImageMemoryType type) {
         using namespace Engine;

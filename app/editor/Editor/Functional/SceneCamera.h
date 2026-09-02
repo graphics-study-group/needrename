@@ -4,6 +4,8 @@
 #include <Core/Math/Transform.h>
 #include <glm.hpp>
 
+#include <memory>
+
 namespace Engine {
     class Camera;
 }

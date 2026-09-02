@@ -10,6 +10,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <unordered_map>
+
 namespace {
     constexpr vk::ImageType GetImageType(const Engine::Rhi::Texture::TextureDesc &d) {
         return d.dimensions == 1 ? vk::ImageType::e1D : (d.dimensions == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);

@@ -83,7 +83,7 @@ namespace Engine {
             geom.type = UrdfGeometryType::Box;
             const char *size_str = box->Attribute("size");
             if (size_str) {
-                sscanf_s(size_str, "%f %f %f", &geom.box_size.x, &geom.box_size.y, &geom.box_size.z);
+                sscanf(size_str, "%f %f %f", &geom.box_size.x, &geom.box_size.y, &geom.box_size.z);
             }
             geom.box_size = UrdfSizeToEngine(geom.box_size);
         } else if (auto *sphere = geom_elem->FirstChildElement("sphere")) {
@@ -99,7 +99,7 @@ namespace Engine {
             if (filename) geom.mesh_filename = filename;
             const char *scale_str = mesh->Attribute("scale");
             if (scale_str) {
-                sscanf_s(scale_str, "%f %f %f", &geom.mesh_scale.x, &geom.mesh_scale.y, &geom.mesh_scale.z);
+                sscanf(scale_str, "%f %f %f", &geom.mesh_scale.x, &geom.mesh_scale.y, &geom.mesh_scale.z);
             } else {
                 geom.mesh_scale = glm::vec3(1.0f);
             }
@@ -112,11 +112,11 @@ namespace Engine {
         if (auto *origin = elem->FirstChildElement("origin")) {
             const char *xyz_str = origin->Attribute("xyz");
             if (xyz_str) {
-                sscanf_s(xyz_str, "%f %f %f", &xyz.x, &xyz.y, &xyz.z);
+                sscanf(xyz_str, "%f %f %f", &xyz.x, &xyz.y, &xyz.z);
             }
             const char *rpy_str = origin->Attribute("rpy");
             if (rpy_str) {
-                sscanf_s(rpy_str, "%f %f %f", &rpy.x, &rpy.y, &rpy.z);
+                sscanf(rpy_str, "%f %f %f", &rpy.x, &rpy.y, &rpy.z);
             }
         }
     }
@@ -199,7 +199,7 @@ namespace Engine {
             if (auto *color = mat->FirstChildElement("color")) {
                 const char *rgba = color->Attribute("rgba");
                 if (rgba) {
-                    sscanf_s(rgba, "%f %f %f %f", &m.color_rgba.r, &m.color_rgba.g, &m.color_rgba.b, &m.color_rgba.a);
+                    sscanf(rgba, "%f %f %f %f", &m.color_rgba.r, &m.color_rgba.g, &m.color_rgba.b, &m.color_rgba.a);
                 }
             }
             robot.materials.push_back(m);
@@ -248,7 +248,7 @@ namespace Engine {
 
             if (auto *axis = joint->FirstChildElement("axis")) {
                 const char *axyz = axis->Attribute("xyz");
-                if (axyz) sscanf_s(axyz, "%f %f %f", &j.axis.x, &j.axis.y, &j.axis.z);
+                if (axyz) sscanf(axyz, "%f %f %f", &j.axis.x, &j.axis.y, &j.axis.z);
             }
 
             if (auto *dynamics = joint->FirstChildElement("dynamics")) {

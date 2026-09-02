@@ -5,6 +5,7 @@
 #include "Rhi/rhi_export.h"
 
 #include <any>
+#include <memory>
 
 namespace Engine {
     class RenderSystem;

@@ -1,5 +1,9 @@
 #include "Rhi/Buffer/StructuredBuffer.h"
 
+#include <cstring>
+#include <unordered_map>
+#include <utility>
+
 namespace Engine::Rhi {
     struct StructuredBuffer::impl : private std::unordered_map<std::string, StructuredBuffer::VariableEntry> {
         friend class StructuredBuffer;

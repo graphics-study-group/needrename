@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <functional>
+#include <memory>
 #include <queue>
 #include <span>
 

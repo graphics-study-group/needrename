@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 #include <any>
 #include <cassert>
+#include <cstring>
 #include <unordered_map>
 
 #ifndef NDEBUG
