@@ -4,6 +4,8 @@
 #include "Var.h"
 #include "utils.h"
 
+#include <stdexcept>
+
 namespace AnnoRefl {
     template <typename... Args>
     void Type::AddConstructor(const WrapperMemberFunc &func) {
