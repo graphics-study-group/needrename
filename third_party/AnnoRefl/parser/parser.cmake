@@ -30,44 +30,58 @@ function(ensure_parser_python)
 endfunction()
 
 # Compute the libclang parsing arguments (EXTRA_ARGS) and the environment wrapper
-# needed to run the reflection parser with the correct libclang. On Windows the
-# parser uses the project toolchain's libclang; on other platforms it relies on
-# pip's bundled libclang but pins the builtin-header resource dir to the compiler.
+# needed to run the reflection parser with the correct libclang. On Windows (MSVC)
+# the parser uses the libclang.dll shipped by Visual Studio's "C++ Clang tools for
+# Windows" component; on other platforms it relies on pip's bundled libclang but
+# pins the builtin-header resource dir to the compiler.
+function(_anrorefl_find_vs_libclang out_dir)
+    # Locate <vs-root>/VC/Tools/Llvm/x64/bin where the VS-bundled libclang.dll lives.
+    # Preference order: CMAKE_GENERATOR_INSTANCE (VS generator), then derive the VC
+    # root by ascending from cl.exe's directory (VC/Tools/MSVC/<ver>/bin/Hostx64/x64).
+    set(_vs_vc_dirs)
+    if(DEFINED CMAKE_GENERATOR_INSTANCE)
+        list(APPEND _vs_vc_dirs "${CMAKE_GENERATOR_INSTANCE}/VC")
+    endif()
+    if(CMAKE_CXX_COMPILER AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        get_filename_component(_cl_dir "${CMAKE_CXX_COMPILER}" DIRECTORY) # .../bin/Hostx64/x64
+        get_filename_component(_asc "${_cl_dir}" DIRECTORY)               # Hostx64
+        get_filename_component(_asc "${_asc}" DIRECTORY)                   # bin
+        get_filename_component(_asc "${_asc}" DIRECTORY)                   # <ver>
+        get_filename_component(_asc "${_asc}" DIRECTORY)                   # MSVC
+        get_filename_component(_asc "${_asc}" DIRECTORY)                   # Tools
+        get_filename_component(_asc "${_asc}" DIRECTORY)                   # VC
+        list(APPEND _vs_vc_dirs "${_asc}")
+    endif()
+    foreach(_vc IN LISTS _vs_vc_dirs)
+        if(EXISTS "${_vc}/Tools/Llvm/x64/bin/libclang.dll")
+            set(${out_dir} "${_vc}/Tools/Llvm/x64/bin" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+endfunction()
+
 function(anrorefl_libclang_extra_args)
     if(WIN32)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            # --- Clang on Windows ---
-            # Try to use the system's libclang DLL.
-            get_filename_component(_CLANG_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
-            if(EXISTS "${_CLANG_BIN_DIR}/libclang.dll")
-                set(ENV{LIBCLANG_LIBRARY_PATH} "${_CLANG_BIN_DIR}")
-
-                # Explicit paths: the C API doesn't auto-detect them.
-                set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu")
-
-                execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -print-resource-dir
-                                OUTPUT_VARIABLE _RD OUTPUT_STRIP_TRAILING_WHITESPACE
-                                ERROR_QUIET RESULT_VARIABLE _RC)
-                if(_RC EQUAL 0 AND EXISTS "${_RD}")
-                    set(EXTRA_ARGS "${EXTRA_ARGS} -resource-dir ${_RD}")
-                endif()
-
-                get_filename_component(_PREFIX "${_CLANG_BIN_DIR}" DIRECTORY)
-                if(EXISTS "${_PREFIX}/include/c++/v1")
-                    set(EXTRA_ARGS "${EXTRA_ARGS} -I ${_PREFIX}/include/c++/v1")
-                endif()
-                if(EXISTS "${_PREFIX}/include")
-                    set(EXTRA_ARGS "${EXTRA_ARGS} -I ${_PREFIX}/include")
-                endif()
-            else()
-                # System libclang not found — fall back to old pip-bundled approach.
-                set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
-            endif()
-        else()
-            # --- GCC / MinGW on Windows ---
-            # Pip-bundled libclang can find MinGW headers with this target.
-            set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
+        # --- Windows (MSVC) ---
+        # pip's bundled libclang (clang 18.x) is too old to parse current MSVC STL
+        # headers, so load the libclang.dll from the VS "C++ Clang tools for Windows"
+        # component. The Python bindings (pip `clang`) stay in charge; clang.cindex
+        # redirects the DLL it loads via the LIBCLANG_LIBRARY_PATH environment var.
+        _anrorefl_find_vs_libclang(_VS_LLVM_BIN_DIR)
+        if(NOT _VS_LLVM_BIN_DIR)
+            message(FATAL_ERROR
+                "The reflection parser needs Visual Studio's bundled libclang.dll.\n"
+                "Install the 'C++ Clang tools for Windows' component via the Visual Studio Installer\n"
+                "(individual component; provides VC/Tools/Llvm/x64/bin/libclang.dll), then reconfigure.")
         endif()
+        set(ENV{LIBCLANG_LIBRARY_PATH} "${_VS_LLVM_BIN_DIR}")
+
+        # Parse in MSVC-compatible mode. clang auto-detects the active Visual Studio
+        # installation and Windows SDK when targeting x86_64-pc-windows-msvc, so no
+        # explicit -I list is needed and the args stay free of spaces/quotes (they are
+        # embedded as a single JSON string in config.json, so quotes would corrupt it).
+        set(EXTRA_ARGS
+            "--target=x86_64-pc-windows-msvc -fms-compatibility -fms-extensions -fmsc-version=${MSVC_VERSION}")
     else()
         # --- Other platforms ---
         # Pin builtin headers to the project toolchain so pip's libclang sees the
@@ -80,10 +94,10 @@ function(anrorefl_libclang_extra_args)
         if(_RC EQUAL 0 AND EXISTS "${_RD}")
             set(EXTRA_ARGS "-resource-dir ${_RD}")
         endif()
-    endif()
 
-    # Define FLT_MAX and FLT_MIN to work around float.h inclusion
-    set(EXTRA_ARGS "${EXTRA_ARGS} -DFLT_MAX -DFLT_MIN")
+        # Define FLT_MAX and FLT_MIN to work around float.h inclusion
+        set(EXTRA_ARGS "${EXTRA_ARGS} -DFLT_MAX -DFLT_MIN")
+    endif()
     set(ANROREFL_EXTRA_ARGS ${EXTRA_ARGS} PARENT_SCOPE)
 
     if(DEFINED ENV{LIBCLANG_LIBRARY_PATH})
@@ -92,6 +106,7 @@ function(anrorefl_libclang_extra_args)
         set(ANROREFL_PARSER_ENV_CMD PARENT_SCOPE)
     endif()
 endfunction()
+
 
 function(generate_cpp_names reflection_search_files)
     set(generated_files "")

@@ -38,6 +38,15 @@
                 "CMAKE_CXX_COMPILER": "clang++",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/bin/python"
             }
+        },
+        {
+            "name": "msvc",
+            "displayName": "Windows MSVC (Visual Studio 2026)",
+            "generator": "Visual Studio 18 2026",
+            "binaryDir": "${sourceDir}/build/msvc",
+            "cacheVariables": {
+                "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
+            }
         }
     ],
     "buildPresets": [
@@ -56,6 +65,16 @@
         {
             "name": "linux-release",
             "configurePreset": "linux-release"
+        },
+        {
+            "name": "msvc-debug",
+            "configurePreset": "msvc",
+            "configuration": "Debug"
+        },
+        {
+            "name": "msvc-release",
+            "configurePreset": "msvc",
+            "configuration": "Release"
         }
     ],
     "testPresets": [
@@ -74,6 +93,16 @@
         {
             "name": "linux-release",
             "configurePreset": "linux-release"
+        },
+        {
+            "name": "msvc-debug",
+            "configurePreset": "msvc",
+            "configuration": "Debug"
+        },
+        {
+            "name": "msvc-release",
+            "configurePreset": "msvc",
+            "configuration": "Release"
         }
     ]
 }

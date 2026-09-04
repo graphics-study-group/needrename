@@ -1,7 +1,7 @@
 add_subdirectory(AnnoRefl)
 
 # disable warning for third party
-add_compile_options(-w)
+add_compile_options($<$<CXX_COMPILER_ID:GNU,Clang>:-w>$<$<CXX_COMPILER_ID:MSVC>:/w>)
 
 add_subdirectory(glm EXCLUDE_FROM_ALL SYSTEM)
 set_target_properties(glm PROPERTIES FOLDER third_party)
