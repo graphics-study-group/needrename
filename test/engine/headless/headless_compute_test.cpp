@@ -64,7 +64,7 @@ std::vector<uint32_t> GetSpirvBinaryFromGLSL(const std::string &glsl_code, EShLa
 
 int main() {
     SDL_Init(SDL_INIT_VIDEO);
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Headless Compute Test", .headless = true};
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .headless = true, .title = "Headless Compute Test"};
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_INFO);
 

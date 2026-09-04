@@ -4,6 +4,7 @@
 #include "Rhi/rhi_export.h"
 
 #include <memory>
+#include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <vector>

@@ -542,7 +542,11 @@ namespace Engine::Rhi {
         case AsynchronousTransfer:
             return pimpl->queue_families.async_transfer;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
         return std::nullopt;
     }
     uint32_t DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger limit) const {
@@ -563,7 +567,11 @@ namespace Engine::Rhi {
         case AsyncTransferImageGranularityDepth:
             return std::get<2>(pimpl->queue_families.async_transfer_granularity);
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
         return 0;
     }
     float DeviceInterface::QueryLimit(PhysicalDeviceLimitFloat limit) const {

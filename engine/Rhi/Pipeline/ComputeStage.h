@@ -16,7 +16,7 @@ namespace Engine::Rhi {
     class ComputeBuffer;
     class ComputeResourceBinding;
     class DeviceContext;
-    class SPLayout;
+    struct SPLayout;
 
     /**
      * @brief Compute pipeline used for compute kernel dispatches.

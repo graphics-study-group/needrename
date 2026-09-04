@@ -15,7 +15,7 @@ namespace Engine::Rhi {
     class DeviceBuffer;
     class DeviceInterface;
     class ImmutableResourceCache;
-    class SPLayout;
+    struct SPLayout;
     class Texture;
 
     /**

@@ -93,7 +93,7 @@ int main() {
         vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
     )[0];
     cb.begin(vk::CommandBufferBeginInfo{});
-    cb.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline->get());
+    cb.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.value.get());
     cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline_layout.get(), 0, {descriptor_set[0].get()}, {});
     cb.dispatch(ELEMENT_COUNT / 32, 1, 1);
     cb.end();

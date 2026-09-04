@@ -8,7 +8,15 @@
 #include <cstring>
 #include <unordered_map>
 
-#ifndef NDEBUG
+// <cxxabi.h> demangling is Itanium-ABI (GCC/Clang) only; MSVC typeid().name()
+// is already human-readable, so the plain passthrough below applies there.
+#if defined(_MSC_VER) || defined(NDEBUG)
+namespace {
+    std::string DemangleTypeName(const char *p) {
+        return std::string{p};
+    }
+} // namespace
+#else
 #include <cxxabi.h>
 namespace {
     std::string DemangleTypeName(const char *p) {
@@ -16,12 +24,6 @@ namespace {
         std::string name{demangled_name_buf};
         free(demangled_name_buf);
         return name;
-    }
-} // namespace
-#else
-namespace {
-    std::string DemangleTypeName(const char *p) {
-        return std::string{p};
     }
 } // namespace
 #endif

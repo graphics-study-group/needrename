@@ -32,7 +32,7 @@ void WritePPM(const std::filesystem::path &path, const uint8_t *rgba) {
 
 int main() {
     SDL_Init(SDL_INIT_VIDEO);
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Headless Offscreen Test", .headless = true};
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .headless = true, .title = "Headless Offscreen Test"};
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_INFO);
     assert(cmc->GetWindow() == nullptr && "Headless test should not create a window.");

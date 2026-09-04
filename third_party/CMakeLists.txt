@@ -55,6 +55,11 @@ file(GLOB IMGUI_SOURCE
 message(DEBUG "Found ImGUI files: ${IMGUI_SOURCE}")
 add_library(imgui SHARED EXCLUDE_FROM_ALL ${IMGUI_SOURCE})
 set_target_properties(imgui PROPERTIES FOLDER third_party)
+# imgui has no dllexport annotations, so on Windows it must be made to export
+# its symbols explicitly (Linux .so exports by default).
+if(MSVC)
+    set_target_properties(imgui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 target_include_directories(
     imgui 

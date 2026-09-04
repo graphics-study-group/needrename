@@ -72,7 +72,11 @@ namespace {
         case Alpha:
             return vk::ComponentSwizzle::eA;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     constexpr vk::ComponentMapping ToVkComponentMapping(

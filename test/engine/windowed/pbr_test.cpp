@@ -2,6 +2,7 @@
 #include <cassert>
 #include <chrono>
 #include <fstream>
+#include <numbers>
 
 #include "Render/FullRenderSystem.h"
 
@@ -128,7 +129,14 @@ struct {
     float metalness, roughness;
     glm::vec4 emissive;
     glm::vec4 albedo;
-} g_SceneData{M_PI_2, M_PI_2 * 3, 0.5f, 0.5f, glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}, glm::vec4{1.0f, 1.0f, 1.0f, 1.0f}};
+} g_SceneData{
+    std::numbers::pi_v<float> / 2.0f,
+    std::numbers::pi_v<float> / 2.0f * 3,
+    0.5f,
+    0.5f,
+    glm::vec4{0.0f, 0.0f, 0.0f, 1.0f},
+    glm::vec4{1.0f, 1.0f, 1.0f, 1.0f}
+};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;

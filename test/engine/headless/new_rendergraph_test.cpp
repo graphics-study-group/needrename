@@ -9,7 +9,7 @@ void dummy_graphics_pass(CommandBuffer &, const RenderGraph &) {
 }
 
 int main() {
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "RenderGraph Test", .headless = true};
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .headless = true, .title = "RenderGraph Test"};
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 

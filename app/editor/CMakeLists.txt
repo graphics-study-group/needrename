@@ -6,6 +6,11 @@ list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
 
 add_library(EngineEditor SHARED ${SOURCE})
+if(MSVC)
+    # The editor code has no dllexport annotations; export all symbols on
+    # Windows so an import library is produced (Linux .so exports by default).
+    set_target_properties(EngineEditor PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 target_include_directories(EngineEditor PUBLIC ${ENGINE_EDITOR_DIR})
 target_link_libraries(EngineEditor PUBLIC Engine)
 

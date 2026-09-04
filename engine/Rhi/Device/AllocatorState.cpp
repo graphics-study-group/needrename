@@ -249,6 +249,7 @@ namespace Engine::Rhi {
     AllocatorState::~AllocatorState() {
         if (pimpl) vmaDestroyAllocator(pimpl->m_allocator);
     }
+    AllocatorState::AllocatorState(AllocatorState &&) noexcept = default;
 
     VmaAllocator AllocatorState::GetAllocator() const {
         return pimpl->m_allocator;

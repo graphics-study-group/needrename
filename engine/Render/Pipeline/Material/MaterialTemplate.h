@@ -20,7 +20,7 @@ namespace vk {
 
 namespace Engine {
     namespace Rhi {
-        class SPLayout;
+        struct SPLayout;
     }
     class MaterialInstance;
     class Pipeline;

@@ -15,6 +15,7 @@
 #include <Render/Asset/Material/MaterialAsset.h>
 #include <Render/Asset/Shader/ShaderCompiler.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderRuntime.h>
 #include <Render/RenderSystem/IPresentProvider.h>
@@ -53,6 +54,8 @@ namespace Engine {
         });
         return sptr;
     }
+
+    MainClass::MainClass() = default;
 
     MainClass::~MainClass() {
         SetRenderRuntime({});

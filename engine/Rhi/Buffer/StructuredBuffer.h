@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <span>
+#include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <vector>

@@ -3,6 +3,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <limits>
+
 #include "Render/Asset/Material/PipelineProperty.h"
 #include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Pipeline/PipelineEnums.h"
@@ -17,7 +19,11 @@ namespace Engine::PipelineUtils {
         case Rhi::FillingMode::Point:
             return vk::PolygonMode::ePoint;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     constexpr vk::CullModeFlags ToVkCullMode(Rhi::CullingMode mode) {
@@ -31,7 +37,11 @@ namespace Engine::PipelineUtils {
         case Rhi::CullingMode::All:
             return vk::CullModeFlagBits::eFrontAndBack;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     constexpr vk::FrontFace ToVkFrontFace(Rhi::FrontFace face) {
@@ -41,7 +51,11 @@ namespace Engine::PipelineUtils {
         case Rhi::FrontFace::Clockwise:
             return vk::FrontFace::eClockwise;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     constexpr vk::StencilOp ToVkStencilOp(Rhi::StencilOperation op) {
@@ -64,7 +78,11 @@ namespace Engine::PipelineUtils {
         case Rhi::BlendOperation::Max:
             return vk::BlendOp::eMax;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     constexpr vk::BlendFactor ToVkBlendFactor(Rhi::BlendFactor factor) {
@@ -90,7 +108,11 @@ namespace Engine::PipelineUtils {
         case Rhi::BlendFactor::OneMinusDstAlpha:
             return vk::BlendFactor::eOneMinusDstAlpha;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     /**
@@ -155,7 +177,11 @@ namespace Engine::PipelineUtils {
         info.cullMode = ToVkCullMode(prop.culling);
         info.frontFace = ToVkFrontFace(prop.front);
 
-        bool is_depth_bias_enabled = std::isfinite(prop.depth_bias_constant) && std::isfinite(prop.depth_bias_slope);
+        auto is_finite = [](float f) constexpr {
+            constexpr float max = std::numeric_limits<float>::max();
+            return f == f && f <= max && f >= -max;
+        };
+        bool is_depth_bias_enabled = is_finite(prop.depth_bias_constant) && is_finite(prop.depth_bias_slope);
         is_depth_bias_enabled =
             is_depth_bias_enabled && (prop.depth_bias_constant != 0.0f && prop.depth_bias_constant != -0.0f);
         is_depth_bias_enabled =

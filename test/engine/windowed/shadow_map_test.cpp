@@ -2,6 +2,7 @@
 #include <cassert>
 #include <chrono>
 #include <fstream>
+#include <numbers>
 
 #include "Asset/AssetManager/AssetManager.h"
 #include "Core/Functional/SDLWindow.h"
@@ -128,7 +129,8 @@ int main(int argc, char **argv) {
     auto *mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
     Transform transform{};
-    transform.SetPosition({0.0f, 0.0f, -5.0f}).SetRotationEuler(glm::vec3{M_PI_2, 0.0f, 0.0f});
+    transform.SetPosition({0.0f, 0.0f, -5.0f})
+        .SetRotationEuler(glm::vec3{std::numbers::pi_v<float> / 2.0f, 0.0f, 0.0f});
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(1920.0 / 1080.0);
     camera->m_clipping_far = 1e2;

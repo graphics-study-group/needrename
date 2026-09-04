@@ -62,6 +62,12 @@ namespace Engine {
         std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
 
         std::unordered_map<RGBufferHandle, const Rhi::DeviceBuffer *> buffer_mapping;
+
+        RenderGraph2ExtraInfo() = default;
+        RenderGraph2ExtraInfo(const RenderGraph2ExtraInfo &) = delete;
+        RenderGraph2ExtraInfo &operator=(const RenderGraph2ExtraInfo &) = delete;
+        RenderGraph2ExtraInfo(RenderGraph2ExtraInfo &&) noexcept = default;
+        RenderGraph2ExtraInfo &operator=(RenderGraph2ExtraInfo &&) noexcept = default;
     };
 } // namespace Engine
 

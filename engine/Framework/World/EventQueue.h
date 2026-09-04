@@ -15,6 +15,10 @@ namespace Engine {
         EventQueue(Scene &world);
         virtual ~EventQueue() = default;
 
+        // Holds a queue of move-only DelegatePtr entries; non-copyable.
+        EventQueue(const EventQueue &) = delete;
+        EventQueue &operator=(const EventQueue &) = delete;
+
         void AddEvent(DelegatePtr event);
         template <typename T>
         void AddEvent(ComponentHandle object, void (T::*method)()) {

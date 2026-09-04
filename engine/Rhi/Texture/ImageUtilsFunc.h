@@ -167,7 +167,11 @@ namespace Engine::Rhi {
         case Mode::Point:
             return vk::Filter::eNearest;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(SamplerDesc::FilterMode filter) {
@@ -178,7 +182,11 @@ namespace Engine::Rhi {
         case Mode::Point:
             return vk::SamplerMipmapMode::eNearest;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     constexpr vk::SamplerAddressMode ToVkSamplerAddressMode(SamplerDesc::AddressMode addr) {
@@ -195,7 +203,11 @@ namespace Engine::Rhi {
         case Mode::ClampToBorder_OpaqueWhite:
             return vk::SamplerAddressMode::eClampToBorder;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     constexpr vk::BorderColor ToVkBorderColor(SamplerDesc::AddressMode addr, bool integer_variant = false) {
@@ -212,7 +224,11 @@ namespace Engine::Rhi {
         case Mode::ClampToBorder_OpaqueWhite:
             return integer_variant ? vk::BorderColor::eIntOpaqueWhite : vk::BorderColor::eFloatOpaqueWhite;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 } // namespace Engine::Rhi
 

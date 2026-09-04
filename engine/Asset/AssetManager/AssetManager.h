@@ -30,6 +30,9 @@ namespace Engine {
         AssetManager() = default;
         virtual ~AssetManager() = default;
 
+        AssetManager(const AssetManager &) = delete;
+        AssetManager &operator=(const AssetManager &) = delete;
+
         /**
          * @brief Add a loaded asset to the manager.
          * @param asset The asset to add.

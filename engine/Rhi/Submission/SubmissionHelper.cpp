@@ -27,7 +27,11 @@ namespace {
         case TextureClearAfter:
             return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
     std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope2Image(TextureTransferType type) {
         using enum TextureTransferType;
@@ -39,7 +43,11 @@ namespace {
         case TextureClearAfter:
             return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
     std::pair<vk::ImageLayout, vk::ImageLayout> GetLayouts(TextureTransferType type) {
         using enum TextureTransferType;
@@ -51,7 +59,11 @@ namespace {
         case TextureClearAfter:
             return std::make_pair(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eReadOnlyOptimal);
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
     }
 
     vk::ImageMemoryBarrier2 GetTextureBarrier(TextureTransferType type, vk::Image image, vk::ImageAspectFlags aspect) {

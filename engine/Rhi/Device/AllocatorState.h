@@ -35,7 +35,7 @@ namespace Engine::Rhi {
         AllocatorState(const AllocatorState &) = delete;
         AllocatorState &operator=(const AllocatorState &) = delete;
 
-        AllocatorState(AllocatorState &&) = default;
+        AllocatorState(AllocatorState &&) noexcept;
 
         ~AllocatorState();
         /// @brief Get the underlying allocator state.
