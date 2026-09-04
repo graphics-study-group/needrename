@@ -1,8 +1,13 @@
 #include "Core/Functional/OptionHandler.h"
 #include <SDL3/SDL.h>
 
-namespace OptionDeclaration {
-    const char help_text[] = R"DIM(programName
+#include <charconv>
+#include <cstdio>
+#include <string_view>
+#include <system_error>
+
+namespace {
+    const char help_text[] = R"DIM(%s
         -? -v
         --resolutionX=X
         --resolutionY=Y
@@ -12,56 +17,107 @@ namespace OptionDeclaration {
         --fontSize=SIZE
         --startup=SCRIPT
         --headless)DIM";
-    const char *short_options = "?x:y:v";
-    const option long_options[] = {
-        {"help", no_argument, NULL, '?'},
-        {"resolutionX", required_argument, NULL, 'x'},
-        {"resolutionY", required_argument, NULL, 'y'},
-        {"verbose", no_argument, NULL, 'v'},
-        {"title", required_argument, NULL, OPT_SETTITLE},
-        {"fontFile", required_argument, NULL, OPT_SETFONT},
-        {"fontSize", required_argument, NULL, OPT_SETSIZE},
-        {"startup", required_argument, NULL, OPT_STARTUP},
-        {"headless", no_argument, NULL, OPT_HEADLESS}
+
+    bool ParseInt(std::string_view str, int &out) {
+        const char *begin = str.data();
+        const char *end = begin + str.size();
+        auto [ptr, ec] = std::from_chars(begin, end, out);
+        return ec == std::errc{} && ptr == end;
+    }
+} // namespace
+
+std::unique_ptr<StartupOptions> ParseOptions(int argc, char **argv) {
+    auto opts = std::make_unique<StartupOptions>();
+    const char *program_name = (argc > 0 && argv[0]) ? argv[0] : "programName";
+
+    auto show_help = [&] {
+        char formatted[1024];
+        std::snprintf(formatted, sizeof(formatted), help_text, program_name);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Help", formatted, nullptr);
+        std::fprintf(stderr, "%s", formatted);
+        opts->instantQuit = true;
     };
-} // namespace OptionDeclaration
 
-StartupOptions *ParseOptions(int argc, char **argv) {
-    StartupOptions *opts = new StartupOptions;
-    int opt = 0;
+    for (int i = 1; i < argc; ++i) {
+        const std::string_view arg = argv[i];
 
-    while ((opt = getopt_long(argc, argv, OptionDeclaration::short_options, OptionDeclaration::long_options, NULL))
-           != -1) {
-        switch (opt) {
-        case '?':
-            opts->instantQuit = true;
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Help", OptionDeclaration::help_text, NULL);
-            fprintf(stderr, OptionDeclaration::help_text);
-            return opts;
-        case 'x':
-            opts->resol_x = atoi(optarg);
-            break;
-        case 'y':
-            opts->resol_y = atoi(optarg);
-            break;
-        case 'v':
-            opts->enableVerbose = true;
-            break;
-        case OptionDeclaration::OPT_SETTITLE:
-            opts->title = optarg;
-            break;
-        case OptionDeclaration::OPT_SETFONT:
-            opts->fntName = optarg;
-            break;
-        case OptionDeclaration::OPT_SETSIZE:
-            opts->fntSz = atoi(optarg);
-            break;
-        case OptionDeclaration::OPT_STARTUP:
-            opts->startupScript = optarg;
-            break;
-        case OptionDeclaration::OPT_HEADLESS:
-            opts->headless = true;
-            break;
+        if (arg.starts_with("--")) {
+            std::string_view name = arg.substr(2);
+            std::string_view value{};
+            const size_t eq = name.find('=');
+            const bool has_value = eq != std::string_view::npos;
+            if (has_value) {
+                value = name.substr(eq + 1);
+                name = name.substr(0, eq);
+            }
+
+            if (name == "help") {
+                show_help();
+                return opts;
+            }
+            if (name == "verbose") {
+                opts->enableVerbose = true;
+                continue;
+            }
+            if (name == "headless") {
+                opts->headless = true;
+                continue;
+            }
+
+            const bool is_value_opt = name == "resolutionX" || name == "resolutionY" || name == "title"
+                                      || name == "fontFile" || name == "fontSize" || name == "startup";
+            if (!is_value_opt) {
+                show_help();
+                return opts;
+            }
+            if (!has_value) {
+                if (i + 1 >= argc) {
+                    show_help();
+                    return opts;
+                }
+                value = argv[++i];
+            }
+
+            if (name == "resolutionX") {
+                if (!ParseInt(value, opts->resol_x)) continue;
+            } else if (name == "resolutionY") {
+                if (!ParseInt(value, opts->resol_y)) continue;
+            } else if (name == "fontSize") {
+                if (!ParseInt(value, opts->fntSz)) continue;
+            } else if (name == "title") {
+                opts->title = value;
+            } else if (name == "fontFile") {
+                opts->fntName = value;
+            } else {
+                opts->startupScript = value;
+            }
+            continue;
+        }
+
+        if (arg.starts_with("-") && arg.size() > 1) {
+            const char opt_char = arg[1];
+            switch (opt_char) {
+            case '?':
+                show_help();
+                return opts;
+            case 'v':
+                opts->enableVerbose = true;
+                break;
+            case 'x':
+            case 'y': {
+                if (i + 1 >= argc) {
+                    show_help();
+                    return opts;
+                }
+                int parsed = 0;
+                if (!ParseInt(argv[++i], parsed)) break;
+                (opt_char == 'x' ? opts->resol_x : opts->resol_y) = parsed;
+                break;
+            }
+            default:
+                show_help();
+                return opts;
+            }
         }
     }
 
