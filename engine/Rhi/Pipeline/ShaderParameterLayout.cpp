@@ -39,6 +39,10 @@ namespace {
 
         unsigned member_count = type.member_types.size();
 
+        // std140 gives vec4/matrix members a 16-byte base alignment, so a block
+        // containing any of them is padded up to a 16-byte boundary.
+        bool has_non_scalar_member = false;
+
         // For every member
         for (unsigned i = 0; i < member_count; i++) {
             auto &member_type = compiler.get_type(type.member_types[i]);
@@ -65,11 +69,13 @@ namespace {
                     // This is a matrix
                     assert(member_type.vecsize == 4 && member_type.columns == 4);
                     assert(member_type.basetype == spirv_cross::SPIRType::Float);
+                    has_non_scalar_member = true;
                     placer->AddVariable<float[16]>(qualified_name, offset);
                 } else if (member_type.vecsize > 1) {
                     // This is a vector
                     assert(member_type.vecsize == 4);
                     assert(member_type.basetype == spirv_cross::SPIRType::Float);
+                    has_non_scalar_member = true;
                     placer->AddVariable<float[4]>(qualified_name, offset);
                 } else {
                     // This is a scalar
@@ -89,6 +95,17 @@ namespace {
                 }
             }
         }
+
+        // Declare the std140 block size (get_declared_struct_size returns only
+        // the last member end, without trailing padding; pad it to the struct's
+        // base alignment so UBO allocations and descriptor ranges cover the block).
+        if (member_count > 0) {
+            const size_t declared_size = compiler.get_declared_struct_size(type);
+            const size_t struct_alignment = has_non_scalar_member ? 16 : 4;
+            const size_t block_size = (declared_size + struct_alignment - 1) & ~(struct_alignment - 1);
+            placer->SetBlockSize(block_size);
+        }
+
         root.buffer_placer = placer.get();
         type_storage.structured_buffers.emplace_back(std::move(placer));
     }

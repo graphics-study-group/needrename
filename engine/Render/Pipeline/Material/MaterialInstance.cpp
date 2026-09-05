@@ -84,7 +84,7 @@ namespace Engine {
                         pass.ubos[pbuffer->layout_binding] = Rhi::IndexedBuffer::CreateUnique(
                             system.GetAllocatorState(),
                             {Rhi::BufferTypeBits::HostAccessibleUniform},
-                            psb->buffer_placer->CalculateMaxSize(),
+                            psb->buffer_placer->GetBlockSize(),
                             system.GetDeviceInterface().QueryLimit(
                                 Rhi::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                             ),

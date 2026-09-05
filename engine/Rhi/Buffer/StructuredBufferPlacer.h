@@ -54,9 +54,39 @@ namespace Engine::Rhi {
         void AddStructuredBuffer(const std::string &name, size_t offset, const StructuredBufferPlacer &buffer);
 
         /**
-         * @brief Recursively determine the maximal size of this buffer.
+         * @brief Get the buffer size required to hold every member write.
+         *
+         * Equals the end of the last member (`max(offset + size)`), recursively
+         * accounting for nested structured buffers. Trailing padding is not
+         * included. `WriteBuffer` resizes its staging vector to this size.
+         *
+         * @return The required size in bytes.
          */
-        size_t CalculateMaxSize() const noexcept;
+        size_t GetRequiredSize() const noexcept;
+
+        /**
+         * @brief Declare the total block size in the target layout.
+         *
+         * The target layout's size in bytes, including trailing padding. Required
+         * when the placer mirrors a layout that pads the buffer to an alignment
+         * boundary: pass the target struct's `sizeof` for CPU mirror structs, or
+         * the std140-rounded block size for shader-reflected uniform buffers. Call
+         * after all members are added. The value must be at least `GetRequiredSize()`.
+         *
+         * @param block_size The block size in bytes, including trailing padding.
+         */
+        void SetBlockSize(size_t block_size) noexcept;
+
+        /**
+         * @brief Get the total block size of the buffer.
+         *
+         * Returns the value passed to `SetBlockSize`, or falls back to
+         * `GetRequiredSize()` when no block size was declared. Debug builds assert
+         * that a declared block size is not smaller than the required size.
+         *
+         * @return The block size in bytes.
+         */
+        size_t GetBlockSize() const noexcept;
 
         /**
          * @brief Write the structured buffer into memory.

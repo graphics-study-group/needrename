@@ -62,7 +62,7 @@ namespace Engine::Rhi {
                             ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
                                 allocator_state,
                                 {BufferTypeBits::HostAccessibleUniform},
-                                placer->CalculateMaxSize(),
+                                placer->GetBlockSize(),
                                 device_interface.QueryLimit(
                                     Rhi::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                                 ),
