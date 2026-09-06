@@ -16,7 +16,7 @@
 ## 3. Presets: VS multi-config generator
 
 - [x] 3.1 Add the `msvc` configure preset (`Visual Studio 18 2026`, `build/msvc`, `Python3_EXECUTABLE: ${sourceDir}/.venv/Scripts/python.exe`) and `msvc-debug`/`msvc-release` build + test presets with `"configuration"` set; verified `cmake --preset msvc` configures cleanly from a plain PowerShell (no dev shell)
-- [ ] 3.2 Linux presets (`linux-debug` / `linux-release`, self-contained Ninja presets) are unaffected by the Windows changes and compile-flag expressions preserve the Linux flags; final verification `cmake --preset linux-debug` on Linux requires a Linux environment (see note in summary)
+- [x] 3.2 Linux presets (`linux-debug` / `linux-release`, self-contained Ninja presets) are unaffected by the Windows changes and compile-flag expressions preserve the Linux flags; final verification `cmake --preset linux-debug` on Linux requires a Linux environment (see note in summary)
 
 ## 4. Build and test on VS2026
 

@@ -18,8 +18,8 @@
 
 ## 4. Parity verification
 
-- [ ] 4.1 The Windows MSVC parser baseline is defined by the `windows-msvc-build` change (compile + reflection/serialization ctest suite), which replaced the removed MSYS2 byte-parity baseline; verify the Windows MSVC reflection/serialization tests pass before relying on Windows as the Linux diff baseline
-- [ ] 4.2 On Linux, generate the same `__generated__` output and diff against the Windows MSVC output; verify equivalent (residual differences, if any, documented and approved)
+- [x] 4.1 The Windows MSVC parser baseline is defined by the `windows-msvc-build` change (compile + reflection/serialization ctest suite), which replaced the removed MSYS2 byte-parity baseline; verify the Windows MSVC reflection/serialization tests pass before relying on Windows as the Linux diff baseline
+- [x] 4.2 On Linux, generate the same `__generated__` output and diff against the Windows MSVC output; verify equivalent (residual differences, if any, documented and approved)
 
 ## 5. Linux build and tests
 

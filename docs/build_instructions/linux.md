@@ -63,8 +63,8 @@ The Vulkan SDK is **not** installed from the Linux package manager. The apt-prov
 
 ```sh
 # Example for 1.4.357.1 (replace with the version you download)
-mkdir -p ~/VulkanSDK/1.4.357.1
-tar -xf vulkansdk-linux-x86_64-1.4.357.1.tar.xz -C ~/VulkanSDK/1.4.357.1
+mkdir -p ~/VulkanSDK
+tar -xf vulkansdk-linux-x86_64-1.4.357.1.tar.xz -C ~/VulkanSDK
 ln -s ~/VulkanSDK/1.4.357.1 ~/VulkanSDK/current
 echo 'source ~/VulkanSDK/current/setup-env.sh' >> ~/.bashrc
 source ~/VulkanSDK/current/setup-env.sh
