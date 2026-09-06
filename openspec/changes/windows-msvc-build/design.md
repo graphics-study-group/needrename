@@ -25,7 +25,7 @@ See proposal.md — Why. Current state that shapes the approach (all verified on
 
 ### D1: Visual Studio multi-config generator, `build/msvc` tree
 
-Presets: one configure preset `msvc` (`generator: "Visual Studio 18 2026"`, `binaryDir: ${sourceDir}/build/msvc`, `Python3_EXECUTABLE: ${sourceDir}/.venv/Scripts/python.exe`), plus `msvc-debug` / `msvc-release` build presets (`"configuration": "Debug"` / `"Release"`) and matching test presets. The existing `debug` / `release` single-config presets stay — `linux-*` presets inherit them for `CMAKE_BUILD_TYPE`.
+Presets: one configure preset `msvc` (`generator: "Visual Studio 18 2026"`, `binaryDir: ${sourceDir}/build/msvc`, `Python3_EXECUTABLE: ${sourceDir}/.venv/Scripts/python.exe`), plus `msvc-debug` / `msvc-release` build presets (`"configuration": "Debug"` / `"Release"`) and matching test presets. Linux uses the self-contained single-config `linux-debug` / `linux-release` presets (`build/debug`, `build/release`); there are no platform-less `debug` / `release` presets.
 
 Consequences accepted: `CMAKE_BUILD_TYPE` is ignored by the VS generator; `CMAKE_RUNTIME_OUTPUT_DIRECTORY`/`CMAKE_LIBRARY_OUTPUT_DIRECTORY`/`CMAKE_ARCHIVE_OUTPUT_DIRECTORY` gain per-config subdirs (`build/msvc/bin/Debug/` etc.) — CMake appends the config name automatically for multi-config generators; docs and test run paths use them. The reflection parser's custom command stamping is config-independent and unaffected.
 
@@ -50,14 +50,14 @@ The non-Windows branch stays exactly as the Linux change left it (`-resource-dir
 For `WIN32`:
 
 - `EXTRA_ARGS = --target=x86_64-pc-windows-msvc -fms-compatibility -fms-extensions -fmsc-version=${MSVC_VERSION}` (CMake's `MSVC_VERSION` equals `_MSC_VER`, e.g. 1951 on the verified machine).
-- Include dirs: pass `CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES` (MSVC STL + Windows SDK ucrt/um/shared) as `-I` args, quoted to survive paths with spaces. Deterministic across CI/fresh machines; avoids relying on clang's registry-based MSVC detection.
+- Include dirs: rely on clang's built-in MSVC/Windows-SDK auto-detection for the `x86_64-pc-windows-msvc` target (no explicit `-I` list). Passing explicit include dirs was rejected during implementation: the parse arguments are embedded as a single JSON string in `config.json`, so quotes and paths-with-spaces (`C:\Program Files\...`) would corrupt the file, and the quoting/transport machinery needed to make them survive is not worth the determinism gain. Auto-detection also matches exactly what a real clang-cl compile of the same code sees.
 - Keep `-MG -M -o ${CMAKE_BINARY_DIR}/parser_log.txt` (user intent: reflection should not care about unresolvable headers; the log output aids debugging) and `-xc++ -std=c++20 -ferror-limit=0`.
 - Delete: `--target=x86_64-w64-windows-gnu`, `-stdlib=libstdc++`, `-resource-dir <msys2>`, `-I <msys2>/include/c++/v1`, `-I <msys2>/include`.
-- `-DFLT_MAX -DFLT_MIN`: delete, then re-add only if MSVC STL parsing breaks without it (test decides; it was a MinGW-float.h-era workaround).
-- `-fdelayed-template-parsing`: omit initially; add only if MSVC STL parsing produces template-instantiation errors (test decides).
-- Fix `processor.py`: `config["args"].split()` → `shlex.split(..., posix=False)` so quoted `-I C:\Program Files\...` paths survive; quote include paths when assembling `REFLECTION_PARSER_ARGS` in CMake.
+- `-DFLT_MAX -DFLT_MIN`: deleted and not needed — MSVC STL parsed cleanly without it on VS2026 (clang 22).
+- `-fdelayed-template-parsing`: omitted and not needed — MSVC STL parsed cleanly on VS2026.
+- Fix `processor.py`: `config["args"].split()` → `shlex.split(..., posix=False)` as hardening for any future argument containing a quoted segment.
 
-**Why explicit system includes:** clang's MSVC detection works via registry/env but silently degrades in odd shells (e.g. no INCLUDE env, non-standard VS layouts); CMake already computed the authoritative include list for the active toolchain, so passing it through removes an entire failure class.
+**Why clang auto-detection instead of explicit includes:** the arg list is transported as one JSON string in `config.json`, where literal quotes/backslashes would corrupt parsing; explicit `-I` paths with spaces cannot survive that channel without significant escaping machinery. Clang's own MSVC/SDK discovery (registry + vswhere) is the same mechanism a normal clang-cl compile relies on and worked reliably in the verified configuration.
 
 ### D4: SDL3 via official VC dev package + `SDL3_ROOT`
 
@@ -97,6 +97,7 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 - **Multi-config path changes break habits/scripts** (exes now under `build/msvc/bin/Debug/`) → Mitigation: documented prominently; test presets carry `"configuration"` so ctest needs no manual flags.
 - **`linux-build-support` change declares "Windows parser behavior unchanged"** → this change supersedes it; that in-flight delta's Windows scenario must be reworded to reference the MSVC branch instead of MSYS2 (tracked as a task).
 - **Stray MSYS2 references** (docs, VS Code settings, agent configs) → Mitigation: a grep sweep task (`MSYS2|msys64|CLANG64|x86_64-w64-windows-gnu|libstdc++`) with zero hits as its completion check.
+- **MSVC-specific engine pitfalls surfaced by the first MSVC build** (fixed as part of this change or in parallel changes): MSVC mangles `class` and `struct` forward declarations differently, so a forward declaration whose class-key disagrees with the real definition (`class vk::DescriptorSetLayoutBinding` vs the real `struct`, `struct StructuredBuffer` vs the real `class`, `class SPLayout` vs the real `struct`) links fine under the Itanium ABI but produces `LNK2019` on MSVC; and MSVC eagerly instantiates implicit copy operations of aggregates holding move-only members (`vector<unique_ptr<...>>`, maps of non-copyable values), which GCC/Clang never odr-use — the fix is declaring such types explicitly move-only.
 
 ## Migration Plan
 

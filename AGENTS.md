@@ -4,10 +4,10 @@ C++20 game engine: Vulkan rendering, GPU physics, Python/libclang reflection, co
 
 ## Build
 
-**Toolchain**: Clang + Ninja.
+**Toolchains**: Windows = MSVC (Visual Studio 2026, multi-config generator); Linux = Clang + Ninja.
 
 Platform setup (dependencies, environment variables, interpreters) is **NOT** in this file — see:
-- Windows: `docs/build_instructions/windows_msys2_clang64.md`
+- Windows: `docs/build_instructions/windows_msvc.md`
 - Linux (WSL2): `docs/build_instructions/linux.md`
 
 These platforms may have the platform environment active **before any cmake, build, ctest, or executable command**. Read the relevant doc above first.
@@ -15,15 +15,23 @@ These platforms may have the platform environment active **before any cmake, bui
 Reflection parser uses a user-provided Python interpreter (discovered via CMake's `Python3_EXECUTABLE`, e.g. a `.venv`).
 No venv is auto-created.
 
+On Linux:
 ```sh
 # Configure (debug or release)
-cmake --preset debug
+cmake --preset linux-debug   # or linux-release
 
 # Build
-cmake --build --preset debug
+cmake --build --preset linux-debug
 
 # Test
-ctest --preset debug
+ctest --preset linux-debug
+```
+
+On Windows (MSVC), use the multi-config presets:
+```sh
+cmake --preset msvc
+cmake --build --preset msvc-debug   # or msvc-release
+ctest --preset msvc-debug
 ```
 
 ## Architecture

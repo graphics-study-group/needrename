@@ -1,6 +1,6 @@
 # Linux Build Instructions
 
-This project builds on Linux (Ubuntu 24.04 WSL2 verified) with the **Clang** toolchain and the **Ninja** generator, in addition to Windows MSYS2 CLANG64. Before any cmake, build, ctest, or executable command, make sure the toolchain and the Vulkan SDK environment are available.
+This project builds on Linux (Ubuntu 24.04 WSL2 verified) with the **Clang** toolchain and the **Ninja** generator. Before any cmake, build, ctest, or executable command, make sure the toolchain and the Vulkan SDK environment are available.
 
 ## Environment Setup
 

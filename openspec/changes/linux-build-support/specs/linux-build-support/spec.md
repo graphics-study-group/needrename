@@ -40,15 +40,15 @@ The reflection parser SHALL NOT create or manage its own Python virtual environm
 - **AND** the parser SHALL NOT require the virtual environment directory to be named `parser_env`
 
 ### Requirement: Reflection parser produces equivalent output across platforms
-The libclang parsing arguments SHALL be chosen per platform so that the generated reflection code is equivalent to the Windows MSYS2 output, and the same configuration change MUST NOT alter Windows parser behavior.
+The libclang parsing arguments SHALL be chosen per platform so that the generated reflection code is equivalent to the Windows MSVC output, and the same configuration change MUST NOT alter Windows parser behavior.
 
 #### Scenario: Generated code parity
 - **WHEN** a reflection generation target (e.g. `meta_core`) runs on Linux with the same engine headers
 - **THEN** the generated reflection code SHALL be equivalent to the code generated on Windows for the same headers (verified by diff)
 
 #### Scenario: Windows parser behavior unchanged
-- **WHEN** the parser runs on Windows MSYS2 CLANG64
-- **THEN** the libclang arguments SHALL remain exactly as before this change (target triple, resource dir, C++ include paths, `LIBCLANG_LIBRARY_PATH`)
+- **WHEN** the parser runs on Windows MSVC
+- **THEN** the libclang arguments SHALL follow the Windows MSVC branch defined by the `windows-msvc-build` change (x86_64-pc-windows-msvc target, MSVC compatibility flags, `LIBCLANG_LIBRARY_PATH` pointing at the VS-bundled libclang)
 
 ### Requirement: Linux executables resolve sibling shared libraries
 On Linux, executables in the unified output directory SHALL load the engine's shared libraries located in the same directory without extra environment setup.

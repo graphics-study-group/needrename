@@ -2,28 +2,12 @@
     "version": 3,
     "configurePresets": [
         {
-            "name": "debug",
-            "displayName": "Debug",
+            "name": "linux-debug",
+            "displayName": "Linux Debug (clang)",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
-            }
-        },
-        {
-            "name": "release",
-            "displayName": "Release",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/release",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
-            }
-        },
-        {
-            "name": "linux-debug",
-            "displayName": "Linux Debug (clang)",
-            "inherits": "debug",
-            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/bin/python"
@@ -32,8 +16,10 @@
         {
             "name": "linux-release",
             "displayName": "Linux Release (clang)",
-            "inherits": "release",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/bin/python"
@@ -50,14 +36,6 @@
         }
     ],
     "buildPresets": [
-        {
-            "name": "debug",
-            "configurePreset": "debug"
-        },
-        {
-            "name": "release",
-            "configurePreset": "release"
-        },
         {
             "name": "linux-debug",
             "configurePreset": "linux-debug"
@@ -78,14 +56,6 @@
         }
     ],
     "testPresets": [
-        {
-            "name": "debug",
-            "configurePreset": "debug"
-        },
-        {
-            "name": "release",
-            "configurePreset": "release"
-        },
         {
             "name": "linux-debug",
             "configurePreset": "linux-debug"

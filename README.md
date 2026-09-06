@@ -8,10 +8,10 @@ An unnamed game engine with GPU-accelerated physics simulation, Vulkan-based ren
 
 The engine builds on two platforms:
 
-- **Windows** — MSYS2 CLANG64 toolchain (Clang + Ninja). Full setup and build instructions: [`docs/build_instructions/windows_msys2_clang64.md`](./docs/build_instructions/windows_msys2_clang64.md)
+- **Windows** — MSVC toolchain via Visual Studio (multi-config generator). Full setup and build instructions: [`docs/build_instructions/windows_msvc.md`](./docs/build_instructions/windows_msvc.md)
 - **Linux** — Clang + Ninja with a manually installed LunarG Vulkan SDK and SDL3. Full setup and build instructions: [`docs/build_instructions/linux.md`](./docs/build_instructions/linux.md)
 
-Shared CMake presets (`debug` / `release`) are defined in `CMakePresets.json`; Linux adds `linux-debug` / `linux-release`. Platform-specific configuration (environment variables, toolchains, interpreters) lives in the per-platform docs above.
+Shared CMake presets (`debug` / `release`) are defined in `CMakePresets.json`; Windows adds `msvc` + `msvc-debug` / `msvc-release`, Linux adds `linux-debug` / `linux-release`. Platform-specific configuration (environment variables, toolchains, interpreters) lives in the per-platform docs above.
 
 ## Project Structure
 
@@ -98,7 +98,7 @@ All executables and DLLs are written to a unified `bin/` output directory (impor
 
 ## Documentation
 
-- [Build Instructions](./docs/build_instructions/) - Platform-specific build setup (Windows MSYS2 CLANG64 / Linux)
+- [Build Instructions](./docs/build_instructions/) - Platform-specific build setup (Windows MSVC / Linux)
 - [Code Style Guide](./CODE_STYLE.md) - Coding conventions and best practices
 - [Contributing Guide](./CONTRIBUTING.md) - How to contribute to this project
 - [Technical Wiki](./wiki/) - Architecture and API documentation
