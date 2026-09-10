@@ -228,7 +228,8 @@ namespace Engine {
         Rhi::ComputeBuffer &scratch_buf,
         uint32_t elem_capacity,
         Rhi::ComputeBuffer &pair_count_buf,
-        uint32_t max_shape_count
+        uint32_t max_shape_count,
+        RadixSortMode mode
     ) {
         if (elem_capacity == 0u) {
             return;
@@ -248,9 +249,19 @@ namespace Engine {
 
         m_impl->EnsureInitialized();
 
-        for (uint32_t pass = 0; pass < kNumPasses; ++pass) {
-            uint32_t byte_shift = (pass % 4u) * 8u;
-            uint32_t word_select = pass / 4u;
+        const uint32_t num_passes = (mode == RadixSortMode::ePrimaryOnly) ? kNumPrimaryPasses : kNumPasses;
+
+        for (uint32_t pass = 0; pass < num_passes; ++pass) {
+            uint32_t byte_shift = 0u;
+            uint32_t word_select = 0u;
+            if (mode == RadixSortMode::eFull) {
+                byte_shift = (pass % 4u) * 8u;
+                word_select = pass / 4u;
+            } else {
+                // Primary-only: 4 passes, each over one byte of .x (word_select 1).
+                byte_shift = pass * 8u;
+                word_select = 1u;
+            }
             bool to_b = (pass % 2u) == 0u;
 
             if (to_b) {
@@ -263,7 +274,7 @@ namespace Engine {
                 );
             }
 
-            if (pass + 1 < kNumPasses) {
+            if (pass + 1 < num_passes) {
                 cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
             }
         }

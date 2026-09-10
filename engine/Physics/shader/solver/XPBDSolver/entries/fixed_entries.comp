@@ -1,0 +1,76 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+
+// fixed_entries.comp — Fixed-joint entry-list construction (once per substep,
+// before the radix sort and the permutation inversion).
+//
+// Dispatched over the fixed-joint entry capacity (4 slots per joint = 2 bodies
+// x 2 scalar constraints: the rotation constraint and the position
+// constraint), one invocation per joint.
+//
+// CONTRACT: every slot in [0, capacity) is written on every dispatch, and this
+// shader never returns before writing.  A slot's key encodes *ownership* only:
+// the index of the body the slot belongs to, or `kInvalidKey` when the joint
+// does not exist this substep or an owner index is out of range.  No body or
+// joint state (alive / kinematic / mass) is read — whether a body actually
+// receives a contribution is decided by accumulate_fixed_position.comp, and an
+// unwritten slot stays inert because the scratch is cleared before every
+// iteration.
+//
+// Channel/slot conventions: common/xpbd_entry_layout.glsl.
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "../common/xpbd_entry_layout.glsl"
+
+// ---- Joint definition buffer (PhysicsScene-owned, read-only) ----
+struct FixedJointComDescriptor {
+    uint obj1_index;
+    uint obj2_index;
+    float compliance;
+    float _pad;
+    vec4 initial_rel_pos_local;
+    vec4 initial_rel_rotation;
+};
+
+layout(set = 0, binding = 0) readonly buffer FixedJoints { FixedJointComDescriptor v[]; } fixed_joints;
+
+// ---- Body count bound (only `.length()` is used) ----
+layout(set = 0, binding = 1) readonly buffer RigidBodyAlive { uint v[]; } rigid_body_alive;
+
+// ---- Output: sorted entry list (key, slot) ----
+layout(set = 0, binding = 2) buffer EntryPairs { uvec2 v[]; } entry_pairs;
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform JointCountPush {
+    uint joint_count;
+    uint entry_capacity;   // number of fixed entry slots (== 4 * fixed joint capacity)
+} params;
+
+void main() {
+    uint j = gl_GlobalInvocationID.x;
+
+    const uint slot1_rot = joint_slot(j, 0u, kJointAxisSlot);
+    const uint slot1_pos = joint_slot(j, 0u, kJointAnchorSlot);
+    const uint slot2_rot = joint_slot(j, 1u, kJointAxisSlot);
+    const uint slot2_pos = joint_slot(j, 1u, kJointAnchorSlot);
+    // The dispatch rounds up to whole workgroups, so the last workgroup can run
+    // past the end of the entry list.  Threads past the capacity own no slots.
+    if (slot2_pos >= params.entry_capacity) return;
+
+    uint key1 = kInvalidKey;
+    uint key2 = kInvalidKey;
+
+    if (j < params.joint_count) {
+        FixedJointComDescriptor constraint = fixed_joints.v[j];
+        uint body_count = rigid_body_alive.v.length();
+        if (constraint.obj1_index < body_count) key1 = constraint.obj1_index;
+        if (constraint.obj2_index < body_count) key2 = constraint.obj2_index;
+    }
+
+    // A constraint only ever contributes to a body when that body is movable,
+    // so both constraints of a body share its key.
+    entry_pairs.v[slot1_rot] = uvec2(key1, slot1_rot);
+    entry_pairs.v[slot1_pos] = uvec2(key1, slot1_pos);
+    entry_pairs.v[slot2_rot] = uvec2(key2, slot2_rot);
+    entry_pairs.v[slot2_pos] = uvec2(key2, slot2_pos);
+}

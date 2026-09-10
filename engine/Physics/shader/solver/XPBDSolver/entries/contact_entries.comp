@@ -1,0 +1,68 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+
+// contact_entries.comp — Contact entry-list construction (once per substep,
+// before the radix sort and the permutation inversion).
+//
+// Dispatched over the fixed contact capacity: one invocation per contact
+// point, writing that contact's two entry slots (one per body side).
+//
+// CONTRACT: every slot in [0, capacity) is written on every dispatch, and this
+// shader never returns before writing.  A slot's key encodes *ownership* only:
+// the index of the body the slot belongs to, or `kInvalidKey` when the contact
+// does not exist this substep or an owner index is out of range.  No body state
+// (alive / kinematic / mass) is read — whether a body actually receives a
+// contribution is decided by accumulate_contact_position.comp, and an unwritten
+// slot stays inert because the scratch is cleared before every iteration.
+//
+// Channel/slot conventions: common/xpbd_entry_layout.glsl.
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "../common/xpbd_entry_layout.glsl"
+
+// ---- Collision result buffers ----
+layout(set = 0, binding = 0) readonly buffer CollisionIds        { uvec2 v[]; } collision_ids;
+layout(set = 0, binding = 1) readonly buffer CollisionCount      { uint count; } collision_count;
+layout(set = 0, binding = 2) readonly buffer ShapeBoundRigidBody { uint v[]; } shape_bound_rigid_body;
+
+// ---- Body count bound (only `.length()` is used) ----
+layout(set = 0, binding = 3) readonly buffer RigidBodyAlive { uint v[]; } rigid_body_alive;
+
+// ---- Output: sorted entry list (key, slot) ----
+layout(set = 0, binding = 4) buffer EntryPairs { uvec2 v[]; } entry_pairs;
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform CapacityPush {
+    uint entry_capacity;
+} params;
+
+void main() {
+    uint cidx = gl_GlobalInvocationID.x;
+
+    const uint slot_a = contact_slot(cidx, 0u);
+    const uint slot_b = contact_slot(cidx, 1u);
+    // The dispatch rounds up to whole workgroups, so the last workgroup can run
+    // past the end of the entry list.  Threads past the capacity own no slots.
+    if (slot_b >= params.entry_capacity) return;
+
+    uint key_a = kInvalidKey;
+    uint key_b = kInvalidKey;
+
+    if (cidx < collision_count.count) {
+        uvec2 pair = collision_ids.v[cidx];
+        uint shape_a = pair.x;
+        uint shape_b = pair.y;
+        if (shape_a >= shape_bound_rigid_body.v.length() || shape_b >= shape_bound_rigid_body.v.length()) {
+            // Unresolvable shape pair: both sides stay unowned.
+        } else {
+            uint body_a = shape_bound_rigid_body.v[shape_a];
+            uint body_b = shape_bound_rigid_body.v[shape_b];
+            uint body_count = rigid_body_alive.v.length();
+            if (body_a < body_count) key_a = body_a;
+            if (body_b < body_count) key_b = body_b;
+        }
+    }
+
+    entry_pairs.v[slot_a] = uvec2(key_a, slot_a);
+    entry_pairs.v[slot_b] = uvec2(key_b, slot_b);
+}

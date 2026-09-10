@@ -1,0 +1,158 @@
+#version 450 core
+
+// sum_by_key.comp — Segmented reduction over sorted (key, value) arrays.
+//
+// Reduces an ascending-sorted array of records, each with a uint key and N
+// float value channels, into per-key sums.  A single workgroup reduces one
+// 256-record block in shared memory; the same shader runs at every recursion
+// level.
+//
+// Records are stored SoA, channel-major: for a level with `input_count` =
+// R_i records, value channel c of element e lives at
+// `ValuesIn[c * input_count + e]` (stride == the current level's record
+// count).  Level 0 reads the caller's KeysIn/ValuesIn; deeper levels read a
+// record region and write the next region, partitioned by level in the
+// caller's records buffer.
+//
+// A "run" is a maximal span of equal keys.  Runs that are fully contained in
+// the block (neither touching the block's first nor its last real element)
+// are finalised directly to OutValues[<max_key>-strided channel][key].  Runs
+// touching a block boundary may continue into a neighbouring block, so each
+// block emits at most 2 boundary records into the next level (region slot
+// `2*wg` for the run containing the block's first element, `2*wg+1` for the
+// run containing its last element).  When the whole block is a single run the
+// second slot holds an all-zero record of the same key (keeps the record
+// chain contiguous and dense without double counting).
+//
+// The final level has a single workgroup (`num_blocks == 1`): every remaining
+// run is fully contained, so it is written directly and no records are
+// emitted.  Keys >= `max_key_value` (incl. the INVALID sentinel 0xFFFFF and
+// the out-of-range pad 0xFFFFFFFF) never write to the output.
+//
+// Dispatch: ceil(input_count / 256), 1, 1.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly  buffer KeysIn     { uint  v[]; } keys_in;
+layout(set = 0, binding = 1) readonly  buffer ValuesIn   { float v[]; } values_in;
+layout(set = 0, binding = 2) buffer    RecKeys          { uint  v[]; } rec_keys;
+layout(set = 0, binding = 3) buffer    RecValues        { float v[]; } rec_values;
+layout(set = 0, binding = 4) buffer    OutValues        { float v[]; } out_values;
+
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+layout(push_constant) uniform SumByKeyPush {
+    uint input_count;     // R_i = number of records this level
+    uint num_channels;    // N in [1,8]
+    uint max_key_value;   // keys >= max_key are ignored (never written to out)
+    uint record_stride;   // next region's per-channel count (=2*num_blocks); used when writing records
+} params;
+
+// Out-of-range key pad (distinct from the real INVALID 0xFFFFF so the tail of
+// a real run does not merge into the padding).
+const uint kOobKey   = 0xFFFFFFFFu;
+const uint kInvalidKey = 0xFFFFFu;
+
+shared uint s_key[256];
+shared float s_val[256][8];
+
+void main() {
+    const uint wg  = gl_WorkGroupID.x;
+    const uint tid = gl_LocalInvocationID.x;
+
+    // Block's span of the level's records.  real_count = number of records in
+    // this block (may be < 256 for the last block).
+    const uint base      = wg * 256u;
+    const uint real_count = min(256u, params.input_count - min(base, params.input_count));
+    const uint e         = base + tid;
+
+    // Cooperative load (out-of-range -> OOB pad key, zero values).
+    bool real = (e < params.input_count);
+    s_key[tid] = real ? keys_in.v[e] : kOobKey;
+    for (uint c = 0u; c < params.num_channels; ++c) {
+        s_val[tid][c] = real ? values_in.v[c * params.input_count + e] : 0.0f;
+    }
+    barrier();
+
+    // Each thread owns element tid.  A run is a maximal equal-key span.
+    // Compute, for the run whose LAST element is this thread, its in-block sum
+    // and its [run_start .. run_end] range, using a bounded leftward scan.
+    // (Only the run's last element does work, so each record is summed once.)
+    const bool is_run_last =
+        (tid == 255u) || (s_key[tid] != s_key[tid + 1u]);
+
+    if (!is_run_last) {
+        return;
+    }
+
+    // Find the run start by scanning left while the key is unchanged.
+    uint run_start = tid;
+    while (run_start > 0u && s_key[run_start - 1u] == s_key[tid]) {
+        run_start--;
+    }
+    // run_end == tid (this thread is the run's last element).
+    const uint run_end = tid;
+
+    const uint key = s_key[tid];
+
+    // Sum the run into registers (channel-major).
+    float sum[8];
+    for (uint c = 0u; c < params.num_channels; ++c) {
+        float acc = 0.0f;
+        for (uint j = run_start; j <= run_end; ++j) {
+            acc += s_val[j][c];
+        }
+        sum[c] = acc;
+    }
+
+    // Classification relative to the block's real extent [0, real_count).
+    const bool touches_first = (run_start == 0u);
+    const bool touches_last  = (run_end + 1u == real_count);
+    const bool is_final_level = ((params.input_count + 255u) / 256u) == 1u;
+    const bool valid_key = (key < params.max_key_value);
+
+    if (is_final_level) {
+        // Single block spans every remaining record: every run is complete.
+        if (valid_key) {
+            for (uint c = 0u; c < params.num_channels; ++c) {
+                out_values.v[c * params.max_key_value + key] = sum[c];
+            }
+        }
+        return;
+    }
+
+    const uint slot_base = 2u * wg;
+
+    if (!touches_first && !touches_last) {
+        // Fully contained interior run -> finalise directly.
+        if (valid_key) {
+            for (uint c = 0u; c < params.num_channels; ++c) {
+                out_values.v[c * params.max_key_value + key] = sum[c];
+            }
+        }
+        return;
+    }
+
+    // Boundary run -> emit a record to the next level's region.
+    if (touches_first) {
+        // Record the in-block partial at slot 2*wg.
+        rec_keys.v[slot_base] = key;
+        for (uint c = 0u; c < params.num_channels; ++c) {
+            rec_values.v[c * params.record_stride + slot_base] = sum[c];
+        }
+    }
+    if (touches_last) {
+        if (touches_first) {
+            // Whole block is one run: keep the chain contiguous but avoid
+            // double counting -> all-zero record of the same key at 2*wg+1.
+            rec_keys.v[slot_base + 1u] = key;
+            for (uint c = 0u; c < params.num_channels; ++c) {
+                rec_values.v[c * params.record_stride + slot_base + 1u] = 0.0f;
+            }
+        } else {
+            rec_keys.v[slot_base + 1u] = key;
+            for (uint c = 0u; c < params.num_channels; ++c) {
+                rec_values.v[c * params.record_stride + slot_base + 1u] = sum[c];
+            }
+        }
+    }
+}

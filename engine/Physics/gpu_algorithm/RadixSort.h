@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_GPU_ALGORITHM_RADIXSORT_INCLUDED
 #define ENGINE_PHYSICS_GPU_ALGORITHM_RADIXSORT_INCLUDED
 
+#include "../physics_export.h"
+
 #include <cstdint>
 #include <memory>
 
@@ -46,11 +48,25 @@ namespace Engine {
      *   - pair_count buffer (GPU-side uint, actual pair count at execution time)
      *   - max_shape_count (for validation)
      */
-    class RadixSort {
+    /**
+     * @brief Radix-sort mode selector.
+     *
+     * @c eFull sorts uvec2 pairs by (.y, .x) in 8 passes (both words compared).
+     * @c ePrimaryOnly sorts pairs by .x only in 4 passes, with .y riding along
+     * as an opaque payload that is permuted together with its pair but never
+     * compared.  Relative order among pairs with equal .x is unspecified.
+     */
+    enum class RadixSortMode : uint32_t {
+        eFull = 0,
+        ePrimaryOnly = 1,
+    };
+
+    class PHYSICS_API RadixSort {
     public:
         static constexpr uint32_t kNumBins = 256;
         static constexpr uint32_t kMaxShapeCount = 1u << 20; // 1,048,576
         static constexpr uint32_t kNumPasses = 8;            // 4 for b + 4 for a
+        static constexpr uint32_t kNumPrimaryPasses = 4;     // primary-key-only mode
 
         /**
          * @brief Construct the radix sort executor.
@@ -105,6 +121,9 @@ namespace Engine {
          * @param elem_capacity    Buffer capacity in pairs (for dispatch sizing).
          * @param pair_count_buf   Pair count buffer (1 uint, read at GPU execution time).
          * @param max_shape_count  Max shape index, for validation (must <= 2^20).
+         * @param mode             Sort mode.  @c eFull sorts by (.y, .x) in 8
+         *                         passes; @c ePrimaryOnly sorts by .x only in 4
+         *                         passes (both leave the result in pairs_buf_a).
          *
          * @pre elem_capacity <= max_elem_count
          * @throws std::runtime_error if max_shape_count > kMaxShapeCount
@@ -116,7 +135,8 @@ namespace Engine {
             Rhi::ComputeBuffer &scratch_buf,
             uint32_t elem_capacity,
             Rhi::ComputeBuffer &pair_count_buf,
-            uint32_t max_shape_count
+            uint32_t max_shape_count,
+            RadixSortMode mode = RadixSortMode::eFull
         );
 
         bool IsInitialized() const noexcept;

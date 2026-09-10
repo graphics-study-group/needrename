@@ -1,6 +1,5 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_shader_atomic_float : enable
 
 // accumulate_hinge_position.comp — Per-hinge XPBD position constraint
 // accumulate phase (Jacobi parallelization).
@@ -8,11 +7,19 @@
 // Solves two constraints per hinge:
 //   1. Aligned axis: cross(axis1_world, axis2_world) → 0
 //   2. Attachment point: attach_point2_world - attach_point1_world → 0
+//
+// Each contribution is scattered into the entry scratch at its slot's sorted
+// position (see common/xpbd_scatter.glsl); the per-body partials are reduced by
+// SumByKey and averaged by apply_body_position_deltas.comp.  A body receives at
+// most one count per scalar constraint it contributes to (two per joint).  The
+// scratch is cleared before every iteration, so a constraint that does not
+// contribute simply writes nothing.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #include "common/xpbd_math.glsl"
 #include "common/xpbd_joint_math.glsl"
+#include "common/xpbd_entry_layout.glsl"
 
 // ---- Joint definition buffer (PhysicsScene-owned, read-only) ----
 struct HingeJointComDescriptor {
@@ -28,12 +35,6 @@ struct HingeJointComDescriptor {
 
 layout(set = 0, binding = 0)  readonly buffer HingeJoints        { HingeJointComDescriptor v[]; } hinge_joints;
 
-// ---- Per-dispatch constants (push constant, recorded by the solver) ----
-layout(push_constant) uniform XpbdPush {
-    vec4 gravity_dt;       // w = substep_dt
-    uint hinge_joint_count;
-} params;
-
 // ---- Lagrange multiplier SoA buffers (solver-owned, read-write) ----
 layout(set = 0, binding = 1)  buffer HingeAxisLagrange   { float v[]; } hinge_axis_lagrange;
 layout(set = 0, binding = 2)  buffer HingeAnchorLagrange { float v[]; } hinge_anchor_lagrange;
@@ -47,10 +48,18 @@ layout(set = 0, binding = 7)  readonly buffer RigidBodyMass           { float v[
 layout(set = 0, binding = 8)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
 layout(set = 0, binding = 9)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
 
-// ---- Jacobi accumulators (shared with contact solver) ----
-layout(set = 0, binding = 10) buffer LinearPositionDelta  { float v[]; } lin_delta;
-layout(set = 0, binding = 11) buffer AngularPositionDelta { float v[]; } ang_delta;
-layout(set = 0, binding = 12) buffer PositionDeltaCount    { float v[]; } delta_count;
+// ---- Sorted entry list: scatter targets + channel-major scratch ----
+layout(set = 0, binding = 10) readonly buffer PosOf         { uint v[]; } pos_of;
+layout(set = 0, binding = 11) buffer          ScratchValues { float v[]; } scratch_values;
+
+#include "common/xpbd_scatter.glsl"
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform XpbdPush {
+    vec4 gravity_dt;       // w = substep_dt
+    uint hinge_joint_count;
+    uint entry_capacity;   // number of hinge entry slots (== 4 * hinge joint capacity)
+} params;
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
@@ -64,6 +73,11 @@ void main() {
     uint body_count = rigid_body_alive.v.length();
     if (obj1_idx >= body_count || obj2_idx >= body_count) return;
     if (rigid_body_alive.v[obj1_idx] == 0u || rigid_body_alive.v[obj2_idx] == 0u) return;
+
+    const uint slot1_axis   = joint_slot(cidx, 0u, kJointAxisSlot);
+    const uint slot1_anchor = joint_slot(cidx, 0u, kJointAnchorSlot);
+    const uint slot2_axis   = joint_slot(cidx, 1u, kJointAxisSlot);
+    const uint slot2_anchor = joint_slot(cidx, 1u, kJointAnchorSlot);
 
     bool scripted_obj1 = (rigid_body_is_kinematic.v[obj1_idx] != 0u);
     bool scripted_obj2 = (rigid_body_is_kinematic.v[obj2_idx] != 0u);
@@ -118,17 +132,11 @@ void main() {
 
             if (!scripted_obj1) {
                 vec3 ang_d = obj1_world_inv_i_n * dlambda;
-                atomicAdd(ang_delta.v[obj1_idx * 3u + 0u], ang_d.x);
-                atomicAdd(ang_delta.v[obj1_idx * 3u + 1u], ang_d.y);
-                atomicAdd(ang_delta.v[obj1_idx * 3u + 2u], ang_d.z);
-                atomicAdd(delta_count.v[obj1_idx], 1.0);
+                scatter_slot(slot1_axis, params.entry_capacity, vec3(0.0), ang_d);
             }
             if (!scripted_obj2) {
                 vec3 ang_d = -(obj2_world_inv_i_n * dlambda);
-                atomicAdd(ang_delta.v[obj2_idx * 3u + 0u], ang_d.x);
-                atomicAdd(ang_delta.v[obj2_idx * 3u + 1u], ang_d.y);
-                atomicAdd(ang_delta.v[obj2_idx * 3u + 2u], ang_d.z);
-                atomicAdd(delta_count.v[obj2_idx], 1.0);
+                scatter_slot(slot2_axis, params.entry_capacity, vec3(0.0), ang_d);
             }
 
             hinge_axis_lagrange.v[cidx] += dlambda;
@@ -162,30 +170,14 @@ void main() {
 
             if (!scripted_obj1) {
                 vec3 lin_d = inv_mass_obj1 * impulse;
-                atomicAdd(lin_delta.v[obj1_idx * 3u + 0u], lin_d.x);
-                atomicAdd(lin_delta.v[obj1_idx * 3u + 1u], lin_d.y);
-                atomicAdd(lin_delta.v[obj1_idx * 3u + 2u], lin_d.z);
-
                 vec3 ang_d = apply_world_inv_inertia(inv_inertia1, ori1, cross(r1, impulse));
-                atomicAdd(ang_delta.v[obj1_idx * 3u + 0u], ang_d.x);
-                atomicAdd(ang_delta.v[obj1_idx * 3u + 1u], ang_d.y);
-                atomicAdd(ang_delta.v[obj1_idx * 3u + 2u], ang_d.z);
-
-                atomicAdd(delta_count.v[obj1_idx], 1.0);
+                scatter_slot(slot1_anchor, params.entry_capacity, lin_d, ang_d);
             }
 
             if (!scripted_obj2) {
                 vec3 lin_d = -(inv_mass_obj2 * impulse);
-                atomicAdd(lin_delta.v[obj2_idx * 3u + 0u], lin_d.x);
-                atomicAdd(lin_delta.v[obj2_idx * 3u + 1u], lin_d.y);
-                atomicAdd(lin_delta.v[obj2_idx * 3u + 2u], lin_d.z);
-
                 vec3 ang_d = -apply_world_inv_inertia(inv_inertia2, ori2, cross(r2, impulse));
-                atomicAdd(ang_delta.v[obj2_idx * 3u + 0u], ang_d.x);
-                atomicAdd(ang_delta.v[obj2_idx * 3u + 1u], ang_d.y);
-                atomicAdd(ang_delta.v[obj2_idx * 3u + 2u], ang_d.z);
-
-                atomicAdd(delta_count.v[obj2_idx], 1.0);
+                scatter_slot(slot2_anchor, params.entry_capacity, lin_d, ang_d);
             }
 
             hinge_anchor_lagrange.v[cidx] += dlambda;

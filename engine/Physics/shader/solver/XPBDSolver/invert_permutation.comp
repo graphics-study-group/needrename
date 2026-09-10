@@ -1,0 +1,67 @@
+#version 450 core
+
+// invert_permutation.comp — Build the two arrays SumByKey needs from the
+// sorted (key, slot) entry pairs, and perform Scheme-A tail-fill.
+//
+// RadixSort reorders the (key = body, slot = identity) pairs into ascending
+// body order.  This pass walks the sorted *positions*:
+//   - sorted_keys[p] = keys of position p         (SumByKey level-0 key input)
+//   - pos_of[slot]   = the sorted position of slot (scatter target in the
+//     accumulate passes)
+//
+// Because RadixSort's scatter is unstable, several slots may share a key but
+// every slot appears in exactly one sorted position, so the pos_of write is a
+// bijection (conflict-free).  sorted_keys is additionally filled with INVALID
+// for positions [pair_count, capacity), so the whole [0, capacity) reduce
+// input is meaningful every substep (INVALID sorts last, never writes a body).
+//
+// Dispatch: ceil(capacity / 64), 1, 1.  A push constant carries the capacity
+// (== elem_capacity used for dispatch) so tail threads know how far to fill.
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SortedPairs {
+    uvec2 v[];
+} sorted_pairs; // (key, slot), indexed by sorted position
+
+layout(set = 0, binding = 1) buffer SortedKeys {
+    uint v[];
+} sorted_keys; // [capacity]
+
+layout(set = 0, binding = 2) buffer PosOf {
+    uint v[];
+} pos_of; // [slot_capacity]
+
+layout(set = 0, binding = 3) readonly buffer PairCount {
+    uint count;
+} pair_count;
+
+layout(push_constant) uniform CapacityPush {
+    uint capacity;
+} params;
+
+const uint kInvalidKey = 0xFFFFFu;
+
+void main() {
+    uint p = gl_GlobalInvocationID.x;
+    if (p >= params.capacity) {
+        return;
+    }
+
+    if (p < pair_count.count) {
+        uvec2 pair = sorted_pairs.v[p];
+        // Defensive: entry passes only ever write in-range slot ids, so this can
+        // only trip if a pass regressed.  Dropping the entry is far better than a
+        // wild write into pos_of.
+        if (pair.y >= params.capacity) {
+            sorted_keys.v[p] = kInvalidKey;
+            return;
+        }
+        sorted_keys.v[p] = pair.x;   // body (or INVALID from the entry pass)
+        pos_of.v[pair.y] = p;        // slot -> sorted position (bijection)
+    } else {
+        // Tail-fill: positions beyond the real pair count get an INVALID key
+        // so the reduce input is fully meaningful.  pos_of for these is never
+        // used (no slot maps here).
+        sorted_keys.v[p] = kInvalidKey;
+    }
+}
