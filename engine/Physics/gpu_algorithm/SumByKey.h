@@ -29,8 +29,15 @@ namespace Engine {
      * unordered, floating-point rounding may vary).
      *
      * It is a *recursive block-level segmented reduction*:
-     *   - Level 0 reads `max_entries` records from the caller's sorted keys and
-     *     packed value buffers.
+     *   - Level 0 reads `max_entries` `(key, slot)` pairs from the caller's
+     *     sorted pair array and gathers each element's values from the packed
+     *     value buffer at the slot that pair carries (`value(c) =
+     *     values[c * max_entries + slot]`).  The caller therefore needs neither
+     *     a separate key array nor a permutation map: the payload its sort
+     *     carried along *is* the value index.  An entry whose slot is outside
+     *     `[0, max_entries)` contributes zero and is never read from the value
+     *     buffer; its key is left unchanged, since rewriting it would break the
+     *     ascending-order requirement and could split a real key's run.
      *   - Each workgroup reduces one 256-record block in shared memory (with
      *     integer-free same-key doubling and DEAD marking), writing the sums of
      *     segments fully contained in the block directly to the output and
@@ -118,25 +125,32 @@ namespace Engine {
         /**
          * @brief Record the full recursive reduction to the command buffer.
          *
-         * Reduces the sorted keys in @p keys_in_buf with the packed values in
-         * @p values_in_buf and writes per-key sums to @p out_values_buf
-         * (channel-major, stride `max_key_value`).  Exactly `GetNumLevels`
-         * compute dispatches are recorded, with a full compute barrier between
-         * consecutive levels.  The caller is responsible for the outer barriers
-         * around the whole `Record`.
+         * Reduces the sorted `(key, slot)` pairs in @p pairs_in_buf, gathering
+         * their values from @p values_in_buf, and writes per-key sums to
+         * @p out_values_buf (channel-major, stride `max_key_value`).  Exactly
+         * `GetNumLevels` compute dispatches are recorded, with a full compute
+         * barrier between consecutive levels.  The caller is responsible for the
+         * outer barriers around the whole `Record`.
          *
          * All level parameters (region offsets, element counts, workgroup
-         * counts, channel stride, channel count, key bound) are passed as push
-         * constants.  Bindings:
-         *   - `KeysIn`    — caller's sorted keys (`max_entries` uints).
-         *   - `ValuesIn`  — caller's packed values (channel-major).
+         * counts, channel stride, channel count, key bound, gather mode) are
+         * passed as push constants.  Bindings:
+         *   - `PairsIn`   — caller's sorted `(key, slot)` pairs
+         *     (`max_entries` uvec2); read at level 0 only, bound at every level.
+         *   - `KeysIn`    — record keys (`max_entries` uints at level 0, where it
+         *     is not read; the region's keys at level >= 1).
+         *   - `ValuesIn`  — caller's packed values at level 0 (channel-major,
+         *     stride `max_entries`); the record region's values at level >= 1.
          *   - `RecKeys` / `RecValues` — the record buffer (level >= 1 input,
          *     non-final-level output).
          *   - `OutValues` — output (channel-major, stride `max_key_value`).
          *
          * @param cb               Command buffer in recording state.
-         * @param keys_in_buf      Sorted key array (`max_entries` uints).
-         * @param values_in_buf    Packed value buffer (channel-major).
+         * @param pairs_in_buf     Sorted `(key, slot)` pair array
+         *                         (`max_entries` uvec2, i.e. `2 * max_entries`
+         *                         uints).
+         * @param values_in_buf    Packed value buffer (channel-major, indexed by
+         *                         the pair's slot).
          * @param records_buf      Record buffer, >= GetRequiredRecordsBytes.
          * @param out_values_buf   Output value buffer (channel-major, stride
          *                         `max_key_value`), `num_channels * max_key_value`
@@ -144,7 +158,7 @@ namespace Engine {
          */
         void Record(
             vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &keys_in_buf,
+            Rhi::ComputeBuffer &pairs_in_buf,
             Rhi::ComputeBuffer &values_in_buf,
             Rhi::ComputeBuffer &records_buf,
             Rhi::ComputeBuffer &out_values_buf

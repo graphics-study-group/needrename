@@ -52,8 +52,9 @@ namespace Engine {
         uint32_t num_channels;
         uint32_t max_key_value;
         uint32_t record_stride;
+        uint32_t gather_pairs;
     };
-    static_assert(sizeof(SumByKeyPush) == 16, "SumByKeyPush must be 16 bytes");
+    static_assert(sizeof(SumByKeyPush) == 20, "SumByKeyPush must be 20 bytes");
 
     // Level geometry helper shared by the static sizing functions and Impl.
     struct LevelGeometry {
@@ -185,7 +186,7 @@ namespace Engine {
 
     void SumByKey::Record(
         vk::CommandBuffer cb,
-        Rhi::ComputeBuffer &keys_in_buf,
+        Rhi::ComputeBuffer &pairs_in_buf,
         Rhi::ComputeBuffer &values_in_buf,
         Rhi::ComputeBuffer &records_buf,
         Rhi::ComputeBuffer &out_values_buf
@@ -195,6 +196,11 @@ namespace Engine {
         if (k == 0u) return;
 
         auto &srb = m_impl->reduce_binding->GetShaderResourceBinding();
+
+        // Level 0's input pair array.  Bound once for every level: it is the same
+        // buffer throughout and is only read where `gather_pairs` is set (for an
+        // untouched descriptor the shader never dereferences it).
+        srb.BindBuffer("PairsIn", pairs_in_buf, 0u, static_cast<size_t>(m_impl->max_entries) * 2u * sizeof(uint32_t));
 
         // Output value buffer: channel-major with stride max_key_value.
         srb.BindBuffer(
@@ -210,7 +216,10 @@ namespace Engine {
 
             // ---- Read source for this level ----
             if (level == 0u) {
-                srb.BindBuffer("KeysIn", keys_in_buf, 0u, static_cast<size_t>(m_impl->max_entries) * sizeof(uint32_t));
+                // Level 0 gathers from the pair array, so KeysIn is not read.
+                // It is still bound to a harmless range to keep the descriptor
+                // set complete, exactly as RecKeys/RecValues are below.
+                srb.BindBuffer("KeysIn", pairs_in_buf, 0u, static_cast<size_t>(m_impl->max_entries) * sizeof(uint32_t));
                 srb.BindBuffer(
                     "ValuesIn",
                     values_in_buf,
@@ -277,7 +286,10 @@ namespace Engine {
                 );
             }
 
-            const SumByKeyPush params{input_count, m_impl->num_channels, m_impl->max_key_value, record_stride};
+            const uint32_t gather_pairs = (level == 0u) ? 1u : 0u;
+            const SumByKeyPush params{
+                input_count, m_impl->num_channels, m_impl->max_key_value, record_stride, gather_pairs
+            };
             Rhi::PushConstants(cb, *m_impl->reduce_stage, params);
             Rhi::BindComputeStage(cb, *m_impl->reduce_stage);
             Rhi::BindComputeResource(cb, *m_impl->reduce_stage, *m_impl->reduce_binding);

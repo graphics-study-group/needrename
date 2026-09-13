@@ -80,11 +80,6 @@ namespace {
     };
     static_assert(sizeof(ContactEntryPush) == 4);
 
-    struct CapacityPush { // invert_permutation.comp
-        uint32_t capacity;
-    };
-    static_assert(sizeof(CapacityPush) == 4);
-
     struct BodyCountPush { // apply_body_*.comp
         uint32_t body_count;
     };
@@ -117,7 +112,6 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeStage> accum_vel_stage{};
         std::unique_ptr<Rhi::ComputeStage> apply_vel_stage{};
         std::unique_ptr<Rhi::ComputeStage> model_matrix_stage{};
-        std::unique_ptr<Rhi::ComputeStage> invert_stage{};
         std::unique_ptr<Rhi::ComputeStage> accum_hinge_stage{};
         std::unique_ptr<Rhi::ComputeStage> accum_fixed_stage{};
 
@@ -134,7 +128,6 @@ namespace Engine {
         Rhi::ComputeResourceBinding *accum_vel_binding = nullptr;
         Rhi::ComputeResourceBinding *apply_vel_binding = nullptr;
         Rhi::ComputeResourceBinding *model_matrix_binding = nullptr;
-        Rhi::ComputeResourceBinding *invert_binding = nullptr;
         Rhi::ComputeResourceBinding *accum_hinge_binding = nullptr;
         Rhi::ComputeResourceBinding *accum_fixed_binding = nullptr;
 
@@ -152,25 +145,22 @@ namespace Engine {
         // ---- Reduce-group infrastructure ----
         std::unique_ptr<Rhi::ComputeBuffer> gpu_radix_scratch{};
 
-        // Contact (capacity = 2*max_contact_point slots).
+        // Contact (capacity = 2*max_contact_point slots).  One scratch serves the
+        // position and the velocity phase: they are strictly sequential and each
+        // clears it before its accumulate (see the velocity loop below).
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_pairs_a{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_pairs_b{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_keys{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_posof{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_count{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_scratch_pos{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_scratch_vel{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_records{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_out_pos{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_out_vel{};
         std::unique_ptr<RadixSort> contact_sort{};
         std::unique_ptr<SumByKey> contact_sum{};
 
-        // Hinge (capacity = 4*hinge_count slots, cached).
+        // Hinge (capacity = 4*max(1,hinge_count) slots).
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_pairs_a{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_pairs_b{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_keys{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_posof{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_count{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_records{};
@@ -178,11 +168,9 @@ namespace Engine {
         std::unique_ptr<RadixSort> hinge_sort{};
         std::unique_ptr<SumByKey> hinge_sum{};
 
-        // Fixed (capacity = 4*fixed_count slots, cached).
+        // Fixed (capacity = 4*max(1,fixed_count) slots).
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_pairs_a{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_pairs_b{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_keys{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_posof{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_count{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_records{};
@@ -205,21 +193,20 @@ namespace Engine {
         struct ReduceGroupBufs {
             std::unique_ptr<Rhi::ComputeBuffer> *pairs_a;
             std::unique_ptr<Rhi::ComputeBuffer> *pairs_b;
-            std::unique_ptr<Rhi::ComputeBuffer> *keys;
-            std::unique_ptr<Rhi::ComputeBuffer> *posof;
             std::unique_ptr<Rhi::ComputeBuffer> *count;
             std::unique_ptr<Rhi::ComputeBuffer> *scratch;
             std::unique_ptr<Rhi::ComputeBuffer> *records;
             std::unique_ptr<Rhi::ComputeBuffer> *out;
         };
 
+        // The group's sorted pair array is both the radix sort's in/out buffer and
+        // SumByKey's level-0 input, so no separate key array or permutation map is
+        // allocated (design.md Decision 6).
         void EnsureReduceGroup(uint32_t capacity, uint32_t body_count, const ReduceGroupBufs &g) {
             const size_t cap_bytes = static_cast<size_t>(capacity) * sizeof(uint32_t);
             const size_t pair_bytes = static_cast<size_t>(capacity) * 2u * sizeof(uint32_t);
             EnsureBuffer(*g.pairs_a, pair_bytes, "XPBD ReducePairsA");
             EnsureBuffer(*g.pairs_b, pair_bytes, "XPBD ReducePairsB");
-            EnsureBuffer(*g.keys, cap_bytes, "XPBD ReduceKeys");
-            EnsureBuffer(*g.posof, cap_bytes, "XPBD ReducePosOf");
             // Pair count must be host-writable (Scheme A sets it to capacity).
             {
                 const auto &alloc = device_context.GetAllocatorState();
@@ -307,34 +294,11 @@ namespace Engine {
             model_matrix_stage = load("solver/XPBDSolver/model_matrix.comp.spv", "XPBD ModelMatrix");
             model_matrix_binding = &model_matrix_stage->AllocateResourceBinding();
 
-            invert_stage = load("solver/XPBDSolver/invert_permutation.comp.spv", "XPBD Invert");
-            invert_binding = &invert_stage->AllocateResourceBinding();
-
             accum_hinge_stage = load("solver/XPBDSolver/accumulate_hinge_position.comp.spv", "XPBD AccumHingePos");
             accum_hinge_binding = &accum_hinge_stage->AllocateResourceBinding();
 
             accum_fixed_stage = load("solver/XPBDSolver/accumulate_fixed_position.comp.spv", "XPBD AccumFixedPos");
             accum_fixed_binding = &accum_fixed_stage->AllocateResourceBinding();
-        }
-
-        void RecordInvert(
-            vk::CommandBuffer cb,
-            uint32_t capacity,
-            Rhi::ComputeBuffer &pairs,
-            Rhi::ComputeBuffer &keys,
-            Rhi::ComputeBuffer &posof,
-            Rhi::ComputeBuffer &count
-        ) {
-            auto &srb = invert_binding->GetShaderResourceBinding();
-            srb.BindBuffer("SortedPairs", pairs);
-            srb.BindBuffer("SortedKeys", keys);
-            srb.BindBuffer("PosOf", posof);
-            srb.BindBuffer("PairCount", count);
-            const CapacityPush push{capacity};
-            Rhi::PushConstants(cb, *invert_stage, push);
-            Rhi::BindComputeStage(cb, *invert_stage);
-            Rhi::BindComputeResource(cb, *invert_stage, *invert_binding);
-            Rhi::DispatchCompute(cb, (capacity + 63u) / 64u, 1, 1);
         }
 
         void RecordSort(
@@ -412,17 +376,10 @@ namespace Engine {
             body_count,
             {&m_impl->gpu_contact_pairs_a,
              &m_impl->gpu_contact_pairs_b,
-             &m_impl->gpu_contact_keys,
-             &m_impl->gpu_contact_posof,
              &m_impl->gpu_contact_count,
-             &m_impl->gpu_contact_scratch_pos,
+             &m_impl->gpu_contact_scratch,
              &m_impl->gpu_contact_records,
              &m_impl->gpu_contact_out_pos}
-        );
-        m_impl->EnsureBuffer(
-            m_impl->gpu_contact_scratch_vel,
-            static_cast<size_t>(kNumChannels) * contact_cap * sizeof(uint32_t),
-            "XPBD ContactScratchVel"
         );
         m_impl->EnsureBuffer(
             m_impl->gpu_contact_out_vel,
@@ -443,8 +400,6 @@ namespace Engine {
             body_count,
             {&m_impl->gpu_hinge_pairs_a,
              &m_impl->gpu_hinge_pairs_b,
-             &m_impl->gpu_hinge_keys,
-             &m_impl->gpu_hinge_posof,
              &m_impl->gpu_hinge_count,
              &m_impl->gpu_hinge_scratch,
              &m_impl->gpu_hinge_records,
@@ -468,8 +423,6 @@ namespace Engine {
             body_count,
             {&m_impl->gpu_fixed_pairs_a,
              &m_impl->gpu_fixed_pairs_b,
-             &m_impl->gpu_fixed_keys,
-             &m_impl->gpu_fixed_posof,
              &m_impl->gpu_fixed_count,
              &m_impl->gpu_fixed_scratch,
              &m_impl->gpu_fixed_records,
@@ -665,10 +618,10 @@ namespace Engine {
                 // ====== PostCollision PreIter ======
                 barrier();
 
-                // ====== Entry lists: build → sort → invert (all three types) ======
+                // ====== Entry lists: build → sort (all three types) ======
                 // The entry passes are dispatched over the entry capacity and write
                 // every slot ((key, slot) with INVALID for unowned slots), so the
-                // permutation is a pure permutation over the full capacity.
+                // sorted pair array covers the whole capacity every substep.
                 {
                     auto &srb = m_impl->contact_entries_binding->GetShaderResourceBinding();
                     srb.BindBuffer("CollisionIds", *m_impl->narrow_detector->GetResultBuffers().collision_ids);
@@ -688,15 +641,6 @@ namespace Engine {
                     *m_impl->gpu_contact_pairs_b,
                     *m_impl->gpu_contact_count,
                     contact_cap
-                );
-                barrier();
-                m_impl->RecordInvert(
-                    cb,
-                    contact_cap,
-                    *m_impl->gpu_contact_pairs_a,
-                    *m_impl->gpu_contact_keys,
-                    *m_impl->gpu_contact_posof,
-                    *m_impl->gpu_contact_count
                 );
                 barrier();
 
@@ -719,15 +663,6 @@ namespace Engine {
                     hinge_slots
                 );
                 barrier();
-                m_impl->RecordInvert(
-                    cb,
-                    hinge_slots,
-                    *m_impl->gpu_hinge_pairs_a,
-                    *m_impl->gpu_hinge_keys,
-                    *m_impl->gpu_hinge_posof,
-                    *m_impl->gpu_hinge_count
-                );
-                barrier();
 
                 {
                     auto &srb = m_impl->fixed_entries_binding->GetShaderResourceBinding();
@@ -746,15 +681,6 @@ namespace Engine {
                     *m_impl->gpu_fixed_pairs_b,
                     *m_impl->gpu_fixed_count,
                     fixed_slots
-                );
-                barrier();
-                m_impl->RecordInvert(
-                    cb,
-                    fixed_slots,
-                    *m_impl->gpu_fixed_pairs_a,
-                    *m_impl->gpu_fixed_keys,
-                    *m_impl->gpu_fixed_posof,
-                    *m_impl->gpu_fixed_count
                 );
                 barrier();
 
@@ -791,7 +717,7 @@ namespace Engine {
 
                     // Contact scatter (position scratch) — cleared first, so a
                     // non-contributing contact leaves zeroes with flag 0.
-                    dispatch_clear(*m_impl->gpu_contact_scratch_pos, contact_scratch_elems, contact_scratch_wg);
+                    dispatch_clear(*m_impl->gpu_contact_scratch, contact_scratch_elems, contact_scratch_wg);
                     barrier();
                     {
                         auto &srb = m_impl->accum_pos_binding->GetShaderResourceBinding();
@@ -812,8 +738,7 @@ namespace Engine {
                         srb.BindBuffer("ShapeLocalPosition", *g.shape_local_position);
                         srb.BindBuffer("ShapeLocalRotation", *g.shape_local_rotation);
                         srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-                        srb.BindBuffer("PosOf", *m_impl->gpu_contact_posof);
-                        srb.BindBuffer("ScratchValues", *m_impl->gpu_contact_scratch_pos);
+                        srb.BindBuffer("ScratchValues", *m_impl->gpu_contact_scratch);
                         const AccumContactPush push{contact_cap};
                         Rhi::PushConstants(cb, *m_impl->accum_pos_stage, push);
                         dispatch(*m_impl->accum_pos_stage, *m_impl->accum_pos_binding, contact_pt_wg);
@@ -821,8 +746,8 @@ namespace Engine {
                     barrier();
                     m_impl->contact_sum->Record(
                         cb,
-                        *m_impl->gpu_contact_keys,
-                        *m_impl->gpu_contact_scratch_pos,
+                        *m_impl->gpu_contact_pairs_a,
+                        *m_impl->gpu_contact_scratch,
                         *m_impl->gpu_contact_records,
                         *m_impl->gpu_contact_out_pos
                     );
@@ -843,7 +768,6 @@ namespace Engine {
                         srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
                         srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
                         srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("PosOf", *m_impl->gpu_hinge_posof);
                         srb.BindBuffer("ScratchValues", *m_impl->gpu_hinge_scratch);
                         const AccumJointPush push{m_impl->push_gravity_dt, gpu.hinge_joint_count, hinge_slots};
                         Rhi::PushConstants(cb, *m_impl->accum_hinge_stage, push);
@@ -852,7 +776,7 @@ namespace Engine {
                     barrier();
                     m_impl->hinge_sum->Record(
                         cb,
-                        *m_impl->gpu_hinge_keys,
+                        *m_impl->gpu_hinge_pairs_a,
                         *m_impl->gpu_hinge_scratch,
                         *m_impl->gpu_hinge_records,
                         *m_impl->gpu_hinge_out
@@ -874,7 +798,6 @@ namespace Engine {
                         srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
                         srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
                         srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("PosOf", *m_impl->gpu_fixed_posof);
                         srb.BindBuffer("ScratchValues", *m_impl->gpu_fixed_scratch);
                         const AccumJointPush push{m_impl->push_gravity_dt, gpu.fixed_joint_count, fixed_slots};
                         Rhi::PushConstants(cb, *m_impl->accum_fixed_stage, push);
@@ -883,7 +806,7 @@ namespace Engine {
                     barrier();
                     m_impl->fixed_sum->Record(
                         cb,
-                        *m_impl->gpu_fixed_keys,
+                        *m_impl->gpu_fixed_pairs_a,
                         *m_impl->gpu_fixed_scratch,
                         *m_impl->gpu_fixed_records,
                         *m_impl->gpu_fixed_out
@@ -925,7 +848,11 @@ namespace Engine {
                 // ====== Velocity iterations (reuse contact permutation) ======
                 for (uint32_t iter = 0; iter < vel_iters; ++iter) {
                     barrier();
-                    dispatch_clear(*m_impl->gpu_contact_scratch_vel, contact_scratch_elems, contact_scratch_wg);
+                    // Same scratch buffer as the position phase.  That phase has
+                    // finished (its values were consumed by the last apply), and
+                    // this clear erases them before the velocity scatter, so no
+                    // position-phase value can reach the velocity reduction.
+                    dispatch_clear(*m_impl->gpu_contact_scratch, contact_scratch_elems, contact_scratch_wg);
                     barrier();
                     {
                         const auto g = m_bound_scene->GetGpuBuffers();
@@ -952,8 +879,7 @@ namespace Engine {
                         srb.BindBuffer("ShapeLocalPosition", *g.shape_local_position);
                         srb.BindBuffer("ShapeLocalRotation", *g.shape_local_rotation);
                         srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-                        srb.BindBuffer("PosOf", *m_impl->gpu_contact_posof);
-                        srb.BindBuffer("ScratchValues", *m_impl->gpu_contact_scratch_vel);
+                        srb.BindBuffer("ScratchValues", *m_impl->gpu_contact_scratch);
                         const AccumVelocityPush push{m_impl->push_gravity_dt, contact_cap};
                         Rhi::PushConstants(cb, *m_impl->accum_vel_stage, push);
                         dispatch(*m_impl->accum_vel_stage, *m_impl->accum_vel_binding, contact_pt_wg);
@@ -961,8 +887,8 @@ namespace Engine {
                     barrier();
                     m_impl->contact_sum->Record(
                         cb,
-                        *m_impl->gpu_contact_keys,
-                        *m_impl->gpu_contact_scratch_vel,
+                        *m_impl->gpu_contact_pairs_a,
+                        *m_impl->gpu_contact_scratch,
                         *m_impl->gpu_contact_records,
                         *m_impl->gpu_contact_out_vel
                     );

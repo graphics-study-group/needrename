@@ -2,7 +2,7 @@
 #extension GL_GOOGLE_include_directive : require
 
 // contact_entries.comp — Contact entry-list construction (once per substep,
-// before the radix sort and the permutation inversion).
+// before the radix sort).
 //
 // Dispatched over the fixed contact capacity: one invocation per contact
 // point, writing that contact's two entry slots (one per body side).

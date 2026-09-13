@@ -2,7 +2,7 @@
 #extension GL_GOOGLE_include_directive : require
 
 // hinge_entries.comp — Hinge entry-list construction (once per substep, before
-// the radix sort and the permutation inversion).
+// the radix sort).
 //
 // Dispatched over the hinge entry capacity (4 slots per joint = 2 bodies x 2
 // scalar constraints: the aligned-axis constraint and the anchor-point

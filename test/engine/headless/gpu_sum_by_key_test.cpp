@@ -48,7 +48,7 @@ namespace {
 
     struct RunCtx {
         RenderSystem &rsys;
-        std::unique_ptr<ComputeBuffer> keys;
+        std::unique_ptr<ComputeBuffer> pairs; // sorted (key, slot) entries
         std::unique_ptr<ComputeBuffer> values;
         std::unique_ptr<ComputeBuffer> records;
         std::unique_ptr<ComputeBuffer> out;
@@ -56,13 +56,26 @@ namespace {
         uint32_t num_channels = 0u;
         uint32_t max_entries = 0u;
         uint32_t max_key_value = 0u;
+
+        // Entry i = (key, slot).  The slot is the index this entry's values are
+        // gathered from, so it is unrelated to i.
+        void SetPair(uint32_t i, uint32_t key, uint32_t slot) const {
+            auto *p = reinterpret_cast<uint32_t *>(pairs->GetVMAddress());
+            p[2u * i] = key;
+            p[2u * i + 1u] = slot;
+        }
+
+        void SetValue(uint32_t channel, uint32_t slot, float value) const {
+            auto *v = reinterpret_cast<float *>(values->GetVMAddress());
+            v[static_cast<size_t>(channel) * max_entries + slot] = value;
+        }
     };
 
     // Build a RunCtx sized for the given geometry and zero the output + records.
     RunCtx MakeCtx(RenderSystem &rsys, uint32_t max_entries, uint32_t max_key_value, uint32_t num_channels) {
         RunCtx ctx{rsys, {}, {}, {}, {}, num_channels, max_entries, max_key_value};
-        ctx.keys = MakeHostBuffer(
-            rsys, static_cast<size_t>(max_entries) * sizeof(uint32_t), "SumByKey keys"
+        ctx.pairs = MakeHostBuffer(
+            rsys, static_cast<size_t>(max_entries) * 2u * sizeof(uint32_t), "SumByKey pairs"
         );
         ctx.values = MakeHostBuffer(
             rsys, static_cast<size_t>(num_channels) * max_entries * sizeof(uint32_t), "SumByKey values"
@@ -74,6 +87,7 @@ namespace {
             rsys, static_cast<size_t>(num_channels) * max_key_value * sizeof(uint32_t), "SumByKey out"
         );
 
+        std::memset(ctx.pairs->GetVMAddress(), 0, ctx.pairs->GetSize());
         std::memset(ctx.values->GetVMAddress(), 0, ctx.values->GetSize());
         std::memset(ctx.out->GetVMAddress(), 0, ctx.out->GetSize());
         std::memset(ctx.records->GetVMAddress(), 0, ctx.records->GetSize());
@@ -81,7 +95,7 @@ namespace {
     }
 
     void FlushAll(RunCtx &ctx) {
-        ctx.keys->Flush();
+        ctx.pairs->Flush();
         ctx.values->Flush();
         ctx.records->Flush();
         ctx.out->Flush();
@@ -97,7 +111,7 @@ namespace {
         SumByKey reducer{rsys.GetDeviceContext(), ctx.max_entries, ctx.max_key_value, ctx.num_channels};
 
         cb.begin(vk::CommandBufferBeginInfo{});
-        reducer.Record(cb, *ctx.keys, *ctx.values, *ctx.records, *ctx.out);
+        reducer.Record(cb, *ctx.pairs, *ctx.values, *ctx.records, *ctx.out);
         cb.end();
         Submit(rsys, cb);
 
@@ -124,12 +138,10 @@ int main() {
         constexpr uint32_t kMaxKey = 200;
         constexpr uint32_t kChannels = 1;
         auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
-        auto *k = reinterpret_cast<uint32_t *>(ctx.keys->GetVMAddress());
-        auto *v = reinterpret_cast<float *>(ctx.values->GetVMAddress());
-        // keys 0..99 each appearing once, value channel0 = 2.0
+        // keys 0..99 each appearing once, identity payload, value = 2.0
         for (uint32_t i = 0; i < kEntries; ++i) {
-            k[i] = i;
-            v[i] = 2.0f;
+            ctx.SetPair(i, i, i);
+            ctx.SetValue(0u, i, 2.0f);
         }
         RunSumByKey(*rsys, ctx);
         const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
@@ -151,11 +163,9 @@ int main() {
         constexpr uint32_t kMaxKey = 100;
         constexpr uint32_t kChannels = 1;
         auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
-        auto *k = reinterpret_cast<uint32_t *>(ctx.keys->GetVMAddress());
-        auto *v = reinterpret_cast<float *>(ctx.values->GetVMAddress());
         for (uint32_t i = 0; i < kEntries; ++i) {
-            k[i] = 5u; // all key 5
-            v[i] = 1.0f;
+            ctx.SetPair(i, 5u, i); // all key 5
+            ctx.SetValue(0u, i, 1.0f);
         }
         RunSumByKey(*rsys, ctx);
         const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
@@ -173,17 +183,15 @@ int main() {
         constexpr uint32_t kChannels = 1;
         constexpr uint32_t kInvalid = 0xFFFFFu;
         auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
-        auto *k = reinterpret_cast<uint32_t *>(ctx.keys->GetVMAddress());
-        auto *v = reinterpret_cast<float *>(ctx.values->GetVMAddress());
         for (uint32_t i = 0; i < kEntries; ++i) {
             if (i < 200u) {
                 // sorted ascending: bodies 0..99 each appearing twice (contiguous
                 // per body), so every body has a two-element run.
-                k[i] = i / 2u;
-                v[i] = 1.0f;
+                ctx.SetPair(i, i / 2u, i);
+                ctx.SetValue(0u, i, 1.0f);
             } else {
-                k[i] = kInvalid; // trailing invalid run, must be ignored
-                v[i] = 99.0f;
+                ctx.SetPair(i, kInvalid, i); // trailing invalid run, must be ignored
+                ctx.SetValue(0u, i, 99.0f);
             }
         }
         RunSumByKey(*rsys, ctx);
@@ -200,24 +208,19 @@ int main() {
         constexpr uint32_t kMaxKey = 64;
         constexpr uint32_t kChannels = 7;
         auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
-        auto *k = reinterpret_cast<uint32_t *>(ctx.keys->GetVMAddress());
-        auto *v = reinterpret_cast<float *>(ctx.values->GetVMAddress());
 
         // keys 0..63 in a pattern spanning many blocks; each body b appears a
         // known number of times with distinct per-channel contributions.
-        // Build: body b appears (b+1) times, keys appended in blocks so body 0..63
-        // repeat; values[c] for occurrence t of body b = c + t.
         uint32_t pos = 0u;
-        // body 63 appears 64 times and dominates; keep total <= kEntries.
         // Use counts: count(b) = 1 + (b % 7). Sum < kEntries.
         std::vector<float> expected(kMaxKey * kChannels, 0.0f);
         for (uint32_t b = 0; b < kMaxKey; ++b) {
             uint32_t count = 1u + (b % 7u);
             for (uint32_t t = 0; t < count && pos < kEntries; ++t) {
-                k[pos] = b;
+                ctx.SetPair(pos, b, pos);
                 for (uint32_t c = 0; c < kChannels; ++c) {
                     float val = static_cast<float>(c) + static_cast<float>(t);
-                    v[c * kEntries + pos] = val;
+                    ctx.SetValue(c, pos, val);
                     expected[c * kMaxKey + b] += val;
                 }
                 ++pos;
@@ -226,9 +229,9 @@ int main() {
         // Fill the remainder with INVALID so no slot is left stale.
         constexpr uint32_t kInvalid = 0xFFFFFu;
         for (; pos < kEntries; ++pos) {
-            k[pos] = kInvalid;
+            ctx.SetPair(pos, kInvalid, pos);
             for (uint32_t c = 0; c < kChannels; ++c) {
-                v[c * kEntries + pos] = 0.0f;
+                ctx.SetValue(c, pos, 0.0f);
             }
         }
 
@@ -265,6 +268,76 @@ int main() {
         );
         Check(!reducer.IsInitialized(), "no shader is loaded before the first Record");
         Check(SumByKey::GetNumLevels(kEntries) > 1u, "300 entries need more than one level");
+    }
+
+    // ── Scenario F: level-0 gather reads values BY SLOT, not by position ───
+    // 600 entries across 3 level-0 blocks with 10 keys, so the boundary-record
+    // chain (levels >= 1) is exercised too.  Payload slots are a scrambled
+    // bijection of [0, max_entries), and every value is distinct per slot, so a
+    // reducer that read values by position would produce different sums.
+    {
+        constexpr uint32_t kEntries = 600; // R_0=600 -> R_1=6 (k == 2), 3 blocks
+        constexpr uint32_t kMaxKey = 10;
+        constexpr uint32_t kChannels = 1;
+        constexpr uint32_t kPerBody = kEntries / kMaxKey; // 60
+        auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
+
+        // value(slot) = 1 + (slot % 13): distinct per slot, repeating so no
+        // single-value shortcut can pass by accident.
+        std::vector<float> value(kEntries);
+        for (uint32_t s = 0; s < kEntries; ++s) {
+            value[s] = 1.0f + static_cast<float>(s % 13u);
+            ctx.SetValue(0u, s, value[s]);
+        }
+
+        // Keys ascending (required): body b occupies pairs [60b, 60b+60).
+        // Slots are a bijection of [0,600): slot(i) = (i * 7) % 600 (gcd(7,600)=1).
+        std::vector<float> expected(kMaxKey, 0.0f);
+        for (uint32_t i = 0; i < kEntries; ++i) {
+            const uint32_t body = i / kPerBody;
+            const uint32_t slot = (i * 7u) % kEntries;
+            ctx.SetPair(i, body, slot);
+            expected[body] += value[slot];
+        }
+
+        RunSumByKey(*rsys, ctx);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+
+        float total_got = 0.0f;
+        for (uint32_t b = 0; b < kMaxKey; ++b) {
+            CloseF(out[b], expected[b], 1e-2f, "gather-by-slot per-key sum");
+            total_got += out[b];
+        }
+        float total_want = 0.0f;
+        for (uint32_t s = 0; s < kEntries; ++s) {
+            total_want += value[s];
+        }
+        // Conservation: every slot is consumed exactly once and none is skipped.
+        CloseF(total_got, total_want, 1e-1f, "gather consumes every slot exactly once");
+    }
+
+    // ── Scenario G: an out-of-range payload slot is dropped, not read ──────
+    // 300 entries all keyed to body 7 (a run spanning two blocks); one entry
+    // carries a slot beyond max_entries.  It must contribute 0.0 while its key is
+    // left unchanged, so body 7 loses exactly that one contribution.
+    {
+        constexpr uint32_t kEntries = 300;
+        constexpr uint32_t kMaxKey = 100;
+        constexpr uint32_t kChannels = 1;
+        constexpr uint32_t kBadSlot = 5000u; // >= max_entries
+        auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
+        for (uint32_t i = 0; i < kEntries; ++i) {
+            const bool bad = (i == 100u);
+            ctx.SetPair(i, 7u, bad ? kBadSlot : i);
+            ctx.SetValue(0u, i, bad ? 999.0f : 1.0f);
+        }
+        RunSumByKey(*rsys, ctx);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        CloseF(out[7], static_cast<float>(kEntries - 1u), 1e-3f, "out-of-range payload slot contributes nothing");
+        if (out[0] != 0.0f) {
+            std::cerr << "FAIL: dropping a bad slot must not move its key elsewhere" << std::endl;
+            g_failures++;
+        }
     }
 
     rsys->WaitForIdle();

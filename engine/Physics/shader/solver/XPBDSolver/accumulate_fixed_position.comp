@@ -48,9 +48,8 @@ layout(set = 0, binding = 7)  readonly buffer RigidBodyMass           { float v[
 layout(set = 0, binding = 8)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
 layout(set = 0, binding = 9)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
 
-// ---- Sorted entry list: scatter targets + channel-major scratch ----
-layout(set = 0, binding = 10) readonly buffer PosOf         { uint v[]; } pos_of;
-layout(set = 0, binding = 11) buffer          ScratchValues { float v[]; } scratch_values;
+// ---- Channel-major scatter scratch, indexed by entry slot ----
+layout(set = 0, binding = 10) buffer ScratchValues { float v[]; } scratch_values;
 
 #include "common/xpbd_scatter.glsl"
 

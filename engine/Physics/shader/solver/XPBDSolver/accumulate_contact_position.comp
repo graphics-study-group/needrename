@@ -41,9 +41,8 @@ layout(set = 0, binding = 13) readonly buffer ShapeLocalRotation    { vec4 v[]; 
 // ---- Lagrange multipliers ----
 layout(set = 0, binding = 14) buffer ContactLagrange { float v[]; } lagrange;
 
-// ---- Sorted entry list: scatter targets + channel-major scratch ----
-layout(set = 0, binding = 15) readonly buffer PosOf         { uint v[]; } pos_of;
-layout(set = 0, binding = 16) buffer          ScratchValues { float v[]; } scratch_values;
+// ---- Channel-major scatter scratch, indexed by entry slot ----
+layout(set = 0, binding = 15) buffer ScratchValues { float v[]; } scratch_values;
 
 #include "common/xpbd_scatter.glsl"
 

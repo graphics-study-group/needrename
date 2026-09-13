@@ -37,7 +37,7 @@ The accumulate shaders own every "should this constraint contribute?" decision; 
 
 ### Decision 1: Scatter + sort + recursive segmented reduction (no atomics)
 
-**Choice**: Per substep, build `(body, slot)` entry pairs, sort by body with `RadixSort` (primary-key mode), invert the permutation once, then per iteration scatter per-constraint contributions through the permutation into a per-channel scratch array and reduce per body with the new `SumByKey` algorithm.
+**Choice**: Per substep, build `(body, slot)` entry pairs and sort by body with `RadixSort` (primary-key mode). Per iteration, scatter each constraint's contribution into a per-channel scratch **at the entry's own slot index**, then reduce per body with the new `SumByKey` algorithm, which reads the sorted pair array at level 0: the slot id the sort carried along is the index it gathers the value from (Decision 6). No permutation inversion exists anywhere in the path.
 
 **Alternatives rejected**:
 
@@ -47,7 +47,7 @@ The accumulate shaders own every "should this constraint contribute?" decision; 
 
 ### Decision 2: Entry model — `(body, slot)` pairs; the key is slot *ownership* only
 
-**Choice**: Entry slot `e = cidx * 2 + side` for contacts (each contact point contributes at most one count per body side). Hinge/fixed use **4 slots per joint = 2 bodies × 2 constraints**: each body may receive one contribution per scalar constraint the joint solves. A hinge solves the aligned-axis constraint (angular-only) and the anchor-point constraint (linear + angular); a fixed joint solves rotation and position. Every distinct (joint, constraint, body) target is its own slot, so each carries an independent presence (its own flag) and its own delta channels; the `SumByKey` reduction sums the per-body partials. This preserves the old `delta_count` semantics exactly (a body is counted once per contributing scalar constraint — up to 2 per joint, not 3; splitting anchor-linear vs anchor-angular apart would have changed the Jacobi denominator). Slot ids are the identity payload (`.y`) so the sort permutes them for free.
+**Choice**: Entry slot `e = cidx * 2 + side` for contacts (each contact point contributes at most one count per body side). Hinge/fixed use **4 slots per joint = 2 bodies × 2 constraints**: each body may receive one contribution per scalar constraint the joint solves. A hinge solves the aligned-axis constraint (angular-only) and the anchor-point constraint (linear + angular); a fixed joint solves rotation and position. Every distinct (joint, constraint, body) target is its own slot, so each carries an independent presence (its own flag) and its own delta channels; the `SumByKey` reduction sums the per-body partials. This preserves the old `delta_count` semantics exactly (a body is counted once per contributing scalar constraint — up to 2 per joint, not 3; splitting anchor-linear vs anchor-angular apart would have changed the Jacobi denominator). Slot ids are the identity payload (`.y`) so the sort permutes them for free; because the accumulate writes each contribution at its own slot index, the sorted slot id is also the reduce's value index at level 0 (Decision 6).
 
 The key encodes **ownership, not body state**: it is the index of the body the slot belongs to, or `INVALID = 0xFFFFF` (sorts last, below the `2^20` radix limit) when the slot has no owner this substep — no such contact, no such joint, out-of-range owner index. The entry pass therefore reads **no body state at all**: no `alive`, no `is_kinematic`, no `mass`, no `joint_alive`. Every one of those checks stays exactly where it was before this change — inside the accumulate shaders, gating the writes.
 
@@ -67,21 +67,33 @@ The key encodes **ownership, not body state**: it is the index of the body the s
 
 **Choice**: `SumByKey` takes 1 key array + 1 packed value buffer of `N` float channels in channel-major layout (`value(c, i) = buf[c * stride + i]`, `stride` = current level's element count), `N` as a push constant (`MAX_CHANNELS = 8` compile-time shared-memory capacity). Solver channels: 0..2 Δlin xyz, 3..5 Δang xyz, 6 flag.
 
-**Rejected**: `N` separate SSBO bindings per channel — the reduce shader would need 23 SSBOs (keys + 7 values + 7 record values + 7 outputs), exceeding the guaranteed `maxPerStageDescriptorStorageBuffers = 8` minimum, and 7 independent single-value calls would multiply the per-level dispatches by 7. Packing keeps the reduce at **5 SSBOs** (`KeysIn`, `ValsIn`, `KeysRec`, `ValsRec`, `OutVals`) and one pass per level for all channels. `N` cannot be a specialization constant: `ComputeStage::Instantiate` accepts only SPIR-V + name, so push constants avoid any Rhi change.
+**Rejected**: `N` separate SSBO bindings per channel — the reduce shader would need 23 SSBOs (keys + 7 values + 7 record values + 7 outputs), exceeding the guaranteed `maxPerStageDescriptorStorageBuffers = 8` minimum, and 7 independent single-value calls would multiply the per-level dispatches by 7. Packing keeps the reduce at **6 SSBOs** (`PairsIn`, `KeysIn`, `ValsIn`, `KeysRec`, `ValsRec`, `OutVals` — `PairsIn` is the level-0 pair array, see Decision 6) and one pass per level for all channels. `N` cannot be a specialization constant: `ComputeStage::Instantiate` accepts only SPIR-V + name, so push constants avoid any Rhi change.
 
 ### Decision 5: RadixSort primary-only mode (4 passes)
 
 **Choice**: A mode sorting by `.x` only, `.y` riding along as opaque payload (the scatter writes whole pairs). Saves 12 dispatches per substep vs. the 8-pass mode; since the within-key order is unspecified anyway (unstable scatter), pre-sorting by `.y` buys nothing.
 
-### Decision 6: Inversion pass produces the uniform key array
+### Decision 6: Level-0 gather — `SumByKey` reads the sorted pair array directly
 
-**Choice**: New solver shader `invert_permutation.comp`: one thread per sorted position `p` writes `pos_of[pairs.y] = p` (bijection — conflict-free) and `sorted_keys[p] = pairs.x`. This gives `SumByKey` a plain `uint[]` key array at every level (level 0 included) instead of teaching it about the sort's `uvec2` layout.
+**Choice**: `SumByKey`'s level 0 takes the caller's sorted `(key, slot)` pair array as its input and gathers each value by the slot that pair carries: `key = pairs[e].x`, `slot = pairs[e].y`, `value(c) = values_in[c * max_entries + slot]`. Levels `1..k-1` read record regions exactly as before. The input mode travels in the push-constant block as `gather_pairs` (1 at level 0, 0 elsewhere — `Record` already loops per level), and the pair array gets its own `PairsIn { uvec2 v[] }` binding so the shader's two input shapes are typed rather than punned; `KeysIn` stays a plain `uint[]` for the record levels. `PairsIn` is bound at **every** level (to the caller's pair buffer, which is harmless where it is not read), so no dummy range is needed. The push block grows 16 → 20 bytes and the reduce goes from 5 to 6 SSBOs.
+
+An element whose payload slot is outside `[0, input_count)` SHALL have its **values loaded as zero** while keeping the key its pair carries, because the value buffer is only `max_entries` long and a regressed entry pass must degrade to a *dropped entry*, not a wild read. The key is deliberately **not** rewritten to a sentinel: `SumByKey` requires an ascending-sorted input, and a sentinel injected mid-array between two runs of the same real key splits that key's run in two — each fully contained run finalises straight to `out[key]`, so the second partial would overwrite the first and that body would silently lose a contribution. Keeping the key and zeroing the values leaves the run structure exactly as it would be for a valid entry, and the entry adds 0 to every delta channel and 0 to the flag count, i.e. it is inert. This is the one part of the old `pos_of` contract that was load-bearing, relocated.
+
+Consequences:
+
+- The scatter writes each contribution **at its own slot index** (`scratch[c * capacity + slot]`), so the accumulate shaders need no permutation lookup at all; `scatter_slot` loses its `pos_of` dependency.
+- The solver needs no inversion pass: `sorted_keys` and `pos_of` disappear, along with `invert_permutation.comp` and its stage, resource binding and push block.
+- The direction of the indirection flips. `pos_of[slot] = p` is an inversion — an accumulate dispatch writes a permuted order — while the slot write is an identity index: for contacts `slot = cidx * 2 + side`, so consecutive threads write consecutive addresses, which is *better* coalesced than before. The permutation cost moves to level 0's gather, one extra indirection per (record, channel) read, once per `Record`; the same bytes are touched either way, so this is a wash on bandwidth and a win on the write side.
+
+**Superseded**: an earlier revision of this design kept `pos_of` + `sorted_keys`, built once per substep by `invert_permutation.comp`, so that `SumByKey` saw a plain `uint[]` key array at *every* level. That was the right call only while the reducer had a single input shape. Once level 0 is allowed to take pairs, the inversion is pure overhead: two extra `max_entries`-sized buffers per constraint type, one shader, one resource binding, one dispatch per substep, and a bijection invariant (`pos_of` must be written for *every* slot) that the entry passes had to uphold.
+
+**Rejected**: keeping `pos_of` (status quo — pays a buffer, a pass and an invariant to avoid one flag and one binding). **Rejected**: reading the pair array through the existing `KeysIn` binding as interleaved `uint`s at `2e` / `2e+1` — one descriptor cheaper, but it types a `uvec2` array as `uint[]` and splits one coalesced 8-byte load into two 4-byte ones.
 
 ### Decision 7: SumByKey — one shader, recursive levels, records partitioned like ParallelScan
 
 **Choice**: A single `sum_by_key.comp` runs every level. Per block (256 entries, 256 threads, ~9 KB shared):
 
-1. Cooperative load of key + `N` channel values (out-of-range → `INVALID` key, 0.0 values).
+1. Cooperative load of the key plus `N` channel values. At level 0 the key is `pairs_in.v[e].x` and each channel is `values_in.v[c * input_count + pairs_in.v[e].y]`; at levels `1..k-1` both come from the record region at index `e`. Out-of-range elements — and level-0 elements whose payload slot is outside `[0, input_count)` — load 0.0 values; the former also load the OOB pad key, while the latter keep their key (Decision 6 explains why a level-0 key must not be rewritten).
 2. Same-key pairwise doubling in shared memory using the Blelloch upsweep pairing `idx = (tid+1)*2*offset - 1` (the exact `radix_prefix_sum_256` index formula) with the merge condition `s_key[idx-offset] != DEAD && s_key[idx-offset] == s_key[idx]`; the right element is dead-marked (`DEAD = 0xFFFFFFFE`). Disjoint pairing avoids the shared-memory race of naive doubling.
 3. An aliveness suffix scan (one extra shared array, 8 rounds) identifies segment heads; position 0 is always alive and the last alive head is the last segment's head.
 4. Settlement: segments fully contained in the block write `out[key]` directly (unique writer — one key has exactly one global segment); the first segment's partial goes to record slot `2b`, the last segment's to `2b+1`; when the whole block is one segment, `2b+1` receives an all-zero record with the same key (chain stays contiguous, sums unaffected, exact in FP). Keys ≥ `max_key_value` (INVALID) are guarded off.
@@ -115,6 +127,14 @@ zeroed float buffers such as `ContactLagrange` through that shader):
   its accumulate pass** (`num_channels * entry_capacity` elements). `SumByKey`
   reduces a fixed-capacity input, so every slot must carry a meaningful value
   every iteration; the clear supplies the zeros.
+- The contact scratch is a **single buffer shared by the position and velocity
+  phases** rather than one per phase. The two phases are strictly sequential
+  (position iterations → `update_velocities_from_pose` → velocity iterations) and
+  each clears the buffer immediately before its accumulate, so no position-phase
+  value can survive into the velocity reduction. This halves that buffer's
+  footprint; it does not reduce clear *bandwidth*, because both phases still
+  clear before use. Hinge and fixed keep one scratch each — they only run in the
+  position phase.
 
 **Rejected**: in-place zeroing inside the accumulate shaders (the earlier
 `zero_slot` else-branches). It saves one dispatch per iteration, but forces every
@@ -132,29 +152,30 @@ literally "the old shader with the atomic replaced by a scatter call".
 ```
 collision detection (existing) → barrier
 clear the three per-body output buffers                    [1 dispatch each]
-build contact entries (full capacity) → sort → invert
-build hinge entries (4 × count)       → sort → invert      [when hinge_joint_count > 0]
-build fixed entries (4 × count)       → sort → invert      [when fixed_joint_count > 0]
+build contact entries (full capacity) → sort
+build hinge entries (4 × count)       → sort               [when hinge_joint_count > 0]
+build fixed entries (4 × count)       → sort               [when fixed_joint_count > 0]
 per position iteration:
     clear contact scratch → accumulate_contact_position → SumByKey(contact)
     clear hinge scratch   → accumulate_hinge_position   → SumByKey(hinge)
     clear fixed scratch   → accumulate_fixed_position   → SumByKey(fixed)
     apply_body_position_deltas
 per velocity iteration:
-    clear velocity scratch → accumulate_contact_velocity → SumByKey(reuses contact permutation)
+    clear contact scratch → accumulate_contact_velocity → SumByKey(contact, same sorted entry list)
     apply_body_velocity_deltas
 ```
 
-Every entry list — contact, hinge **and** fixed — is rebuilt, sorted and inverted
-once per substep, and all position/velocity iterations of that substep reuse the
-same permutations. Nothing is cached across substeps.
+Every entry list — contact, hinge **and** fixed — is rebuilt and sorted once per
+substep, and all position/velocity iterations of that substep reuse the same
+sorted pair arrays. Nothing is cached across substeps.
 
 **Why no caching**: the pre-change solver had none, and any cache keyed on counts
 is unsound here — the entry key follows the body the slot belongs to, and while
 the *owner index* is stable, a caching scheme also has to survive body
 alive/kinematic/mass changes and joint array content changes that leave counts
-untouched. Rebuilding costs one entry dispatch plus 13 sort/invert dispatches per
-joint type per substep, all proportional to `4 × joint_count`.
+untouched. Rebuilding costs one entry dispatch plus 12 sort dispatches (4 primary-only radix
+passes × 3 sub-steps) per joint type per substep, all proportional to
+`4 × joint_count`.
 
 **Resource lifetime lives in `PreGPUStep`**: every capacity-dependent resource — the three reduce groups' buffers, the per-type lagrange buffers, the `RadixSort`/`SumByKey` instances and the constant `pair_count` — is (re)sized in `PreGPUStep`, the phase the solver's own header reserves for "buffer sizing, CPU uploads" and the one that runs outside the command-buffer scope. `GPUStep` only derives dispatch geometry and records. Buffers size-check themselves by byte count (`EnsureBuffer`); `RadixSort`/`SumByKey` take their capacity as a construction-time parameter and cannot be resized in place, so `EnsureSortAndSum` asks the objects (`GetMaxElemCount`, `GetMaxEntries`, `GetMaxKeyValue`) whether they still match the current geometry and rebuilds them otherwise. The solver keeps no shadow copy of geometry the resources already know — an earlier revision did, and its contact-group copy was never refreshed when `max_contact_point` (which tracks the shape count) changed: that either threw out of `RadixSort::Record` on growth or silently reduced with the wrong channel stride on shrinkage. One `EnsureSortAndSum` rule now covers all three constraint types.
 
@@ -182,7 +203,8 @@ Splitting also shrinks each pass: the contact entry pass binds 5 storage buffers
 
 ## Risks / Trade-offs
 
-- *[Per-substep overhead: 3 entry dispatches + 3 sorts (36 dispatches) + 3 permutations + 3 output clears, plus 3 scratch clears, 3 accumulate passes, 3 reductions and 1 apply per position iteration]* → ~400 dispatches/substep vs. ~240 for the cached/mode-based variant and ~130 pre-change — accepted for the compatibility win and the restored shader shape. The added clears are pure memsets (`7 × capacity` floats each, ~229 KB per contact clear at `max_contact_point = 4096`; 20 iterations × 8 substeps ≈ 37 MB/frame, i.e. a few percent of a single frame's bandwidth budget) and the joint entry/sort/invert work is proportional to `4 × joint_count`. The reduction remains the dominant cost. Optional later: merge the three reduces into one dispatch, or batch the three scratches into one buffer to clear them in a single dispatch.
+- *[Per-substep overhead: 3 entry dispatches + 3 sorts (36 dispatches) + 3 output clears, plus 3 scratch clears, 3 accumulate passes, 3 reductions and 1 apply per position iteration]* → ~370 dispatches/substep vs. ~240 for the cached/mode-based variant and ~130 pre-change — accepted for the compatibility win and the restored shader shape. The added clears are pure memsets (`7 × capacity` floats each, ~229 KB per contact clear at `max_contact_point = 4096`; 20 iterations × 8 substeps ≈ 37 MB/frame, i.e. a few percent of a single frame's bandwidth budget) and the joint entry/sort work is proportional to `4 × joint_count`. The reduction remains the dominant cost. Optional later: merge the three reduces into one dispatch, merge the hinge/fixed scratches so one clear covers both, or make the reduce's dispatch follow the real entry count instead of the capacity.
+- *[Level-0 gather: `SumByKey` reads values by slot instead of by position]* → One extra indirection per (record, channel), once per `Record`, over exactly the bytes the reduce already read. It buys a coalesced scatter (contacts write `cidx * 2 + side`) and deletes two `max_entries`-sized buffers, a shader and a per-substep dispatch per constraint type. The indirection is confined to level 0; record levels are unchanged.
 - *[Scatter writes (7 channels × E) are less cache-friendly than in-place atomics]* → Writes go through L2; the reduce reads are fully linear. The exchange for zero contention is the point of the design.
 - *[Non-deterministic within-key order (unstable radix scatter) → last-ulp FP variation in sums, same noise class as today's atomics]* → Accepted by the user. Deterministic-set guarantee holds; a stable rank-based scatter is a possible future upgrade if bit-identical reproducibility is ever needed.
 - *[Packed channel-major layout is a cross-shader convention (accumulate writes it, SumByKey reads it, apply consumes outputs)]* → Single constant definition (`kNumChannels = 7`, channel order) shared by the solver's C++ and shader includes; any mismatch shows up immediately as wrong physics in tests.
@@ -193,13 +215,13 @@ Splitting also shrinks each pass: the contact entry pass binds 5 storage buffers
 
 1. Land `SumByKey` + its shader + unit tests first (pure addition, no behavior change elsewhere).
 2. Add the `RadixSort` primary-only mode + tests (additive).
-3. Rework the solver shaders: restore each accumulate shader to its pre-change text with `atomicAdd` replaced by `scatter_slot`, add the three entry-pass shaders, add `invert_permutation.comp`, rework the two `apply_*` shaders for the merged partial sets. Rework `XPBDGpuSolver` buffers and pipeline wiring, delete the hinge/fixed entry caches, add the explicit clears. Verify existing physics scenarios (box stack, resting contact, hinge chain).
+3. Rework the solver shaders: restore each accumulate shader to its pre-change text with `atomicAdd` replaced by `scatter_slot`, add the three entry-pass shaders, rework the two `apply_*` shaders for the merged partial sets, and teach `SumByKey` the level-0 gather. Rework `XPBDGpuSolver` buffers and pipeline wiring (no inversion pass, one contact scratch shared by both phases), delete the hinge/fixed entry caches, add the explicit clears. Verify existing physics scenarios (box stack, resting contact, hinge chain).
 4. Remove the device feature/extension sites in `DeviceInterface.cpp` last, after the solver no longer emits float atomics.
 5. Rollback: revert the change; no data-format or serialization impact exists (all buffers are solver-internal).
 
 ## Open Questions
 
-None blocking. Deferred knobs that do not change the specs or task breakdown: merging the three per-iteration reduces into one dispatch (requires a single reduce group, which conflicts with per-type construction-time capacities unless the solver gains joint-capacity config); merging the three scratches into one offset-addressed buffer so a single clear dispatch covers all of them; moving `N` from a push constant to a specialization constant if `ComputeStage` ever gains specialization support.
+None blocking. Deferred knobs that do not change the specs or task breakdown: merging the three per-iteration reduces into one dispatch (requires a single reduce group, which conflicts with per-type construction-time capacities unless the solver gains joint-capacity config; the user-facing analysis is in Decision 6's siblings and the Risks section); merging the hinge and fixed scratches into one offset-addressed buffer so a single clear dispatch covers both (the contact position/velocity scratches are already unified — Decision 8); making the per-iteration clear + reduce cost follow the *real* entry count instead of the fixed capacity, which is the dominant cost of this design relative to the old atomics and would need a GPU-side count in `Record`'s push constants; and reducing the primary-only radix sort from 4 passes to `ceil(bits(body_count) / 8)` by letting the caller observe which ping/pong buffer holds the result. Raising `N` from a push constant to a specialization constant stays deferred on `ComputeStage` gaining specialization support.
 
 ## Addendum: SumByKey input-length model (Scheme A)
 
@@ -217,8 +239,8 @@ sorted key array `[0, capacity)` is always valid each substep:
   dispatched over the fixed contact capacity and writes `(key, slot)` for both
   sides of every contact slot, using `INVALID` keys wherever a contact/body is
   absent.  Consequently the radix `pair_count` equals the fixed capacity (a
-  constant, no dynamic count buffer), the whole entry list is sorted each substep,
-  and `invert_permutation` is a pure permutation over the full capacity.
+  constant, no dynamic count buffer) and the whole entry list is sorted each
+  substep.
 - Hinge/fixed entries are exactly `4 * joint_count` (2 bodies × 2 scalar
   constraints per joint), fully written every substep by their entry pass, with
   `INVALID` for slots whose joint does not exist or whose owner index is out of
@@ -236,3 +258,16 @@ populated every call (2 records per block), so level-1..k inputs stay dense.
 The per-substep contact entry list is always `2 * max_contact_point` slots
 (fixed capacity); writing INVALID for empty slots avoids stale-key pollution
 and removes the need for a separate pair-count/tail-fill plumbing.
+
+With the level-0 gather (Decision 6), Scheme A is **convenience, not
+correctness**.  What it actually supplies is `input_count == capacity` — a
+*host-known* constant, which is what the push-constant `Record` API needs.  The
+reduce no longer depends on the pair array being a permutation of the whole
+capacity: the scratch is slot-indexed, so a slot absent from the pair array
+simply never contributes, and a pair whose payload slot is out of range is
+dropped as an out-of-range element instead of being read wild.  Relaxing Scheme A
+(a compacting entry pass carrying a GPU-side count) would therefore be a
+*performance* change — it is what would let the per-iteration clear and reduce
+stop scaling with the capacity, the single largest cost this design adds over the
+old atomics — and not a correctness change.  It is deferred because `Record`
+takes no runtime count by design (see Open Questions).

@@ -26,7 +26,8 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
 - `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
 - `solver/XPBDSolver/clear_fixed_lagrange.comp.spv`
-- `solver/XPBDSolver/invert_permutation.comp.spv`
+
+There is no permutation-inversion shader: the sorted `(key, slot)` pair array produced by the radix sort is the segmented reduction's level-0 input, so `invert_permutation.comp.spv` SHALL NOT be loaded and SHALL NOT exist.
 
 The `step.comp` placeholder SHALL be a no-op.
 
@@ -56,11 +57,11 @@ The `SumByKey` reduce shader (`algorithm/sum_by_key.comp.spv`) SHALL be loaded b
 - **THEN** all four joint shader SPIR-V files are loaded from the same directory as contact shaders
 - **AND** `ComputeStage` instances are created for each
 
-#### Scenario: Permutation inversion shader is loaded alongside solver shaders
+#### Scenario: No permutation inversion shader is loaded
 
 - **WHEN** `EnsureInitialized()` runs
-- **THEN** `invert_permutation.comp.spv` is loaded from `solver/XPBDSolver/`
-- **AND** a `ComputeStage` instance is created for it
+- **THEN** `invert_permutation.comp.spv` is not loaded and no `ComputeStage` is created for it
+- **AND** the accumulated value scratch is indexed by entry slot, not by sorted position
 
 #### Scenario: Entry-pass shaders are loaded alongside the accumulate shaders
 
@@ -70,14 +71,14 @@ The `SumByKey` reduce shader (`algorithm/sum_by_key.comp.spv`) SHALL be loaded b
 
 ### Requirement: XPBD solver loads and dispatches multiple compute shaders
 
-XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, collision detection (broad and narrow phase via the detector classes), entry-list construction (one pass per constraint type), radix sorting and permutation inversion, accumulator clearing, contact position delta accumulation (scatter), per-body segmented reduction via `SumByKey`, body position delta application, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.
+XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, collision detection (broad and narrow phase via the detector classes), entry-list construction (one pass per constraint type), radix sorting, accumulator clearing, contact position delta accumulation (scatter), per-body segmented reduction via `SumByKey`, body position delta application, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.
 
 Each solver pass SHALL be a separate `.comp` file under `engine/Physics/shader/solver/XPBDSolver/` following the existing source layout convention. Algorithm shaders owned by `gpu_algorithm` classes (radix sort, `SumByKey`) SHALL live under `engine/Physics/shader/algorithm/`.
 
 #### Scenario: All XPBD shaders are loaded on first Step call
 
 - **WHEN** `XPBDGpuSolver::Step` is called for the first time
-- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, entry-list construction, accumulate/apply position deltas, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and permutation inversion
+- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, entry-list construction, accumulate/apply position deltas, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and the `SumByKey`/`RadixSort` algorithm stages
 - **AND** instantiates a `ComputeStage` for each
 
 #### Scenario: Algorithm shaders load through their owning classes

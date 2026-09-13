@@ -47,19 +47,24 @@ The `SumByKey` class SHALL expose static sizing helpers so callers can allocate 
 
 ### Requirement: Record dispatches the recursive level chain
 
-`Record` SHALL accept the sorted key array, the packed value buffer, the record buffers, and the output buffer, and SHALL dispatch exactly `k` compute passes (one per level) with a full compute barrier between consecutive levels:
+`Record` SHALL accept the sorted `(key, slot)` pair array, the packed value buffer, the record buffer, and the output buffer, and SHALL dispatch exactly `k` compute passes (one per level) with a full compute barrier between consecutive levels:
 
-- Level 0 SHALL read `max_entries` entries from the caller's sorted keys and values and SHALL write boundary records into record region 1.
-- Levels `1 .. k-2` SHALL read record region `i` and SHALL write record region `i+1`.
+- Level 0 SHALL read `max_entries` pair entries from the caller's sorted pair array, take each entry's key from `pair.x`, gather each of its `num_channels` values from `values[c * max_entries + pair.y]`, and SHALL write boundary records into record region 1.
+- Levels `1 .. k-2` SHALL read record region `i` and SHALL write record region `i+1`. At these levels the key of record `e` SHALL be `keys_in[e]` and channel `c` SHALL be `values_in[c * R_i + e]`.
 - Level `k-1` (a single workgroup covering `R_{k-1} <= 256` records) SHALL write all remaining per-key sums directly to the output buffer.
 
-All per-level parameters (region offsets, level element count, workgroup count, channel stride, channel count, key bound) SHALL travel via the shader's push-constant block. The caller SHALL insert the outer barriers around the whole `Record` (before the first level and after the last), matching the `RadixSort`/`ParallelScan` conventions.
+The input mode SHALL travel in the push-constant block as a `gather_pairs` flag that `Record` sets for level 0 and clears for every deeper level, so one shader keeps one reduction body and selects only its load path. The pair array SHALL be bound at every level (its contents are not read where `gather_pairs` is zero), so no level needs a placeholder binding for it.
+
+All other per-level parameters (region offsets, level element count, workgroup count, channel stride, channel count, key bound) SHALL also travel via the shader's push-constant block. The caller SHALL insert the outer barriers around the whole `Record` (before the first level and after the last), matching the `RadixSort`/`ParallelScan` conventions.
+
+The shader's storage-buffer bindings SHALL be `PairsIn` (`uvec2[]`, the level-0 pair array), `KeysIn` (`uint[]`, record keys at level >= 1), `ValuesIn` (`float[]`), `RecKeys`, `RecValues` and `OutValues` — six buffers, with one pass per level for all channels.
 
 #### Scenario: Full recursion for a large array
 
 - **WHEN** `Record` is called for a 200000-entry reduction (`k = 3`)
 - **THEN** three compute dispatches are recorded (782, 7, and 1 workgroups respectively)
 - **AND** a barrier is recorded between consecutive dispatches
+- **AND** only the first dispatch reads `PairsIn` (`gather_pairs = 1`)
 
 #### Scenario: Single level for a small array
 
@@ -67,13 +72,30 @@ All per-level parameters (region offsets, level element count, workgroup count, 
 - **THEN** exactly one compute dispatch is recorded
 - **AND** no record-buffer bindings are written by the shader
 
+#### Scenario: Level 0 gathers values by payload slot
+
+- **WHEN** `Record` is called with a sorted pair array whose entries carry slots in a scrambled order (e.g. `[(0,3), (0,1), (5,0)]`)
+- **AND** the value buffer holds `values[0..2] = 1.0, 2.0, 4.0` at slots 0, 1 and 3 respectively
+- **THEN** `out[0]` equals `2.0 + 1.0` (slots 1 and 3, in either order)
+- **AND** `out[5]` equals `4.0` (slot 0)
+- **AND** the result does not depend on the order the pairs appear in
+
 ### Requirement: Recursive segmented reduction correctness
 
 The reduction SHALL produce, for every key `b < max_key_value` present in the sorted input, `out[b] = sum of the values of all entries with key b`, in exact per-channel order. Entries whose key is greater than or equal to `max_key_value` (including the `0xFFFFF` INVALID sentinel) SHALL be ignored and SHALL NOT write to the output. Keys absent from the input SHALL leave their output slots untouched.
 
+An entry whose payload slot is outside `[0, max_entries)` SHALL contribute 0.0 to every channel and SHALL NOT be read from the value buffer, so a caller that emits a bad slot id loses that entry instead of triggering a wild read. Its key SHALL be used unchanged: rewriting the key would violate the ascending-order requirement below and could split a real key's run, losing one of its partial sums.
+
 The algorithm SHALL require the input keys to be sorted in ascending order. Relative order of entries within the same key SHALL not affect the per-key result set (sums of the same value set; floating-point rounding may vary with order).
 
 Each block SHALL process 256 entries: load into shared memory, perform same-key pairwise doubling with dead marking, write per-key sums for segments fully contained in the block directly to the output, and emit at most two boundary records per block (first segment partial, last segment partial; the second record SHALL be an all-zero record when the whole block belongs to one segment).
+
+#### Scenario: Out-of-range payload slot contributes nothing
+
+- **WHEN** the sorted pair array contains the entry `(7, 999)` while `max_entries` is 256
+- **THEN** no value is read at slot 999
+- **AND** that entry adds 0.0 to every channel of key 7
+- **AND** every other key's sums are unaffected
 
 #### Scenario: Single key spanning many blocks
 
@@ -98,7 +120,7 @@ Each block SHALL process 256 entries: load into shared memory, perform same-key 
 
 ### Requirement: N-channel batched values
 
-The value buffer SHALL store `num_channels` float channels in channel-major layout: the value of channel `c` at element `i` SHALL reside at `values[c * stride + i]`, where `stride` is the current level's element count. The output buffer SHALL use the same channel-major layout with stride `max_key_value`.
+The value buffer SHALL store `num_channels` float channels in channel-major layout: the value of channel `c` at element `i` SHALL reside at `values[c * stride + i]`, where `stride` is the current level's element count and `i` is the record's payload slot at level 0 (`stride == max_entries`) or its position at levels >= 1 (`stride == R_i`). The output buffer SHALL use the same channel-major layout with stride `max_key_value`.
 
 The channel count SHALL be passed to the shader via the push-constant block at record time; a single `Record` call SHALL reduce all channels with one pass per level (no per-channel dispatches).
 

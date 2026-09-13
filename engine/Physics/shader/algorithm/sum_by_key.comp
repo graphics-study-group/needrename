@@ -10,7 +10,18 @@
 // Records are stored SoA, channel-major: for a level with `input_count` =
 // R_i records, value channel c of element e lives at
 // `ValuesIn[c * input_count + e]` (stride == the current level's record
-// count).  Level 0 reads the caller's KeysIn/ValuesIn; deeper levels read a
+// count).
+//
+// Level 0 takes the caller's sorted `(key, slot)` PairsIn array and gathers
+// each element's values at the slot its pair carries: the key is
+// `pairs[e].x` and channel c is `ValuesIn[c * input_count + pairs[e].y]`.
+// That is what lets the caller scatter contributions at their own slot index
+// and skip building a permutation map.  The mode is selected by
+// `gather_pairs` (1 at level 0, 0 elsewhere), so every level shares the block
+// reduction below and only its load path differs.  A payload slot outside
+// `[0, input_count)` loads 0.0 values but *keeps* its key: rewriting the key
+// would break the ascending-order requirement and could split a real key's
+// run in two, losing one of that key's partial sums.  Deeper levels read a
 // record region and write the next region, partitioned by level in the
 // caller's records buffer.
 //
@@ -38,6 +49,9 @@ layout(set = 0, binding = 1) readonly  buffer ValuesIn   { float v[]; } values_i
 layout(set = 0, binding = 2) buffer    RecKeys          { uint  v[]; } rec_keys;
 layout(set = 0, binding = 3) buffer    RecValues        { float v[]; } rec_values;
 layout(set = 0, binding = 4) buffer    OutValues        { float v[]; } out_values;
+// Level-0 input: the caller's sorted (key, slot) pairs.  Bound at every level
+// (harmless where unread) so no level needs a placeholder for it.
+layout(set = 0, binding = 5) readonly  buffer PairsIn     { uvec2 v[]; } pairs_in;
 
 // ---- Per-dispatch constants (push constant, recorded by the caller) ----
 layout(push_constant) uniform SumByKeyPush {
@@ -45,6 +59,7 @@ layout(push_constant) uniform SumByKeyPush {
     uint num_channels;    // N in [1,8]
     uint max_key_value;   // keys >= max_key are ignored (never written to out)
     uint record_stride;   // next region's per-channel count (=2*num_blocks); used when writing records
+    uint gather_pairs;    // 1 at level 0 (read PairsIn + gather by slot), 0 elsewhere
 } params;
 
 // Out-of-range key pad (distinct from the real INVALID 0xFFFFF so the tail of
@@ -65,11 +80,31 @@ void main() {
     const uint real_count = min(256u, params.input_count - min(base, params.input_count));
     const uint e         = base + tid;
 
-    // Cooperative load (out-of-range -> OOB pad key, zero values).
-    bool real = (e < params.input_count);
-    s_key[tid] = real ? keys_in.v[e] : kOobKey;
+    // Cooperative load.  `real` gates the value load; `elem_key` holds the
+    // element's key, or the OOB pad key when the element does not exist at all.
+    const bool in_range = (e < params.input_count);
+    bool real = in_range;
+    uint elem_key = kOobKey;
+    uint value_index = e;
+
+    if (params.gather_pairs != 0u) {
+        // Level 0: the payload slot is the index of this element's values in the
+        // channel-major value buffer.  A slot outside the buffer is dropped by
+        // zeroing the values only -- the key is left alone, because rewriting it
+        // would break the ascending input order that run detection depends on.
+        if (in_range) {
+            const uvec2 pair = pairs_in.v[e];
+            elem_key = pair.x;
+            value_index = pair.y;
+            real = (pair.y < params.input_count);
+        }
+    } else if (in_range) {
+        elem_key = keys_in.v[e];
+    }
+
+    s_key[tid] = elem_key;
     for (uint c = 0u; c < params.num_channels; ++c) {
-        s_val[tid][c] = real ? values_in.v[c * params.input_count + e] : 0.0f;
+        s_val[tid][c] = real ? values_in.v[c * params.input_count + value_index] : 0.0f;
     }
     barrier();
 
