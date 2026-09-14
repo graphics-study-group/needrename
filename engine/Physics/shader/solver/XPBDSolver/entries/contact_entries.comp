@@ -15,6 +15,16 @@
 // contribution is decided by accumulate_contact_position.comp, and an unwritten
 // slot stays inert because the value buffer is cleared before every iteration.
 //
+// This pass also *publishes the substep's entry count* — the number of leading
+// slots that can carry an owner — because the collision count it reads is
+// produced on the GPU in the same substep, so the host cannot know it when the
+// command buffer is recorded.  The count is `min(2 * collision_count, capacity)`
+// (two slots per contact point), clamped so no slot at or above the capacity is
+// ever included.  The radix sort and the segmented reduction both read it at
+// execution time; being a prefix of the sorted key order, everything at or
+// beyond it sorts after every entry that can contribute (the unowned slots carry
+// `kInvalidKey`, which is the largest key).
+//
 // Channel/slot conventions: common/xpbd_entry_layout.glsl.
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -31,6 +41,9 @@ layout(set = 0, binding = 3) readonly buffer RigidBodyAlive { uint v[]; } rigid_
 // ---- Output: sorted entry list (key, slot) ----
 layout(set = 0, binding = 4) buffer EntryPairs { uvec2 v[]; } entry_pairs;
 
+// ---- Output: the substep's entry count, read by the sort and the reduction ----
+layout(set = 0, binding = 5) buffer EntryCount { uint count; } entry_count;
+
 // ---- Per-dispatch constants (push constant, recorded by the solver) ----
 layout(push_constant) uniform CapacityPush {
     uint entry_capacity;
@@ -38,6 +51,13 @@ layout(push_constant) uniform CapacityPush {
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
+
+    // One invocation publishes the substep's entry count for the whole dispatch
+    // (the dispatch always has at least one invocation).  Two slots per contact
+    // point, clamped so no slot at or above the capacity is ever included.
+    if (cidx == 0u) {
+        entry_count.count = min(2u * collision_count.count, params.entry_capacity);
+    }
 
     const uint slot_a = contact_slot(cidx, 0u);
     const uint slot_b = contact_slot(cidx, 1u);

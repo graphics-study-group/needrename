@@ -1,11 +1,11 @@
-## 1. Commit 1 â€?rename only (no behaviour change)
+## 1. Commit 1 â€” rename only (no behaviour change)
 
 Rationale: design.md D9. Do this first so the behavioural diffs stay readable.
 
-- [x] 1.1 Rename the solver's reduce-group buffers and the radix histogram buffer in `engine/Physics/Solver/XPBDGpuSolver.cpp` per the table in design.md D9 (`gpu_*_pairs_a` â†?`gpu_*_entries`, `gpu_*_pairs_b` â†?`gpu_*_entries_tmp`, `gpu_*_scratch` â†?`gpu_*_values`, `gpu_*_records` â†?`gpu_*_reduce_scratch`, `gpu_radix_scratch` â†?`gpu_radix_histogram`, `gpu_*_count` â†?`gpu_*_entry_count`), including the `EnsureBuffer` name strings and the comments that describe each buffer's role. Verify: the engine builds and the full ctest suite is unchanged.
+- [x] 1.1 Rename the solver's reduce-group buffers and the radix histogram buffer in `engine/Physics/Solver/XPBDGpuSolver.cpp` per the table in design.md D9 (`gpu_*_pairs_a` â†’ `gpu_*_entries`, `gpu_*_pairs_b` â†’ `gpu_*_entries_tmp`, `gpu_*_scratch` â†’ `gpu_*_values`, `gpu_*_records` â†’ `gpu_*_reduce_scratch`, `gpu_radix_scratch` â†’ `gpu_radix_histogram`, `gpu_*_count` â†’ `gpu_*_entry_count`), including the `EnsureBuffer` name strings and the comments that describe each buffer's role. Verify: the engine builds and the full ctest suite is unchanged.
 - [x] 1.2 Rename the `ScratchValues` shader binding to `Values` in `common/xpbd_scatter.glsl`, `accumulate_contact_position.comp`, `accumulate_contact_velocity.comp`, `accumulate_hinge_position.comp`, `accumulate_fixed_position.comp` and every `srb.BindBuffer("ScratchValues", ...)` call site; update the binding comments so the file states that this buffer holds the real per-entry contribution values. Verify: physics shader target compiles and the full ctest suite is unchanged.
 
-## 2. Commit 2 â€?shader-side changes
+## 2. Commit 2 â€” shader-side changes
 
 References: `specs/gpu-sum-by-key/spec.md` (Record, correctness, N-channel), `specs/physics-gpu-shaders/spec.md` (counted clear shader). The push-constant block does **not** change: the entry count is GPU-produced, so it travels in a binding (design.md D2).
 
@@ -14,7 +14,7 @@ References: `specs/gpu-sum-by-key/spec.md` (Record, correctness, N-channel), `sp
 - [x] 2.3 Create `engine/Physics/shader/solver/XPBDSolver/clear_entry_values.comp`: reads the entry count from a buffer at execution time, takes the channel stride (the entry capacity) and `num_channels` as push constants, decomposes the flat invocation index into `(channel, slot)` with `slot = idx % capacity`, clears `values[channel * capacity + slot]` and early-outs once the slot reaches the count. The dispatch geometry stays capacity-derived. Verify: it compiles to SPIR-V, declares no float-atomic extension, and a hand-checked launch of `ceil(7 * capacity / 64)` workgroups with a count far below the capacity writes only the counted prefix of each plane.
 - [x] 2.4 Re-run the CMake configure so the physics shader target's `GLOB_RECURSE` picks up `clear_entry_values.comp`, and verify `clear_entry_values.comp.spv` appears in the SPIR-V output directory.
 
-## 3. Commit 3 â€?algorithm API (geometry becomes a call parameter)
+## 3. Commit 3 â€” algorithm API (geometry becomes a call parameter)
 
 References: `specs/gpu-sum-by-key/spec.md` (construction, static sizing helpers, Record), `specs/gpu-radix-sort/spec.md` (construction), design.md D1, D2, D6.
 
@@ -23,29 +23,30 @@ References: `specs/gpu-sum-by-key/spec.md` (construction, static sizing helpers,
 - [x] 3.3 Update `test/engine/headless/gpu_sum_by_key_test.cpp` for the new `Record` signature and add, with the tail above the count holding **garbage that includes valid keys and valid payload slots**: a capacity far above the entry count where the count does **not** land on a 256-boundary; a capacity far above the entry count where it **does**; a capacity above 256 with an entry count at or below 256 (the case where a count-derived array bound would make every block treat itself as the last level); an entry count of zero; an entry count equal to the capacity asserting identity with the unbounded behaviour; and a smaller entry count following a larger one on the same buffers. Verify: `gpu_sum_by_key_test` passes.
 - [x] 3.4 Update `test/engine/headless/gpu_radix_primary_test.cpp`: drop the `GetMaxElemCount` construction-geometry case and the capacity-contract assertion built on it, and cover the per-call rejection and the multi-capacity reuse of one instance instead. Verify: `gpu_radix_primary_test` passes.
 
-## 4. Commit 4 â€?solver wiring
+## 4. Commit 4 â€” solver wiring
 
 References: `specs/xpbd-contact-solve/spec.md` (entry construction, explicit clearing), design.md D3, D4, D5, D7.
 
 - [ ] 4.1 In `XPBDGpuSolver`'s `Impl`, delete `EnsureSortAndSum` and the geometry-matching logic; hold one `RadixSort` and one `SumByKey` instance shared by the contact, hinge and fixed groups. Verify: the solver builds and the physics tests pass.
-- [ ] 4.2 Make the contact entry pass publish the entry count into the contact entry-count buffer as `min(2 * collision_count.count, params.entry_capacity)` and remove the host `SetConstantU32` write of `contact_cap`; the radix sort and the reduce both read that buffer. Verify: the physics tests pass and the contact entry-count buffer is no longer written from `PreGPUStep`.- [ ] 4.3 Change the host writes for the joint groups from the group capacity to the **exact joint slot count** `4 * joint_count` (not `4 * max(1, joint_count)`), so that with zero joints the reduction ignores the group outright rather than reading a slot group owned by no joint (design.md D4). Verify: a scene with no hinge joints publishes a hinge count of zero while the hinge entry capacity stays 4, and the physics tests pass.
-- [ ] 4.4 Pass the geometry per call at every `Record` site: `RadixSort::Record` for the three sorts and `SumByKey::Record` for the three position reductions and the velocity reduction, each with its group's capacity and entry-count buffer. Verify: the solver builds and the physics tests pass.
-- [ ] 4.5 Replace the per-iteration full-capacity scratch clears with counted clears via the new `clear_entry_values` stage for the contact, hinge and fixed scratches in the position phase and for the contact scratch in the velocity phase, leaving the per-body and lagrange clears on `clear_int_buffer.comp` and leaving each clear's workgroup count capacity-derived. Verify: the physics tests pass and no scratch clear writes more than the count, while its dispatch count is unchanged from before.
+- [x] 4.2 Make the contact entry pass publish the entry count into the contact entry-count buffer as `min(2 * collision_count.count, params.entry_capacity)` and remove the host `SetConstantU32` write of `contact_cap`; the radix sort and the reduce both read that buffer. Verify: the physics tests pass and the contact entry-count buffer is no longer written from `PreGPUStep`.
+- [x] 4.3 Change the host writes for the joint groups from the group capacity to the **exact joint slot count** `4 * joint_count` (not `4 * max(1, joint_count)`), so that with zero joints the reduction ignores the group outright rather than reading a slot group owned by no joint (design.md D4). Verify: a scene with no hinge joints publishes a hinge count of zero while the hinge entry capacity stays 4, and the physics tests pass.
+- [x] 4.4 Pass the geometry per call at every `Record` site: `RadixSort::Record` for the three sorts and `SumByKey::Record` for the three position reductions and the velocity reduction, each with its group's capacity and entry-count buffer. Verify: the solver builds and the physics tests pass.
+- [x] 4.5 Replace the per-iteration full-capacity scratch clears with counted clears via the new `clear_entry_values` stage for the contact, hinge and fixed scratches in the position phase and for the contact scratch in the velocity phase, leaving the per-body and lagrange clears on `clear_int_buffer.comp` and leaving each clear's workgroup count capacity-derived. Verify: the physics tests pass and no scratch clear writes more than the count, while its dispatch count is unchanged from before.
 - [ ] 4.6 Confirm the empty/zero-count paths at solver level: a substep with zero contacts and a substep with zero hinge/fixed joints each run without validation errors and produce no per-body delta for that constraint type. Verify: a scene with joints but no contacts, and a scene with contacts but no joints, both pass end to end.
 
-## 5. Commit 5 â€?coverage for the capacity-change path
+## 5. Commit 5 â€” coverage for the capacity-change path
 
-Rationale: with geometry supplied per call, a capacity change is the normal path rather than an edge case. This is the gap recorded as task 8.5 in `remove-float-atomics`, promoted here. It is also the plan's largest unknown (design.md Open Questions) â€?if the fixture turns out to be expensive, split this commit into its own change rather than blocking commits 1-4.
+Rationale: with geometry supplied per call, a capacity change is the normal path rather than an edge case. This is the gap recorded as task 8.5 in `remove-float-atomics`, promoted here. It is also the plan's largest unknown (design.md Open Questions) â€” if the fixture turns out to be expensive, split this commit into its own change rather than blocking commits 1-4.
 
 - [ ] 5.1 Build a headless fixture that drives a `PhysicsScene` with `XpbdGpuSolver` and can change the shape/joint count between steps (`AllocateCollisionShapeSlot` / `SubmitCollisionShape` / `SyncGpuBuffers`), since `PhysicsApp` freezes the scene at `CommitScene`. Verify: the fixture runs several steps with a changing shape count without validation errors or exceptions.
 - [ ] 5.2 Use the fixture to assert that growing and shrinking the shape count between steps neither throws nor leaves stale per-body deltas (the failure modes the deleted rebuild path used to guard against). Verify: the new test passes and would fail against the pre-change code.
 - [ ] 5.3 Assert that the live contact set changing between substeps leaves no stale-value artefacts: a scene whose contacts shrink from many to few produces the same per-body deltas as a scene that always had the smaller set. Verify: the comparison passes.
 
-## 6. Commit 6 â€?verification and measurement
+## 6. Commit 6 â€” verification and measurement
 
 - [ ] 6.1 Run the full build and the full ctest suite (headless + windowed + gpu) and confirm zero failures.
 - [ ] 6.2 Run `openspec validate "xpbd-entry-count-driven-reduce" --strict` and resolve any findings.
 - [ ] 6.3 Audit the compiled shaders with `spirv-dis`: `sum_by_key.comp.spv` binds seven storage buffers and its push block is unchanged at 20 bytes; `clear_entry_values.comp.spv` exists; no solver shader emits `AtomicFloat32AddEXT`.
-- [ ] 6.4 Measure the change on the physics application (before/after on the same scene) and record the numbers with the scene's shape/contact counts in this task. The measurement is evidence, not a CI gate â€?state plainly that the proposal's figures were estimates and whether they held. Note in the record that the radix sort's dispatch is still capacity-derived, so a scene whose contact count is small but whose capacity is large will still pay its dispatch-scheduling cost; the expected win is in the clear and reduce traffic.
+- [ ] 6.4 Measure the change on the physics application (before/after on the same scene) and record the numbers with the scene's shape/contact counts in this task. The measurement is evidence, not a CI gate â€” state plainly that the proposal's figures were estimates and whether they held. Note in the record that the radix sort's dispatch is still capacity-derived, so a scene whose contact count is small but whose capacity is large will still pay its dispatch-scheduling cost; the expected win is in the clear and reduce traffic.
 - [ ] 6.5 Record any deviation from design.md or the specs discovered during implementation in this file and in `design.md`, rather than leaving the artifacts describing something the code does not do.
 - [ ] 6.6 Confirm the archive ordering constraint before archiving: `remove-float-atomics` must be archived first, because this change's `gpu-sum-by-key` delta and two of its `xpbd-contact-solve` deltas modify requirements that only exist inside that unarchived change.

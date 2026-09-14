@@ -80,6 +80,12 @@ namespace {
     };
     static_assert(sizeof(ContactEntryPush) == 4);
 
+    struct ClearEntryValuesPush { // clear_entry_values.comp
+        uint32_t entry_capacity; // channel stride
+        uint32_t num_channels;
+    };
+    static_assert(sizeof(ClearEntryValuesPush) == 8);
+
     struct BodyCountPush { // apply_body_*.comp
         uint32_t body_count;
     };
@@ -100,6 +106,7 @@ namespace Engine {
 
         // ---- Compute stages ----
         std::unique_ptr<Rhi::ComputeStage> clear_int_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_values_stage{};
         std::unique_ptr<Rhi::ComputeStage> snapshot_stage{};
         std::unique_ptr<Rhi::ComputeStage> update_shape_world_pose_stage{};
         std::unique_ptr<Rhi::ComputeStage> integrate_stage{};
@@ -116,6 +123,7 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeStage> accum_fixed_stage{};
 
         Rhi::ComputeResourceBinding *clear_int_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_values_binding = nullptr;
         Rhi::ComputeResourceBinding *snapshot_binding = nullptr;
         Rhi::ComputeResourceBinding *update_shape_world_pose_binding = nullptr;
         Rhi::ComputeResourceBinding *integrate_binding = nullptr;
@@ -145,6 +153,12 @@ namespace Engine {
         // ---- Reduce-group infrastructure ----
         std::unique_ptr<Rhi::ComputeBuffer> gpu_radix_histogram{};
 
+        // One sort and one reduction serve every constraint type: both are
+        // geometry-free, so each group's capacity and entry count travel with its
+        // own call and no instance ever needs rebuilding.
+        std::unique_ptr<RadixSort> radix_sort{};
+        std::unique_ptr<SumByKey> sum_by_key{};
+
         // Contact (capacity = 2*max_contact_point slots).  One value buffer serves
         // the position and the velocity phase: they are strictly sequential and each
         // clears it before its accumulate (see the velocity loop below).
@@ -155,8 +169,6 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_reduce_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_out_pos{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_out_vel{};
-        std::unique_ptr<RadixSort> contact_sort{};
-        std::unique_ptr<SumByKey> contact_sum{};
 
         // Hinge (capacity = 4*max(1,hinge_count) slots).
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_entries{};
@@ -165,8 +177,6 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_values{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_reduce_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_out{};
-        std::unique_ptr<RadixSort> hinge_sort{};
-        std::unique_ptr<SumByKey> hinge_sum{};
 
         // Fixed (capacity = 4*max(1,fixed_count) slots).
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_entries{};
@@ -175,8 +185,6 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_values{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_reduce_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_out{};
-        std::unique_ptr<RadixSort> fixed_sort{};
-        std::unique_ptr<SumByKey> fixed_sum{};
 
         glm::vec4 push_gravity_dt{0.0f, 0.0f, -9.81f, 0.0f};
 
@@ -226,15 +234,6 @@ namespace Engine {
             EnsureBuffer(*g.out, static_cast<size_t>(kNumChannels) * body_count * sizeof(uint32_t), "XPBD ReduceOut");
         }
 
-        // RadixSort and SumByKey hold no geometry: every call supplies its own
-        // capacity, so one instance serves any geometry and never needs
-        // rebuilding.  Both are still created lazily, on the first substep that
-        // reaches them.
-        void EnsureSortAndSum(std::unique_ptr<RadixSort> &sort, std::unique_ptr<SumByKey> &sum) {
-            if (!sort) sort = std::make_unique<RadixSort>(device_context);
-            if (!sum) sum = std::make_unique<SumByKey>(device_context);
-        }
-
         void SetConstantU32(Rhi::ComputeBuffer &buf, uint32_t value) {
             *reinterpret_cast<uint32_t *>(buf.GetVMAddress()) = value;
             buf.Flush();
@@ -252,6 +251,9 @@ namespace Engine {
             };
             clear_int_stage = load("solver/XPBDSolver/clear_int_buffer.comp.spv", "XPBD Clear Int");
             clear_int_binding = &clear_int_stage->AllocateResourceBinding();
+
+            clear_values_stage = load("solver/XPBDSolver/clear_entry_values.comp.spv", "XPBD ClearEntryValues");
+            clear_values_binding = &clear_values_stage->AllocateResourceBinding();
 
             snapshot_stage = load("solver/XPBDSolver/snapshot_position.comp.spv", "XPBD Snapshot");
             snapshot_binding = &snapshot_stage->AllocateResourceBinding();
@@ -297,16 +299,42 @@ namespace Engine {
             accum_fixed_binding = &accum_fixed_stage->AllocateResourceBinding();
         }
 
+        // Sorts one group's entry list.  The shared radix sort takes the group's
+        // capacity per call and reads the group's entry count at execution time.
         void RecordSort(
             vk::CommandBuffer cb,
-            RadixSort &sort,
-            Rhi::ComputeBuffer &pairs_a,
-            Rhi::ComputeBuffer &pairs_b,
-            Rhi::ComputeBuffer &count,
+            Rhi::ComputeBuffer &entries,
+            Rhi::ComputeBuffer &entries_tmp,
+            Rhi::ComputeBuffer &entry_count,
             uint32_t capacity
         ) {
-            sort.Record(
-                cb, pairs_a, pairs_b, *gpu_radix_histogram, capacity, count, 1u << 20u, RadixSortMode::ePrimaryOnly
+            radix_sort->Record(
+                cb,
+                entries,
+                entries_tmp,
+                *gpu_radix_histogram,
+                capacity,
+                entry_count,
+                1u << 20u,
+                RadixSortMode::ePrimaryOnly
+            );
+        }
+
+        // Reduces one group's contribution values into its per-body output.  The
+        // shared reducer takes the whole geometry per call and reads the group's
+        // entry count at execution time.
+        void RecordReduce(
+            vk::CommandBuffer cb,
+            Rhi::ComputeBuffer &entries,
+            Rhi::ComputeBuffer &values,
+            Rhi::ComputeBuffer &reduce_scratch,
+            Rhi::ComputeBuffer &out,
+            Rhi::ComputeBuffer &entry_count,
+            uint32_t capacity,
+            uint32_t body_count
+        ) {
+            sum_by_key->Record(
+                cb, entries, values, reduce_scratch, out, entry_count, capacity, kNumChannels, body_count
             );
         }
     };
@@ -383,11 +411,20 @@ namespace Engine {
             "XPBD ContactOutVel"
         );
 
-        m_impl->EnsureSortAndSum(m_impl->contact_sort, m_impl->contact_sum);
-        m_impl->SetConstantU32(*m_impl->gpu_contact_entry_count, contact_cap);
+        // One sort and one reduction serve every constraint type.  Both are
+        // geometry-free, so they are created once and never rebuilt: the group's
+        // capacity and entry count travel with each call.
+        if (!m_impl->radix_sort) m_impl->radix_sort = std::make_unique<RadixSort>(m_impl->device_context);
+        if (!m_impl->sum_by_key) m_impl->sum_by_key = std::make_unique<SumByKey>(m_impl->device_context);
+        // The contact entry count is published on the GPU by the entry pass, from
+        // the collision count it reads in the same substep, so the host must not
+        // write it (nor disable the radix sort's count guard, as it used to).
 
         // Hinge/fixed groups.  A joint count of zero still gets one joint's worth
-        // of slots, so an empty joint list still has a fully written entry list.
+        // of slots (the capacity keeps its max(1, ...) floor) so an empty joint
+        // list still has a fully written entry list; the *count* published below
+        // is the exact joint slot count, so the reduction ignores that group
+        // outright instead of reading a slot group owned by no joint.
         const uint32_t hinge_slots = kJointSlotsPerJoint * std::max(1u, gpu.hinge_joint_count);
         const uint32_t fixed_slots = kJointSlotsPerJoint * std::max(1u, gpu.fixed_joint_count);
 
@@ -411,8 +448,7 @@ namespace Engine {
             static_cast<size_t>(std::max(1u, gpu.hinge_joint_count)) * sizeof(float),
             "XPBD HingeAnchorLagrange"
         );
-        m_impl->EnsureSortAndSum(m_impl->hinge_sort, m_impl->hinge_sum);
-        m_impl->SetConstantU32(*m_impl->gpu_hinge_entry_count, hinge_slots);
+        m_impl->SetConstantU32(*m_impl->gpu_hinge_entry_count, kJointSlotsPerJoint * gpu.hinge_joint_count);
 
         m_impl->EnsureReduceGroup(
             fixed_slots,
@@ -434,8 +470,7 @@ namespace Engine {
             static_cast<size_t>(std::max(1u, gpu.fixed_joint_count)) * sizeof(float),
             "XPBD FixedPosLagrange"
         );
-        m_impl->EnsureSortAndSum(m_impl->fixed_sort, m_impl->fixed_sum);
-        m_impl->SetConstantU32(*m_impl->gpu_fixed_entry_count, fixed_slots);
+        m_impl->SetConstantU32(*m_impl->gpu_fixed_entry_count, kJointSlotsPerJoint * gpu.fixed_joint_count);
 
         const float substep_dt =
             m_impl->config.time_step / static_cast<float>(std::max(1u, m_impl->config.num_substep_perstep));
@@ -507,6 +542,23 @@ namespace Engine {
             dispatch(*m_impl->clear_int_stage, *m_impl->clear_int_binding, wg);
         };
 
+        // Count-bounded clear of one group's per-iteration value buffer: only the
+        // slots below that substep's entry count are written.  The dispatch
+        // geometry stays the flat clear's (the count is produced on the GPU), so
+        // this replaces the full-capacity clear without changing its workgroup
+        // count.
+        auto dispatch_clear_values =
+            [this, &cb, &dispatch](
+                Rhi::ComputeBuffer &values, Rhi::ComputeBuffer &entry_count, uint32_t capacity, uint32_t wg
+            ) {
+                const ClearEntryValuesPush push{capacity, kNumChannels};
+                Rhi::PushConstants(cb, *m_impl->clear_values_stage, push);
+                auto &srb = m_impl->clear_values_binding->GetShaderResourceBinding();
+                srb.BindBuffer("Values", values);
+                srb.BindBuffer("EntryCount", entry_count);
+                dispatch(*m_impl->clear_values_stage, *m_impl->clear_values_binding, wg);
+            };
+
         if (m_bound_scene->IsSimulationEnabled()) {
             const uint32_t substep_count = std::max(1u, m_impl->config.num_substep_perstep);
             const uint32_t pos_iters = std::max(1u, m_impl->config.num_iter_persubstep);
@@ -527,12 +579,11 @@ namespace Engine {
 
             const uint32_t out_pos_elems = kNumChannels * body_count;
             const uint32_t out_wg = (out_pos_elems + 63u) / 64u;
-            const uint32_t contact_values_elems = kNumChannels * contact_cap;
-            const uint32_t contact_values_wg = (contact_values_elems + 63u) / 64u;
-            const uint32_t hinge_values_elems = kNumChannels * hinge_slots;
-            const uint32_t hinge_values_wg = (hinge_values_elems + 63u) / 64u;
-            const uint32_t fixed_values_elems = kNumChannels * fixed_slots;
-            const uint32_t fixed_values_wg = (fixed_values_elems + 63u) / 64u;
+            // The counted clear's dispatch geometry is still capacity-derived (the
+            // count is only known on the GPU); the shader bounds the writes.
+            const uint32_t contact_values_wg = (kNumChannels * contact_cap + 63u) / 64u;
+            const uint32_t hinge_values_wg = (kNumChannels * hinge_slots + 63u) / 64u;
+            const uint32_t fixed_values_wg = (kNumChannels * fixed_slots + 63u) / 64u;
 
             for (uint32_t ss = 0; ss < substep_count; ++ss) {
                 // ====== PreCollision ======
@@ -625,6 +676,9 @@ namespace Engine {
                     srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
                     srb.BindBuffer("EntryPairs", *m_impl->gpu_contact_entries);
+                    // The entry pass derives and publishes the substep's entry
+                    // count from the collision count it reads here.
+                    srb.BindBuffer("EntryCount", *m_impl->gpu_contact_entry_count);
                     const ContactEntryPush push{contact_cap};
                     Rhi::PushConstants(cb, *m_impl->contact_entries_stage, push);
                     dispatch(*m_impl->contact_entries_stage, *m_impl->contact_entries_binding, contact_pt_wg);
@@ -632,7 +686,6 @@ namespace Engine {
                 barrier();
                 m_impl->RecordSort(
                     cb,
-                    *m_impl->contact_sort,
                     *m_impl->gpu_contact_entries,
                     *m_impl->gpu_contact_entries_tmp,
                     *m_impl->gpu_contact_entry_count,
@@ -652,7 +705,6 @@ namespace Engine {
                 barrier();
                 m_impl->RecordSort(
                     cb,
-                    *m_impl->hinge_sort,
                     *m_impl->gpu_hinge_entries,
                     *m_impl->gpu_hinge_entries_tmp,
                     *m_impl->gpu_hinge_entry_count,
@@ -672,7 +724,6 @@ namespace Engine {
                 barrier();
                 m_impl->RecordSort(
                     cb,
-                    *m_impl->fixed_sort,
                     *m_impl->gpu_fixed_entries,
                     *m_impl->gpu_fixed_entries_tmp,
                     *m_impl->gpu_fixed_entry_count,
@@ -712,8 +763,12 @@ namespace Engine {
                     const auto g = m_bound_scene->GetGpuBuffers();
 
                     // Contact scatter (position value buffer) — cleared first, so a
-                    // non-contributing contact leaves zeroes with flag 0.
-                    dispatch_clear(*m_impl->gpu_contact_values, contact_values_elems, contact_values_wg);
+                    // non-contributing contact leaves zeroes with flag 0.  The clear
+                    // is count-bounded: only slots below the entry count can be
+                    // written this iteration, and only those are read back.
+                    dispatch_clear_values(
+                        *m_impl->gpu_contact_values, *m_impl->gpu_contact_entry_count, contact_cap, contact_values_wg
+                    );
                     barrier();
                     {
                         auto &srb = m_impl->accum_pos_binding->GetShaderResourceBinding();
@@ -740,7 +795,7 @@ namespace Engine {
                         dispatch(*m_impl->accum_pos_stage, *m_impl->accum_pos_binding, contact_pt_wg);
                     }
                     barrier();
-                    m_impl->contact_sum->Record(
+                    m_impl->RecordReduce(
                         cb,
                         *m_impl->gpu_contact_entries,
                         *m_impl->gpu_contact_values,
@@ -748,13 +803,14 @@ namespace Engine {
                         *m_impl->gpu_contact_out_pos,
                         *m_impl->gpu_contact_entry_count,
                         contact_cap,
-                        kNumChannels,
                         body_count
                     );
                     barrier();
 
                     // Hinge scatter + reduce.
-                    dispatch_clear(*m_impl->gpu_hinge_values, hinge_values_elems, hinge_values_wg);
+                    dispatch_clear_values(
+                        *m_impl->gpu_hinge_values, *m_impl->gpu_hinge_entry_count, hinge_slots, hinge_values_wg
+                    );
                     barrier();
                     if (gpu.hinge_joint_count > 0u) {
                         auto &srb = m_impl->accum_hinge_binding->GetShaderResourceBinding();
@@ -774,7 +830,7 @@ namespace Engine {
                         dispatch(*m_impl->accum_hinge_stage, *m_impl->accum_hinge_binding, hinge_wg);
                     }
                     barrier();
-                    m_impl->hinge_sum->Record(
+                    m_impl->RecordReduce(
                         cb,
                         *m_impl->gpu_hinge_entries,
                         *m_impl->gpu_hinge_values,
@@ -782,13 +838,14 @@ namespace Engine {
                         *m_impl->gpu_hinge_out,
                         *m_impl->gpu_hinge_entry_count,
                         hinge_slots,
-                        kNumChannels,
                         body_count
                     );
                     barrier();
 
                     // Fixed scatter + reduce.
-                    dispatch_clear(*m_impl->gpu_fixed_values, fixed_values_elems, fixed_values_wg);
+                    dispatch_clear_values(
+                        *m_impl->gpu_fixed_values, *m_impl->gpu_fixed_entry_count, fixed_slots, fixed_values_wg
+                    );
                     barrier();
                     if (gpu.fixed_joint_count > 0u) {
                         auto &srb = m_impl->accum_fixed_binding->GetShaderResourceBinding();
@@ -808,7 +865,7 @@ namespace Engine {
                         dispatch(*m_impl->accum_fixed_stage, *m_impl->accum_fixed_binding, fixed_wg);
                     }
                     barrier();
-                    m_impl->fixed_sum->Record(
+                    m_impl->RecordReduce(
                         cb,
                         *m_impl->gpu_fixed_entries,
                         *m_impl->gpu_fixed_values,
@@ -816,7 +873,6 @@ namespace Engine {
                         *m_impl->gpu_fixed_out,
                         *m_impl->gpu_fixed_entry_count,
                         fixed_slots,
-                        kNumChannels,
                         body_count
                     );
                     barrier();
@@ -860,7 +916,9 @@ namespace Engine {
                     // finished (its values were consumed by the last apply), and
                     // this clear erases them before the velocity scatter, so no
                     // position-phase value can reach the velocity reduction.
-                    dispatch_clear(*m_impl->gpu_contact_values, contact_values_elems, contact_values_wg);
+                    dispatch_clear_values(
+                        *m_impl->gpu_contact_values, *m_impl->gpu_contact_entry_count, contact_cap, contact_values_wg
+                    );
                     barrier();
                     {
                         const auto g = m_bound_scene->GetGpuBuffers();
@@ -893,7 +951,7 @@ namespace Engine {
                         dispatch(*m_impl->accum_vel_stage, *m_impl->accum_vel_binding, contact_pt_wg);
                     }
                     barrier();
-                    m_impl->contact_sum->Record(
+                    m_impl->RecordReduce(
                         cb,
                         *m_impl->gpu_contact_entries,
                         *m_impl->gpu_contact_values,
@@ -901,7 +959,6 @@ namespace Engine {
                         *m_impl->gpu_contact_out_vel,
                         *m_impl->gpu_contact_entry_count,
                         contact_cap,
-                        kNumChannels,
                         body_count
                     );
                     barrier();
