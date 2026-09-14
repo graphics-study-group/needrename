@@ -1,0 +1,60 @@
+#version 450 core
+
+// clear_entry_values.comp — Count-bounded clear of an entry value buffer.
+//
+// The XPBD solver's per-iteration scratch is a channel-major value buffer with
+// stride == the entry capacity, indexed by entry slot (see
+// common/xpbd_entry_layout.glsl).  Before each accumulate pass only the slots
+// below this substep's entry count can receive a contribution, and the segmented
+// reduction reads values only at the payload slots of entries below that count,
+// so only those slots need clearing.
+//
+// The entry count is produced on the GPU in the same substep, so it is read from
+// a buffer at execution time (exactly as the radix sort's count guard does) and
+// cannot be a push constant.  The dispatch geometry therefore stays derived from
+// the entry capacity — ceil(num_channels * entry_capacity / 64) workgroups, the
+// same count the flat clear uses — and this shader early-outs once the slot
+// index reaches the count.  Only the number of elements actually written follows
+// the count.
+//
+// A flat early-out on the invocation index would be wrong: the cleared elements
+// are the first `count` slots of *each* of the `num_channels` planes, not the
+// first `num_channels * count` flat indices, so the flat index has to be
+// decomposed into (channel, slot) before the comparison.
+//
+// This is a separate shader from clear_int_buffer.comp rather than a mode of it:
+// that one clears a flat range whose length is a push constant and binds no
+// count buffer.  Following the solver's convention, the two jobs are not
+// selected by a mode flag.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// ---- Channel-major value buffer to clear, indexed by entry slot ----
+layout(set = 0, binding = 0) buffer Values { float v[]; } values;
+
+// ---- Entry count (produced on the GPU this substep) ----
+layout(set = 0, binding = 1) readonly buffer EntryCount { uint count; } entry_count;
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform ClearEntryValuesPush {
+    uint entry_capacity; // channel stride (== the entry capacity)
+    uint num_channels;   // number of channel planes to clear
+} params;
+
+void main() {
+    const uint idx = gl_GlobalInvocationID.x;
+
+    // The capacity is never zero (the caller keeps a one-joint floor), so the
+    // decomposition is well defined.
+    const uint channel = idx / params.entry_capacity;
+    const uint slot = idx % params.entry_capacity;
+
+    // The dispatch rounds up to whole workgroups and covers every channel, so
+    // the index can run past the last plane.
+    if (channel >= params.num_channels) return;
+    // Data extent: only the slots below the entry count can hold a contribution
+    // this iteration.
+    if (slot >= entry_count.count) return;
+
+    values.v[channel * params.entry_capacity + slot] = 0.0f;
+}

@@ -40,6 +40,35 @@
 // emitted.  Keys >= `max_key_value` (incl. the INVALID sentinel 0xFFFFF and
 // the out-of-range pad 0xFFFFFFFF) never write to the output.
 //
+// ---- Two lengths bound a level, and they are not interchangeable ----
+//
+//   - The *level element count* is the length of the array the level reads:
+//     `input_count` (= the caller's capacity at level 0, `R_i` above).  It alone
+//     defines the element-index bound, the per-block real extent run
+//     classification uses, the record-region partition, the per-level dispatch
+//     count and the level-0 channel stride.  It is a pure function of the
+//     capacity, so the caller computes the whole chain.
+//   - The *entry count* is how many leading elements carry real data.  It bounds
+//     **data extent only**: at level 0 no value is read for an element at or
+//     beyond it, nor for an element whose payload slot is at or beyond it.  It
+//     never affects geometry.  It is produced on the GPU, so it travels in the
+//     `EntryCount` binding rather than the push-constant block, and it is read
+//     only in gather mode (only level 0 gathers; a deeper level's input is the
+//     record region the previous level just wrote and is entirely valid).
+//
+// Elements at or beyond the entry count keep their keys and contribute 0.0 to
+// every channel, so they take part in run classification exactly like any other
+// element.
+//
+// That is also why the record chain needs no empty-block case: the level element
+// count stays at the capacity, and the caller dispatches `ceil(input_count / 256)`
+// workgroups, so at every block `base <= input_count - 1` and
+// `real_count = min(256, input_count - min(base, input_count)) >= 1`.  No block
+// is empty, so both of a block's record slots are written on every call and the
+// chain stays dense.  Letting the entry count reach the element range would break
+// that (a short count would leave holes holding a previous call's records, which
+// the next level would read as phantom partials).
+//
 // Dispatch: ceil(input_count / 256), 1, 1.
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
@@ -52,6 +81,12 @@ layout(set = 0, binding = 4) buffer    OutValues        { float v[]; } out_value
 // Level-0 input: the caller's sorted (key, slot) pairs.  Bound at every level
 // (harmless where unread) so no level needs a placeholder for it.
 layout(set = 0, binding = 5) readonly  buffer PairsIn     { uvec2 v[]; } pairs_in;
+// Level-0 data extent: the number of leading entries that carry real data, read
+// at execution time because the producing pass runs on the GPU.  Bound at every
+// level (its contents are read only in gather mode) so no level needs a
+// placeholder.  The caller clamps it to the capacity, so it bounds the element
+// index and the payload slot alike.
+layout(set = 0, binding = 6) readonly  buffer EntryCount  { uint count; } entry_count;
 
 // ---- Per-dispatch constants (push constant, recorded by the caller) ----
 layout(push_constant) uniform SumByKeyPush {
@@ -89,16 +124,22 @@ void main() {
 
     if (params.gather_pairs != 0u) {
         // Level 0: the payload slot is the index of this element's values in the
-        // channel-major value buffer.  A slot outside the buffer is dropped by
-        // zeroing the values only -- the key is left alone, because rewriting it
-        // would break the ascending input order that run detection depends on.
+        // channel-major value buffer.  The key is always taken unchanged -- even
+        // for an element at or beyond the entry count, and even when its slot is
+        // dropped -- because rewriting it would break the ascending input order
+        // that run detection depends on.  Only the *value* read follows the entry
+        // count: the element index must be below it and the payload slot must be
+        // below it (which also keeps the slot inside the value buffer, as the
+        // count is clamped to the capacity).
         if (in_range) {
             const uvec2 pair = pairs_in.v[e];
             elem_key = pair.x;
             value_index = pair.y;
-            real = (pair.y < params.input_count);
+            real = (e < entry_count.count) && (pair.y < entry_count.count);
         }
     } else if (in_range) {
+        // Deeper levels read the record region the previous level just wrote, so
+        // every element in range is valid and no count bound applies.
         elem_key = keys_in.v[e];
     }
 
