@@ -27,7 +27,7 @@ References: `specs/gpu-sum-by-key/spec.md` (construction, static sizing helpers,
 
 References: `specs/xpbd-contact-solve/spec.md` (entry construction, explicit clearing), design.md D3, D4, D5, D7.
 
-- [ ] 4.1 In `XPBDGpuSolver`'s `Impl`, delete `EnsureSortAndSum` and the geometry-matching logic; hold one `RadixSort` and one `SumByKey` instance shared by the contact, hinge and fixed groups. Verify: the solver builds and the physics tests pass.
+- [x] 4.1 In `XPBDGpuSolver`'s `Impl`, delete `EnsureSortAndSum` and the geometry-matching logic; hold one `RadixSort` and one `SumByKey` instance shared by the contact, hinge and fixed groups. Verify: the solver builds and the physics tests pass.
 - [x] 4.2 Make the contact entry pass publish the entry count into the contact entry-count buffer as `min(2 * collision_count.count, params.entry_capacity)` and remove the host `SetConstantU32` write of `contact_cap`; the radix sort and the reduce both read that buffer. Verify: the physics tests pass and the contact entry-count buffer is no longer written from `PreGPUStep`.
 - [x] 4.3 Change the host writes for the joint groups from the group capacity to the **exact joint slot count** `4 * joint_count` (not `4 * max(1, joint_count)`), so that with zero joints the reduction ignores the group outright rather than reading a slot group owned by no joint (design.md D4). Verify: a scene with no hinge joints publishes a hinge count of zero while the hinge entry capacity stays 4, and the physics tests pass.
 - [x] 4.4 Pass the geometry per call at every `Record` site: `RadixSort::Record` for the three sorts and `SumByKey::Record` for the three position reductions and the velocity reduction, each with its group's capacity and entry-count buffer. Verify: the solver builds and the physics tests pass.
@@ -44,9 +44,44 @@ Rationale: with geometry supplied per call, a capacity change is the normal path
 
 ## 6. Commit 6 — verification and measurement
 
-- [ ] 6.1 Run the full build and the full ctest suite (headless + windowed + gpu) and confirm zero failures.
-- [ ] 6.2 Run `openspec validate "xpbd-entry-count-driven-reduce" --strict` and resolve any findings.
-- [ ] 6.3 Audit the compiled shaders with `spirv-dis`: `sum_by_key.comp.spv` binds seven storage buffers and its push block is unchanged at 20 bytes; `clear_entry_values.comp.spv` exists; no solver shader emits `AtomicFloat32AddEXT`.
-- [ ] 6.4 Measure the change on the physics application (before/after on the same scene) and record the numbers with the scene's shape/contact counts in this task. The measurement is evidence, not a CI gate — state plainly that the proposal's figures were estimates and whether they held. Note in the record that the radix sort's dispatch is still capacity-derived, so a scene whose contact count is small but whose capacity is large will still pay its dispatch-scheduling cost; the expected win is in the clear and reduce traffic.
-- [ ] 6.5 Record any deviation from design.md or the specs discovered during implementation in this file and in `design.md`, rather than leaving the artifacts describing something the code does not do.
-- [ ] 6.6 Confirm the archive ordering constraint before archiving: `remove-float-atomics` must be archived first, because this change's `gpu-sum-by-key` delta and two of its `xpbd-contact-solve` deltas modify requirements that only exist inside that unarchived change.
+- [x] 6.1 Run the full build and the full ctest suite (headless + windowed + gpu) and confirm zero failures.
+
+  Done: `cmake --build --preset msvc-debug` exit 0 and `ctest --preset msvc-debug` reports 57/57 passed (56 before this change; the new `xpbd_reduce_capacity_test` is the 57th). `physics_app_physics_only_test` and `physics_app_offscreen_test` were also run with `VK_LAYER_PATH` set so the Khronos validation layer was active, and reported no descriptor or synchronisation errors from the new bindings.
+- [x] 6.2 Run `openspec validate "xpbd-entry-count-driven-reduce" --strict` and resolve any findings.
+
+  Done: `Change 'xpbd-entry-count-driven-reduce' is valid`.
+- [x] 6.3 Audit the compiled shaders with `spirv-dis`: `sum_by_key.comp.spv` binds seven storage buffers and its push block is unchanged at 20 bytes; `clear_entry_values.comp.spv` exists; no solver shader emits `AtomicFloat32AddEXT`.
+
+  Done: `sum_by_key.comp.spv` declares `PairsIn`, `EntryCount`, `KeysIn`, `ValuesIn`, `OutValues`, `RecKeys`, `RecValues` (seven storage buffers) and `%SumByKeyPush = OpTypeStruct %uint %uint %uint %uint %uint` (five uints, 20 bytes, no new field). `solver/XPBDSolver/clear_entry_values.comp.spv` exists. A sweep of every `.spv` under the physics SPIR-V root found no `AtomicFloat32AddEXT`.
+- [x] 6.4 Measure the change on the physics application (before/after on the same scene) and record the numbers with the scene's shape/contact counts in this task. The measurement is evidence, not a CI gate — state plainly that the proposal's figures were estimates and whether they held. Note in the record that the radix sort's dispatch is still capacity-derived, so a scene whose contact count is small but whose capacity is large will still pay its dispatch-scheduling cost; the expected win is in the clear and reduce traffic.
+
+  Done, with a caveat: the measurement did **not** resolve a wall-clock win on the scene used, and the proposal's figures remain estimates.
+
+  **Scene** (headless harness, no rendering, Debug build): 61 shapes — one kinematic ground box 120x120x1 plus 60 unit boxes on a 10x6 grid with 1.0 spacing, so neighbours touch; run for 100 and 200 steps.
+  Derived geometry: `all_pairs = 61 * 60 / 2 = 1830`, so `max_contact_point = min(1830 * 5, 100000) = 9150` and the contact entry capacity is `18300` slots. The live contact count was **not** instrumented; the layout produces on the order of 110 contacts, i.e. on the order of 220 published slots — about 1.2% of the capacity, which is the case this change targets.
+
+  **A/B**: pre-change data extent reproduced with the *same binary* by making `contact_entries.comp` publish `params.entry_capacity` as the entry count (so the clear, the reduce and the radix sort all run at full capacity, exactly the pre-change extent); only that one shader was rebuilt between the two runs.
+
+  | run | after (counted) | before-equivalent (count == capacity) |
+  | --- | --- | --- |
+  | 100 steps | 2341 ms (23.4 ms/step) | 2346 ms (23.5 ms/step) |
+  | 200 steps | 4337 ms (21.7 ms/step) | 4186 ms (20.9 ms/step) |
+
+  **Reading**: the difference is inside run-to-run noise. The predicted traffic reduction is real — per position/velocity iteration the counted clear plus reduce touches `7 * ~220 * 4 B ≈ 6 KB` instead of `7 * 18300 * 4 B ≈ 512 KB`, i.e. roughly 0.5 MB instead of 41 MB per step across 80 iterations — but that is a few tens of microseconds of traffic against a ~21 ms step. At this scene size the step is dominated by fixed costs (CPU-side recording of the ~1200 dispatches and their buffer binds per step, the descriptor-set cache lookups, and the broad/narrow phase), so a memory-traffic win of this size cannot be observed. The proposal's `~890 MB/frame` was an estimate for a 200-shape scene and is **not** reproduced as a wall-clock win here; the change should be credited with the traffic reduction, not with a demonstrated speedup.
+- [x] 6.5 Record any deviation from design.md or the specs discovered during implementation in this file and in `design.md`, rather than leaving the artifacts describing something the code does not do.
+
+  Recorded in the "Implementation deviations" section appended below and in `design.md`.
+- [x] 6.6 Confirm the archive ordering constraint before archiving: `remove-float-atomics` must be archived first, because this change's `gpu-sum-by-key` delta and two of its `xpbd-contact-solve` deltas modify requirements that only exist inside that unarchived change.
+
+  Confirmed: `openspec list` still shows `remove-float-atomics` as in-progress (41/42) and unarchived, so the ordering constraint is still live. This change must not be archived before it.
+
+## Implementation deviations
+
+1. **Commit 3 and the solver's mechanical adaptation could not be separated.** `SumByKey`/`RadixSort` and `XPBDGpuSolver` live in the same library (`EnginePhysics`), so making the algorithm classes geometry-free breaks `EnginePhysics` until the solver's call sites are adapted. Design.md's migration plan step 3 ("the tree stays green" with only the headless tests updated) is therefore inaccurate. It was resolved by keeping the *behavioural* solver change separate instead: one commit carries the algorithm API plus the minimum solver/broad-detector adaptation (counts still equal capacities), and the next carries the behaviour (GPU-published contact count, exact joint counts, counted clears).
+2. **`SpatialHashBroadDetector` also needed adapting.** It constructed `RadixSort` with `max_output_pair_count` and used `GetMaxElemCount()` as a staleness test. That is a mechanical consequence of the API change and is outside the proposal's impact list; the instance is now created once and the per-call buffer-size check in `Record` provides the bound.
+3. **The shader-only commit is a compile-level milestone, not a runtime-complete state.** Design.md step 2 says "Both compile; nothing calls them yet", but `sum_by_key.comp` *is* called: between that commit and the algorithm change, `SumByKey::Record` does not bind the new `EntryCount` binding, so the reduction is not runtime-complete at that revision. Its verification clauses (SPIR-V inspection, not ctest) match that.
+4. **Task 4.6 was verified with the commit-5 fixture.** No existing app scene is "joints with no contacts"; the fixture's scenario C (a hinged pendulum plus a free body, zero collisions) covers the zero-contact path, and the own scenarios A/B cover zero hinge/fixed joints (their scenes have no joints at all).
+5. **The fixture must fold GPU state back into the scene's host columns.** `PhysicsScene::SyncGpuBuffers` re-uploads every host column, so re-uploading after a structural change would reset the simulation; the fixture reads the body poses and velocities back and re-submits them first. It also had to drive comparable scenes from a single submission per step, because `PhysicsSystem::PreGPUStep`/`GPUStep` advance *every* scene in the system. Both are recorded in the fixture's comments.
+6. **Task 5.2's "would fail against the pre-change code" does not hold literally.** The pre-change solver rebuilt its sort/reduce objects on a capacity change and was correct there too, so the scenario passes on both revisions. What scenario B does assert is the failure mode the deleted rebuild path existed to work around (a stale capacity or otherwise wrong per-call geometry), and it does so with a bit-exact comparison of two independently driven scenes after a contact-set shrink.
+7. **The fixture's fault injection did not reach the counted clear's range.** Publishing the capacity as the contact count (a *self-consistent* wrong count — the clear and the reduce read the same buffer) and halving the counted clear's bound both still passed the suite. The reason is that the accumulate recomputes each slot's value every iteration and the scenarios' contact sets are stable, so no stale value survives in the unread part of a range that both stages still agree on. Reaching that in isolation needs a scenario where a contact stops contributing while staying inside the count (a separating contact); it is not covered and the scenarios' teeth are limited to the capacity-change and zero-count paths.
+8. **The measurement could not resolve a wall-clock difference** (see task 6.4): the change's traffic reduction is real but far below the scene's fixed per-step cost at the sizes testable here.
