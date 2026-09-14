@@ -3,8 +3,8 @@
 //
 // The solver reduces per-body Jacobi partials with SumByKey.  Each constraint
 // type (contact / hinge / fixed) maintains its own sorted entry list and its own
-// channel-major scratch.  This file fixes the shared conventions so every stage
-// indexes them identically.
+// channel-major value buffer.  This file fixes the shared conventions so every
+// stage indexes them identically.
 //
 // Value channels (per record, in one packed channel-major buffer):
 //   0..2 : Δlin xyz
@@ -16,12 +16,12 @@
 // when the slot has no owner this substep (no such contact/joint, or an
 // out-of-range owner index).  Entry passes read no body state; whether a body
 // actually receives a contribution is decided by the accumulate shaders'
-// guards, and a slot that is never written stays inert because the scratch is
-// cleared every iteration.
+// guards, and a slot that is never written stays inert because the value buffer
+// is cleared every iteration.
 //
 // `slot` is the entry's identity payload, and it is used twice: the radix sort
 // permutes it together with its key, and SumByKey's level-0 gather reads this
-// entry's values from exactly `slot` in the channel-major scratch.  So an
+// entry's values from exactly `slot` in the channel-major value buffer.  So an
 // accumulate pass writes at the entry's own slot index and no permutation map
 // exists anywhere in the path.
 //
@@ -66,9 +66,9 @@ uint joint_slot(uint j, uint side, uint constraint) {
 // and SumByKey):
 //   - the sorted entry list is `(key, slot)` pairs; the radix sort orders it by
 //     key and carries the slot along as opaque payload
-//   - the scatter scratch is channel-major with stride == entry_capacity and is
-//     indexed by **slot**:
-//       value(channel, slot) = scratch_values[channel * entry_capacity + slot]
+//   - the entry value buffer is channel-major with stride == entry_capacity and
+//     is indexed by **slot**:
+//       value(channel, slot) = values[channel * entry_capacity + slot]
 //   - SumByKey's level-0 input is that same pair array (`PairsIn`), with
 //     `max_entries == entry_capacity`; it reads an entry's value at
 //     `values[channel * entry_capacity + slot]`

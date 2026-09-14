@@ -7,9 +7,9 @@
 // Velocity shares the SAME contact topology as the position solve: the contact
 // entry list was built and sorted once for this substep, and velocity
 // iterations reuse that sorted (key, slot) list.  Each contribution is
-// scattered into the shared contact scratch at its own slot index; the scratch
-// is cleared before every velocity iteration, so a contact that does not
-// contribute writes nothing.
+// scattered into the shared contact value buffer at its own slot index; the
+// value buffer is cleared before every velocity iteration, so a contact that
+// does not contribute writes nothing.
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #include "common/xpbd_math.glsl"
@@ -45,8 +45,9 @@ layout(set = 0, binding = 18) readonly buffer ShapeLocalRotation    { vec4 v[]; 
 // ---- Lagrange (readonly) ----
 layout(set = 0, binding = 19) readonly buffer ContactLagrange { float v[]; } lagrange;
 
-// ---- Channel-major scatter scratch, indexed by entry slot ----
-layout(set = 0, binding = 20) buffer ScratchValues { float v[]; } scratch_values;
+// ---- Channel-major value buffer: the real per-entry contribution values,
+// indexed by entry slot ----
+layout(set = 0, binding = 20) buffer Values { float v[]; } values;
 
 #include "common/xpbd_scatter.glsl"
 

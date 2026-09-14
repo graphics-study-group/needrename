@@ -4,8 +4,8 @@
 // apply_body_position_deltas.comp — Per-body Jacobi apply for position
 // constraints.
 //
-// SumByKey reduced each constraint type's scratch into a per-body partial set
-// in a channel-major buffer with stride == body_count:
+// SumByKey reduced each constraint type's per-entry contribution values into a
+// per-body partial set in a channel-major buffer with stride == body_count:
 //     out(c, body) = out[c * body_count + body],  c in 0..6
 //   (channels: Δlin 0..2, Δang 3..5, flag 6)
 // SumByKey only writes bodies present in the input, so a body absent from a

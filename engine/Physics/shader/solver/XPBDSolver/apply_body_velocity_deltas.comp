@@ -3,7 +3,8 @@
 
 // apply_body_velocity_deltas.comp — Per-body Jacobi apply for velocity
 // constraints.  Only contacts produce velocity corrections; SumByKey reduced
-// the contact velocity scratch into a per-body set in a channel-major buffer
+// the contact velocity phase's per-entry contribution values into a per-body set
+// in a channel-major buffer
 // with stride == body_count: vel_out(c, body) = vel_out[c*body_count + body]
 // (channels: Δlin 0..2, Δang 3..5, flag 6).  Averages by the flag count,
 // applies, and clears the set for this body so stale cells cannot leak into a

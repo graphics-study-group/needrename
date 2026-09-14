@@ -4,9 +4,9 @@
 // accumulate_contact_position.comp — Per-contact XPBD position constraint
 // accumulate phase (Jacobi parallelization).
 //
-// Each contribution is scattered into the entry scratch at its slot's sorted
-// position (see common/xpbd_scatter.glsl); the per-body partials are reduced by
-// SumByKey and averaged by apply_body_position_deltas.comp.  The scratch is
+// Each contribution is scattered into the entry value buffer at its slot's own
+// index (see common/xpbd_scatter.glsl); the per-body partials are reduced by
+// SumByKey and averaged by apply_body_position_deltas.comp.  The value buffer is
 // cleared before every iteration, so a contact (or side) that does not
 // contribute simply writes nothing.
 
@@ -41,8 +41,9 @@ layout(set = 0, binding = 13) readonly buffer ShapeLocalRotation    { vec4 v[]; 
 // ---- Lagrange multipliers ----
 layout(set = 0, binding = 14) buffer ContactLagrange { float v[]; } lagrange;
 
-// ---- Channel-major scatter scratch, indexed by entry slot ----
-layout(set = 0, binding = 15) buffer ScratchValues { float v[]; } scratch_values;
+// ---- Channel-major value buffer: the real per-entry contribution values,
+// indexed by entry slot ----
+layout(set = 0, binding = 15) buffer Values { float v[]; } values;
 
 #include "common/xpbd_scatter.glsl"
 

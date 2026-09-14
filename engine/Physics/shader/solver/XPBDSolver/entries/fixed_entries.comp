@@ -14,7 +14,7 @@
 // does not exist this substep or an owner index is out of range.  No body or
 // joint state (alive / kinematic / mass) is read — whether a body actually
 // receives a contribution is decided by accumulate_fixed_position.comp, and an
-// unwritten slot stays inert because the scratch is cleared before every
+// unwritten slot stays inert because the value buffer is cleared before every
 // iteration.
 //
 // Channel/slot conventions: common/xpbd_entry_layout.glsl.

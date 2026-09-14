@@ -13,7 +13,7 @@
 // does not exist this substep or an owner index is out of range.  No body state
 // (alive / kinematic / mass) is read — whether a body actually receives a
 // contribution is decided by accumulate_contact_position.comp, and an unwritten
-// slot stays inert because the scratch is cleared before every iteration.
+// slot stays inert because the value buffer is cleared before every iteration.
 //
 // Channel/slot conventions: common/xpbd_entry_layout.glsl.
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;

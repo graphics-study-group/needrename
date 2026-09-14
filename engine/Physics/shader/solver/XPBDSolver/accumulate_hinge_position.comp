@@ -8,11 +8,11 @@
 //   1. Aligned axis: cross(axis1_world, axis2_world) → 0
 //   2. Attachment point: attach_point2_world - attach_point1_world → 0
 //
-// Each contribution is scattered into the entry scratch at its slot's sorted
-// position (see common/xpbd_scatter.glsl); the per-body partials are reduced by
+// Each contribution is scattered into the entry value buffer at its slot's own
+// index (see common/xpbd_scatter.glsl); the per-body partials are reduced by
 // SumByKey and averaged by apply_body_position_deltas.comp.  A body receives at
 // most one count per scalar constraint it contributes to (two per joint).  The
-// scratch is cleared before every iteration, so a constraint that does not
+// value buffer is cleared before every iteration, so a constraint that does not
 // contribute simply writes nothing.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
@@ -48,8 +48,9 @@ layout(set = 0, binding = 7)  readonly buffer RigidBodyMass           { float v[
 layout(set = 0, binding = 8)  readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
 layout(set = 0, binding = 9)  readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
 
-// ---- Channel-major scatter scratch, indexed by entry slot ----
-layout(set = 0, binding = 10) buffer ScratchValues { float v[]; } scratch_values;
+// ---- Channel-major value buffer: the real per-entry contribution values,
+// indexed by entry slot ----
+layout(set = 0, binding = 10) buffer Values { float v[]; } values;
 
 #include "common/xpbd_scatter.glsl"
 

@@ -143,37 +143,37 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_position_lagrange{};
 
         // ---- Reduce-group infrastructure ----
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_radix_scratch{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_radix_histogram{};
 
-        // Contact (capacity = 2*max_contact_point slots).  One scratch serves the
-        // position and the velocity phase: they are strictly sequential and each
+        // Contact (capacity = 2*max_contact_point slots).  One value buffer serves
+        // the position and the velocity phase: they are strictly sequential and each
         // clears it before its accumulate (see the velocity loop below).
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_pairs_a{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_pairs_b{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_count{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_scratch{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_records{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_entries{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_entries_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_entry_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_values{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_reduce_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_out_pos{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_out_vel{};
         std::unique_ptr<RadixSort> contact_sort{};
         std::unique_ptr<SumByKey> contact_sum{};
 
         // Hinge (capacity = 4*max(1,hinge_count) slots).
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_pairs_a{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_pairs_b{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_count{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_scratch{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_records{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_entries{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_entries_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_entry_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_values{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_reduce_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_out{};
         std::unique_ptr<RadixSort> hinge_sort{};
         std::unique_ptr<SumByKey> hinge_sum{};
 
         // Fixed (capacity = 4*max(1,fixed_count) slots).
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_pairs_a{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_pairs_b{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_count{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_scratch{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_records{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_entries{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_entries_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_entry_count{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_values{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_reduce_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_out{};
         std::unique_ptr<RadixSort> fixed_sort{};
         std::unique_ptr<SumByKey> fixed_sum{};
@@ -191,35 +191,38 @@ namespace Engine {
         }
 
         struct ReduceGroupBufs {
-            std::unique_ptr<Rhi::ComputeBuffer> *pairs_a;
-            std::unique_ptr<Rhi::ComputeBuffer> *pairs_b;
-            std::unique_ptr<Rhi::ComputeBuffer> *count;
-            std::unique_ptr<Rhi::ComputeBuffer> *scratch;
-            std::unique_ptr<Rhi::ComputeBuffer> *records;
+            std::unique_ptr<Rhi::ComputeBuffer> *entries;
+            std::unique_ptr<Rhi::ComputeBuffer> *entries_tmp;
+            std::unique_ptr<Rhi::ComputeBuffer> *entry_count;
+            std::unique_ptr<Rhi::ComputeBuffer> *values;
+            std::unique_ptr<Rhi::ComputeBuffer> *reduce_scratch;
             std::unique_ptr<Rhi::ComputeBuffer> *out;
         };
 
-        // The group's sorted pair array is both the radix sort's in/out buffer and
+        // The group's sorted entry array is both the radix sort's in/out buffer and
         // SumByKey's level-0 input, so no separate key array or permutation map is
-        // allocated (design.md Decision 6).
+        // allocated (design.md Decision 6).  `entries_tmp` is the sort's ping-pong
+        // temporary, not a second live array; `values` holds the real per-entry
+        // contribution values; `reduce_scratch` is internal to SumByKey and holds
+        // the boundary records of its intermediate levels.
         void EnsureReduceGroup(uint32_t capacity, uint32_t body_count, const ReduceGroupBufs &g) {
             const size_t cap_bytes = static_cast<size_t>(capacity) * sizeof(uint32_t);
-            const size_t pair_bytes = static_cast<size_t>(capacity) * 2u * sizeof(uint32_t);
-            EnsureBuffer(*g.pairs_a, pair_bytes, "XPBD ReducePairsA");
-            EnsureBuffer(*g.pairs_b, pair_bytes, "XPBD ReducePairsB");
-            // Pair count must be host-writable (Scheme A sets it to capacity).
+            const size_t entry_bytes = static_cast<size_t>(capacity) * 2u * sizeof(uint32_t);
+            EnsureBuffer(*g.entries, entry_bytes, "XPBD ReduceEntries");
+            EnsureBuffer(*g.entries_tmp, entry_bytes, "XPBD ReduceEntriesTmp");
+            // The entry count must be host-writable (Scheme A sets it to the capacity).
             {
                 const auto &alloc = device_context.GetAllocatorState();
-                if (!*g.count || (*g.count)->GetSize() != sizeof(uint32_t)) {
-                    *g.count = Rhi::ComputeBuffer::CreateUnique(
-                        alloc, sizeof(uint32_t), true, false, false, false, "XPBD ReduceCount"
+                if (!*g.entry_count || (*g.entry_count)->GetSize() != sizeof(uint32_t)) {
+                    *g.entry_count = Rhi::ComputeBuffer::CreateUnique(
+                        alloc, sizeof(uint32_t), true, false, false, false, "XPBD ReduceEntryCount"
                     );
                 }
             }
-            EnsureBuffer(*g.scratch, static_cast<size_t>(kNumChannels) * cap_bytes, "XPBD ReduceScratch");
+            EnsureBuffer(*g.values, static_cast<size_t>(kNumChannels) * cap_bytes, "XPBD ReduceValues");
             size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(capacity, kNumChannels);
             if (rec_bytes == 0u) rec_bytes = sizeof(uint32_t);
-            EnsureBuffer(*g.records, rec_bytes, "XPBD ReduceRecords");
+            EnsureBuffer(*g.reduce_scratch, rec_bytes, "XPBD ReduceRecordRegions");
             EnsureBuffer(*g.out, static_cast<size_t>(kNumChannels) * body_count * sizeof(uint32_t), "XPBD ReduceOut");
         }
 
@@ -310,7 +313,7 @@ namespace Engine {
             uint32_t capacity
         ) {
             sort.Record(
-                cb, pairs_a, pairs_b, *gpu_radix_scratch, capacity, count, 1u << 20u, RadixSortMode::ePrimaryOnly
+                cb, pairs_a, pairs_b, *gpu_radix_histogram, capacity, count, 1u << 20u, RadixSortMode::ePrimaryOnly
             );
         }
     };
@@ -346,9 +349,9 @@ namespace Engine {
 
         {
             const auto &alloc = m_impl->device_context.GetAllocatorState();
-            if (!m_impl->gpu_radix_scratch) {
-                m_impl->gpu_radix_scratch = Rhi::ComputeBuffer::CreateUnique(
-                    alloc, RadixSort::GetRequiredScratchBytes(), false, false, false, false, "XPBD RadixScratch"
+            if (!m_impl->gpu_radix_histogram) {
+                m_impl->gpu_radix_histogram = Rhi::ComputeBuffer::CreateUnique(
+                    alloc, RadixSort::GetRequiredScratchBytes(), false, false, false, false, "XPBD RadixHistogram"
                 );
             }
             m_impl->EnsureBuffer(
@@ -374,11 +377,11 @@ namespace Engine {
         m_impl->EnsureReduceGroup(
             contact_cap,
             body_count,
-            {&m_impl->gpu_contact_pairs_a,
-             &m_impl->gpu_contact_pairs_b,
-             &m_impl->gpu_contact_count,
-             &m_impl->gpu_contact_scratch,
-             &m_impl->gpu_contact_records,
+            {&m_impl->gpu_contact_entries,
+             &m_impl->gpu_contact_entries_tmp,
+             &m_impl->gpu_contact_entry_count,
+             &m_impl->gpu_contact_values,
+             &m_impl->gpu_contact_reduce_scratch,
              &m_impl->gpu_contact_out_pos}
         );
         m_impl->EnsureBuffer(
@@ -388,7 +391,7 @@ namespace Engine {
         );
 
         m_impl->EnsureSortAndSum(m_impl->contact_sort, m_impl->contact_sum, contact_cap, body_count);
-        m_impl->SetConstantU32(*m_impl->gpu_contact_count, contact_cap);
+        m_impl->SetConstantU32(*m_impl->gpu_contact_entry_count, contact_cap);
 
         // Hinge/fixed groups.  A joint count of zero still gets one joint's worth
         // of slots, so an empty joint list still has a fully written entry list.
@@ -398,11 +401,11 @@ namespace Engine {
         m_impl->EnsureReduceGroup(
             hinge_slots,
             body_count,
-            {&m_impl->gpu_hinge_pairs_a,
-             &m_impl->gpu_hinge_pairs_b,
-             &m_impl->gpu_hinge_count,
-             &m_impl->gpu_hinge_scratch,
-             &m_impl->gpu_hinge_records,
+            {&m_impl->gpu_hinge_entries,
+             &m_impl->gpu_hinge_entries_tmp,
+             &m_impl->gpu_hinge_entry_count,
+             &m_impl->gpu_hinge_values,
+             &m_impl->gpu_hinge_reduce_scratch,
              &m_impl->gpu_hinge_out}
         );
         m_impl->EnsureBuffer(
@@ -416,16 +419,16 @@ namespace Engine {
             "XPBD HingeAnchorLagrange"
         );
         m_impl->EnsureSortAndSum(m_impl->hinge_sort, m_impl->hinge_sum, hinge_slots, body_count);
-        m_impl->SetConstantU32(*m_impl->gpu_hinge_count, hinge_slots);
+        m_impl->SetConstantU32(*m_impl->gpu_hinge_entry_count, hinge_slots);
 
         m_impl->EnsureReduceGroup(
             fixed_slots,
             body_count,
-            {&m_impl->gpu_fixed_pairs_a,
-             &m_impl->gpu_fixed_pairs_b,
-             &m_impl->gpu_fixed_count,
-             &m_impl->gpu_fixed_scratch,
-             &m_impl->gpu_fixed_records,
+            {&m_impl->gpu_fixed_entries,
+             &m_impl->gpu_fixed_entries_tmp,
+             &m_impl->gpu_fixed_entry_count,
+             &m_impl->gpu_fixed_values,
+             &m_impl->gpu_fixed_reduce_scratch,
              &m_impl->gpu_fixed_out}
         );
         m_impl->EnsureBuffer(
@@ -439,7 +442,7 @@ namespace Engine {
             "XPBD FixedPosLagrange"
         );
         m_impl->EnsureSortAndSum(m_impl->fixed_sort, m_impl->fixed_sum, fixed_slots, body_count);
-        m_impl->SetConstantU32(*m_impl->gpu_fixed_count, fixed_slots);
+        m_impl->SetConstantU32(*m_impl->gpu_fixed_entry_count, fixed_slots);
 
         const float substep_dt =
             m_impl->config.time_step / static_cast<float>(std::max(1u, m_impl->config.num_substep_perstep));
@@ -531,12 +534,12 @@ namespace Engine {
 
             const uint32_t out_pos_elems = kNumChannels * body_count;
             const uint32_t out_wg = (out_pos_elems + 63u) / 64u;
-            const uint32_t contact_scratch_elems = kNumChannels * contact_cap;
-            const uint32_t contact_scratch_wg = (contact_scratch_elems + 63u) / 64u;
-            const uint32_t hinge_scratch_elems = kNumChannels * hinge_slots;
-            const uint32_t hinge_scratch_wg = (hinge_scratch_elems + 63u) / 64u;
-            const uint32_t fixed_scratch_elems = kNumChannels * fixed_slots;
-            const uint32_t fixed_scratch_wg = (fixed_scratch_elems + 63u) / 64u;
+            const uint32_t contact_values_elems = kNumChannels * contact_cap;
+            const uint32_t contact_values_wg = (contact_values_elems + 63u) / 64u;
+            const uint32_t hinge_values_elems = kNumChannels * hinge_slots;
+            const uint32_t hinge_values_wg = (hinge_values_elems + 63u) / 64u;
+            const uint32_t fixed_values_elems = kNumChannels * fixed_slots;
+            const uint32_t fixed_values_wg = (fixed_values_elems + 63u) / 64u;
 
             for (uint32_t ss = 0; ss < substep_count; ++ss) {
                 // ====== PreCollision ======
@@ -628,7 +631,7 @@ namespace Engine {
                     srb.BindBuffer("CollisionCount", *m_impl->narrow_detector->GetResultBuffers().collision_count);
                     srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryPairs", *m_impl->gpu_contact_pairs_a);
+                    srb.BindBuffer("EntryPairs", *m_impl->gpu_contact_entries);
                     const ContactEntryPush push{contact_cap};
                     Rhi::PushConstants(cb, *m_impl->contact_entries_stage, push);
                     dispatch(*m_impl->contact_entries_stage, *m_impl->contact_entries_binding, contact_pt_wg);
@@ -637,9 +640,9 @@ namespace Engine {
                 m_impl->RecordSort(
                     cb,
                     *m_impl->contact_sort,
-                    *m_impl->gpu_contact_pairs_a,
-                    *m_impl->gpu_contact_pairs_b,
-                    *m_impl->gpu_contact_count,
+                    *m_impl->gpu_contact_entries,
+                    *m_impl->gpu_contact_entries_tmp,
+                    *m_impl->gpu_contact_entry_count,
                     contact_cap
                 );
                 barrier();
@@ -648,7 +651,7 @@ namespace Engine {
                     auto &srb = m_impl->hinge_entries_binding->GetShaderResourceBinding();
                     srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryPairs", *m_impl->gpu_hinge_pairs_a);
+                    srb.BindBuffer("EntryPairs", *m_impl->gpu_hinge_entries);
                     const JointCountPush push{gpu.hinge_joint_count, hinge_slots};
                     Rhi::PushConstants(cb, *m_impl->hinge_entries_stage, push);
                     dispatch(*m_impl->hinge_entries_stage, *m_impl->hinge_entries_binding, hinge_entry_wg);
@@ -657,9 +660,9 @@ namespace Engine {
                 m_impl->RecordSort(
                     cb,
                     *m_impl->hinge_sort,
-                    *m_impl->gpu_hinge_pairs_a,
-                    *m_impl->gpu_hinge_pairs_b,
-                    *m_impl->gpu_hinge_count,
+                    *m_impl->gpu_hinge_entries,
+                    *m_impl->gpu_hinge_entries_tmp,
+                    *m_impl->gpu_hinge_entry_count,
                     hinge_slots
                 );
                 barrier();
@@ -668,7 +671,7 @@ namespace Engine {
                     auto &srb = m_impl->fixed_entries_binding->GetShaderResourceBinding();
                     srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryPairs", *m_impl->gpu_fixed_pairs_a);
+                    srb.BindBuffer("EntryPairs", *m_impl->gpu_fixed_entries);
                     const JointCountPush push{gpu.fixed_joint_count, fixed_slots};
                     Rhi::PushConstants(cb, *m_impl->fixed_entries_stage, push);
                     dispatch(*m_impl->fixed_entries_stage, *m_impl->fixed_entries_binding, fixed_entry_wg);
@@ -677,9 +680,9 @@ namespace Engine {
                 m_impl->RecordSort(
                     cb,
                     *m_impl->fixed_sort,
-                    *m_impl->gpu_fixed_pairs_a,
-                    *m_impl->gpu_fixed_pairs_b,
-                    *m_impl->gpu_fixed_count,
+                    *m_impl->gpu_fixed_entries,
+                    *m_impl->gpu_fixed_entries_tmp,
+                    *m_impl->gpu_fixed_entry_count,
                     fixed_slots
                 );
                 barrier();
@@ -715,9 +718,9 @@ namespace Engine {
 
                     const auto g = m_bound_scene->GetGpuBuffers();
 
-                    // Contact scatter (position scratch) — cleared first, so a
+                    // Contact scatter (position value buffer) — cleared first, so a
                     // non-contributing contact leaves zeroes with flag 0.
-                    dispatch_clear(*m_impl->gpu_contact_scratch, contact_scratch_elems, contact_scratch_wg);
+                    dispatch_clear(*m_impl->gpu_contact_values, contact_values_elems, contact_values_wg);
                     barrier();
                     {
                         auto &srb = m_impl->accum_pos_binding->GetShaderResourceBinding();
@@ -738,7 +741,7 @@ namespace Engine {
                         srb.BindBuffer("ShapeLocalPosition", *g.shape_local_position);
                         srb.BindBuffer("ShapeLocalRotation", *g.shape_local_rotation);
                         srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-                        srb.BindBuffer("ScratchValues", *m_impl->gpu_contact_scratch);
+                        srb.BindBuffer("Values", *m_impl->gpu_contact_values);
                         const AccumContactPush push{contact_cap};
                         Rhi::PushConstants(cb, *m_impl->accum_pos_stage, push);
                         dispatch(*m_impl->accum_pos_stage, *m_impl->accum_pos_binding, contact_pt_wg);
@@ -746,15 +749,15 @@ namespace Engine {
                     barrier();
                     m_impl->contact_sum->Record(
                         cb,
-                        *m_impl->gpu_contact_pairs_a,
-                        *m_impl->gpu_contact_scratch,
-                        *m_impl->gpu_contact_records,
+                        *m_impl->gpu_contact_entries,
+                        *m_impl->gpu_contact_values,
+                        *m_impl->gpu_contact_reduce_scratch,
                         *m_impl->gpu_contact_out_pos
                     );
                     barrier();
 
                     // Hinge scatter + reduce.
-                    dispatch_clear(*m_impl->gpu_hinge_scratch, hinge_scratch_elems, hinge_scratch_wg);
+                    dispatch_clear(*m_impl->gpu_hinge_values, hinge_values_elems, hinge_values_wg);
                     barrier();
                     if (gpu.hinge_joint_count > 0u) {
                         auto &srb = m_impl->accum_hinge_binding->GetShaderResourceBinding();
@@ -768,7 +771,7 @@ namespace Engine {
                         srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
                         srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
                         srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("ScratchValues", *m_impl->gpu_hinge_scratch);
+                        srb.BindBuffer("Values", *m_impl->gpu_hinge_values);
                         const AccumJointPush push{m_impl->push_gravity_dt, gpu.hinge_joint_count, hinge_slots};
                         Rhi::PushConstants(cb, *m_impl->accum_hinge_stage, push);
                         dispatch(*m_impl->accum_hinge_stage, *m_impl->accum_hinge_binding, hinge_wg);
@@ -776,15 +779,15 @@ namespace Engine {
                     barrier();
                     m_impl->hinge_sum->Record(
                         cb,
-                        *m_impl->gpu_hinge_pairs_a,
-                        *m_impl->gpu_hinge_scratch,
-                        *m_impl->gpu_hinge_records,
+                        *m_impl->gpu_hinge_entries,
+                        *m_impl->gpu_hinge_values,
+                        *m_impl->gpu_hinge_reduce_scratch,
                         *m_impl->gpu_hinge_out
                     );
                     barrier();
 
                     // Fixed scatter + reduce.
-                    dispatch_clear(*m_impl->gpu_fixed_scratch, fixed_scratch_elems, fixed_scratch_wg);
+                    dispatch_clear(*m_impl->gpu_fixed_values, fixed_values_elems, fixed_values_wg);
                     barrier();
                     if (gpu.fixed_joint_count > 0u) {
                         auto &srb = m_impl->accum_fixed_binding->GetShaderResourceBinding();
@@ -798,7 +801,7 @@ namespace Engine {
                         srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
                         srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
                         srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("ScratchValues", *m_impl->gpu_fixed_scratch);
+                        srb.BindBuffer("Values", *m_impl->gpu_fixed_values);
                         const AccumJointPush push{m_impl->push_gravity_dt, gpu.fixed_joint_count, fixed_slots};
                         Rhi::PushConstants(cb, *m_impl->accum_fixed_stage, push);
                         dispatch(*m_impl->accum_fixed_stage, *m_impl->accum_fixed_binding, fixed_wg);
@@ -806,9 +809,9 @@ namespace Engine {
                     barrier();
                     m_impl->fixed_sum->Record(
                         cb,
-                        *m_impl->gpu_fixed_pairs_a,
-                        *m_impl->gpu_fixed_scratch,
-                        *m_impl->gpu_fixed_records,
+                        *m_impl->gpu_fixed_entries,
+                        *m_impl->gpu_fixed_values,
+                        *m_impl->gpu_fixed_reduce_scratch,
                         *m_impl->gpu_fixed_out
                     );
                     barrier();
@@ -848,11 +851,11 @@ namespace Engine {
                 // ====== Velocity iterations (reuse contact permutation) ======
                 for (uint32_t iter = 0; iter < vel_iters; ++iter) {
                     barrier();
-                    // Same scratch buffer as the position phase.  That phase has
+                    // Same value buffer as the position phase.  That phase has
                     // finished (its values were consumed by the last apply), and
                     // this clear erases them before the velocity scatter, so no
                     // position-phase value can reach the velocity reduction.
-                    dispatch_clear(*m_impl->gpu_contact_scratch, contact_scratch_elems, contact_scratch_wg);
+                    dispatch_clear(*m_impl->gpu_contact_values, contact_values_elems, contact_values_wg);
                     barrier();
                     {
                         const auto g = m_bound_scene->GetGpuBuffers();
@@ -879,7 +882,7 @@ namespace Engine {
                         srb.BindBuffer("ShapeLocalPosition", *g.shape_local_position);
                         srb.BindBuffer("ShapeLocalRotation", *g.shape_local_rotation);
                         srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-                        srb.BindBuffer("ScratchValues", *m_impl->gpu_contact_scratch);
+                        srb.BindBuffer("Values", *m_impl->gpu_contact_values);
                         const AccumVelocityPush push{m_impl->push_gravity_dt, contact_cap};
                         Rhi::PushConstants(cb, *m_impl->accum_vel_stage, push);
                         dispatch(*m_impl->accum_vel_stage, *m_impl->accum_vel_binding, contact_pt_wg);
@@ -887,9 +890,9 @@ namespace Engine {
                     barrier();
                     m_impl->contact_sum->Record(
                         cb,
-                        *m_impl->gpu_contact_pairs_a,
-                        *m_impl->gpu_contact_scratch,
-                        *m_impl->gpu_contact_records,
+                        *m_impl->gpu_contact_entries,
+                        *m_impl->gpu_contact_values,
+                        *m_impl->gpu_contact_reduce_scratch,
                         *m_impl->gpu_contact_out_vel
                     );
                     barrier();
