@@ -226,20 +226,13 @@ namespace Engine {
             EnsureBuffer(*g.out, static_cast<size_t>(kNumChannels) * body_count * sizeof(uint32_t), "XPBD ReduceOut");
         }
 
-        // RadixSort and SumByKey take their capacity as a construction-time
-        // parameter (Scheme A), so unlike the buffers above they cannot be
-        // resized in place and are rebuilt when the geometry changes.  The
-        // objects are asked directly whether they still match, rather than the
-        // solver keeping a shadow copy of state they already know.
-        void EnsureSortAndSum(
-            std::unique_ptr<RadixSort> &sort, std::unique_ptr<SumByKey> &sum, uint32_t capacity, uint32_t body_count
-        ) {
-            const bool matches = sort != nullptr && sum != nullptr && sort->GetMaxElemCount() == capacity
-                                 && sum->GetMaxEntries() == capacity && sum->GetMaxKeyValue() == body_count;
-            if (matches) return;
-
-            sort = std::make_unique<RadixSort>(device_context, capacity);
-            sum = std::make_unique<SumByKey>(device_context, capacity, body_count, kNumChannels);
+        // RadixSort and SumByKey hold no geometry: every call supplies its own
+        // capacity, so one instance serves any geometry and never needs
+        // rebuilding.  Both are still created lazily, on the first substep that
+        // reaches them.
+        void EnsureSortAndSum(std::unique_ptr<RadixSort> &sort, std::unique_ptr<SumByKey> &sum) {
+            if (!sort) sort = std::make_unique<RadixSort>(device_context);
+            if (!sum) sum = std::make_unique<SumByKey>(device_context);
         }
 
         void SetConstantU32(Rhi::ComputeBuffer &buf, uint32_t value) {
@@ -390,7 +383,7 @@ namespace Engine {
             "XPBD ContactOutVel"
         );
 
-        m_impl->EnsureSortAndSum(m_impl->contact_sort, m_impl->contact_sum, contact_cap, body_count);
+        m_impl->EnsureSortAndSum(m_impl->contact_sort, m_impl->contact_sum);
         m_impl->SetConstantU32(*m_impl->gpu_contact_entry_count, contact_cap);
 
         // Hinge/fixed groups.  A joint count of zero still gets one joint's worth
@@ -418,7 +411,7 @@ namespace Engine {
             static_cast<size_t>(std::max(1u, gpu.hinge_joint_count)) * sizeof(float),
             "XPBD HingeAnchorLagrange"
         );
-        m_impl->EnsureSortAndSum(m_impl->hinge_sort, m_impl->hinge_sum, hinge_slots, body_count);
+        m_impl->EnsureSortAndSum(m_impl->hinge_sort, m_impl->hinge_sum);
         m_impl->SetConstantU32(*m_impl->gpu_hinge_entry_count, hinge_slots);
 
         m_impl->EnsureReduceGroup(
@@ -441,7 +434,7 @@ namespace Engine {
             static_cast<size_t>(std::max(1u, gpu.fixed_joint_count)) * sizeof(float),
             "XPBD FixedPosLagrange"
         );
-        m_impl->EnsureSortAndSum(m_impl->fixed_sort, m_impl->fixed_sum, fixed_slots, body_count);
+        m_impl->EnsureSortAndSum(m_impl->fixed_sort, m_impl->fixed_sum);
         m_impl->SetConstantU32(*m_impl->gpu_fixed_entry_count, fixed_slots);
 
         const float substep_dt =
@@ -752,7 +745,11 @@ namespace Engine {
                         *m_impl->gpu_contact_entries,
                         *m_impl->gpu_contact_values,
                         *m_impl->gpu_contact_reduce_scratch,
-                        *m_impl->gpu_contact_out_pos
+                        *m_impl->gpu_contact_out_pos,
+                        *m_impl->gpu_contact_entry_count,
+                        contact_cap,
+                        kNumChannels,
+                        body_count
                     );
                     barrier();
 
@@ -782,7 +779,11 @@ namespace Engine {
                         *m_impl->gpu_hinge_entries,
                         *m_impl->gpu_hinge_values,
                         *m_impl->gpu_hinge_reduce_scratch,
-                        *m_impl->gpu_hinge_out
+                        *m_impl->gpu_hinge_out,
+                        *m_impl->gpu_hinge_entry_count,
+                        hinge_slots,
+                        kNumChannels,
+                        body_count
                     );
                     barrier();
 
@@ -812,7 +813,11 @@ namespace Engine {
                         *m_impl->gpu_fixed_entries,
                         *m_impl->gpu_fixed_values,
                         *m_impl->gpu_fixed_reduce_scratch,
-                        *m_impl->gpu_fixed_out
+                        *m_impl->gpu_fixed_out,
+                        *m_impl->gpu_fixed_entry_count,
+                        fixed_slots,
+                        kNumChannels,
+                        body_count
                     );
                     barrier();
 
@@ -893,7 +898,11 @@ namespace Engine {
                         *m_impl->gpu_contact_entries,
                         *m_impl->gpu_contact_values,
                         *m_impl->gpu_contact_reduce_scratch,
-                        *m_impl->gpu_contact_out_vel
+                        *m_impl->gpu_contact_out_vel,
+                        *m_impl->gpu_contact_entry_count,
+                        contact_cap,
+                        kNumChannels,
+                        body_count
                     );
                     barrier();
                     {

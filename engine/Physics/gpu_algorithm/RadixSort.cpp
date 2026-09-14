@@ -55,7 +55,6 @@ namespace Engine {
 
     struct RadixSort::Impl {
         Rhi::DeviceContext &device_context;
-        uint32_t max_elem_count = 1u;
         bool initialized = false;
 
         std::unique_ptr<Rhi::ComputeStage> histogram_stage{};
@@ -75,10 +74,7 @@ namespace Engine {
         Rhi::ComputeResourceBinding *scatter_binding = nullptr;
         Rhi::ComputeResourceBinding *memset_binding = nullptr;
 
-        explicit Impl(Rhi::DeviceContext &ctx, uint32_t mec) : device_context(ctx), max_elem_count(mec) {
-            if (max_elem_count == 0u) {
-                throw std::invalid_argument("RadixSort: max_elem_count must be > 0");
-            }
+        explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
         Impl(const Impl &) = delete;
@@ -207,18 +203,13 @@ namespace Engine {
         }
     };
 
-    RadixSort::RadixSort(Rhi::DeviceContext &device_context, uint32_t max_elem_count) :
-        m_impl(std::make_unique<Impl>(device_context, max_elem_count)) {
+    RadixSort::RadixSort(Rhi::DeviceContext &device_context) : m_impl(std::make_unique<Impl>(device_context)) {
     }
 
     RadixSort::~RadixSort() = default;
 
     bool RadixSort::IsInitialized() const noexcept {
         return m_impl->initialized;
-    }
-
-    uint32_t RadixSort::GetMaxElemCount() const noexcept {
-        return m_impl->max_elem_count;
     }
 
     void RadixSort::Record(
@@ -231,13 +222,18 @@ namespace Engine {
         uint32_t max_shape_count,
         RadixSortMode mode
     ) {
+        // A zero capacity is a no-op: nothing to sort, nothing to record.
         if (elem_capacity == 0u) {
             return;
         }
-        if (elem_capacity > m_impl->max_elem_count) {
+        // The construction-time bound is gone, so the out-of-range guard is a
+        // per-call check against the buffers actually bound for this call.
+        const size_t required_bytes = static_cast<size_t>(elem_capacity) * 2u * sizeof(uint32_t);
+        if (pairs_buf_a.GetSize() < required_bytes || pairs_buf_b.GetSize() < required_bytes) {
             throw std::runtime_error(
-                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity) + " exceeds max_elem_count "
-                + std::to_string(m_impl->max_elem_count)
+                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity)
+                + " needs " + std::to_string(required_bytes)
+                + " bytes per pair buffer, which exceeds the buffer bound for this call"
             );
         }
         if (max_shape_count > kMaxShapeCount) {

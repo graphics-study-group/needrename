@@ -48,13 +48,14 @@ namespace {
 
     struct RunCtx {
         RenderSystem &rsys;
-        std::unique_ptr<ComputeBuffer> pairs; // sorted (key, slot) entries
+        std::unique_ptr<ComputeBuffer> pairs;   // sorted (key, slot) entries
         std::unique_ptr<ComputeBuffer> values;
         std::unique_ptr<ComputeBuffer> records;
         std::unique_ptr<ComputeBuffer> out;
+        std::unique_ptr<ComputeBuffer> count;   // entry count (GPU-read, host-written here)
 
         uint32_t num_channels = 0u;
-        uint32_t max_entries = 0u;
+        uint32_t capacity = 0u;
         uint32_t max_key_value = 0u;
 
         // Entry i = (key, slot).  The slot is the index this entry's values are
@@ -67,30 +68,43 @@ namespace {
 
         void SetValue(uint32_t channel, uint32_t slot, float value) const {
             auto *v = reinterpret_cast<float *>(values->GetVMAddress());
-            v[static_cast<size_t>(channel) * max_entries + slot] = value;
+            v[static_cast<size_t>(channel) * capacity + slot] = value;
+        }
+
+        void SetCount(uint32_t entry_count) const {
+            *reinterpret_cast<uint32_t *>(count->GetVMAddress()) = entry_count;
+        }
+
+        void ClearOut() const {
+            std::memset(out->GetVMAddress(), 0, out->GetSize());
+        }
+
+        void FillOut(float value) const {
+            auto *o = reinterpret_cast<float *>(out->GetVMAddress());
+            for (size_t i = 0; i < out->GetSize() / sizeof(float); ++i) {
+                o[i] = value;
+            }
         }
     };
 
     // Build a RunCtx sized for the given geometry and zero the output + records.
-    RunCtx MakeCtx(RenderSystem &rsys, uint32_t max_entries, uint32_t max_key_value, uint32_t num_channels) {
-        RunCtx ctx{rsys, {}, {}, {}, {}, num_channels, max_entries, max_key_value};
-        ctx.pairs = MakeHostBuffer(
-            rsys, static_cast<size_t>(max_entries) * 2u * sizeof(uint32_t), "SumByKey pairs"
-        );
-        ctx.values = MakeHostBuffer(
-            rsys, static_cast<size_t>(num_channels) * max_entries * sizeof(uint32_t), "SumByKey values"
-        );
-        size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(max_entries, num_channels);
+    RunCtx MakeCtx(RenderSystem &rsys, uint32_t capacity, uint32_t max_key_value, uint32_t num_channels) {
+        RunCtx ctx{rsys, {}, {}, {}, {}, {}, num_channels, capacity, max_key_value};
+        ctx.pairs = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * 2u * sizeof(uint32_t), "SumByKey pairs");
+        ctx.values =
+            MakeHostBuffer(rsys, static_cast<size_t>(num_channels) * capacity * sizeof(uint32_t), "SumByKey values");
+        size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(capacity, num_channels);
         if (rec_bytes == 0u) rec_bytes = 1u; // ensure a non-empty allocation
         ctx.records = MakeHostBuffer(rsys, rec_bytes, "SumByKey records");
-        ctx.out = MakeHostBuffer(
-            rsys, static_cast<size_t>(num_channels) * max_key_value * sizeof(uint32_t), "SumByKey out"
-        );
+        ctx.out =
+            MakeHostBuffer(rsys, static_cast<size_t>(num_channels) * max_key_value * sizeof(uint32_t), "SumByKey out");
+        ctx.count = MakeHostBuffer(rsys, sizeof(uint32_t), "SumByKey count");
 
         std::memset(ctx.pairs->GetVMAddress(), 0, ctx.pairs->GetSize());
         std::memset(ctx.values->GetVMAddress(), 0, ctx.values->GetSize());
         std::memset(ctx.out->GetVMAddress(), 0, ctx.out->GetSize());
         std::memset(ctx.records->GetVMAddress(), 0, ctx.records->GetSize());
+        ctx.SetCount(capacity);
         return ctx;
     }
 
@@ -99,19 +113,28 @@ namespace {
         ctx.values->Flush();
         ctx.records->Flush();
         ctx.out->Flush();
+        ctx.count->Flush();
     }
 
-    void RunSumByKey(RenderSystem &rsys, RunCtx &ctx) {
+    void RunSumByKeyWith(RenderSystem &rsys, RunCtx &ctx, SumByKey &reducer) {
         FlushAll(ctx);
         const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
         auto cb = rsys.GetDevice().allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
 
-        SumByKey reducer{rsys.GetDeviceContext(), ctx.max_entries, ctx.max_key_value, ctx.num_channels};
-
         cb.begin(vk::CommandBufferBeginInfo{});
-        reducer.Record(cb, *ctx.pairs, *ctx.values, *ctx.records, *ctx.out);
+        reducer.Record(
+            cb,
+            *ctx.pairs,
+            *ctx.values,
+            *ctx.records,
+            *ctx.out,
+            *ctx.count,
+            ctx.capacity,
+            ctx.num_channels,
+            ctx.max_key_value
+        );
         cb.end();
         Submit(rsys, cb);
 
@@ -119,9 +142,59 @@ namespace {
         ctx.records->Invalidate();
     }
 
-    const uint32_t *OutRow(const RunCtx &ctx, uint32_t channel) {
-        auto *base = reinterpret_cast<const uint32_t *>(ctx.out->GetVMAddress());
-        return base + static_cast<size_t>(channel) * ctx.max_key_value;
+    void RunSumByKey(RenderSystem &rsys, RunCtx &ctx) {
+        SumByKey reducer{rsys.GetDeviceContext()};
+        if (reducer.IsInitialized()) {
+            std::cerr << "FAIL: no shader may be loaded before the first Record" << std::endl;
+            g_failures++;
+        }
+        RunSumByKeyWith(rsys, ctx, reducer);
+        if (!reducer.IsInitialized()) {
+            std::cerr << "FAIL: the first Record must load the shader" << std::endl;
+            g_failures++;
+        }
+    }
+
+    // ── Counted-tail helpers ───────────────────────────────────────────────
+    //
+    // Each counted-tail case fills the first `count` entries with real data (two
+    // entries per key, value 1.0, so key b sums to 2.0) and every entry from
+    // `count` up to the capacity with **garbage that is indistinguishable from
+    // real data**: a *valid* key (below max_key_value) carried by entries whose
+    // payload slots are *valid* too, with a value large enough that reading it
+    // would be obvious.  A reduction that ignored the entry count would therefore
+    // write garbage into the output.
+    constexpr float kGarbageValue = 1000.0f;
+
+    void FillCountedTail(RunCtx &ctx, uint32_t count, uint32_t garbage_key) {
+        for (uint32_t i = 0; i < ctx.capacity; ++i) {
+            if (i < count) {
+                ctx.SetPair(i, i / 2u, i);
+                ctx.SetValue(0u, i, 1.0f);
+            } else {
+                ctx.SetPair(i, garbage_key, i); // valid key, valid payload slot
+                ctx.SetValue(0u, i, kGarbageValue);
+            }
+        }
+    }
+
+    // Asserts the expectation of FillCountedTail: out[b] == 2.0 for the real keys
+    // and 0.0 everywhere else (in particular at the garbage key).
+    void CheckCountedTail(const RunCtx &ctx, uint32_t count, uint32_t garbage_key, const char *what) {
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        for (uint32_t b = 0; b < count / 2u; ++b) {
+            CloseF(out[b], 2.0f, 1e-4f, what);
+        }
+        for (uint32_t b = count / 2u; b < ctx.max_key_value; ++b) {
+            if (out[b] != 0.0f) {
+                std::cerr << "FAIL: " << what << " key " << b << " must be untouched, got " << out[b] << std::endl;
+                g_failures++;
+            }
+        }
+        if (garbage_key < ctx.max_key_value && out[garbage_key] != 0.0f) {
+            std::cerr << "FAIL: " << what << " garbage key " << garbage_key << " was read" << std::endl;
+            g_failures++;
+        }
     }
 } // namespace
 
@@ -250,30 +323,61 @@ int main() {
         }
     }
 
-    // ── Scenario E: construction geometry is reported back to the caller ───
-    // XPBDGpuSolver uses these accessors to decide whether a SumByKey instance is
-    // still valid for the current entry geometry and must be rebuilt, so they must
-    // report exactly what the instance was constructed with.
+    // ── Scenario E: no geometry is stored, and one instance serves several ─
+    // geometries in one frame.  Geometry is a call parameter now, so the same
+    // instance must reduce two different capacities without being rebuilt, and a
+    // freshly constructed instance must have loaded nothing.
     {
-        constexpr uint32_t kEntries = 300u; // > kBlockSize, so the geometry is multi-level
-        constexpr uint32_t kMaxKey = 32u;
-        constexpr uint32_t kChannels = 7u;
-        SumByKey reducer{rsys->GetDeviceContext(), kEntries, kMaxKey, kChannels};
-        Check(reducer.GetMaxEntries() == kEntries, "GetMaxEntries reports construction max_entries");
-        Check(reducer.GetMaxKeyValue() == kMaxKey, "GetMaxKeyValue reports construction max_key_value");
-        Check(reducer.GetNumChannels() == kChannels, "GetNumChannels reports construction num_channels");
-        Check(
-            reducer.GetNumLevels() == SumByKey::GetNumLevels(kEntries),
-            "GetNumLevels matches the static geometry for max_entries"
-        );
+        SumByKey reducer{rsys->GetDeviceContext()};
         Check(!reducer.IsInitialized(), "no shader is loaded before the first Record");
-        Check(SumByKey::GetNumLevels(kEntries) > 1u, "300 entries need more than one level");
+
+        // Geometry 1: 600 entries over 10 keys (k == 2, 3 level-0 blocks).
+        constexpr uint32_t kEntries1 = 600;
+        constexpr uint32_t kMaxKey1 = 10;
+        auto ctx1 = MakeCtx(*rsys, kEntries1, kMaxKey1, 1u);
+        for (uint32_t i = 0; i < kEntries1; ++i) {
+            ctx1.SetPair(i, i / 60u, i);
+            ctx1.SetValue(0u, i, 2.0f);
+        }
+        RunSumByKeyWith(*rsys, ctx1, reducer);
+        {
+            const auto *out = reinterpret_cast<const float *>(ctx1.out->GetVMAddress());
+            for (uint32_t b = 0; b < kMaxKey1; ++b) {
+                CloseF(out[b], 120.0f, 1e-2f, "first geometry through a shared instance");
+            }
+        }
+
+        // Geometry 2: a different capacity, key bound and channel count, same
+        // instance.  Nothing from the first call may leak into it.
+        constexpr uint32_t kEntries2 = 300;
+        constexpr uint32_t kMaxKey2 = 20;
+        constexpr uint32_t kPerKey2 = kEntries2 / kMaxKey2; // 15
+        auto ctx2 = MakeCtx(*rsys, kEntries2, kMaxKey2, 2u);
+        for (uint32_t i = 0; i < kEntries2; ++i) {
+            ctx2.SetPair(i, i / kPerKey2, i);
+            ctx2.SetValue(0u, i, 1.0f);
+            ctx2.SetValue(1u, i, 3.0f);
+        }
+        RunSumByKeyWith(*rsys, ctx2, reducer);
+        {
+            const auto *out = reinterpret_cast<const float *>(ctx2.out->GetVMAddress());
+            for (uint32_t b = 0; b < kMaxKey2; ++b) {
+                CloseF(out[b], static_cast<float>(kPerKey2), 1e-2f, "second geometry channel 0 through a shared instance");
+                CloseF(
+                    out[kMaxKey2 + b],
+                    3.0f * static_cast<float>(kPerKey2),
+                    1e-2f,
+                    "second geometry channel 1 through a shared instance"
+                );
+            }
+        }
+        Check(reducer.IsInitialized(), "the shared instance stays initialized");
     }
 
     // ── Scenario F: level-0 gather reads values BY SLOT, not by position ───
     // 600 entries across 3 level-0 blocks with 10 keys, so the boundary-record
     // chain (levels >= 1) is exercised too.  Payload slots are a scrambled
-    // bijection of [0, max_entries), and every value is distinct per slot, so a
+    // bijection of [0, capacity), and every value is distinct per slot, so a
     // reducer that read values by position would produce different sums.
     {
         constexpr uint32_t kEntries = 600; // R_0=600 -> R_1=6 (k == 2), 3 blocks
@@ -318,13 +422,13 @@ int main() {
 
     // ── Scenario G: an out-of-range payload slot is dropped, not read ──────
     // 300 entries all keyed to body 7 (a run spanning two blocks); one entry
-    // carries a slot beyond max_entries.  It must contribute 0.0 while its key is
+    // carries a slot beyond the capacity.  It must contribute 0.0 while its key is
     // left unchanged, so body 7 loses exactly that one contribution.
     {
         constexpr uint32_t kEntries = 300;
         constexpr uint32_t kMaxKey = 100;
         constexpr uint32_t kChannels = 1;
-        constexpr uint32_t kBadSlot = 5000u; // >= max_entries
+        constexpr uint32_t kBadSlot = 5000u; // >= capacity
         auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
         for (uint32_t i = 0; i < kEntries; ++i) {
             const bool bad = (i == 100u);
@@ -337,6 +441,201 @@ int main() {
         if (out[0] != 0.0f) {
             std::cerr << "FAIL: dropping a bad slot must not move its key elsewhere" << std::endl;
             g_failures++;
+        }
+    }
+
+    // ── Scenario H: per-call argument and buffer validation ───────────────
+    // Geometry is per call now, so the checks the constructor used to own are the
+    // caller's contract at every Record.
+    {
+        constexpr uint32_t kEntries = 300;
+        constexpr uint32_t kMaxKey = 32;
+        auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, 1u);
+        FlushAll(ctx);
+        SumByKey reducer{rsys->GetDeviceContext()};
+        const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
+        auto cb = rsys->GetDevice().allocateCommandBuffers(
+            vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
+        )[0];
+        cb.begin(vk::CommandBufferBeginInfo{});
+
+        auto throws_invalid = [&](uint32_t capacity, uint32_t channels, uint32_t max_key) {
+            try {
+                reducer.Record(
+                    cb, *ctx.pairs, *ctx.values, *ctx.records, *ctx.out, *ctx.count, capacity, channels, max_key
+                );
+            } catch (const std::invalid_argument &) {
+                return true;
+            } catch (...) {
+                return false;
+            }
+            return false;
+        };
+        Check(throws_invalid(kEntries, 0u, kMaxKey), "zero num_channels is rejected per call");
+        Check(throws_invalid(kEntries, 9u, kMaxKey), "num_channels above kMaxChannels is rejected per call");
+        Check(throws_invalid(0u, 1u, kMaxKey), "zero capacity is rejected per call");
+        Check(throws_invalid(kEntries, 1u, 0u), "zero max_key_value is rejected per call");
+
+        // A capacity whose implied value-buffer size exceeds the bound buffer.
+        bool threw_runtime = false;
+        try {
+            reducer.Record(
+                cb,
+                *ctx.pairs,
+                *ctx.values,
+                *ctx.records,
+                *ctx.out,
+                *ctx.count,
+                kEntries * 4u,
+                1u,
+                kMaxKey
+            );
+        } catch (const std::runtime_error &) {
+            threw_runtime = true;
+        } catch (...) {
+        }
+        Check(threw_runtime, "a capacity larger than the bound value buffer is rejected per call");
+        cb.end();
+        Submit(*rsys, cb);
+    }
+
+    // ── Scenario I: a count far below the capacity ignores the garbage tail ─
+    // capacity 4096 -> R_0=4096, R_1=32 (k == 2, 16 level-0 blocks).  The count
+    // (300) is not a multiple of 256, so the last real block is partially filled.
+    {
+        constexpr uint32_t kCapacity = 4096u;
+        constexpr uint32_t kCount = 300u;    // off a 256-boundary
+        constexpr uint32_t kMaxKey = 512u;
+        constexpr uint32_t kGarbageKey = 150u; // a valid key that only the tail carries
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        FillCountedTail(ctx, kCount, kGarbageKey);
+        ctx.SetCount(kCount);
+        RunSumByKey(*rsys, ctx);
+        CheckCountedTail(ctx, kCount, kGarbageKey, "count off a 256-boundary ignores the garbage tail");
+    }
+
+    // ── Scenario J: the same, with the count exactly on a 256-boundary ─────
+    {
+        constexpr uint32_t kCapacity = 4096u;
+        constexpr uint32_t kCount = 512u;    // a multiple of 256
+        constexpr uint32_t kMaxKey = 512u;
+        constexpr uint32_t kGarbageKey = 256u;
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        FillCountedTail(ctx, kCount, kGarbageKey);
+        ctx.SetCount(kCount);
+        RunSumByKey(*rsys, ctx);
+        CheckCountedTail(ctx, kCount, kGarbageKey, "count on a 256-boundary ignores the garbage tail");
+    }
+
+    // ── Scenario K: a large capacity with the count at or below 256 ────────
+    // The whole real data sits in level-0 block 0 while the capacity spans eight
+    // blocks.  A count-derived *array* bound would make every block treat itself
+    // as the last level and drop the partial sums that cross a block boundary.
+    {
+        constexpr uint32_t kCapacity = 2048u;
+        constexpr uint32_t kCount = 200u; // <= 256 while the capacity is far above
+        constexpr uint32_t kMaxKey = 256u;
+        constexpr uint32_t kGarbageKey = 100u;
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        FillCountedTail(ctx, kCount, kGarbageKey);
+        ctx.SetCount(kCount);
+        RunSumByKey(*rsys, ctx);
+        CheckCountedTail(ctx, kCount, kGarbageKey, "a count at or below 256 does not shrink the array bound");
+    }
+
+    // ── Scenario L: a zero entry count reads nothing ──────────────────────
+    // The tail still carries a *valid* key, so a reduction that read it would
+    // write a large sum.  Every output must stay at zero.
+    {
+        constexpr uint32_t kCapacity = 1024u;
+        constexpr uint32_t kMaxKey = 64u;
+        constexpr uint32_t kGarbageKey = 5u;
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        FillCountedTail(ctx, 0u, kGarbageKey);
+        ctx.SetCount(0u);
+        RunSumByKey(*rsys, ctx);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        for (uint32_t b = 0; b < kMaxKey; ++b) {
+            CloseF(out[b], 0.0f, 1e-6f, "a zero entry count reads no value");
+        }
+    }
+
+    // ── Scenario M: a zero entry count writes no output slot ──────────────
+    // With an INVALID tail (the sentinel the entry passes write) nothing is even
+    // a candidate, so the output must be left exactly as it was.
+    {
+        constexpr uint32_t kCapacity = 1024u;
+        constexpr uint32_t kMaxKey = 64u;
+        constexpr uint32_t kInvalid = 0xFFFFFu;
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        FillCountedTail(ctx, 0u, kInvalid);
+        ctx.ClearOut();
+        ctx.FillOut(7.0f);
+        ctx.SetCount(0u);
+        RunSumByKey(*rsys, ctx);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        for (uint32_t b = 0; b < kMaxKey; ++b) {
+            CloseF(out[b], 7.0f, 1e-6f, "a zero entry count writes no output slot");
+        }
+    }
+
+    // ── Scenario N: an entry count equal to the capacity is the identity ───
+    // The same geometry and buffers as the counted cases above, with every entry
+    // real: the result must be the plain full-array reduction, exactly as if the
+    // bound did not exist.
+    {
+        constexpr uint32_t kCapacity = 4096u;
+        constexpr uint32_t kMaxKey = 2048u;
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        for (uint32_t i = 0; i < kCapacity; ++i) {
+            ctx.SetPair(i, i / 2u, i);
+            ctx.SetValue(0u, i, 1.0f);
+        }
+        ctx.SetCount(kCapacity);
+        RunSumByKey(*rsys, ctx);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        for (uint32_t b = 0; b < kMaxKey; ++b) {
+            CloseF(out[b], 2.0f, 1e-4f, "an entry count equal to the capacity is the identity");
+        }
+    }
+
+    // ── Scenario O: a smaller count after a larger one leaves no residue ───
+    // One instance, one set of buffers: first a full-capacity reduction, then the
+    // same buffers with a small entry count.  The earlier call's records and the
+    // tail's now-unread values must not reach the output.
+    {
+        constexpr uint32_t kCapacity = 4096u;
+        constexpr uint32_t kMaxKey = 2048u;
+        constexpr uint32_t kSmallCount = 300u;
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        for (uint32_t i = 0; i < kCapacity; ++i) {
+            ctx.SetPair(i, i / 2u, i);
+            ctx.SetValue(0u, i, 1.0f);
+        }
+        SumByKey reducer{rsys->GetDeviceContext()};
+
+        ctx.SetCount(kCapacity);
+        RunSumByKeyWith(*rsys, ctx, reducer);
+        {
+            const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+            for (uint32_t b = 0; b < kMaxKey; ++b) {
+                CloseF(out[b], 2.0f, 1e-4f, "full-capacity pass before the counted pass");
+            }
+        }
+
+        ctx.ClearOut();
+        ctx.SetCount(kSmallCount);
+        RunSumByKeyWith(*rsys, ctx, reducer);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        for (uint32_t b = 0; b < kSmallCount / 2u; ++b) {
+            CloseF(out[b], 2.0f, 1e-4f, "counted pass after a larger one keeps the real prefix");
+        }
+        for (uint32_t b = kSmallCount / 2u; b < kMaxKey; ++b) {
+            if (out[b] != 0.0f) {
+                std::cerr << "FAIL: a smaller entry count leaves no residue, but key " << b << " is " << out[b]
+                          << std::endl;
+                g_failures++;
+            }
         }
     }
 

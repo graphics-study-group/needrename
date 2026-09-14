@@ -46,7 +46,8 @@ namespace {
 namespace Engine {
 
     // Push-constant layout, matching the SumByKeyPush block in
-    // engine/Physics/shader/algorithm/sum_by_key.comp (std430).
+    // engine/Physics/shader/algorithm/sum_by_key.comp (std430).  The entry count
+    // is deliberately absent: it is produced on the GPU and travels in a binding.
     struct SumByKeyPush {
         uint32_t input_count;
         uint32_t num_channels;
@@ -56,15 +57,15 @@ namespace Engine {
     };
     static_assert(sizeof(SumByKeyPush) == 20, "SumByKeyPush must be 20 bytes");
 
-    // Level geometry helper shared by the static sizing functions and Impl.
+    // Level geometry helper shared by the static sizing functions and Record.
     struct LevelGeometry {
-        // R[0] = max_entries; R[i+1] = 2*ceil(R[i]/256) until R.back() <= 256.
+        // R[0] = capacity; R[i+1] = 2*ceil(R[i]/256) until R.back() <= 256.
         std::vector<uint32_t> r;
     };
 
-    LevelGeometry ComputeGeometry(uint32_t max_entries) {
+    LevelGeometry ComputeGeometry(uint32_t capacity) {
         LevelGeometry g;
-        g.r.push_back(max_entries);
+        g.r.push_back(capacity);
         while (g.r.back() > SumByKey::kBlockSize) {
             uint32_t nb = (g.r.back() + SumByKey::kBlockSize - 1u) / SumByKey::kBlockSize;
             g.r.push_back(2u * nb);
@@ -72,57 +73,24 @@ namespace Engine {
         return g;
     }
 
+    // One stored record region (levels 1..k-1): byte offsets into the caller's
+    // record buffer for its keys and its values, plus its record count.  Derived
+    // per call, because the instance holds no geometry.
+    struct RecordRegion {
+        uint32_t count = 0u; // R_i records
+        size_t key_offset = 0u;
+        size_t val_offset = 0u;
+    };
+
     struct SumByKey::Impl {
         Rhi::DeviceContext &device_context;
-        uint32_t max_entries = 0u;
-        uint32_t max_key_value = 0u;
-        uint32_t num_channels = 0u;
         bool initialized = false;
 
         std::unique_ptr<Rhi::ComputeStage> reduce_stage{};
         std::vector<uint32_t> reduce_spirv{};
         Rhi::ComputeResourceBinding *reduce_binding = nullptr;
 
-        // Number of dispatches == number of level records (R.size()).
-        LevelGeometry geometry;
-        // For each stored record region (levels 1..k-1): byte offsets into the
-        // records buffer for its keys and its values, plus its record count.
-        struct Region {
-            uint32_t count = 0u; // R_i records
-            size_t key_offset = 0u;
-            size_t val_offset = 0u;
-        };
-        std::vector<Region> regions; // regions[0] == region for R_1 (index by (level-1))
-
-        size_t records_bytes = 0u;
-
-        explicit Impl(Rhi::DeviceContext &ctx, uint32_t me, uint32_t mkv, uint32_t nc) :
-            device_context(ctx), max_entries(me), max_key_value(mkv), num_channels(nc) {
-            if (num_channels == 0u || num_channels > SumByKey::kMaxChannels) {
-                throw std::invalid_argument("SumByKey: num_channels must be in [1, kMaxChannels]");
-            }
-            if (max_entries == 0u) {
-                throw std::invalid_argument("SumByKey: max_entries must be > 0");
-            }
-            if (max_key_value == 0u) {
-                throw std::invalid_argument("SumByKey: max_key_value must be > 0");
-            }
-
-            geometry = ComputeGeometry(max_entries);
-
-            // Lay out record regions for levels 1..k-1 sequentially.
-            const size_t record_scalars = static_cast<size_t>(1u + num_channels); // key + N floats
-            size_t cursor = 0u;
-            for (size_t i = 1u; i < geometry.r.size(); ++i) {
-                Region reg;
-                reg.count = geometry.r[i];
-                reg.key_offset = cursor;
-                reg.val_offset = cursor + static_cast<size_t>(reg.count) * sizeof(uint32_t);
-                regions.push_back(reg);
-                const size_t region_bytes = static_cast<size_t>(reg.count) * record_scalars * sizeof(uint32_t);
-                cursor += region_bytes;
-            }
-            records_bytes = cursor;
+        explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
         Impl(const Impl &) = delete;
@@ -142,21 +110,19 @@ namespace Engine {
         }
     };
 
-    SumByKey::SumByKey(
-        Rhi::DeviceContext &device_context, uint32_t max_entries, uint32_t max_key_value, uint32_t num_channels
-    ) : m_impl(std::make_unique<Impl>(device_context, max_entries, max_key_value, num_channels)) {
+    SumByKey::SumByKey(Rhi::DeviceContext &device_context) : m_impl(std::make_unique<Impl>(device_context)) {
     }
 
     SumByKey::~SumByKey() = default;
 
-    uint32_t SumByKey::GetNumLevels(uint32_t max_entries) noexcept {
-        if (max_entries == 0u) return 0u;
-        return static_cast<uint32_t>(ComputeGeometry(max_entries).r.size());
+    uint32_t SumByKey::GetNumLevels(uint32_t capacity) noexcept {
+        if (capacity == 0u) return 0u;
+        return static_cast<uint32_t>(ComputeGeometry(capacity).r.size());
     }
 
-    size_t SumByKey::GetRequiredRecordsBytes(uint32_t max_entries, uint32_t num_channels) noexcept {
-        if (max_entries == 0u || num_channels == 0u) return 0u;
-        LevelGeometry g = ComputeGeometry(max_entries);
+    size_t SumByKey::GetRequiredRecordsBytes(uint32_t capacity, uint32_t num_channels) noexcept {
+        if (capacity == 0u || num_channels == 0u) return 0u;
+        LevelGeometry g = ComputeGeometry(capacity);
         size_t total_records = 0u;
         for (size_t i = 1u; i < g.r.size(); ++i) {
             total_records += g.r[i];
@@ -168,50 +134,89 @@ namespace Engine {
         return m_impl->initialized;
     }
 
-    uint32_t SumByKey::GetMaxEntries() const noexcept {
-        return m_impl->max_entries;
-    }
-
-    uint32_t SumByKey::GetMaxKeyValue() const noexcept {
-        return m_impl->max_key_value;
-    }
-
-    uint32_t SumByKey::GetNumChannels() const noexcept {
-        return m_impl->num_channels;
-    }
-
-    uint32_t SumByKey::GetNumLevels() const noexcept {
-        return static_cast<uint32_t>(m_impl->geometry.r.size());
-    }
-
     void SumByKey::Record(
         vk::CommandBuffer cb,
         Rhi::ComputeBuffer &pairs_in_buf,
         Rhi::ComputeBuffer &values_in_buf,
         Rhi::ComputeBuffer &records_buf,
-        Rhi::ComputeBuffer &out_values_buf
+        Rhi::ComputeBuffer &out_values_buf,
+        Rhi::ComputeBuffer &entry_count_buf,
+        uint32_t capacity,
+        uint32_t num_channels,
+        uint32_t max_key_value
     ) {
+        // Geometry is no longer a construction parameter, so the argument checks
+        // the constructor used to perform happen here, on the call's values.
+        if (num_channels == 0u || num_channels > kMaxChannels) {
+            throw std::invalid_argument("SumByKey: num_channels must be in [1, kMaxChannels]");
+        }
+        if (capacity == 0u) {
+            throw std::invalid_argument("SumByKey: capacity must be > 0");
+        }
+        if (max_key_value == 0u) {
+            throw std::invalid_argument("SumByKey: max_key_value must be > 0");
+        }
+
+        // The construction-time bound is gone, so the out-of-bounds guard is
+        // checked per call against the buffers actually bound for this call.
+        const size_t pairs_bytes = static_cast<size_t>(capacity) * 2u * sizeof(uint32_t);
+        const size_t values_bytes = static_cast<size_t>(num_channels) * capacity * sizeof(uint32_t);
+        const size_t out_bytes = static_cast<size_t>(num_channels) * max_key_value * sizeof(uint32_t);
+        const size_t records_bytes = GetRequiredRecordsBytes(capacity, num_channels);
+        if (pairs_in_buf.GetSize() < pairs_bytes) {
+            throw std::runtime_error("SumByKey::Record: pair buffer is smaller than capacity * 2 * sizeof(uint32_t)");
+        }
+        if (values_in_buf.GetSize() < values_bytes) {
+            throw std::runtime_error("SumByKey::Record: value buffer is smaller than num_channels * capacity floats");
+        }
+        if (out_values_buf.GetSize() < out_bytes) {
+            throw std::runtime_error("SumByKey::Record: output buffer is smaller than num_channels * max_key_value floats");
+        }
+        if (records_buf.GetSize() < records_bytes) {
+            throw std::runtime_error("SumByKey::Record: record buffer is smaller than GetRequiredRecordsBytes");
+        }
+        if (entry_count_buf.GetSize() < sizeof(uint32_t)) {
+            throw std::runtime_error("SumByKey::Record: entry-count buffer must hold at least one uint");
+        }
+
         m_impl->EnsureInitialized();
-        const uint32_t k = static_cast<uint32_t>(m_impl->geometry.r.size());
+
+        // The whole level chain is a pure function of this call's capacity.
+        const LevelGeometry geometry = ComputeGeometry(capacity);
+        const uint32_t k = static_cast<uint32_t>(geometry.r.size());
         if (k == 0u) return;
+
+        // Lay out the record regions for levels 1..k-1 sequentially.
+        const size_t record_scalars = static_cast<size_t>(1u + num_channels); // key + N floats
+        size_t cursor = 0u;
+        std::vector<RecordRegion> regions;
+        regions.reserve(geometry.r.size() > 0u ? geometry.r.size() - 1u : 0u);
+        for (size_t i = 1u; i < geometry.r.size(); ++i) {
+            RecordRegion reg;
+            reg.count = geometry.r[i];
+            reg.key_offset = cursor;
+            reg.val_offset = cursor + static_cast<size_t>(reg.count) * sizeof(uint32_t);
+            regions.push_back(reg);
+            const size_t region_bytes = static_cast<size_t>(reg.count) * record_scalars * sizeof(uint32_t);
+            cursor += region_bytes;
+        }
 
         auto &srb = m_impl->reduce_binding->GetShaderResourceBinding();
 
         // Level 0's input pair array.  Bound once for every level: it is the same
         // buffer throughout and is only read where `gather_pairs` is set (for an
         // untouched descriptor the shader never dereferences it).
-        srb.BindBuffer("PairsIn", pairs_in_buf, 0u, static_cast<size_t>(m_impl->max_entries) * 2u * sizeof(uint32_t));
+        srb.BindBuffer("PairsIn", pairs_in_buf, 0u, pairs_bytes);
+
+        // The entry count is bound at every level; its contents are read only at
+        // level 0, so no level needs a placeholder for it.
+        srb.BindBuffer("EntryCount", entry_count_buf, 0u, sizeof(uint32_t));
 
         // Output value buffer: channel-major with stride max_key_value.
-        srb.BindBuffer(
-            "OutValues",
-            out_values_buf,
-            0u,
-            static_cast<size_t>(m_impl->num_channels) * m_impl->max_key_value * sizeof(uint32_t)
-        );
+        srb.BindBuffer("OutValues", out_values_buf, 0u, out_bytes);
 
         for (uint32_t level = 0u; level < k; ++level) {
-            const uint32_t input_count = m_impl->geometry.r[level];
+            const uint32_t input_count = geometry.r[level];
             const uint32_t num_blocks = (input_count + kBlockSize - 1u) / kBlockSize;
 
             // ---- Read source for this level ----
@@ -219,15 +224,10 @@ namespace Engine {
                 // Level 0 gathers from the pair array, so KeysIn is not read.
                 // It is still bound to a harmless range to keep the descriptor
                 // set complete, exactly as RecKeys/RecValues are below.
-                srb.BindBuffer("KeysIn", pairs_in_buf, 0u, static_cast<size_t>(m_impl->max_entries) * sizeof(uint32_t));
-                srb.BindBuffer(
-                    "ValuesIn",
-                    values_in_buf,
-                    0u,
-                    static_cast<size_t>(m_impl->num_channels) * m_impl->max_entries * sizeof(uint32_t)
-                );
+                srb.BindBuffer("KeysIn", pairs_in_buf, 0u, static_cast<size_t>(capacity) * sizeof(uint32_t));
+                srb.BindBuffer("ValuesIn", values_in_buf, 0u, values_bytes);
             } else {
-                const auto &reg = m_impl->regions[level - 1u];
+                const auto &reg = regions[level - 1u];
                 srb.BindBuffer(
                     "KeysIn", records_buf, reg.key_offset, static_cast<size_t>(reg.count) * sizeof(uint32_t)
                 );
@@ -235,7 +235,7 @@ namespace Engine {
                     "ValuesIn",
                     records_buf,
                     reg.val_offset,
-                    static_cast<size_t>(m_impl->num_channels) * reg.count * sizeof(uint32_t)
+                    static_cast<size_t>(num_channels) * reg.count * sizeof(uint32_t)
                 );
             }
 
@@ -243,7 +243,7 @@ namespace Engine {
             uint32_t record_stride = 0u;
             if (level + 1u < k) {
                 // Non-final: emit records into region for R_{level+1}.
-                const auto &out_reg = m_impl->regions[level]; // index level == region R_{level+1}
+                const auto &out_reg = regions[level]; // index level == region R_{level+1}
                 srb.BindBuffer(
                     "RecKeys", records_buf, out_reg.key_offset, static_cast<size_t>(out_reg.count) * sizeof(uint32_t)
                 );
@@ -251,13 +251,13 @@ namespace Engine {
                     "RecValues",
                     records_buf,
                     out_reg.val_offset,
-                    static_cast<size_t>(m_impl->num_channels) * out_reg.count * sizeof(uint32_t)
+                    static_cast<size_t>(num_channels) * out_reg.count * sizeof(uint32_t)
                 );
                 record_stride = out_reg.count;
             } else if (k >= 2u) {
                 // Final level: no record output. Bind harmless ranges to keep the
                 // descriptor set complete.
-                const auto &last_reg = m_impl->regions[k - 2u];
+                const auto &last_reg = regions[k - 2u];
                 srb.BindBuffer(
                     "RecKeys", records_buf, last_reg.key_offset, static_cast<size_t>(last_reg.count) * sizeof(uint32_t)
                 );
@@ -265,31 +265,19 @@ namespace Engine {
                     "RecValues",
                     records_buf,
                     last_reg.val_offset,
-                    static_cast<size_t>(m_impl->num_channels) * last_reg.count * sizeof(uint32_t)
+                    static_cast<size_t>(num_channels) * last_reg.count * sizeof(uint32_t)
                 );
             } else {
                 // Single-level reduction (k == 1): no record regions exist. The
                 // shader's final branch never touches RecKeys/RecValues, but the
                 // descriptor set must still be complete, so point them at the
                 // (guaranteed non-empty) output buffer.
-                srb.BindBuffer(
-                    "RecKeys",
-                    out_values_buf,
-                    0u,
-                    static_cast<size_t>(m_impl->num_channels) * m_impl->max_key_value * sizeof(uint32_t)
-                );
-                srb.BindBuffer(
-                    "RecValues",
-                    out_values_buf,
-                    0u,
-                    static_cast<size_t>(m_impl->num_channels) * m_impl->max_key_value * sizeof(uint32_t)
-                );
+                srb.BindBuffer("RecKeys", out_values_buf, 0u, out_bytes);
+                srb.BindBuffer("RecValues", out_values_buf, 0u, out_bytes);
             }
 
             const uint32_t gather_pairs = (level == 0u) ? 1u : 0u;
-            const SumByKeyPush params{
-                input_count, m_impl->num_channels, m_impl->max_key_value, record_stride, gather_pairs
-            };
+            const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_pairs};
             Rhi::PushConstants(cb, *m_impl->reduce_stage, params);
             Rhi::BindComputeStage(cb, *m_impl->reduce_stage);
             Rhi::BindComputeResource(cb, *m_impl->reduce_stage, *m_impl->reduce_binding);

@@ -29,13 +29,13 @@ namespace Engine {
      * unordered, floating-point rounding may vary).
      *
      * It is a *recursive block-level segmented reduction*:
-     *   - Level 0 reads `max_entries` `(key, slot)` pairs from the caller's
-     *     sorted pair array and gathers each element's values from the packed
-     *     value buffer at the slot that pair carries (`value(c) =
-     *     values[c * max_entries + slot]`).  The caller therefore needs neither
-     *     a separate key array nor a permutation map: the payload its sort
+     *   - Level 0 reads the call's `capacity` `(key, slot)` pairs from the
+     *     caller's sorted pair array and gathers each element's values from the
+     *     packed value buffer at the slot that pair carries (`value(c) =
+     *     values[c * capacity + slot]`).  The caller therefore needs neither a
+     *     separate key array nor a permutation map: the payload its sort
      *     carried along *is* the value index.  An entry whose slot is outside
-     *     `[0, max_entries)` contributes zero and is never read from the value
+     *     `[0, capacity)` contributes zero and is never read from the value
      *     buffer; its key is left unchanged, since rewriting it would break the
      *     ascending-order requirement and could split a real key's run.
      *   - Each workgroup reduces one 256-record block in shared memory (with
@@ -46,9 +46,20 @@ namespace Engine {
      *     boundary records; the final single-block level writes every remaining
      *     segment directly.
      *
+     * **Two lengths bound level 0 and are not interchangeable.**  The *level
+     * element count* is the length of the array a level reads (`capacity` at
+     * level 0, `R_i` above); it alone defines the element-index bound, the run
+     * classification's per-block real extent, the record-region partition and
+     * the per-level dispatch count, and it is a pure function of `capacity`, so
+     * `Record` computes the whole chain.  The *entry count* is how many leading
+     * elements carry real input data; it bounds **data extent only** and is read
+     * by the shader from the caller's entry-count buffer at execution time,
+     * because the producing pass runs on the GPU.  An entry count equal to
+     * `capacity` behaves exactly as if the bound were absent.
+     *
      * Record regions for the intermediate levels live in one caller-provided
-     * buffer partitioned by level (offsets fixed at construction), mirroring
-     * the `ParallelScan::GetRequiredBlockSumsBytes` pattern.
+     * buffer partitioned by level (offsets derived per call), mirroring the
+     * `ParallelScan::GetRequiredBlockSumsBytes` pattern.
      *
      * The `num_channels` float values per record are batched into a single
      * buffer in channel-major layout: `value(c, i) = buf[c * stride + i]`,
@@ -56,6 +67,10 @@ namespace Engine {
      * the level geometry travel as push constants (never specialization
      * constants), so one shader recurses at every level and all channels
      * reduce in a single pass per level.
+     *
+     * The instance holds no geometry: every `Record` call supplies its own, so
+     * one instance serves any number of geometries within a single frame and
+     * never needs rebuilding when the caller's geometry changes.
      *
      * Owned GPU resources: none (all working buffers caller-provided).  Owns
      * only the compute pipeline, whose shader is loaded lazily on first
@@ -72,23 +87,12 @@ namespace Engine {
         /**
          * @brief Construct a SumByKey reducer.
          *
-         * Allocates no GPU resources; the compute stage and shader are created
-         * lazily on the first `Record` call.
+         * Allocates no GPU resources and stores no geometry; the compute stage
+         * and shader are created lazily on the first `Record` call.
          *
          * @param device_context  Device context for pipeline creation.
-         * @param max_entries     Maximum number of records ever reduced
-         *                        (defines level-0 geometry and record sizing).
-         * @param max_key_value   Number of output key slots (keys in
-         *                        `[0, max_key_value)` are writable).
-         * @param num_channels    Number of float value channels per record,
-         *                        in `[1, kMaxChannels]`.
-         *
-         * @throws std::invalid_argument if `num_channels` is outside `[1, 8]`
-         *         or `max_entries` / `max_key_value` is zero.
          */
-        SumByKey(
-            Rhi::DeviceContext &device_context, uint32_t max_entries, uint32_t max_key_value, uint32_t num_channels
-        );
+        explicit SumByKey(Rhi::DeviceContext &device_context);
 
         ~SumByKey();
 
@@ -100,14 +104,13 @@ namespace Engine {
         /**
          * @brief Number of recursion levels `k` for a given element count.
          *
-         * `R_0 = max_entries`, `R_{i+1} = 2 * ceil(R_i / 256)` until
-         * `R_k <= 256`.  Always at least 1; at most 4 for
-         * `max_entries <= 2^28`.
+         * `R_0 = capacity`, `R_{i+1} = 2 * ceil(R_i / 256)` until
+         * `R_k <= 256`.  Always at least 1; at most 4 for `capacity <= 2^28`.
          *
-         * @param max_entries  Element count whose level geometry is requested.
+         * @param capacity  Element count whose level geometry is requested.
          * @return Number of levels (== number of `Record` dispatches).
          */
-        static uint32_t GetNumLevels(uint32_t max_entries) noexcept;
+        static uint32_t GetNumLevels(uint32_t capacity) noexcept;
 
         /**
          * @brief Required record-buffer size in bytes.
@@ -116,64 +119,78 @@ namespace Engine {
          * (4 + 4 * num_channels)` bytes (one key uint plus `num_channels`
          * floats per record).  Zero when `k == 1`.
          *
-         * @param max_entries   Element count whose geometry is requested.
+         * @param capacity      Element count whose geometry is requested.
          * @param num_channels  Number of value channels per record.
          * @return Minimum record-buffer size in bytes.
          */
-        static size_t GetRequiredRecordsBytes(uint32_t max_entries, uint32_t num_channels) noexcept;
+        static size_t GetRequiredRecordsBytes(uint32_t capacity, uint32_t num_channels) noexcept;
 
         /**
          * @brief Record the full recursive reduction to the command buffer.
          *
          * Reduces the sorted `(key, slot)` pairs in @p pairs_in_buf, gathering
          * their values from @p values_in_buf, and writes per-key sums to
-         * @p out_values_buf (channel-major, stride `max_key_value`).  Exactly
-         * `GetNumLevels` compute dispatches are recorded, with a full compute
-         * barrier between consecutive levels.  The caller is responsible for the
-         * outer barriers around the whole `Record`.
+         * @p out_values_buf (channel-major, stride @p max_key_value).  Exactly
+         * `GetNumLevels(capacity)` compute dispatches are recorded, with a full
+         * compute barrier between consecutive levels; the caller is responsible
+         * for the outer barriers around the whole `Record`.
+         *
+         * Level 0 always dispatches `ceil(capacity / 256)` workgroups and each
+         * level reads its input as an array of `capacity` / `R_i` elements, so
+         * the record chain is rewritten in full on every call.  The entry count
+         * read from @p entry_count_buf bounds only which **values** are read.
          *
          * All level parameters (region offsets, element counts, workgroup
          * counts, channel stride, channel count, key bound, gather mode) are
          * passed as push constants.  Bindings:
          *   - `PairsIn`   — caller's sorted `(key, slot)` pairs
-         *     (`max_entries` uvec2); read at level 0 only, bound at every level.
-         *   - `KeysIn`    — record keys (`max_entries` uints at level 0, where it
+         *     (`capacity` uvec2); read at level 0 only, bound at every level.
+         *   - `KeysIn`    — record keys (`capacity` uints at level 0, where it
          *     is not read; the region's keys at level >= 1).
          *   - `ValuesIn`  — caller's packed values at level 0 (channel-major,
-         *     stride `max_entries`); the record region's values at level >= 1.
+         *     stride `capacity`); the record region's values at level >= 1.
          *   - `RecKeys` / `RecValues` — the record buffer (level >= 1 input,
          *     non-final-level output).
-         *   - `OutValues` — output (channel-major, stride `max_key_value`).
+         *   - `OutValues` — output (channel-major, stride @p max_key_value).
+         *   - `EntryCount` — the call's entry count (1 uint), bound at every
+         *     level and read only at level 0.
          *
          * @param cb               Command buffer in recording state.
          * @param pairs_in_buf     Sorted `(key, slot)` pair array
-         *                         (`max_entries` uvec2, i.e. `2 * max_entries`
-         *                         uints).
+         *                         (`capacity` uvec2, i.e. `2 * capacity` uints).
          * @param values_in_buf    Packed value buffer (channel-major, indexed by
          *                         the pair's slot).
          * @param records_buf      Record buffer, >= GetRequiredRecordsBytes.
          * @param out_values_buf   Output value buffer (channel-major, stride
-         *                         `max_key_value`), `num_channels * max_key_value`
-         *                         floats.
+         *                         @p max_key_value), `num_channels *
+         *                         max_key_value` floats.
+         * @param entry_count_buf  Entry count buffer (1 uint, read on the GPU).
+         * @param capacity         Level-0 element count (the entry capacity);
+         *                         must be greater than zero.
+         * @param num_channels     Number of float value channels per record,
+         *                         in `[1, kMaxChannels]`.
+         * @param max_key_value    Number of output key slots (keys in
+         *                         `[0, max_key_value)` are writable); must be
+         *                         greater than zero.
+         *
+         * @throws std::invalid_argument if `num_channels` is outside
+         *         `[1, kMaxChannels]`, or `capacity` / `max_key_value` is zero.
+         * @throws std::runtime_error if a bound buffer is smaller than the size
+         *         the call's geometry implies.
          */
         void Record(
             vk::CommandBuffer cb,
             Rhi::ComputeBuffer &pairs_in_buf,
             Rhi::ComputeBuffer &values_in_buf,
             Rhi::ComputeBuffer &records_buf,
-            Rhi::ComputeBuffer &out_values_buf
+            Rhi::ComputeBuffer &out_values_buf,
+            Rhi::ComputeBuffer &entry_count_buf,
+            uint32_t capacity,
+            uint32_t num_channels,
+            uint32_t max_key_value
         );
 
         bool IsInitialized() const noexcept;
-
-        /// Get the configured maximum record count.
-        uint32_t GetMaxEntries() const noexcept;
-        /// Get the configured maximum key value (output slot count).
-        uint32_t GetMaxKeyValue() const noexcept;
-        /// Get the configured channel count.
-        uint32_t GetNumChannels() const noexcept;
-        /// Number of recursion levels for this instance's `max_entries`.
-        uint32_t GetNumLevels() const noexcept;
 
     private:
         struct Impl;

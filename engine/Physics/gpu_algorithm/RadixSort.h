@@ -38,7 +38,10 @@ namespace Engine {
      * two pair buffers; after 8 passes the final sorted result lands in the
      * original pairs_buf_a.
      *
-     * Max shape count is 2^20 (1,048,576).  Exceeding this limit throws.
+     * The instance holds no geometry: every `Record` call supplies its own
+     * element capacity, so one instance sorts any number of capacities within a
+     * single frame and never needs rebuilding when the caller's capacity
+     * changes.
      *
      * Caller-provided resources:
      *   - Input/output pair buffer A (ping)
@@ -46,7 +49,7 @@ namespace Engine {
      *   - Scratch buffer (256 uints, 1 KB)
      *   - elem_capacity (buffer size in pairs, for dispatch sizing)
      *   - pair_count buffer (GPU-side uint, actual pair count at execution time)
-     *   - max_shape_count (for validation)
+     *   - max_shape_count (max shape index, for validation)
      */
     /**
      * @brief Radix-sort mode selector.
@@ -71,11 +74,13 @@ namespace Engine {
         /**
          * @brief Construct the radix sort executor.
          *
-         * @param render_system   Render system for pipeline creation.
-         * @param max_elem_count  Maximum number of uvec2 pairs this instance
-         *                        will ever sort.  Used for dispatch bounds.
+         * Allocates no GPU resources and stores no element geometry; shader
+         * loading and `ComputeStage` instantiation are deferred until the first
+         * `Record` call.
+         *
+         * @param device_context  Device context for pipeline creation.
          */
-        explicit RadixSort(Rhi::DeviceContext &device_context, uint32_t max_elem_count);
+        explicit RadixSort(Rhi::DeviceContext &device_context);
 
         ~RadixSort();
 
@@ -125,8 +130,11 @@ namespace Engine {
          *                         passes; @c ePrimaryOnly sorts by .x only in 4
          *                         passes (both leave the result in pairs_buf_a).
          *
-         * @pre elem_capacity <= max_elem_count
-         * @throws std::runtime_error if max_shape_count > kMaxShapeCount
+         * @pre The pair buffers are at least `elem_capacity * 2 *
+         *      sizeof(uint32_t)` bytes each.
+         * @throws std::runtime_error if `max_shape_count` exceeds
+         *         `kMaxShapeCount`, or if `elem_capacity`'s implied byte size
+         *         exceeds either bound pair buffer.
          */
         void Record(
             vk::CommandBuffer cb,
@@ -140,9 +148,6 @@ namespace Engine {
         );
 
         bool IsInitialized() const noexcept;
-
-        /// Get the maximum element count this instance was configured for.
-        uint32_t GetMaxElemCount() const noexcept;
 
     private:
         struct Impl;

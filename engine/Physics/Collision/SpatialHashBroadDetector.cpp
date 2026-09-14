@@ -594,8 +594,13 @@ namespace Engine {
             m_impl->scan = std::make_unique<ParallelScan>(m_impl->device_context, scan_element);
         }
 
-        if (!m_impl->radix_sort || m_impl->radix_sort->GetMaxElemCount() < m_impl->max_output_pair_count) {
-            m_impl->radix_sort = std::make_unique<RadixSort>(m_impl->device_context, m_impl->max_output_pair_count);
+        // RadixSort holds no geometry: the pair capacity travels with each call
+        // and is validated against the bound buffers there, so the instance is
+        // simply created once.  SpatialHashBroadDetector is not part of this
+        // change's scope; this is the mechanical consequence of the RadixSort
+        // API no longer taking a construction-time element count.
+        if (!m_impl->radix_sort) {
+            m_impl->radix_sort = std::make_unique<RadixSort>(m_impl->device_context);
         }
 
         if (!m_impl->compact_unique || m_impl->compact_unique->GetMaxElemCount() < m_impl->max_output_pair_count) {
