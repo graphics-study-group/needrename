@@ -25,15 +25,44 @@
 // record region and write the next region, partitioned by level in the
 // caller's records buffer.
 //
-// A "run" is a maximal span of equal keys.  Runs that are fully contained in
-// the block (neither touching the block's first nor its last real element)
-// are finalised directly to OutValues[<max_key>-strided channel][key].  Runs
-// touching a block boundary may continue into a neighbouring block, so each
-// block emits at most 2 boundary records into the next level (region slot
-// `2*wg` for the run containing the block's first element, `2*wg+1` for the
-// run containing its last element).  When the whole block is a single run the
-// second slot holds an all-zero record of the same key (keeps the record
-// chain contiguous and dense without double counting).
+// A "run" is a maximal span of equal keys.  The block merges same-key runs in
+// shared memory by *segmented pairwise doubling*: in the round for spacing `d`
+// (1, 2, 4, ... 128) an invocation adds the value at `tid - d` to its own value
+// when that element exists and carries the same key.  After the round for `d`
+// the invariant is `val[tid] = sum of run(tid) within [tid - 2d + 1, tid]`
+// (the window clamped at index 0), so once the window has grown to cover an
+// invocation's whole run, its value is that run's in-block sum up to and
+// including itself.  A run's last element therefore holds the run's in-block
+// sum, and it is the only invocation that writes.
+//
+// The guard is a single key comparison because the input is ascending: equal
+// keys at the two ends of a window imply that every key between them is equal,
+// so a passing window lies inside one run and both operands are complete sums
+// of their halves.  A failing window leaves `val` holding the smaller window's
+// run-suffix, which is already final (the run cannot start below it).  No
+// dead/alive marking is needed.  Depth is ceil(log2(run length)) rounds with
+// every invocation working in every round, instead of one invocation walking
+// the whole run element by element.
+//
+// Each round reads its partner into registers, barriers, adds, barriers again:
+// `val[tid] += val[tid - d]` reads and writes the same slot, so without the
+// mid-round barrier an invocation could read a partner that had already
+// absorbed the window.
+//
+// A run's relation to the block is read off the keys as well: with ascending
+// keys, the run of the element at `tid` reaches the block's first element
+// exactly when `s_key[tid] == s_key[0]`, and it reaches the block's last real
+// element exactly when `tid + 1 == real_count`.
+//
+// Runs that are fully contained in the block (neither touching the block's
+// first nor its last real element) are finalised directly to
+// OutValues[<max_key>-strided channel][key].  Runs touching a block boundary
+// may continue into a neighbouring block, so each block emits at most 2
+// boundary records into the next level (region slot `2*wg` for the run
+// containing the block's first element, `2*wg+1` for the run containing its
+// last element).  When the whole block is a single run the second slot holds an
+// all-zero record of the same key (keeps the record chain contiguous and dense
+// without double counting).
 //
 // The final level has a single workgroup (`num_blocks == 1`): every remaining
 // run is fully contained, so it is written directly and no records are
@@ -101,9 +130,18 @@ layout(push_constant) uniform SumByKeyPush {
 // a real run does not merge into the padding).
 const uint kOobKey   = 0xFFFFFFFFu;
 const uint kInvalidKey = 0xFFFFFu;
+// Shared-memory channel capacity; `params.num_channels` is at most this.
+const uint kMaxChannels = 8u;
 
 shared uint s_key[256];
-shared float s_val[256][8];
+// Channel-major, matching the value and output buffers: the block reduction
+// walks one channel at a time with a stride-1 access across invocations, which
+// is bank-conflict-free for every channel count (a row-major `[256][8]` strides
+// by 8 and hits only 4 banks per warp).
+shared float s_val[8][256];
+// Per-round "some run's last element still needs to merge" flags, one slot per
+// merge round, so a round's flag never needs to be reset.
+shared uint s_pending[8];
 
 void main() {
     const uint wg  = gl_WorkGroupID.x;
@@ -145,44 +183,68 @@ void main() {
 
     s_key[tid] = elem_key;
     for (uint c = 0u; c < params.num_channels; ++c) {
-        s_val[tid][c] = real ? values_in.v[c * params.input_count + value_index] : 0.0f;
+        s_val[c][tid] = real ? values_in.v[c * params.input_count + value_index] : 0.0f;
     }
+    // One flag per round, published inside the round it belongs to.
+    if (tid < 8u) s_pending[tid] = 0u;
     barrier();
 
-    // Each thread owns element tid.  A run is a maximal equal-key span.
-    // Compute, for the run whose LAST element is this thread, its in-block sum
-    // and its [run_start .. run_end] range, using a bounded leftward scan.
-    // (Only the run's last element does work, so each record is summed once.)
+    // Each invocation owns element tid.  The run's last element is the only
+    // writer, but every invocation takes part in every merge round below, so no
+    // invocation may leave before the last round.
     const bool is_run_last =
         (tid == 255u) || (s_key[tid] != s_key[tid + 1u]);
+
+    // ---- Segmented pairwise doubling: ceil(log2(run length)) rounds ----
+    //
+    // The loop leaves as soon as no run's last element still needs to merge.  An
+    // invocation is finished once its window was clamped at index 0 or stopped
+    // by a key mismatch, which is exactly "it did not merge into a window that
+    // reaches index 0": so only a run-last invocation whose merge succeeded in
+    // an unclamped window can still be incomplete.  The flag is read after a
+    // barrier, so the whole block leaves the loop together.
+    for (uint r = 0u, d = 1u; d < 256u; d <<= 1u, ++r) {
+        // Index of the partner.  Clamped so the (predicated) load below can
+        // never form an out-of-range shared address.
+        const uint partner = (tid >= d) ? (tid - d) : tid;
+        const bool merge = (tid >= d) && (s_key[tid] == s_key[partner]);
+
+        // Read the partner into registers: the add writes the slot each
+        // invocation reads, so all reads must precede all writes.
+        float partner_val[8];
+        for (uint c = 0u; c < kMaxChannels; ++c) {
+            partner_val[c] =
+                (merge && c < params.num_channels) ? s_val[c][partner] : 0.0f;
+        }
+        if (merge && is_run_last && (tid >= (d << 1))) {
+            s_pending[r] = 1u;
+        }
+        barrier();
+
+        if (merge) {
+            for (uint c = 0u; c < params.num_channels; ++c) {
+                s_val[c][tid] += partner_val[c];
+            }
+        }
+        barrier();
+
+        if (s_pending[r] == 0u) {
+            break;
+        }
+    }
 
     if (!is_run_last) {
         return;
     }
 
-    // Find the run start by scanning left while the key is unchanged.
-    uint run_start = tid;
-    while (run_start > 0u && s_key[run_start - 1u] == s_key[tid]) {
-        run_start--;
-    }
-    // run_end == tid (this thread is the run's last element).
-    const uint run_end = tid;
-
     const uint key = s_key[tid];
 
-    // Sum the run into registers (channel-major).
-    float sum[8];
-    for (uint c = 0u; c < params.num_channels; ++c) {
-        float acc = 0.0f;
-        for (uint j = run_start; j <= run_end; ++j) {
-            acc += s_val[j][c];
-        }
-        sum[c] = acc;
-    }
-
-    // Classification relative to the block's real extent [0, real_count).
-    const bool touches_first = (run_start == 0u);
-    const bool touches_last  = (run_end + 1u == real_count);
+    // Classification relative to the block's real extent [0, real_count).  The
+    // run's last element is this invocation (that is what `is_run_last` means),
+    // and ascending keys make "the run reaches the block's first element"
+    // exactly "this element's key equals the block's first key" -- no search.
+    const bool touches_first = (key == s_key[0]);
+    const bool touches_last  = (tid + 1u == real_count);
     const bool is_final_level = ((params.input_count + 255u) / 256u) == 1u;
     const bool valid_key = (key < params.max_key_value);
 
@@ -190,7 +252,7 @@ void main() {
         // Single block spans every remaining record: every run is complete.
         if (valid_key) {
             for (uint c = 0u; c < params.num_channels; ++c) {
-                out_values.v[c * params.max_key_value + key] = sum[c];
+                out_values.v[c * params.max_key_value + key] = s_val[c][tid];
             }
         }
         return;
@@ -202,7 +264,7 @@ void main() {
         // Fully contained interior run -> finalise directly.
         if (valid_key) {
             for (uint c = 0u; c < params.num_channels; ++c) {
-                out_values.v[c * params.max_key_value + key] = sum[c];
+                out_values.v[c * params.max_key_value + key] = s_val[c][tid];
             }
         }
         return;
@@ -213,7 +275,7 @@ void main() {
         // Record the in-block partial at slot 2*wg.
         rec_keys.v[slot_base] = key;
         for (uint c = 0u; c < params.num_channels; ++c) {
-            rec_values.v[c * params.record_stride + slot_base] = sum[c];
+            rec_values.v[c * params.record_stride + slot_base] = s_val[c][tid];
         }
     }
     if (touches_last) {
@@ -227,7 +289,7 @@ void main() {
         } else {
             rec_keys.v[slot_base + 1u] = key;
             for (uint c = 0u; c < params.num_channels; ++c) {
-                rec_values.v[c * params.record_stride + slot_base + 1u] = sum[c];
+                rec_values.v[c * params.record_stride + slot_base + 1u] = s_val[c][tid];
             }
         }
     }

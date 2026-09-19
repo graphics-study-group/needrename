@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <random>
 #include <vector>
 
 using namespace Engine;
@@ -152,6 +153,45 @@ namespace {
         if (!reducer.IsInitialized()) {
             std::cerr << "FAIL: the first Record must load the shader" << std::endl;
             g_failures++;
+        }
+    }
+
+    // ── Independent host-side expectation ──────────────────────────────────
+    //
+    // Computes the per-key sums straight from the source buffers, so it shares
+    // no structure with the reduction (record regions, level chain or the
+    // block-internal merge).  Keys at or above max_key_value and payload slots
+    // at or above the capacity contribute nothing.
+    std::vector<float> HostExpected(const RunCtx &ctx, uint32_t count) {
+        std::vector<float> expect(static_cast<size_t>(ctx.num_channels) * ctx.max_key_value, 0.0f);
+        const auto *pairs = reinterpret_cast<const uint32_t *>(ctx.pairs->GetVMAddress());
+        const auto *values = reinterpret_cast<const float *>(ctx.values->GetVMAddress());
+        for (uint32_t i = 0; i < count; ++i) {
+            const uint32_t key = pairs[2u * i];
+            const uint32_t slot = pairs[2u * i + 1u];
+            if (key >= ctx.max_key_value || slot >= ctx.capacity) continue;
+            for (uint32_t c = 0u; c < ctx.num_channels; ++c) {
+                expect[static_cast<size_t>(c) * ctx.max_key_value + key] +=
+                    values[static_cast<size_t>(c) * ctx.capacity + slot];
+            }
+        }
+        return expect;
+    }
+
+    // Compares every channel of every key against `expect`, naming the key and
+    // the channel on a mismatch.
+    void CheckExpected(const RunCtx &ctx, const std::vector<float> &expect, float eps, const char *what) {
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        for (uint32_t c = 0u; c < ctx.num_channels; ++c) {
+            for (uint32_t b = 0u; b < ctx.max_key_value; ++b) {
+                const float want = expect[static_cast<size_t>(c) * ctx.max_key_value + b];
+                const float got = out[static_cast<size_t>(c) * ctx.max_key_value + b];
+                if (!(std::fabs(got - want) <= eps)) {
+                    std::cerr << "FAIL: " << what << " key " << b << " channel " << c << " expected " << want
+                              << " got " << got << std::endl;
+                    g_failures++;
+                }
+            }
         }
     }
 
@@ -636,6 +676,153 @@ int main() {
                           << std::endl;
                 g_failures++;
             }
+        }
+    }
+
+    // ── Scenario P: run-length matrix within one block ─────────────────────
+    // Run lengths 1, 2, 3, 7, 8, 9 straddle every merge window of the block's
+    // pairwise doubling, and a final run of 226 fills the remainder, so the
+    // block both starts and ends inside a run.  Channel 0 counts elements
+    // (value 1.0) and channel 1 triples them, so a run that absorbed another
+    // run's elements would show up as an over-count on both channels.
+    {
+        constexpr uint32_t kCapacity = 256u;
+        constexpr uint32_t kMaxKey = 8u;
+        constexpr uint32_t kChannels = 2u;
+        constexpr uint32_t kRuns[] = {1u, 2u, 3u, 7u, 8u, 9u, 226u};
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, kChannels);
+        uint32_t pos = 0u;
+        for (uint32_t key = 0u; key < 7u; ++key) {
+            for (uint32_t t = 0u; t < kRuns[key]; ++t, ++pos) {
+                ctx.SetPair(pos, key, pos);
+                ctx.SetValue(0u, pos, 1.0f);
+                ctx.SetValue(1u, pos, 3.0f);
+            }
+        }
+        Check(pos == kCapacity, "the run-length matrix fills the block exactly");
+        RunSumByKey(*rsys, ctx);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        for (uint32_t key = 0u; key < 7u; ++key) {
+            CloseF(out[key], static_cast<float>(kRuns[key]), 1e-4f, "run length within one block (channel 0)");
+            CloseF(
+                out[kMaxKey + key],
+                3.0f * static_cast<float>(kRuns[key]),
+                1e-3f,
+                "run length within one block (channel 1)"
+            );
+        }
+        Check(out[7] == 0.0f, "an absent key stays untouched in the run-length matrix");
+    }
+
+    // ── Scenario Q: a whole-block run and a run crossing a block boundary ───
+    // 300 entries of key 0 saturate the first block and continue 44 entries into
+    // the second; key 1 fills the rest.  That is every boundary-record shape at
+    // once: a run filling a whole block (first and last), a run starting at a
+    // block's first element, a run ending at a block's last real element, and a
+    // run that crosses the boundary.  The upper level reassembles them.
+    {
+        constexpr uint32_t kCapacity = 512u;
+        constexpr uint32_t kMaxKey = 4u;
+        constexpr uint32_t kKey0 = 300u;
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        for (uint32_t i = 0u; i < kCapacity; ++i) {
+            ctx.SetPair(i, (i < kKey0) ? 0u : 1u, i);
+            ctx.SetValue(0u, i, 1.0f);
+        }
+        RunSumByKey(*rsys, ctx);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        CloseF(out[0], static_cast<float>(kKey0), 1e-3f, "a run that crosses a block boundary");
+        CloseF(out[1], static_cast<float>(kCapacity - kKey0), 1e-3f, "a run filling the rest of the last block");
+        Check(out[2] == 0.0f && out[3] == 0.0f, "absent keys stay untouched around a block boundary");
+    }
+
+    // ── Scenario R: a run crossing a block boundary by a single element ─────
+    // The first block is one run of 256; the second opens with the single
+    // remaining element of that run and then a run of 255.
+    {
+        constexpr uint32_t kCapacity = 512u;
+        constexpr uint32_t kMaxKey = 4u;
+        constexpr uint32_t kKey0 = 257u;
+        auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
+        for (uint32_t i = 0u; i < kCapacity; ++i) {
+            ctx.SetPair(i, (i < kKey0) ? 0u : 1u, i);
+            ctx.SetValue(0u, i, 1.0f);
+        }
+        RunSumByKey(*rsys, ctx);
+        const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+        CloseF(out[0], static_cast<float>(kKey0), 1e-3f, "a run crossing a block boundary by one element");
+        CloseF(out[1], static_cast<float>(kCapacity - kKey0), 1e-3f, "the run after a one-element boundary tail");
+    }
+
+    // ── Scenario S: 1, 4, 7 and 8 channels reduce the same input identically ─
+    // Three level-0 blocks of even 70-element runs, one integer value per
+    // channel, so the expected sum is exact and any channel mix-up is visible.
+    {
+        constexpr uint32_t kCapacity = 700u;
+        constexpr uint32_t kMaxKey = 10u;
+        constexpr uint32_t kPerKey = kCapacity / kMaxKey; // 70
+        constexpr uint32_t kChannelCounts[] = {1u, 4u, 7u, 8u};
+        for (uint32_t n = 0u; n < 4u; ++n) {
+            const uint32_t channels = kChannelCounts[n];
+            auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, channels);
+            for (uint32_t i = 0u; i < kCapacity; ++i) {
+                ctx.SetPair(i, i / kPerKey, i);
+                for (uint32_t c = 0u; c < channels; ++c) {
+                    ctx.SetValue(c, i, 1.0f + static_cast<float>(c));
+                }
+            }
+            RunSumByKey(*rsys, ctx);
+            const auto *out = reinterpret_cast<const float *>(ctx.out->GetVMAddress());
+            for (uint32_t b = 0u; b < kMaxKey; ++b) {
+                for (uint32_t c = 0u; c < channels; ++c) {
+                    CloseF(
+                        out[c * kMaxKey + b],
+                        static_cast<float>(kPerKey) * (1.0f + static_cast<float>(c)),
+                        1e-3f,
+                        "the same input reduces identically at 1, 4, 7 and 8 channels"
+                    );
+                }
+            }
+        }
+    }
+
+    // ── Scenario T: randomized ascending keys against a host-side sum ───────
+    // Four capacities exercise a single level, two levels and three levels.
+    // Run lengths are drawn from 1..300, so block boundaries fall inside runs at
+    // both small and large offsets, and every key's run is eventually long
+    // enough to need more than one merge round.  Values are small integers, so
+    // the host expectation is exact.
+    {
+        constexpr uint32_t kCapacities[] = {200u, 600u, 5000u, 70000u};
+        constexpr uint32_t kChannels = 3u;
+        constexpr uint32_t kMaxKey = 64u;
+        std::mt19937 rng(20260915u); // fixed seed: the case is reproducible
+        std::uniform_int_distribution<uint32_t> run_len(1u, 300u);
+        std::uniform_int_distribution<uint32_t> value(0u, 7u);
+        for (uint32_t n = 0u; n < 4u; ++n) {
+            const uint32_t capacity = kCapacities[n];
+            auto ctx = MakeCtx(*rsys, capacity, kMaxKey, kChannels);
+            uint32_t pos = 0u;
+            for (uint32_t key = 0u; key < kMaxKey && pos < capacity; ++key) {
+                const uint32_t len = std::min(run_len(rng), capacity - pos);
+                for (uint32_t t = 0u; t < len; ++t, ++pos) {
+                    ctx.SetPair(pos, key, pos);
+                    for (uint32_t c = 0u; c < kChannels; ++c) {
+                        ctx.SetValue(c, pos, static_cast<float>(value(rng)));
+                    }
+                }
+            }
+            // The keys are exhausted before the capacity: the rest is a trailing
+            // run of the last key carrying zeros.
+            for (; pos < capacity; ++pos) {
+                ctx.SetPair(pos, kMaxKey - 1u, pos);
+                for (uint32_t c = 0u; c < kChannels; ++c) {
+                    ctx.SetValue(c, pos, 0.0f);
+                }
+            }
+            const std::vector<float> expect = HostExpected(ctx, capacity);
+            RunSumByKey(*rsys, ctx);
+            CheckExpected(ctx, expect, 1e-2f, "randomized ascending keys against a host-side sum");
         }
     }
 
