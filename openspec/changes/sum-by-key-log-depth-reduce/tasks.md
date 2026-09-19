@@ -1,0 +1,40 @@
+## 1. Block-internal merge (shader)
+
+- [x] 1.1 Change the shared value array in `engine/Physics/shader/algorithm/sum_by_key.comp` to channel-major (`s_val[8][256]`) and update the load and store sites. Verify: the build compiles the shader through `glslangValidator` with no error, and `gpu_sum_by_key_test` still passes unchanged.
+- [x] 1.2 Replace the leftward run-start scan and the per-element accumulation loop with the segmented pairwise doubling (`d = 1, 2, 4, ... 128`, guard `tid >= d && s_key[tid] == s_key[tid - d]`), keeping a single shared value array and the two barriers per round (read partner, barrier, add, barrier). Verify: the shader compiles and every existing scenario of `gpu_sum_by_key_test` passes.
+  - Landed together with 1.3: the doubling needs every invocation alive in every round, so the merge and the removal of the early `return` cannot be separated into two working revisions. The run-start scan was kept at this step (for `touches_first`) and removed in 1.4.
+- [x] 1.3 Move `is_run_last` before the merge loop and delete the `if (!is_run_last) return;` that precedes it, so every invocation takes part in every round. Verify: `gpu_sum_by_key_test` passes, including the multi-level scenarios (no device hang, no wrong sums).
+  - Landed with 1.2 (see the note there).
+- [x] 1.4 Replace the run classification's use of `run_start` with `s_key[tid] == s_key[0]` for the first-element test (`touches_last` stays `tid + 1 == real_count`) and confirm by reading the final shader that no leftward scan and no per-element accumulation loop remain. Verify: `gpu_sum_by_key_test` passes and the settle/record-writing code is byte-for-byte equivalent except for that one predicate.
+  - `touches_last` uses `tid` directly instead of the (now removed) `run_end` alias; `sum[c]` in the settle writes became `s_val[c][tid]`, so the per-run register copy no longer exists.
+- [x] 1.5 Add the adaptive exit: `s_pending[8]` cleared before the load barrier, each round's flag written by a run-last invocation whose merge succeeded with `tid >= 2 * d`, and a uniform exit read after the barrier. Verify: `gpu_sum_by_key_test` passes; a scratch edit that drops the `tid >= 2 * d` term (or the `is_run_last` guard) makes the run-length matrix fail.
+  - Deferred to 2.1: the mutation check needs the run-length matrix, which does not exist yet.
+
+## 2. Algorithm test coverage
+
+- [x] 2.1 Add run-length matrix cases to `test/engine/headless/gpu_sum_by_key_test.cpp`: a block whose runs have lengths 1, 2, 3, 7, 8, 9 and one run filling the remainder; a run filling a whole block; a run crossing a block boundary; and a run starting at the block's first element. Verify: the cases pass, and each is checked against an independently computed per-key expectation (not against the implementation's own record layout).
+  - Scenarios P (run-length matrix in one block, two channels), Q (whole-block run plus a cross-boundary run), R (a run crossing by a single element). Expectations are the constructed run lengths, not anything read back from the record regions.
+- [x] 2.2 Add a channel-count case reducing the same input at `num_channels` 1, 4, 7 and 8 and comparing against a per-channel host-side sum. Verify: all four agree within the tolerance used by the file's other channel cases.
+  - Scenario S: three level-0 blocks of even 70-element runs, one integer value per channel.
+- [x] 2.3 Add a randomized ascending-key case (fixed seed, several capacities chosen to exercise 1- and many-level reductions) compared against a host-side per-key sum. Verify: the case passes and its failure message prints the key and channel that differed.
+  - Scenario T plus the new `HostExpected` / `CheckExpected` helpers; the mismatch message names the key and the channel.
+- [x] 2.4 Confirm the entry-count and gather scenarios (the counted tail, the INVALID sentinel run, the out-of-range payload slot, a smaller count after a larger one) are untouched and still pass, since the merge now runs over the zeroed tail as ordinary elements. Verify: the full `gpu_sum_by_key_test` is green.
+  - Scenarios I-O are unmodified and green; no existing case was edited.
+
+## 3. Isolated measurement
+
+- [x] 3.1 Add a headless benchmark target (synthetic pair/value/record/output buffers, `K` recorded reductions per submission with the required barriers, one submit and `vkDeviceWaitIdle` around it) covering all-distinct keys, runs of 2, 8 and 40, one key spanning the whole capacity, and the solver's channel count. Verify: the target builds and prints a per-case timing table on a headless run.
+  - `test/engine/headless/gpu_sum_by_key_bench.cpp`, registered through `anro_add_test` and then `DISABLED` in CTest so it never runs as a gate. Capacity and iteration count are command-line arguments (defaults 200000 and 100), and each row prints `out[0]` as a sanity value; all six rows printed their expected sums.
+- [x] 3.2 Measure the merge version and, for the baseline, the pre-change shader (checked out from git into a scratch build or measured before the rewrite), and record both tables in the change's verification notes. Verify: the notes contain the numbers with the input geometry, the device, and an explicit statement of whether the difference is above noise.
+  - Done; see `design.md` - Implementation notes - Measurement. Baseline compiled from `HEAD` into the runtime SPIR-V path, plus an extra layout-only variant for attribution. Answer: 3.3x faster on the long-run case at capacity 20000 (above noise), no difference at capacity 200000 (throughput-bound regime), and the layout change alone accounts for none of it.
+
+## 4. Spec, audit and verification
+
+- [x] 4.1 Confirm the shader and the delta spec agree: the requirement describes the ascending-key guard, contains no "dead marking", and its depth bound matches `ceil(log2(longest run))` rounds. Verify: `openspec validate --strict` passes for this change, and a grep for `dead marking` / `aliveness` in the delta spec and in `remove-float-atomics`' `gpu-sum-by-key` delta returns only the superseded text that this change replaces.
+  - `openspec validate --strict` clean. The only hit in the delta is the deliberate prohibition ("A dead/alive marking scheme SHALL NOT be required"); the superseded claim still lives in the unarchived `remove-float-atomics` delta, which this requirement replaces at archive time.
+- [x] 4.2 Audit the compiled shader: the storage-buffer count, the 20-byte push-constant block and the binding indices are unchanged, and no subgroup or extension instruction was introduced. Verify: the SPIR-V audit (`spirv-dis` reflection plus a grep of the shader sources for `subgroup`) matches the pre-change values.
+  - Seven storage buffers and the `SumByKeyPush` push block unchanged; zero group-non-uniform/subgroup opcodes in the SPIR-V and zero `#extension` directives in the source; shared memory 9248 B (was 9216 B, +32 B for `s_pending`).
+- [x] 4.3 Run the full suite and record the result with the change's verification notes, in the style of the previous change's "Implementation deviations" section. Verify: `ctest` is green and the notes list every task as complete or explicitly deviated.
+  - `ctest --preset msvc-debug`: 57/57 passed (the benchmark reported Disabled, as intended). The notes are the "Implementation notes" section of `design.md`, including the two deviations (1.5's mutation check, the mid-round barrier's untestability).
+- [x] 4.4 Record the archive ordering (`remove-float-atomics`, then `xpbd-entry-count-driven-reduce`, then this change) so the delta applies, and confirm `openspec list` shows no interleaved change between them. Verify: the note is present in the change and the order matches `openspec list --json`.
+  - `openspec list --json` shows exactly those three changes (this one in-progress at 15/15 tasks, `xpbd-entry-count-driven-reduce` complete, `remove-float-atomics` 41/42) with nothing interleaved. The ordering is recorded in `proposal.md` - Impact and in the design's Migration Plan.
