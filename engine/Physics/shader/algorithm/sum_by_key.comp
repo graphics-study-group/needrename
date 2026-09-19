@@ -2,101 +2,65 @@
 
 // sum_by_key.comp — Segmented reduction over sorted (key, value) arrays.
 //
-// Reduces an ascending-sorted array of records, each with a uint key and N
-// float value channels, into per-key sums.  A single workgroup reduces one
-// 256-record block in shared memory; the same shader runs at every recursion
-// level.
+// Reduces a key-ascending array of records (uint key + N float channels) into
+// per-key sums: `OutValues[c * max_key_value + key]` is the sum of channel c
+// over the records carrying `key`.  One workgroup handles one block of 256
+// records, and the same shader runs at every recursion level: a block whose run
+// continues into a neighbouring block passes that partial run on as a boundary
+// record.
 //
-// Records are stored SoA, channel-major: for a level with `input_count` =
-// R_i records, value channel c of element e lives at
-// `ValuesIn[c * input_count + e]` (stride == the current level's record
-// count).
+// Input, selected by `gather_pairs`.  Both shapes are channel-major, with the
+// value channel stride `input_count`:
+//   - set: the caller's sorted `(key, slot)` pairs — `key = pairs[e].x`,
+//     channel c at `ValuesIn[c * input_count + pairs[e].y]`;
+//   - clear: the record arrays — `key = KeysIn[e]`,
+//     channel c at `ValuesIn[c * input_count + e]`.
+// `num_channels` and the level geometry travel as push constants, so all
+// channels reduce in one pass per level.
 //
-// Level 0 takes the caller's sorted `(key, slot)` PairsIn array and gathers
-// each element's values at the slot its pair carries: the key is
-// `pairs[e].x` and channel c is `ValuesIn[c * input_count + pairs[e].y]`.
-// That is what lets the caller scatter contributions at their own slot index
-// and skip building a permutation map.  The mode is selected by
-// `gather_pairs` (1 at level 0, 0 elsewhere), so every level shares the block
-// reduction below and only its load path differs.  A payload slot outside
-// `[0, input_count)` loads 0.0 values but *keeps* its key: rewriting the key
-// would break the ascending-order requirement and could split a real key's
-// run in two, losing one of that key's partial sums.  Deeper levels read a
-// record region and write the next region, partitioned by level in the
-// caller's records buffer.
+// Algorithm.  A run is a maximal span of equal keys.  The block merges runs in
+// shared memory by segmented pairwise doubling: in the round for spacing `d`
+// (1, 2, 4, ... 128) an invocation adds the value at `tid - d` to its own when
+// that element exists and carries the same key.  After the round for `d`,
+// `val[tid]` is the sum of run(tid) over `[tid - 2d + 1, tid]` (clamped at 0),
+// so a run's last element ends up holding that run's in-block sum.  Depth is
+// ceil(log2(run length)) rounds, and every invocation joins every round.
 //
-// A "run" is a maximal span of equal keys.  The block merges same-key runs in
-// shared memory by *segmented pairwise doubling*: in the round for spacing `d`
-// (1, 2, 4, ... 128) an invocation adds the value at `tid - d` to its own value
-// when that element exists and carries the same key.  After the round for `d`
-// the invariant is `val[tid] = sum of run(tid) within [tid - 2d + 1, tid]`
-// (the window clamped at index 0), so once the window has grown to cover an
-// invocation's whole run, its value is that run's in-block sum up to and
-// including itself.  A run's last element therefore holds the run's in-block
-// sum, and it is the only invocation that writes.
+// Ascending keys make the merge guard a single comparison: equal keys at the
+// window's two ends imply that every key between them is equal, so a passing
+// window lies inside one run and both operands are complete sums of their
+// halves, while a failing window leaves `val` holding the smaller window's
+// run-suffix, which is already final.  A round reads its partner into registers,
+// barriers, adds, barriers again, because the add writes the slot every
+// invocation reads.  Rounds stop once no run's last element still needs to merge
+// (`s_pending`), and that exit is read after a barrier so the block leaves
+// together.
 //
-// The guard is a single key comparison because the input is ascending: equal
-// keys at the two ends of a window imply that every key between them is equal,
-// so a passing window lies inside one run and both operands are complete sums
-// of their halves.  A failing window leaves `val` holding the smaller window's
-// run-suffix, which is already final (the run cannot start below it).  No
-// dead/alive marking is needed.  Depth is ceil(log2(run length)) rounds with
-// every invocation working in every round, instead of one invocation walking
-// the whole run element by element.
-//
-// Each round reads its partner into registers, barriers, adds, barriers again:
-// `val[tid] += val[tid - d]` reads and writes the same slot, so without the
-// mid-round barrier an invocation could read a partner that had already
-// absorbed the window.
-//
-// A run's relation to the block is read off the keys as well: with ascending
-// keys, the run of the element at `tid` reaches the block's first element
-// exactly when `s_key[tid] == s_key[0]`, and it reaches the block's last real
-// element exactly when `tid + 1 == real_count`.
-//
-// Runs that are fully contained in the block (neither touching the block's
-// first nor its last real element) are finalised directly to
-// OutValues[<max_key>-strided channel][key].  Runs touching a block boundary
-// may continue into a neighbouring block, so each block emits at most 2
-// boundary records into the next level (region slot `2*wg` for the run
-// containing the block's first element, `2*wg+1` for the run containing its
-// last element).  When the whole block is a single run the second slot holds an
-// all-zero record of the same key (keeps the record chain contiguous and dense
-// without double counting).
-//
-// The final level has a single workgroup (`num_blocks == 1`): every remaining
-// run is fully contained, so it is written directly and no records are
-// emitted.  Keys >= `max_key_value` (incl. the INVALID sentinel 0xFFFFF and
-// the out-of-range pad 0xFFFFFFFF) never write to the output.
+// Settlement.  Each run's last element writes the run's in-block sum: straight
+// to `OutValues` when the run lies inside the block, otherwise as a record at
+// slot `2*wg` (the run reaches the block's first element) and/or `2*wg+1` (it
+// reaches the block's last real element), for the next level to merge.  A block
+// that is a single run writes an all-zero second record, keeping the chain dense
+// without double counting.  A level with a single workgroup writes every
+// remaining run directly, and keys >= `max_key_value` (the INVALID sentinel
+// 0xFFFFF and the out-of-range pad 0xFFFFFFFF) are never written out.
 //
 // ---- Two lengths bound a level, and they are not interchangeable ----
 //
-//   - The *level element count* is the length of the array the level reads:
-//     `input_count` (= the caller's capacity at level 0, `R_i` above).  It alone
-//     defines the element-index bound, the per-block real extent run
-//     classification uses, the record-region partition, the per-level dispatch
-//     count and the level-0 channel stride.  It is a pure function of the
-//     capacity, so the caller computes the whole chain.
-//   - The *entry count* is how many leading elements carry real data.  It bounds
-//     **data extent only**: at level 0 no value is read for an element at or
-//     beyond it, nor for an element whose payload slot is at or beyond it.  It
-//     never affects geometry.  It is produced on the GPU, so it travels in the
-//     `EntryCount` binding rather than the push-constant block, and it is read
-//     only in gather mode (only level 0 gathers; a deeper level's input is the
-//     record region the previous level just wrote and is entirely valid).
+//   - The *level element count* `input_count` is the length of the array the
+//     level reads (the caller's capacity at the first level, `R_i` above).  It
+//     defines the element-index bound, the per-block real extent, the
+//     record-region partition, the dispatch count and the channel stride.
+//   - The *entry count* is how many leading elements carry real data, in the
+//     pair path only: nothing is read for an element at or beyond it, nor for an
+//     element whose payload slot is at or beyond it.  It never affects geometry,
+//     and it is produced on the GPU, so it travels in the `EntryCount` binding
+//     rather than the push-constant block.
 //
-// Elements at or beyond the entry count keep their keys and contribute 0.0 to
-// every channel, so they take part in run classification exactly like any other
-// element.
-//
-// That is also why the record chain needs no empty-block case: the level element
-// count stays at the capacity, and the caller dispatches `ceil(input_count / 256)`
-// workgroups, so at every block `base <= input_count - 1` and
-// `real_count = min(256, input_count - min(base, input_count)) >= 1`.  No block
-// is empty, so both of a block's record slots are written on every call and the
-// chain stays dense.  Letting the entry count reach the element range would break
-// that (a short count would leave holes holding a previous call's records, which
-// the next level would read as phantom partials).
+// Elements at or beyond the entry count keep their keys and contribute 0.0, so
+// they take part in the run structure like any other element.  Both of a block's
+// record slots are written on every call, because the dispatch covers the whole
+// capacity, which keeps the record chain dense.
 //
 // Dispatch: ceil(input_count / 256), 1, 1.
 
@@ -104,17 +68,17 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(set = 0, binding = 0) readonly  buffer KeysIn     { uint  v[]; } keys_in;
 layout(set = 0, binding = 1) readonly  buffer ValuesIn   { float v[]; } values_in;
-layout(set = 0, binding = 2) buffer    RecKeys          { uint  v[]; } rec_keys;
-layout(set = 0, binding = 3) buffer    RecValues        { float v[]; } rec_values;
-layout(set = 0, binding = 4) buffer    OutValues        { float v[]; } out_values;
-// Level-0 input: the caller's sorted (key, slot) pairs.  Bound at every level
-// (harmless where unread) so no level needs a placeholder for it.
-layout(set = 0, binding = 5) readonly  buffer PairsIn     { uvec2 v[]; } pairs_in;
-// Level-0 data extent: the number of leading entries that carry real data, read
-// at execution time because the producing pass runs on the GPU.  Bound at every
-// level (its contents are read only in gather mode) so no level needs a
-// placeholder.  The caller clamps it to the capacity, so it bounds the element
-// index and the payload slot alike.
+// The caller's sorted (key, slot) pairs, read in the pair path.  Bound at every
+// level so no level needs a placeholder for it.
+layout(set = 0, binding = 2) readonly  buffer PairsIn     { uvec2 v[]; } pairs_in;
+layout(set = 0, binding = 3) buffer    RecKeys          { uint  v[]; } rec_keys;
+layout(set = 0, binding = 4) buffer    RecValues        { float v[]; } rec_values;
+layout(set = 0, binding = 5) buffer    OutValues        { float v[]; } out_values;
+
+// How many leading entries carry real data, read at execution time because the
+// producing pass runs on the GPU.  Read in the pair path only, where it bounds
+// the element index and the payload slot alike; the caller clamps it to the
+// capacity.
 layout(set = 0, binding = 6) readonly  buffer EntryCount  { uint count; } entry_count;
 
 // ---- Per-dispatch constants (push constant, recorded by the caller) ----
@@ -123,7 +87,7 @@ layout(push_constant) uniform SumByKeyPush {
     uint num_channels;    // N in [1,8]
     uint max_key_value;   // keys >= max_key are ignored (never written to out)
     uint record_stride;   // next region's per-channel count (=2*num_blocks); used when writing records
-    uint gather_pairs;    // 1 at level 0 (read PairsIn + gather by slot), 0 elsewhere
+    uint gather_pairs;    // 1 = read the pair array, 0 = read the record arrays
 } params;
 
 // Out-of-range key pad (distinct from the real INVALID 0xFFFFF so the tail of
@@ -134,13 +98,12 @@ const uint kInvalidKey = 0xFFFFFu;
 const uint kMaxChannels = 8u;
 
 shared uint s_key[256];
-// Channel-major, matching the value and output buffers: the block reduction
-// walks one channel at a time with a stride-1 access across invocations, which
-// is bank-conflict-free for every channel count (a row-major `[256][8]` strides
-// by 8 and hits only 4 banks per warp).
+// Channel-major, like the value and output buffers: the merge walks one channel
+// at a time with a stride-1 access across invocations, so it is bank-conflict
+// free for any channel count.
 shared float s_val[8][256];
-// Per-round "some run's last element still needs to merge" flags, one slot per
-// merge round, so a round's flag never needs to be reset.
+// One exit flag per merge round.  A round's slot is never reused, so no round
+// needs to reset it.
 shared uint s_pending[8];
 
 void main() {
@@ -161,14 +124,10 @@ void main() {
     uint value_index = e;
 
     if (params.gather_pairs != 0u) {
-        // Level 0: the payload slot is the index of this element's values in the
-        // channel-major value buffer.  The key is always taken unchanged -- even
-        // for an element at or beyond the entry count, and even when its slot is
-        // dropped -- because rewriting it would break the ascending input order
-        // that run detection depends on.  Only the *value* read follows the entry
-        // count: the element index must be below it and the payload slot must be
-        // below it (which also keeps the slot inside the value buffer, as the
-        // count is clamped to the capacity).
+        // Pair path: the payload slot indexes this element's values.  The key is
+        // kept unchanged even when the element or its slot is past the entry
+        // count, because rewriting it would break the ascending order the run
+        // structure depends on; only the value read follows the count.
         if (in_range) {
             const uvec2 pair = pairs_in.v[e];
             elem_key = pair.x;
@@ -176,8 +135,8 @@ void main() {
             real = (e < entry_count.count) && (pair.y < entry_count.count);
         }
     } else if (in_range) {
-        // Deeper levels read the record region the previous level just wrote, so
-        // every element in range is valid and no count bound applies.
+        // Record path: the previous level wrote this array, so every element in
+        // range is valid and the entry count does not apply.
         elem_key = keys_in.v[e];
     }
 
@@ -189,28 +148,24 @@ void main() {
     if (tid < 8u) s_pending[tid] = 0u;
     barrier();
 
-    // Each invocation owns element tid.  The run's last element is the only
-    // writer, but every invocation takes part in every merge round below, so no
-    // invocation may leave before the last round.
+    // The run's last element is the only writer, but every invocation joins the
+    // merge rounds below, so none may leave before the last round.
     const bool is_run_last =
         (tid == 255u) || (s_key[tid] != s_key[tid + 1u]);
 
     // ---- Segmented pairwise doubling: ceil(log2(run length)) rounds ----
     //
-    // The loop leaves as soon as no run's last element still needs to merge.  An
-    // invocation is finished once its window was clamped at index 0 or stopped
-    // by a key mismatch, which is exactly "it did not merge into a window that
-    // reaches index 0": so only a run-last invocation whose merge succeeded in
-    // an unclamped window can still be incomplete.  The flag is read after a
-    // barrier, so the whole block leaves the loop together.
+    // A run-last invocation keeps the block in the loop only while it may still
+    // be incomplete: its window was unclamped (reaches past index 0) and its
+    // merge succeeded.  The flag is read after a barrier, so the block leaves
+    // together.
     for (uint r = 0u, d = 1u; d < 256u; d <<= 1u, ++r) {
-        // Index of the partner.  Clamped so the (predicated) load below can
-        // never form an out-of-range shared address.
+        // Clamped so the predicated load below cannot form an out-of-range
+        // shared address.
         const uint partner = (tid >= d) ? (tid - d) : tid;
         const bool merge = (tid >= d) && (s_key[tid] == s_key[partner]);
 
-        // Read the partner into registers: the add writes the slot each
-        // invocation reads, so all reads must precede all writes.
+        // Read the partner first: the add writes the slot every invocation reads.
         float partner_val[8];
         for (uint c = 0u; c < kMaxChannels; ++c) {
             partner_val[c] =
@@ -239,17 +194,15 @@ void main() {
 
     const uint key = s_key[tid];
 
-    // Classification relative to the block's real extent [0, real_count).  The
-    // run's last element is this invocation (that is what `is_run_last` means),
-    // and ascending keys make "the run reaches the block's first element"
-    // exactly "this element's key equals the block's first key" -- no search.
+    // The run's last element is this invocation.  Ascending keys make "the run
+    // reaches the block's first element" exactly `key == s_key[0]`.
     const bool touches_first = (key == s_key[0]);
     const bool touches_last  = (tid + 1u == real_count);
     const bool is_final_level = ((params.input_count + 255u) / 256u) == 1u;
     const bool valid_key = (key < params.max_key_value);
 
     if (is_final_level) {
-        // Single block spans every remaining record: every run is complete.
+        // One workgroup spans the level: every run is complete.
         if (valid_key) {
             for (uint c = 0u; c < params.num_channels; ++c) {
                 out_values.v[c * params.max_key_value + key] = s_val[c][tid];
@@ -261,7 +214,7 @@ void main() {
     const uint slot_base = 2u * wg;
 
     if (!touches_first && !touches_last) {
-        // Fully contained interior run -> finalise directly.
+        // The run lies inside the block: finalise it.
         if (valid_key) {
             for (uint c = 0u; c < params.num_channels; ++c) {
                 out_values.v[c * params.max_key_value + key] = s_val[c][tid];
@@ -270,9 +223,8 @@ void main() {
         return;
     }
 
-    // Boundary run -> emit a record to the next level's region.
+    // The run may continue next door: emit an in-block partial as a record.
     if (touches_first) {
-        // Record the in-block partial at slot 2*wg.
         rec_keys.v[slot_base] = key;
         for (uint c = 0u; c < params.num_channels; ++c) {
             rec_values.v[c * params.record_stride + slot_base] = s_val[c][tid];
@@ -280,8 +232,8 @@ void main() {
     }
     if (touches_last) {
         if (touches_first) {
-            // Whole block is one run: keep the chain contiguous but avoid
-            // double counting -> all-zero record of the same key at 2*wg+1.
+            // One run fills the block: a zero record keeps the chain dense
+            // without double counting.
             rec_keys.v[slot_base + 1u] = key;
             for (uint c = 0u; c < params.num_channels; ++c) {
                 rec_values.v[c * params.record_stride + slot_base + 1u] = 0.0f;
