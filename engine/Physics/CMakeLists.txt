@@ -16,10 +16,20 @@ target_link_libraries(EnginePhysics
 # --- Physics shader build pipeline ---
 # Scan engine/Physics/shader/ for GLSL sources and compile each to SPIR-V via
 # glslangValidator during the build phase.  Output mirrors the source-relative
-# path under ${PHYSICS_SPIRV_ROOT} (set in engine/CMakeLists.txt).
+# path under ${PHYSICS_SPIRV_ROOT}/<config> (set in engine/CMakeLists.txt).
+#
+# Each configuration gets its own subdirectory because the glslangValidator
+# arguments differ per configuration (Debug adds -gVS); sharing one directory
+# would let a Debug build overwrite the Release artefacts, or vice versa.
 if (NOT Vulkan_glslangValidator_FOUND)
     message(FATAL_ERROR "Physics shader pipeline requires glslangValidator but it was not found.")
 endif()
+
+# Single source of truth for the per-config subdirectory: used both for the
+# output path below and for the ENGINE_PHYSICS_SPIRV_DIR the runtime resolves
+# against (see engine/cmake_config.h.in), so build and loader cannot drift.
+# RelWithDebInfo/MinSizeRel compile without -gVS, hence share the release tree.
+set(PHYSICS_SPIRV_CONFIG_SUBDIR "$<IF:$<CONFIG:Debug>,debug,release>")
 
 file(GLOB_RECURSE PHYSICS_GLSL_SOURCES
     CONFIGURE_DEPENDS
@@ -37,7 +47,7 @@ foreach(SRC ${PHYSICS_GLSL_SOURCES})
         BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/shader"
         OUTPUT_VARIABLE REL
     )
-    set(OUT "${PHYSICS_SPIRV_ROOT}/${REL}.spv")
+    set(OUT "${PHYSICS_SPIRV_ROOT}/${PHYSICS_SPIRV_CONFIG_SUBDIR}/${REL}.spv")
     get_filename_component(OUT_DIR "${OUT}" DIRECTORY)
     add_custom_command(
         OUTPUT "${OUT}"
@@ -53,6 +63,12 @@ set_target_properties(physics_shader PROPERTIES
     ADDITIONAL_CLEAN_FILES "${PHYSICS_SPIRV_OUTPUTS}"
 )
 add_dependencies(EnginePhysics physics_shader)
+
+# The C++ side loads SPIR-V through ENGINE_PHYSICS_SPIRV_DIR; feed it the same
+# per-config subdirectory the artefacts above are written to.
+target_compile_definitions(EnginePhysics PRIVATE
+    ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR="${PHYSICS_SPIRV_CONFIG_SUBDIR}"
+)
 
 # --- Reflection: per-DLL registration for Physics types ---
 file(GLOB_RECURSE PHYSICS_HEADERS "./*.h")
