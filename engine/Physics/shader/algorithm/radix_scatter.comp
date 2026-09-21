@@ -1,55 +1,151 @@
 #version 450 core
 
-// Radix sort scatter pass.
+// radix_scatter.comp — Stable scatter for the 8-bit LSD radix pass.
 //
-// Each thread reads one uvec2 pair from the unsorted input, extracts the 8-bit
-// digit, and atomically claims a write position from the prefix-summed histogram.
-// The histogram serves as both the base offset and the atomic counter — after
-// the scatter it is corrupted (contains end positions) and must be re-cleared
-// before the next radix pass.
+// Each invocation moves one element from the pass's input key array to its
+// destination slot in the pass's output key array, carrying the payload with it.
+// The destination is
 //
-// Dispatch: ceil(elem_capacity / 64), 1, 1
-//   elem_capacity is the buffer size (max_pairs), used only to size the dispatch.
-//   The actual pair count is read from the PairCount buffer at execution time.
-//   Threads with idx >= pair_count.count return immediately.
+//     pos = scanned[digit * num_blocks + block]
+//         + warp_offset(digit, block, warp)
+//         + rank_in_warp(digit, warp, lane)
+//
+//   - `scanned[d * num_blocks + b]` is the exclusive scan of the *transposed*
+//     per-block histogram (see radix_block_histogram.comp): the global base
+//     offset of digit `d` plus the number of `d`s in all earlier blocks.
+//   - `warp_offset` is the number of elements with the same digit in earlier
+//     warps of the same block.
+//   - `rank_in_warp` is the number of earlier lanes of the same warp with the
+//     same digit.
+//
+// Neither the warp offset nor the rank is derived from an atomic: they are
+// computed deterministically in shared memory from a snapshot of the block's
+// digits (a per-warp count table, whose *counts* are order-independent and may
+// therefore be built with shared atomics, plus a bounded comparison loop over
+// the snapshot).  No element's position depends on the order the memory system
+// happens to service concurrent operations, so the pass is **stable**: elements
+// with equal digits keep their relative input order.  LSD radix sort is only
+// correct when every pass is stable.
+//
+// Dispatch: num_blocks workgroups of 256 invocations, where
+//   num_blocks = ceil(elem_capacity / 256)
+// and the workgroup count comes from the capacity, never from the GPU-side count.
+//
+// The whole body is predicated on the element index; there is deliberately no
+// early `return`, because the shader contains `barrier()` calls.  An inactive
+// invocation contributes the sentinel digit to the shared snapshot so the rank
+// loop and the per-warp counts agree on which invocations are active, claims no
+// rank and writes nothing.
 
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(set = 0, binding = 0) readonly buffer PairsIn {
-    uvec2 v[];
-} pairs_in;
+#define BLOCK_SIZE 256u
+#define NUM_BINS   256u
+#define WARP_SIZE  32u
+#define NUM_WARPS  (BLOCK_SIZE / WARP_SIZE)
 
-layout(set = 0, binding = 1) writeonly buffer PairsOut {
-    uvec2 v[];
-} pairs_out;
+// Pass input (read-only) and output (write-only): the caller's two ping-pong key
+// arrays.  `keys_out` is the array this pass fills; the next pass reads it.
+layout(set = 0, binding = 0) readonly buffer KeysIn {
+    uint v[];
+} keys_in;
 
-layout(set = 0, binding = 2) buffer Histogram {
-    uint v[256];
+layout(set = 0, binding = 1) writeonly buffer KeysOut {
+    uint v[];
+} keys_out;
+
+// Optional payload array, permuted together with its key.  When the caller has
+// no payload the binding is satisfied with a placeholder and `has_payload` is 0,
+// so neither binding is ever dereferenced.
+layout(set = 0, binding = 2) readonly buffer PayloadIn {
+    uint v[];
+} payload_in;
+
+layout(set = 0, binding = 3) writeonly buffer PayloadOut {
+    uint v[];
+} payload_out;
+
+// The transposed histogram region of the caller's scratch buffer, already
+// exclusively scanned in place.
+layout(set = 0, binding = 4) readonly buffer Histogram {
+    uint v[];
 } histogram;
+
+// Actual element count, written by an upstream pass in the same frame and read
+// at execution time — never a host constant.
+layout(set = 0, binding = 5) readonly buffer ElemCount {
+    uint count;
+} elem_count;
 
 // ---- Per-dispatch constants (push constant, recorded by the caller) ----
 
-layout(push_constant) uniform RadixParamsPush {
-    uint byte_shift;   // 0, 8, 16, or 24
-    uint word_select;  // 0 = pair.y (secondary), 1 = pair.x (primary)
+layout(push_constant) uniform RadixScatterPush {
+    uint byte_shift;   // 0, 8, 16 or 24
+    uint num_blocks;   // = ceil(elem_capacity / 256), the transposed array's stride
+    uint has_payload;  // 1 = permute the payload array, 0 = keys-only sort
 } params;
 
-// Actual pair count, written by the pair-generation passes earlier in the frame.
-// Read at GPU execution time — NOT a CPU constant baked at RG build time.
-layout(set = 0, binding = 3) readonly buffer PairCount {
-    uint count;
-} pair_count;
+// Digit that no real element can produce (digits are 8 bits).  Inactive
+// invocations publish it so they can never be mistaken for a real element.
+const uint kInvalidDigit = 0xFFFFFFFFu;
+
+// The block's digits, snapshotted per invocation index.  The rank loop reads it.
+shared uint s_digit[BLOCK_SIZE];
+
+// Per-warp digit counts, flat: count of digit `d` in warp `w` is
+// `s_warp_count[w * NUM_BINS + d]`.  Only *counts* come from atomics; every rank
+// below is a deterministic read of this table.
+shared uint s_warp_count[NUM_WARPS * NUM_BINS];
 
 void main() {
-    uint idx = gl_GlobalInvocationID.x;
+    const uint block = gl_WorkGroupID.x;
+    const uint tid = gl_LocalInvocationID.x;
+    const uint warp = tid / WARP_SIZE;
+    const uint lane = tid % WARP_SIZE;
+    const uint idx = block * BLOCK_SIZE + tid;
 
-    // Skip threads beyond the actual number of pairs.
-    if (idx >= pair_count.count) return;
+    // Predicated load: an inactive invocation keeps the sentinel digit.
+    const bool is_active = (idx < elem_count.count);
+    uint digit = kInvalidDigit;
+    if (is_active) {
+        const uint key = keys_in.v[idx];
+        digit = (key >> params.byte_shift) & 0xFFu;
+    }
+    s_digit[tid] = digit;
 
-    uvec2 pair = pairs_in.v[idx];
-    uint key = (params.word_select == 0u) ? pair.y : pair.x;
-    uint digit = (key >> params.byte_shift) & 0xFFu;
+    // Zero the per-warp table: NUM_WARPS cells per invocation.
+    for (uint w = 0u; w < NUM_WARPS; ++w) {
+        s_warp_count[w * NUM_BINS + tid] = 0u;
+    }
+    barrier();
 
-    uint pos = atomicAdd(histogram.v[digit], 1u);
-    pairs_out.v[pos] = pair;
+    // Counts are order-independent, so a shared atomic may build them; no rank
+    // is ever taken from its return value.
+    if (is_active) {
+        atomicAdd(s_warp_count[warp * NUM_BINS + digit], 1u);
+    }
+    barrier();
+
+    // Elements of the same digit in earlier warps of this block.
+    uint warp_offset = 0u;
+    for (uint w = 0u; w < warp; ++w) {
+        warp_offset += s_warp_count[w * NUM_BINS + digit];
+    }
+
+    // Elements of the same digit in earlier lanes of this warp.  Bounded by the
+    // warp width, and never a subgroup operation.
+    uint rank_in_warp = 0u;
+    const uint lane_base = warp * WARP_SIZE;
+    for (uint l = 0u; l < lane; ++l) {
+        rank_in_warp += (s_digit[lane_base + l] == digit) ? 1u : 0u;
+    }
+
+    if (is_active) {
+        const uint key = keys_in.v[idx];
+        const uint pos = histogram.v[digit * params.num_blocks + block] + warp_offset + rank_in_warp;
+        keys_out.v[pos] = key;
+        if (params.has_payload != 0u) {
+            payload_out.v[pos] = payload_in.v[idx];
+        }
+    }
 }

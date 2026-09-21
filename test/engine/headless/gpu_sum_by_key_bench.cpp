@@ -58,7 +58,8 @@ namespace {
     }
 
     struct BenchCtx {
-        std::unique_ptr<ComputeBuffer> pairs;
+        std::unique_ptr<ComputeBuffer> keys;
+        std::unique_ptr<ComputeBuffer> payloads;
         std::unique_ptr<ComputeBuffer> values;
         std::unique_ptr<ComputeBuffer> records;
         std::unique_ptr<ComputeBuffer> out;
@@ -66,10 +67,9 @@ namespace {
         uint32_t capacity = 0u;
         uint32_t max_key_value = 0u;
 
-        void SetPair(uint32_t i, uint32_t key, uint32_t slot) const {
-            auto *p = reinterpret_cast<uint32_t *>(pairs->GetVMAddress());
-            p[2u * i] = key;
-            p[2u * i + 1u] = slot;
+        void SetEntry(uint32_t i, uint32_t key, uint32_t payload) const {
+            reinterpret_cast<uint32_t *>(keys->GetVMAddress())[i] = key;
+            reinterpret_cast<uint32_t *>(payloads->GetVMAddress())[i] = payload;
         }
 
         void SetValue(uint32_t channel, uint32_t slot, float value) const {
@@ -78,7 +78,8 @@ namespace {
         }
 
         void Flush() const {
-            pairs->Flush();
+            keys->Flush();
+            payloads->Flush();
             values->Flush();
             records->Flush();
             out->Flush();
@@ -90,7 +91,8 @@ namespace {
         BenchCtx ctx{};
         ctx.capacity = capacity;
         ctx.max_key_value = max_key_value;
-        ctx.pairs = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * 2u * sizeof(uint32_t), "Bench pairs");
+        ctx.keys = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * sizeof(uint32_t), "Bench keys");
+        ctx.payloads = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * sizeof(uint32_t), "Bench payloads");
         ctx.values = MakeHostBuffer(rsys, static_cast<size_t>(kChannels) * capacity * sizeof(uint32_t), "Bench values");
         size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(capacity, kChannels);
         if (rec_bytes == 0u) rec_bytes = 1u;
@@ -100,7 +102,8 @@ namespace {
         );
         ctx.count = MakeHostBuffer(rsys, sizeof(uint32_t), "Bench count");
 
-        std::memset(ctx.pairs->GetVMAddress(), 0, ctx.pairs->GetSize());
+        std::memset(ctx.keys->GetVMAddress(), 0, ctx.keys->GetSize());
+        std::memset(ctx.payloads->GetVMAddress(), 0, ctx.payloads->GetSize());
         std::memset(ctx.values->GetVMAddress(), 0, ctx.values->GetSize());
         std::memset(ctx.out->GetVMAddress(), 0, ctx.out->GetSize());
         std::memset(ctx.records->GetVMAddress(), 0, ctx.records->GetSize());
@@ -151,7 +154,7 @@ namespace {
         uint32_t pos = 0u;
         for (uint32_t key = 0u; key < runs.size(); ++key) {
             for (uint32_t t = 0u; t < runs[key]; ++t, ++pos) {
-                ctx.SetPair(pos, key, pos);
+                ctx.SetEntry(pos, key, pos);
                 for (uint32_t c = 0u; c < kChannels; ++c) {
                     ctx.SetValue(c, pos, 1.0f);
                 }
@@ -184,7 +187,8 @@ namespace {
             }
             reducer.Record(
                 cb,
-                *ctx.pairs,
+                *ctx.keys,
+                *ctx.payloads,
                 *ctx.values,
                 *ctx.records,
                 *ctx.out,

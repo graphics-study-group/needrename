@@ -9,11 +9,21 @@
 //
 // CONTRACT: every slot in [0, capacity) is written on every dispatch, and this
 // shader never returns before writing.  A slot's key encodes *ownership* only:
-// the index of the body the slot belongs to, or `kInvalidKey` when the contact
-// does not exist this substep or an owner index is out of range.  No body state
-// (alive / kinematic / mass) is read — whether a body actually receives a
+// the index of the body the slot belongs to, or `body_count` when the contact
+// does not exist this substep or an owner index is out of range.  `body_count`
+// is larger than every real key, so unowned slots sort after every owned one —
+// the substep's entry count stays a prefix of the sorted order — and SumByKey
+// drops them, because the solver passes `body_count` as its `max_key_value` and
+// `key >= max_key_value` is never written out.  No body state (alive /
+// kinematic / mass) is read here — whether a body actually receives a
 // contribution is decided by accumulate_contact_position.comp, and an unwritten
 // slot stays inert because the value buffer is cleared before every iteration.
+//
+// CONTRACT: the payload array carries each slot's own id, and it must be written
+// on **every** dispatch, not only when the entry list changes.  The radix sort
+// permutes the payload array in place, so a substep that skipped rewriting it
+// would gather values for the previous substep's permutation.  That is the one
+// mistake in this adaptation that would fail silently.
 //
 // This pass also *publishes the substep's entry count* — the number of leading
 // slots that can carry an owner — because the collision count it reads is
@@ -23,7 +33,7 @@
 // ever included.  The radix sort and the segmented reduction both read it at
 // execution time; being a prefix of the sorted key order, everything at or
 // beyond it sorts after every entry that can contribute (the unowned slots carry
-// `kInvalidKey`, which is the largest key).
+// `body_count`, which is the largest key).
 //
 // Channel/slot conventions: common/xpbd_entry_layout.glsl.
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
@@ -38,11 +48,12 @@ layout(set = 0, binding = 2) readonly buffer ShapeBoundRigidBody { uint v[]; } s
 // ---- Body count bound (only `.length()` is used) ----
 layout(set = 0, binding = 3) readonly buffer RigidBodyAlive { uint v[]; } rigid_body_alive;
 
-// ---- Output: sorted entry list (key, slot) ----
-layout(set = 0, binding = 4) buffer EntryPairs { uvec2 v[]; } entry_pairs;
+// ---- Output: the entry key array and its payload (slot id) array ----
+layout(set = 0, binding = 4) buffer EntryKeys    { uint v[]; } entry_keys;
+layout(set = 0, binding = 5) buffer EntryPayload { uint v[]; } entry_payload;
 
 // ---- Output: the substep's entry count, read by the sort and the reduction ----
-layout(set = 0, binding = 5) buffer EntryCount { uint count; } entry_count;
+layout(set = 0, binding = 6) buffer EntryCount { uint count; } entry_count;
 
 // ---- Per-dispatch constants (push constant, recorded by the solver) ----
 layout(push_constant) uniform CapacityPush {
@@ -65,8 +76,11 @@ void main() {
     // past the end of the entry list.  Threads past the capacity own no slots.
     if (slot_b >= params.entry_capacity) return;
 
-    uint key_a = kInvalidKey;
-    uint key_b = kInvalidKey;
+    // The invalid-slot key is the body count: the largest key this substep can
+    // produce, and the value SumByKey is told to drop.
+    const uint body_count = rigid_body_alive.v.length();
+    uint key_a = body_count;
+    uint key_b = body_count;
 
     if (cidx < collision_count.count) {
         uvec2 pair = collision_ids.v[cidx];
@@ -77,12 +91,16 @@ void main() {
         } else {
             uint body_a = shape_bound_rigid_body.v[shape_a];
             uint body_b = shape_bound_rigid_body.v[shape_b];
-            uint body_count = rigid_body_alive.v.length();
             if (body_a < body_count) key_a = body_a;
             if (body_b < body_count) key_b = body_b;
         }
     }
 
-    entry_pairs.v[slot_a] = uvec2(key_a, slot_a);
-    entry_pairs.v[slot_b] = uvec2(key_b, slot_b);
+    entry_keys.v[slot_a] = key_a;
+    entry_keys.v[slot_b] = key_b;
+    // The payload is the slot's own id: SumByKey's level-0 gather reads this
+    // entry's values from exactly this slot of the channel-major value buffer.
+    // Rewritten every dispatch because the sort permutes it in place.
+    entry_payload.v[slot_a] = slot_a;
+    entry_payload.v[slot_b] = slot_b;
 }

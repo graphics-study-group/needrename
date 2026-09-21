@@ -3,3 +3,10 @@ anro_add_test(physics_app_offscreen_test LINK "Engine;PhysicsApp" FOLDER tests/a
 anro_add_test(physics_app_windowed_test WINDOWED FRAMES 120 TIMEOUT 300 LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_actuator_unit_test LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_actuator_stand_test WINDOWED FRAMES 600 TIMEOUT 300 LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
+
+# Long-run stability probe for the XPBD GPU solver: the 6-layer brick pyramid must
+# survive a 60-step headless run without any body's velocity jumping by orders of
+# magnitude.  It is the guard the radix sort's stability contract exists for — the
+# pre-change (unstable) sort blows the scene up within a few steps.
+anro_add_test(physics_app_stability_test ARGS 60 6 3.0 TIMEOUT 300
+    LINK "Engine;PhysicsApp" FOLDER tests/app/physics)

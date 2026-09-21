@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_GPU_ALGORITHM_PARALLELSCAN_INCLUDED
 #define ENGINE_PHYSICS_GPU_ALGORITHM_PARALLELSCAN_INCLUDED
 
+#include "../physics_export.h"
+
 #include <cstdint>
 #include <memory>
 
@@ -52,7 +54,7 @@ namespace Engine {
      *   - Input / output data buffers
      *   - Block-sums scratch buffer (sized via GetRequiredBlockSumsBytes)
      */
-    class ParallelScan {
+    class PHYSICS_API ParallelScan {
     public:
         /**
          * @brief Construct the parallel scan executor.
@@ -102,15 +104,27 @@ namespace Engine {
          *                         Must be at least GetRequiredBlockSumsBytes(max_elem_count)
          *                         bytes in size.
          * @param elem_count       Number of uint elements to scan.
+         * @param block_sums_byte_offset
+         *                         Byte offset of the block-sums region inside
+         *                         @p block_sums_buf.  A caller that partitions one
+         *                         buffer into a data region followed by a
+         *                         block-sums region passes the data region's size
+         *                         here; the scan then binds its data views at
+         *                         offset 0 and its block-sums view at this offset,
+         *                         and the whole recursion stays inside that
+         *                         partition.  Defaults to 0 (a dedicated buffer).
          *
          * @pre elem_count > 0 && elem_count <= max_elem_count
+         * @pre block_sums_byte_offset is a multiple of the device's storage
+         *      buffer offset alignment
          */
         void Record(
             vk::CommandBuffer cb,
             Rhi::ComputeBuffer &input_buf,
             Rhi::ComputeBuffer &output_buf,
             Rhi::ComputeBuffer &block_sums_buf,
-            uint32_t elem_count
+            uint32_t elem_count,
+            size_t block_sums_byte_offset = 0u
         );
 
         bool IsInitialized() const noexcept;

@@ -29,15 +29,15 @@ namespace Engine {
      * unordered, floating-point rounding may vary).
      *
      * It is a *recursive block-level segmented reduction*:
-     *   - Level 0 reads the call's `capacity` `(key, slot)` pairs from the
-     *     caller's sorted pair array and gathers each element's values from the
-     *     packed value buffer at the slot that pair carries (`value(c) =
-     *     values[c * capacity + slot]`).  The caller therefore needs neither a
-     *     separate key array nor a permutation map: the payload its sort
-     *     carried along *is* the value index.  An entry whose slot is outside
-     *     `[0, capacity)` contributes zero and is never read from the value
-     *     buffer; its key is left unchanged, since rewriting it would break the
-     *     ascending-order requirement and could split a real key's run.
+     *   - Level 0 reads the call's `capacity` keys from the caller's sorted key
+     *     array and gathers each element's values from the packed value buffer at
+     *     the payload index its payload array carries (`value(c) =
+     *     values[c * capacity + payload[e]]`).  The caller therefore needs no
+     *     separate key array: the payload its sort carried along *is* the value
+     *     index.  An entry whose payload index is outside `[0, capacity)`
+     *     contributes zero and is never read from the value buffer; its key is
+     *     left unchanged, since rewriting it would break the ascending-order
+     *     requirement and could split a real key's run.
      *   - Each workgroup reduces one 256-record block in shared memory (with
      *     integer-free same-key doubling and DEAD marking), writing the sums of
      *     segments fully contained in the block directly to the output and
@@ -80,9 +80,6 @@ namespace Engine {
     public:
         static constexpr uint32_t kBlockSize = 256u;
         static constexpr uint32_t kMaxChannels = 8u;
-        /// Keys greater than or equal to `max_key_value` (incl. the INVALID
-        /// sentinel) are ignored and never write to the output.
-        static constexpr uint32_t kInvalidKey = 0xFFFFFu;
 
         /**
          * @brief Construct a SumByKey reducer.
@@ -128,12 +125,13 @@ namespace Engine {
         /**
          * @brief Record the full recursive reduction to the command buffer.
          *
-         * Reduces the sorted `(key, slot)` pairs in @p pairs_in_buf, gathering
-         * their values from @p values_in_buf, and writes per-key sums to
-         * @p out_values_buf (channel-major, stride @p max_key_value).  Exactly
-         * `GetNumLevels(capacity)` compute dispatches are recorded, with a full
-         * compute barrier between consecutive levels; the caller is responsible
-         * for the outer barriers around the whole `Record`.
+         * Reduces the sorted key array @p keys_in_buf — gathering each entry's
+         * values from @p values_in_buf at the slot its payload index names — and
+         * writes per-key sums to @p out_values_buf (channel-major, stride
+         * @p max_key_value).  Exactly `GetNumLevels(capacity)` compute dispatches
+         * are recorded, with a full compute barrier between consecutive levels;
+         * the caller is responsible for the outer barriers around the whole
+         * `Record`.
          *
          * Level 0 always dispatches `ceil(capacity / 256)` workgroups and each
          * level reads its input as an array of `capacity` / `R_i` elements, so
@@ -143,10 +141,10 @@ namespace Engine {
          * All level parameters (region offsets, element counts, workgroup
          * counts, channel stride, channel count, key bound, gather mode) are
          * passed as push constants.  Bindings:
-         *   - `PairsIn`   — caller's sorted `(key, slot)` pairs
-         *     (`capacity` uvec2); read at level 0 only, bound at every level.
-         *   - `KeysIn`    — record keys (`capacity` uints at level 0, where it
-         *     is not read; the region's keys at level >= 1).
+         *   - `KeysIn`    — the caller's sorted key array (`capacity` uints) at
+         *     level 0; the record region's keys at level >= 1.
+         *   - `PayloadIn` — the caller's payload-index array (`capacity` uints),
+         *     read at level 0 only, bound at every level.
          *   - `ValuesIn`  — caller's packed values at level 0 (channel-major,
          *     stride `capacity`); the record region's values at level >= 1.
          *   - `RecKeys` / `RecValues` — the record buffer (level >= 1 input,
@@ -156,10 +154,12 @@ namespace Engine {
          *     level and read only at level 0.
          *
          * @param cb               Command buffer in recording state.
-         * @param pairs_in_buf     Sorted `(key, slot)` pair array
-         *                         (`capacity` uvec2, i.e. `2 * capacity` uints).
+         * @param keys_in_buf      Sorted key array (`capacity` uints).
+         * @param payload_in_buf   Payload-index array (`capacity` uints); entry
+         *                         `e`'s values are gathered from
+         *                         `payload_in_buf[e]`.
          * @param values_in_buf    Packed value buffer (channel-major, indexed by
-         *                         the pair's slot).
+         *                         the payload index).
          * @param records_buf      Record buffer, >= GetRequiredRecordsBytes.
          * @param out_values_buf   Output value buffer (channel-major, stride
          *                         @p max_key_value), `num_channels *
@@ -171,7 +171,9 @@ namespace Engine {
          *                         in `[1, kMaxChannels]`.
          * @param max_key_value    Number of output key slots (keys in
          *                         `[0, max_key_value)` are writable); must be
-         *                         greater than zero.
+         *                         greater than zero.  Keys at or above it — the
+         *                         caller's invalid-slot sentinel among them — are
+         *                         never written to the output.
          *
          * @throws std::invalid_argument if `num_channels` is outside
          *         `[1, kMaxChannels]`, or `capacity` / `max_key_value` is zero.
@@ -180,7 +182,8 @@ namespace Engine {
          */
         void Record(
             vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &pairs_in_buf,
+            Rhi::ComputeBuffer &keys_in_buf,
+            Rhi::ComputeBuffer &payload_in_buf,
             Rhi::ComputeBuffer &values_in_buf,
             Rhi::ComputeBuffer &records_buf,
             Rhi::ComputeBuffer &out_values_buf,

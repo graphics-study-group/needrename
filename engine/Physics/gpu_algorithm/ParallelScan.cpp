@@ -106,12 +106,14 @@ namespace Engine {
             Rhi::ComputeBuffer &data_output_buf,
             Rhi::ComputeBuffer &block_sums_buf,
             const ScanParamsPush &params,
-            uint32_t num_workgroups
+            uint32_t num_workgroups,
+            size_t data_binding_offset,
+            size_t block_sums_binding_offset
         ) {
             auto &srb = scan_binding->GetShaderResourceBinding();
-            srb.BindBuffer("InputData", data_input_buf);
-            srb.BindBuffer("OutputData", data_output_buf);
-            srb.BindBuffer("BlockSums", block_sums_buf);
+            srb.BindBuffer("InputData", data_input_buf, data_binding_offset);
+            srb.BindBuffer("OutputData", data_output_buf, data_binding_offset);
+            srb.BindBuffer("BlockSums", block_sums_buf, block_sums_binding_offset);
 
             Rhi::PushConstants(cb, *scan_stage, params);
             Rhi::BindComputeStage(cb, *scan_stage);
@@ -125,12 +127,14 @@ namespace Engine {
             Rhi::ComputeBuffer &data_output_buf,
             Rhi::ComputeBuffer &block_sums_buf,
             const ScanParamsPush &params,
-            uint32_t num_workgroups
+            uint32_t num_workgroups,
+            size_t data_binding_offset,
+            size_t block_sums_binding_offset
         ) {
             auto &srb = offset_binding->GetShaderResourceBinding();
-            srb.BindBuffer("InputData", data_input_buf);
-            srb.BindBuffer("OutputData", data_output_buf);
-            srb.BindBuffer("BlockSums", block_sums_buf);
+            srb.BindBuffer("InputData", data_input_buf, data_binding_offset);
+            srb.BindBuffer("OutputData", data_output_buf, data_binding_offset);
+            srb.BindBuffer("BlockSums", block_sums_buf, block_sums_binding_offset);
 
             Rhi::PushConstants(cb, *offset_stage, params);
             Rhi::BindComputeStage(cb, *offset_stage);
@@ -145,14 +149,25 @@ namespace Engine {
             Rhi::ComputeBuffer &block_sums_buf,
             uint32_t elem_count,
             uint32_t data_offset,
-            uint32_t block_offset
+            uint32_t block_offset,
+            size_t data_binding_offset,
+            size_t block_sums_binding_offset
         ) {
             assert(elem_count > 0u);
             assert(elem_count <= max_elem_count);
 
             if (elem_count <= kMaxSingleLevel) {
                 const ScanParamsPush params{0u, data_offset, elem_count, block_offset};
-                RecordScanPass(cb, data_input_buf, data_output_buf, block_sums_buf, params, 1u);
+                RecordScanPass(
+                    cb,
+                    data_input_buf,
+                    data_output_buf,
+                    block_sums_buf,
+                    params,
+                    1u,
+                    data_binding_offset,
+                    block_sums_binding_offset
+                );
                 return;
             }
 
@@ -161,15 +176,37 @@ namespace Engine {
             // --- Pass 1: scan blocks, write per-block sums ---
             {
                 const ScanParamsPush params{1u, data_offset, elem_count, block_offset};
-                RecordScanPass(cb, data_input_buf, data_output_buf, block_sums_buf, params, num_blocks);
+                RecordScanPass(
+                    cb,
+                    data_input_buf,
+                    data_output_buf,
+                    block_sums_buf,
+                    params,
+                    num_blocks,
+                    data_binding_offset,
+                    block_sums_binding_offset
+                );
             }
 
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
             // --- Pass 2: recursively scan the block sums ---
+            // The recursion reads and writes the block-sums region, so its data
+            // views are bound at the block-sums offset: every push-constant offset
+            // then stays relative to that region, exactly as it is for a caller
+            // that passes a dedicated block-sums buffer.
             if (num_blocks <= kMaxSingleLevel) {
                 const ScanParamsPush params{0u, block_offset, num_blocks, 0u};
-                RecordScanPass(cb, block_sums_buf, block_sums_buf, block_sums_buf, params, 1u);
+                RecordScanPass(
+                    cb,
+                    block_sums_buf,
+                    block_sums_buf,
+                    block_sums_buf,
+                    params,
+                    1u,
+                    block_sums_binding_offset,
+                    block_sums_binding_offset
+                );
             } else {
                 RecordScanInternal(
                     cb,
@@ -178,7 +215,9 @@ namespace Engine {
                     block_sums_buf,
                     num_blocks,
                     block_offset,
-                    block_offset + num_blocks
+                    block_offset + num_blocks,
+                    block_sums_binding_offset,
+                    block_sums_binding_offset
                 );
             }
 
@@ -187,7 +226,16 @@ namespace Engine {
             // --- Pass 3: add prefix-summed block offsets back to data ---
             {
                 const ScanParamsPush params{2u, data_offset, elem_count, block_offset};
-                RecordOffsetPass(cb, data_output_buf, data_output_buf, block_sums_buf, params, num_blocks);
+                RecordOffsetPass(
+                    cb,
+                    data_output_buf,
+                    data_output_buf,
+                    block_sums_buf,
+                    params,
+                    num_blocks,
+                    data_binding_offset,
+                    block_sums_binding_offset
+                );
             }
         }
     };
@@ -223,7 +271,8 @@ namespace Engine {
         Rhi::ComputeBuffer &input_buf,
         Rhi::ComputeBuffer &output_buf,
         Rhi::ComputeBuffer &block_sums_buf,
-        uint32_t elem_count
+        uint32_t elem_count,
+        size_t block_sums_byte_offset
     ) {
         if (elem_count == 0u) {
             return;
@@ -237,6 +286,8 @@ namespace Engine {
 
         m_impl->EnsureInitialized();
 
-        m_impl->RecordScanInternal(cb, input_buf, output_buf, block_sums_buf, elem_count, 0u, 0u);
+        m_impl->RecordScanInternal(
+            cb, input_buf, output_buf, block_sums_buf, elem_count, 0u, 0u, 0u, block_sums_byte_offset
+        );
     }
 } // namespace Engine

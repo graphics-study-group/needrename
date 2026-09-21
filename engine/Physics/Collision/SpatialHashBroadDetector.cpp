@@ -59,6 +59,20 @@ namespace Engine {
     };
     static_assert(sizeof(GridPushParams) == 36, "GridPushParams must match shader push block");
 
+    // Push-constant layout, matching generate_broad_pairs.comp's GridPush block:
+    // the cell bound plus the shape count the pairs are packed with.
+    struct BroadPairsPush {
+        uint32_t total_cells;
+        uint32_t shape_count;
+    };
+    static_assert(sizeof(BroadPairsPush) == 8, "BroadPairsPush must match shader push block");
+
+    // The packed-key bound: `shape_count * (shape_count - 1)` already wraps in
+    // 32-bit arithmetic above this, in this file and in generate_broad_pairs.comp,
+    // so the packing would silently produce a wrong key order for a larger scene.
+    // The limit is asserted at Configure time rather than discovered later.
+    constexpr uint32_t kMaxPackableShapeCount = 65536u;
+
     struct SpatialHashBroadDetector::Impl {
         Rhi::DeviceContext &device_context;
         GridConfig grid_config{};
@@ -84,6 +98,7 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeStage> generate_pairs_stage{};
         std::unique_ptr<Rhi::ComputeStage> fallback_pairs_stage{};
         std::unique_ptr<Rhi::ComputeStage> global_pairs_stage{};
+        std::unique_ptr<Rhi::ComputeStage> unpack_pairs_stage{};
         std::unique_ptr<Rhi::ComputeStage> memset_stage{};
         std::unique_ptr<Rhi::ComputeStage> copy_stage{};
 
@@ -96,6 +111,7 @@ namespace Engine {
         Rhi::ComputeResourceBinding *generate_pairs_binding = nullptr;
         Rhi::ComputeResourceBinding *fallback_pairs_binding = nullptr;
         Rhi::ComputeResourceBinding *global_pairs_binding = nullptr;
+        Rhi::ComputeResourceBinding *unpack_pairs_binding = nullptr;
         Rhi::ComputeResourceBinding *memset_binding = nullptr;
         Rhi::ComputeResourceBinding *copy_binding = nullptr;
 
@@ -113,6 +129,9 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_global_flags{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_global_list{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_global_count{};
+        // The dedup's key array (the pair generators' output, sorted and compacted
+        // in place) and the detector's canonical `uvec2` pair output.
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_pair_keys{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_pairs{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_pair_count{};
 
@@ -179,6 +198,11 @@ namespace Engine {
             EnsureBuffer(gpu_cell_scratch, cell_uint1, "BH CellScratch");
 
             EnsureBuffer(
+                gpu_pair_keys,
+                static_cast<size_t>(max_output_pair_count) * sizeof(uint32_t),
+                "BH PairKeys"
+            );
+            EnsureBuffer(
                 gpu_collision_pairs,
                 static_cast<size_t>(max_output_pair_count) * sizeof(glm::uvec2),
                 "BH Output CollisionPairs"
@@ -200,10 +224,15 @@ namespace Engine {
             }
 
             {
-                const size_t temp_bytes = static_cast<size_t>(max_output_pair_count) * sizeof(glm::uvec2);
+                // One temp key array of the sort's ping-pong pair; the sorted array
+                // is the dedup's key record, so `gpu_collision_pairs` is no longer
+                // the sort's input.
+                const size_t temp_bytes = RadixSort::GetRequiredTempBytes(max_output_pair_count);
                 EnsureBuffer(gpu_pairs_temp, temp_bytes, "BH PairsTemp");
             }
-            EnsureBuffer(gpu_radix_scratch, RadixSort::GetRequiredScratchBytes(), "BH RadixScratch");
+            EnsureBuffer(
+                gpu_radix_scratch, RadixSort::GetRequiredScratchBytes(max_output_pair_count), "BH RadixScratch"
+            );
             {
                 const size_t flags_bytes = CompactUnique::GetRequiredFlagBytes(max_output_pair_count);
                 EnsureBuffer(gpu_unique_flags, flags_bytes, "BH UniqueFlags");
@@ -260,6 +289,10 @@ namespace Engine {
             global_pairs_stage =
                 load_stage("collision/SpatialHashBroadDetector/generate_global_pairs.comp.spv", "BH GlobalPairs");
             global_pairs_binding = &global_pairs_stage->AllocateResourceBinding();
+
+            unpack_pairs_stage =
+                load_stage("collision/SpatialHashBroadDetector/unpack_pairs.comp.spv", "BH UnpackPairs");
+            unpack_pairs_binding = &unpack_pairs_stage->AllocateResourceBinding();
 
             memset_stage = load_stage("collision/SpatialHashBroadDetector/memset_uint.comp.spv", "BH Memset");
             memset_binding = &memset_stage->AllocateResourceBinding();
@@ -453,7 +486,7 @@ namespace Engine {
                 srb.BindBuffer("CellOffsets", *gpu_cell_histogram);
                 srb.BindBuffer("GlobalFlags", *gpu_global_flags);
                 srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
-                srb.BindBuffer("CollisionPairs", *gpu_collision_pairs);
+                srb.BindBuffer("CollisionKeys", *gpu_pair_keys);
                 srb.BindBuffer("PairCount", *gpu_pair_count);
                 srb.BindBuffer("TotalAssignments", *gpu_total_assignments);
                 srb.BindBuffer("ShapeFilterData", *gpu.shape_filter_data);
@@ -461,7 +494,7 @@ namespace Engine {
                 srb.BindBuffer("AabbMax", *gpu_aabb_max);
 
                 uint32_t wg = (grid_total_cells + 63u) / 64u;
-                Rhi::PushConstants(cb, *generate_pairs_stage, grid_total_cells);
+                Rhi::PushConstants(cb, *generate_pairs_stage, BroadPairsPush{grid_total_cells, shape_count});
                 Rhi::BindComputeStage(cb, *generate_pairs_stage);
                 Rhi::BindComputeResource(cb, *generate_pairs_stage, *generate_pairs_binding);
                 Rhi::DispatchCompute(cb, wg, 1, 1);
@@ -475,7 +508,7 @@ namespace Engine {
                 srb.BindBuffer("GlobalCount", *gpu_global_count);
                 srb.BindBuffer("GlobalFlags", *gpu_global_flags);
                 srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
-                srb.BindBuffer("CollisionPairs", *gpu_collision_pairs);
+                srb.BindBuffer("CollisionKeys", *gpu_pair_keys);
                 srb.BindBuffer("PairCount", *gpu_pair_count);
                 srb.BindBuffer("ShapeFilterData", *gpu.shape_filter_data);
                 srb.BindBuffer("AabbMin", *gpu_aabb_min);
@@ -489,22 +522,30 @@ namespace Engine {
             }
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-            // Dedup: RadixSort + CompactUnique
+            // Dedup: sort the packed keys, compact the duplicates away, then
+            // restore the canonical pairs and publish the pair count.
             {
-                radix_sort->Record(
-                    cb,
-                    *gpu_collision_pairs,
-                    *gpu_pairs_temp,
-                    *gpu_radix_scratch,
-                    max_output_pair_count,
-                    *gpu_pair_count,
-                    shape_count
-                );
+                // The sort is keys-only: the packed key *is* the record, so no
+                // payload array is bound and half the traffic of the old `uvec2`
+                // record is moved.  The bound is `shape_count * shape_count - 1`,
+                // the largest key an in-range pair can pack to.
+                const RadixSortBuffers sort_buffers{
+                    .keys_a = gpu_pair_keys.get(),
+                    .keys_b = gpu_pairs_temp.get(),
+                    .payload_a = nullptr,
+                    .payload_b = nullptr,
+                    .scratch = gpu_radix_scratch.get(),
+                    .count = gpu_pair_count.get(),
+                };
+                const RadixSortOutput sorted =
+                    radix_sort->Record(cb, sort_buffers, max_output_pair_count, shape_count * shape_count - 1u);
                 cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
+                // CompactUnique compacts the sorted keys in place, in whichever
+                // buffer the sort's last pass wrote.
                 compact_unique->Record(
                     cb,
-                    *gpu_collision_pairs,
+                    *sorted.keys,
                     *gpu_unique_flags,
                     *gpu_unique_offsets,
                     *gpu_unique_count,
@@ -515,7 +556,17 @@ namespace Engine {
                 );
                 cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-                DispatchCopy(cb, *gpu_unique_count, *gpu_pair_count, 1u);
+                auto &srb = unpack_pairs_binding->GetShaderResourceBinding();
+                srb.BindBuffer("CompactedKeys", *sorted.keys);
+                srb.BindBuffer("CollisionPairs", *gpu_collision_pairs);
+                srb.BindBuffer("UniqueCount", *gpu_unique_count);
+                srb.BindBuffer("PairCount", *gpu_pair_count);
+
+                uint32_t wg = (max_output_pair_count + 63u) / 64u;
+                Rhi::PushConstants(cb, *unpack_pairs_stage, shape_count);
+                Rhi::BindComputeStage(cb, *unpack_pairs_stage);
+                Rhi::BindComputeResource(cb, *unpack_pairs_stage, *unpack_pairs_binding);
+                Rhi::DispatchCompute(cb, wg, 1, 1);
             }
         }
     };
@@ -558,6 +609,16 @@ namespace Engine {
         m_impl->grid_config = grid_config;
         m_impl->fallback_threshold = fallback_all_pairs_threshold;
         m_impl->max_global_shape_count = max_global_shape_count;
+
+        // The dedup encodes a candidate pair as the packed key
+        // `a * shape_count + b`.  Above this bound the packing wraps (and so does
+        // `shape_count * (shape_count - 1)` in the pair generators and in the
+        // buffer sizing below), which would silently produce a wrong dedup result;
+        // the failure is made loud here, at configuration time.
+        assert(
+            shape_count <= kMaxPackableShapeCount
+            && "shape_count exceeds the packed-pair key bound (65536)"
+        );
 
         // Compute grid dimensions.
         auto world_size = grid_config.world_max - grid_config.world_min;

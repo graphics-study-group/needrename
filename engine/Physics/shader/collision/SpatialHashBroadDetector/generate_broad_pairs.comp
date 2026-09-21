@@ -5,6 +5,13 @@
 // Each workgroup processes multiple cells.  For each cell c with K shapes,
 // generates K*(K-1)/2 pairs (i < j) and writes them to the output buffer.
 // Linear scan over fixed-stride filter data checks for filtered pairs.
+//
+// A candidate pair `(a, b)` is written as the single **packed key**
+// `a * shape_count + b`, which is injective over `a, b < shape_count` and
+// order-preserving.  One `uint` therefore carries the pair's full identity, so
+// the dedup's sort needs no payload array and moves half the bytes a `uvec2`
+// record would.  `unpack_pairs.comp` restores the canonical `uvec2` pair after
+// the compaction.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -16,13 +23,14 @@ layout(set = 0, binding = 1) readonly buffer CellOffsets   { uint v[]; } cell_of
 layout(set = 0, binding = 2) readonly buffer GlobalFlags   { uint v[]; } global_flags;
 layout(set = 0, binding = 3) readonly buffer ShapeAlive    { uint v[]; } shape_alive;
 
-layout(set = 0, binding = 4) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
+layout(set = 0, binding = 4) writeonly buffer CollisionKeys { uint v[]; } collision_keys;
 layout(set = 0, binding = 5) buffer PairCount               { uint v[]; } pair_count;
 
 // --- Config (push constant, recorded by the detector) ---
 
 layout(push_constant) uniform GridPush {
     uint total_cells;
+    uint shape_count;   // packed-key radix: the pair is `a * shape_count + b`
 } params;
 
 layout(set = 0, binding = 6) readonly buffer TotalAssignments { uint total; } total_assignments;
@@ -79,7 +87,7 @@ void main() {
             if (is_filtered(a, b)) continue;
 
             uint slot = atomicAdd(pair_count.v[0], 1u);
-            collision_pairs.v[slot] = uvec2(a, b);
+            collision_keys.v[slot] = a * params.shape_count + b;
         }
     }
 }

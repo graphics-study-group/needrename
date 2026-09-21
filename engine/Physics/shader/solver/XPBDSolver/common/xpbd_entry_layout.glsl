@@ -11,19 +11,27 @@
 //   3..5 : Δang xyz
 //   6    : contribution flag (0.0 = skipped, 1.0 = contributed this iteration)
 //
-// A per-type sorted entry is a `(key, slot)` pair.  `key` encodes slot
-// *ownership* only: the index of the body the slot belongs to, or `kInvalidKey`
-// when the slot has no owner this substep (no such contact/joint, or an
-// out-of-range owner index).  Entry passes read no body state; whether a body
-// actually receives a contribution is decided by the accumulate shaders'
-// guards, and a slot that is never written stays inert because the value buffer
-// is cleared every iteration.
+// A per-type sorted entry is a **key array plus a payload array** (a
+// struct-of-arrays record).  `key` encodes slot *ownership* only: the index of
+// the body the slot belongs to, or the invalid-slot key when the slot has no
+// owner this substep (no such contact/joint, or an out-of-range owner index).
+// Entry passes read no body state; whether a body actually receives a
+// contribution is decided by the accumulate shaders' guards, and a slot that is
+// never written stays inert because the value buffer is cleared every iteration.
 //
-// `slot` is the entry's identity payload, and it is used twice: the radix sort
-// permutes it together with its key, and SumByKey's level-0 gather reads this
-// entry's values from exactly `slot` in the channel-major value buffer.  So an
-// accumulate pass writes at the entry's own slot index and no permutation map
-// exists anywhere in the path.
+// The invalid-slot key is `body_count` (the live body slot count), which the
+// entry passes read from `RigidBodyAlive.length()`.  It is deliberately *not* a
+// fixed constant: it is larger than every real key, so unowned slots sort after
+// every owned one, and it is exactly the `max_key_value` the solver passes to
+// SumByKey, which drops every key at or above that bound.
+//
+// The payload is the entry's own **slot id**, and it is used twice: the radix
+// sort permutes it together with its key, and SumByKey's level-0 gather reads
+// this entry's values from exactly `slot` in the channel-major value buffer.  So
+// an accumulate pass writes at the entry's own slot index and no permutation map
+// exists anywhere in the path.  Because the sort permutes the payload array in
+// place, every entry pass must rewrite it on every dispatch — see the CONTRACT
+// note at the top of each entries/*.comp.
 //
 // Slot ids:
 //   contact : e = cidx * 2 + side        (side in {0 = body A, 1 = body B})
@@ -42,9 +50,9 @@ const uint kChanAngZ = 5u;
 const uint kChanFlag = 6u;
 const uint kNumValueChannels = 7u;
 
-// Key used for slots with no owner, and for out-of-range owner indices.  Sorts
-// last (below 2^20) and is ignored by SumByKey (never writes to a body slot).
-const uint kInvalidKey = 0xFFFFFu;
+// Key used for slots with no owner, and for out-of-range owner indices: the
+// live body slot count, read per dispatch as `RigidBodyAlive.length()`.  There
+// is deliberately no constant for it here — see the note above.
 
 // Hinge/fixed: 4 slots per joint = 2 bodies x 2 scalar constraints.
 const uint kJointSlotBase = 4u;   // slots per joint
@@ -64,14 +72,15 @@ uint joint_slot(uint j, uint side, uint constraint) {
 
 // Buffer layout convention (shared by the entry passes, the accumulate scatter
 // and SumByKey):
-//   - the sorted entry list is `(key, slot)` pairs; the radix sort orders it by
-//     key and carries the slot along as opaque payload
+//   - the sorted entry list is a **key array plus a payload array**; the radix
+//     sort orders it by key and permutes the payload along with it
 //   - the entry value buffer is channel-major with stride == entry_capacity and
 //     is indexed by **slot**:
 //       value(channel, slot) = values[channel * entry_capacity + slot]
-//   - SumByKey's level-0 input is that same pair array (`PairsIn`), with
-//     `max_entries == entry_capacity`; it reads an entry's value at
-//     `values[channel * entry_capacity + slot]`
+//   - SumByKey's level-0 input is that same key array plus that same payload
+//     array (`KeysIn` / `PayloadIn`), with `max_key_value == body_count`; it
+//     reads an entry's value at
+//     `values[channel * entry_capacity + payload]`
 //   - SumByKey's per-body output is channel-major with stride == body_count:
 //       out(channel, body) = out[channel * body_count + body]
 //   - apply merges those per-body outputs with the same stride

@@ -2,12 +2,12 @@
 
 // Compact unique entries using post-scan flag offsets.
 //
-// Input: sorted pairs, original unique flags (pre-scan), flag offsets (post-scan exclusive prefix sum)
+// Input: sorted uint keys, original unique flags (pre-scan), flag offsets (post-scan)
 //
 // Each thread:
-//   reads original_flags[i]  (1 if this pair is the first occurrence, 0 if duplicate)
+//   reads original_flags[i]  (1 if this key is the first occurrence, 0 if duplicate)
 //   reads flag_offsets[i]    (compacted write position if unique)
-//   if original_flags[i] == 1, writes sorted_pairs[i] to output[flag_offsets[i]]
+//   if original_flags[i] == 1, writes sorted_keys[i] to sorted_keys[flag_offsets[i]]
 //
 // The last thread writes the total unique count to count_buf[0]:
 //   total = flag_offsets[N-1] + original_flags[N-1]
@@ -16,13 +16,13 @@
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-layout(set = 0, binding = 0) readonly buffer SortedPairs {
-    uvec2 v[];
-} sorted_pairs;
+layout(set = 0, binding = 0) readonly buffer SortedKeys {
+    uint v[];
+} sorted_keys;
 
-layout(set = 0, binding = 1) writeonly buffer CompactPairs {
-    uvec2 v[];
-} compact_pairs;
+layout(set = 0, binding = 1) writeonly buffer CompactKeys {
+    uint v[];
+} compact_keys;
 
 layout(set = 0, binding = 2) readonly buffer OriginalFlags {
     uint v[];
@@ -36,7 +36,7 @@ layout(set = 0, binding = 4) buffer UniqueCount {
     uint v[];
 } unique_count;
 
-// Actual pair count, written by an earlier GPU pass — read at execution time.
+// Actual element count, written by an earlier GPU pass — read at execution time.
 layout(set = 0, binding = 5) readonly buffer ElemCount {
     uint count;
 } elem_count;
@@ -49,7 +49,7 @@ void main() {
     uint offset = flag_offsets.v[idx];
 
     if (orig_flag != 0u) {
-        compact_pairs.v[offset] = sorted_pairs.v[idx];
+        compact_keys.v[offset] = sorted_keys.v[idx];
     }
 
     // Last thread writes total unique count.

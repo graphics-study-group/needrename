@@ -53,7 +53,7 @@ namespace Engine {
         uint32_t num_channels;
         uint32_t max_key_value;
         uint32_t record_stride;
-        uint32_t gather_pairs;
+        uint32_t gather_payload;
     };
     static_assert(sizeof(SumByKeyPush) == 20, "SumByKeyPush must be 20 bytes");
 
@@ -136,7 +136,8 @@ namespace Engine {
 
     void SumByKey::Record(
         vk::CommandBuffer cb,
-        Rhi::ComputeBuffer &pairs_in_buf,
+        Rhi::ComputeBuffer &keys_in_buf,
+        Rhi::ComputeBuffer &payload_in_buf,
         Rhi::ComputeBuffer &values_in_buf,
         Rhi::ComputeBuffer &records_buf,
         Rhi::ComputeBuffer &out_values_buf,
@@ -159,12 +160,15 @@ namespace Engine {
 
         // The construction-time bound is gone, so the out-of-bounds guard is
         // checked per call against the buffers actually bound for this call.
-        const size_t pairs_bytes = static_cast<size_t>(capacity) * 2u * sizeof(uint32_t);
+        const size_t keys_bytes = static_cast<size_t>(capacity) * sizeof(uint32_t);
         const size_t values_bytes = static_cast<size_t>(num_channels) * capacity * sizeof(uint32_t);
         const size_t out_bytes = static_cast<size_t>(num_channels) * max_key_value * sizeof(uint32_t);
         const size_t records_bytes = GetRequiredRecordsBytes(capacity, num_channels);
-        if (pairs_in_buf.GetSize() < pairs_bytes) {
-            throw std::runtime_error("SumByKey::Record: pair buffer is smaller than capacity * 2 * sizeof(uint32_t)");
+        if (keys_in_buf.GetSize() < keys_bytes) {
+            throw std::runtime_error("SumByKey::Record: key buffer is smaller than capacity * sizeof(uint32_t)");
+        }
+        if (payload_in_buf.GetSize() < keys_bytes) {
+            throw std::runtime_error("SumByKey::Record: payload buffer is smaller than capacity * sizeof(uint32_t)");
         }
         if (values_in_buf.GetSize() < values_bytes) {
             throw std::runtime_error("SumByKey::Record: value buffer is smaller than num_channels * capacity floats");
@@ -203,10 +207,12 @@ namespace Engine {
 
         auto &srb = m_impl->reduce_binding->GetShaderResourceBinding();
 
-        // Level 0's input pair array.  Bound once for every level: it is the same
-        // buffer throughout and is only read where `gather_pairs` is set (for an
-        // untouched descriptor the shader never dereferences it).
-        srb.BindBuffer("PairsIn", pairs_in_buf, 0u, pairs_bytes);
+        // The caller's sorted key array and its payload-index array.  Bound once
+        // for every level: they are the same buffers throughout and are read only
+        // where `gather_payload` is set (for an untouched descriptor the shader
+        // never dereferences them).
+        srb.BindBuffer("KeysIn", keys_in_buf, 0u, keys_bytes);
+        srb.BindBuffer("PayloadIn", payload_in_buf, 0u, keys_bytes);
 
         // The entry count is bound at every level; its contents are read only at
         // level 0, so no level needs a placeholder for it.
@@ -221,10 +227,10 @@ namespace Engine {
 
             // ---- Read source for this level ----
             if (level == 0u) {
-                // Level 0 gathers from the pair array, so KeysIn is not read.
-                // It is still bound to a harmless range to keep the descriptor
-                // set complete, exactly as RecKeys/RecValues are below.
-                srb.BindBuffer("KeysIn", pairs_in_buf, 0u, static_cast<size_t>(capacity) * sizeof(uint32_t));
+                // Level 0 gathers from the caller's key array and payload-index
+                // array, both already bound above; only ValuesIn changes here.
+                // PayloadIn keeps pointing at the caller's payload array at deeper
+                // levels, where `gather_payload` is clear and it is never read.
                 srb.BindBuffer("ValuesIn", values_in_buf, 0u, values_bytes);
             } else {
                 const auto &reg = regions[level - 1u];
@@ -276,8 +282,8 @@ namespace Engine {
                 srb.BindBuffer("RecValues", out_values_buf, 0u, out_bytes);
             }
 
-            const uint32_t gather_pairs = (level == 0u) ? 1u : 0u;
-            const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_pairs};
+            const uint32_t gather_payload = (level == 0u) ? 1u : 0u;
+            const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_payload};
             Rhi::PushConstants(cb, *m_impl->reduce_stage, params);
             Rhi::BindComputeStage(cb, *m_impl->reduce_stage);
             Rhi::BindComputeResource(cb, *m_impl->reduce_stage, *m_impl->reduce_binding);

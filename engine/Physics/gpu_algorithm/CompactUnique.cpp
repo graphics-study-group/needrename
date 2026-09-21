@@ -110,15 +110,15 @@ namespace Engine {
 
         void RecordFlagPass(
             vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &pairs_buf,
+            Rhi::ComputeBuffer &keys_buf,
             Rhi::ComputeBuffer &flags_buf,
-            Rhi::ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &elem_count_buf,
             uint32_t elem_capacity
         ) {
             auto &srb = flag_binding->GetShaderResourceBinding();
-            srb.BindBuffer("SortedPairs", pairs_buf);
+            srb.BindBuffer("SortedKeys", keys_buf);
             srb.BindBuffer("UniqueFlags", flags_buf);
-            srb.BindBuffer("ElemCount", pair_count_buf);
+            srb.BindBuffer("ElemCount", elem_count_buf);
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
@@ -131,13 +131,13 @@ namespace Engine {
             vk::CommandBuffer cb,
             Rhi::ComputeBuffer &src_buf,
             Rhi::ComputeBuffer &dst_buf,
-            Rhi::ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &elem_count_buf,
             uint32_t elem_capacity
         ) {
             auto &srb = copy_binding->GetShaderResourceBinding();
             srb.BindBuffer("SrcBuffer", src_buf);
             srb.BindBuffer("DstBuffer", dst_buf);
-            srb.BindBuffer("ElemCount", pair_count_buf);
+            srb.BindBuffer("ElemCount", elem_count_buf);
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
@@ -158,20 +158,20 @@ namespace Engine {
 
         void RecordScatterPass(
             vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &pairs_buf,
+            Rhi::ComputeBuffer &keys_buf,
             Rhi::ComputeBuffer &flags_buf,
             Rhi::ComputeBuffer &offsets_buf,
             Rhi::ComputeBuffer &count_buf,
-            Rhi::ComputeBuffer &pair_count_buf,
+            Rhi::ComputeBuffer &elem_count_buf,
             uint32_t elem_capacity
         ) {
             auto &srb = scatter_binding->GetShaderResourceBinding();
-            srb.BindBuffer("SortedPairs", pairs_buf);
-            srb.BindBuffer("CompactPairs", pairs_buf);
+            srb.BindBuffer("SortedKeys", keys_buf);
+            srb.BindBuffer("CompactKeys", keys_buf);
             srb.BindBuffer("OriginalFlags", flags_buf);
             srb.BindBuffer("FlagOffsets", offsets_buf);
             srb.BindBuffer("UniqueCount", count_buf);
-            srb.BindBuffer("ElemCount", pair_count_buf);
+            srb.BindBuffer("ElemCount", elem_count_buf);
 
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
@@ -197,13 +197,13 @@ namespace Engine {
 
     void CompactUnique::Record(
         vk::CommandBuffer cb,
-        Rhi::ComputeBuffer &pairs_buf,
+        Rhi::ComputeBuffer &keys_buf,
         Rhi::ComputeBuffer &flags_buf,
         Rhi::ComputeBuffer &offsets_buf,
         Rhi::ComputeBuffer &count_buf,
         Rhi::ComputeBuffer &scan_scratch_buf,
         ParallelScan &scan,
-        Rhi::ComputeBuffer &pair_count_buf,
+        Rhi::ComputeBuffer &elem_count_buf,
         uint32_t elem_capacity
     ) {
         if (elem_capacity == 0u) {
@@ -218,10 +218,10 @@ namespace Engine {
 
         m_impl->EnsureInitialized();
 
-        m_impl->RecordFlagPass(cb, pairs_buf, flags_buf, pair_count_buf, elem_capacity);
+        m_impl->RecordFlagPass(cb, keys_buf, flags_buf, elem_count_buf, elem_capacity);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        m_impl->RecordCopyPass(cb, flags_buf, offsets_buf, pair_count_buf, elem_capacity);
+        m_impl->RecordCopyPass(cb, flags_buf, offsets_buf, elem_count_buf, elem_capacity);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         scan.Record(cb, offsets_buf, offsets_buf, scan_scratch_buf, elem_capacity);
@@ -230,6 +230,6 @@ namespace Engine {
         m_impl->RecordClearCountPass(cb, count_buf);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        m_impl->RecordScatterPass(cb, pairs_buf, flags_buf, offsets_buf, count_buf, pair_count_buf, elem_capacity);
+        m_impl->RecordScatterPass(cb, keys_buf, flags_buf, offsets_buf, count_buf, elem_count_buf, elem_capacity);
     }
 } // namespace Engine

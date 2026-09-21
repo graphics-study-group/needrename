@@ -86,6 +86,11 @@ namespace {
     };
     static_assert(sizeof(ClearEntryValuesPush) == 8);
 
+    struct ClearJointLagrangePush { // clear_{hinge,fixed}_lagrange.comp
+        uint32_t joint_count;
+    };
+    static_assert(sizeof(ClearJointLagrangePush) == 4);
+
     struct BodyCountPush { // apply_body_*.comp
         uint32_t body_count;
     };
@@ -107,6 +112,8 @@ namespace Engine {
         // ---- Compute stages ----
         std::unique_ptr<Rhi::ComputeStage> clear_int_stage{};
         std::unique_ptr<Rhi::ComputeStage> clear_values_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_hinge_stage{};
+        std::unique_ptr<Rhi::ComputeStage> clear_fixed_stage{};
         std::unique_ptr<Rhi::ComputeStage> snapshot_stage{};
         std::unique_ptr<Rhi::ComputeStage> update_shape_world_pose_stage{};
         std::unique_ptr<Rhi::ComputeStage> integrate_stage{};
@@ -124,6 +131,8 @@ namespace Engine {
 
         Rhi::ComputeResourceBinding *clear_int_binding = nullptr;
         Rhi::ComputeResourceBinding *clear_values_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_hinge_binding = nullptr;
+        Rhi::ComputeResourceBinding *clear_fixed_binding = nullptr;
         Rhi::ComputeResourceBinding *snapshot_binding = nullptr;
         Rhi::ComputeResourceBinding *update_shape_world_pose_binding = nullptr;
         Rhi::ComputeResourceBinding *integrate_binding = nullptr;
@@ -151,8 +160,6 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_position_lagrange{};
 
         // ---- Reduce-group infrastructure ----
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_radix_histogram{};
-
         // One sort and one reduction serve every constraint type: both are
         // geometry-free, so each group's capacity and entry count travel with its
         // own call and no instance ever needs rebuilding.
@@ -162,28 +169,37 @@ namespace Engine {
         // Contact (capacity = 2*max_contact_point slots).  One value buffer serves
         // the position and the velocity phase: they are strictly sequential and each
         // clears it before its accumulate (see the velocity loop below).
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_entries{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_entries_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_keys{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_keys_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_payload{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_payload_tmp{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_entry_count{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_values{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_reduce_scratch{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_radix_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_out_pos{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_out_vel{};
 
         // Hinge (capacity = 4*max(1,hinge_count) slots).
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_entries{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_entries_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_keys{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_keys_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_payload{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_payload_tmp{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_entry_count{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_values{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_reduce_scratch{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_radix_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_out{};
 
         // Fixed (capacity = 4*max(1,fixed_count) slots).
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_entries{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_entries_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_keys{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_keys_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_payload{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_payload_tmp{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_entry_count{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_values{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_reduce_scratch{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_radix_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_out{};
 
         glm::vec4 push_gravity_dt{0.0f, 0.0f, -9.81f, 0.0f};
@@ -199,26 +215,32 @@ namespace Engine {
         }
 
         struct ReduceGroupBufs {
-            std::unique_ptr<Rhi::ComputeBuffer> *entries;
-            std::unique_ptr<Rhi::ComputeBuffer> *entries_tmp;
+            std::unique_ptr<Rhi::ComputeBuffer> *keys;
+            std::unique_ptr<Rhi::ComputeBuffer> *keys_tmp;
+            std::unique_ptr<Rhi::ComputeBuffer> *payload;
+            std::unique_ptr<Rhi::ComputeBuffer> *payload_tmp;
             std::unique_ptr<Rhi::ComputeBuffer> *entry_count;
             std::unique_ptr<Rhi::ComputeBuffer> *values;
             std::unique_ptr<Rhi::ComputeBuffer> *reduce_scratch;
+            std::unique_ptr<Rhi::ComputeBuffer> *radix_scratch;
             std::unique_ptr<Rhi::ComputeBuffer> *out;
         };
 
-        // The group's sorted entry array is both the radix sort's in/out buffer and
-        // SumByKey's level-0 input, so no separate key array or permutation map is
-        // allocated (design.md Decision 6).  `entries_tmp` is the sort's ping-pong
-        // temporary, not a second live array; `values` holds the real per-entry
-        // contribution values; `reduce_scratch` is internal to SumByKey and holds
-        // the boundary records of its intermediate levels.
+        // A group's sorted entry list is a struct-of-arrays record: a key array
+        // plus a payload array holding each entry's own slot id.  The sort owns no
+        // geometry, so `keys`/`keys_tmp` and `payload`/`payload_tmp` are its
+        // ping-pong pairs and `radix_scratch` is its transposed-histogram scratch;
+        // the sorted buffers it returns are what SumByKey's level-0 gather reads.
+        // `values` holds the real per-entry contribution values and
+        // `reduce_scratch` is internal to SumByKey (its boundary records).
         void EnsureReduceGroup(uint32_t capacity, uint32_t body_count, const ReduceGroupBufs &g) {
             const size_t cap_bytes = static_cast<size_t>(capacity) * sizeof(uint32_t);
-            const size_t entry_bytes = static_cast<size_t>(capacity) * 2u * sizeof(uint32_t);
-            EnsureBuffer(*g.entries, entry_bytes, "XPBD ReduceEntries");
-            EnsureBuffer(*g.entries_tmp, entry_bytes, "XPBD ReduceEntriesTmp");
-            // The entry count must be host-writable (Scheme A sets it to the capacity).
+            EnsureBuffer(*g.keys, cap_bytes, "XPBD ReduceKeys");
+            EnsureBuffer(*g.keys_tmp, cap_bytes, "XPBD ReduceKeysTmp");
+            EnsureBuffer(*g.payload, cap_bytes, "XPBD ReducePayload");
+            EnsureBuffer(*g.payload_tmp, cap_bytes, "XPBD ReducePayloadTmp");
+            // The entry count must be host-writable (the hinge/fixed groups set it
+            // from the joint count; the contact group's entry pass publishes it).
             {
                 const auto &alloc = device_context.GetAllocatorState();
                 if (!*g.entry_count || (*g.entry_count)->GetSize() != sizeof(uint32_t)) {
@@ -231,6 +253,7 @@ namespace Engine {
             size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(capacity, kNumChannels);
             if (rec_bytes == 0u) rec_bytes = sizeof(uint32_t);
             EnsureBuffer(*g.reduce_scratch, rec_bytes, "XPBD ReduceRecordRegions");
+            EnsureBuffer(*g.radix_scratch, RadixSort::GetRequiredScratchBytes(capacity), "XPBD ReduceRadixScratch");
             EnsureBuffer(*g.out, static_cast<size_t>(kNumChannels) * body_count * sizeof(uint32_t), "XPBD ReduceOut");
         }
 
@@ -254,6 +277,15 @@ namespace Engine {
 
             clear_values_stage = load("solver/XPBDSolver/clear_entry_values.comp.spv", "XPBD ClearEntryValues");
             clear_values_binding = &clear_values_stage->AllocateResourceBinding();
+
+            // The hinge and fixed lagrange multipliers hold floats and are cleared
+            // by their own shaders (each zeroes both of its type's buffers) rather
+            // than by the integer-clear workaround.
+            clear_hinge_stage = load("solver/XPBDSolver/clear_hinge_lagrange.comp.spv", "XPBD ClearHingeLagrange");
+            clear_hinge_binding = &clear_hinge_stage->AllocateResourceBinding();
+
+            clear_fixed_stage = load("solver/XPBDSolver/clear_fixed_lagrange.comp.spv", "XPBD ClearFixedLagrange");
+            clear_fixed_binding = &clear_fixed_stage->AllocateResourceBinding();
 
             snapshot_stage = load("solver/XPBDSolver/snapshot_position.comp.spv", "XPBD Snapshot");
             snapshot_binding = &snapshot_stage->AllocateResourceBinding();
@@ -300,32 +332,45 @@ namespace Engine {
         }
 
         // Sorts one group's entry list.  The shared radix sort takes the group's
-        // capacity per call and reads the group's entry count at execution time.
-        void RecordSort(
+        // capacity and key bound per call and reads the group's entry count at
+        // execution time; it returns the buffers its last pass wrote, because the
+        // derived pass count decides which of the two ping-pong arrays holds the
+        // result.
+        //
+        // The key domain is host-known and tight: every key is a body index
+        // (`< body_count`) or the invalid-slot sentinel (`== body_count`), so
+        // `max_key_value = body_count` covers all of them and keeps the entry
+        // count a prefix of the sorted order.
+        RadixSortOutput RecordSort(
             vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &entries,
-            Rhi::ComputeBuffer &entries_tmp,
+            Rhi::ComputeBuffer &keys,
+            Rhi::ComputeBuffer &keys_tmp,
+            Rhi::ComputeBuffer &payload,
+            Rhi::ComputeBuffer &payload_tmp,
+            Rhi::ComputeBuffer &radix_scratch,
             Rhi::ComputeBuffer &entry_count,
-            uint32_t capacity
+            uint32_t capacity,
+            uint32_t body_count
         ) {
-            radix_sort->Record(
-                cb,
-                entries,
-                entries_tmp,
-                *gpu_radix_histogram,
-                capacity,
-                entry_count,
-                1u << 20u,
-                RadixSortMode::ePrimaryOnly
-            );
+            assert(body_count > 0u && "the entry shaders use body_count as their invalid-slot key");
+            const RadixSortBuffers buffers{
+                .keys_a = &keys,
+                .keys_b = &keys_tmp,
+                .payload_a = &payload,
+                .payload_b = &payload_tmp,
+                .scratch = &radix_scratch,
+                .count = &entry_count,
+            };
+            return radix_sort->Record(cb, buffers, capacity, body_count);
         }
 
         // Reduces one group's contribution values into its per-body output.  The
-        // shared reducer takes the whole geometry per call and reads the group's
-        // entry count at execution time.
+        // shared reducer takes the whole geometry per call, gathers through the
+        // payload array the sort returned, and reads the group's entry count at
+        // execution time.
         void RecordReduce(
             vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &entries,
+            const RadixSortOutput &sorted,
             Rhi::ComputeBuffer &values,
             Rhi::ComputeBuffer &reduce_scratch,
             Rhi::ComputeBuffer &out,
@@ -333,8 +378,18 @@ namespace Engine {
             uint32_t capacity,
             uint32_t body_count
         ) {
+            assert(sorted.keys != nullptr && sorted.payload != nullptr);
             sum_by_key->Record(
-                cb, entries, values, reduce_scratch, out, entry_count, capacity, kNumChannels, body_count
+                cb,
+                *sorted.keys,
+                *sorted.payload,
+                values,
+                reduce_scratch,
+                out,
+                entry_count,
+                capacity,
+                kNumChannels,
+                body_count
             );
         }
     };
@@ -369,12 +424,6 @@ namespace Engine {
         m_impl->max_contact_point = max_contacts;
 
         {
-            const auto &alloc = m_impl->device_context.GetAllocatorState();
-            if (!m_impl->gpu_radix_histogram) {
-                m_impl->gpu_radix_histogram = Rhi::ComputeBuffer::CreateUnique(
-                    alloc, RadixSort::GetRequiredScratchBytes(), false, false, false, false, "XPBD RadixHistogram"
-                );
-            }
             m_impl->EnsureBuffer(
                 m_impl->gpu_contact_lagrange,
                 static_cast<size_t>(m_impl->max_contact_point) * sizeof(float),
@@ -398,11 +447,14 @@ namespace Engine {
         m_impl->EnsureReduceGroup(
             contact_cap,
             body_count,
-            {&m_impl->gpu_contact_entries,
-             &m_impl->gpu_contact_entries_tmp,
+            {&m_impl->gpu_contact_keys,
+             &m_impl->gpu_contact_keys_tmp,
+             &m_impl->gpu_contact_payload,
+             &m_impl->gpu_contact_payload_tmp,
              &m_impl->gpu_contact_entry_count,
              &m_impl->gpu_contact_values,
              &m_impl->gpu_contact_reduce_scratch,
+             &m_impl->gpu_contact_radix_scratch,
              &m_impl->gpu_contact_out_pos}
         );
         m_impl->EnsureBuffer(
@@ -431,11 +483,14 @@ namespace Engine {
         m_impl->EnsureReduceGroup(
             hinge_slots,
             body_count,
-            {&m_impl->gpu_hinge_entries,
-             &m_impl->gpu_hinge_entries_tmp,
+            {&m_impl->gpu_hinge_keys,
+             &m_impl->gpu_hinge_keys_tmp,
+             &m_impl->gpu_hinge_payload,
+             &m_impl->gpu_hinge_payload_tmp,
              &m_impl->gpu_hinge_entry_count,
              &m_impl->gpu_hinge_values,
              &m_impl->gpu_hinge_reduce_scratch,
+             &m_impl->gpu_hinge_radix_scratch,
              &m_impl->gpu_hinge_out}
         );
         m_impl->EnsureBuffer(
@@ -453,11 +508,14 @@ namespace Engine {
         m_impl->EnsureReduceGroup(
             fixed_slots,
             body_count,
-            {&m_impl->gpu_fixed_entries,
-             &m_impl->gpu_fixed_entries_tmp,
+            {&m_impl->gpu_fixed_keys,
+             &m_impl->gpu_fixed_keys_tmp,
+             &m_impl->gpu_fixed_payload,
+             &m_impl->gpu_fixed_payload_tmp,
              &m_impl->gpu_fixed_entry_count,
              &m_impl->gpu_fixed_values,
              &m_impl->gpu_fixed_reduce_scratch,
+             &m_impl->gpu_fixed_radix_scratch,
              &m_impl->gpu_fixed_out}
         );
         m_impl->EnsureBuffer(
@@ -667,15 +725,23 @@ namespace Engine {
 
                 // ====== Entry lists: build → sort (all three types) ======
                 // The entry passes are dispatched over the entry capacity and write
-                // every slot ((key, slot) with INVALID for unowned slots), so the
-                // sorted pair array covers the whole capacity every substep.
+                // every slot on every dispatch (a key — body index or the
+                // `body_count` invalid-slot key — plus the slot's own id as its
+                // payload), so the sorted key array covers the whole capacity every
+                // substep.  The sort's derived pass count decides which of the two
+                // ping-pong arrays holds the result, so each sort's return value is
+                // what the reduction below is bound to.
+                RadixSortOutput contact_sorted{};
+                RadixSortOutput hinge_sorted{};
+                RadixSortOutput fixed_sorted{};
                 {
                     auto &srb = m_impl->contact_entries_binding->GetShaderResourceBinding();
                     srb.BindBuffer("CollisionIds", *m_impl->narrow_detector->GetResultBuffers().collision_ids);
                     srb.BindBuffer("CollisionCount", *m_impl->narrow_detector->GetResultBuffers().collision_count);
                     srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryPairs", *m_impl->gpu_contact_entries);
+                    srb.BindBuffer("EntryKeys", *m_impl->gpu_contact_keys);
+                    srb.BindBuffer("EntryPayload", *m_impl->gpu_contact_payload);
                     // The entry pass derives and publishes the substep's entry
                     // count from the collision count it reads here.
                     srb.BindBuffer("EntryCount", *m_impl->gpu_contact_entry_count);
@@ -684,12 +750,16 @@ namespace Engine {
                     dispatch(*m_impl->contact_entries_stage, *m_impl->contact_entries_binding, contact_pt_wg);
                 }
                 barrier();
-                m_impl->RecordSort(
+                contact_sorted = m_impl->RecordSort(
                     cb,
-                    *m_impl->gpu_contact_entries,
-                    *m_impl->gpu_contact_entries_tmp,
+                    *m_impl->gpu_contact_keys,
+                    *m_impl->gpu_contact_keys_tmp,
+                    *m_impl->gpu_contact_payload,
+                    *m_impl->gpu_contact_payload_tmp,
+                    *m_impl->gpu_contact_radix_scratch,
                     *m_impl->gpu_contact_entry_count,
-                    contact_cap
+                    contact_cap,
+                    body_count
                 );
                 barrier();
 
@@ -697,18 +767,23 @@ namespace Engine {
                     auto &srb = m_impl->hinge_entries_binding->GetShaderResourceBinding();
                     srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryPairs", *m_impl->gpu_hinge_entries);
+                    srb.BindBuffer("EntryKeys", *m_impl->gpu_hinge_keys);
+                    srb.BindBuffer("EntryPayload", *m_impl->gpu_hinge_payload);
                     const JointCountPush push{gpu.hinge_joint_count, hinge_slots};
                     Rhi::PushConstants(cb, *m_impl->hinge_entries_stage, push);
                     dispatch(*m_impl->hinge_entries_stage, *m_impl->hinge_entries_binding, hinge_entry_wg);
                 }
                 barrier();
-                m_impl->RecordSort(
+                hinge_sorted = m_impl->RecordSort(
                     cb,
-                    *m_impl->gpu_hinge_entries,
-                    *m_impl->gpu_hinge_entries_tmp,
+                    *m_impl->gpu_hinge_keys,
+                    *m_impl->gpu_hinge_keys_tmp,
+                    *m_impl->gpu_hinge_payload,
+                    *m_impl->gpu_hinge_payload_tmp,
+                    *m_impl->gpu_hinge_radix_scratch,
                     *m_impl->gpu_hinge_entry_count,
-                    hinge_slots
+                    hinge_slots,
+                    body_count
                 );
                 barrier();
 
@@ -716,24 +791,37 @@ namespace Engine {
                     auto &srb = m_impl->fixed_entries_binding->GetShaderResourceBinding();
                     srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryPairs", *m_impl->gpu_fixed_entries);
+                    srb.BindBuffer("EntryKeys", *m_impl->gpu_fixed_keys);
+                    srb.BindBuffer("EntryPayload", *m_impl->gpu_fixed_payload);
                     const JointCountPush push{gpu.fixed_joint_count, fixed_slots};
                     Rhi::PushConstants(cb, *m_impl->fixed_entries_stage, push);
                     dispatch(*m_impl->fixed_entries_stage, *m_impl->fixed_entries_binding, fixed_entry_wg);
                 }
                 barrier();
-                m_impl->RecordSort(
+                fixed_sorted = m_impl->RecordSort(
                     cb,
-                    *m_impl->gpu_fixed_entries,
-                    *m_impl->gpu_fixed_entries_tmp,
+                    *m_impl->gpu_fixed_keys,
+                    *m_impl->gpu_fixed_keys_tmp,
+                    *m_impl->gpu_fixed_payload,
+                    *m_impl->gpu_fixed_payload_tmp,
+                    *m_impl->gpu_fixed_radix_scratch,
                     *m_impl->gpu_fixed_entry_count,
-                    fixed_slots
+                    fixed_slots,
+                    body_count
                 );
                 barrier();
 
                 // ====== Clear lagrange multipliers and per-body partials ======
-                // The partial-sum outputs are cleared here (once per substep) and
-                // re-cleared by apply_* as it consumes them, so a body with no
+                // Every constraint type's lagrange multiplier is zeroed once per
+                // substep, by that type's own shader, before the position
+                // iterations: the contact multiplier as a flat float range, and the
+                // hinge/fixed multipliers by the two shaders that each zero both
+                // buffers of their type.  These buffers are read-modify-written
+                // across iterations, so a multiplier that were not cleared would
+                // accumulate across substeps without bound.
+                //
+                // The partial-sum outputs are cleared here too (once per substep)
+                // and re-cleared by apply_* as it consumes them, so a body with no
                 // entries always reads zeros.
                 dispatch_clear(*m_impl->gpu_contact_lagrange, m_impl->max_contact_point, contact_pt_wg);
                 barrier();
@@ -746,12 +834,26 @@ namespace Engine {
                 dispatch_clear(*m_impl->gpu_fixed_out, out_pos_elems, out_wg);
                 barrier();
                 {
-                    size_t n = m_impl->gpu_hinge_axis_lagrange->GetSize() / sizeof(uint32_t);
-                    Rhi::PushConstants(cb, *m_impl->clear_int_stage, static_cast<uint32_t>(n));
-                    auto &srb = m_impl->clear_int_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("Target", *m_impl->gpu_hinge_axis_lagrange);
+                    auto &srb = m_impl->clear_hinge_binding->GetShaderResourceBinding();
+                    srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
+                    srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
+                    Rhi::PushConstants(cb, *m_impl->clear_hinge_stage, ClearJointLagrangePush{gpu.hinge_joint_count});
                     dispatch(
-                        *m_impl->clear_int_stage, *m_impl->clear_int_binding, (static_cast<uint32_t>(n) + 63u) / 64u
+                        *m_impl->clear_hinge_stage,
+                        *m_impl->clear_hinge_binding,
+                        std::max(1u, (gpu.hinge_joint_count + 255u) / 256u)
+                    );
+                }
+                barrier();
+                {
+                    auto &srb = m_impl->clear_fixed_binding->GetShaderResourceBinding();
+                    srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
+                    srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
+                    Rhi::PushConstants(cb, *m_impl->clear_fixed_stage, ClearJointLagrangePush{gpu.fixed_joint_count});
+                    dispatch(
+                        *m_impl->clear_fixed_stage,
+                        *m_impl->clear_fixed_binding,
+                        std::max(1u, (gpu.fixed_joint_count + 255u) / 256u)
                     );
                 }
                 barrier();
@@ -797,7 +899,7 @@ namespace Engine {
                     barrier();
                     m_impl->RecordReduce(
                         cb,
-                        *m_impl->gpu_contact_entries,
+                        contact_sorted,
                         *m_impl->gpu_contact_values,
                         *m_impl->gpu_contact_reduce_scratch,
                         *m_impl->gpu_contact_out_pos,
@@ -832,7 +934,7 @@ namespace Engine {
                     barrier();
                     m_impl->RecordReduce(
                         cb,
-                        *m_impl->gpu_hinge_entries,
+                        hinge_sorted,
                         *m_impl->gpu_hinge_values,
                         *m_impl->gpu_hinge_reduce_scratch,
                         *m_impl->gpu_hinge_out,
@@ -867,7 +969,7 @@ namespace Engine {
                     barrier();
                     m_impl->RecordReduce(
                         cb,
-                        *m_impl->gpu_fixed_entries,
+                        fixed_sorted,
                         *m_impl->gpu_fixed_values,
                         *m_impl->gpu_fixed_reduce_scratch,
                         *m_impl->gpu_fixed_out,
@@ -953,7 +1055,7 @@ namespace Engine {
                     barrier();
                     m_impl->RecordReduce(
                         cb,
-                        *m_impl->gpu_contact_entries,
+                        contact_sorted,
                         *m_impl->gpu_contact_values,
                         *m_impl->gpu_contact_reduce_scratch,
                         *m_impl->gpu_contact_out_vel,

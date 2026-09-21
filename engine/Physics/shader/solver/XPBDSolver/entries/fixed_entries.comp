@@ -5,17 +5,26 @@
 // before the radix sort).
 //
 // Dispatched over the fixed-joint entry capacity (4 slots per joint = 2 bodies
-// x 2 scalar constraints: the rotation constraint and the position
-// constraint), one invocation per joint.
+// x 2 scalar constraints: the rotation constraint and the position constraint),
+// one invocation per joint.
 //
 // CONTRACT: every slot in [0, capacity) is written on every dispatch, and this
 // shader never returns before writing.  A slot's key encodes *ownership* only:
-// the index of the body the slot belongs to, or `kInvalidKey` when the joint
-// does not exist this substep or an owner index is out of range.  No body or
-// joint state (alive / kinematic / mass) is read — whether a body actually
+// the index of the body the slot belongs to, or `body_count` when the joint does
+// not exist this substep or an owner index is out of range.  `body_count` is
+// larger than every real key, so unowned slots sort after every owned one (the
+// entry count stays a prefix of the sorted order) and SumByKey drops them,
+// because the solver passes `body_count` as its `max_key_value`.  No body or
+// joint state (alive / kinematic / mass) is read here — whether a body actually
 // receives a contribution is decided by accumulate_fixed_position.comp, and an
 // unwritten slot stays inert because the value buffer is cleared before every
 // iteration.
+//
+// CONTRACT: the payload array carries each slot's own id, and it must be written
+// on **every** dispatch, not only when the entry list changes.  The radix sort
+// permutes the payload array in place, so a substep that skipped rewriting it
+// would gather values for the previous substep's permutation.  That is the one
+// mistake in this adaptation that would fail silently.
 //
 // Channel/slot conventions: common/xpbd_entry_layout.glsl.
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
@@ -37,8 +46,9 @@ layout(set = 0, binding = 0) readonly buffer FixedJoints { FixedJointComDescript
 // ---- Body count bound (only `.length()` is used) ----
 layout(set = 0, binding = 1) readonly buffer RigidBodyAlive { uint v[]; } rigid_body_alive;
 
-// ---- Output: sorted entry list (key, slot) ----
-layout(set = 0, binding = 2) buffer EntryPairs { uvec2 v[]; } entry_pairs;
+// ---- Output: the entry key array and its payload (slot id) array ----
+layout(set = 0, binding = 2) buffer EntryKeys    { uint v[]; } entry_keys;
+layout(set = 0, binding = 3) buffer EntryPayload { uint v[]; } entry_payload;
 
 // ---- Per-dispatch constants (push constant, recorded by the solver) ----
 layout(push_constant) uniform JointCountPush {
@@ -57,20 +67,28 @@ void main() {
     // past the end of the entry list.  Threads past the capacity own no slots.
     if (slot2_pos >= params.entry_capacity) return;
 
-    uint key1 = kInvalidKey;
-    uint key2 = kInvalidKey;
+    // The invalid-slot key is the body count: the largest key this substep can
+    // produce, and the value SumByKey is told to drop.
+    const uint body_count = rigid_body_alive.v.length();
+    uint key1 = body_count;
+    uint key2 = body_count;
 
     if (j < params.joint_count) {
         FixedJointComDescriptor constraint = fixed_joints.v[j];
-        uint body_count = rigid_body_alive.v.length();
         if (constraint.obj1_index < body_count) key1 = constraint.obj1_index;
         if (constraint.obj2_index < body_count) key2 = constraint.obj2_index;
     }
 
     // A constraint only ever contributes to a body when that body is movable,
     // so both constraints of a body share its key.
-    entry_pairs.v[slot1_rot] = uvec2(key1, slot1_rot);
-    entry_pairs.v[slot1_pos] = uvec2(key1, slot1_pos);
-    entry_pairs.v[slot2_rot] = uvec2(key2, slot2_rot);
-    entry_pairs.v[slot2_pos] = uvec2(key2, slot2_pos);
+    entry_keys.v[slot1_rot] = key1;
+    entry_keys.v[slot1_pos] = key1;
+    entry_keys.v[slot2_rot] = key2;
+    entry_keys.v[slot2_pos] = key2;
+    // The payload is the slot's own id, and it is rewritten every dispatch
+    // because the sort permutes it in place.
+    entry_payload.v[slot1_rot] = slot1_rot;
+    entry_payload.v[slot1_pos] = slot1_pos;
+    entry_payload.v[slot2_rot] = slot2_rot;
+    entry_payload.v[slot2_pos] = slot2_pos;
 }

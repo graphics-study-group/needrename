@@ -1,0 +1,94 @@
+#version 450 core
+
+// radix_block_histogram.comp — Per-block 256-bin digit histogram, written
+// transposed.
+//
+// One workgroup owns one block of 256 elements and builds that block's digit
+// histogram for the current radix pass.  The block's 256 counts are then written
+// to the scratch array as
+//
+//     hist[digit * num_blocks + block]
+//
+// so the digit is the outer dimension and the block the inner one.  That layout
+// is what makes a *single flat exclusive scan* over the whole array yield
+// `bin base offset + counts of this digit in all earlier blocks` for every
+// (digit, block) pair — no separate 256-bin scan is needed (see
+// gpu_radix_sort / RadixSort.cpp).
+//
+// Dispatch: num_blocks workgroups of 256 invocations, where
+//   num_blocks = ceil(elem_capacity / 256)
+// and the workgroup count comes from the capacity, never from the GPU-side count.
+//
+// Two invariants this shader must keep:
+//   1. Every cell of the transposed array is written by exactly one invocation
+//      (invocation `tid` writes bin `tid`), on every call.  That is why the sort
+//      needs no clear pass: stale counts can never survive.
+//   2. The whole body is *predicated* on the element index; there is deliberately
+//      no early `return`, because the shader contains a `barrier()` and a
+//      non-uniform early return before a barrier is undefined behaviour (and
+//      would leave this block's transposed cells unwritten).
+//
+// An invocation at or beyond the GPU-side element count contributes no count at
+// all; it only takes part in the write-back of its own (zero) bin.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+#define BLOCK_SIZE 256u
+#define NUM_BINS   256u
+
+// Key array of the current pass (read-only: the scatter writes the other array).
+layout(set = 0, binding = 0) readonly buffer KeysIn {
+    uint v[];
+} keys_in;
+
+// The transposed histogram region of the caller's scratch buffer.
+layout(set = 0, binding = 1) buffer Histogram {
+    uint v[];
+} histogram;
+
+// Actual element count, written by an upstream pass in the same frame and read
+// at execution time — never a host constant.
+layout(set = 0, binding = 2) readonly buffer ElemCount {
+    uint count;
+} elem_count;
+
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+
+layout(push_constant) uniform RadixHistogramPush {
+    uint byte_shift; // 0, 8, 16 or 24
+    uint num_blocks; // = ceil(elem_capacity / 256), the transposed array's stride
+} params;
+
+// Digit that no real element can produce (digits are 8 bits).  Used to keep the
+// shared snapshot's inactive lanes out of every bin.
+const uint kInvalidDigit = 0xFFFFFFFFu;
+
+shared uint s_histogram[NUM_BINS];
+
+void main() {
+    const uint block = gl_WorkGroupID.x;
+    const uint tid = gl_LocalInvocationID.x;
+    const uint idx = block * BLOCK_SIZE + tid;
+
+    // Predicated load: an inactive invocation keeps the sentinel digit and adds
+    // nothing to any bin.
+    const bool is_active = (idx < elem_count.count);
+    uint digit = kInvalidDigit;
+    if (is_active) {
+        const uint key = keys_in.v[idx];
+        digit = (key >> params.byte_shift) & 0xFFu;
+    }
+
+    // Zero the block's own bin (one cell per invocation), then count.
+    s_histogram[tid] = 0u;
+    barrier();
+
+    if (is_active) {
+        atomicAdd(s_histogram[digit], 1u);
+    }
+    barrier();
+
+    // Write this block's full column back, transposed.  Invocation `tid` owns bin
+    // `tid`, so every cell of `histogram` is written exactly once per call.
+    histogram.v[tid * params.num_blocks + block] = s_histogram[tid];
+}

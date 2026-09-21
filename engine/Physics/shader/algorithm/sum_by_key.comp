@@ -9,11 +9,11 @@
 // continues into a neighbouring block passes that partial run on as a boundary
 // record.
 //
-// Input, selected by `gather_pairs`.  Both shapes are channel-major, with the
+// Input, selected by `gather_payload`.  Both shapes are channel-major, with the
 // value channel stride `input_count`:
-//   - set: the caller's sorted `(key, slot)` pairs — `key = pairs[e].x`,
-//     channel c at `ValuesIn[c * input_count + pairs[e].y]`;
-//   - clear: the record arrays — `key = KeysIn[e]`,
+//   - gather: the caller's sorted key array plus its payload-index array —
+//     `key = KeysIn[e]`, channel c at `ValuesIn[c * input_count + PayloadIn[e]]`;
+//   - record: the record arrays — `key = KeysIn[e]`,
 //     channel c at `ValuesIn[c * input_count + e]`.
 // `num_channels` and the level geometry travel as push constants, so all
 // channels reduce in one pass per level.
@@ -42,8 +42,8 @@
 // reaches the block's last real element), for the next level to merge.  A block
 // that is a single run writes an all-zero second record, keeping the chain dense
 // without double counting.  A level with a single workgroup writes every
-// remaining run directly, and keys >= `max_key_value` (the INVALID sentinel
-// 0xFFFFF and the out-of-range pad 0xFFFFFFFF) are never written out.
+// remaining run directly, and keys >= `max_key_value` (the caller's invalid-slot
+// sentinel and the out-of-range pad 0xFFFFFFFF) are never written out.
 //
 // ---- Two lengths bound a level, and they are not interchangeable ----
 //
@@ -51,9 +51,9 @@
 //     level reads (the caller's capacity at the first level, `R_i` above).  It
 //     defines the element-index bound, the per-block real extent, the
 //     record-region partition, the dispatch count and the channel stride.
-//   - The *entry count* is how many leading elements carry real data, in the
-//     pair path only: nothing is read for an element at or beyond it, nor for an
-//     element whose payload slot is at or beyond it.  It never affects geometry,
+//   - The *entry count* is how many leading elements carry real data, in gather
+//     mode only: nothing is read for an element at or beyond it, nor for an
+//     element whose payload index is at or beyond it.  It never affects geometry,
 //     and it is produced on the GPU, so it travels in the `EntryCount` binding
 //     rather than the push-constant block.
 //
@@ -68,16 +68,16 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(set = 0, binding = 0) readonly  buffer KeysIn     { uint  v[]; } keys_in;
 layout(set = 0, binding = 1) readonly  buffer ValuesIn   { float v[]; } values_in;
-// The caller's sorted (key, slot) pairs, read in the pair path.  Bound at every
-// level so no level needs a placeholder for it.
-layout(set = 0, binding = 2) readonly  buffer PairsIn     { uvec2 v[]; } pairs_in;
+// The caller's payload-index array, read in gather mode.  Bound at every level
+// so no level needs a placeholder for it.
+layout(set = 0, binding = 2) readonly  buffer PayloadIn    { uint  v[]; } payload_in;
 layout(set = 0, binding = 3) buffer    RecKeys          { uint  v[]; } rec_keys;
 layout(set = 0, binding = 4) buffer    RecValues        { float v[]; } rec_values;
 layout(set = 0, binding = 5) buffer    OutValues        { float v[]; } out_values;
 
 // How many leading entries carry real data, read at execution time because the
-// producing pass runs on the GPU.  Read in the pair path only, where it bounds
-// the element index and the payload slot alike; the caller clamps it to the
+// producing pass runs on the GPU.  Read in gather mode only, where it bounds the
+// element index and the payload index alike; the caller clamps it to the
 // capacity.
 layout(set = 0, binding = 6) readonly  buffer EntryCount  { uint count; } entry_count;
 
@@ -87,13 +87,14 @@ layout(push_constant) uniform SumByKeyPush {
     uint num_channels;    // N in [1,8]
     uint max_key_value;   // keys >= max_key are ignored (never written to out)
     uint record_stride;   // next region's per-channel count (=2*num_blocks); used when writing records
-    uint gather_pairs;    // 1 = read the pair array, 0 = read the record arrays
+    uint gather_payload;  // 1 = level 0: gather by payload index, 0 = record arrays
 } params;
 
-// Out-of-range key pad (distinct from the real INVALID 0xFFFFF so the tail of
-// a real run does not merge into the padding).
+// Out-of-range key pad (distinct from the caller's invalid-slot sentinel so the
+// tail of a real run does not merge into the padding).  SumByKey never learns
+// what a caller's sentinel is: it only knows that keys >= `max_key_value` are
+// never written out.
 const uint kOobKey   = 0xFFFFFFFFu;
-const uint kInvalidKey = 0xFFFFFu;
 // Shared-memory channel capacity; `params.num_channels` is at most this.
 const uint kMaxChannels = 8u;
 
@@ -123,16 +124,17 @@ void main() {
     uint elem_key = kOobKey;
     uint value_index = e;
 
-    if (params.gather_pairs != 0u) {
-        // Pair path: the payload slot indexes this element's values.  The key is
-        // kept unchanged even when the element or its slot is past the entry
-        // count, because rewriting it would break the ascending order the run
-        // structure depends on; only the value read follows the count.
+    if (params.gather_payload != 0u) {
+        // Gather mode (level 0 only): the key comes from the caller's sorted key
+        // array and the payload array gives the slot this element's values are
+        // gathered from.  The key is kept unchanged even when the element or its
+        // payload index is past the entry count, because rewriting it would break
+        // the ascending order the run structure depends on; only the value read
+        // follows the count.
         if (in_range) {
-            const uvec2 pair = pairs_in.v[e];
-            elem_key = pair.x;
-            value_index = pair.y;
-            real = (e < entry_count.count) && (pair.y < entry_count.count);
+            elem_key = keys_in.v[e];
+            value_index = payload_in.v[e];
+            real = (e < entry_count.count) && (value_index < entry_count.count);
         }
     } else if (in_range) {
         // Record path: the previous level wrote this array, so every element in

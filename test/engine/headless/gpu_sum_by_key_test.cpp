@@ -49,7 +49,8 @@ namespace {
 
     struct RunCtx {
         RenderSystem &rsys;
-        std::unique_ptr<ComputeBuffer> pairs;   // sorted (key, slot) entries
+        std::unique_ptr<ComputeBuffer> keys;      // sorted key array
+        std::unique_ptr<ComputeBuffer> payloads;  // payload-index array (level-0 gather)
         std::unique_ptr<ComputeBuffer> values;
         std::unique_ptr<ComputeBuffer> records;
         std::unique_ptr<ComputeBuffer> out;
@@ -59,12 +60,11 @@ namespace {
         uint32_t capacity = 0u;
         uint32_t max_key_value = 0u;
 
-        // Entry i = (key, slot).  The slot is the index this entry's values are
-        // gathered from, so it is unrelated to i.
-        void SetPair(uint32_t i, uint32_t key, uint32_t slot) const {
-            auto *p = reinterpret_cast<uint32_t *>(pairs->GetVMAddress());
-            p[2u * i] = key;
-            p[2u * i + 1u] = slot;
+        // Entry i = (key, payload).  The payload is the index this entry's values
+        // are gathered from, so it is unrelated to i.
+        void SetEntry(uint32_t i, uint32_t key, uint32_t payload) const {
+            reinterpret_cast<uint32_t *>(keys->GetVMAddress())[i] = key;
+            reinterpret_cast<uint32_t *>(payloads->GetVMAddress())[i] = payload;
         }
 
         void SetValue(uint32_t channel, uint32_t slot, float value) const {
@@ -90,8 +90,9 @@ namespace {
 
     // Build a RunCtx sized for the given geometry and zero the output + records.
     RunCtx MakeCtx(RenderSystem &rsys, uint32_t capacity, uint32_t max_key_value, uint32_t num_channels) {
-        RunCtx ctx{rsys, {}, {}, {}, {}, {}, num_channels, capacity, max_key_value};
-        ctx.pairs = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * 2u * sizeof(uint32_t), "SumByKey pairs");
+        RunCtx ctx{rsys, {}, {}, {}, {}, {}, {}, num_channels, capacity, max_key_value};
+        ctx.keys = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * sizeof(uint32_t), "SumByKey keys");
+        ctx.payloads = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * sizeof(uint32_t), "SumByKey payloads");
         ctx.values =
             MakeHostBuffer(rsys, static_cast<size_t>(num_channels) * capacity * sizeof(uint32_t), "SumByKey values");
         size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(capacity, num_channels);
@@ -101,7 +102,8 @@ namespace {
             MakeHostBuffer(rsys, static_cast<size_t>(num_channels) * max_key_value * sizeof(uint32_t), "SumByKey out");
         ctx.count = MakeHostBuffer(rsys, sizeof(uint32_t), "SumByKey count");
 
-        std::memset(ctx.pairs->GetVMAddress(), 0, ctx.pairs->GetSize());
+        std::memset(ctx.keys->GetVMAddress(), 0, ctx.keys->GetSize());
+        std::memset(ctx.payloads->GetVMAddress(), 0, ctx.payloads->GetSize());
         std::memset(ctx.values->GetVMAddress(), 0, ctx.values->GetSize());
         std::memset(ctx.out->GetVMAddress(), 0, ctx.out->GetSize());
         std::memset(ctx.records->GetVMAddress(), 0, ctx.records->GetSize());
@@ -110,7 +112,8 @@ namespace {
     }
 
     void FlushAll(RunCtx &ctx) {
-        ctx.pairs->Flush();
+        ctx.keys->Flush();
+        ctx.payloads->Flush();
         ctx.values->Flush();
         ctx.records->Flush();
         ctx.out->Flush();
@@ -127,7 +130,8 @@ namespace {
         cb.begin(vk::CommandBufferBeginInfo{});
         reducer.Record(
             cb,
-            *ctx.pairs,
+            *ctx.keys,
+            *ctx.payloads,
             *ctx.values,
             *ctx.records,
             *ctx.out,
@@ -160,19 +164,20 @@ namespace {
     //
     // Computes the per-key sums straight from the source buffers, so it shares
     // no structure with the reduction (record regions, level chain or the
-    // block-internal merge).  Keys at or above max_key_value and payload slots
+    // block-internal merge).  Keys at or above max_key_value and payload indices
     // at or above the capacity contribute nothing.
     std::vector<float> HostExpected(const RunCtx &ctx, uint32_t count) {
         std::vector<float> expect(static_cast<size_t>(ctx.num_channels) * ctx.max_key_value, 0.0f);
-        const auto *pairs = reinterpret_cast<const uint32_t *>(ctx.pairs->GetVMAddress());
+        const auto *keys = reinterpret_cast<const uint32_t *>(ctx.keys->GetVMAddress());
+        const auto *payloads = reinterpret_cast<const uint32_t *>(ctx.payloads->GetVMAddress());
         const auto *values = reinterpret_cast<const float *>(ctx.values->GetVMAddress());
         for (uint32_t i = 0; i < count; ++i) {
-            const uint32_t key = pairs[2u * i];
-            const uint32_t slot = pairs[2u * i + 1u];
-            if (key >= ctx.max_key_value || slot >= ctx.capacity) continue;
+            const uint32_t key = keys[i];
+            const uint32_t payload = payloads[i];
+            if (key >= ctx.max_key_value || payload >= ctx.capacity) continue;
             for (uint32_t c = 0u; c < ctx.num_channels; ++c) {
                 expect[static_cast<size_t>(c) * ctx.max_key_value + key] +=
-                    values[static_cast<size_t>(c) * ctx.capacity + slot];
+                    values[static_cast<size_t>(c) * ctx.capacity + payload];
             }
         }
         return expect;
@@ -209,10 +214,10 @@ namespace {
     void FillCountedTail(RunCtx &ctx, uint32_t count, uint32_t garbage_key) {
         for (uint32_t i = 0; i < ctx.capacity; ++i) {
             if (i < count) {
-                ctx.SetPair(i, i / 2u, i);
+                ctx.SetEntry(i, i / 2u, i);
                 ctx.SetValue(0u, i, 1.0f);
             } else {
-                ctx.SetPair(i, garbage_key, i); // valid key, valid payload slot
+                ctx.SetEntry(i, garbage_key, i); // valid key, valid payload slot
                 ctx.SetValue(0u, i, kGarbageValue);
             }
         }
@@ -253,7 +258,7 @@ int main() {
         auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
         // keys 0..99 each appearing once, identity payload, value = 2.0
         for (uint32_t i = 0; i < kEntries; ++i) {
-            ctx.SetPair(i, i, i);
+            ctx.SetEntry(i, i, i);
             ctx.SetValue(0u, i, 2.0f);
         }
         RunSumByKey(*rsys, ctx);
@@ -277,7 +282,7 @@ int main() {
         constexpr uint32_t kChannels = 1;
         auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
         for (uint32_t i = 0; i < kEntries; ++i) {
-            ctx.SetPair(i, 5u, i); // all key 5
+            ctx.SetEntry(i, 5u, i); // all key 5
             ctx.SetValue(0u, i, 1.0f);
         }
         RunSumByKey(*rsys, ctx);
@@ -300,10 +305,10 @@ int main() {
             if (i < 200u) {
                 // sorted ascending: bodies 0..99 each appearing twice (contiguous
                 // per body), so every body has a two-element run.
-                ctx.SetPair(i, i / 2u, i);
+                ctx.SetEntry(i, i / 2u, i);
                 ctx.SetValue(0u, i, 1.0f);
             } else {
-                ctx.SetPair(i, kInvalid, i); // trailing invalid run, must be ignored
+                ctx.SetEntry(i, kInvalid, i); // trailing invalid run, must be ignored
                 ctx.SetValue(0u, i, 99.0f);
             }
         }
@@ -330,7 +335,7 @@ int main() {
         for (uint32_t b = 0; b < kMaxKey; ++b) {
             uint32_t count = 1u + (b % 7u);
             for (uint32_t t = 0; t < count && pos < kEntries; ++t) {
-                ctx.SetPair(pos, b, pos);
+                ctx.SetEntry(pos, b, pos);
                 for (uint32_t c = 0; c < kChannels; ++c) {
                     float val = static_cast<float>(c) + static_cast<float>(t);
                     ctx.SetValue(c, pos, val);
@@ -342,7 +347,7 @@ int main() {
         // Fill the remainder with INVALID so no slot is left stale.
         constexpr uint32_t kInvalid = 0xFFFFFu;
         for (; pos < kEntries; ++pos) {
-            ctx.SetPair(pos, kInvalid, pos);
+            ctx.SetEntry(pos, kInvalid, pos);
             for (uint32_t c = 0; c < kChannels; ++c) {
                 ctx.SetValue(c, pos, 0.0f);
             }
@@ -376,7 +381,7 @@ int main() {
         constexpr uint32_t kMaxKey1 = 10;
         auto ctx1 = MakeCtx(*rsys, kEntries1, kMaxKey1, 1u);
         for (uint32_t i = 0; i < kEntries1; ++i) {
-            ctx1.SetPair(i, i / 60u, i);
+            ctx1.SetEntry(i, i / 60u, i);
             ctx1.SetValue(0u, i, 2.0f);
         }
         RunSumByKeyWith(*rsys, ctx1, reducer);
@@ -394,7 +399,7 @@ int main() {
         constexpr uint32_t kPerKey2 = kEntries2 / kMaxKey2; // 15
         auto ctx2 = MakeCtx(*rsys, kEntries2, kMaxKey2, 2u);
         for (uint32_t i = 0; i < kEntries2; ++i) {
-            ctx2.SetPair(i, i / kPerKey2, i);
+            ctx2.SetEntry(i, i / kPerKey2, i);
             ctx2.SetValue(0u, i, 1.0f);
             ctx2.SetValue(1u, i, 3.0f);
         }
@@ -440,7 +445,7 @@ int main() {
         for (uint32_t i = 0; i < kEntries; ++i) {
             const uint32_t body = i / kPerBody;
             const uint32_t slot = (i * 7u) % kEntries;
-            ctx.SetPair(i, body, slot);
+            ctx.SetEntry(i, body, slot);
             expected[body] += value[slot];
         }
 
@@ -472,7 +477,7 @@ int main() {
         auto ctx = MakeCtx(*rsys, kEntries, kMaxKey, kChannels);
         for (uint32_t i = 0; i < kEntries; ++i) {
             const bool bad = (i == 100u);
-            ctx.SetPair(i, 7u, bad ? kBadSlot : i);
+            ctx.SetEntry(i, 7u, bad ? kBadSlot : i);
             ctx.SetValue(0u, i, bad ? 999.0f : 1.0f);
         }
         RunSumByKey(*rsys, ctx);
@@ -502,7 +507,16 @@ int main() {
         auto throws_invalid = [&](uint32_t capacity, uint32_t channels, uint32_t max_key) {
             try {
                 reducer.Record(
-                    cb, *ctx.pairs, *ctx.values, *ctx.records, *ctx.out, *ctx.count, capacity, channels, max_key
+                    cb,
+                    *ctx.keys,
+                    *ctx.payloads,
+                    *ctx.values,
+                    *ctx.records,
+                    *ctx.out,
+                    *ctx.count,
+                    capacity,
+                    channels,
+                    max_key
                 );
             } catch (const std::invalid_argument &) {
                 return true;
@@ -521,7 +535,8 @@ int main() {
         try {
             reducer.Record(
                 cb,
-                *ctx.pairs,
+                *ctx.keys,
+                *ctx.payloads,
                 *ctx.values,
                 *ctx.records,
                 *ctx.out,
@@ -628,7 +643,7 @@ int main() {
         constexpr uint32_t kMaxKey = 2048u;
         auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
         for (uint32_t i = 0; i < kCapacity; ++i) {
-            ctx.SetPair(i, i / 2u, i);
+            ctx.SetEntry(i, i / 2u, i);
             ctx.SetValue(0u, i, 1.0f);
         }
         ctx.SetCount(kCapacity);
@@ -649,7 +664,7 @@ int main() {
         constexpr uint32_t kSmallCount = 300u;
         auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
         for (uint32_t i = 0; i < kCapacity; ++i) {
-            ctx.SetPair(i, i / 2u, i);
+            ctx.SetEntry(i, i / 2u, i);
             ctx.SetValue(0u, i, 1.0f);
         }
         SumByKey reducer{rsys->GetDeviceContext()};
@@ -694,7 +709,7 @@ int main() {
         uint32_t pos = 0u;
         for (uint32_t key = 0u; key < 7u; ++key) {
             for (uint32_t t = 0u; t < kRuns[key]; ++t, ++pos) {
-                ctx.SetPair(pos, key, pos);
+                ctx.SetEntry(pos, key, pos);
                 ctx.SetValue(0u, pos, 1.0f);
                 ctx.SetValue(1u, pos, 3.0f);
             }
@@ -726,7 +741,7 @@ int main() {
         constexpr uint32_t kKey0 = 300u;
         auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
         for (uint32_t i = 0u; i < kCapacity; ++i) {
-            ctx.SetPair(i, (i < kKey0) ? 0u : 1u, i);
+            ctx.SetEntry(i, (i < kKey0) ? 0u : 1u, i);
             ctx.SetValue(0u, i, 1.0f);
         }
         RunSumByKey(*rsys, ctx);
@@ -745,7 +760,7 @@ int main() {
         constexpr uint32_t kKey0 = 257u;
         auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
         for (uint32_t i = 0u; i < kCapacity; ++i) {
-            ctx.SetPair(i, (i < kKey0) ? 0u : 1u, i);
+            ctx.SetEntry(i, (i < kKey0) ? 0u : 1u, i);
             ctx.SetValue(0u, i, 1.0f);
         }
         RunSumByKey(*rsys, ctx);
@@ -766,7 +781,7 @@ int main() {
             const uint32_t channels = kChannelCounts[n];
             auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, channels);
             for (uint32_t i = 0u; i < kCapacity; ++i) {
-                ctx.SetPair(i, i / kPerKey, i);
+                ctx.SetEntry(i, i / kPerKey, i);
                 for (uint32_t c = 0u; c < channels; ++c) {
                     ctx.SetValue(c, i, 1.0f + static_cast<float>(c));
                 }
@@ -806,7 +821,7 @@ int main() {
             for (uint32_t key = 0u; key < kMaxKey && pos < capacity; ++key) {
                 const uint32_t len = std::min(run_len(rng), capacity - pos);
                 for (uint32_t t = 0u; t < len; ++t, ++pos) {
-                    ctx.SetPair(pos, key, pos);
+                    ctx.SetEntry(pos, key, pos);
                     for (uint32_t c = 0u; c < kChannels; ++c) {
                         ctx.SetValue(c, pos, static_cast<float>(value(rng)));
                     }
@@ -815,7 +830,7 @@ int main() {
             // The keys are exhausted before the capacity: the rest is a trailing
             // run of the last key carrying zeros.
             for (; pos < capacity; ++pos) {
-                ctx.SetPair(pos, kMaxKey - 1u, pos);
+                ctx.SetEntry(pos, kMaxKey - 1u, pos);
                 for (uint32_t c = 0u; c < kChannels; ++c) {
                     ctx.SetValue(c, pos, 0.0f);
                 }
