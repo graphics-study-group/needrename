@@ -92,7 +92,7 @@ What makes reuse safe is one invariant:
 
 > a set is referenced only by command buffers of the epochs in which it was acquired
 
-Together with the user obligation in D10, `last_epoch` is an upper bound on the epochs that can reference an entry, so an entry is releasable exactly when `last_epoch <= completed watermark`.
+Together with the user obligation in D10, `last_epoch` is an upper bound on the epochs that can reference an entry, so an entry is releasable exactly when `last_epoch <= completed prefix`.
 
 **Alternatives rejected:**
 
@@ -100,13 +100,15 @@ Together with the user obligation in D10, `last_epoch` is an upper bound on the 
 - *A global cache with reference counting.* Reference counting re-derives what the epoch already knows, and one missed decrement reintroduces the leak.
 - *One set per (binding, slot), rewritten in place when content changes.* An in-flight command buffer reads descriptors at execution time, not at record time, so a rewrite would be observed by the older frame — the hazard the current leak accidentally prevents.
 
-### D3: The arena observes exactly one thing — the completed watermark advancing
+### D3: The arena observes exactly one thing — the completed prefix advancing
 
-The arena is not part of the submission protocol. It needs a single notification: the completed watermark advanced from `a` to `b`. It then considers releasing the entries whose `last_epoch` lies in `(a, b]`, and does so only if it is over budget (D5).
+The arena is not part of the submission protocol. It needs a single notification: the completed **prefix** advanced from `a` to `b`. It then considers releasing the entries whose `last_epoch` lies in `(a, b]`, and does so only if it is over budget (D5).
+
+**It is the prefix, not individual reports.** A single report for epoch `w` proves only that `w`'s submission finished; it says nothing about earlier epochs, which may still be executing command buffers that bind the same set. An entry is therefore eligible only when the *prefix* has passed its `last_epoch`, never when its own epoch happens to be reported. Since the prefix advances only through a contiguous run of reports, and the preceding change documents that it lags by about the in-flight depth, an entry acquired recently stays ineligible for that long — which is correct, because those epochs really may still be binding it.
 
 **Why the earlier four-event design is gone.** An earlier draft had the arena subscribe to begin / submit / complete / drain, with `submit` sealing a per-epoch bucket. That machinery existed to make *wholesale* per-epoch release safe: if a bucket could still receive sets after its epoch had been submitted, releasing the bucket would free sets a later, unsubmitted command buffer had bound. A resident cache that releases individual entries guarded by their own `last_epoch` has no bucket to seal, so the submit boundary is neither observable by nor useful to the arena. Fewer events also means fewer failure modes — there is no "forgot to seal" bug to have. (The preceding change reaches the same conclusion from its own side: its protocol no longer carries a per-submission event.)
 
-**`drain` is not an arena event.** A device-idle wait proves that submitted work has finished; it does not make a live cache entry dead. Releasing the cache on idle would defeat it entirely on a fully serialised submitter — `PhysicsApp` waits for idle twice per step, so every entry would be discarded every step. Idle therefore reaches the arena only as "the watermark advanced to its maximum", which makes entries *eligible*; eviction still happens only under pressure (D5).
+**`drain` is not an arena event.** A device-idle wait proves that submitted work has finished; it does not make a live cache entry dead. Releasing the cache on idle would defeat it entirely on a fully serialised submitter — `PhysicsApp` waits for idle twice per step, so every entry would be discarded every step. Idle therefore reaches the arena only as "the prefix advanced to its maximum", which makes entries *eligible*; eviction still happens only under pressure (D5).
 
 ### D4: Entries acquired with no open epoch are pinned until an epoch claims them
 
@@ -121,7 +123,7 @@ Such an entry is marked **unclaimed** and is never evictable: the command buffer
 ```
   when over budget:
       evict eligible entries, least-recently-acquired first
-      eligible = claimed  &&  last_epoch <= completed watermark
+      eligible = claimed  &&  last_epoch <= completed prefix
 ```
 
 Three properties are deliberate:
@@ -161,7 +163,7 @@ Two hazards are carried forward unchanged, recorded so they are not mistaken for
   destruction order:  EpochTracker -> DescriptorArena -> ... -> DeviceInterface
 ```
 
-The tracker is destroyed before the allocator and device, as the preceding change requires. The arena is declared before it for a different reason than an earlier draft gave: the arena **registers with the tracker** as an observer of watermark advancement, so the tracker must not outlive its observer. (The earlier reason — the tracker holding parked release actions that call into the arena — no longer applies: buffer retirement and descriptor residency do not share a release path.)
+The tracker is destroyed before the allocator and device, as the preceding change requires. The arena is declared before it for a different reason than an earlier draft gave: the arena **registers with the tracker** as an observer of prefix advancement, so the tracker must not outlive its observer. (The earlier reason — the tracker holding parked release actions that call into the arena — no longer applies: buffer retirement and descriptor residency do not share a release path.)
 
 **Alternative rejected:** make the arena's notification entry point tolerate being called after destruction. Silent no-ops would hide a real ordering bug.
 
@@ -179,11 +181,12 @@ This is stated as a requirement in the capability spec rather than left implicit
 
 ## Risks / Trade-offs
 
-- **[An entry is evicted while a recorded command buffer still binds it]** → Mitigation: eviction is guarded by `claimed && last_epoch <= completed watermark` (D5), and the re-acquire obligation that makes `last_epoch` an upper bound is a spec requirement (D10). Tests cover eviction pressure with entries still outstanding.
+- **[An entry is evicted while a recorded command buffer still binds it]** → Mitigation: eviction is guarded by `claimed && last_epoch <= completed prefix` (D5), and the re-acquire obligation that makes `last_epoch` an upper bound is a spec requirement (D10). Tests cover eviction pressure with entries still outstanding.
 - **[A caller caches a pressure-driven set handle across epochs and uses a released set]** → Mitigation: the contract is stated in the spec, the only pressure-driven consumer acquires per dispatch, and the owner-driven trigger exists for callers that need to hold a handle.
 - **[A fully serialised submitter re-mints everything]** → Mitigation: the budget, not the epoch, drives release (D5); the physics-app path is an explicit test fixture, since it is the shape that broke the earlier age-driven rule.
 - **[Losing the per-consumer 128-set budget lets one consumer's burst starve others]** → Mitigation: the arena grows pools on demand rather than partitioning; the old budget was a cliff, not a guarantee; pool and set counts are observable for regression tracking.
 - **[Cache growth if binding content churns every frame]** → Mitigation: the soft budget bounds the resident set, ineligible entries are the only ones allowed to exceed it, and a debug counter reports both the resident count and the number of entries held back by the guard.
+- **[The completed prefix lags, so entries stay ineligible longer than they are actually in use]** → Accepted: the preceding change documents that the prefix lags by about one in-flight depth because a frame is reported only three frames after it was submitted. The consequence here is that the resident cache holds a window of roughly that many epochs' worth of set content, and that eviction under pressure may have nothing eligible to release. The budget is soft for exactly this reason; the counter of entries held back by the guard makes the condition visible.
 - **[Teardown order inverted: the tracker notifying a destroyed arena]** → Mitigation: declaration order in `DeviceContext` (D9), plus a device-idle teardown test under the validation layer that leaves entries resident.
 - **[Material path behaviour changes more than expected when its pool disappears]** → Mitigation: the sentinel replacement (D6) is identified up front; the material-churn test asserts sets are released on instance destruction and on cache eviction.
 - **[Release becomes silent when a submitter stops reporting completions]** → Mitigation: entries simply stop becoming eligible, which the outstanding-watermark counter added by the preceding change already exposes; the arena's resident counter makes the growth visible.

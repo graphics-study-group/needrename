@@ -36,14 +36,26 @@ Recording and reporting submission epochs is a completion ledger, not a thread s
 
 ### Requirement: Staging release participates in retirement
 
-Staging allocated for enqueued operations SHALL be retained by `SubmissionHelper` until the batch that carries it is proven complete, and SHALL be released through the device retirement facility rather than freed directly. `SubmissionHelper` SHALL report the epoch associated with a submission complete before releasing that submission's staging.
+Staging allocated for enqueued operations SHALL be retained by `SubmissionHelper` until the batch that carries it is proven complete, and SHALL be released through the device retirement facility rather than freed directly.
+
+`SubmissionHelper` SHALL open **its own** epoch for each submission it issues, and SHALL report that epoch after waiting the fence of that submission. It MUST NOT report an epoch it did not open — in particular it MUST NOT report the frame's epoch when it reaps a batch, because that batch's fence says nothing about the frame's main batch, which is still in flight.
+
+Staging SHALL be released under the retirement facility's exact mode, naming the epoch of the submission that carried it, so that its release condition is already satisfied at the moment of release.
 
 #### Scenario: Immediate submission releases staging within its own cycle
 
-- **WHEN** `ExecuteSubmissionImmediately` submits, waits on its fence, and reports its epoch complete
-- **THEN** the batch's staging allocations are released without waiting for a later epoch
+- **WHEN** `ExecuteSubmissionImmediately` opens its own epoch, submits, waits on its fence, reports that epoch, and releases the batch's staging under the exact mode
+- **THEN** the staging allocations are released immediately, without waiting for the completed prefix
 
-#### Scenario: Deferred batch staging survives until reap
+#### Scenario: Deferred batch staging is released at its reap, not a frame later
 
 - **WHEN** a deferred batch is submitted and its staging is still awaiting `OnFrameComplete`
-- **THEN** that staging is retained, and is released only after the batch fence has been waited on and the batch's epoch reported complete
+- **THEN** that staging is retained until the batch fence has been waited on
+- **AND** it is released as soon as that batch's own epoch is reported
+- **AND** it is not retained until the completed prefix reaches that epoch
+
+#### Scenario: Reaping a batch does not report the frame's epoch
+
+- **WHEN** `OnFrameComplete` reaps a deferred batch whose upload was submitted inside a frame epoch opened by another submitter
+- **THEN** it reports only the epoch it opened itself for that upload submission
+- **AND** the frame's epoch remains outstanding until its own submitter observes the frame's completion signal

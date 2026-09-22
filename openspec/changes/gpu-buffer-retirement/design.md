@@ -25,20 +25,24 @@ Buffer allocations had neither, which is why the resize path is the unprotected 
 
 ```
 MainClass::RunOneFrame
-  :252-258  FlushPhysics -> SyncGpuBuffers -> ExecuteSubmissionImmediately   [epoch A]
+  :252-258  FlushPhysics -> SyncGpuBuffers -> ExecuteSubmissionImmediately   [epoch: flush]
+                  its own fence wait reports it promptly, before StartFrame below
   :283      StartFrame          waitForFences(command_executed_fences[fif])  <- frame N-3 done
+                  opens the frame's epoch
   :291      PreGPUStep                                                       <- may resize buffers
   :293      BeginMainCommandBuffer
   :294-297  GPUStep(cb) + RecordAllPasses(cb)
   :301      CompleteFrame -> SubmitFrame
-                ExecuteSubmission(timepoint 2)        <- staged upload submit
+                ExecuteSubmission(timepoint 2)   <- staged upload submit     [epoch: upload]
+                                                      its fence is waited by OnBatchComplete,
+                                                      which reports it promptly
                 submit2(main CB + copy CB), signal timepoint 4 @ eAllCommands
                                             , wait prev frame timepoint 4 @ eAllCommands
-                                                                            [epoch B]
+                                                                             [epoch: frame]
   :307      PostGPUStep
 ```
 
-`FrameManager::SubmitFrame` issues two submissions per frame but attaches `command_executed_fences[fif]` to the main one, and the main batch waits on the staged upload's timepoint 2. Therefore one completion signal covers the whole frame.
+`FrameManager::SubmitFrame` issues two submissions per frame and attaches `command_executed_fences[fif]` to the main one. The main batch waits on the staged upload's timepoint 2, so observing the frame fence proves both submissions complete — but the two still carry **separate epochs** (D8), because the upload's own fence is observable much earlier and is what lets its staging be reclaimed precisely (D9).
 
 ### Constraint from existing specs
 
@@ -53,7 +57,16 @@ MainClass::RunOneFrame
 
 The invariant is recorded here as a precondition this design relies on and does not change: **inter-frame GPU serialization is provided by the frame submission's previous-frame wait and MUST NOT be removed silently.** Work that genuinely needs to run independently of the frame must go to a separate queue with its own epochs and its own completion reporting — the submitter protocol in this change is submitter-agnostic and supports that — rather than by relaxing the wait.
 
-## Goals / Non-Goals
+### Prefix advancement depends on every submitter reporting
+
+The completed prefix advances only when submitters report, and nothing in the engine makes that happen automatically. Every epoch must therefore reach exactly one of two terminal states — reported (with or without a completion signal) or abandoned — and a submitter that stops reporting strands every resource parked under its epochs *and* every resource parked under any later epoch, because the prefix cannot jump over the gap.
+
+This is stated as an explicit dependency rather than left implicit for two reasons:
+
+- The render side's frame-to-frame serialisation (above) bounds how long a lag lasts; it is **not** what makes the mechanism correct. Reading it as the safety argument would mean the mechanism silently depends on a render-side detail.
+- The observation points are coarse and late by construction: a frame's completion is noticed only at `StartFrame`, three frames after it was submitted. The prefix therefore lags by about one in-flight depth even when the GPU is idle, and that lag is the price of the upper-bound parking mode (D4). The exact mode exists to avoid paying it where the referencing submission is known.
+
+
 
 **Goals**
 
@@ -81,29 +94,61 @@ The watermark is issued by the tracker and is never handed to Vulkan. GPU-side o
 
 **Alternative rejected:** reuse timeline semaphore values as watermarks. Each in-flight slot owns its own timeline semaphore with independent value ranges, so values are not globally comparable.
 
-### D2: A retired allocation parks under the *newest outstanding* watermark
+### D2: A report proves one epoch; the prefix is derived from many
 
-The parking tag must be the maximum watermark issued and not yet completed — not the retiring submitter's own epoch. Rationale, straight from the code: `ExecuteSubmissionImmediately` proves only its own submission, yet `MainClass.cpp:258` retires up to thirty buffers through that path while frames N-1 and N-2 are still running. Tagging with "my own epoch" would classify those buffers as immediately free and reintroduce the use-after-free.
-
-The cost is bounded: at most one in-flight depth of extra retention.
-
-### D3: Completion advances only through the contiguous prefix
-
-`Complete(w)` records w as completed, then advances the completed watermark through the contiguous run of completed watermarks. Without this, the blocking submission at `MainClass.cpp:258` — which is the *earliest* to be confirmed complete on the CPU — would advance the completed watermark past an earlier frame's still-outstanding epoch and free its buffers early.
-
-**Observation that makes this cheap:** the GPU is already serialised across frames (`FrameManager.cpp:281-284` waits the previous frame's timepoint 4 at `eAllCommands`), and all submissions go to one queue in submission order, so completions are effectively in order in practice. The contiguous-prefix rule is insurance, not a throughput cost — it will normally advance all the way in one step.
-
-### D4: One immediate-release rule; the other one was unsound and is removed
+The tracker keeps two separate things, and the distinction is load-bearing:
 
 ```
-Retire(allocation):
-    if (parking watermark <= completed watermark)   -> release immediately
-    else                                            -> park under the release-time watermark
+  reported          : the set of watermarks individually reported  (sparse, out of order)
+  completed_prefix  : the largest n such that every watermark <= n is reported
 ```
 
-The parking watermark is **the watermark in effect at the moment of release** — the newest outstanding epoch watermark. It is not a function of when the allocation was created, and it is not a function of when the allocation was last bound.
+A report is proof of exactly the epoch it names. The tracker cannot observe a `vkQueueSubmit2`, so "the submission carrying epoch w has finished" is the *only* fact a report carries; it is not evidence about any other epoch. The prefix is a *derived* statement about a contiguous range, and it advances only through the contiguous run of reports.
 
-**Why release-time is the right quantity.** The epochs that can reference an allocation are exactly those at or below its release watermark: an epoch whose recording begins after the release cannot bind it, because binding a released allocation is not a legitimate operation. Waiting for `completed >= release watermark` therefore covers exactly the right set, by the contiguous-prefix rule of D3. Note what the argument does *not* rely on: it does not require epochs to be non-nested — the blocking path can open an epoch inside a frame's epoch — only on "released implies no later legitimate binding".
+Both of these hold at the same time, and conflating them is the mistake this decision exists to prevent:
+
+- an epoch can be reported while the prefix is far below it;
+- the prefix can be far below an epoch whose GPU work finished long ago.
+
+### D3: The prefix lags by design, and it is a correctness requirement
+
+An earlier draft of this document claimed that because the GPU is serialised across frames and all submissions go to one queue, completions are "effectively in order" and the contiguous-prefix rule is "insurance, not a throughput cost". **That is false, and the corrected picture is what the rest of the design depends on.**
+
+CPU-side reports are routinely out of order:
+
+```
+  frame N-3's epoch is reported only when StartFrame(N) waits the fif fence   (FrameManager.cpp:211-215)
+  while the blocking flush at MainClass.cpp:258 reports its own, newer epoch *before* that
+  => the prefix is pinned by the oldest unreported epoch, sitting near w_{N-3}
+```
+
+So the prefix lags by roughly the in-flight depth, and the rule is a **correctness requirement**, not a free safety net. Its cost is *retention time*: everything parked in the upper-bound mode is held until the prefix catches up.
+
+**Why the lag is inherent to the observation points.** The CPU learns that a frame completed only where it waits a fence, and `StartFrame` waits the fence of the frame that used the same in-flight slot — three frames earlier. Nothing else observes a frame's completion, and reporting earlier would assert a completion that has not been observed. The lag is therefore bounded by the in-flight depth, and that bound holds only because submitters eventually report every epoch they open — recorded as an explicit dependency in the Context above rather than left implicit.
+
+**Considered and rejected: polling the timeline to report earlier.** `FrameManager` already signals a timeline value at `eAllCommands`, so a non-blocking counter query per in-flight frame would let the CPU report as soon as the GPU is actually done, shrinking the lag towards the GPU's true progress. It is rejected because it introduces a driver query into the meaning of an epoch: the facility would then be reasoning about a semaphore's counter rather than about reports it was given. The lag is accepted instead, and the exact parking mode of D4 is what avoids paying it where the referencing submission is known.
+
+### D4: Two parking modes, because a report proves only one epoch
+
+```
+  Upper-bound mode:  the referencing epochs are a subset of {<= bound}
+                     release when  completed_prefix >= bound
+                     default for ~BufferAllocation; bound = newest watermark at release time
+
+  Exact mode:        the referencing epoch is exactly {e}          (the caller's claim)
+                     release when  e is reported
+                     used for staging, whose referencing submission the caller just waited on
+
+  Both conditions are evaluated when a resource is parked and again after every report.
+  A condition that already holds at park time releases immediately — there is no separate
+  "immediate release" rule.
+```
+
+**Why two modes rather than one.** They answer the two halves of the same ignorance. We cannot know "everything at or below e has completed", so either we take an upper bound and wait for the prefix (safe, and it pays the lag of D3), or the caller narrows the referencing set to a single epoch (safe, and it pays nothing, because a report for that epoch is exactly the proof required).
+
+**Why the upper-bound mode is sound.** A resource released at time T cannot be bound by an epoch whose recording begins after T, because binding a released resource is not a legitimate operation. The referencing epochs are therefore a subset of {≤ bound}. That argument does not depend on epochs being non-nested, nor on the CPU processing epochs serially — overlapping epochs are precisely why the prefix is also required.
+
+**Why the exact mode is sound, and why misusing it is safe.** The caller's claim narrows the referencing set; the release still waits for a *report* for the named epoch, which the tracker can verify. A caller naming an unreported epoch gets retention, not a premature free. The escape hatch therefore cannot become a use-after-free — it can only cost time.
 
 **Why the creation-time rule was removed.** An earlier draft released an allocation immediately when it had been created during the current epoch and no submission had yet been issued for that epoch. That rule is **unsound**, because recording is not submission:
 
@@ -113,13 +158,11 @@ The parking watermark is **the watermark in effect at the moment of release** �
   releasing A frees the VkBuffer; the eventual submission then references destroyed memory
 ```
 
-"Not yet submitted" was mistaken for "not yet referenced" — but the whole point of recording a dispatch is that it will be submitted. The rule's original motivation is real (per-call temporaries must not accumulate for a whole epoch), but the answer is the usage rule rather than early release: hot loops reuse a buffer they already own, and a per-call temporary legitimately stays alive until its epoch completes. That usage rule is already the chosen pattern (instance-held scratch with grow-only capacity).
+"Not yet submitted" was mistaken for "not yet referenced". The rule's motivation was real — per-call temporaries must not accumulate for a whole epoch — but the answer is the usage rule rather than early release: hot loops reuse a buffer they already own, and a per-call temporary legitimately stays alive until the prefix reaches its bound. That usage rule is already the chosen pattern (instance-held scratch with grow-only capacity).
 
-**The submission notification is removed with it.** That protocol step existed only so the facility could answer "has anything been submitted in this epoch", which only the removed rule needed; the tracker cannot observe a `vkQueueSubmit2` by itself. With the rule gone the event has no consumer, and the protocol is back to four steps. The follow-up `descriptor-arena-epoch-buckets` change does not need it either — see that change's D3, which replaces per-submission sealing with a release-time watermark on each cache entry.
+**The submission notification is removed with it.** That protocol step existed only so the facility could answer "has anything been submitted in this epoch", which only the removed rule needed.
 
-**Why the surviving rule matters.** A submitter that has already waited its fence reports completion and *then* releases staging, so the parking watermark is already complete and the release is immediate (see D9). Without it, texture-upload staging — which holds whole images — would be retained for up to a full in-flight depth. It also makes the retire/report order irrelevant: releasing before the report parks the allocation and the report drains it; releasing after the report frees it immediately. Both orders are correct.
-
-**A tightening that is deliberately not taken.** Tracking the epoch in which each allocation was *last bound* would let an allocation released long after its last use be freed sooner. It is not needed for correctness, it would require a stamp on every binding path, and it takes the release decision away from the caller. The retention it would save is bounded by the in-flight depth, and the case only arises when a buffer is replaced — a geometry change, where the memory is being replaced anyway.
+**A tightening that is deliberately not taken.** Tracking the epoch in which each allocation was *last bound* would tighten the upper bound. It is not needed for correctness, it would require a stamp on every binding path, and it takes the release decision away from the caller. The retention it would save is bounded by the in-flight depth, and the case only arises when a buffer is replaced — a geometry change, where the memory is being replaced anyway.
 
 ### D5: The cut goes in `BufferAllocation`, not in `ComputeBuffer`
 
@@ -155,26 +198,48 @@ Not at `BeginMainCommandBuffer`, for two reasons:
 
 Placement after acquisition and after the command buffer reset, immediately before returning success, satisfies both. A skipped frame opens no epoch, and `MainClass` returns before `PreGPUStep`, so no allocation happens outside an epoch either.
 
-`AbortEpoch()` covers the remaining error paths (a submission that throws between `BeginEpoch` and `EndEpoch`), so a failure cannot strand an epoch either.
+`AbandonEpoch()` covers the remaining error path: a submission that was never issued (it threw, or the work was dropped) leaves an epoch that would otherwise never be reported. It marks the epoch as reported **without** a completion signal, so the prefix can advance past it; it does **not** release anything directly, because a resource parked under the abandoned epoch may still be referenced by an earlier, unreported epoch. Abandonment is only valid when no submission was issued for that epoch — if one was issued and its completion cannot be observed, that failure must be surfaced rather than masked.
 
 **Consequence recorded:** `PreGPUStep` currently allocates *before* `BeginEpoch` during the migration window of the later `physics-step-simplification` change. For this change it is inside the epoch, which is what we want; the ordering above is chosen so it stays correct when that call is deleted.
 
-### D8: One watermark per frame covers both of the frame's submissions
+### D8: Each submission gets its own epoch, including the frame's staged upload
 
-The staged upload is submitted mid-epoch and the main batch waits on its timepoint 2; `command_executed_fences[fif]` is attached to the main submit. Therefore observing the frame fence proves the whole frame — upload, main batch, and copy batch — complete, and a single report suffices.
-
-**Alternative rejected:** giving the staged upload its own epoch. It adds a watermark per frame and a second reporting point, with no gain in safety.
-
-### D9: `SubmissionHelper` becomes the second driver, and its staging joins retirement
-
-Once the sink is installed, staging buffers are `BufferAllocation`s too and would be parked by default. That would be a **memory regression** for uploads (staging holds whole textures). The fix is the protocol, not an exemption:
+An earlier draft gave the frame's staged-upload submission and the frame's main batch **one** watermark, on the grounds that the main batch waits on the upload's timepoint 2 and the fence is attached to the main submit — so one report covers both, and a second watermark looked like pure overhead. **That is reversed here**, because it makes the upload's staging impossible to reclaim precisely:
 
 ```
-ExecuteSubmissionImmediately:  submit -> waitForFences -> ReportComplete(epoch) -> release staging
-OnBatchComplete (deferred):    waitForFences -> ReportComplete(epoch) -> release staging
+  with one epoch per frame:
+      the staged upload is submitted *inside* the frame's epoch w_N
+      => the staging's referencing epoch IS w_N
+      => the exact mode (D4) would wait for w_N, which is reported three frames later
+      => staging is retained for a full in-flight depth, which is exactly the regression
+         D9 exists to avoid
+
+  with one epoch per submission:
+      the upload gets w_up, opened by the submitter that issues it
+      its report point is that submitter's own fence wait — precise and immediate
+      => the staging's exact-mode release fires as soon as the fence is waited
 ```
 
-With the immediate-release rule of D4, staging is then released in the same cycle it always was, while the parking path still protects anything that was not proven complete. This also makes the class of bug fixed by the 2026-08-07 staging change structurally unreachable: each batch's resources are parked under their own watermark.
+The frame's epoch still covers the main batch (and the copy batch, which shares the main submit's fence), so nothing about frame-level reclamation changes. The cost is one extra watermark and one extra report per frame, which is what buys staging back its today-behaviour memory profile.
+
+### D9: `SubmissionHelper` becomes the second driver, and its staging is reclaimed by the exact mode
+
+Once the sink is installed, staging buffers are `BufferAllocation`s too and would be parked by default. That would be a **memory regression** for uploads (staging holds whole textures). The fix is a mechanism, not an exemption:
+
+```
+  ExecuteSubmissionImmediately:  open w -> submit -> waitForFences -> report w -> release staging
+  OnBatchComplete (deferred):    waitForFences -> report w_up -> release staging
+                                 (w_up = the epoch this helper opened for the upload submission)
+```
+
+Staging is released under the **exact mode** with the epoch of the submission that carried it (D4), so the release condition is already satisfied at the moment of release and the staging is freed in the same cycle it always was.
+
+Two rules make this correct, and both are new here:
+
+- **Who opens reports.** A submitter may report only epochs it opened itself. In particular `SubmissionHelper` must **not** report the frame's epoch on `OnBatchComplete`: the upload's fence says nothing about the frame's main batch, which is still in flight, and reporting the frame's epoch there would be a false assertion that frees everything parked under it.
+- **The upload's epoch is the helper's own** (D8), which is what gives the staging a precise epoch to name.
+
+This also makes the class of bug fixed by the 2026-08-07 staging change structurally unreachable: each batch's resources are parked under an epoch only that batch's submitter can report.
 
 **Note:** `SubmissionHelper`'s per-batch staging containers (`m_pending_staging` / `m_active_staging`) are *not* removed by this change — they still own the allocations until the release point. Consolidating them into the retirement queue is a follow-up (see Open Questions).
 
@@ -186,25 +251,29 @@ Because the graph is built once and recorded every frame, a body-count change af
 
 ### D11: No in-flight depth in the public interface
 
-An earlier draft exposed the in-flight depth so host-visible parameter buffers could rotate per epoch. The later decision to move CPU-known kernel parameters into push constants removes that consumer; nothing else needs the number (the descriptor arena of the follow-up change needs epoch *completion*, not a depth). The interface therefore omits it, and `slot_count`-style hand-passed depths are not replaced.
+An earlier draft exposed the in-flight depth so host-visible parameter buffers could rotate per epoch. The later decision to move CPU-known kernel parameters into push constants removes that consumer; nothing else needs the number (the descriptor arena of the follow-up change needs the completed *prefix*, which it reads from the tracker rather than being told a depth). The interface therefore omits it, and `slot_count`-style hand-passed depths are not replaced.
 
 ## Risks / Trade-offs
 
 - **[Retirement masks use-after-free instead of exposing it]** → Mitigation: parking is bounded and observable; a debug counter of parked items and outstanding watermarks is part of the implementation, and the headless fixture asserts parked items drain to zero after a device-idle wait.
-- **[An epoch that never completes strands resources]** → Mitigation: `AbortEpoch` for error paths; no epoch is opened for a skipped frame (D7); the tracker's destructor releases everything; a debug assertion bounds the number of outstanding watermarks.
-- **[Completion reported too early reintroduces the original bug]** → Mitigation: the contiguous-prefix rule (D3) plus a single reporting point per submitter; reporting happens only after a `waitForFences` return, never on a timer or a poll.
-- **[Staging regression if a submitter forgets to report]** → Mitigation: the two submitters are the only producers (D8, D9), the immediate-release rule of D4 makes the common case immediate, and the spec requires reporting before releasing staging.
+- **[An epoch that never reaches a terminal state strands everything above it]** → Mitigation: `AbandonEpoch` for epochs that produced no work; no epoch is opened for a skipped frame (D7); the tracker's destructor releases everything; a debug assertion bounds the number of outstanding watermarks and the condition is part of the spec.
+- **[Abandonment used as a way to force a release]** → Mitigation: the spec states that abandonment marks the epoch as reported and MUST NOT release anything directly; a test asserts that resources parked under an abandoned epoch survive while earlier epochs are unreported.
+- **[A submitter reports an epoch it did not open]** → Mitigation: stated as a protocol rule with its own scenario; the practical case (`SubmissionHelper` reporting the frame's epoch on `OnBatchComplete`) is called out explicitly in D9.
+- **[Completion reported too early reintroduces the original bug]** → Mitigation: reports happen only after a `waitForFences` return, never on a timer or a poll; the prefix rule (D3) then ensures a single out-of-order report releases nothing.
+- **[Staging regression if the upload's epoch is not precise]** → Mitigation: the upload gets its own epoch (D8) and the staging is parked in the exact mode (D9), so its release fires at the fence wait; a test asserts staging is not retained for a full in-flight depth.
+- **[The prefix lags further than the in-flight depth]** → Accepted and bounded: the lag is set by the coarsest reporting point (`StartFrame`'s fence wait for a three-frames-old submission), and the exact mode is available where the referencing submission is known. Polling the timeline to shrink it was considered and rejected (D3).
 - **[Recorded-but-unsubmitted work retaining buffers for a whole epoch]** → Accepted, not mitigated: an allocation bound into a command buffer that is still being recorded must stay alive until that epoch completes (D4). Hot loops are expected to reuse instance-held scratch; a per-call temporary pays this cost by design. A debug counter makes the retained set visible.
 - **[Destroy-order hazards at teardown]** → Mitigation: the tracker is declared so it is destroyed before the allocator; a buffer outliving the `DeviceContext` is already undefined today and is not made worse.
 - **[Two id spaces (watermarks vs timeline values) diverge]** → Mitigation: watermarks are never given to Vulkan and timeline values are never used for retirement; the only link is the report call.
 
 ## Migration Plan
 
-1. Introduce the tracker and the sink; wire `DeviceContext`, `AllocatorState`, `DeviceContext` teardown. No behavior change yet, since nothing reports completion — the facility starts fully conservative.
-2. Make `SubmissionHelper` a driver (D9) so blocking paths reclaim immediately.
-3. Make `FrameManager` a driver (D7, D8): open at the end of `StartFrame`, report after the fence wait; drain at device-idle points.
-4. Convert `model_matrices` to shared ownership (D10) and update the four call sites.
-5. Add the headless fixture that changes geometry between steps and asserts the parked set drains.
+1. Introduce the tracker and the sink; wire `DeviceContext`, `AllocatorState`, `DeviceContext` teardown. No behavior change yet, since nothing reports — the facility starts fully conservative.
+2. Implement both parking modes (D4) and the reported-set / prefix model (D2), with the debug counters.
+3. Make `SubmissionHelper` a driver (D9): it opens its own epoch per submission, reports only what it opened, and releases staging under the exact mode. This is what restores today's staging memory profile.
+4. Make `FrameManager` a driver (D7, D8): open the frame's epoch at the end of `StartFrame`, report it after the slot's fence wait, and release parked resources at device-idle points.
+5. Convert `model_matrices` to shared ownership (D10) and update the four call sites.
+6. Add the headless fixture that changes geometry between steps and asserts the parked set drains.
 
 Rollback is per-step: with all reporting removed, the facility degrades to "retain until device idle", which is safe but leaky; each step is independently revertible.
 
@@ -212,12 +281,13 @@ Rollback is per-step: with all reporting removed, the facility degrades to "reta
 
 This is the first of four planned changes; the others build on it and are planned separately.
 
-- `descriptor-arena-epoch-buckets` — descriptor-set lifetime and pool management, built on the epochs introduced here. Its reuse cache is only sound because epoch completion is observable, and it is the reason this change's protocol deliberately does **not** need a per-submission event (see D4).
+- `descriptor-arena-epoch-buckets` — descriptor-set lifetime and pool management, built on the epochs introduced here. It reads the completed **prefix** (not individual reports) to decide what may be reclaimed, and its reuse cache is only sound because that prefix is observable. It is also the reason this change's protocol deliberately does **not** need a per-submission event (see D4).
 - `compute-kernel-dispatch` — the name→resource dictionary dispatch surface, which obtains its sets from the arena above and re-acquires them on every dispatch.
 - `physics-step-simplification` — deletes `PreGPUStep`/`PostGPUStep` and moves buffer sizing to record time, which this change is what makes safe.
 
 ## Open Questions
 
-- **Aggressive reclamation.** Completing an epoch as soon as its timeline value is reached (one frame of retention instead of up to three) needs a non-blocking counter query on the previous frame's semaphore. Deferred: it changes only latency, not correctness, so it can be added without touching the specs.
 - **Consolidating `SubmissionHelper` staging accounting into the retirement queue**, which would delete `m_pending_staging` / `m_active_staging` and their protocol. Deferred to keep this change small and because `submission-helper-sync` is covered by focused tests.
-- **Extracting `FrameManager`'s timeline bookkeeping into RHI as a submission-timeline facility**, which would unify the two id spaces (D1) and make aggressive reclamation natural. Deferred because it touches a pinned spec and buys simplification rather than new safety.
+- **Extracting `FrameManager`'s timeline bookkeeping into RHI as a submission-timeline facility**, which would unify the two id spaces (D1). Deferred because it touches a pinned spec and buys simplification rather than new safety.
+
+**Considered and rejected: polling a timeline counter to report earlier.** `FrameManager` already signals a timeline value at `eAllCommands` per frame, and a non-blocking `vkGetSemaphoreCounterValue` would let the CPU report a frame as soon as the GPU is actually done — shrinking the prefix's lag from "one in-flight depth" to "the GPU's true progress". It is rejected (D3): it puts a driver query into the meaning of an epoch, so the facility would be reasoning about a semaphore counter instead of about reports it was given. The lag is accepted, and the exact mode is the answer where the referencing submission is known.

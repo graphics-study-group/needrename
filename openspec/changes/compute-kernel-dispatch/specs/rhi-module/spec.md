@@ -6,7 +6,7 @@
 
 `Rhi` SHALL contain the following types, moved from `engine/Render/` without semantic changes: `DeviceInterface`, `AllocatorState`, `MemoryTypes` / `MemoryAllocation`, `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer`, `Texture`, `ImageTexture`, `TextureSubresourceView`, `ImageUtils`, `ImmutableResourceCache`, `SubmissionHelper`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface`, `MemoryAccessTypes`, `PipelineEnums`.
 
-`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility with its supporting types: the submission epoch tracker, the allocation retire sink that buffer allocations report to, and the shared-ownership buffer factory. These reside in `Rhi` because they depend on the device and allocator only, and both `Render` and `Physics` use them equally.
+`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility and its supporting types: the submission epoch tracker, the allocation retire sink that buffer allocations report to, and the shared-ownership buffer factory. These reside in `Rhi` because they depend on the device and allocator only, and both `Render` and `Physics` use them equally.
 
 `Rhi` SHALL additionally own the device-scoped descriptor arena: the single owner of descriptor pools, which keeps acquired sets resident and reusable across submission epochs and reclaims them under one of two triggers — cache pressure for per-dispatch compute bindings and an explicit owner release for long-lived material, scene and camera state. The arena resides in `Rhi` because both `Render` (materials, scene data, cameras) and compute consumers use it equally, and neither may own a pool.
 
@@ -45,6 +45,12 @@ The types `ComputeStage`, `ComputeResourceBinding` and the `ComputeHelpers` free
 
 - **WHEN** a client needs a buffer whose lifetime must outlive the component that created it
 - **THEN** a shared-ownership factory is available alongside the unique-ownership factory, returning a reference-counted handle to the same buffer type
+
+#### Scenario: Descriptor arena available from Rhi
+
+- **WHEN** a client includes the descriptor arena's header
+- **THEN** the arena is available under `Engine::Rhi`, keeping acquired descriptor sets resident and reusable across submission epochs
+- **AND** the arena does not depend on headers from `engine/Render/`
 
 ## REMOVED Requirements
 

@@ -33,7 +33,7 @@ When the pool a request would be served from cannot satisfy it, the arena SHALL 
 
 The arena SHALL keep acquired sets in a content-keyed store and SHALL return the same set for a repeated request of the same descriptor-set layout and binding content, **including across epoch boundaries**. Re-acquiring a set SHALL refresh the epoch recorded for it; it MUST NOT cause a new set to be created.
 
-A set SHALL be released only when the epoch recorded for it is at or below the completed watermark, so that a set referenced by an outstanding epoch is never released. The arena MUST NOT rewrite a set's descriptors in place while it is resident.
+A set SHALL be released only when the epoch recorded for it is at or below the completed prefix, so that a set referenced by an outstanding epoch is never released. A report for an entry's own epoch is NOT sufficient: earlier epochs may still be executing command buffers that bind the same set, so only the prefix makes an entry eligible. The arena MUST NOT rewrite a set's descriptors in place while it is resident.
 
 #### Scenario: Steady-state reuse mints nothing
 
@@ -52,11 +52,11 @@ A set SHALL be released only when the epoch recorded for it is at or below the c
 - **WHEN** two passes in the same epoch request the same descriptor set layout and the same binding content
 - **THEN** both receive the same descriptor set
 
-#### Scenario: Completion is driven by the completed watermark, not by a single report
+#### Scenario: Completion is driven by the completed prefix, not by a single report
 
 - **WHEN** an epoch is reported complete while an earlier epoch is still outstanding
 - **THEN** no set recorded against the earlier epoch is released
-- **AND** sets become releasable only as the completed watermark advances past the epochs recorded for them
+- **AND** sets become releasable only as the completed prefix advances past the epochs recorded for them
 
 ### Requirement: Pressure-driven sets carry a re-acquisition contract
 
@@ -73,7 +73,7 @@ This contract is what makes the recorded epoch an upper bound on the epochs that
 
 - **WHEN** a kernel does not dispatch in an epoch
 - **THEN** its sets keep the epoch recorded at their last acquisition
-- **AND** they become releasable once that epoch completes
+- **AND** they become releasable once the completed prefix reaches that epoch
 
 #### Scenario: A caller that holds a handle across epochs uses the owner-driven trigger
 
@@ -83,7 +83,7 @@ This contract is what makes the recorded epoch an upper bound on the epochs that
 
 ### Requirement: Eviction is epoch-guarded and the budget is soft
 
-The arena SHALL reclaim pressure-driven entries only when it is over a configured resident budget, and only among entries that are **eligible** — claimed by an epoch and recorded at or below the completed watermark. Among eligible entries it SHALL evict the least recently acquired first.
+The arena SHALL reclaim pressure-driven entries only when it is over a configured resident budget, and only among entries that are **eligible** — claimed by an epoch and recorded at or below the completed prefix. Among eligible entries it SHALL evict the least recently acquired first.
 
 An entry that is not eligible MUST NOT be evicted, even when the arena is over budget: exceeding the budget is preferable to releasing a set an outstanding submission may reference. The budget is therefore a soft cap.
 
@@ -97,7 +97,7 @@ An entry that is not eligible MUST NOT be evicted, even when the arena is over b
 
 - **WHEN** the resident budget is exceeded and every entry is still referenced by an outstanding epoch
 - **THEN** no entry is released
-- **AND** the arena exceeds the budget until an epoch completes
+- **AND** the arena exceeds the budget until the completed prefix advances past those entries' recorded epochs
 
 #### Scenario: A fully serialised submitter still reuses its sets
 
@@ -151,7 +151,7 @@ The release SHALL be deferred when the epoch recorded for the set is still outst
 
 - **WHEN** a release is requested for a set whose recorded epoch is still outstanding
 - **THEN** the release is deferred
-- **AND** the set is reclaimed only once the completed watermark reaches that epoch
+- **AND** the set is reclaimed only once the completed prefix reaches that epoch
 
 ### Requirement: Descriptor-set layouts are shared
 
@@ -164,7 +164,7 @@ The arena SHALL obtain descriptor-set layouts from the device's immutable resour
 
 ### Requirement: Headless operation without a frame loop
 
-The arena SHALL operate with no presentation frame loop. A device-idle wait SHALL NOT by itself release resident sets: it advances the completed watermark, which makes entries eligible, but reclamation still requires budget pressure or an owner release.
+The arena SHALL operate with no presentation frame loop. A device-idle wait SHALL NOT by itself release resident sets: it advances the completed prefix, which makes entries eligible, but reclamation still requires budget pressure or an owner release.
 
 #### Scenario: Standalone compute workload
 

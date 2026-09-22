@@ -12,10 +12,16 @@ This change introduces the missing concept — the submission epoch — and make
 
 ## What Changes
 
-- **New RHI facility: submission epochs and a retirement queue.** A monotonic watermark identifies a completion promise; retired resources are parked under the newest outstanding watermark and freed when completion is reported in order.
+- **New RHI facility: submission epochs and a retirement queue.** A monotonic watermark identifies a completion promise; retired resources are parked and released only once every submission that may reference them has completed.
+- **A report proves one epoch, and the completed prefix is derived from many.** The facility keeps the set of individually reported epochs and advances a contiguous prefix through it. CPU-side reports are routinely out of order — a frame is reported three frames after it was submitted, while blocking submissions report much sooner — so the prefix lags by about one in-flight depth and is a correctness requirement rather than a safety net.
+- **Two parking modes**, because a report cannot be generalised to "everything below it is done":
+  - *Upper-bound mode* (the default for a buffer destroyed through the allocator): the referencing epochs are a subset of those at or below the newest watermark at release time, and the resource is released when the prefix reaches it.
+  - *Exact mode*: the caller names the single epoch that references the resource, and it is released as soon as that epoch is reported. It is used for upload staging, whose referencing submission the submitter has just waited on.
+  An incorrect exact claim degrades to retention, never to a premature free.
 - **Allocation-layer cut (no buffer API change).** `BufferAllocation` gains an optional retire sink; its destructor hands the allocation to the retirement queue instead of destroying it. `ComputeBuffer`, `DeviceBuffer`, `IndexedBuffer`, all five `EnsureBuffer` copies and every algorithm contract are untouched.
 - `AllocatorState` gains a retire-sink setter, keeping its pinned `AllocatorState(DeviceInterface &)` constructor intact.
-- **Drivers.** `FrameManager` opens exactly one epoch per frame (at the end of a successful `StartFrame`) and reports it complete after the per-frame fence wait; `SubmissionHelper` opens and completes one epoch per submission. Every `device.waitIdle()` site also drains, and `AbortEpoch()` covers error paths.
+- **Drivers, and who may report.** `FrameManager` opens the frame's epoch at the end of a successful `StartFrame` and reports it after the frame's fence wait; `SubmissionHelper` opens **its own** epoch for each submission it issues and reports it after that submission's fence wait. A submitter MUST NOT report an epoch it did not open. Every `device.waitIdle()` site releases parked resources; abandoning an epoch (only valid when no submission was issued for it) marks it reported **without** releasing anything.
+- **The frame's staged upload gets its own epoch** rather than sharing the frame's, so the upload's staging can be reclaimed precisely at its own fence wait instead of being retained for a full in-flight depth.
 - **BREAKING:** physics `model_matrices` becomes a stably owned buffer (`ComputeBuffer::CreateShared`) and the render side holds that stable reference instead of a borrowed raw pointer. `SceneDataManager::SetModelMatricesBuffer` and `ComplexRenderGraphBuilder::BuildDefaultRenderGraph` change accordingly.
 - No compute dispatch API, shader, or descriptor-set behavior changes in this change.
 
@@ -23,7 +29,7 @@ This change introduces the missing concept — the submission epoch — and make
 
 ### New Capabilities
 
-- `rhi-gpu-resource-retirement`: the submission-epoch contract, the retirement queue's release rules (the release-time watermark, in-order completion, the single immediate-release condition), the submitter protocol (open / report / abandon / release-on-idle), and the guarantee that a resource is never released while a submission that may reference it is outstanding.
+- `rhi-gpu-resource-retirement`: the submission-epoch contract; the distinction between an individual report and the derived completed prefix; the two parking modes and their release conditions; the submitter protocol (open / report-only-what-you-opened / abandon / release-on-idle); the dependency of prefix advancement on every submitter terminating its epochs; and the guarantee that a resource is never released while a submission that may reference it is outstanding.
 
 ### Modified Capabilities
 

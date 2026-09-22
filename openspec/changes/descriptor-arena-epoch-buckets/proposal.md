@@ -16,11 +16,11 @@ This is the second of four changes; it makes descriptor-set lifetime bounded wit
 
 - **New device-scoped `Rhi::DescriptorArena`, owned by `DeviceContext`.** Sets are kept **resident** in one content-keyed store and **reused across epochs**, because a kernel's or a material's binding content is stable from frame to frame: in steady state the arena should mint nothing. The source's own `LRU` TODO becomes implementable — what was missing was never the eviction policy but knowing when eviction is safe.
 - **Two release triggers rather than one policy**, because the consumer families differ: cache pressure for per-dispatch compute bindings (nobody is left to say when a set is done), and an explicit owner release for material, scene and camera state (the owner holds the handle across frames and knows when it dies).
-- **Eviction is pressure-driven and epoch-guarded.** Entries are released only when the arena is over a resident budget, and only among entries whose recorded epoch is at or below the completed watermark; the budget is therefore a **soft** cap — the arena exceeds it rather than releasing a set an outstanding submission may reference.
+- **Eviction is pressure-driven and epoch-guarded.** Entries are released only when the arena is over a resident budget, and only among entries whose recorded epoch is at or below the completed **prefix** — a report for an entry's own epoch is not enough, since earlier epochs may still bind the same set; the budget is therefore a **soft** cap — the arena exceeds it rather than releasing a set an outstanding submission may reference.
 - **Sets acquired while no epoch is open are pinned** until an epoch claims them, and are never evictable while unclaimed: the command buffer that bound them has not been submitted yet.
 - **A stated contract for pressure-driven sets**: they must be re-acquired in every epoch that uses them, and their handles must not be cached across epochs. Callers that need to hold a handle across frames use the owner-driven trigger.
 - **BREAKING:** `ShaderResourceBinding::GetDescriptorSet` loses its `pool` parameter; `ComputeStage::GetDescriptorPool` and `MaterialTemplate::GetDescriptorPool` are removed. **`ComputeStage`, `MaterialTemplate`/`MaterialLibrary`, `SceneDataManager` and `CameraManager` all stop owning a descriptor pool** — no consumer creates, owns or resets one.
-- **The arena observes exactly one thing from `gpu-buffer-retirement`**: the completed watermark advancing. It is not part of the submission protocol, and a device-idle wait does not discard its cache.
+- **The arena observes exactly one thing from `gpu-buffer-retirement`**: the completed **prefix** advancing. It is not part of the submission protocol, and a device-idle wait does not discard its cache.
 - No compute dispatch API, shader, or barrier placement changes in this change.
 
 ## Capabilities
@@ -43,7 +43,7 @@ This is the second of four changes; it makes descriptor-set lifetime bounded wit
 - `engine/Rhi/Device/` — `DeviceContext` owns the arena, declared before the retirement tracker so the tracker cannot outlive its observer.
 - `engine/Render/Pipeline/Material/` — `MaterialInstance.cpp` call site; `MaterialTemplate.*` and `MaterialLibrary.cpp` lose the per-template pool and its naming.
 - `engine/Render/RenderSystem/` — `SceneDataManager.*` and `CameraManager.*` move their pools onto the arena.
-- `engine/Rhi/Submission/` — the completed-watermark advancement the arena registers with (introduced by `gpu-buffer-retirement`).
+- `engine/Rhi/Submission/` — the completed-prefix advancement the arena registers with (introduced by `gpu-buffer-retirement`).
 
 **API**
 - Breaking: `ShaderResourceBinding::GetDescriptorSet`, `ComputeStage::GetDescriptorPool`, `MaterialTemplate::GetDescriptorPool`. All other changes are additive.

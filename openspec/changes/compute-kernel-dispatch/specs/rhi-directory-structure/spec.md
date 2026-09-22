@@ -9,18 +9,12 @@ The `Rhi` module SHALL organize its source files under `engine/Rhi/` into the re
 #### Scenario: Device sources live in Device/
 
 - **WHEN** the `Rhi` module is checked out
-- **THEN** `DeviceInterface.*`, `DeviceContext.*`, `Structs.h`, `DebugUtils.h`, `Hasher.hpp`, `AllocatorState.*`, `MemoryAllocation.*`, `MemoryTypes.h`, and `MemoryAccessTypes.h` SHALL reside in `engine/Rhi/Device/`
+- **THEN** `DeviceInterface.*`, `DeviceContext.*`, `Structs.h`, `DebugUtils.h`, `Hasher.hpp`, `AllocatorState.*`, `MemoryAllocation.*`, `MemoryTypes.h`, `MemoryAccessTypes.h`, and the allocation retire sink interface SHALL reside in `engine/Rhi/Device/`, with the sink alongside `MemoryAllocation.*` where the buffer allocation it serves is defined
 
 #### Scenario: Buffer sources live in Buffer/
 
 - **WHEN** the `Rhi` module is checked out
 - **THEN** `DeviceBuffer.*`, `ComputeBuffer.*`, `IndexedBuffer.*`, `StructuredBuffer.*`, and `StructuredBufferPlacer.*` SHALL reside in `engine/Rhi/Buffer/`
-
-#### Scenario: Buffer sources live in Buffer/
-
-- **WHEN** the `Rhi` module is checked out
-- **THEN** `DeviceBuffer.*`, `ComputeBuffer.*`, `IndexedBuffer.*`, `StructuredBuffer.*`, and `StructuredBufferPlacer.*` SHALL reside in `engine/Rhi/Buffer/`
-- **AND** the allocation retire sink interface SHALL reside in `engine/Rhi/Buffer/`, because the buffer allocation it serves is what reports to it
 
 #### Scenario: Texture sources live in Texture/
 

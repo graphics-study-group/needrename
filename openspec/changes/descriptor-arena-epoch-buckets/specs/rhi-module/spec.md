@@ -44,7 +44,7 @@
 #### Scenario: Descriptor arena available from Rhi
 
 - **WHEN** a client includes the descriptor arena's header
-- **THEN** the arena and its two acquisition lifetimes are available under `Engine::Rhi`
+- **THEN** the arena is available under `Engine::Rhi`, keeping acquired descriptor sets resident and reusable across submission epochs
 - **AND** the arena does not depend on headers from `engine/Render/`
 
 ### Requirement: ComputeStage has no Asset dependency
