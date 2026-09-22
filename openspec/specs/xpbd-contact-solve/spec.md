@@ -91,13 +91,15 @@ The per-constraint pass SHALL for each contact point:
 8. If `C <= 0`, skip (already separated)
 9. Compute effective mass `w = inv_mass + dot(I_inv * cross(r, n), cross(r, n))`
 10. Compute `dlambda = C / (w_a + w_b)` (contact compliance is zero)
-11. Atomically accumulate linear and angular position deltas using `atomicAdd` (via `GL_EXT_shader_atomic_float`)
-12. Atomically increment each affected body's delta count
-13. Accumulate `dlambda` into the per-contact lagrange multiplier
+11. Scatter the linear and angular position deltas into the solver's sorted-entry scratch buffer at the contact's own entry slot index (`scratch[c * entry_capacity + slot]`), writing a contribution flag of 1 for affected sides
+12. Accumulate `dlambda` into the per-contact lagrange multiplier with a plain `+=` (one thread per contact slot, no contention)
+13. After all constraint-type accumulation passes, reduce the scratch buffer to per-body sums and per-body contribution counts via the `SumByKey` segmented reduction, which reads the sorted `(key, slot)` pair array at level 0 and gathers each entry's values by the slot that pair carries
+
+A contact (or contact side) that does not contribute this iteration SHALL write nothing at all; its entry slots carry the zeros left by the per-iteration scratch clear. The per-constraint pass SHALL NOT construct entry keys, SHALL NOT look up a permutation map, SHALL NOT read any mode/phase selector, and SHALL NOT clear accumulators.
 
 The shader SHALL NOT use `SubstepStartPosition` or `SubstepStartOrientation` for contact point coordinate conversion. Local contact points are read directly from the collision detection output and transformed using only current body pose and shape local offset.
 
-The per-body application pass SHALL average the accumulated deltas by count, apply them, then reset accumulators to zero. Kinematic bodies SHALL receive no delta updates.
+The per-body application pass SHALL merge the contact, hinge, and fixed partial sums, average them by the total contribution count (the sum of the flag channel), apply them, zero the per-type partial cells it consumed, and leave kinematic bodies without delta updates.
 
 #### Scenario: Two boxes penetrate and are pushed apart
 
@@ -115,6 +117,13 @@ The per-body application pass SHALL average the accumulated deltas by count, app
 - **AND** body A's orientation changes between iterations due to angular correction
 - **THEN** the world-space contact point for body A is recomputed using the updated orientation each iteration
 - **AND** the lever arm `r_a` reflects the current body pose (not a stale snapshot)
+
+#### Scenario: Skipped contacts do not dilute the average
+
+- **WHEN** a body is touched by three contacts in one iteration
+- **AND** one of the three has `C <= 0` and contributes nothing
+- **THEN** the body's contribution count for that iteration is 2
+- **AND** the applied delta equals the sum of the two real contributions divided by 2
 
 ### Requirement: Velocity update from pose delta
 
@@ -191,9 +200,180 @@ The per-contact accumulation shaders (`accumulate_contact_position.comp`, `accum
 - **THEN** the dispatch workgroup count is `(max_pairs * 5 + 63) / 64`
 - **AND** all 5 contact points from that pair are within dispatch range
 
+### Requirement: Solver requires no float-atomic device feature
+
+The XPBD solver's compute shaders SHALL NOT require `GL_EXT_shader_atomic_float`, the `VK_EXT_shader_atomic_float` device extension, or the `shaderBufferFloat32AtomicAdd` feature. All remaining atomic operations used by the solver (sort histograms, pair counters) SHALL be core integer atomics.
+
+#### Scenario: Device without float atomics is accepted
+
+- **WHEN** the engine enumerates a Vulkan 1.3 physical device that lacks `shaderBufferFloat32AtomicAdd`
+- **THEN** the device suitability check does not reject it for the solver's needs
+- **AND** the XPBD solver runs on that device
+
+#### Scenario: Solver shaders compile without the extension
+
+- **WHEN** all XPBD solver compute shaders are compiled to SPIR-V
+- **THEN** no shader declares the `GL_EXT_shader_atomic_float` extension
+- **AND** no compiled solver shader declares the `AtomicFloat32AddEXT` capability
+
+### Requirement: Entry construction is a separate pass from delta accumulation
+
+Entry-list construction and per-iteration delta accumulation SHALL be separate compute shaders per constraint type, not two modes of one shader selected by a push constant. The accumulate shaders SHALL NOT carry a mode/phase selector in their push-constant block, and SHALL NOT write an entry-pair buffer.
+
+Each entry pass SHALL be dispatched over the entry **capacity** — one invocation per contact point (writing 2 slots) or per hinge/fixed joint (writing 4 slots) — and SHALL write every slot in `[0, capacity)` on every dispatch. It SHALL NOT return before writing a slot it owns; because the workgroup count rounds up, an invocation whose last slot index is `>= capacity` owns no slots and MAY return immediately (the bound travels in the push-constant block). A slot whose contact or joint does not exist this substep, or whose owning body index is out of range, SHALL be written with the `INVALID` key (`0xFFFFF`).
+
+The entry pass SHALL derive keys from slot **ownership** only and SHALL NOT read body state: it SHALL NOT read rigid body alive flags, kinematic flags, masses, or joint alive flags. Every decision about whether a constraint contributes SHALL live in the accumulate shader that owns it, which SHALL retain its pre-change guard structure (alive-body checks, kinematic checks, inverse-mass checks, `C > 0` and `denom > ε` gates).
+
+The stored slot ids SHALL remain the identity payload (`entry.y`) so the radix sort permutes them for free, and SHALL be the index the segmented reduction reads each entry's values from at level 0.
+
+Each entry pass SHALL additionally establish the substep's **entry count** — the number of leading slots that can carry an owner this substep — and SHALL publish it to the count buffer that the radix sort and the segmented reduction both read at execution time. The published count SHALL be clamped so that no slot at or above the capacity is included, and entries at or beyond the published count SHALL be treated as absent by both the sort and the reduction: the sort skips them, and the segmented reduction SHALL NOT read their values from the per-iteration scratch.
+
+For contacts the count SHALL be derived on the GPU from the collision count (2 slots per contact point), because the collision count is produced on the GPU in the same substep: `min(2 * collision_count, entry_capacity)`. The entry pass SHALL write this value into the count buffer itself; the host SHALL NOT write the contact count. For hinge and fixed joints the count is CPU-known, and the host SHALL write `4 * joint_count` (four slots per joint) before the substep is recorded — the exact number of joint slots, not the capacity derived from it. The write order SHALL NOT matter beyond the barrier that already separates entry construction from the sort.
+
+A slot's key choice is what makes "treated as absent" sound. The pair array's keys are sorted, so the reduction can only recognise a data extent that is also a prefix of the key order: everything at or beyond the count must sort **after** every entry that can contribute, which is what makes "ignore everything from the count on" the same statement as "ignore every entry whose key is at or above `max_key_value`". Contacts get that for free, because the entry pass writes `INVALID` (`0xFFFFF`) for every slot whose contact does not exist. Hinge and fixed joints get it because the published count is the exact joint slot count: the two differ from the capacity only when `joint_count == 0`, and publishing `0` there tells the reduction to ignore the whole group rather than a slot group owned by no joint. Publishing the capacity instead would make the reduction's correctness depend on the entry pass's sentinel choice for slots it never intended anyone to read, which is the kind of cross-component coupling this contract exists to avoid.
+
+The values of slots at or beyond the count are **not** required to be cleared. The count is the reduction's only read bound, so a slot at or beyond it is never read, and the counted clear is bounded the same way.
+
+Keeping the full-capacity write contract while publishing an exact count is deliberate: the count bounds how much data downstream stages read, while the full write keeps every slot's key well-defined for a reader that cannot know the count.
+
+#### Scenario: Entry pass fills the whole capacity even with no live constraints
+
+- **WHEN** a substep has zero contact points, or zero hinge joints
+- **THEN** the entry pass is still dispatched with at least one workgroup covering the capacity
+- **AND** every entry slot is written with the `INVALID` key
+- **AND** no slot retains a pair from an earlier substep
+
+#### Scenario: A disabled joint cannot leave stale entries or phantom deltas
+
+- **WHEN** a hinge joint is disabled (its alive flag becomes zero) after an earlier substep
+- **AND** the joint and body counts are unchanged
+- **THEN** the hinge entry list is rebuilt that substep and the joint's four slots carry its owner body indices
+- **AND** the hinge accumulate shader returns early on the joint's alive guard, writing nothing
+- **AND** the joint's slots carry zero scratch values with flag 0 from the per-iteration clear, so neither body receives a delta or an extra count from it
+
+#### Scenario: Body state changes cannot invalidate the entry list
+
+- **WHEN** a body's mass, kinematic flag, or alive flag changes without changing the joint or body counts
+- **THEN** the entry keys are unaffected, because they encode only which body owns each slot
+- **AND** the accumulate shaders' guards alone decide whether that body receives a contribution this iteration
+
+#### Scenario: Entry count bounds how much the reduction reads
+
+- **WHEN** a substep has fewer live contact points than the contact capacity allows
+- **THEN** the published entry count is the number of slots those contacts occupy
+- **AND** the radix sort and the segmented reduction read only entries below that count
+- **AND** the per-key sums equal those of a reduction over the live contacts alone
+
+#### Scenario: Entry count is clamped to the capacity
+
+- **WHEN** the collision count implies more slots than the contact capacity
+- **THEN** the published count is the capacity
+- **AND** no slot index at or above the capacity is published
+
+#### Scenario: Zero live constraints publish a zero count
+
+- **WHEN** a substep has zero contact points, or zero hinge joints
+- **THEN** the published entry count for that type is zero
+- **AND** the reduction writes no per-body partial for that type
+
+#### Scenario: Joint counts are the exact joint slot count
+
+- **WHEN** a substep has `n` hinge joints and `m` fixed joints
+- **THEN** the hinge and fixed entry counts are `4 * n` and `4 * m`
+- **AND** with `n` (or `m`) greater than zero those counts equal the groups' capacities, so every slot the reduction reads belongs to a joint
+- **AND** with `n` (or `m`) equal to zero the count is zero while the group's capacity is clamped to one joint's worth, so the reduction ignores the group entirely instead of reading a slot group owned by no joint
+
+### Requirement: Explicit accumulator clearing
+
+The solver SHALL clear accumulators with explicit `clear_int_buffer.comp` dispatches rather than relying on the accumulate passes to write zeroes. The correctness of an unwritten entry slot SHALL NOT depend on the entry pass having written a particular key for it. The correctness of an entry slot at or beyond the entry count SHALL NOT depend on its value having been cleared.
+
+The per-body partial-sum output buffers (one per constraint type) SHALL be zeroed once before the substep loop. Each per-iteration scratch buffer SHALL be zeroed once per position iteration and once per velocity iteration, immediately before its accumulate pass.
+
+A per-iteration scratch clear SHALL be bounded by that substep's entry count rather than by the entry capacity: it SHALL clear the `num_channels` channel planes for slots below the published count, using the entry capacity as the channel stride. Slots at or above the count SHALL NOT need clearing, because the reduction reads values only for entries below the count.
+
+The counted clear SHALL read the entry count from a buffer inside the shader at execution time, exactly as the radix sort's count guard does, because the count is produced on the GPU in the same substep. The number of workgroups it dispatches SHALL therefore still be derived from the entry capacity — only the number of elements actually written SHALL follow the count. This mirrors the level-0 rule of the segmented reduction: the dispatch geometry follows the capacity, the data extent follows the count.
+
+The contact position and velocity phases SHALL share a single scratch buffer. This is sound because the phases are strictly sequential — every position iteration completes, then velocities are refreshed from the pose, then the velocity iterations run — and each phase clears the buffer immediately before its accumulate pass, so no position-phase value can reach the velocity reduction.
+
+The clearing of the flat per-body and lagrange buffers SHALL keep using `clear_int_buffer.comp`; the counted scratch clears SHALL use a separate shader that reads the entry count from a buffer, so neither job needs a mode flag.
+
+#### Scenario: A body with no contributions keeps zeros
+
+- **WHEN** a body has no contributing constraint of any type in an iteration
+- **THEN** its per-type partial cells are zero (cleared by the previous `apply_*` pass, or by the pre-loop clear on the first iteration)
+- **AND** its merged contribution count is zero and no delta is applied to it
+
+#### Scenario: A non-contributing constraint leaves no residue
+
+- **WHEN** a contact exists this iteration but its penetration is `C <= 0`
+- **THEN** the accumulate pass writes nothing for it
+- **AND** its entry slot carries zeros with flag 0 from that iteration's scratch clear
+- **AND** it contributes to no body's delta sum and to no body's count
+
+#### Scenario: A scratch clear writes only the slots below the count
+
+- **WHEN** a substep's entry count is far below the entry capacity
+- **THEN** each scratch clear writes only the slots below that count
+- **AND** the number of cleared elements follows the count, not the capacity
+- **AND** the number of dispatched workgroups still follows the capacity, because the count is only known on the GPU
+
+#### Scenario: Scratch is cleared per iteration, not per substep
+
+- **WHEN** a substep runs 20 position iterations and 20 velocity iterations
+- **THEN** each active constraint type records a scratch clear before each of its accumulate passes
+- **AND** no scratch clear is recorded only once per substep
+
+### Requirement: Per-substep entry sorting and reuse
+
+Per substep, after collision detection completes, the system SHALL build the contact entry list once (each contact side contributing a `(body, slot)` pair, with unowned slots marked `INVALID`) and sort it by body via the radix sort. The sorted record — a key array plus a payload array holding each entry's own slot id — SHALL be the only derived artifact: no permutation map (`pos_of`) SHALL be built and no inversion pass SHALL be recorded.
+
+All position-solve iterations and all velocity-solve iterations of that substep SHALL reuse that same sorted entry list: accumulation passes SHALL write their per-iteration values at the entry's own slot index in the per-channel scratch array, and the per-body reduction SHALL read the sorted key and payload arrays, taking each key from the key array and gathering each entry's values from the slot its payload carries. Re-sorting SHALL NOT occur per iteration.
+
+The hinge and fixed entry lists SHALL be rebuilt and sorted once per substep as well, with no entry list cached across substeps. The `RadixSort` and `SumByKey` instances SHALL hold no geometry and SHALL serve every constraint type; the per-group buffers SHALL be reallocated only when a body or joint count changes, because their sizes follow the group's capacity.
+
+#### Scenario: Sort runs once per substep, not per iteration
+
+- **WHEN** a substep runs 20 position iterations and 20 velocity iterations
+- **THEN** the contact entry list is sorted exactly once during that substep
+- **AND** every iteration's accumulation writes into the same slot-indexed scratch layout
+- **AND** no permutation inversion dispatch is recorded for the contact list
+
+#### Scenario: Velocity iterations reuse the position entry list
+
+- **WHEN** the velocity-solve phase of a substep begins
+- **THEN** no new sort or permutation inversion is recorded for the contact list
+- **AND** velocity accumulation scatters into the same slot-indexed layout as position accumulation and reuses the same scratch buffer
+
+#### Scenario: Joint entry lists are rebuilt every substep
+
+- **WHEN** the hinge joint and body counts are unchanged between two substeps
+- **THEN** the hinge entry list is still rebuilt and sorted in the second substep
+- **AND** no entry list is carried over from the first substep
+
 ### Requirement: Lagrange multiplier lifetime
 
-The per-contact lagrange multiplier buffer SHALL be cleared to zero at the start of each substep via a dedicated compute shader. Within a substep, each position-solve iteration SHALL accumulate `dlambda` into the lagrange multiplier. The velocity-solve phase SHALL read the accumulated lagrange multiplier to compute the friction impulse cap.
+Every constraint type's lagrange multiplier buffers SHALL be cleared to zero at the start of each substep, before the position iteration loop, by that type's dedicated clear shader: the contact multiplier by `clear_int_buffer.comp` (or an equivalent float clear), and the hinge and fixed multipliers by `clear_hinge_lagrange.comp` and `clear_fixed_lagrange.comp`, each of which zeroes both of its type's buffers (`HingeAxisLagrange` and `HingeAnchorLagrange`; `FixedRotationLagrange` and `FixedPositionLagrange`). These buffers hold floats and SHALL be cleared by their own shaders rather than by the integer-clear workaround used for the integer accumulators.
+
+Within a substep, each position-solve iteration SHALL accumulate `dlambda` into the lagrange multiplier. The velocity-solve phase SHALL read the accumulated contact lagrange multiplier to compute the friction impulse cap.
+
+Because the multipliers are read-modify-written across iterations, a buffer that is not cleared accumulates across substeps without bound: it must not be possible for any multiplier buffer to be written by an accumulate pass without having been cleared in the same substep.
+
+#### Scenario: Every multiplier buffer is cleared each substep
+
+- **WHEN** a substep runs with contacts, hinge joints and fixed joints present
+- **THEN** the contact, hinge-axis, hinge-anchor, fixed-rotation and fixed-position multiplier buffers each receive exactly one clear dispatch before the position iterations
+- **AND** each clear covers that type's own element count
+
+#### Scenario: No multiplier is accumulated across substeps
+
+- **WHEN** the same constraint is solved in two consecutive substeps with identical geometry
+- **THEN** the second substep's first iteration reads a multiplier of zero, not the previous substep's accumulated value
+
+#### Scenario: A joint count of zero is harmless
+
+- **WHEN** a substep runs with no hinge joints (or no fixed joints)
+- **THEN** that type's clear dispatches cover zero elements and no out-of-bounds write occurs
+- **AND** the buffers remain allocated for the substep's entry list
 
 ### Requirement: Simulation toggle at dispatch time
 

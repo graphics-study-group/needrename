@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provide push-constant support in the Rhi layer: `SPLayout` reflects push-constant blocks from SPIR-V, `ComputeStage` declares the matching pipeline-layout range, and a `PushConstants` helper records values at command-buffer time. This lets any Rhi consumer pass small per-dispatch parameters without descriptor-set rotation.
+Provide push-constant reflection in the Rhi layer: `SPLayout` reports the size of a shader's push-constant block from SPIR-V, which lets a consumer declare a matching pipeline-layout range and pass small per-dispatch parameters without descriptor-set rotation. The compute kernel facility is the consumer that declares the range and records the value.
 
 ## Requirements
 
