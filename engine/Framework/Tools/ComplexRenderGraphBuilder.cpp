@@ -30,15 +30,19 @@ namespace Engine {
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        RGTextureHandle &final_color_target_id, const Rhi::ComputeBuffer *model_matrices_buffer
+        RGTextureHandle &final_color_target_id, std::shared_ptr<const Rhi::ComputeBuffer> model_matrices_buffer
     ) {
         RenderGraphBuilder rgb{m_system};
 
-        // Import optional physics model matrices buffer.
+        // Import optional physics model matrices buffer. The graph takes a share
+        // of the reference, so a physics-side reallocation after this point
+        // cannot leave a pass referencing a destroyed buffer.
+        const bool has_model_matrices = (model_matrices_buffer != nullptr);
         RGBufferHandle mm_handle{};
-        if (model_matrices_buffer != nullptr) {
+        if (has_model_matrices) {
             mm_handle = rgb.ImportExternalResource(
-                *model_matrices_buffer, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite)
+                std::move(model_matrices_buffer),
+                Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite)
             );
         }
 
@@ -95,8 +99,6 @@ namespace Engine {
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
         auto &bloom_compute_stage = *m_bloom_compute_stage;
         using IAT = Rhi::MemoryAccessTypeImageBits;
-
-        bool has_model_matrices = (model_matrices_buffer != nullptr);
 
         /**
          * Shadowmap passes — one per shadow-casting light.

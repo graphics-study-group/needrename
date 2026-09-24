@@ -35,13 +35,15 @@ namespace Engine {
          * present provider extent, so resizing does not require rebuilding the graph.
          *
          * @param final_color_target_id     Output handle for the final (post-bloom) color target.
-         * @param model_matrices_buffer     Optional physics-owned model matrices buffer.
-         *                                  When non-null, shadow map and lit passes read
-         *                                  model matrices from this buffer.
+         * @param model_matrices_buffer     Optional physics-owned model matrices buffer, by
+         *                                  reference-counted handle. When non-null, shadow map
+         *                                  and lit passes read model matrices from this buffer,
+         *                                  and the built graph keeps it alive for its own lifetime.
          * @return Compiled RenderGraph.
          */
         std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            RGTextureHandle &final_color_target_id, const Rhi::ComputeBuffer *model_matrices_buffer = nullptr
+            RGTextureHandle &final_color_target_id,
+            std::shared_ptr<const Rhi::ComputeBuffer> model_matrices_buffer = nullptr
         );
 
     protected:

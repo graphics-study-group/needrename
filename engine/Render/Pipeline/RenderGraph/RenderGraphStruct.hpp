@@ -2,6 +2,7 @@
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPHSTRUCT
 
 #include <functional>
+#include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
@@ -62,6 +63,13 @@ namespace Engine {
         std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
 
         std::unordered_map<RGBufferHandle, const Rhi::DeviceBuffer *> buffer_mapping;
+
+        /// @brief Imported buffers the graph keeps alive for its own lifetime.
+        ///
+        /// An external buffer whose owner may replace it after the graph has been
+        /// built is imported by reference-counted handle; holding a share here is
+        /// what makes "the graph still references a live buffer" true.
+        std::vector<std::shared_ptr<const Rhi::DeviceBuffer>> owned_external_buffers;
 
         RenderGraph2ExtraInfo() = default;
         RenderGraph2ExtraInfo(const RenderGraph2ExtraInfo &) = delete;

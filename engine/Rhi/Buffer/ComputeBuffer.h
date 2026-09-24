@@ -31,6 +31,29 @@ namespace Engine::Rhi {
             bool as_indirect_draw_buffer,
             const std::string &name = ""
         );
+
+        /**
+         * @brief Create a new compute buffer owned by a reference-counted handle.
+         *
+         * Same buffer type and same parameters as `CreateUnique`, but the
+         * lifetime is shared: a buffer whose lifetime must outlive the component
+         * that created it (a physics-owned buffer forwarded to the render side,
+         * for example) stays alive for as long as any holder references it.
+         *
+         * @param allow_cpu_access Enables CPU access. Guarantees that `GetVMAddress()` can be used.
+         * @param as_readonly_buffer Allows it to be used as uniform buffer.
+         * @param as_vertex_buffer Allows it to be used as vertex and index buffer.
+         * @param as_indirect_draw_buffer Allows it to be used as indirect draw command buffer.
+         */
+        static std::shared_ptr<ComputeBuffer> CreateShared(
+            const Rhi::AllocatorState &allocator,
+            size_t size,
+            bool allow_cpu_access,
+            bool as_readonly_buffer,
+            bool as_vertex_buffer,
+            bool as_indirect_draw_buffer,
+            const std::string &name = ""
+        );
     };
 
     /// @brief Typed adaptor of the `ComputeBuffer` class.

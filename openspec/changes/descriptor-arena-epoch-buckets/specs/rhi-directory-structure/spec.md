@@ -9,7 +9,7 @@ The `Rhi` module SHALL organize its source files under `engine/Rhi/` into the re
 #### Scenario: Device sources live in Device/
 
 - **WHEN** the `Rhi` module is checked out
-- **THEN** `DeviceInterface.*`, `DeviceContext.*`, `Structs.h`, `DebugUtils.h`, `Hasher.hpp`, `AllocatorState.*`, `MemoryAllocation.*`, `MemoryTypes.h`, `MemoryAccessTypes.h`, and the allocation retire sink interface SHALL reside in `engine/Rhi/Device/`, with the sink alongside `MemoryAllocation.*` where the buffer allocation it serves is defined
+- **THEN** `DeviceInterface.*`, `DeviceContext.*`, `Structs.h`, `DebugUtils.h`, `Hasher.hpp`, `AllocatorState.*`, `MemoryAllocation.*`, `MemoryTypes.h`, and `MemoryAccessTypes.h` SHALL reside in `engine/Rhi/Device/`
 
 #### Scenario: Buffer sources live in Buffer/
 

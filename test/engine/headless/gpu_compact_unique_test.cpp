@@ -18,12 +18,12 @@
 #include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <SDL3/SDL.h>
-#include <glm.hpp>
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <glm.hpp>
 #include <iostream>
 #include <random>
 #include <stdexcept>
@@ -32,7 +32,7 @@
 using namespace Engine;
 using namespace Engine::Rhi;
 
-// gpu_compact_unique_test �?the broad phase's dedup record, end to end.
+// gpu_compact_unique_test �?the broad phase's dedup record, end to end.
 //
 // The dedup carries a candidate pair as the single packed key `a * shape_count +
 // b`: the sort orders the keys, CompactUnique removes the adjacent duplicates,
@@ -42,7 +42,7 @@ using namespace Engine::Rhi;
 //   - CompactUnique over already-sorted keys, for the shapes the algorithm's
 //     contract has to pin down (all-duplicate, partly-duplicate, unique, single
 //     element, zero elements, and a size spanning several workgroups);
-//   - the whole pack �?sort �?compact �?unpack round trip, which is what the
+//   - the whole pack �?sort �?compact �?unpack round trip, which is what the
 //     detector records, including the canonical `pair.x < pair.y` order and the
 //     published counts.
 //
@@ -72,7 +72,7 @@ namespace {
         const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
         auto s = vk::SubmitInfo{{}, {}, {cb}, {}};
         queues.graphicsQueue.submit(s);
-        queues.graphicsQueue.waitIdle();
+        rsys.WaitForIdle();
     }
 
     std::unique_ptr<ComputeBuffer> MakeHostBuffer(RenderSystem &rsys, size_t bytes, const char *name) {
@@ -146,15 +146,7 @@ namespace {
 
         auto cb = BeginCommandBuffer(rsys);
         compact.Record(
-            cb,
-            *keys_buf,
-            *flags_buf,
-            *offsets_buf,
-            *count_buf,
-            *scan_scratch,
-            scan,
-            *elem_count_buf,
-            kCapacity
+            cb, *keys_buf, *flags_buf, *offsets_buf, *count_buf, *scan_scratch, scan, *elem_count_buf, kCapacity
         );
         cb.end();
         Submit(rsys, cb);
@@ -169,7 +161,7 @@ namespace {
         return outcome;
     }
 
-    // ── The whole dedup: pack �?sort �?compact �?unpack ───────────────────
+    // ── The whole dedup: pack �?sort �?compact �?unpack ───────────────────
     struct DedupOutcome {
         std::vector<glm::uvec2> pairs; // the canonical pairs, `pair_count` of them
         uint32_t pair_count = 0u;
@@ -177,9 +169,7 @@ namespace {
     };
 
     DedupOutcome RunDedup(
-        RenderSystem &rsys,
-        const std::vector<glm::uvec2> &candidates,
-        std::vector<uint32_t> &candidate_keys_out
+        RenderSystem &rsys, const std::vector<glm::uvec2> &candidates, std::vector<uint32_t> &candidate_keys_out
     ) {
         auto keys_a = MakeHostBuffer(rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "Dedup keys a");
         auto keys_b = MakeHostBuffer(rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "Dedup keys b");
@@ -188,8 +178,7 @@ namespace {
         auto unique_count_buf = MakeHostBuffer(rsys, sizeof(uint32_t), "Dedup unique count");
         auto flags_buf = MakeHostBuffer(rsys, CompactUnique::GetRequiredFlagBytes(kCapacity), "Dedup flags");
         auto offsets_buf = MakeHostBuffer(rsys, CompactUnique::GetRequiredFlagBytes(kCapacity), "Dedup offsets");
-        auto radix_scratch =
-            MakeHostBuffer(rsys, RadixSort::GetRequiredScratchBytes(kCapacity), "Dedup radix scratch");
+        auto radix_scratch = MakeHostBuffer(rsys, RadixSort::GetRequiredScratchBytes(kCapacity), "Dedup radix scratch");
         auto scan_scratch =
             MakeHostBuffer(rsys, ParallelScan::GetRequiredBlockSumsBytes(kCapacity), "Dedup scan scratch");
 
@@ -209,8 +198,7 @@ namespace {
         std::memset(offsets_buf->GetVMAddress(), 0, offsets_buf->GetSize());
         std::memset(radix_scratch->GetVMAddress(), 0, radix_scratch->GetSize());
         std::memset(scan_scratch->GetVMAddress(), 0, scan_scratch->GetSize());
-        *reinterpret_cast<uint32_t *>(pair_count_buf->GetVMAddress()) =
-            static_cast<uint32_t>(candidates.size());
+        *reinterpret_cast<uint32_t *>(pair_count_buf->GetVMAddress()) = static_cast<uint32_t>(candidates.size());
         *reinterpret_cast<uint32_t *>(unique_count_buf->GetVMAddress()) = 0u;
         keys_a->Flush();
         keys_b->Flush();
@@ -242,8 +230,7 @@ namespace {
         };
 
         auto cb = BeginCommandBuffer(rsys);
-        const RadixSortOutput sorted =
-            radix_sort.Record(cb, sort_buffers, kCapacity, kShapeCount * kShapeCount - 1u);
+        const RadixSortOutput sorted = radix_sort.Record(cb, sort_buffers, kCapacity, kShapeCount * kShapeCount - 1u);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         compact.Record(
@@ -344,7 +331,7 @@ int main() try {
         Check(ordered, "the multi-workgroup compaction keeps every unique key, in order");
     }
 
-    // ── The pack �?sort �?compact �?unpack round trip ─────────────────────
+    // ── The pack �?sort �?compact �?unpack round trip ─────────────────────
     // Candidate pairs in the generators' order (interleaved, with duplicates
     // spanning workgroups), packed exactly as the broad phase packs them.
     {
@@ -381,14 +368,8 @@ int main() try {
             outcome.unique_count == static_cast<uint32_t>(expect_keys.size()),
             "the compaction's unique count matches an independent host-side dedup"
         );
-        Check(
-            outcome.pair_count == outcome.unique_count,
-            "unpack_pairs publishes pair_count from the unique count"
-        );
-        Check(
-            outcome.pairs.size() == expect_keys.size(),
-            "the pair buffer holds exactly the unique pair count"
-        );
+        Check(outcome.pair_count == outcome.unique_count, "unpack_pairs publishes pair_count from the unique count");
+        Check(outcome.pairs.size() == expect_keys.size(), "the pair buffer holds exactly the unique pair count");
 
         std::vector<glm::uvec2> expect_pairs;
         expect_pairs.reserve(expect_keys.size());

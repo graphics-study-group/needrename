@@ -8,16 +8,23 @@
 #include <vulkan/vulkan.hpp>
 
 class VkExtent3D;
-class VmaAllocator_T;
+struct VmaAllocator_T;
 typedef VmaAllocator_T *VmaAllocator;
 
 namespace Engine::Rhi {
     class DeviceInterface;
+    class EpochTracker;
 
     /**
      * @brief State of the underlying memory allocator.
      *
      * Currently the allocator is implemented via the VMA library.
+     *
+     * @note An epoch tracker may be installed on the allocator. When one is,
+     * every buffer allocation made through it hands itself to that tracker on
+     * destruction instead of freeing device memory. Without a tracker,
+     * allocations destroy themselves immediately, which is the semantics a
+     * setup that never defers work wants.
      */
     class RHI_API AllocatorState {
         struct impl;
@@ -40,6 +47,24 @@ namespace Engine::Rhi {
         ~AllocatorState();
         /// @brief Get the underlying allocator state.
         VmaAllocator GetAllocator() const;
+
+        /**
+         * @brief Install the epoch tracker that receives retired buffer allocations.
+         *
+         * A setter rather than a constructor parameter, so that
+         * `AllocatorState(DeviceInterface &)` stays intact for setups that build
+         * an allocator without a retirement facility.
+         *
+         * @param sink The tracker, or null to restore immediate destruction. The
+         * caller retains ownership and must keep the tracker alive for as long
+         * as any allocation made through this allocator can be destroyed.
+         */
+        void SetRetireSink(EpochTracker *sink) noexcept;
+
+        /**
+         * @brief Get the installed epoch tracker, or null when none is installed.
+         */
+        EpochTracker *GetRetireSink() const noexcept;
 
         /**
          * @brief Allocate the memory for buffer of a given type, name and size.

@@ -223,8 +223,13 @@ namespace Engine {
              * This buffer is written by the XPBD compute pass and read by
              * vertex shaders via set 0 binding 2.  Pass nullptr to revert
              * to the default dummy buffer.
+             *
+             * The buffer is held by a reference-counted handle: the physics
+             * scene replaces its model matrices buffer whenever its slot count
+             * changes, so a borrowed pointer would dangle. The render side stays
+             * independent of when the physics side resizes.
              */
-            void SetModelMatricesBuffer(const Rhi::ComputeBuffer *buffer) noexcept;
+            void SetModelMatricesBuffer(std::shared_ptr<const Rhi::ComputeBuffer> buffer) noexcept;
 
             /**
              * @brief Get the currently bound model matrices buffer.
@@ -232,7 +237,7 @@ namespace Engine {
              * @return Current model matrices buffer, or the dummy buffer
              *         if no physics buffer has been set.
              */
-            const Rhi::ComputeBuffer *GetModelMatricesBuffer() const noexcept;
+            std::shared_ptr<const Rhi::ComputeBuffer> GetModelMatricesBuffer() const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

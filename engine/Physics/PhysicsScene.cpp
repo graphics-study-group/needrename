@@ -34,6 +34,27 @@ namespace {
             buffer = Engine::Rhi::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
         }
     }
+
+    /**
+     * @brief Grow-only resize for a buffer whose lifetime is shared with another
+     * owner (the render side, for the model matrices buffer).
+     *
+     * Replacement hands out a new reference-counted handle; whatever still holds
+     * the previous handle keeps it alive, so a reallocation cannot dangle.
+     */
+    template <typename T>
+    void EnsureBuffer(
+        std::shared_ptr<Engine::Rhi::ComputeBuffer> &buffer,
+        const Engine::Rhi::AllocatorState &allocator,
+        size_t element_count,
+        const std::string &name
+    ) {
+        const size_t safe_count = std::max<size_t>(1, element_count);
+        const size_t byte_size = safe_count * sizeof(T);
+        if (!buffer || buffer->GetSize() != byte_size) {
+            buffer = Engine::Rhi::ComputeBuffer::CreateShared(allocator, byte_size, false, false, false, false, name);
+        }
+    }
 } // namespace
 
 namespace Engine {
@@ -264,7 +285,7 @@ namespace Engine {
             m_gpu_shape_local_rotation.get(),
             m_gpu_shape_world_position.get(),
             m_gpu_shape_world_rotation.get(),
-            m_gpu_model_matrices.get(),
+            m_gpu_model_matrices,
             m_gpu_shape_filter_data.get(),
             m_gpu_fixed_joints.get(),
             m_gpu_fixed_joint_alive.get(),

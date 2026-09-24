@@ -2,6 +2,7 @@
 
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
+#include "Rhi/Submission/EpochTracker.h"
 
 #include <vulkan/vulkan.hpp>
 
@@ -13,6 +14,10 @@ namespace Engine::Rhi {
 
         m_immutable_resource_cache = std::make_unique<ImmutableResourceCache>(m_device_interface->GetDevice());
         m_allocator_state = std::make_unique<AllocatorState>(*m_device_interface);
+        m_epoch_tracker = std::make_unique<EpochTracker>(m_device_interface->GetDevice());
+        // Install the tracker as the allocator's retire sink: from here on every
+        // buffer allocated through this context is retire-safe by construction.
+        m_allocator_state->SetRetireSink(m_epoch_tracker.get());
     }
 
     DeviceContext::~DeviceContext() = default;
@@ -39,6 +44,14 @@ namespace Engine::Rhi {
 
     const ImmutableResourceCache &DeviceContext::GetIRCache() const noexcept {
         return *m_immutable_resource_cache;
+    }
+
+    EpochTracker &DeviceContext::GetEpochTracker() noexcept {
+        return *m_epoch_tracker;
+    }
+
+    const EpochTracker &DeviceContext::GetEpochTracker() const noexcept {
+        return *m_epoch_tracker;
     }
 
     vk::Device DeviceContext::GetDevice() const noexcept {

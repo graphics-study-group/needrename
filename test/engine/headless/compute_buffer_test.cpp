@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
 
     auto si = vk::SubmitInfo{{}, {}, {cb}, {}};
     queues.graphicsQueue.submit(si);
-    queues.graphicsQueue.waitIdle();
+    rsys->WaitForIdle();
 
     for (const auto &f : compbuf2->GetVMAddress()) {
         std::cout << f << " ";

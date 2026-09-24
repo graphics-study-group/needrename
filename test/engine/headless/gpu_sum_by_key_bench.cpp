@@ -97,9 +97,7 @@ namespace {
         size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(capacity, kChannels);
         if (rec_bytes == 0u) rec_bytes = 1u;
         ctx.records = MakeHostBuffer(rsys, rec_bytes, "Bench records");
-        ctx.out = MakeHostBuffer(
-            rsys, static_cast<size_t>(kChannels) * max_key_value * sizeof(uint32_t), "Bench out"
-        );
+        ctx.out = MakeHostBuffer(rsys, static_cast<size_t>(kChannels) * max_key_value * sizeof(uint32_t), "Bench out");
         ctx.count = MakeHostBuffer(rsys, sizeof(uint32_t), "Bench count");
 
         std::memset(ctx.keys->GetVMAddress(), 0, ctx.keys->GetSize());
@@ -111,7 +109,11 @@ namespace {
         return ctx;
     }
 
-    enum class Shape : uint32_t { Uniform = 0u, SingleKey, Mixture };
+    enum class Shape : uint32_t {
+        Uniform = 0u,
+        SingleKey,
+        Mixture
+    };
 
     struct BenchCase {
         const char *name;
@@ -168,12 +170,7 @@ namespace {
         double out0 = 0.0;
     };
 
-    Result RunCase(
-        RenderSystem &rsys,
-        SumByKey &reducer,
-        BenchCtx &ctx,
-        uint32_t iterations
-    ) {
+    Result RunCase(RenderSystem &rsys, SumByKey &reducer, BenchCtx &ctx, uint32_t iterations) {
         const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
         auto cb = rsys.GetDevice().allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
@@ -202,7 +199,7 @@ namespace {
 
         const auto t0 = std::chrono::steady_clock::now();
         queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {cb}, {}});
-        queues.graphicsQueue.waitIdle();
+        rsys.WaitForIdle();
         const auto t1 = std::chrono::steady_clock::now();
 
         ctx.out->Invalidate();

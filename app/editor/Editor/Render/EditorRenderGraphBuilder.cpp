@@ -42,7 +42,7 @@ namespace Editor {
         RGTextureHandle &scene_widget_color_id,
         RGTextureHandle &game_widget_color_id,
         RGTextureHandle &final_color_target_id,
-        const Rhi::ComputeBuffer *model_matrices_buffer
+        std::shared_ptr<const Rhi::ComputeBuffer> model_matrices_buffer
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -106,10 +106,14 @@ namespace Editor {
 
         using IBT = Rhi::MemoryAccessTypeBufferBits;
         RGBufferHandle mm_handle{};
-        bool has_model_matrices = (model_matrices_buffer != nullptr);
+        const bool has_model_matrices = (model_matrices_buffer != nullptr);
         if (has_model_matrices) {
-            mm_handle =
-                rgb.ImportExternalResource(*model_matrices_buffer, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomWrite));
+            // The graph takes a share of the reference, so a physics-side
+            // reallocation cannot leave the editor's graph pointing at a
+            // destroyed buffer.
+            mm_handle = rgb.ImportExternalResource(
+                std::move(model_matrices_buffer), Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomWrite)
+            );
         }
 
         auto &system = m_system;

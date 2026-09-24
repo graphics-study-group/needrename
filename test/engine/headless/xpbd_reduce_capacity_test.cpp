@@ -81,7 +81,9 @@ namespace {
             rsys(r), physics(p), scene_id(id), scene(p.CreateScene(id)) {
             scene.SetSimulationEnabled(true);
             submission = std::make_unique<Rhi::SubmissionHelper>(
-                rsys.GetDeviceContext().GetDeviceInterface(), rsys.GetDeviceContext().GetAllocatorState()
+                rsys.GetDeviceContext().GetDeviceInterface(),
+                rsys.GetDeviceContext().GetAllocatorState(),
+                rsys.GetDeviceContext().GetEpochTracker()
             );
             auto make_staging = [this](const char *name) {
                 return Rhi::DeviceBuffer::CreateUnique(
@@ -242,7 +244,7 @@ namespace {
                 RecordReadback(cb);
                 cb.end();
                 queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {cb}, {}});
-                queues.graphicsQueue.waitIdle();
+                rsys.WaitForIdle();
 
                 physics.PostGPUStep();
                 AfterStep();
@@ -261,14 +263,9 @@ namespace {
         f.AddBox({0.0f, 0.0f, -0.5f}, {5.0f, 5.0f, 0.5f}, 0.0f, true);
         std::vector<uint32_t> bodies;
         for (uint32_t i = 0; i < count; ++i) {
-            bodies.push_back(
-                f.AddBox(
-                    {0.0f, 0.0f, 0.4f + kStackStep * static_cast<float>(i)},
-                    {kBoxHalf, kBoxHalf, kBoxHalf},
-                    1.0f,
-                    false
-                )
-            );
+            bodies.push_back(f.AddBox(
+                {0.0f, 0.0f, 0.4f + kStackStep * static_cast<float>(i)}, {kBoxHalf, kBoxHalf, kBoxHalf}, 1.0f, false
+            ));
         }
         return bodies;
     }
@@ -290,7 +287,7 @@ namespace {
             }
             cb.end();
             queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {cb}, {}});
-            queues.graphicsQueue.waitIdle();
+            rsys.WaitForIdle();
             physics.PostGPUStep();
             for (Fixture *f : fixtures) {
                 f->AfterStep();
@@ -341,14 +338,9 @@ int main() {
         // re-uploaded with the simulated state folded back in, which is what a
         // capacity change does at the scene level.
         for (uint32_t i = 3u; i < 5u; ++i) {
-            stack.push_back(
-                f.AddBox(
-                    {0.0f, 0.0f, 0.4f + kStackStep * static_cast<float>(i)},
-                    {kBoxHalf, kBoxHalf, kBoxHalf},
-                    1.0f,
-                    false
-                )
-            );
+            stack.push_back(f.AddBox(
+                {0.0f, 0.0f, 0.4f + kStackStep * static_cast<float>(i)}, {kBoxHalf, kBoxHalf, kBoxHalf}, 1.0f, false
+            ));
         }
         f.UploadPreservingState();
         f.Step(6u);
@@ -362,10 +354,7 @@ int main() {
         f.Step(6u);
         Sane(f, stack, "shrunk scene");
         const glm::vec4 after = f.Position(stack[2]);
-        Check(
-            std::fabs(after.z - before.z) < 1.0f,
-            "removing the shapes above a body does not teleport it"
-        );
+        Check(std::fabs(after.z - before.z) < 1.0f, "removing the shapes above a body does not teleport it");
         Check(f.ShapeSlotCount() == 6u, "unregistering a shape keeps its slot allocated (the capacity stays)");
     }
 
@@ -409,12 +398,7 @@ int main() {
         // only come from GPU data left over by the earlier, larger contact set.
         auto reset = [](Fixture &f) {
             for (uint32_t i = 0; i < 5u; ++i) {
-                f.SetBodyPose(
-                    i,
-                    {0.0f, 0.0f, -0.5f + static_cast<float>(i)},
-                    glm::vec4(0.0f),
-                    glm::vec4(0.0f)
-                );
+                f.SetBodyPose(i, {0.0f, 0.0f, -0.5f + static_cast<float>(i)}, glm::vec4(0.0f), glm::vec4(0.0f));
             }
         };
         reset(varying);
@@ -446,8 +430,7 @@ int main() {
     {
         PhysicsSystem physics;
         Fixture f(*rsys, physics, 1u);
-        const uint32_t post =
-            f.AddBox({0.0f, 0.0f, 2.0f}, {0.25f, 0.25f, 0.25f}, 0.0f, true, /*with_shape=*/false);
+        const uint32_t post = f.AddBox({0.0f, 0.0f, 2.0f}, {0.25f, 0.25f, 0.25f}, 0.0f, true, /*with_shape=*/false);
         const uint32_t arm = f.AddBox({1.1f, 0.0f, 2.0f}, {0.25f, 0.25f, 0.25f}, 1.0f, false);
         const uint32_t joint = f.scene.AllocateHingeJoint();
         HingeJointComDescriptor hj{};

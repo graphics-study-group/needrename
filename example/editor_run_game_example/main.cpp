@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
         if (!has_model_matrices_in_graph) {
             auto *physics_scene = world->GetMainSceneRef().GetPhysicsScene();
             if (physics_scene) {
-                const auto *mm_buf = physics_scene->GetGpuBuffers().model_matrices;
+                auto mm_buf = physics_scene->GetGpuBuffers().model_matrices;
                 if (mm_buf) {
                     has_model_matrices_in_graph = true;
                     rg = rgb->BuildEditorRenderGraph(
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
                         scene_color_id,
                         game_color_id,
                         final_color_id,
-                        mm_buf
+                        std::move(mm_buf)
                     );
                     auto *scene_tex2 = rg->GetInternalTextureResource(scene_color_id);
                     auto *game_tex2 = rg->GetInternalTextureResource(game_color_id);

@@ -19,6 +19,7 @@
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 #include "Rhi/Device/Structs.h"
+#include "Rhi/Submission/EpochTracker.h"
 
 #include <Core/Functional/SDLWindow.h>
 
@@ -174,6 +175,11 @@ namespace Engine {
 
     void RenderSystem::WaitForIdle() const {
         pimpl->m_device_context.GetDevice().waitIdle();
+        // All GPU work has finished, so every parked (already retired) buffer
+        // allocation can be released now. Live resources are untouched: a
+        // device-idle wait proves submitted work finished, not that a live
+        // resource has no owner.
+        pimpl->m_device_context.GetEpochTracker().ReleaseAllParked();
     }
 
     void RenderSystem::UpdateSwapchain() {

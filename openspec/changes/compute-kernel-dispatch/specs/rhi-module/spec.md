@@ -6,7 +6,7 @@
 
 `Rhi` SHALL contain the following types, moved from `engine/Render/` without semantic changes: `DeviceInterface`, `AllocatorState`, `MemoryTypes` / `MemoryAllocation`, `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer`, `Texture`, `ImageTexture`, `TextureSubresourceView`, `ImageUtils`, `ImmutableResourceCache`, `SubmissionHelper`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface`, `MemoryAccessTypes`, `PipelineEnums`.
 
-`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility and its supporting types: the submission epoch tracker, the allocation retire sink that buffer allocations report to, and the shared-ownership buffer factory. These reside in `Rhi` because they depend on the device and allocator only, and both `Render` and `Physics` use them equally.
+`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility and its supporting types: the submission epoch tracker — which is itself the sole recipient of retired buffer allocations — and the shared-ownership buffer factory. These reside in `Rhi` because they depend on the device and allocator only, and both `Render` and `Physics` use them equally.
 
 `Rhi` SHALL additionally own the device-scoped descriptor arena: the single owner of descriptor pools, which keeps acquired sets resident and reusable across submission epochs and reclaims them under one of two triggers — cache pressure for per-dispatch compute bindings and an explicit owner release for long-lived material, scene and camera state. The arena resides in `Rhi` because both `Render` (materials, scene data, cameras) and compute consumers use it equally, and neither may own a pool.
 
@@ -38,8 +38,9 @@ The types `ComputeStage`, `ComputeResourceBinding` and the `ComputeHelpers` free
 #### Scenario: Retirement facility available from Rhi
 
 - **WHEN** a client includes the retirement facility's header
-- **THEN** the epoch tracker and the allocation retire sink are available under `Engine::Rhi`
-- **AND** neither depends on headers from `engine/Render/`
+- **THEN** `Engine::Rhi::EpochTracker` is available under `Engine::Rhi`
+- **AND** the epoch tracker is the only recipient of retired buffer allocations: the allocator and `BufferAllocation` name it directly, with no interface in between
+- **AND** the facility does not depend on headers from `engine/Render/`
 
 #### Scenario: Shared-ownership buffer factory available from Rhi
 

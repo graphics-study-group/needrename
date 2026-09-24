@@ -39,7 +39,7 @@ namespace {
         const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
         auto s = vk::SubmitInfo{{}, {}, {cb}, {}};
         queues.graphicsQueue.submit(s);
-        queues.graphicsQueue.waitIdle();
+        rsys.WaitForIdle();
     }
 
     // Host-visible compute buffer of a given byte size.
@@ -49,12 +49,12 @@ namespace {
 
     struct RunCtx {
         RenderSystem &rsys;
-        std::unique_ptr<ComputeBuffer> keys;      // sorted key array
-        std::unique_ptr<ComputeBuffer> payloads;  // payload-index array (level-0 gather)
+        std::unique_ptr<ComputeBuffer> keys;     // sorted key array
+        std::unique_ptr<ComputeBuffer> payloads; // payload-index array (level-0 gather)
         std::unique_ptr<ComputeBuffer> values;
         std::unique_ptr<ComputeBuffer> records;
         std::unique_ptr<ComputeBuffer> out;
-        std::unique_ptr<ComputeBuffer> count;   // entry count (GPU-read, host-written here)
+        std::unique_ptr<ComputeBuffer> count; // entry count (GPU-read, host-written here)
 
         uint32_t num_channels = 0u;
         uint32_t capacity = 0u;
@@ -192,8 +192,8 @@ namespace {
                 const float want = expect[static_cast<size_t>(c) * ctx.max_key_value + b];
                 const float got = out[static_cast<size_t>(c) * ctx.max_key_value + b];
                 if (!(std::fabs(got - want) <= eps)) {
-                    std::cerr << "FAIL: " << what << " key " << b << " channel " << c << " expected " << want
-                              << " got " << got << std::endl;
+                    std::cerr << "FAIL: " << what << " key " << b << " channel " << c << " expected " << want << " got "
+                              << got << std::endl;
                     g_failures++;
                 }
             }
@@ -407,7 +407,9 @@ int main() {
         {
             const auto *out = reinterpret_cast<const float *>(ctx2.out->GetVMAddress());
             for (uint32_t b = 0; b < kMaxKey2; ++b) {
-                CloseF(out[b], static_cast<float>(kPerKey2), 1e-2f, "second geometry channel 0 through a shared instance");
+                CloseF(
+                    out[b], static_cast<float>(kPerKey2), 1e-2f, "second geometry channel 0 through a shared instance"
+                );
                 CloseF(
                     out[kMaxKey2 + b],
                     3.0f * static_cast<float>(kPerKey2),
@@ -559,7 +561,7 @@ int main() {
     // (300) is not a multiple of 256, so the last real block is partially filled.
     {
         constexpr uint32_t kCapacity = 4096u;
-        constexpr uint32_t kCount = 300u;    // off a 256-boundary
+        constexpr uint32_t kCount = 300u; // off a 256-boundary
         constexpr uint32_t kMaxKey = 512u;
         constexpr uint32_t kGarbageKey = 150u; // a valid key that only the tail carries
         auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);
@@ -572,7 +574,7 @@ int main() {
     // ── Scenario J: the same, with the count exactly on a 256-boundary ─────
     {
         constexpr uint32_t kCapacity = 4096u;
-        constexpr uint32_t kCount = 512u;    // a multiple of 256
+        constexpr uint32_t kCount = 512u; // a multiple of 256
         constexpr uint32_t kMaxKey = 512u;
         constexpr uint32_t kGarbageKey = 256u;
         auto ctx = MakeCtx(*rsys, kCapacity, kMaxKey, 1u);

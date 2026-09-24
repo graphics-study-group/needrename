@@ -4,7 +4,9 @@
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Device/Structs.h"
+#include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Texture/ImageUtilsFunc.h"
 #include "Rhi/Texture/Texture.h"
 #include <SDL3/SDL.h>
@@ -146,6 +148,26 @@ namespace {
             GetScope2Buffer(type).second
         };
     }
+
+    /**
+     * @brief Release a batch's staging through the retirement facility.
+     *
+     * Exact mode: the named epoch is the submission that carried this staging
+     * and its fence has already been waited on, so the release condition holds
+     * immediately and the allocations are freed in this cycle rather than being
+     * parked for a full in-flight depth.
+     */
+    void ReleaseStaging(
+        Engine::Rhi::EpochTracker &tracker,
+        std::vector<std::unique_ptr<Engine::Rhi::BufferAllocation>> &staging,
+        Engine::Rhi::EpochWatermark epoch
+    ) noexcept {
+        for (auto &allocation : staging) {
+            if (!allocation) continue;
+            tracker.RetireExact(std::move(*allocation), epoch);
+        }
+        staging.clear();
+    }
 } // namespace
 
 namespace Engine::Rhi {
@@ -158,18 +180,25 @@ namespace Engine::Rhi {
         BatchState m_state{BatchState::Reset};
 
         std::queue<CmdOperation> m_pending_operations{};
-        // Staging buffers of operations enqueued but not yet submitted.
-        std::vector<std::unique_ptr<DeviceBuffer>> m_pending_staging{};
-        // Staging buffers of the deferred batch currently in flight, awaiting
+        // Staging allocations of operations enqueued but not yet submitted.
+        std::vector<std::unique_ptr<BufferAllocation>> m_pending_staging{};
+        // Staging allocations of the deferred batch currently in flight, awaiting
         // reclamation by OnBatchComplete.
-        std::vector<std::unique_ptr<DeviceBuffer>> m_active_staging{};
+        std::vector<std::unique_ptr<BufferAllocation>> m_active_staging{};
+
+        // The epoch this helper opened for the deferred batch currently in
+        // flight. It is the only epoch this helper may report for that batch.
+        EpochWatermark m_active_epoch{INVALID_EPOCH_WATERMARK};
 
         vk::UniqueCommandBuffer m_one_time_cb{};
         vk::UniqueFence m_completion_fence{};
     };
 
-    SubmissionHelper::SubmissionHelper(const DeviceInterface &device_interface, const AllocatorState &allocator) :
-        m_device_interface(device_interface), m_allocator(allocator), pimpl(std::make_unique<impl>()) {
+    SubmissionHelper::SubmissionHelper(
+        const DeviceInterface &device_interface, const AllocatorState &allocator, EpochTracker &epoch_tracker
+    ) :
+        m_device_interface(device_interface), m_allocator(allocator), m_epoch_tracker(epoch_tracker),
+        pimpl(std::make_unique<impl>()) {
         // Pre-allocate a fence
         vk::FenceCreateInfo fcinfo{};
         pimpl->m_completion_fence = m_device_interface.GetDevice().createFenceUnique(fcinfo);
@@ -177,11 +206,17 @@ namespace Engine::Rhi {
 
     SubmissionHelper::~SubmissionHelper() {
         // A pending deferred batch must finish executing before its command
-        // buffer and staging buffers are destroyed.
+        // buffer and staging allocations are destroyed.
         if (pimpl->m_state == BatchState::Submitted) {
             m_device_interface.GetDevice().waitForFences(
                 {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
             );
+            // The fence was observed, so this helper can report the epoch it
+            // opened. Not reporting would strand the prefix behind it.
+            if (pimpl->m_active_epoch != INVALID_EPOCH_WATERMARK) {
+                m_epoch_tracker.ReportComplete(pimpl->m_active_epoch);
+                pimpl->m_active_epoch = INVALID_EPOCH_WATERMARK;
+            }
         }
     }
 
@@ -192,11 +227,11 @@ namespace Engine::Rhi {
             throw std::invalid_argument("Too many bytes of data are submitted to the buffer.");
         }
 
-        auto staging_buffer = DeviceBuffer::CreateUnique(
-            this->m_allocator, {BufferTypeBits::StagingToDevice}, data.size_bytes(), "Staging buffer"
+        auto staging_buffer = std::make_unique<BufferAllocation>(
+            m_allocator.AllocateBuffer({BufferTypeBits::StagingToDevice}, data.size_bytes(), "Staging buffer")
         );
         std::memcpy(staging_buffer->GetVMAddress(), data.data(), data.size_bytes());
-        staging_buffer->Flush();
+        staging_buffer->FlushMemory();
 
         auto enqueued = [data, &buffer, pbuf = staging_buffer.get(), buffer_offset](vk::CommandBuffer cb) {
             auto mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferBefore);
@@ -239,19 +274,17 @@ namespace Engine::Rhi {
         if (!(Rhi::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
             throw std::invalid_argument("Selected texture does not contain color aspect.");
         }
-        auto staging_buffer = DeviceBuffer::CreateUnique(
-            this->m_allocator,
-            {BufferTypeBits::StagingToDevice},
-            texture.CalculateStagingBufferSizeNoMipmap(),
-            "Staging buffer"
+        const size_t staging_size = texture.CalculateStagingBufferSizeNoMipmap();
+        auto staging_buffer = std::make_unique<BufferAllocation>(
+            m_allocator.AllocateBuffer({BufferTypeBits::StagingToDevice}, staging_size, "Staging buffer")
         );
-        if (data.size_bytes() > staging_buffer->GetSize()) {
+        if (data.size_bytes() > staging_size) {
             throw std::invalid_argument("Too many data to be uploaded to texture.");
         }
 
         std::byte *mapped_ptr = staging_buffer->GetVMAddress();
         std::memcpy(mapped_ptr, data.data(), data.size_bytes());
-        staging_buffer->Flush();
+        staging_buffer->FlushMemory();
 
         auto enqueued = [&texture, pbuf = staging_buffer.get()](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
@@ -377,6 +410,11 @@ namespace Engine::Rhi {
             return;
         }
 
+        // Open this submission's own epoch before recording. It is the only
+        // epoch this helper may report for the batch, and the epoch the batch's
+        // staging is named against when it is released.
+        const EpochWatermark epoch = m_epoch_tracker.BeginEpoch();
+
         // Allocate one-time command buffer
         const auto &queue_info = m_device_interface.GetQueueInfo();
         vk::CommandBufferAllocateInfo cbainfo{queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
@@ -412,6 +450,7 @@ namespace Engine::Rhi {
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {signal}};
         queue_info.graphicsQueue.submit2(sinfo, pimpl->m_completion_fence.get());
 
+        pimpl->m_active_epoch = epoch;
         pimpl->m_state = BatchState::Submitted;
     }
 
@@ -423,6 +462,11 @@ namespace Engine::Rhi {
             );
         }
         if (pimpl->m_pending_operations.empty()) return;
+
+        // Open this submission's own epoch. Nothing has been submitted yet, so
+        // no completion can be claimed; the epoch is reported below only once
+        // the fence has actually been waited on.
+        const EpochWatermark epoch = m_epoch_tracker.BeginEpoch();
 
         auto device = m_device_interface.GetDevice();
         vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
@@ -460,7 +504,12 @@ namespace Engine::Rhi {
         if (ret != vk::Result::eSuccess) {
             throw std::runtime_error(vk::to_string(ret) + " happened when waiting for immediate submission fences.");
         }
-        this_batch_staging.clear();
+
+        // The submission is proven complete, so its epoch can be reported.
+        // Reporting first is what lets the exact-mode release below free the
+        // staging in this cycle instead of parking it.
+        m_epoch_tracker.ReportComplete(epoch);
+        ReleaseStaging(m_epoch_tracker, this_batch_staging, epoch);
     }
 
     void SubmissionHelper::OnBatchComplete() {
@@ -474,8 +523,16 @@ namespace Engine::Rhi {
 
             device.resetFences({pimpl->m_completion_fence.get()});
             pimpl->m_one_time_cb.reset();
-            pimpl->m_active_staging.clear();
+
+            // Only the epoch this helper opened for the upload submission may be
+            // reported here: the upload's fence says nothing about the frame's
+            // main batch, which is still in flight.
+            const EpochWatermark epoch = pimpl->m_active_epoch;
+            pimpl->m_active_epoch = INVALID_EPOCH_WATERMARK;
             pimpl->m_state = BatchState::Reset;
+
+            m_epoch_tracker.ReportComplete(epoch);
+            ReleaseStaging(m_epoch_tracker, pimpl->m_active_staging, epoch);
             return;
         }
 

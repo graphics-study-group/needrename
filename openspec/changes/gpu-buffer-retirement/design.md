@@ -168,22 +168,29 @@ So the prefix lags by roughly the in-flight depth, and the rule is a **correctne
 
 | Option | Change surface | Verdict |
 |---|---|---|
-| **A. `BufferAllocation` holds an optional retire sink** | 92 buffer declarations, 5 `EnsureBuffer` copies, and every algorithm contract change **not at all**; every existing buffer becomes retire-safe at once | **Chosen** |
+| **A. `BufferAllocation` holds an optional hand-off to the tracker** | 92 buffer declarations, 5 `EnsureBuffer` copies, and every algorithm contract change **not at all**; every existing buffer becomes retire-safe at once | **Chosen** |
 | B. New subclass (e.g. a managed compute buffer) | ~92 declarations, 5 `EnsureBuffer` copies, `RadixSortBuffers`-style contracts, and coexistence with the existing `unique_ptr<ComputeBuffer>` signatures | Rejected: same guarantee as A for a much larger diff |
 | C. Outer wrapper handle | Same diff as B plus conversions back to `DeviceBuffer &` for every binding call | Rejected |
 
-`BufferAllocation` is the object that actually holds the `VkBuffer` and VMA allocation, so it is the last place that can decide whether freeing now is safe. `ComputeBuffer` / `DeviceBuffer` / `IndexedBuffer` are facades over it and need no change. Dependency direction is preserved: the sink interface lives on the `Buffer` side and the tracker implements it, so `Buffer/` does not depend on `Submission/`.
+`BufferAllocation` is the object that actually holds the `VkBuffer` and VMA allocation, so it is the last place that can decide whether freeing now is safe. `ComputeBuffer` / `DeviceBuffer` / `IndexedBuffer` are facades over it and need no change. The hand-off target is the tracker itself: `BufferAllocation` and `AllocatorState` hold an `EpochTracker *`, forward-declared, so `MemoryAllocation.h` and `AllocatorState.h` still do not include it.
 
-### D6: The tracker is standalone-constructible; `DeviceContext` owns one and wires the sink
+**Why there is no retire-sink interface (a reversal).** An earlier draft put an `IBufferRetireSink` interface in `Device/` and had `EpochTracker` implement it. Its stated justification was dependency direction — the sink interface lives on the `Buffer` side and the tracker implements it, so `Buffer/` does not depend on `Submission/` — and that justification does not survive being checked:
+
+- **Nothing else implements it.** The tracker is the only implementer, no planned change adds another (the follow-up changes read the completed *prefix*; they do not install a retirement policy), and the one other implementer was a test double. The interface therefore advertised a substitutability that does not exist, and a reader could reasonably conclude that some other allocation manager is expected to appear.
+- **It bought no dependency isolation.** `DeviceContext` already includes `Submission/EpochTracker.h` and holds the tracker by `unique_ptr`, so the `Device/` → `Submission/` edge exists with or without the interface. A concrete pointer needs only a forward declaration in the two headers that name it today — exactly what the interface needed.
+
+So the tracker is named directly, and the requirement that it is the *sole* recipient of retired allocations is stated in `rhi-module` rather than left as an implied property of a one-implementation interface.
+
+### D6: The tracker is standalone-constructible; `DeviceContext` owns one and wires the hand-off
 
 Two setups exist in the repo and both must keep working:
 
-- **`DeviceContext`** (what `RenderSystem` and the physics system use) owns the tracker, installs it as the allocator's retire sink, and is the single place that guarantees the tracker outlives the allocator and the device.
-- **Standalone headless setups.** `test/unit/rhi/rhi_standalone_test.cpp` and `test/unit/rhi/submission_helper_test.cpp` construct a `DeviceInterface` and an `AllocatorState` directly with no `DeviceContext`, and `rhi-module` pins that this is supported. The tracker SHALL therefore be constructible from those same facilities and installable through the same setter, so a standalone program can opt into retirement. Without a tracker installed, no sink is set and allocations destroy immediately — exactly today's semantics, which is the correct fallback for a setup that never defers work.
+- **`DeviceContext`** (what `RenderSystem` and the physics system use) owns the tracker, installs it on the allocator as the hand-off target, and is the single place that guarantees the tracker outlives the allocator and the device.
+- **Standalone headless setups.** `test/unit/rhi/rhi_standalone_test.cpp` and `test/unit/rhi/submission_helper_test.cpp` construct a `DeviceInterface` and an `AllocatorState` directly with no `DeviceContext`, and `rhi-module` pins that this is supported. The tracker SHALL therefore be constructible from those same facilities and installable through the same setter, so a standalone program can opt into retirement. Without a tracker installed, no hand-off target is set and allocations destroy immediately — exactly today's semantics, which is the correct fallback for a setup that never defers work.
 
 `AllocatorState` gains a **setter** rather than a constructor parameter, because `AllocatorState(DeviceInterface &)` is pinned by `rhi-module` and `gpu-context-module`; a setter leaves both intact.
 
-`SubmissionHelper` takes the tracker as an explicit construction dependency (see the spec delta) rather than reaching it through `AllocatorState`, so that a standalone setup that never installs a sink still cannot construct a submitter that reports into nothing.
+`SubmissionHelper` takes the tracker as an explicit construction dependency (see the spec delta) rather than reaching it through `AllocatorState`, so that a standalone setup that never installs a tracker still cannot construct a submitter that reports into nothing.
 
 **A device has exactly one tracker.** Two trackers on one device are a programming error, not a safety hole: watermarks are self-issued, so a mismatched pair would park resources under watermarks that never complete — a leak, never a dangling reference. It is still worth catching, so the tracker SHALL assert in debug builds that it is the only live tracker for its device (registering on construction, unregistering on destruction, keyed by the device handle). The assertion is what keeps "standalone-constructible" from becoming "accidentally duplicated"; without it, the freedom to construct one outside `DeviceContext` would be a silent trap.
 
@@ -224,7 +231,7 @@ The frame's epoch still covers the main batch (and the copy batch, which shares 
 
 ### D9: `SubmissionHelper` becomes the second driver, and its staging is reclaimed by the exact mode
 
-Once the sink is installed, staging buffers are `BufferAllocation`s too and would be parked by default. That would be a **memory regression** for uploads (staging holds whole textures). The fix is a mechanism, not an exemption:
+Once the tracker is installed, staging buffers are `BufferAllocation`s too and would be parked by default. That would be a **memory regression** for uploads (staging holds whole textures). The fix is a mechanism, not an exemption:
 
 ```
   ExecuteSubmissionImmediately:  open w -> submit -> waitForFences -> report w -> release staging
@@ -268,7 +275,7 @@ An earlier draft exposed the in-flight depth so host-visible parameter buffers c
 
 ## Migration Plan
 
-1. Introduce the tracker and the sink; wire `DeviceContext`, `AllocatorState`, `DeviceContext` teardown. No behavior change yet, since nothing reports — the facility starts fully conservative.
+1. Introduce the tracker and the allocator's hand-off to it; wire `DeviceContext` and the tracker's teardown. No behavior change yet, since nothing reports — the facility starts fully conservative.
 2. Implement both parking modes (D4) and the reported-set / prefix model (D2), with the debug counters.
 3. Make `SubmissionHelper` a driver (D9): it opens its own epoch per submission, reports only what it opened, and releases staging under the exact mode. This is what restores today's staging memory profile.
 4. Make `FrameManager` a driver (D7, D8): open the frame's epoch at the end of `StartFrame`, report it after the slot's fence wait, and release parked resources at device-idle points.

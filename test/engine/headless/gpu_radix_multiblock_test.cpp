@@ -46,7 +46,7 @@ namespace {
         const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
         auto s = vk::SubmitInfo{{}, {}, {cb}, {}};
         queues.graphicsQueue.submit(s);
-        queues.graphicsQueue.waitIdle();
+        rsys.WaitForIdle();
     }
 
     std::unique_ptr<ComputeBuffer> MakeHostBuffer(RenderSystem &rsys, size_t bytes, const char *name) {
@@ -55,8 +55,8 @@ namespace {
 
     /// What one `Record` call produced, plus the buffers it reported.
     struct SortOutcome {
-        std::vector<uint32_t> keys;      // the returned key array, `count` entries
-        std::vector<uint32_t> payloads;  // the returned payload array, when bound
+        std::vector<uint32_t> keys;     // the returned key array, `count` entries
+        std::vector<uint32_t> payloads; // the returned payload array, when bound
         Rhi::ComputeBuffer *result_keys = nullptr;
         Rhi::ComputeBuffer *keys_a = nullptr;
         Rhi::ComputeBuffer *keys_b = nullptr;

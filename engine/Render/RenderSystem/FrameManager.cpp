@@ -6,8 +6,10 @@
 #include "Render/Resource/MemoryAccessHelper.hpp"
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/Structs.h"
+#include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Submission/SubmissionHelper.h"
 #include "Rhi/Texture/ImageUtilsFunc.h"
 
@@ -88,6 +90,11 @@ namespace Engine::RenderSystemState {
 
         uint64_t total_frame_count{0};
 
+        // The frame epoch opened for each in-flight slot, reported when that
+        // slot's command-executed fence is next waited on. INVALID means the
+        // slot has no open epoch (nothing submitted yet, or a skipped frame).
+        std::array<Rhi::EpochWatermark, FRAMES_IN_FLIGHT> frame_epochs{};
+
         // Last frame-completion fence, captured at submit time (before
         // CompleteFrame advances the FIF counter). Null until the first submit.
         vk::Fence m_last_submitted_fence = nullptr;
@@ -167,8 +174,9 @@ namespace Engine::RenderSystemState {
         }
 
         current_frame_in_flight = 0;
-        m_submission_helper =
-            std::make_unique<Rhi::SubmissionHelper>(m_system.GetDeviceInterface(), m_system.GetAllocatorState());
+        m_submission_helper = std::make_unique<Rhi::SubmissionHelper>(
+            m_system.GetDeviceInterface(), m_system.GetAllocatorState(), m_system.GetDeviceContext().GetEpochTracker()
+        );
     }
 
     void FrameManager::Create(IPresentProvider &present_provider) {
@@ -214,6 +222,15 @@ namespace Engine::RenderSystemState {
             throw std::runtime_error(vk::to_string(wait_result) + " happened when waiting for frame fences.");
         }
 
+        // The fence of the frame that last used this slot has been observed, so
+        // that frame's epoch can be reported. This is the frame epoch's only
+        // reporting point, and it is why the completed prefix lags by roughly
+        // the in-flight depth.
+        if (pimpl->frame_epochs[fif] != Rhi::INVALID_EPOCH_WATERMARK) {
+            pimpl->m_system.GetDeviceContext().GetEpochTracker().ReportComplete(pimpl->frame_epochs[fif]);
+            pimpl->frame_epochs[fif] = Rhi::INVALID_EPOCH_WATERMARK;
+        }
+
         // Acquire (async, never blocks). On failure the frame state is left
         // untouched: `current_framebuffer` keeps its previous value, the fence
         // is NOT reset and the FIF is NOT advanced, so the caller can safely
@@ -240,6 +257,13 @@ namespace Engine::RenderSystemState {
         if (pimpl->timeline_semaphores[fif].GetTotalElapsedTimepoints() > 0) {
             device.signalSemaphore(pimpl->timeline_semaphores[fif].GetSignalInfo(1));
         }
+
+        // The frame is committed: acquisition succeeded and the command buffer
+        // is reset, so open the frame's epoch here. Opening it before acquisition
+        // would create an epoch whose submission never happens when the frame is
+        // skipped, stranding everything parked under it (and everything above it,
+        // since the completed prefix cannot jump the gap).
+        pimpl->frame_epochs[fif] = pimpl->m_system.GetDeviceContext().GetEpochTracker().BeginEpoch();
 
         return pimpl->current_framebuffer;
     }

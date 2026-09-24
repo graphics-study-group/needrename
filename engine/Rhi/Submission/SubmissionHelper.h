@@ -16,40 +16,48 @@ namespace Engine::Rhi {
 
     class DeviceInterface;
     class AllocatorState;
+    class EpochTracker;
 
     /**
      * @brief A helper for submitting data to GPU.
      *
-     * Enqueued operations are executed in batches. A batch starts at a
-     * submission call (`ExecuteSubmission` / `ExecuteSubmissionImmediately`)
-     * and covers all operations enqueued since the previous submission
-     * (or since construction). Enqueued operations keep their staging
-     * buffers alive until the batch that carries them has finished
-     * executing on the GPU.
+     * Enqueued operations are executed in batches. A batch starts at a submission call (`ExecuteSubmission` / `ExecuteSubmissionImmediately`)
+     * and covers all operations enqueued since the previous submission (or since construction). Enqueued operations keep their staging
+     * buffers alive until the batch that carries them has finished executing on the GPU.
      *
      * Batch state machine:
+     *
      * - `Reset`: no deferred batch is pending; submission is allowed.
-     * - `Submitted`: a deferred batch (submitted via `ExecuteSubmission`)
-     *   is pending and awaits `OnBatchComplete`.
+     *
+     * - `Submitted`: a deferred batch (submitted via `ExecuteSubmission`) is pending and awaits `OnBatchComplete`.
+     *
      *
      * Protocol:
-     * - `ExecuteSubmission` / `ExecuteSubmissionImmediately` require the
-     *   state to be `Reset`, otherwise they throw `std::runtime_error`.
-     * - `OnBatchComplete` reaps the pending deferred batch. It throws
-     *   `std::runtime_error` when called with unsubmitted operations
-     *   pending (enqueue operations must be submitted before the next
-     *   `OnBatchComplete`; recording-phase enqueues still precede
-     *   `ExecuteSubmission` in the caller's loop). Readback callbacks
-     *   must not perform uploads.
      *
-     * - `ExecuteSubmissionImmediately` is self-contained: it submits and
-     *   waits for completion, leaving the state at `Reset`. It submits
+     * - `ExecuteSubmission` / `ExecuteSubmissionImmediately` require the state to be `Reset`, otherwise they throw `std::runtime_error`.
+     *
+     * - `OnBatchComplete` reaps the pending deferred batch. It throws std::runtime_error` when called with unsubmitted operations
+     *   pending (enqueue operations must be submitted before the next `OnBatchComplete`; recording-phase enqueues still precede
+     *   `ExecuteSubmission` in the caller's loop). Readback callbacks must not perform uploads.
+     *
+     * - `ExecuteSubmissionImmediately` is self-contained: it submits and waits for completion, leaving the state at `Reset`. It submits
      *   all currently pending operations.
-     * - An empty `ExecuteSubmission` advances the caller-provided signal
-     *   CPU-side without submitting anything.
+     *
+     * - An empty `ExecuteSubmission` advances the caller-provided signal CPU-side without submitting anything.
+     *
+     *
+     * Retirement participation:
+     *
+     * - This helper is a retirement *driver*. It opens its own submission epoch for every submission it issues, reports that epoch once it has
+     *   waited the submission's fence, and only then releases the batch's staging — under the retirement facility's exact mode, naming that
+     *   epoch. Staging is therefore freed in the same cycle it always was.
+     *
+     * - It MUST NOT report an epoch it did not open. In particular it does not report the frame's epoch when it reaps a batch: the upload's fence says
+     *   nothing about the frame's main batch, which is still in flight.
      *
      * This class is NOT thread-safe. All methods must be called from a
-     * single thread (the frame loop thread).
+     * single thread (the frame loop thread). Recording and reporting submission
+     * epochs is a completion ledger, not a synchronization primitive.
      */
     class RHI_API SubmissionHelper {
         using CmdOperation = std::function<void(vk::CommandBuffer)>;
@@ -57,11 +65,14 @@ namespace Engine::Rhi {
     private:
         const DeviceInterface &m_device_interface;
         const AllocatorState &m_allocator;
+        EpochTracker &m_epoch_tracker;
         struct impl;
         std::unique_ptr<impl> pimpl;
 
     public:
-        SubmissionHelper(const DeviceInterface &device_interface, const AllocatorState &allocator);
+        SubmissionHelper(
+            const DeviceInterface &device_interface, const AllocatorState &allocator, EpochTracker &epoch_tracker
+        );
         ~SubmissionHelper();
 
         SubmissionHelper(const SubmissionHelper &) = delete;

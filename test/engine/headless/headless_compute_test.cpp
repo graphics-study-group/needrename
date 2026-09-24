@@ -149,7 +149,7 @@ int main() {
 
     auto si = vk::SubmitInfo{{}, {}, {cb}, {}};
     queues.graphicsQueue.submit(si);
-    queues.graphicsQueue.waitIdle();
+    rsys->WaitForIdle();
 
     // Record and submit the push-constant pass.
     auto cb2 = rsys->GetDevice().allocateCommandBuffers(cbai);
@@ -158,7 +158,7 @@ int main() {
     cb2[0].end();
     auto si2 = vk::SubmitInfo{{}, {}, {cb2}, {}};
     queues.graphicsQueue.submit(si2);
-    queues.graphicsQueue.waitIdle();
+    rsys->WaitForIdle();
 
     // Verify output == input + 1
     bool pass = true;

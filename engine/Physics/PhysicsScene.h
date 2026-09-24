@@ -83,7 +83,14 @@ namespace Engine {
             const Rhi::ComputeBuffer *shape_world_position{};
             const Rhi::ComputeBuffer *shape_world_rotation{};
 
-            const Rhi::ComputeBuffer *model_matrices{};
+            /// @brief The model matrices buffer, by reference-counted handle.
+            ///
+            /// Unlike the other buffers in this set, this one is handed to the
+            /// render side, which may outlive a physics-side resize. A borrowed
+            /// pointer would dangle as soon as the slot count changed, so the
+            /// handle is shared: the caller simply keeps a copy and the buffer
+            /// stays alive for as long as anyone references it.
+            std::shared_ptr<const Rhi::ComputeBuffer> model_matrices{};
 
             const Rhi::ComputeBuffer *shape_filter_data{};
 
@@ -166,7 +173,7 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_position{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_rotation{};
 
-        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_model_matrices{};
+        std::shared_ptr<Rhi::ComputeBuffer> m_gpu_model_matrices{};
 
         std::vector<FixedJointComDescriptor> m_fixed_joints{};
         std::vector<uint32_t> m_fixed_joint_alive{};

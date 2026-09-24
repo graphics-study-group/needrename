@@ -115,6 +115,9 @@ namespace Engine::Rhi {
     struct AllocatorState::impl {
         VmaAllocator m_allocator{};
 
+        /// @brief Tracker that receives retired buffer allocations, or null.
+        EpochTracker *m_retire_sink{nullptr};
+
         std::unordered_map<vk::Format, vk::FormatProperties2> m_format_properties{};
         std::unordered_map<vk::PhysicalDeviceImageFormatInfo2, vk::ImageFormatProperties2> m_image_format_properties{};
 
@@ -255,6 +258,14 @@ namespace Engine::Rhi {
         return pimpl->m_allocator;
     }
 
+    void AllocatorState::SetRetireSink(EpochTracker *sink) noexcept {
+        pimpl->m_retire_sink = sink;
+    }
+
+    EpochTracker *AllocatorState::GetRetireSink() const noexcept {
+        return pimpl->m_retire_sink;
+    }
+
     BufferAllocation AllocatorState::AllocateBuffer(BufferType type, size_t size, const std::string &name) const {
         assert(pimpl->m_allocator && "Allocated not initalized.");
         auto [busage, flags, musage] = pimpl->GetBufferFlags(type);
@@ -275,7 +286,9 @@ namespace Engine::Rhi {
         vk::detail::resultCheck(vk::Result{result}, "Failed to create buffer.");
         assert(buffer != nullptr && allocation != nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_device_interface->GetDevice(), static_cast<vk::Buffer>(buffer), name);
-        return BufferAllocation(static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator, type);
+        return BufferAllocation(
+            static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator, type, pimpl->m_retire_sink
+        );
     }
 
     std::unique_ptr<BufferAllocation> AllocatorState::AllocateBufferUnique(
