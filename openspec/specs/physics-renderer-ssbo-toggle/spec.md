@@ -1,7 +1,9 @@
 # physics-renderer-ssbo-toggle Specification
 
 ## Purpose
-TBD - created by archiving change integrate-physics-into-main-loop. Update Purpose after archive.
+
+Defines how the renderer chooses between physics-driven and component-driven model matrices: a per-rigid-body activation flag decides whether the model matrix SSBO is used, and the renderer falls back to `TransformComponent` when the SSBO is unavailable.
+
 ## Requirements
 ### Requirement: PreRenderUpdate checks model matrix active flag
 

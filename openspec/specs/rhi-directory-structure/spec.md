@@ -33,7 +33,8 @@ The `Rhi` module SHALL organize its source files under `engine/Rhi/` into the re
 #### Scenario: Submission and Resource groups
 
 - **WHEN** the `Rhi` module is checked out
-- **THEN** `SubmissionHelper.*` SHALL reside in `engine/Rhi/Submission/` and `ImmutableResourceCache.*` SHALL reside in `engine/Rhi/Resource/`
+- **THEN** `SubmissionHelper.*` and the submission epoch tracker SHALL reside in `engine/Rhi/Submission/`
+- **AND** `ImmutableResourceCache.*` SHALL reside in `engine/Rhi/Resource/`
 
 ### Requirement: Rhi headers are included by full path
 

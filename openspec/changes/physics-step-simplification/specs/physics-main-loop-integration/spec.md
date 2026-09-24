@@ -19,6 +19,12 @@
 - **THEN** the physics step still consists of the one `GPUStep(cb)` call
 - **AND** the buffers the new geometry needs are sized within that call
 
+#### Scenario: Physics compute shares the frame command buffer
+
+- **WHEN** `RunOneFrame` records a frame with a registered solver
+- **THEN** physics compute passes and render graph passes are recorded on the same command buffer
+- **AND** no physics compute is recorded on a separate command buffer
+
 ### Requirement: Physics GPUStep records into raw command buffer
 
 `MainClass::RunOneFrame` SHALL call `physics->GPUStep(cb)` where `cb` is the raw `vk::CommandBuffer` obtained from the frame manager's main command buffer, and physics compute passes SHALL be recorded directly onto it.

@@ -1,7 +1,9 @@
 # physics-component-lifecycle Specification
 
 ## Purpose
-TBD - created by archiving change integrate-physics-into-main-loop. Update Purpose after archive.
+
+Defines the two-phase lifecycle of physics components: `Awake` registers topology (rigid bodies, shapes, joints) with the physics scene, `Init` uploads the component's property and geometry data, and disabling simulation clears the SSBO activation state.
+
 ## Requirements
 ### Requirement: RigidBodyComponent Awake registers topology only
 

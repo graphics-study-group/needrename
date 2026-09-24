@@ -178,9 +178,37 @@ The system SHALL provide `update_shape_world_pose.comp` under `engine/Physics/sh
 
 The shader SHALL read `ShapeAlive`, `ShapeBoundRigidBody`, `ShapeLocalPosition`, `ShapeLocalRotation`, `RigidBodyCenterPosition`, and `RigidBodyCenterRotation`. It SHALL write `ShapeWorldPosition` and `ShapeWorldRotation`. Dead shapes SHALL be skipped. Unbound shapes SHALL copy local pose to world directly.
 
+#### Scenario: Bound shape is posed by its owning rigid body
+
+- **WHEN** a shape is alive and its bound rigid body index is valid
+- **THEN** `ShapeWorldPosition` is written as the body's center position plus the shape's local position rotated by the body's orientation
+- **AND** `ShapeWorldRotation` is written as the body's orientation multiplied by the shape's local rotation
+
+#### Scenario: Dead shapes are skipped
+
+- **WHEN** `ShapeAlive` is zero for a shape index
+- **THEN** the shader returns without writing `ShapeWorldPosition` or `ShapeWorldRotation` for that index
+
+#### Scenario: Unbound shapes copy their local pose to world
+
+- **WHEN** a shape is alive but its bound rigid body index is the invalid sentinel or out of range
+- **THEN** its `ShapeLocalPosition` and `ShapeLocalRotation` are copied directly to `ShapeWorldPosition` and `ShapeWorldRotation`
+
 ### Requirement: Quaternion multiplication helper
 
 The shared GLSL header `xpbd_math.glsl` SHALL provide a `quat_mul(vec4 a, vec4 b)` function for quaternion multiplication, used by `update_shape_world_pose.comp`. The header SHALL NOT provide redundant wrappers for built-in GLSL functions (`dot`, `cross`).
+
+#### Scenario: quat_mul is available to solver shaders
+
+- **WHEN** `update_shape_world_pose.comp` includes `common/xpbd_math.glsl`
+- **THEN** `quat_mul` resolves from that shared header
+- **AND** the shader composes the body and local orientations through it
+
+#### Scenario: No redundant built-in wrappers
+
+- **WHEN** `xpbd_math.glsl` is inspected
+- **THEN** it declares no wrapper function for `dot` or `cross`
+- **AND** it calls the GLSL built-ins directly
 
 ### Requirement: Collision detectors owned and managed by solver
 

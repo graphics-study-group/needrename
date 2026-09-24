@@ -1,7 +1,9 @@
 # editor-physics-pipeline Specification
 
 ## Purpose
-TBD - created by archiving change integrate-physics-into-main-loop. Update Purpose after archive.
+
+Defines how the editor main loop drives the physics pipeline: the pipeline runs only while the editor is playing, shares the frame's command buffer with rendering, forwards the physics model matrices buffer into the editor render graph, and is toggled by the editor's start and stop callbacks.
+
 ## Requirements
 ### Requirement: Editor loop physics pipeline gated on play state
 
@@ -33,7 +35,7 @@ The editor loop SHALL share a single command buffer for physics compute (`GPUSte
 
 ### Requirement: EditorRenderGraphBuilder accepts model matrices buffer
 
-`EditorRenderGraphBuilder::BuildEditorRenderGraph` SHALL accept an optional `const ComputeBuffer *model_matrices_buffer` parameter. When non-null, the buffer SHALL be imported as an external render graph resource and declared with read access on shadowmap, scene lit, and game lit passes.
+`EditorRenderGraphBuilder::BuildEditorRenderGraph` SHALL accept an optional model matrices buffer parameter, defaulting to "none". When a buffer is supplied, the buffer SHALL be imported as an external render graph resource and declared with read access on shadowmap, scene lit, and game lit passes. The supplied reference SHALL keep the buffer alive for as long as the built render graph holds it, so that a physics-side reallocation cannot leave the editor's graph pointing at a destroyed buffer.
 
 #### Scenario: SSBO available — render graph imports it
 
@@ -48,6 +50,12 @@ The editor loop SHALL share a single command buffer for physics compute (`GPUSte
 - **WHEN** `BuildEditorRenderGraph` is called with a `nullptr` `model_matrices_buffer`
 - **THEN** no `ImportExternalResource` or `UseBuffer` calls are made for model matrices
 - **AND** no export barriers are generated for the model matrices buffer
+
+#### Scenario: Physics resizes the buffer while the editor graph holds it
+
+- **WHEN** the physics scene replaces its model matrices buffer after the editor's render graph has been built
+- **THEN** the buffer the graph imported remains alive for the graph's lifetime
+- **AND** no shadowmap, scene lit, or game lit pass reads a destroyed buffer
 
 ### Requirement: Start callback enables simulation
 

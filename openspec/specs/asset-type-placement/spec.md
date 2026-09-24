@@ -1,6 +1,10 @@
 # Asset Type Placement Spec
 
-## ADDED Requirements
+## Purpose
+
+Defines where asset types live in the engine tree: render-domain asset types (Mesh, Material, Shader, Texture and their loaders) under `engine/Render/`, scene and URDF asset types under `engine/Framework/`, and the dependency-free asset core under `engine/Asset/`, with the build targets and serialized representation following that placement.
+
+## Requirements
 
 ### Requirement: Render-domain asset types live under engine/Render/
 Mesh, Material, Shader, and Texture asset files (including their loaders `ObjLoader`, `GltfLoader`, `TextureImportUtils`, `MaterialUtils`, `ImportTypes`, `ImportSharedUtil`, `Importer`) SHALL be located under `engine/Render/`.
