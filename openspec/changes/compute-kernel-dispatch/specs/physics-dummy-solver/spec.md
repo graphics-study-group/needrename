@@ -9,7 +9,7 @@ On each `GPUStep(cb)` call, the solver SHALL:
 2. Dispatch the compute shader through the compute kernel dispatch surface
 3. Use the kernel acquired during `PreGPUStep`
 
-The compute shader SHALL displace each alive body by `position.z += gravity.z * time_step` and write its model matrix.
+The compute shader SHALL displace each alive body by `position.z += gravity.z * time_step`. It SHALL NOT write model matrices: model matrix output belongs to `GPUCalcModelMatrices`, which reads the poses the step produced.
 
 `DummySolver::PreGPUStep()` SHALL perform the shader initialization, the uniform buffer write, and the kernel acquisition. `DummySolver::GPUStep(cb)` SHALL only dispatch.
 
@@ -24,6 +24,12 @@ The compute shader SHALL displace each alive body by `position.z += gravity.z * 
 - **WHEN** `GPUStep()` is called for any frame
 - **THEN** no `RenderGraph`, `RenderGraphBuilder`, or `RenderGraphPass` is created or used
 - **AND** the dispatch is recorded directly through the kernel dispatch surface
+
+#### Scenario: The step does not write model matrices
+
+- **WHEN** `GPUStep(cb)` is called and `GPUCalcModelMatrices` is not
+- **THEN** no dispatch in the recorded frame binds a model matrices buffer as an output
+- **AND** the render-owned model matrices buffer is unchanged by the step
 
 #### Scenario: Dispatch reuses the kernel acquired earlier
 

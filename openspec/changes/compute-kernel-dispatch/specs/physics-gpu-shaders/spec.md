@@ -79,6 +79,12 @@ The `SumByKey` reduce shader (`algorithm/sum_by_key.comp.spv`) SHALL be loaded b
 - **AND** a compute kernel exists for it
 - **AND** `clear_int_buffer.comp.spv` is still loaded separately for the flat clears
 
+#### Scenario: Model matrix shader is loaded from the shared directory
+
+- **WHEN** the solver needs the model matrix shader
+- **THEN** it loads `solver/common/model_matrix.comp.spv` from `<ENGINE_PHYSICS_SPIRV_DIR>`
+- **AND** no `solver/XPBDSolver/model_matrix.comp.spv` is loaded or produced
+
 ### Requirement: XPBD solver loads and dispatches multiple compute shaders
 
 XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, collision detection (broad and narrow phase via the detector classes), entry-list construction (one pass per constraint type), radix sorting, accumulator clearing, contact position delta accumulation (scatter), per-body segmented reduction via `SumByKey`, body position delta application, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.

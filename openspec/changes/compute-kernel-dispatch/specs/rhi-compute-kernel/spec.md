@@ -60,7 +60,7 @@ A dispatch SHALL obtain its descriptor set from the device's descriptor arena at
 
 Re-acquiring on every dispatch is what keeps the arena's record of the acquiring epoch accurate, and therefore what makes the arena's reuse cache safe to reclaim from. A kernel that held a handle between dispatches would keep binding a set the arena may already have released.
 
-The caller MUST NOT supply a rotation slot or a binding object: the set's lifetime follows the submission epoch, which the arena tracks.
+The caller MUST NOT supply a rotation slot or a binding object: the arena reclaims a set only once the completed prefix has passed the epoch recorded for it, and that record stays accurate because every dispatch refreshes it.
 
 #### Scenario: Repeated dispatches re-acquire and reuse
 

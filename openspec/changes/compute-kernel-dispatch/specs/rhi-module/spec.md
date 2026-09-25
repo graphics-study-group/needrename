@@ -10,7 +10,7 @@
 
 `Rhi` SHALL NOT provide a shared-ownership (reference-counted) buffer factory. A buffer whose lifetime must outlive the component that created it is uniquely owned by whoever owns that lifetime, and is referenced elsewhere through a raw pointer.
 
-`Rhi` SHALL additionally own the device-scoped descriptor arena: the single owner of descriptor pools, which keeps acquired sets resident and reusable across submission epochs and reclaims them under one of two triggers — cache pressure for per-dispatch compute bindings and an explicit owner release for long-lived material, scene and camera state. The arena resides in `Rhi` because both `Render` (materials, scene data, cameras) and compute consumers use it equally, and neither may own a pool.
+`Rhi` SHALL additionally own the device-scoped descriptor arena: the single owner of descriptor pools, which hands out descriptor sets through a pool layer for sets whose descriptors the caller writes and a content-keyed cache layer that keeps sets resident and reusable across submission epochs, reclaiming them only under a soft resident budget and only among entries the completed prefix has passed. The arena resides in `Rhi` because both `Render` (materials, scene data, cameras) and compute consumers use it equally, and neither may own a pool.
 
 `Rhi` SHALL additionally own the compute kernel facility and its dispatch surface. It resides in `Rhi` because it depends on the device, the allocator and the arena only, and both `Render` and `Physics` use it equally.
 
@@ -54,6 +54,7 @@ The types `ComputeStage`, `ComputeResourceBinding` and the `ComputeHelpers` free
 
 - **WHEN** a client includes the descriptor arena's header
 - **THEN** the arena is available under `Engine::Rhi`, keeping acquired descriptor sets resident and reusable across submission epochs
+- **AND** its cache layer reclaims a resident set only once the completed prefix has passed the epoch recorded for it
 - **AND** the arena does not depend on headers from `engine/Render/`
 
 ## REMOVED Requirements

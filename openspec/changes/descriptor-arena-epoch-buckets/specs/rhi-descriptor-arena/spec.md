@@ -2,13 +2,15 @@
 
 ## Purpose
 
-Defines the device-scoped descriptor arena: the single facility that owns descriptor pools and hands out descriptor sets, keeping them resident and reusable across epochs and releasing them under one of two triggers — cache pressure for per-dispatch compute bindings, and an explicit owner release for long-lived material, scene and camera state — with on-demand pool growth instead of a fixed set budget.
+Defines the device-scoped descriptor arena: the single facility that owns descriptor pools and hands out descriptor sets through two services — a **pool layer** that allocates a set for a layout without knowing its contents, and a **content-keyed cache layer** built on it that resolves, writes, keeps sets resident and reuses them across submission epochs. The cache layer reclaims only under a soft resident budget and only among entries the completed prefix has passed, so a set an outstanding submission may reference is never released.
 
 ## ADDED Requirements
 
 ### Requirement: Descriptor sets come from a device-scoped arena
 
-Descriptor sets SHALL be obtained from a single device-scoped arena reachable from the device facilities. No consumer — compute pipeline object, material, scene data, camera data, or render system — SHALL create, own, or reset a descriptor pool for its own sets.
+Descriptor sets SHALL be obtained from a single device-scoped arena reachable from the device facilities. No consumer — compute pipeline object, material, scene data, camera data, or render system — SHALL create, own, or reset a descriptor pool **for the sets the engine acquires for its own bindings**.
+
+The pool an ImGui backend creates and hands to the GUI library is deliberately outside this rule: the GUI library allocates and frees those sets itself, the engine never acquires one of them from the arena, and the arena cannot key or reclaim them.
 
 When the pool a request would be served from cannot satisfy it, the arena SHALL create an additional pool rather than fail the request. The arena MUST NOT impose a fixed maximum number of descriptor sets per consumer.
 
@@ -18,11 +20,12 @@ When the pool a request would be served from cannot satisfy it, the arena SHALL 
 - **THEN** each acquisition succeeds
 - **AND** the arena has created the additional pools it needed
 
-#### Scenario: No consumer-owned pool remains
+#### Scenario: No engine-owned pool remains
 
 - **WHEN** the repository is searched for descriptor-pool creation outside the arena
 - **THEN** no compute, material, scene-data or camera consumer creates a descriptor pool
 - **AND** no consumer exposes a pool to its callers
+- **AND** the only remaining pool is the GUI backend's, which the GUI library allocates and frees from itself
 
 #### Scenario: Arena available without a render system
 
@@ -31,61 +34,60 @@ When the pool a request would be served from cannot satisfy it, the arena SHALL 
 
 ### Requirement: Sets are resident and reused across epochs
 
-The arena SHALL keep acquired sets in a content-keyed store and SHALL return the same set for a repeated request of the same descriptor-set layout and binding content, **including across epoch boundaries**. Re-acquiring a set SHALL refresh the epoch recorded for it; it MUST NOT cause a new set to be created.
+The arena SHALL keep acquired sets in a store keyed by the descriptor-set layout it resolved through the device's immutable resource cache, the dynamic-offset flags, and the resolved binding content, and SHALL return the same set for a repeated request of that key, **including across epoch boundaries**. Re-acquiring a set SHALL refresh the epoch recorded for it; it MUST NOT cause a new set to be created.
 
-A set SHALL be released only when the epoch recorded for it is at or below the completed prefix, so that a set referenced by an outstanding epoch is never released. A report for an entry's own epoch is NOT sufficient: earlier epochs may still be executing command buffers that bind the same set, so only the prefix makes an entry eligible. The arena MUST NOT rewrite a set's descriptors in place while it is resident.
+The arena itself SHALL resolve the bound resources into descriptor writes and write them when it creates an entry. It MUST NOT rewrite a resident entry's descriptors, because the entry's identity is its content.
 
 #### Scenario: Steady-state reuse mints nothing
 
-- **WHEN** the same dispatch is recorded in consecutive epochs with identical binding content
+- **WHEN** the same dispatch or the same material bind is recorded in consecutive epochs with identical binding content
 - **THEN** each epoch obtains the same descriptor set
 - **AND** no new set is created after the first epoch
 
-#### Scenario: Outstanding epoch retains its sets
-
-- **WHEN** an epoch is submitted but not yet reported complete
-- **THEN** the sets acquired in that epoch are retained
-- **AND** they are released only after completion is reported and only when the arena is under pressure to do so
-
 #### Scenario: Interning within one epoch
 
-- **WHEN** two passes in the same epoch request the same descriptor set layout and the same binding content
+- **WHEN** two requests in the same epoch name the same descriptor set layout and the same binding content
 - **THEN** both receive the same descriptor set
 
-#### Scenario: Completion is driven by the completed prefix, not by a single report
+#### Scenario: Equal layouts resolve to one key
 
-- **WHEN** an epoch is reported complete while an earlier epoch is still outstanding
-- **THEN** no set recorded against the earlier epoch is released
-- **AND** sets become releasable only as the completed prefix advances past the epochs recorded for them
+- **WHEN** two requests describe equal layout bindings
+- **THEN** both are keyed on the same descriptor-set layout object, because the arena resolves layouts through the immutable resource cache rather than from a reflected-layout object's address
 
-### Requirement: Pressure-driven sets carry a re-acquisition contract
+#### Scenario: A resident entry is never rewritten
 
-A set acquired through the pressure-driven trigger SHALL be re-acquired in every epoch whose command buffers use it, and a handle to such a set MUST NOT be held across epochs by the caller.
+- **WHEN** a caller requests a set whose content differs from that of a resident entry
+- **THEN** the arena creates a distinct entry rather than rewriting the resident one
 
-This contract is what makes the recorded epoch an upper bound on the epochs that can reference the set. A caller that needs to hold a set handle across epochs SHALL use the owner-driven trigger instead.
+### Requirement: A set is re-acquired in every epoch that uses it
 
-#### Scenario: A dispatching kernel refreshes its sets
+A set acquired from the cache layer SHALL be re-acquired in every epoch whose command buffers use it, and a handle to such a set MUST NOT be held across epochs by the caller.
 
-- **WHEN** a kernel dispatches in an epoch
-- **THEN** every set it binds is re-acquired and its recorded epoch is refreshed
+This contract is what makes the recorded epoch an upper bound on the epochs that can reference the set. The API SHALL make the obligation structural rather than documentary: an acquisition SHALL return the set together with the data needed to bind it, so that no caller is handed a handle it can store for a later epoch.
 
-#### Scenario: A kernel that stops dispatching stops refreshing
+#### Scenario: A dispatch refreshes its sets
 
-- **WHEN** a kernel does not dispatch in an epoch
-- **THEN** its sets keep the epoch recorded at their last acquisition
-- **AND** they become releasable once the completed prefix reaches that epoch
+- **WHEN** a dispatch binds its compute resources
+- **THEN** every set it uses is re-acquired and its recorded epoch is refreshed
 
-#### Scenario: A caller that holds a handle across epochs uses the owner-driven trigger
+#### Scenario: A material bind refreshes its set
 
-- **WHEN** a caller needs a descriptor set to remain valid across frames without re-acquiring it
-- **THEN** it obtains the set through the owner-driven trigger
-- **AND** the set remains valid until the caller releases it
+- **WHEN** a material is bound for drawing
+- **THEN** its set is re-acquired for that bind rather than read from a handle stored by an earlier frame
 
-### Requirement: Eviction is epoch-guarded and the budget is soft
+#### Scenario: A set that stops being requested stops being refreshed
 
-The arena SHALL reclaim pressure-driven entries only when it is over a configured resident budget, and only among entries that are **eligible** — claimed by an epoch and recorded at or below the completed prefix. Among eligible entries it SHALL evict the least recently acquired first.
+- **WHEN** no command buffer requests a set's content in an epoch
+- **THEN** the set keeps the epoch recorded at its last acquisition
+- **AND** it becomes eligible for reclamation once the completed prefix reaches that epoch
+
+### Requirement: Reclamation is pressure-driven and the budget is soft
+
+The arena SHALL reclaim entries only when it is over a configured resident budget, and only among entries that are **eligible** — claimed by an epoch and recorded at or below the completed prefix. Among eligible entries it SHALL evict the least recently acquired first.
 
 An entry that is not eligible MUST NOT be evicted, even when the arena is over budget: exceeding the budget is preferable to releasing a set an outstanding submission may reference. The budget is therefore a soft cap.
+
+The arena SHALL read the completed prefix from the retirement facility when it evaluates reclamation. It SHALL NOT require, and SHALL NOT depend on, any notification of prefix advancement.
 
 #### Scenario: Eviction under pressure
 
@@ -99,11 +101,23 @@ An entry that is not eligible MUST NOT be evicted, even when the arena is over b
 - **THEN** no entry is released
 - **AND** the arena exceeds the budget until the completed prefix advances past those entries' recorded epochs
 
+#### Scenario: Completion is driven by the completed prefix, not by a single report
+
+- **WHEN** an epoch is reported complete while an earlier epoch is still outstanding
+- **THEN** no set recorded against the earlier epoch is released
+- **AND** sets become eligible only as the completed prefix advances past the epochs recorded for them
+
 #### Scenario: A fully serialised submitter still reuses its sets
 
 - **WHEN** a caller completes each epoch before opening the next, so that no set is ever re-acquired before its epoch completes
 - **THEN** its sets are retained across epochs as long as the arena is within budget
 - **AND** they are not released merely because their epoch completed
+
+#### Scenario: No release entry point exists
+
+- **WHEN** a caller wants a set it no longer needs to be reclaimed
+- **THEN** it simply stops requesting that content
+- **AND** the arena reclaims the entry after the completed prefix has passed its recorded epoch and the arena is over budget
 
 ### Requirement: Sets acquired outside an epoch are pinned until claimed
 
@@ -129,42 +143,49 @@ An epoch SHALL claim every unclaimed set when it opens, recording that epoch aga
 - **THEN** its sets are retained for the arena's lifetime
 - **AND** they are released when the arena is destroyed
 
-### Requirement: Owner-driven sets are valid until released
+### Requirement: The arena allocates sets whose descriptors the caller writes
 
-A set acquired through the owner-driven trigger SHALL remain valid until its owner releases it or the cache that owns it evicts it. The arena SHALL return released sets to its pools so their descriptors are reusable.
+The arena SHALL allocate a descriptor set for a requested layout and hand it to the caller without recording, keying, interning or rewriting its contents, for consumers whose descriptor content the arena cannot express — long-lived state whose content changes per frame, and descriptor arrays.
 
-The release SHALL be deferred when the epoch recorded for the set is still outstanding; a set MUST NOT be freed while a command buffer that binds it may still be executing.
+Such a set SHALL NOT be reclaimed by the arena: the arena cannot observe whether its owner still holds the handle, nor the last epoch that bound it. It SHALL remain valid until the arena is destroyed. The arena SHALL NOT require an owner identity for it, because it is never shared.
 
-#### Scenario: Owner-driven set reused across frames
+The caller carries one obligation: a set whose descriptors the caller writes MUST NOT be rewritten while a command buffer that binds it may still be executing.
 
-- **WHEN** a material instance is drawn for many frames with unchanged binding content
-- **THEN** it reuses the same descriptor set
-- **AND** no new set is acquired for it during that time
+#### Scenario: Long-lived state keeps its sets
 
-#### Scenario: Release on owner destruction
+- **WHEN** a consumer obtains a set for a layout through this service
+- **THEN** the set remains valid until the arena is destroyed
+- **AND** no eviction pressure releases it
 
-- **WHEN** the object owning a set is destroyed
-- **THEN** the set is released back to the arena
-- **AND** the arena's live set count decreases
+#### Scenario: The same layout yields distinct sets
 
-#### Scenario: Release does not free a set still in use
+- **WHEN** two requests name the same descriptor set layout
+- **THEN** each receives a distinct descriptor set, because these sets are not interned
 
-- **WHEN** a release is requested for a set whose recorded epoch is still outstanding
-- **THEN** the release is deferred
-- **AND** the set is reclaimed only once the completed prefix reaches that epoch
+#### Scenario: The caller must not rewrite a set an in-flight submission binds
+
+- **WHEN** a caller wants to rewrite the descriptors of a set it wrote
+- **THEN** it must first establish that no command buffer binding that set is still executing
+- **AND** an in-flight rewrite leaves the arena nothing to detect it with, because the arena never sees these contents
 
 ### Requirement: Descriptor-set layouts are shared
 
-The arena SHALL obtain descriptor-set layouts from the device's immutable resource cache, so that equal layout descriptions resolve to one layout object.
+The arena SHALL obtain descriptor-set layouts from the device's immutable resource cache, so that equal layout descriptions resolve to one layout object. Consumers that build a pipeline layout over a descriptor set layout SHALL obtain that layout from the same cache, so that the layout used for a pipeline and the layout a set is allocated against are the same object.
 
 #### Scenario: Equal layouts resolve to one object
 
 - **WHEN** two acquisitions request the same descriptor set layout description
 - **THEN** both are allocated against the same layout object
 
+#### Scenario: A compute stage's allocation layout is its pipeline layout's layout
+
+- **WHEN** a compute pipeline object is created and a set is later allocated for the same bindings
+- **THEN** both name the object the resource cache returned for that description
+- **AND** no separate layout is created outside the cache
+
 ### Requirement: Headless operation without a frame loop
 
-The arena SHALL operate with no presentation frame loop. A device-idle wait SHALL NOT by itself release resident sets: it advances the completed prefix, which makes entries eligible, but reclamation still requires budget pressure or an owner release.
+The arena SHALL operate with no presentation frame loop. A device-idle wait SHALL NOT by itself release resident sets: it makes entries eligible by recording that everything issued so far is complete, but reclamation still requires budget pressure.
 
 #### Scenario: Standalone compute workload
 
@@ -177,3 +198,14 @@ The arena SHALL operate with no presentation frame loop. A device-idle wait SHAL
 - **WHEN** a caller waits for the device to be idle between two epochs and then records the same binding content again
 - **THEN** the resident entries survive the idle wait
 - **AND** the second epoch reuses them rather than minting new sets
+
+#### Scenario: Device-idle makes entries eligible without releasing them
+
+- **WHEN** a device-idle wait is broadcast to the arena and a later acquisition exceeds the budget
+- **THEN** entries that were ineligible only because their epochs had not been reported are reclaimable
+- **AND** no entry was released by the idle wait itself
+
+#### Scenario: Sets acquired after the idle wait stay ineligible
+
+- **WHEN** a set is acquired after a device-idle wait and its epoch is not yet reported
+- **THEN** the idle wait does not make that set eligible
