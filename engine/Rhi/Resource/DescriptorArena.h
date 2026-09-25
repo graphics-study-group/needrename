@@ -118,9 +118,19 @@ namespace Engine::Rhi {
         /**
          * @brief Resolve a descriptor-set layout through the immutable resource cache.
          *
-         * Equal layout descriptions resolve to one layout object, which is what
-         * makes a layout handle usable as a cache key: it is content-addressed
-         * and never released, unlike a reflected-layout object's address.
+         * This is the only way to obtain a layout the arena will allocate
+         * against, and it is called once per layout rather than once per
+         * acquisition: the caller keeps the returned object, builds its pipeline
+         * layout over it, and hands it back on every acquisition. Equal layout
+         * descriptions resolve to one object, because the handle is
+         * content-addressed and never released — unlike a reflected-layout
+         * object's address.
+         *
+         * The per-descriptor-type requirement of every layout resolved here is
+         * remembered, so that a pool can later be sized for it; a layout handle
+         * cannot be queried for its bindings.
+         *
+         * @param name Debug name applied to the layout.
          */
         vk::DescriptorSetLayout ResolveLayout(
             const vk::DescriptorSetLayoutCreateInfo &layout, const char *name = nullptr
@@ -134,9 +144,10 @@ namespace Engine::Rhi {
          * that bound it. It stays valid until the arena is destroyed, and there
          * is deliberately no release entry point.
          *
-         * @param name Debug name applied to the pool and the set.
+         * @param layout A layout this arena resolved through `ResolveLayout`.
+         * @param name Debug name applied to the set.
          */
-        vk::DescriptorSet AcquireRawSet(const vk::DescriptorSetLayoutCreateInfo &layout, std::string_view name = {});
+        vk::DescriptorSet AcquireRawSet(vk::DescriptorSetLayout layout, std::string_view name = {});
 
         /**
          * @brief Cache layer: return the set for a content, writing it on a miss.
@@ -146,10 +157,11 @@ namespace Engine::Rhi {
          * request whose content differs from a resident entry's mints a distinct
          * entry rather than rewriting the resident one.
          *
+         * @param layout A layout this arena resolved through `ResolveLayout`.
          * @param content The resolved bindings the arena writes on a miss.
          */
         vk::DescriptorSet Acquire(
-            const vk::DescriptorSetLayoutCreateInfo &layout,
+            vk::DescriptorSetLayout layout,
             uint32_t set_id,
             bool enforce_dynamic_uniform,
             bool enforce_dynamic_storage,

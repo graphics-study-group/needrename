@@ -125,7 +125,9 @@ namespace Engine::Rhi {
             // FIXME: Dynamic offset order might not be correct.
             binding.dynamic_offsets.push_back(v->GetSliceOffset(slot));
         }
-        binding.set = pimpl->p_srb->GetDescriptorSet(0, pimpl->stage->GetReflectedShaderInfo(), true, false);
+        binding.set = pimpl->p_srb->GetDescriptorSet(
+            0, pimpl->stage->GetDescriptorSetLayout(), pimpl->stage->GetReflectedShaderInfo(), true, false
+        );
 
         // Then do uniform writes.
         if (pimpl->ubo_manager.ubo_dirty[slot]) {

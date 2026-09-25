@@ -76,7 +76,8 @@ namespace Engine::RenderSystemState {
         // caller must not rewrite one while a command buffer that binds it may
         // still be executing.
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
-            pimpl->descriptors[i] = arena.AcquireRawSet(dslci, std::format("Desc Set - Camera FIF {}", i));
+            pimpl->descriptors[i] =
+                arena.AcquireRawSet(pimpl->camera_descriptor_set_layout, std::format("Desc Set - Camera FIF {}", i));
         }
 
         // Allocate the back buffer.

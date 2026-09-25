@@ -4,7 +4,9 @@
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
+#include "Rhi/Resource/DescriptorArena.h"
 
 #include <SDL3/SDL.h>
 #include <cassert>
@@ -78,7 +80,7 @@ namespace Engine {
          */
         void GenerateDescriptorSetAndPipelineLayout(
             PipelineBundle &b,
-            Rhi::ImmutableResourceCache &irc,
+            RenderSystem &system,
             vk::Device d,
             vk::DescriptorSetLayout scene_descriptors,
             vk::DescriptorSetLayout camera_descriptors,
@@ -99,8 +101,11 @@ namespace Engine {
                     );
                 }
 
+                // Resolved once, through the arena: this handle is what the
+                // pipeline layout is built over and what every set for this
+                // material is allocated against.
                 vk::DescriptorSetLayoutCreateInfo dslci{{}, desc_bindings};
-                b.descriptor_set_layout = irc.GetDescriptorSetLayout(dslci);
+                b.descriptor_set_layout = system.GetDeviceContext().GetDescriptorArena().ResolveLayout(dslci, nullptr);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
                     RenderSystemState::RendererManager::GetPushConstantRange()
@@ -109,7 +114,7 @@ namespace Engine {
                     scene_descriptors, camera_descriptors, b.descriptor_set_layout
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                b.pipeline_layout = irc.GetPipelineLayout(plci);
+                b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plci);
             } else {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material %s pipeline has no material descriptors.", name.c_str());
 
@@ -118,7 +123,7 @@ namespace Engine {
                 };
                 std::array<vk::DescriptorSetLayout, 2> set_layouts{scene_descriptors, camera_descriptors};
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                b.pipeline_layout = irc.GetPipelineLayout(plci);
+                b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plci);
             }
         }
 
@@ -137,7 +142,7 @@ namespace Engine {
                 CompileShaderModules(pipeline_table[tag], system.GetDevice(), asset->properties.shaders.shaders);
                 GenerateDescriptorSetAndPipelineLayout(
                     pipeline_table[tag],
-                    system.GetIRCache(),
+                    system,
                     system.GetDevice(),
                     system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                     system.GetCameraManager().GetDescriptorSetLayout(),
@@ -154,7 +159,14 @@ namespace Engine {
                 [](const vk::UniqueShaderModule &usm) { return usm.get(); }
             );
             pipeline_table[tag].materials[pri] = std::make_unique<MaterialTemplate>(
-                system, asset->properties, shader_modules, b.pipeline_layout, b.reflected, pri, asset->name
+                system,
+                asset->properties,
+                shader_modules,
+                b.pipeline_layout,
+                b.descriptor_set_layout,
+                b.reflected,
+                pri,
+                asset->name
             );
 
             SDL_LogInfo(

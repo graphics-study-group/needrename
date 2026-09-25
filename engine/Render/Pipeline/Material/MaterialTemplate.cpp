@@ -27,6 +27,8 @@ namespace Engine {
         };
 
         vk::PipelineLayout pipeline_layout{};
+        /// @brief Layout of the per-material set, the object the arena resolved.
+        vk::DescriptorSetLayout desc_set_layout{};
         const Rhi::SPLayout *m_layout{};
         /// @brief Whether the reflected layout has material data set. Computed once at
         /// construction, because `GenerateLayoutBindings` allocates.
@@ -156,6 +158,7 @@ namespace Engine {
         MaterialTemplateSinglePassProperties &properties,
         const std::vector<vk::ShaderModule> &shaders,
         vk::PipelineLayout layout,
+        vk::DescriptorSetLayout desc_set_layout,
         const Rhi::SPLayout &reflected,
         const PipelineRuntimeInfo &pri,
         const std::string &name
@@ -164,6 +167,7 @@ namespace Engine {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipelines for material %s.", pimpl->m_name.c_str());
 
         pimpl->pipeline_layout = layout;
+        pimpl->desc_set_layout = desc_set_layout;
         pimpl->m_layout = &reflected;
         // "Has per-material data" is "the reflected layout declares set 2".
         pimpl->m_has_material_data = !reflected.GenerateLayoutBindings(2, true, false).empty();
@@ -182,6 +186,10 @@ namespace Engine {
     }
     vk::PipelineLayout MaterialTemplate::GetPipelineLayout() const noexcept {
         return pimpl->pipeline_layout;
+    }
+
+    vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const noexcept {
+        return pimpl->desc_set_layout;
     }
 
     const Rhi::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {

@@ -6,7 +6,6 @@
 #include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/Texture/Texture.h"
 
-#include <algorithm>
 #include <cassert>
 #include <map>
 #include <tuple>
@@ -52,14 +51,16 @@ namespace Engine::Rhi {
     }
 
     vk::DescriptorSet ShaderResourceBinding::GetDescriptorSet(
-        uint32_t set_id, const Rhi::SPLayout &s, bool enforce_dynamic_uniform, bool enforce_dynamic_storage
+        uint32_t set_id,
+        vk::DescriptorSetLayout layout,
+        const Rhi::SPLayout &s,
+        bool enforce_dynamic_uniform,
+        bool enforce_dynamic_storage
     ) {
         // Map the bound names onto the reflected layout: the arena can only key
         // on content it produced, so resolving is this class's job.
-        auto dslb = s.GenerateLayoutBindings(set_id, enforce_dynamic_uniform, enforce_dynamic_storage);
-
         std::vector<Rhi::ResolvedBinding> content;
-        content.reserve(dslb.size());
+        content.reserve(s.interfaces.size());
 
         for (const auto &pinterface : s.interfaces) {
             if (pinterface->layout_set != set_id) continue;
@@ -101,18 +102,29 @@ namespace Engine::Rhi {
                 auto pbuf = std::get_if<std::tuple<vk::Buffer, size_t, size_t>>(&itr->second);
                 assert(pbuf);
 
-                // Static or dynamic, uniform or storage, comes from the layout.
-                auto binding_itr =
-                    std::find_if(dslb.begin(), dslb.end(), [pbuffer](const vk::DescriptorSetLayoutBinding &p) -> bool {
-                        return p.binding == pbuffer->layout_binding;
-                    });
-                assert(binding_itr != dslb.end());
-                auto [buffer, offset, range] = *pbuf;
+                // Uniform or storage, static or dynamic, follows from the
+                // reflected interface together with the enforced flags; the
+                // layout description is not consulted.
+                vk::DescriptorType type = vk::DescriptorType::eUniformBuffer;
+                switch (pbuffer->type) {
+                case Rhi::SPInterfaceBuffer::Type::UniformBuffer:
+                    type = enforce_dynamic_uniform ? vk::DescriptorType::eUniformBufferDynamic
+                                                   : vk::DescriptorType::eUniformBuffer;
+                    break;
+                case Rhi::SPInterfaceBuffer::Type::StorageBuffer:
+                    type = enforce_dynamic_storage ? vk::DescriptorType::eStorageBufferDynamic
+                                                   : vk::DescriptorType::eStorageBuffer;
+                    break;
+                default:
+                    assert(!"Ignoring buffer with unknown type.");
+                    continue;
+                }
 
+                auto [buffer, offset, range] = *pbuf;
                 content.emplace_back(
                     Rhi::ResolvedBinding{
                         .binding = pbuffer->layout_binding,
-                        .type = binding_itr->descriptorType,
+                        .type = type,
                         .buffer = buffer,
                         .offset = offset,
                         .range = range
@@ -121,13 +133,7 @@ namespace Engine::Rhi {
             }
         }
 
-        return pimpl->arena->Acquire(
-            vk::DescriptorSetLayoutCreateInfo{vk::DescriptorSetLayoutCreateFlags{}, dslb},
-            set_id,
-            enforce_dynamic_uniform,
-            enforce_dynamic_storage,
-            content
-        );
+        return pimpl->arena->Acquire(layout, set_id, enforce_dynamic_uniform, enforce_dynamic_storage, content);
     }
 
 } // namespace Engine::Rhi

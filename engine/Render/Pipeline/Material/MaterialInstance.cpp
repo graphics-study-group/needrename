@@ -190,7 +190,8 @@ namespace Engine {
         }
 
         // Re-acquired on every bind: a handle is never held across epochs.
-        binding.set = pimpl->p_srb->GetDescriptorSet(2, tpl.GetReflectedShaderInfo(), true, false);
+        binding.set =
+            pimpl->p_srb->GetDescriptorSet(2, tpl.GetDescriptorSetLayout(), tpl.GetReflectedShaderInfo(), true, false);
 
         // Then do UBO buffer writes
         if (pass_info._is_ubo_dirty[backbuffer]) {

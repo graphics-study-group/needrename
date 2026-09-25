@@ -67,7 +67,7 @@ int main() {
     vk::ComputePipelineCreateInfo pipeline_info{{}, stage, pipeline_layout.get()};
     auto pipeline = device.createComputePipelineUnique(nullptr, pipeline_info);
 
-    auto descriptor_set = arena.AcquireRawSet(dslci, "Standalone Descriptor Set");
+    auto descriptor_set = arena.AcquireRawSet(descriptor_set_layout, "Standalone Descriptor Set");
 
     // ── Allocate the output buffer via Rhi::AllocatorState (standalone) ──
     // ReadbackFromDevice = CopyTo | HostRandomAccess: shader-writable,

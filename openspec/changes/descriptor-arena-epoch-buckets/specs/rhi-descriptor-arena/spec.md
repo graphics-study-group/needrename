@@ -170,17 +170,18 @@ The caller carries one obligation: a set whose descriptors the caller writes MUS
 
 ### Requirement: Descriptor-set layouts are shared
 
-The arena SHALL obtain descriptor-set layouts from the device's immutable resource cache, so that equal layout descriptions resolve to one layout object. Consumers that build a pipeline layout over a descriptor set layout SHALL obtain that layout from the same cache, so that the layout used for a pipeline and the layout a set is allocated against are the same object.
+The arena SHALL resolve descriptor-set layouts from the device's immutable resource cache, and every descriptor set it allocates SHALL be allocated against a layout it resolved that way. A caller SHALL obtain the layout it hands to the arena from the arena itself, so that equal layout descriptions resolve to one layout object and the layout a pipeline layout is built over is the layout a set is allocated against.
 
 #### Scenario: Equal layouts resolve to one object
 
-- **WHEN** two acquisitions request the same descriptor set layout description
-- **THEN** both are allocated against the same layout object
+- **WHEN** two callers resolve the same descriptor set layout description through the arena
+- **THEN** both receive the same layout object
 
 #### Scenario: A compute stage's allocation layout is its pipeline layout's layout
 
 - **WHEN** a compute pipeline object is created and a set is later allocated for the same bindings
-- **THEN** both name the object the resource cache returned for that description
+- **THEN** both name the layout object the arena resolved for that description
+- **AND** the stage hands the arena that same object rather than a description it resolves again
 - **AND** no separate layout is created outside the cache
 
 ### Requirement: Headless operation without a frame loop

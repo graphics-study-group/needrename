@@ -108,12 +108,18 @@ namespace Engine {
     public:
         /**
          * @brief Construct a new Material Template object.
+         *
+         * The template owns no descriptor pool: its descriptor sets come from
+         * the device descriptor arena, allocated against the descriptor-set
+         * layout the caller resolved through that arena — the same object the
+         * pipeline layout is built over.
          */
         MaterialTemplate(
             RenderSystem &system,
             MaterialTemplateSinglePassProperties &properties,
             const std::vector<vk::ShaderModule> &shaders,
             vk::PipelineLayout layout,
+            vk::DescriptorSetLayout desc_set_layout,
             const Rhi::SPLayout &reflected,
             const PipelineRuntimeInfo &attribute,
             const std::string &name = ""
@@ -136,6 +142,14 @@ namespace Engine {
          * The pipeline layout associated with the specified pass index.
          */
         vk::PipelineLayout GetPipelineLayout() const noexcept;
+
+        /**
+         * @brief Get the layout of the per-material descriptor set.
+         *
+         * @return The layout the arena resolved, or null when the reflected
+         * layout declares no per-material set.
+         */
+        vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
 
         /**
          * @brief Get all reflected shader info.

@@ -102,11 +102,12 @@ The design must not assume either shape.
 The arena owns every pool and hands out sets through two services that share pool growth, descriptor-set-layout reuse through `ImmutableResourceCache`, and debug naming:
 
 ```
-  pool layer    AcquireRawSet(layout, name)                 -> a set the caller writes itself
-  cache layer   Acquire(layout, flags, set_id, content)     -> the set for a content, resolved and written by the arena
+  pool layer    AcquireRawSet(handle, name)                 -> a set the caller writes itself
+  cache layer   Acquire(handle, flags, set_id, content)     -> the set for a content, resolved and written by the arena
+  either way    ResolveLayout(description) -> handle        -> called once per layout, by the consumer (D14)
 ```
 
-They are not two policies over one store: they differ in whether the arena knows what is in the set, and that difference decides everything else — whether a set can be keyed, shared, reused, or reclaimed (Context).
+They are not two policies over one store: they differ in whether the arena knows what is in the set, and that difference decides everything else — whether a set can be keyed, shared, reused, or reclaimed (Context). Both take a `vk::DescriptorSetLayout` the arena resolved through the immutable resource cache, not a layout description to resolve on every call (D14).
 
 **Alternatives rejected:**
 
@@ -120,7 +121,7 @@ They are not two policies over one store: they differ in whether the arena knows
   Entry = { vk::DescriptorSet set;  last_epoch;  the pool that served it;  acquisition order }
 ```
 
-The layout component is the **`vk::DescriptorSetLayout` handle the immutable resource cache returned**, not an `SPLayout` object's address. The address is what today's per-instance cache keys on (`ShaderResourceBinding.cpp:92`), and it is tolerable only because one instance uses one or two layouts; a device-scoped store cannot use it, because an address is reused after its object dies and a stale entry would then answer for a different layout. Layout handles are content-addressed and never released, so they are stable keys.
+The layout component is the **`vk::DescriptorSetLayout` handle the immutable resource cache returned**, not an `SPLayout` object's address. The address is what today's per-instance cache keys on (`ShaderResourceBinding.cpp:92`), and it is tolerable only because one instance uses one or two layouts; a device-scoped store cannot use it, because an address is reused after its object dies and a stale entry would then answer for a different layout. Layout handles are content-addressed and never released, so they are stable keys. The caller obtains that handle from `ResolveLayout` and passes it in (D14), so the arena never rebuilds it on the acquisition path.
 
 A hit refreshes `last_epoch` and the acquisition order, and returns the same set. **Reuse across epochs is the point**, not an accident: a physics kernel's binding content is stable from frame to frame, so after the first frame the arena should mint nothing at all.
 
@@ -138,9 +139,9 @@ Together with the caller obligation in D10, `last_epoch` is an upper bound on th
 
 ### D3: The arena hashes and writes; `ShaderResourceBinding` resolves names
 
-The arena can only key on content it produced, so the arena builds the descriptor writes on a miss. `ShaderResourceBinding` keeps its role — it holds the `name -> resource` map and maps those names onto the reflected layout — and hands the arena the resolved binding entries. It loses its own content cache, which becomes the arena's, and its `pool` parameter.
+The arena can only key on content it produced, so the arena builds the descriptor writes on a miss. `ShaderResourceBinding` keeps its role — it holds the `name -> resource` map and maps those names onto the reflected layout — and hands the arena the resolved binding entries. It loses its own content cache, its `pool` parameter, and the layout derivation: the resolved `vk::DescriptorSetLayout` arrives from its caller (D14).
 
-This also keeps the per-frame cost where it already is: a hit hashes the resolved entries and looks them up (today's `hash_current_interfaces`), and the expensive `SPLayout::GenerateLayoutBindings` remains a miss-only call, exactly as today (`ShaderResourceBinding.cpp:102` returns before `:107`).
+This keeps the per-frame cost at the hash-and-look-up it already was: a hit hashes the resolved entries and looks them up (today's `hash_current_interfaces`) and then does one store look-up, with no `SPLayout::GenerateLayoutBindings` on the path at all — that call and the resource-cache look-up behind it happen once per layout instead (D14).
 
 ### D4: The arena reads the completed prefix; it does not subscribe to it
 
@@ -269,6 +270,30 @@ The pool was used as a fact in three places: the branch sentinel in `MaterialLib
 
 Two further hazards are carried forward unchanged, recorded so they are not mistaken for consequences of this change: the duplicate `// FIXME: Dynamic offset order might not be correct.` sites (`MaterialInstance.cpp:189`, `ComputeResourceBinding.cpp:126`), and the fact that `MaterialInstance::m_pass_infos` is keyed by `const MaterialTemplate*` while `MaterialLibrary::Instantiate` clears the table that owns those templates (`MaterialLibrary.cpp:235`).
 
+### D14: The caller resolves the layout once and passes the handle
+
+D2 makes the key's first component a `vk::DescriptorSetLayout`, and the only way to obtain one is to hand a description to `ImmutableResourceCache`. That makes the layout **description** — and therefore `SPLayout::GenerateLayoutBindings` — an input to key construction:
+
+```
+  SPLayout::interfaces
+    -> GenerateLayoutBindings(set_id, flags)  -> std::vector<vk::DescriptorSetLayoutBinding>
+    -> vk::DescriptorSetLayoutCreateInfo      -> ImmutableResourceCache -> vk::DescriptorSetLayout
+    -> the key's first component
+```
+
+Resolving that on the acquisition path would move the expensive step from "once per layout" to "every material bind and every dispatch" — exactly the cost the change set out to avoid — and it would make the pipeline-layout identity depend on the resource cache de-duplicating two separately built descriptions. So the resolution is hoisted to where the description is already known:
+
+```
+  ResolveLayout(description) -> vk::DescriptorSetLayout     once per layout, by the consumer
+  Acquire(handle, flags, set_id, content)                   every acquisition
+```
+
+`ResolveLayout` still resolves **through `ImmutableResourceCache`**, so the arena remains the one thing that turns a description into the shared layout object, and it records the per-descriptor-type requirement of every layout it resolves — it needs that to size a pool, and a `vk::DescriptorSetLayout` cannot be queried for its bindings afterwards.
+
+The identity of the layout a pipeline layout is built over and the layout a set is allocated against therefore becomes structural rather than incidental: a consumer resolves one handle, builds its pipeline layout over it, and hands that same handle to the arena. `ComputeStage` already cached exactly this handle (`GetDescriptorSetLayout()`); `MaterialTemplate` carries it too now (D13).
+
+**Alternative rejected:** keep resolving on the acquisition path. It satisfies the key requirement, but pays `GenerateLayoutBindings` per acquisition, and leaves the two-layouts-are-equal guarantee resting on the resource cache rather than on the code holding one handle.
+
 ## Risks / Trade-offs
 
 - **[An entry is evicted while a recorded command buffer still binds it]** → Mitigation: eviction is guarded by `claimed && last_epoch <= effective prefix` (D6), the re-acquire obligation that makes `last_epoch` an upper bound is a spec requirement (D10), and the memo arrays that would have let a caller hold a handle are deleted.
@@ -283,12 +308,13 @@ Two further hazards are carried forward unchanged, recorded so they are not mist
 - **[Material path behaviour changes more than expected when its pool disappears]** → Mitigation: the three pool-derived facts are identified up front (D13) and replaced by one cached layout-derived boolean; the material-churn test asserts the live count returns to its baseline once pressure is applied.
 - **[Release becomes silent when a submitter stops reporting completions]** → Mitigation: entries simply stop becoming eligible, which the outstanding-watermark counter added by `gpu-buffer-retirement` already exposes; the arena's resident counter makes the growth visible.
 - **[A future short-lived raw-set consumer leaks]** → Accepted: no such consumer exists, the sets are bounded by structural constants, and adding `ReturnSet` later needs no owner identity because raw sets are never interned (D7).
+- **[A caller hands the arena a layout it never resolved]** → Mitigation: the contract in the capability spec says the layout comes from the arena, the arena asserts on a handle it does not know, and the only producers are `ComputeStage`, `MaterialTemplate`, `SceneDataManager` and `CameraManager`, all of which resolve through it (D14).
 
 ## Migration Plan
 
-1. Introduce the arena with its pool layer, its cache layer, the pinning rule (D5) and the guarded pressure eviction (D6); wire `DeviceContext` with the declaration order from D12 and the idle broadcast from D11. No behaviour change yet for any consumer.
-2. Move the compute path in: `ComputeStage` stops creating a pool and creates its layout through the immutable resource cache; its accessor is removed. `ComputeResourceBinding` acquires from the arena and returns the set with its offsets, and its per-slot handle array is deleted.
-3. Move the material path in: `ShaderResourceBinding` becomes the name resolver in front of the arena, loses its own cache and its `pool` parameter; `MaterialInstance` returns the set with its offsets and loses its handle array and `GetDescriptor`; `MaterialTemplate` / `MaterialLibrary` lose the pool, replace the three pool-derived facts with one cached layout-derived boolean, and the dead pool vocabulary is deleted.
+1. Introduce the arena with its pool layer, its layout resolution (D14), its cache layer, the pinning rule (D5) and the guarded pressure eviction (D6); wire `DeviceContext` with the declaration order from D12 and the idle broadcast from D11. No behaviour change yet for any consumer.
+2. Move the compute path in: `ComputeStage` stops creating a pool and resolves its layout through the arena (which resolves it through the immutable resource cache); its accessor now hands that handle to the binding. `ComputeResourceBinding` acquires from the arena and returns the set with its offsets, and its per-slot handle array is deleted.
+3. Move the material path in: `ShaderResourceBinding` becomes the name resolver in front of the arena, loses its own cache, its `pool` parameter and its layout derivation; `MaterialInstance` returns the set with its offsets and loses its handle array and `GetDescriptor`; `MaterialTemplate` / `MaterialLibrary` lose the pool, carry the resolved layout, replace the three pool-derived facts with one cached layout-derived boolean, and the dead pool vocabulary is deleted.
 4. Move `SceneDataManager` and `CameraManager` onto the pool layer (D7, D8), so that no consumer in the repository creates a pool except the ImGui backend (D8).
 5. Add the verification fixtures: steady-state zero minting, reuse across epochs on both driver shapes, growth past the old budget, eviction under pressure with entries still outstanding, pinning, and material churn under pressure.
 6. Run the full suite and validate.

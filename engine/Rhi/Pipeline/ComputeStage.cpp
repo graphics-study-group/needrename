@@ -5,6 +5,7 @@
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Pipeline/ComputeResourceBinding.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
+#include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
 #include <bitset>
 #include <string>
@@ -29,14 +30,14 @@ namespace Engine::Rhi {
             const auto &device_interface = device_context.GetDeviceInterface();
             vk::Device device = device_interface.GetDevice();
 
-            // Create descriptor and pipeline layout. The set layout comes from
-            // the immutable resource cache, so the layout the pipeline layout is
-            // built over and the layout a set is allocated against are the same
-            // object.
+            // Create descriptor and pipeline layout. The set layout is resolved
+            // once, through the arena (which resolves it through the immutable
+            // resource cache), so the layout the pipeline layout is built over
+            // and the layout a set is allocated against are the same object.
             layout = Rhi::SPLayout::Reflect(spirv_code, false);
             auto desc_bindings = layout.GenerateLayoutBindings(0, true, false);
             vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, desc_bindings};
-            m_passInfo.desc_layout = device_context.GetIRCache().GetDescriptorSetLayout(
+            m_passInfo.desc_layout = device_context.GetDescriptorArena().ResolveLayout(
                 dslci, std::format("Descriptor Set Layout - Compute {}", name).c_str()
             );
 

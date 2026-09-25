@@ -138,7 +138,8 @@ namespace Engine::RenderSystemState {
                 // FrameManager waits before resetting a slot's command buffer
                 // already establishes.
                 for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
-                    scene_descriptor_sets[i] = arena.AcquireRawSet(dslci, std::format("Desc Set - Scene FIF {}", i));
+                    scene_descriptor_sets[i] =
+                        arena.AcquireRawSet(scene_descriptor_set_layout, std::format("Desc Set - Scene FIF {}", i));
                 }
                 // Allocate the back buffer for lights.
                 light_back_buffer = Rhi::IndexedBuffer::CreateUnique(

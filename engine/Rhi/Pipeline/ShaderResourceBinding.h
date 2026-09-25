@@ -82,10 +82,13 @@ namespace Engine::Rhi {
          * otherwise. Re-acquire it in every epoch whose command buffers use it.
          *
          * @param set_id The descriptor set index within the reflected layout.
+         * @param layout The descriptor-set layout the caller resolved through the
+         * arena and built its pipeline layout over.
          * @param s The reflected layout the set is built against.
          */
         vk::DescriptorSet GetDescriptorSet(
             uint32_t set_id,
+            vk::DescriptorSetLayout layout,
             const Rhi::SPLayout &s,
             bool enforce_dynamic_uniform = false,
             bool enforce_dynamic_storage = false

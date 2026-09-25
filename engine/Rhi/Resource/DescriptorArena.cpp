@@ -34,6 +34,22 @@ namespace Engine::Rhi {
             return requirements;
         }
 
+        /// @brief Sizing used for a layout the arena never resolved. A layout
+        /// handle cannot be queried for its bindings, so a caller that bypasses
+        /// `ResolveLayout` leaves the arena nothing to size a pool with. Debug
+        /// builds assert; release builds still serve a modest layout.
+        const DescriptorRequirements &FallbackRequirements() {
+            static const DescriptorRequirements requirements{
+                {vk::DescriptorType::eUniformBuffer, 16},
+                {vk::DescriptorType::eUniformBufferDynamic, 16},
+                {vk::DescriptorType::eStorageBuffer, 16},
+                {vk::DescriptorType::eStorageBufferDynamic, 16},
+                {vk::DescriptorType::eCombinedImageSampler, 16},
+                {vk::DescriptorType::eStorageImage, 16},
+            };
+            return requirements;
+        }
+
         bool IsImageDescriptor(vk::DescriptorType type) noexcept {
             return type == vk::DescriptorType::eCombinedImageSampler || type == vk::DescriptorType::eStorageImage
                    || type == vk::DescriptorType::eSampledImage || type == vk::DescriptorType::eSampler;
@@ -119,6 +135,8 @@ namespace Engine::Rhi {
         std::vector<std::unique_ptr<Pool>> pools{};
         /// @brief The pool currently serving each layout, so growth is per layout.
         std::unordered_map<uint64_t, Pool *> serving_pool{};
+        /// @brief Per-set descriptor requirement of every layout the arena resolved.
+        std::unordered_map<uint64_t, DescriptorRequirements> requirements_by_layout{};
 
         std::unordered_map<EntryKey, Entry, EntryKeyHash> resident{};
 
@@ -188,6 +206,17 @@ namespace Engine::Rhi {
             return pools.back().get();
         }
 
+        /// @brief The per-set descriptor requirement of a layout the arena resolved.
+        ///
+        /// A layout handle carries no bindings, so the requirement must have been
+        /// recorded when the layout was resolved.
+        const DescriptorRequirements &RequirementsFor(vk::DescriptorSetLayout layout) {
+            auto itr = requirements_by_layout.find(HandleValue(layout));
+            if (itr != requirements_by_layout.end()) return itr->second;
+            assert(false && "Every descriptor-set layout must be resolved through DescriptorArena::ResolveLayout.");
+            return FallbackRequirements();
+        }
+
         /// @brief Pick the pool that serves a layout, growing the arena when the
         /// current one cannot satisfy the request.
         Pool *SelectPool(
@@ -214,9 +243,9 @@ namespace Engine::Rhi {
             vk::DescriptorSet set{};
         };
 
-        Allocation AllocateSet(
-            vk::DescriptorSetLayout layout, const DescriptorRequirements &requirements, std::string_view name
-        ) {
+        Allocation AllocateSet(vk::DescriptorSetLayout layout, std::string_view name) {
+            const auto &requirements = RequirementsFor(layout);
+
             auto allocate_from = [this, layout](Pool *pool) {
                 auto set =
                     Device().allocateDescriptorSets(vk::DescriptorSetAllocateInfo{pool->handle.get(), {layout}})[0];
@@ -332,24 +361,25 @@ namespace Engine::Rhi {
     vk::DescriptorSetLayout DescriptorArena::ResolveLayout(
         const vk::DescriptorSetLayoutCreateInfo &layout, const char *name
     ) {
-        return pimpl->Cache().GetDescriptorSetLayout(layout, name);
+        // Remember what one set of this layout consumes: a pool must declare its
+        // per-type capacity up front, and a resolved handle cannot be asked for
+        // its bindings afterwards.
+        const auto resolved = pimpl->Cache().GetDescriptorSetLayout(layout, name);
+        pimpl->requirements_by_layout[HandleValue(resolved)] = RequirementsOf(layout);
+        return resolved;
     }
 
-    vk::DescriptorSet DescriptorArena::AcquireRawSet(
-        const vk::DescriptorSetLayoutCreateInfo &layout, std::string_view name
-    ) {
-        const auto resolved = ResolveLayout(layout);
-        const auto requirements = RequirementsOf(layout);
+    vk::DescriptorSet DescriptorArena::AcquireRawSet(vk::DescriptorSetLayout layout, std::string_view name) {
         const std::string debug_name = name.empty() ? std::string{"Arena Raw Set"} : std::string{name};
 
-        auto set = pimpl->AllocateSet(resolved, requirements, debug_name).set;
+        auto set = pimpl->AllocateSet(layout, debug_name).set;
         pimpl->raw_set_count++;
         impl::NameSet(pimpl->Device(), set, debug_name);
         return set;
     }
 
     vk::DescriptorSet DescriptorArena::Acquire(
-        const vk::DescriptorSetLayoutCreateInfo &layout,
+        vk::DescriptorSetLayout layout,
         uint32_t set_id,
         bool enforce_dynamic_uniform,
         bool enforce_dynamic_storage,
@@ -359,9 +389,8 @@ namespace Engine::Rhi {
         // afresh: nothing registers with the tracker, both are demand-driven.
         pimpl->SyncEpochs();
 
-        const auto resolved = ResolveLayout(layout);
         const impl::EntryKey key{
-            .layout = resolved,
+            .layout = layout,
             .set_id = set_id,
             .flags = (enforce_dynamic_uniform ? 1u : 0u) | (enforce_dynamic_storage ? 2u : 0u),
             .content_hash = impl::HashContent(content),
@@ -385,7 +414,7 @@ namespace Engine::Rhi {
         // never exceeds the budget while an eligible entry is available.
         pimpl->EvictDownTo(pimpl->resident_budget > 0 ? pimpl->resident_budget - 1 : 0);
 
-        const auto allocation = pimpl->AllocateSet(resolved, RequirementsOf(layout), "Arena Cache Set");
+        const auto allocation = pimpl->AllocateSet(layout, "Arena Cache Set");
 
         impl::Entry entry{};
         entry.set = allocation.set;
