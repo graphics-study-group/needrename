@@ -41,8 +41,7 @@ namespace Editor {
         GameWidget *game_widget,
         RGTextureHandle &scene_widget_color_id,
         RGTextureHandle &game_widget_color_id,
-        RGTextureHandle &final_color_target_id,
-        std::shared_ptr<const Rhi::ComputeBuffer> model_matrices_buffer
+        RGTextureHandle &final_color_target_id
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -105,16 +104,13 @@ namespace Editor {
         );
 
         using IBT = Rhi::MemoryAccessTypeBufferBits;
-        RGBufferHandle mm_handle{};
-        const bool has_model_matrices = (model_matrices_buffer != nullptr);
-        if (has_model_matrices) {
-            // The graph takes a share of the reference, so a physics-side
-            // reallocation cannot leave the editor's graph pointing at a
-            // destroyed buffer.
-            mm_handle = rgb.ImportExternalResource(
-                std::move(model_matrices_buffer), Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomWrite)
-            );
-        }
+        // Import the render-owned model matrices buffer unconditionally: it
+        // exists before this graph is built and its object is never replaced,
+        // so the graph is built once and never needs a rebuild when the
+        // producer starts writing.
+        const RGBufferHandle mm_handle = rgb.ImportExternalResource(
+            m_system.GetSceneDataManager().GetModelMatricesBuffer(), Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomWrite)
+        );
 
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
@@ -137,9 +133,7 @@ namespace Editor {
                                            AttachmentUtils::StoreOperation::Store,
                                            AttachmentUtils::DepthClearValue{1.0f, 0U}}
                                       );
-            if (has_model_matrices) {
-                shadow_builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
-            }
+            shadow_builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
             auto shadow_pass =
                 shadow_builder
                     .SetPassFunction([&system, shadow_ids, i](CommandBuffer &cb, const RenderGraph &rg) {
@@ -179,9 +173,7 @@ namespace Editor {
             for (size_t i = 0; i < shadow_ids.size(); i++) {
                 builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
             }
-            if (has_model_matrices) {
-                builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
-            }
+            builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
             builder
                 .AppendColorAttachment(
                     {scene_hdr_color_id,
@@ -259,9 +251,7 @@ namespace Editor {
             for (size_t i = 0; i < shadow_ids.size(); i++) {
                 builder.UseImage(shadow_ids[i], IAT::ShaderSampledRead);
             }
-            if (has_model_matrices) {
-                builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
-            }
+            builder.UseBuffer(mm_handle, Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomRead));
             builder
                 .AppendColorAttachment(
                     {game_hdr_color_id,

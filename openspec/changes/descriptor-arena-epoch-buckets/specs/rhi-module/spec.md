@@ -6,7 +6,9 @@
 
 `Rhi` SHALL contain the following types, moved from `engine/Render/` without semantic changes: `DeviceInterface`, `AllocatorState`, `MemoryTypes` / `MemoryAllocation`, `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer`, `Texture`, `ImageTexture`, `TextureSubresourceView`, `ImageUtils`, `ImmutableResourceCache`, `SubmissionHelper`, `ComputeStage`, `ComputeResourceBinding`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface`, `MemoryAccessTypes`, `PipelineEnums`.
 
-`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility and its supporting types: the submission epoch tracker — which is itself the sole recipient of retired buffer allocations — and the shared-ownership buffer factory. These reside in `Rhi` because they depend on the device and allocator only, and both `Render` and `Physics` use them equally.
+`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility and its supporting types: the submission epoch tracker — which is itself the sole recipient of retired buffer allocations. It resides in `Rhi` because it depends on the device and allocator only, and both `Render` and `Physics` use it equally.
+
+`Rhi` SHALL NOT provide a shared-ownership (reference-counted) buffer factory. A buffer whose lifetime must outlive the component that created it is uniquely owned by whoever owns that lifetime, and is referenced elsewhere through a raw pointer.
 
 `Rhi` SHALL additionally own the device-scoped descriptor arena: the single owner of descriptor pools, which keeps acquired sets resident and reusable across submission epochs and reclaims them under one of two triggers — cache pressure for per-dispatch compute bindings and an explicit owner release for long-lived material, scene and camera state. The arena resides in `Rhi` because both `Render` (materials, scene data, cameras) and compute consumers use it equally, and neither may own a pool.
 
@@ -40,7 +42,8 @@
 #### Scenario: Shared-ownership buffer factory available from Rhi
 
 - **WHEN** a client needs a buffer whose lifetime must outlive the component that created it
-- **THEN** a shared-ownership factory is available alongside the unique-ownership factory, returning a reference-counted handle to the same buffer type
+- **THEN** no reference-counted buffer factory is available from `Rhi`
+- **AND** the buffer is uniquely owned and referenced through a raw pointer, and the owner's lifetime is what keeps it alive
 
 #### Scenario: Descriptor arena available from Rhi
 
@@ -56,7 +59,7 @@
 
 #### Scenario: ComputeStage constructed from Rhi facilities
 
-- **WHEN** `ComputeStage` is constructed with `(const DeviceInterface&, const AllocatorState&)` and instantiated from SPIR-V binary
+- **WHEN** `ComputeStage` is constructed with `(DeviceContext&)` and instantiated from SPIR-V binary
 - **THEN** a compute pipeline, pipeline layout and descriptor set layout are created on the device
 - **AND** no descriptor pool is created for the stage
 

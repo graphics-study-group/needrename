@@ -1,7 +1,7 @@
 # physics-main-loop-integration Specification
 
 ## Purpose
-Defines how `MainClass` integrates the physics GPU pipeline into the main loop: automatic solver registration on project load, per-frame `PreGPUStep` → `GPUStep` → `PostGPUStep` execution on the shared main command buffer, and the assembly-layer forward of the physics model matrices buffer into the render system.
+Defines how `MainClass` integrates the physics GPU pipeline into the main loop: automatic solver registration on project load, per-frame `PreGPUStep` → `GPUStep` → `PostGPUStep` execution on the shared main command buffer, and the per-frame production of model matrices into the render system's buffer.
 
 ## Requirements
 ### Requirement: Default solver auto-registration
@@ -28,8 +28,7 @@ After `ProcessEvents` and before `UpdateRendererData` in the main loop, the engi
 
 - **WHEN** `RigidBodyComponent::Init` enqueues rigid body initialization during `ProcessEvents`
 - **THEN** `InitializePendingRigidBodies` is called before `UpdateRendererData` in the same frame
-- **AND** the SSBO model matrices GPU buffer is created and populated with initial transform data
-- **AND** `SceneDataManager` is notified of the new model matrices buffer
+- **AND** the physics scene's rigid body GPU buffers are created and populated with initial transform data
 
 #### Scenario: No pending initializations
 
@@ -38,7 +37,9 @@ After `ProcessEvents` and before `UpdateRendererData` in the main loop, the engi
 
 ### Requirement: Physics pipeline in RunOneFrame
 
-`MainClass::RunOneFrame` SHALL execute the full physics pipeline in order: `PreGPUStep`, `GPUStep`, `PostGPUStep`. Physics compute and render graph passes SHALL share the same command buffer.
+`MainClass::RunOneFrame` SHALL execute the full physics pipeline in order: `PreGPUStep`, `GPUStep`, `PostGPUStep`. Physics compute, model matrix production and render graph passes SHALL share the same command buffer.
+
+Model matrices SHALL be produced after the physics step and before the render graph's passes are recorded, in every rendered frame, independent of play, pause and simulation state. The producing call SHALL be skipped only when the main scene has no physics scene.
 
 #### Scenario: Physics compute shares the frame command buffer
 
@@ -46,27 +47,23 @@ After `ProcessEvents` and before `UpdateRendererData` in the main loop, the engi
 - **THEN** physics compute passes and render graph passes are recorded on the same command buffer
 - **AND** no physics compute is recorded on a separate command buffer
 
-### Requirement: MainClass forwards model matrices buffer to SceneDataManager
+#### Scenario: Model matrices are produced before render passes
 
-`MainClass::RunOneFrame` SHALL forward the physics model matrices buffer to the render system's `SceneDataManager` via `SetModelMatricesBuffer`, using the main scene's physics scene `GetGpuBuffers().model_matrices`. The forward SHALL happen after the physics flush/step and before render-graph recording in the same frame, and SHALL tolerate a null physics scene (skip the forward).
+- **WHEN** `RunOneFrame` records a frame and the main scene has a physics scene
+- **THEN** the physics side is asked to write model matrices into the render system's buffer after the physics step
+- **AND** the render graph's passes are recorded afterwards, on the same command buffer
 
-The forwarded value SHALL keep the buffer alive at the render side: the physics scene replaces this buffer whenever its slot count changes, so a borrowed raw pointer would dangle as soon as that happens. Forwarding a stably owned reference is what makes the render side independent of when the physics side resizes.
+#### Scenario: A frame with no physics scene records no production
 
-#### Scenario: Forward after physics step
+- **WHEN** `RunOneFrame` records a frame and the main scene has no physics scene (or physics disabled)
+- **THEN** no model matrix production is recorded
+- **AND** rendering proceeds against the render-owned buffer's initial contents
 
-- **WHEN** `RunOneFrame` executes with a registered physics scene containing GPU buffers
-- **THEN** `SceneDataManager::SetModelMatricesBuffer` is called with the physics model matrices buffer before render passes are recorded
+#### Scenario: Model matrices are produced while simulation is disabled
 
-#### Scenario: No physics scene skips forward
-
-- **WHEN** `RunOneFrame` executes and the main scene has no physics scene (or physics disabled)
-- **THEN** no call to `SetModelMatricesBuffer` is made and rendering proceeds with no model matrices buffer
-
-#### Scenario: Physics replaces the buffer after the forward
-
-- **WHEN** the physics scene's slot count changes and it replaces its model matrices buffer between two forwards
-- **THEN** the previously forwarded buffer remains valid for the render side until it is replaced by the next forward
-- **AND** no render pass observes a destroyed buffer
+- **WHEN** the physics scene's simulation is disabled for the frame
+- **THEN** model matrices are still produced from the current poses
+- **AND** the render graph's passes observe up-to-date matrices
 
 ### Requirement: Physics GPUStep records into raw command buffer
 

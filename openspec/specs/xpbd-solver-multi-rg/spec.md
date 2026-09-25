@@ -78,8 +78,7 @@ public:
 
 1. Read GPU buffers from `m_bound_scene`; early-return if no alive bodies
 2. Insert a `vk::MemoryBarrier2` (ComputeShader: ShaderStorageWrite → ComputeShader: ShaderStorageRead|Write) at the start to ensure preceding GPU work is visible
-3. Notify `SceneDataManager::SetModelMatricesBuffer(gpu.model_matrices)`
-4. Dispatch passes in sequence:
+3. Dispatch passes in sequence:
    ```
    for each substep:
        [entry barrier] PreCollision passes
@@ -91,22 +90,23 @@ public:
        [entry barrier] PostPosition passes
        for each velocity iteration:
            VelocityIter passes (each with entry barrier)
-   [entry barrier] ModelMatrix pass
    ```
 
 The PreCollision pass order SHALL be: substep-start position/orientation snapshots → integrate forces → pre-contact velocity snapshots → update shape world poses. This ensures pre-contact velocity snapshots capture post-integration velocity (including gravity) for correct restitution reference in the velocity solver.
 
 All compute shader pipelines and resource bindings SHALL be pre-allocated in `PreGPUStep`. `GPUStep` SHALL NOT allocate any GPU resources.
 
+Model matrix output SHALL NOT be part of `GPUStep`. It SHALL be recorded only when the caller invokes `GPUCalcModelMatrices` with a target buffer, so that a solver step and a model matrix production are separately requestable.
+
 #### Scenario: Compute dispatches recorded directly to command buffer
 
 - **WHEN** `GPUStep(cb)` is called with a valid scene and simulation enabled
-- **THEN** all solver compute dispatches, detector dispatches, and model matrix dispatch are recorded directly to `cb` via `cb.BindComputeStage`, `cb.BindComputeResource`, and `cb.DispatchCompute`
+- **THEN** all solver compute dispatches and detector dispatches are recorded directly to `cb` via `cb.BindComputeStage`, `cb.BindComputeResource`, and `cb.DispatchCompute`
 - **AND** no `RenderGraph::RecordAllPasses` or `RenderGraphBuilder::BuildRenderGraph` is called
 
 #### Scenario: Entry barrier inserted at start of each phase
 
-- **WHEN** `GPUStep(cb)` begins a new phase (PreCollision, PostCollisionPreIter, PositionIter, PostPosition, VelocityIter, ModelMatrix)
+- **WHEN** `GPUStep(cb)` begins a new phase (PreCollision, PostCollisionPreIter, PositionIter, PostPosition, VelocityIter)
 - **THEN** a `vk::MemoryBarrier2` is recorded before the first dispatch of that phase
 - **AND** the barrier ensures all ShaderStorageWrite from the previous phase is visible
 
@@ -131,5 +131,6 @@ All compute shader pipelines and resource bindings SHALL be pre-allocated in `Pr
 #### Scenario: Model matrix recorded unconditionally
 
 - **WHEN** `PhysicsScene::IsSimulationEnabled()` returns `false`
-- **THEN** ModelMatrix pass is still recorded
+- **THEN** the step records no model matrix dispatch, because model matrix output is requested separately by the caller
 - **AND** other solver passes still dispatch (with time_step = 0, producing no position change)
+- **AND** the caller can still produce model matrices for that frame by invoking the model matrix entry point

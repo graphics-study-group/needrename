@@ -21,6 +21,15 @@ namespace {
         return std::as_bytes(std::span{source});
     }
 
+    /**
+     * @brief Exact-size resize that keeps the buffer object at the same address.
+     *
+     * The buffer is created once and its storage replaced in place afterwards,
+     * so every long-lived reference to the buffer (a render graph's imported
+     * resource, for instance) stays valid across a slot-count change. The
+     * exact-size semantics are unchanged: a differing size still resizes, and
+     * only the size comparison decides whether a reallocation happens.
+     */
     template <typename T>
     void EnsureBuffer(
         std::unique_ptr<Engine::Rhi::ComputeBuffer> &buffer,
@@ -30,29 +39,10 @@ namespace {
     ) {
         const size_t safe_count = std::max<size_t>(1, element_count);
         const size_t byte_size = safe_count * sizeof(T);
-        if (!buffer || buffer->GetSize() != byte_size) {
+        if (!buffer) {
             buffer = Engine::Rhi::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
-        }
-    }
-
-    /**
-     * @brief Grow-only resize for a buffer whose lifetime is shared with another
-     * owner (the render side, for the model matrices buffer).
-     *
-     * Replacement hands out a new reference-counted handle; whatever still holds
-     * the previous handle keeps it alive, so a reallocation cannot dangle.
-     */
-    template <typename T>
-    void EnsureBuffer(
-        std::shared_ptr<Engine::Rhi::ComputeBuffer> &buffer,
-        const Engine::Rhi::AllocatorState &allocator,
-        size_t element_count,
-        const std::string &name
-    ) {
-        const size_t safe_count = std::max<size_t>(1, element_count);
-        const size_t byte_size = safe_count * sizeof(T);
-        if (!buffer || buffer->GetSize() != byte_size) {
-            buffer = Engine::Rhi::ComputeBuffer::CreateShared(allocator, byte_size, false, false, false, false, name);
+        } else if (buffer->GetSize() != byte_size) {
+            buffer->Reallocate(allocator, byte_size);
         }
     }
 } // namespace
@@ -131,8 +121,6 @@ namespace Engine {
         m_gpu_shape_local_rotation.reset();
         m_gpu_shape_world_position.reset();
         m_gpu_shape_world_rotation.reset();
-
-        m_gpu_model_matrices.reset();
 
         m_gpu_shape_filter_data.reset();
     }
@@ -285,7 +273,6 @@ namespace Engine {
             m_gpu_shape_local_rotation.get(),
             m_gpu_shape_world_position.get(),
             m_gpu_shape_world_rotation.get(),
-            m_gpu_model_matrices,
             m_gpu_shape_filter_data.get(),
             m_gpu_fixed_joints.get(),
             m_gpu_fixed_joint_alive.get(),
@@ -374,8 +361,6 @@ namespace Engine {
         EnsureBuffer<glm::vec4>(
             m_gpu_shape_world_rotation, allocator, m_gpu_shape_slot_count, "Physics Shape WorldRot"
         );
-
-        EnsureBuffer<glm::mat4>(m_gpu_model_matrices, allocator, m_gpu_rigid_body_slot_count, "Physics ModelMatrices");
 
         EnsureBuffer<uint32_t>(
             m_gpu_shape_filter_data, allocator, m_gpu_shape_slot_count * MAX_FILTER_ENTRIES, "Physics ShapeFilterData"

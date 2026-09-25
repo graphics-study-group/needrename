@@ -7,9 +7,12 @@
 #include <Rhi/Buffer/IndexedBuffer.h>
 
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <ext/matrix_clip_space.hpp>
 #include <ext/matrix_transform.hpp>
 #include <fstream>
+#include <span>
+#include <vector>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine::RenderSystemState {
@@ -90,9 +93,8 @@ namespace Engine::RenderSystemState {
             vk::PipelineLayout scene_common_pipeline_layout{};
             std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
-            // Model matrices storage buffer (for physics-driven objects)
-            std::shared_ptr<Rhi::ComputeBuffer> model_matrices_buffer{};
-            std::shared_ptr<const Rhi::ComputeBuffer> external_model_matrices_buffer{};
+            // Model matrices storage buffer (owned here; for physics-driven objects)
+            std::unique_ptr<Rhi::ComputeBuffer> model_matrices_buffer{};
 
             void Create(RenderSystem &system, vk::DescriptorPool pool) {
                 auto &allocator = system.GetAllocatorState();
@@ -161,17 +163,25 @@ namespace Engine::RenderSystemState {
                 );
                 assert(light_back_buffer);
 
-                // Allocate default dummy buffer for model matrices.
-                model_matrices_buffer = Rhi::ComputeBuffer::CreateShared(
+                // Create the model matrices buffer
+                model_matrices_buffer = Rhi::ComputeBuffer::CreateUnique(
                     allocator,
                     MAX_MODEL_MATRICES * sizeof(glm::mat4),
-                    false, // No CPU access needed for dummy
+                    false, // No CPU access needed; content arrives via staging
                     false, // Not used as uniform buffer
                     false, // Not used as vertex buffer
                     false, // Not used as indirect draw buffer
                     "Scene Model Matrices Buffer"
                 );
                 assert(model_matrices_buffer);
+
+                // Initialize it to identity matrices
+                {
+                    std::vector<glm::mat4> identity(MAX_MODEL_MATRICES, glm::mat4{1.0f});
+                    system.GetFrameManager().GetSubmissionHelper().EnqueueBufferSubmission(
+                        *model_matrices_buffer, std::as_bytes(std::span{identity})
+                    );
+                }
 
                 // Prepare default depth map
                 default_light_map = RenderTargetTexture::CreateUnique(
@@ -398,10 +408,11 @@ namespace Engine::RenderSystemState {
         );
 
         // Update model matrices buffer descriptor (binding 2).
-        // Always rebind because the external buffer may change between frames.
+        // Rewritten every frame so that the handle bound for the frame is the
+        // buffer's current storage, even after it grew in place.
         {
-            const std::shared_ptr<const Rhi::ComputeBuffer> current_buffer = GetModelMatricesBuffer();
-            vk::DescriptorBufferInfo mm_buffer_info{current_buffer->GetBuffer(), 0, current_buffer->GetSize()};
+            const auto &current_buffer = *pimpl->scene.model_matrices_buffer;
+            vk::DescriptorBufferInfo mm_buffer_info{current_buffer.GetBuffer(), 0, current_buffer.GetSize()};
             vk::WriteDescriptorSet mm_write{
                 pimpl->scene.scene_descriptor_sets[frame_in_flight],
                 2,
@@ -472,14 +483,12 @@ namespace Engine::RenderSystemState {
         return pimpl->scene.scene_common_pipeline_layout;
     }
 
-    void SceneDataManager::SetModelMatricesBuffer(std::shared_ptr<const Rhi::ComputeBuffer> buffer) noexcept {
-        pimpl->scene.external_model_matrices_buffer = std::move(buffer);
+    void SceneDataManager::EnsureModelMatricesCapacity(uint32_t element_count) {
+        const size_t required = static_cast<size_t>(std::max(1u, element_count)) * sizeof(glm::mat4);
+        pimpl->scene.model_matrices_buffer->EnsureCapacity(m_system.GetAllocatorState(), required);
     }
 
-    std::shared_ptr<const Rhi::ComputeBuffer> SceneDataManager::GetModelMatricesBuffer() const noexcept {
-        if (pimpl->scene.external_model_matrices_buffer) {
-            return pimpl->scene.external_model_matrices_buffer;
-        }
-        return pimpl->scene.model_matrices_buffer;
+    Rhi::ComputeBuffer &SceneDataManager::GetModelMatricesBuffer() noexcept {
+        return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState

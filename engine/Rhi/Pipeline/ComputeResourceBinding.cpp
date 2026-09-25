@@ -117,12 +117,6 @@ namespace Engine::Rhi {
         pimpl->owned_resource[name] = texture;
         pimpl->p_srb->BindTexture(name, *texture);
     }
-    void ComputeResourceBinding::BindComputeBuffer(
-        const std::string &name, std::shared_ptr<const ComputeBuffer> buffer, size_t offset, size_t size
-    ) {
-        pimpl->owned_resource[name] = buffer;
-        pimpl->p_srb->BindBuffer(name, *buffer, offset, size);
-    }
     std::vector<uint32_t> ComputeResourceBinding::UpdateGPUInfo(uint32_t slot) const noexcept {
         assert(slot < pimpl->slot_count);
         // First prepare descriptor writes

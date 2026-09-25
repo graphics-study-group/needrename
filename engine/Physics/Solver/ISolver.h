@@ -10,6 +10,10 @@ namespace vk {
 namespace Engine {
     class PhysicsScene;
 
+    namespace Rhi {
+        class ComputeBuffer;
+    }
+
     /**
      * @brief Abstract base class for GPU physics solvers.
      *
@@ -74,6 +78,21 @@ namespace Engine {
          */
         virtual void PostGPUStep() {
         }
+
+        /**
+         * @brief Produce model matrices for the bound scene into a caller-provided buffer.
+         *
+         * Invoked by the caller between `cb.begin()` and `cb.end()`, and only when
+         * the caller has a target to write into. The caller MUST ensure the target
+         * is large enough for the bound scene's body slot count before the call.
+         *
+         * The implementation records its own barrier before its dispatch,
+         * because it knows which earlier writes it reads.
+         *
+         * @param cb Raw command buffer in Recording state (after begin, before end).
+         * @param target Compute buffer receiving one `mat4` per rigid body slot.
+         */
+        virtual void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) = 0;
 
         /**
          * @brief Check whether the solver has been fully initialized.

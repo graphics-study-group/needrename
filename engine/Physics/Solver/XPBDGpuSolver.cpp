@@ -19,6 +19,7 @@
 #include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <algorithm>
+#include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -81,7 +82,7 @@ namespace {
     static_assert(sizeof(ContactEntryPush) == 4);
 
     struct ClearEntryValuesPush { // clear_entry_values.comp
-        uint32_t entry_capacity; // channel stride
+        uint32_t entry_capacity;  // channel stride
         uint32_t num_channels;
     };
     static_assert(sizeof(ClearEntryValuesPush) == 8);
@@ -207,10 +208,13 @@ namespace Engine {
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
+        /// @brief Exact-size resize that keeps the buffer object at the same address.
         void EnsureBuffer(std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name) {
             const auto &alloc = device_context.GetAllocatorState();
-            if (!buf || buf->GetSize() != bytes) {
+            if (!buf) {
                 buf = Rhi::ComputeBuffer::CreateUnique(alloc, bytes, false, false, false, false, name);
+            } else if (buf->GetSize() != bytes) {
+                buf->Reallocate(alloc, bytes);
             }
         }
 
@@ -243,10 +247,12 @@ namespace Engine {
             // from the joint count; the contact group's entry pass publishes it).
             {
                 const auto &alloc = device_context.GetAllocatorState();
-                if (!*g.entry_count || (*g.entry_count)->GetSize() != sizeof(uint32_t)) {
+                if (!*g.entry_count) {
                     *g.entry_count = Rhi::ComputeBuffer::CreateUnique(
                         alloc, sizeof(uint32_t), true, false, false, false, "XPBD ReduceEntryCount"
                     );
+                } else if ((*g.entry_count)->GetSize() != sizeof(uint32_t)) {
+                    (*g.entry_count)->Reallocate(alloc, sizeof(uint32_t));
                 }
             }
             EnsureBuffer(*g.values, static_cast<size_t>(kNumChannels) * cap_bytes, "XPBD ReduceValues");
@@ -321,7 +327,7 @@ namespace Engine {
             apply_vel_stage = load("solver/XPBDSolver/apply_body_velocity_deltas.comp.spv", "XPBD ApplyVel");
             apply_vel_binding = &apply_vel_stage->AllocateResourceBinding();
 
-            model_matrix_stage = load("solver/XPBDSolver/model_matrix.comp.spv", "XPBD ModelMatrix");
+            model_matrix_stage = load("solver/common/model_matrix.comp.spv", "XPBD ModelMatrix");
             model_matrix_binding = &model_matrix_stage->AllocateResourceBinding();
 
             accum_hinge_stage = load("solver/XPBDSolver/accumulate_hinge_position.comp.spv", "XPBD AccumHingePos");
@@ -606,9 +612,9 @@ namespace Engine {
         // this replaces the full-capacity clear without changing its workgroup
         // count.
         auto dispatch_clear_values =
-            [this, &cb, &dispatch](
-                Rhi::ComputeBuffer &values, Rhi::ComputeBuffer &entry_count, uint32_t capacity, uint32_t wg
-            ) {
+            [this,
+             &cb,
+             &dispatch](Rhi::ComputeBuffer &values, Rhi::ComputeBuffer &entry_count, uint32_t capacity, uint32_t wg) {
                 const ClearEntryValuesPush push{capacity, kNumChannels};
                 Rhi::PushConstants(cb, *m_impl->clear_values_stage, push);
                 auto &srb = m_impl->clear_values_binding->GetShaderResourceBinding();
@@ -1078,16 +1084,40 @@ namespace Engine {
                 }
             }
         }
+    }
 
-        // ====== ModelMatrix (unchanged) ======
-        barrier();
-        {
-            auto &srb = m_impl->model_matrix_binding->GetShaderResourceBinding();
-            srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-            srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-            srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-            srb.BindBuffer("ModelMatrices", *gpu.model_matrices);
-            dispatch(*m_impl->model_matrix_stage, *m_impl->model_matrix_binding, body_wg);
-        }
+    void XpbdGpuSolver::GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
+        if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) return;
+        if (gpu.rigid_body_center_world_position == nullptr || gpu.rigid_body_center_world_rotation == nullptr) return;
+
+        const uint32_t body_count = gpu.rigid_body_slot_count;
+        const uint32_t target_capacity = static_cast<uint32_t>(target.GetSize() / sizeof(glm::mat4));
+
+        // The caller is responsible for the target's capacity. A shortfall is a
+        // programming error: report it in debug builds and clamp in release
+        // rather than writing out of bounds.
+        assert(
+            body_count <= target_capacity
+            && "GPUCalcModelMatrices target is smaller than the scene's rigid body slot count"
+        );
+        const uint32_t write_count = std::min(body_count, target_capacity);
+        if (write_count == 0u) return;
+
+        m_impl->EnsureShadersLoaded();
+
+        // An explicit production is not part of the step, so it records the
+        // barrier that makes the poses it reads visible.
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+
+        auto &srb = m_impl->model_matrix_binding->GetShaderResourceBinding();
+        srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+        srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+        srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+        srb.BindBuffer("ModelMatrices", target);
+
+        Rhi::BindComputeStage(cb, *m_impl->model_matrix_stage);
+        Rhi::BindComputeResource(cb, *m_impl->model_matrix_stage, *m_impl->model_matrix_binding);
+        Rhi::DispatchCompute(cb, (write_count + 63u) / 64u, 1, 1);
     }
 } // namespace Engine

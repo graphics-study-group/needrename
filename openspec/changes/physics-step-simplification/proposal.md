@@ -28,7 +28,7 @@ The same workaround has three other costs that survive today:
 
 ### New Capabilities
 
-- `rhi-buffer-capacity`: the reusable buffer capacity contract — capacity only grows, growth is geometric, and `GetSize()` reports capacity rather than logical element count, so every logical bound must be supplied explicitly by the caller.
+- `rhi-buffer-capacity`: the growth **policy** of the reallocation entry points that `stable-buffer-identity`'s `rhi-buffer-reallocation` capability introduces — capacity only grows, growth through `EnsureCapacity` is geometric, `Reallocate` keeps its exact-size semantics, and `GetSize()` reports capacity rather than logical element count, so every logical bound must be supplied explicitly by the caller. It restates the policy of that contract rather than introducing a rival mechanism or entry point.
 
 ### Modified Capabilities
 
@@ -62,7 +62,7 @@ The same workaround has three other costs that survive today:
 - Breaking: `ISolver` loses two virtual methods; `PhysicsSystem` loses `PreGPUStep` / `PostGPUStep`; `SumByKey::Record`'s entry-count parameter type changes. `Configure` leaves the detectors' public surface.
 
 **Dependency**
-- Requires `gpu-buffer-retirement` (record-time reallocation must be retire-safe) and builds on `compute-kernel-dispatch` (dictionary dispatch is what makes record-time sizing readable). Both are referenced by name only; this change does not depend on their exact wording.
+- Requires `gpu-buffer-retirement` (record-time reallocation must be retire-safe), `stable-buffer-identity` (whose `rhi-buffer-reallocation` contract this change's `rhi-buffer-capacity` policy modifies, and which owns the exact-size/grow-only split this change makes geometric) and builds on `compute-kernel-dispatch` (dictionary dispatch is what makes record-time sizing readable). All are referenced by name only; this change does not depend on their exact wording.
 
 **Non-goals carried into the design**
 - Slot reuse and physics delete support remain future work: `AllocateRigidBodySlot` / `AllocateCollisionShapeSlot` still never reuse a slot, so contact buffers stay quadratic in the slot high-water mark and do not fall back when shapes are deleted. Grow-only fixes churn, not growth.

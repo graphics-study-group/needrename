@@ -743,12 +743,17 @@ namespace AppPhysics {
         // Build the write staging for SetBodyValue (same frozen sizing as readback).
         impl.BuildPhysicsWrite();
 
-        // One-time seed "step" (rendering modes only): run PreGPUStep + GPUStep
-        // while scene simulation is still disabled (the enable call comes at the
-        // end of CommitScene), so the solver only executes its model-matrix dispatch
-        // and writes initial model matrices from the FlushPhysics-seeded poses
+        // One-time initial model matrix production (rendering modes only), from
+        // the FlushPhysics-seeded poses. Model matrices are produced only when a
+        // caller asks for them, so without this the renderer would read the
+        // buffer's creation-time contents while paused. Only the model matrix
+        // entry point is invoked: the step pipeline does not run, and no body
+        // advances.
         if (impl.mode != AppMode::PhysicsOnly) {
-            impl.physics->PreGPUStep();
+            auto *phys_scene = impl.scene->GetPhysicsScene();
+            auto &scene_data = impl.renderer->GetSceneDataManager();
+            scene_data.EnsureModelMatricesCapacity(phys_scene->GetGpuBuffers().rigid_body_slot_count);
+
             auto &dc = impl.renderer->GetDeviceContext();
             const auto &dev_iface = dc.GetDeviceInterface();
             auto device = dev_iface.GetDevice();
@@ -759,7 +764,7 @@ namespace AppPhysics {
             );
             auto cb = std::move(cbs[0]);
             cb->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-            impl.physics->GPUStep(cb.get());
+            impl.physics->GPUCalcModelMatrices(*phys_scene, cb.get(), scene_data.GetModelMatricesBuffer());
             cb->end();
 
             vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
@@ -770,14 +775,6 @@ namespace AppPhysics {
             if (wait_result != vk::Result::eSuccess) {
                 throw std::runtime_error("PhysicsApp: physics model-matrix seed wait failed");
             }
-            impl.physics->PostGPUStep();
-        }
-
-        // Physics -> render bridge for model matrices (skipped headless).
-        if (impl.mode != AppMode::PhysicsOnly) {
-            if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
-                impl.renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
-            }
         }
 
         // Build the default render graph once. The builder must outlive the graph:
@@ -785,8 +782,7 @@ namespace AppPhysics {
         if (impl.mode != AppMode::PhysicsOnly) {
             impl.rg_builder = std::make_unique<ComplexRenderGraphBuilder>(*impl.renderer);
             RGTextureHandle final_color_id{0};
-            auto mm_buf = impl.scene->GetPhysicsScene()->GetGpuBuffers().model_matrices;
-            auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id, mm_buf);
+            auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id);
             impl.render_graph = std::move(rg);
             impl.final_color_id = final_color_id;
         }
@@ -834,6 +830,15 @@ namespace AppPhysics {
         // Write staging -> GPU uploads first so the solver reads overridden values.
         impl.RecordBodyStateUpload(cb.get());
         impl.physics->GPUStep(cb.get());
+        // Produce model matrices on the same command buffer, after the step, so
+        // that a render frame following this step observes the new poses.
+        if (impl.mode != AppMode::PhysicsOnly) {
+            if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
+                auto &scene_data = impl.renderer->GetSceneDataManager();
+                scene_data.EnsureModelMatricesCapacity(phys_scene->GetGpuBuffers().rigid_body_slot_count);
+                impl.physics->GPUCalcModelMatrices(*phys_scene, cb.get(), scene_data.GetModelMatricesBuffer());
+            }
+        }
         // Physics readback: copy the SoA into resident staging in the same CB,
         // so the existing fence wait makes the state CPU-visible on return.
         impl.RecordBodyStateCopy(cb.get());
@@ -906,10 +911,13 @@ namespace AppPhysics {
 
         impl.world->UpdateRendererData(*impl.renderer);
 
-        // Physics -> render bridge (buffer pointer is stable; content updated by
-        // Step). Kept per-frame to mirror the main loop behavior.
+        // Keep the render-owned model matrices buffer large enough for this
+        // frame's rigid body slot count before StartFrame writes the frame's
+        // descriptor set, so the handle bound for the frame is final.
         if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
-            impl.renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+            impl.renderer->GetSceneDataManager().EnsureModelMatricesCapacity(
+                phys_scene->GetGpuBuffers().rigid_body_slot_count
+            );
         }
 
         // Keep the active camera's aspect ratio aligned with the present extent,

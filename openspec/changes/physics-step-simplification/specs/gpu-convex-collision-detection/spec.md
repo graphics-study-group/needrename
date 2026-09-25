@@ -43,11 +43,19 @@ The detector SHALL cache the bound `PhysicsScene*` and the broad-phase pair buff
 
 CPU dispatch SHALL use `max_collision_pairs` workgroups. Threads with `gl_GlobalInvocationID.x >= pair_count` SHALL return immediately.
 
+The contact-write budget SHALL be supplied explicitly, not inferred from the result buffer. The shader's write guard currently compares the write index against `collision_ids.v.length()`, so the buffer's length doubles as the configured contact budget; under the capacity contract that length is capacity, which may exceed the budget, and the guard would then let writes run past the configured limit. The budget SHALL therefore reach the shader as its own value (a per-dispatch constant or an explicit bound), and the guard SHALL compare against that value. The result buffers SHALL still be large enough for every write the guard admits.
+
 #### Scenario: Collision pairs are read from external GPU buffer
 - **WHEN** the collision detection shader executes
 - **THEN** each invocation reads one `uvec2` from the external collision pair input buffer at `gl_GlobalInvocationID.x`
 - **AND** uses the two shape indices to look up shape data from PhysicsScene buffers
 - **AND** threads beyond `pair_count` return immediately
+
+#### Scenario: The write guard enforces the configured budget, not the capacity
+
+- **WHEN** the result buffer's capacity exceeds the configured contact budget
+- **THEN** the shader writes no contact beyond that budget
+- **AND** the guard compares against the explicitly supplied budget rather than `collision_ids.v.length()`
 
 #### Scenario: Pair buffer is a render-graph resource
 - **WHEN** the detector records its detect pass

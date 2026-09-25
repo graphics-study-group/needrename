@@ -8,6 +8,7 @@ anro_add_test(gpu_compact_unique_test FOLDER tests/engine/headless)
 anro_add_test(xpbd_reduce_capacity_test FOLDER tests/engine/headless)
 anro_add_test(model_matrices_ownership_test FOLDER tests/engine/headless)
 anro_add_test(gpu_buffer_retirement_test FOLDER tests/engine/headless)
+anro_add_test(physics_system_model_matrices_test LINK "Engine;EnginePhysics" EXTRA_LABELS gpu FOLDER tests/engine/headless)
 
 # gpu_compact_unique_test is the one test that loads a physics compute shader
 # itself (the broad phase's unpack_pairs.comp, which belongs to no

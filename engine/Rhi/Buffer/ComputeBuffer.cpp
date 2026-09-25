@@ -16,7 +16,8 @@ namespace Engine::Rhi {
         }
     } // namespace
 
-    ComputeBuffer::ComputeBuffer(BufferAllocation &&alloc, size_t size) : DeviceBuffer(std::move(alloc), size) {
+    ComputeBuffer::ComputeBuffer(BufferAllocation &&alloc, size_t size, const std::string &name) :
+        DeviceBuffer(std::move(alloc), size, name) {
     }
 
     std::unique_ptr<ComputeBuffer> ComputeBuffer::CreateUnique(
@@ -30,20 +31,17 @@ namespace Engine::Rhi {
     ) {
         const BufferType type =
             ComputeBufferType(allow_cpu_access, as_readonly_buffer, as_vertex_buffer, as_indirect_draw_buffer);
-        return std::unique_ptr<ComputeBuffer>(new ComputeBuffer(allocator.AllocateBuffer(type, size, name), size));
+        return std::unique_ptr<ComputeBuffer>(
+            new ComputeBuffer(allocator.AllocateBuffer(type, size, name), size, name)
+        );
     }
 
-    std::shared_ptr<ComputeBuffer> ComputeBuffer::CreateShared(
-        const Rhi::AllocatorState &allocator,
-        size_t size,
-        bool allow_cpu_access,
-        bool as_readonly_buffer,
-        bool as_vertex_buffer,
-        bool as_indirect_draw_buffer,
-        const std::string &name
-    ) {
-        const BufferType type =
-            ComputeBufferType(allow_cpu_access, as_readonly_buffer, as_vertex_buffer, as_indirect_draw_buffer);
-        return std::shared_ptr<ComputeBuffer>(new ComputeBuffer(allocator.AllocateBuffer(type, size, name), size));
+    void ComputeBuffer::Reallocate(const Rhi::AllocatorState &allocator, size_t bytes) {
+        ReallocateStorage(allocator, bytes);
+    }
+
+    void ComputeBuffer::EnsureCapacity(const Rhi::AllocatorState &allocator, size_t bytes) {
+        if (bytes <= GetSize()) return;
+        ReallocateStorage(allocator, bytes);
     }
 } // namespace Engine::Rhi

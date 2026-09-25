@@ -25,7 +25,7 @@ namespace Engine::Rhi {
      */
     class RHI_API DeviceBuffer {
     protected:
-        DeviceBuffer(BufferAllocation &&alloc, size_t size);
+        DeviceBuffer(BufferAllocation &&alloc, size_t size, const std::string &name = "");
 
     public:
         virtual ~DeviceBuffer() = default;
@@ -99,8 +99,28 @@ namespace Engine::Rhi {
         BufferType GetType() const noexcept;
 
     protected:
+        /**
+         * @brief Replace the buffer's storage in place, keeping the buffer object
+         * at the same address.
+         *
+         * The replacement is allocated before the previous storage is released,
+         * and the released allocation takes the allocator's usual retirement
+         * path: with a retirement facility installed it is parked under the
+         * submission epoch instead of being freed; without one it is destroyed
+         * immediately.
+         *
+         * The buffer's contents are discarded and `GetBuffer()` /
+         * `GetVMAddress()` obtained before the call are invalidated. Any
+         * reference to the buffer object itself survives.
+         *
+         * @param allocator The allocator the replacement storage is allocated from.
+         * @param bytes Size of the replacement storage.
+         */
+        void ReallocateStorage(const Rhi::AllocatorState &allocator, size_t bytes);
+
         size_t m_size{0ULL};
         BufferAllocation allocation;
+        std::string m_name = "";
     };
 } // namespace Engine::Rhi
 

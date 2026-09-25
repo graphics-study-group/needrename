@@ -62,6 +62,7 @@ namespace Engine {
 
         void PreGPUStep() override;
         void GPUStep(vk::CommandBuffer cb) override;
+        void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) override;
         bool IsInitialized() const noexcept override;
 
         void SetConfig(const XpbdConfig &config) noexcept;

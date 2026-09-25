@@ -8,7 +8,9 @@ Govern the physics shader source layout, the CMake-driven GLSL→SPIR-V build pi
 
 ### Requirement: Physics shader source layout
 
-Physics GLSL source files SHALL live under `engine/Physics/shader/<group>/<solver>/<name>.<stage>`, where `<group>` is a category bucket (e.g. `solver`), `<solver>` is the algorithm-specific subdirectory (e.g. `XPBDSolver`), and `<stage>` is the shader stage extension recognised by glslang (`.comp`, `.vert`, `.frag`, `.tesc`, `.tese`, `.geom`).
+Physics GLSL source files SHALL live under `engine/Physics/shader/<group>/<solver>/<name>.<stage>`, where `<group>` is a category bucket (e.g. `solver`), `<solver>` is the algorithm-specific subdirectory (e.g. `XPBDSolver`) or `common` for a shader shared by more than one solver, and `<stage>` is the shader stage extension recognised by glslang (`.comp`, `.vert`, `.frag`, `.tesc`, `.tese`, `.geom`).
+
+A shader whose inputs and outputs are not specific to one algorithm SHALL live under the group's `common` subdirectory rather than being duplicated into each solver's directory.
 
 Physics GLSL source code MUST NOT be embedded as string literals inside C++ source files.
 
@@ -18,8 +20,8 @@ Physics GLSL source code MUST NOT be embedded as string literals inside C++ sour
 - **AND** no `.cpp` file in `engine/Physics/` contains the body of that shader as a string literal
 
 #### Scenario: XPBD model matrix shader has a dedicated file
-- **WHEN** the XPBD model-matrix compute shader is needed
-- **THEN** its GLSL source exists at `engine/Physics/shader/solver/XPBDSolver/model_matrix.comp`
+- **WHEN** a solver needs the model-matrix compute shader that turns a body pose into a model matrix
+- **THEN** its GLSL source exists at `engine/Physics/shader/solver/common/model_matrix.comp`
 - **AND** no `.cpp` file in `engine/Physics/` contains the body of that shader as a string literal
 
 #### Scenario: Adding a new solver follows the same pattern
@@ -97,7 +99,7 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/snapshot_position.comp.spv`
 - `solver/XPBDSolver/clear_int_buffer.comp.spv`
 - `solver/XPBDSolver/clear_entry_values.comp.spv`
-- `solver/XPBDSolver/model_matrix.comp.spv`
+- `solver/common/model_matrix.comp.spv`
 - `solver/XPBDSolver/accumulate_hinge_position.comp.spv`
 - `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
 - `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
@@ -153,6 +155,12 @@ The `SumByKey` reduce shader (`algorithm/sum_by_key.comp.spv`) SHALL be loaded b
 - **THEN** `clear_entry_values.comp.spv` is loaded from `solver/XPBDSolver/`
 - **AND** a `ComputeStage` instance is created for it
 - **AND** `clear_int_buffer.comp.spv` is still loaded separately for the flat clears
+
+#### Scenario: Model matrix shader is loaded from the shared directory
+
+- **WHEN** the solver needs the model matrix shader
+- **THEN** it loads `solver/common/model_matrix.comp.spv` from `<ENGINE_PHYSICS_SPIRV_DIR>`
+- **AND** no `solver/XPBDSolver/model_matrix.comp.spv` is loaded or produced
 
 ### Requirement: XPBD solver loads and dispatches multiple compute shaders
 

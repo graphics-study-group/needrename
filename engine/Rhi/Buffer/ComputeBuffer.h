@@ -11,7 +11,7 @@ namespace Engine::Rhi {
      * @brief A buffer dedicated for compute shader use (i.e. storage buffer).
      */
     class RHI_API ComputeBuffer : public DeviceBuffer {
-        ComputeBuffer(BufferAllocation &&alloc, size_t size);
+        ComputeBuffer(BufferAllocation &&alloc, size_t size, const std::string &name = "");
 
     public:
         /**
@@ -33,27 +33,32 @@ namespace Engine::Rhi {
         );
 
         /**
-         * @brief Create a new compute buffer owned by a reference-counted handle.
+         * @brief Replace this buffer's storage in place, at an exact size.
          *
-         * Same buffer type and same parameters as `CreateUnique`, but the
-         * lifetime is shared: a buffer whose lifetime must outlive the component
-         * that created it (a physics-owned buffer forwarded to the render side,
-         * for example) stays alive for as long as any holder references it.
+         * The invalidation contract: the Vulkan buffer handle from `GetBuffer()` 
+         * and any pointer from `GetVMAddress()` do **not** survive the call; 
+         * and the contents are **not** preserved — re-establishing them is the caller's job.
          *
-         * @param allow_cpu_access Enables CPU access. Guarantees that `GetVMAddress()` can be used.
-         * @param as_readonly_buffer Allows it to be used as uniform buffer.
-         * @param as_vertex_buffer Allows it to be used as vertex and index buffer.
-         * @param as_indirect_draw_buffer Allows it to be used as indirect draw command buffer.
+         * @param allocator The allocator the replacement storage is allocated from.
+         * @param bytes The exact size of the replacement storage.
          */
-        static std::shared_ptr<ComputeBuffer> CreateShared(
-            const Rhi::AllocatorState &allocator,
-            size_t size,
-            bool allow_cpu_access,
-            bool as_readonly_buffer,
-            bool as_vertex_buffer,
-            bool as_indirect_draw_buffer,
-            const std::string &name = ""
-        );
+        void Reallocate(const Rhi::AllocatorState &allocator, size_t bytes);
+
+        /**
+         * @brief Grow this buffer's storage to at least a requested size, in place.
+         *
+         * A request at or below the buffer's current size is a no-op: the
+         * storage, its contents and the buffer handle are all left untouched.
+         * A request above the current size replaces the storage in place,
+         * exactly as `Reallocate` does.
+         *
+         * The invalidation contract of `Reallocate` applies whenever the
+         * request does reallocate.
+         *
+         * @param allocator The allocator the replacement storage is allocated from.
+         * @param bytes The minimum size the buffer must have afterwards.
+         */
+        void EnsureCapacity(const Rhi::AllocatorState &allocator, size_t bytes);
     };
 
     /// @brief Typed adaptor of the `ComputeBuffer` class.

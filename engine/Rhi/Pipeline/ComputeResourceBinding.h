@@ -58,16 +58,6 @@ namespace Engine::Rhi {
         void BindTexture(const std::string &name, std::shared_ptr<Texture> texture) noexcept;
 
         /**
-         * @brief Bind a owning compute buffer to this binding.
-         */
-        void BindComputeBuffer(
-            const std::string &name,
-            std::shared_ptr<const ComputeBuffer> buffer,
-            size_t offset,
-            size_t size = std::numeric_limits<size_t>::max()
-        );
-
-        /**
          * @brief Upload GPU info by recording descriptor writes and perform
          * Uniform buffer writes.
          *

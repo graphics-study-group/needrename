@@ -258,10 +258,12 @@ namespace Engine {
         this->world->GetMainSceneRef().FlushPhysics(*this->renderer);
         this->world->UpdateRendererData(*this->renderer);
 
-        // Physics → render bridge: forward the physics model matrices buffer
-        // to the scene data manager (physics itself no longer touches Render).
-        if (auto *phys_scene = this->world->GetMainSceneRef().GetPhysicsScene()) {
-            this->renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+        // Model matrices are render-owned. Size the buffer to the main scene's rigid body slot count here
+        PhysicsScene *phys_scene = this->world->GetMainSceneRef().GetPhysicsScene();
+        if (phys_scene != nullptr) {
+            this->renderer->GetSceneDataManager().EnsureModelMatricesCapacity(
+                phys_scene->GetGpuBuffers().rigid_body_slot_count
+            );
         }
 
         // Keep the active camera's aspect ratio aligned with the present extent,
@@ -292,6 +294,12 @@ namespace Engine {
         // Phase 2: GPU recording — physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
         this->physics->GPUStep(cb.GetCommandBuffer()); // physics solvers record their compute passes
+        // Calculate model matrices for main scene
+        if (phys_scene != nullptr) {
+            this->physics->GPUCalcModelMatrices(
+                *phys_scene, cb.GetCommandBuffer(), this->renderer->GetSceneDataManager().GetModelMatricesBuffer()
+            );
+        }
         if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
             this->render_graph->RecordAllPasses(cb.GetCommandBuffer());
         }

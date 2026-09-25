@@ -279,6 +279,12 @@ int main() {
             }
             auto cb = rsys->GetFrameManager().BeginMainCommandBuffer();
             physics.GPUStep(cb.GetCommandBuffer());
+            // Model matrix production is a separate, caller-invoked entry point
+            // now, so exercise it here too: it must be safe against the same
+            // in-flight frames and geometry changes as the step.
+            auto &scene_data = rsys->GetSceneDataManager();
+            scene_data.EnsureModelMatricesCapacity(scene.GetGpuBuffers().rigid_body_slot_count);
+            physics.GPUCalcModelMatrices(scene, cb.GetCommandBuffer(), scene_data.GetModelMatricesBuffer());
             present_graph->RecordIntoMainCommandBuffer(*rsys);
             rsys->CompleteFrame(*present_texture, Rhi::MemoryAccessTypeImageBits::TransferWrite);
             physics.PostGPUStep();

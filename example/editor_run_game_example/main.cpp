@@ -200,9 +200,6 @@ int main(int argc, char **argv) {
     scene_widget->SetDisplayTexture(*scene_texture);
     game_widget->SetDisplayTexture(*game_texture);
 
-    // Track whether the render graph has been built with the physics SSBO.
-    bool has_model_matrices_in_graph = false;
-
     main_window.m_OnStart.AddDelegate(std::make_unique<FuncDelegate<>>(Start));
     main_window.m_OnStop.AddDelegate(std::make_unique<FuncDelegate<>>(Stop));
 
@@ -258,44 +255,12 @@ int main(int argc, char **argv) {
         }
         world->GetMainSceneRef().FlushPhysics(*rsys);
 
-        // Lazily rebuild render graph when physics SSBO first becomes available.
-        if (!has_model_matrices_in_graph) {
-            auto *physics_scene = world->GetMainSceneRef().GetPhysicsScene();
-            if (physics_scene) {
-                auto mm_buf = physics_scene->GetGpuBuffers().model_matrices;
-                if (mm_buf) {
-                    has_model_matrices_in_graph = true;
-                    rg = rgb->BuildEditorRenderGraph(
-                        screenWidth,
-                        screenHeight,
-                        scene_widget.get(),
-                        game_widget.get(),
-                        scene_color_id,
-                        game_color_id,
-                        final_color_id,
-                        std::move(mm_buf)
-                    );
-                    auto *scene_tex2 = rg->GetInternalTextureResource(scene_color_id);
-                    auto *game_tex2 = rg->GetInternalTextureResource(game_color_id);
-                    SDL_LogInfo(
-                        SDL_LOG_CATEGORY_APPLICATION,
-                        "[main] Rebuild: scene_handle=%d game_handle=%d scene_tex=%p game_tex=%p",
-                        static_cast<int32_t>(scene_color_id),
-                        static_cast<int32_t>(game_color_id),
-                        static_cast<const void *>(scene_tex2),
-                        static_cast<const void *>(game_tex2)
-                    );
-                    scene_widget->SetDisplayTexture(*scene_tex2);
-                    game_widget->SetDisplayTexture(*game_tex2);
-                }
-            }
-        }
-
         world->UpdateRendererData(*rsys);
-        // Physics → render bridge: forward the physics model matrices buffer
-        // to the scene data manager (physics itself no longer touches Render).
+        // Size the render-owned model matrices buffer for this frame's rigid
+        // body slot count before StartFrame writes the frame's descriptor set,
+        // so the handle bound for the frame is final.
         if (auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene()) {
-            rsys->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+            rsys->GetSceneDataManager().EnsureModelMatricesCapacity(phys_scene->GetGpuBuffers().rigid_body_slot_count);
         }
 
         gui->PrepareGUI();
@@ -315,6 +280,15 @@ int main(int argc, char **argv) {
 
         if (main_window.m_is_playing) {
             cmc->GetPhysicsSystem()->GPUStep(cb.GetCommandBuffer());
+        }
+        // Model matrix production is NOT gated on the play state: the physics
+        // driven renderers read their transforms from this buffer in both
+        // states, so every rendered frame produces them, after the step and
+        // before the render graph's passes.
+        if (auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene()) {
+            cmc->GetPhysicsSystem()->GPUCalcModelMatrices(
+                *phys_scene, cb.GetCommandBuffer(), rsys->GetSceneDataManager().GetModelMatricesBuffer()
+            );
         }
         rg->RecordAllPasses(cb.GetCommandBuffer());
 

@@ -10,6 +10,8 @@ Each physics shader that consumes per-dispatch constants SHALL declare its own m
 
 **A CPU-known count and a GPU-produced count SHALL be served by separate shaders rather than by a mode flag**, following the convention already established by `copy_uint.comp` (which keeps an SSBO `ElemCount` for GPU-written counts) and `copy_uint_push.comp` (which takes the count from the push block for CPU-known counts). The counted entry-value clear SHALL therefore exist in both forms: the SSBO-count form for the contact group and a push-count form for the hinge and fixed groups. Every form SHALL declare only the descriptor bindings it actually binds, because a declared-but-unbound binding is an error under the compute dispatch contract.
 
+**The live body count SHALL be supplied explicitly and SHALL NOT be read from a buffer's length.** The three entry shaders (`contact_entries.comp`, `hinge_entries.comp`, `fixed_entries.comp`) currently derive their bound on the alive-body set from `rigid_body_alive.v.length()`, i.e. from the buffer's allocated size. Under the capacity contract that size is capacity, not the live slot count, so the derivation is wrong: it either overruns the logical set or is bounded by an unrelated allocation. Each of those shaders SHALL take the body count as a per-dispatch value (its push-constant block) and SHALL use it as its guard, and no physics shader SHALL use a buffer's length as a logical bound.
+
 #### Scenario: XPBD integrate pass receives gravity and dt
 
 - **WHEN** `XPBDGpuSolver::GPUStep` records the force-integration dispatch
@@ -53,6 +55,13 @@ Each physics shader that consumes per-dispatch constants SHALL declare its own m
 - **WHEN** the solver clears the contact group's per-iteration scratch
 - **THEN** it records the SSBO-count form, which binds the contact entry-count buffer
 - **AND** neither form declares a binding it does not bind
+
+#### Scenario: Entry shaders take the body count as a value
+
+- **WHEN** the solver records `contact_entries.comp`, `hinge_entries.comp` or `fixed_entries.comp`
+- **THEN** the recorded push-constant block carries the live body count for that dispatch
+- **AND** the shader guards its per-body work by that value
+- **AND** it does not read `rigid_body_alive.v.length()` as the live body count
 
 ## ADDED Requirements
 

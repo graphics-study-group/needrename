@@ -61,25 +61,6 @@ namespace Engine {
         );
 
         /**
-         * @brief Register a new buffer to manage its access internally, keeping
-         * it alive for as long as the built render graph holds it.
-         *
-         * Use this overload for a buffer whose owner may replace or release it
-         * after the graph has been built: the graph takes a share of the
-         * reference, so the buffer it imported cannot be destroyed underneath a
-         * pass that still references it.
-         *
-         * @param buffer The buffer, by reference-counted handle.
-         * @return a handle to the managed resource, used in the render graph
-         * internally. External resources will have negative handles.
-         */
-        [[nodiscard]]
-        RGBufferHandle ImportExternalResource(
-            std::shared_ptr<const Rhi::DeviceBuffer> buffer,
-            Rhi::MemoryAccessTypeBuffer prev_access = {Rhi::MemoryAccessTypeBufferBits::None}
-        );
-
-        /**
          * @brief Request a new render target texture to be created when
          * compiling the render graph.
          *

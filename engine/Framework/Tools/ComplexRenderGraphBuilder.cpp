@@ -30,21 +30,15 @@ namespace Engine {
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        RGTextureHandle &final_color_target_id, std::shared_ptr<const Rhi::ComputeBuffer> model_matrices_buffer
+        RGTextureHandle &final_color_target_id
     ) {
         RenderGraphBuilder rgb{m_system};
 
-        // Import optional physics model matrices buffer. The graph takes a share
-        // of the reference, so a physics-side reallocation after this point
-        // cannot leave a pass referencing a destroyed buffer.
-        const bool has_model_matrices = (model_matrices_buffer != nullptr);
-        RGBufferHandle mm_handle{};
-        if (has_model_matrices) {
-            mm_handle = rgb.ImportExternalResource(
-                std::move(model_matrices_buffer),
-                Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite)
-            );
-        }
+        // Import the render-owned model matrices buffer.
+        const RGBufferHandle mm_handle = rgb.ImportExternalResource(
+            m_system.GetSceneDataManager().GetModelMatricesBuffer(),
+            Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite)
+        );
 
         // Request transient resources. Final/HDR/Depth textures are resizable
         // (scale 1.0) and follow the ResizableRTTManager reference size, which the
@@ -106,11 +100,9 @@ namespace Engine {
          */
         for (size_t i = 0; i < shadow_ids.size(); i++) {
             auto shadow_builder = RenderGraphPassBuilder{m_system}.SetName("Shadowmap Pass " + std::to_string(i));
-            if (has_model_matrices) {
-                shadow_builder.UseBuffer(
-                    mm_handle, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)
-                );
-            }
+            shadow_builder.UseBuffer(
+                mm_handle, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)
+            );
             rgb.AddPass(
                 shadow_builder
                     .SetDepthStencilAttachment(
@@ -162,11 +154,9 @@ namespace Engine {
             }
 
             // Declare model matrices read (after physics compute writes).
-            if (has_model_matrices) {
-                lit_pass_builder.UseBuffer(
-                    mm_handle, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)
-                );
-            }
+            lit_pass_builder.UseBuffer(
+                mm_handle, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)
+            );
 
             lit_pass_builder
                 .AppendColorAttachment(

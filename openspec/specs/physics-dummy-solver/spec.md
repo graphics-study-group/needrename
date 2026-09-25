@@ -2,19 +2,19 @@
 
 ## Purpose
 
-Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a configurable step size and writes model matrices via a compute shader, dispatching compute directly to the command buffer (no RenderGraph). This solver validates the `ISolver` interface and the RenderGraph-free physics GPU architecture.
+Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a configurable step size and produces model matrices on request, dispatching compute directly to the command buffer (no RenderGraph). This solver validates the `ISolver` interface and the RenderGraph-free physics GPU architecture.
 
 ## Requirements
 
 ### Requirement: DummySolver implements ISolver
 
-`DummySolver` SHALL inherit from `ISolver` and implement all pure virtual methods. It SHALL be defined in `engine/Physics/Solver/DummySolver.h/.cpp`. It SHALL override `PreGPUStep` and `GPUStep`, and SHALL use the default `PostGPUStep` (no-op).
+`DummySolver` SHALL inherit from `ISolver` and implement all pure virtual methods. It SHALL be defined in `engine/Physics/Solver/DummySolver.h/.cpp`. It SHALL override `PreGPUStep`, `GPUStep` and `GPUCalcModelMatrices`, and SHALL use the default `PostGPUStep` (no-op).
 
-`DummySolver`'s constructor SHALL take `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&)` (replacing the former `RenderSystem&`) and store them internally. The solver SHALL access its bound PhysicsScene through `m_bound_scene` (set by `ISolver::OnBindToScene`). It SHALL NOT override `OnBindToScene` — the default implementation is sufficient.
+`DummySolver`'s constructor SHALL take `(Rhi::DeviceContext&)` (replacing the former `RenderSystem&`) and store it internally. The solver SHALL access its bound PhysicsScene through `m_bound_scene` (set by `ISolver::OnBindToScene`). It SHALL NOT override `OnBindToScene` — the default implementation is sufficient.
 
 #### Scenario: DummySolver is polymorphic
 
-- **WHEN** registered via `RegisterSolver(scene_id, std::make_unique<DummySolver>(device_interface, allocator))`
+- **WHEN** registered via `RegisterSolver(scene_id, std::make_unique<DummySolver>(device_context))`
 - **AND** `scene_id` maps to an existing scene
 - **THEN** `PhysicsSystem::GPUStep(cb)` SHALL correctly dispatch to `DummySolver::GPUStep(cb)`
 
@@ -26,7 +26,13 @@ Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a 
 #### Scenario: DummySolver uses stored Rhi facilities
 
 - **WHEN** `DummySolver::GPUStep(cb)` is called
-- **THEN** the solver SHALL access the device and allocator through the references stored at construction time, not through a method parameter
+- **THEN** the solver SHALL access the device and allocator through the `Rhi::DeviceContext` stored at construction time, not through a method parameter
+
+#### Scenario: DummySolver produces model matrices on request
+
+- **WHEN** `DummySolver::GPUCalcModelMatrices(cb, target)` is called
+- **THEN** the solver records a pass that writes model matrices into `target` from the scene's current poses
+- **AND** it does not displace any body
 
 ### Requirement: DummySolver dispatches compute directly in GPUStep
 
@@ -35,7 +41,7 @@ On each `GPUStep(cb)` call, the solver SHALL:
 2. Dispatch the compute shader via `cb.BindComputeStage`, `cb.BindComputeResource`, `cb.DispatchCompute`
 3. Use pre-allocated shader pipeline and resource binding (created in `PreGPUStep`)
 
-The compute shader SHALL displace each alive body by `position.z += gravity.z * time_step` and write its model matrix.
+The compute shader SHALL displace each alive body by `position.z += gravity.z * time_step`. It SHALL NOT write model matrices: model matrix output belongs to `GPUCalcModelMatrices`, which reads the poses the step produced.
 
 `DummySolver::PreGPUStep()` SHALL perform the shader initialization, uniform buffer write, and binding allocation. `DummySolver::GPUStep(cb)` SHALL only dispatch.
 
@@ -51,18 +57,31 @@ The compute shader SHALL displace each alive body by `position.z += gravity.z * 
 - **THEN** no `RenderGraph`, `RenderGraphBuilder`, or `RenderGraphPass` is created or used
 - **AND** `cb.BindComputeStage`, `cb.BindComputeResource`, `cb.DispatchCompute` are called directly
 
+#### Scenario: The step does not write model matrices
+
+- **WHEN** `GPUStep(cb)` is called and `GPUCalcModelMatrices` is not
+- **THEN** no dispatch in the recorded frame binds a model matrices buffer as an output
+- **AND** the render-owned model matrices buffer is unchanged by the step
+
 ### Requirement: DummySolver compute shader
 
-The solver SHALL provide one shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
+The solver SHALL provide one displacement shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
 - Binding 0: `readonly buffer RigidBodyAlive`
 - Binding 1: `buffer RigidBodyCenterPosition` (read-write)
 - Binding 2: `readonly buffer RigidBodyCenterRotation`
-- Binding 3: `writeonly buffer ModelMatrices`
 - Push-constant block `DummyPush { vec4 gravity_dt; }` (xyz = gravity, w = time_step)
 - Workgroup size 64
-- Displaces `pos.z += gravity_dt.z * gravity_dt.w`, writes TRS model matrix
+- Displaces `pos.z += gravity_dt.z * gravity_dt.w`
+
+Model matrix output SHALL be produced by the shared model matrix shader rather than by this shader, so that the mapping from a body's pose to its model matrix exists in exactly one place.
 
 #### Scenario: Shader loaded from SPIR-V
 
 - **WHEN** first initialized via `PreGPUStep`
-- **THEN** shader SHALL be loaded from `ENGINE_PHYSICS_SPIRV_DIR/solver/DummySolver/dummy_solver.comp.spv`
+- **THEN** the displacement shader SHALL be loaded from `ENGINE_PHYSICS_SPIRV_DIR/solver/DummySolver/dummy_solver.comp.spv`
+
+#### Scenario: Model matrix shader is shared with the XPBD solver
+
+- **WHEN** `GPUCalcModelMatrices` is recorded by either solver
+- **THEN** both load the same model matrix SPIR-V module
+- **AND** neither declares its own model matrix shader

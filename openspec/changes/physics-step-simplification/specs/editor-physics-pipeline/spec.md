@@ -25,7 +25,6 @@ The editor loop SHALL share a single command buffer for physics compute (`GPUSte
 #### Scenario: Physics and rendering on shared command buffer
 
 - **WHEN** the editor is in play mode
-- **THEN** `GPUStep(cb)` records physics dispatches into `cb`, including the model matrix pass that fills the physics-owned model matrices buffer
+- **THEN** `GPUStep(cb)` records physics dispatches into `cb`
 - **AND** `RecordAllPasses(cb)` records all render passes on the same command buffer
 - **AND** both operations happen between a single `cb.begin()` and `cb.end()` pair
-- **AND** the buffer is forwarded to the render system by the assembly layer, not by the physics step

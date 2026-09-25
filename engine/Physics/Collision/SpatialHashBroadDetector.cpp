@@ -158,12 +158,15 @@ namespace Engine {
         Impl(Impl &&) = delete;
         Impl &operator=(Impl &&) = delete;
 
+        /// @brief Exact-size resize that keeps the buffer object at the same address.
         void EnsureBuffer(
             std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name, bool host_visible = false
         ) {
             const auto &alloc = device_context.GetAllocatorState();
-            if (!buf || buf->GetSize() != bytes) {
+            if (!buf) {
                 buf = Rhi::ComputeBuffer::CreateUnique(alloc, bytes, host_visible, false, false, false, name);
+            } else if (buf->GetSize() != bytes) {
+                buf->Reallocate(alloc, bytes);
             }
         }
 
@@ -197,11 +200,7 @@ namespace Engine {
             EnsureBuffer(gpu_cell_offsets, cell_uint1, "BH CellOffsets");
             EnsureBuffer(gpu_cell_scratch, cell_uint1, "BH CellScratch");
 
-            EnsureBuffer(
-                gpu_pair_keys,
-                static_cast<size_t>(max_output_pair_count) * sizeof(uint32_t),
-                "BH PairKeys"
-            );
+            EnsureBuffer(gpu_pair_keys, static_cast<size_t>(max_output_pair_count) * sizeof(uint32_t), "BH PairKeys");
             EnsureBuffer(
                 gpu_collision_pairs,
                 static_cast<size_t>(max_output_pair_count) * sizeof(glm::uvec2),
@@ -211,16 +210,20 @@ namespace Engine {
 
             {
                 const size_t list_bytes = static_cast<size_t>(std::max(1u, shape_count)) * sizeof(uint32_t);
-                if (!gpu_global_list || gpu_global_list->GetSize() < list_bytes) {
+                if (!gpu_global_list) {
                     gpu_global_list = Rhi::ComputeBuffer::CreateUnique(
                         alloc, list_bytes, false, false, false, false, "BH GlobalList"
                     );
+                } else {
+                    gpu_global_list->EnsureCapacity(alloc, list_bytes);
                 }
             }
-            if (!gpu_global_count || gpu_global_count->GetSize() < sizeof(uint32_t)) {
+            if (!gpu_global_count) {
                 gpu_global_count = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(uint32_t), true, false, false, false, "BH GlobalCount"
                 );
+            } else {
+                gpu_global_count->EnsureCapacity(alloc, sizeof(uint32_t));
             }
 
             {
@@ -238,10 +241,12 @@ namespace Engine {
                 EnsureBuffer(gpu_unique_flags, flags_bytes, "BH UniqueFlags");
                 EnsureBuffer(gpu_unique_offsets, flags_bytes, "BH UniqueOffsets");
             }
-            if (!gpu_unique_count || gpu_unique_count->GetSize() < sizeof(uint32_t)) {
+            if (!gpu_unique_count) {
                 gpu_unique_count = Rhi::ComputeBuffer::CreateUnique(
                     alloc, sizeof(uint32_t), true, false, false, false, "BH UniqueCount"
                 );
+            } else {
+                gpu_unique_count->EnsureCapacity(alloc, sizeof(uint32_t));
             }
 
             {
@@ -615,10 +620,7 @@ namespace Engine {
         // `shape_count * (shape_count - 1)` in the pair generators and in the
         // buffer sizing below), which would silently produce a wrong dedup result;
         // the failure is made loud here, at configuration time.
-        assert(
-            shape_count <= kMaxPackableShapeCount
-            && "shape_count exceeds the packed-pair key bound (65536)"
-        );
+        assert(shape_count <= kMaxPackableShapeCount && "shape_count exceeds the packed-pair key bound (65536)");
 
         // Compute grid dimensions.
         auto world_size = grid_config.world_max - grid_config.world_min;

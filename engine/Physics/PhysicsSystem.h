@@ -16,6 +16,10 @@ namespace vk {
 namespace Engine {
     class PhysicsScene;
 
+    namespace Rhi {
+        class ComputeBuffer;
+    }
+
     /**
      * @brief Physics scene manager at engine-system scope.
      *
@@ -131,6 +135,25 @@ namespace Engine {
          * Must be called AFTER cb.end() + submit.
          */
         void PostGPUStep();
+
+        /**
+         * @brief Produce model matrices for one named physics scene.
+         *
+         * Forwards to every solver registered for that scene, in registration
+         * order, so that the target is written only by the solvers that own the
+         * scene the caller renders. A scene with no registered solvers is
+         * skipped without touching the target.
+         *
+         * The target is caller-supplied for the duration of the call only;
+         * neither this system nor any solver retains a reference to it between
+         * calls. The caller is responsible for the target's capacity (see
+         * `ISolver::GPUCalcModelMatrices`).
+         *
+         * @param scene  Physics scene whose solvers produce the matrices.
+         * @param cb     Raw command buffer in Recording state.
+         * @param target Compute buffer receiving the model matrices.
+         */
+        void GPUCalcModelMatrices(PhysicsScene &scene, vk::CommandBuffer cb, Rhi::ComputeBuffer &target);
 
     private:
         std::unordered_map<uint32_t, std::shared_ptr<PhysicsScene>> m_scene_map{};

@@ -2,15 +2,25 @@
 
 ## Purpose
 
-Defines the reusable contract for how a device buffer's capacity grows: capacity is only ever increased, growth is geometric so capacity steps are crossed rarely, and a buffer's reported size is its capacity rather than a logical element count — so every consumer obtains its logical bound explicitly.
+Defines the growth *policy* of the reallocation entry points that `stable-buffer-identity`'s `rhi-buffer-reallocation` capability introduces. That capability establishes the mechanism — a buffer's storage is replaced in place, the object stays at the same address, and `ComputeBuffer` exposes an exact-size `Reallocate(allocator, bytes)` alongside a grow-only `EnsureCapacity(allocator, bytes)`. This capability does not add a second mechanism or a rival entry point: it modifies the policy those two entry points follow.
+
+Two policy changes, and one consequence:
+
+- capacity is only ever increased — a grow-only request never shrinks, and an exact-size `Reallocate` remains the way to shrink;
+- growth through `EnsureCapacity` is geometric rather than exact, so capacity tracks capacity steps instead of every value change;
+- because capacity and logical element count are therefore no longer the same thing, `GetSize()` reports **capacity**, and every consumer obtains its logical bound explicitly.
+
+This capability depends on `stable-buffer-identity`: it restates the growth policy of a contract that change introduces, and must land after it.
 
 ## ADDED Requirements
 
 ### Requirement: Buffer capacity only grows
 
-Resizing a buffer to a size at or below its current capacity SHALL NOT reallocate it and SHALL NOT discard its contents. Only a request above the current capacity SHALL cause a new allocation, and the replacement SHALL be large enough to satisfy the request.
+The grow-only entry point `EnsureCapacity(allocator, bytes)` SHALL NOT reallocate when the requested size is at or below the buffer's current capacity, and SHALL NOT discard the buffer's contents in that case. Only a request above the current capacity SHALL cause a new allocation, and the replacement SHALL be large enough to satisfy the request.
 
-The capacity of a buffer SHALL NOT be reduced by a resize request, so a workload that oscillates between a large and a small size reallocates only on the transitions upward.
+The exact-size entry point `Reallocate(allocator, bytes)` retains its exact semantics and remains the way to reduce a buffer's size; this capability does not make `Reallocate` grow-only.
+
+Because `EnsureCapacity` never reduces capacity, a workload that oscillates between a large and a small size reallocates only on the transitions upward.
 
 #### Scenario: A growth request within capacity reallocates nothing
 

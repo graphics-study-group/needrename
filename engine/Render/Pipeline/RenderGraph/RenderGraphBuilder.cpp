@@ -158,9 +158,6 @@ namespace Engine {
             std::unordered_map<RGTextureHandle, TextureCreationInfo> texture_creation_info;
             std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
             std::unordered_map<RGBufferHandle, const Rhi::DeviceBuffer *> buffer_mapping;
-            /// @brief Buffers imported by shared ownership, kept alive until the
-            /// graph is built (and then moved into the graph's own storage).
-            std::vector<std::shared_ptr<const Rhi::DeviceBuffer>> owned_external_buffers;
 
             /**
              * @brief Materialize render target textures from the
@@ -352,27 +349,6 @@ namespace Engine {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGBufferHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.buffer_mapping[ret] = &buffer;
-
-        if (prev_access != Rhi::MemoryAccessTypeBuffer{Rhi::MemoryAccessTypeBufferBits::None}) {
-            // Inject a virtual pass if previous access is not None
-            if (pimpl->passes.empty()) {
-                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
-            }
-            pimpl->passes.front().buffer_access[ret] = prev_access;
-        }
-        return ret;
-    }
-
-    RGBufferHandle RenderGraphBuilder::ImportExternalResource(
-        std::shared_ptr<const Rhi::DeviceBuffer> buffer, Rhi::MemoryAccessTypeBuffer prev_access
-    ) {
-        assert(buffer && "ImportExternalResource requires a buffer.");
-        pimpl->rs.resource_counter++;
-        auto ret = static_cast<RGBufferHandle>(-pimpl->rs.resource_counter);
-        pimpl->rs.buffer_mapping[ret] = buffer.get();
-        // Keep a share of the reference so the graph outlives the owner's
-        // replacement of the buffer.
-        pimpl->rs.owned_external_buffers.push_back(std::move(buffer));
 
         if (prev_access != Rhi::MemoryAccessTypeBuffer{Rhi::MemoryAccessTypeBufferBits::None}) {
             // Inject a virtual pass if previous access is not None
@@ -712,7 +688,6 @@ namespace Engine {
 
         RenderGraph2ExtraInfo e{};
         e.buffer_mapping = std::move(pimpl->rs.buffer_mapping);
-        e.owned_external_buffers = std::move(pimpl->rs.owned_external_buffers);
         e.texture_mapping = std::move(pimpl->rs.texture_mapping);
         e.transient_texture_storage = pimpl->rs.MaterializeRenderTargetTextures(system);
         for (const auto &[k, v] : e.transient_texture_storage) {

@@ -34,4 +34,4 @@
 - **WHEN** `RunOneFrame` is called and a solver is registered
 - **THEN** `GPUStep(cb)` is called between `cb.begin()` and `cb.end()`
 - **AND** `render_graph->RecordAllPasses(cb)` is called after `GPUStep(cb)` on the same command buffer
-- **AND** no physics-related call is made outside that `begin()` / `end()` pair, apart from the model matrices forward
+- **AND** no physics-related call is made outside that `begin()` / `end()` pair

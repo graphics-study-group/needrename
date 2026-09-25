@@ -47,13 +47,15 @@ namespace Engine {
             static constexpr uint32_t MAX_NON_SHADOW_CASTING_LIGHTS = 16;
 
             /**
-             * @brief Maximal number of model matrices stored in the scene buffer.
+             * @brief Initial reservation of model matrices stored in the scene buffer.
              *
              * This determines the size of the model matrix storage buffer at
-             * set 0 binding 2.  Should be large enough to accommodate all
-             * rigid bodies in the physics scene.
+             * set 0 binding 2 when the manager is created. It is an initial
+             * reservation rather than a cap: the buffer grows in place on
+             * demand through `EnsureModelMatricesCapacity`, and should be large
+             * enough that the early frames do not reallocate repeatedly.
              */
-            static constexpr uint32_t MAX_MODEL_MATRICES = 1024;
+            static constexpr uint32_t MAX_MODEL_MATRICES = 128;
 
         private:
             RenderSystem &m_system;
@@ -218,26 +220,34 @@ namespace Engine {
             vk::PipelineLayout GetCommonPipelineLayout() const noexcept;
 
             /**
-             * @brief Set the model matrices storage buffer.
+             * @brief Grow the model matrices buffer to hold at least a number of matrices.
              *
-             * This buffer is written by the XPBD compute pass and read by
-             * vertex shaders via set 0 binding 2.  Pass nullptr to revert
-             * to the default dummy buffer.
+             * The buffer is sized in element (matrix) units and only ever
+             * grows: a request at or below the current capacity leaves the
+             * storage, its contents and its handle untouched. A request above
+             * it replaces the storage in place, so the buffer object — and any
+             * reference to it, such as a render graph's imported resource —
+             * stays valid; only its handle and contents change.
              *
-             * The buffer is held by a reference-counted handle: the physics
-             * scene replaces its model matrices buffer whenever its slot count
-             * changes, so a borrowed pointer would dangle. The render side stays
-             * independent of when the physics side resizes.
+             * Call this before the frame's descriptor set is written, so that
+             * the handle bound for the frame is final.
+             *
+             * @param element_count Minimum number of `glm::mat4` entries.
              */
-            void SetModelMatricesBuffer(std::shared_ptr<const Rhi::ComputeBuffer> buffer) noexcept;
+            void EnsureModelMatricesCapacity(uint32_t element_count);
 
             /**
-             * @brief Get the currently bound model matrices buffer.
+             * @brief Get the model matrices buffer owned by this manager.
              *
-             * @return Current model matrices buffer, or the dummy buffer
-             *         if no physics buffer has been set.
+             * This is the only model matrices storage in the engine. Physics
+             * does not hold a reference to it between calls: the frame's
+             * producer is handed it for the duration of the call. The buffer
+             * object is created once and never replaced, so a reference or
+             * pointer taken here stays valid for the manager's lifetime.
+             *
+             * @return The buffer, writable so that a producer can fill it.
              */
-            std::shared_ptr<const Rhi::ComputeBuffer> GetModelMatricesBuffer() const noexcept;
+            Rhi::ComputeBuffer &GetModelMatricesBuffer() noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

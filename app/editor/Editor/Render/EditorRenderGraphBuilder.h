@@ -34,8 +34,7 @@ namespace Editor {
             GameWidget *game_widget,
             Engine::RGTextureHandle &scene_widget_color_id,
             Engine::RGTextureHandle &game_widget_color_id,
-            Engine::RGTextureHandle &final_color_target_id,
-            std::shared_ptr<const Engine::Rhi::ComputeBuffer> model_matrices_buffer = nullptr
+            Engine::RGTextureHandle &final_color_target_id
         );
 
     protected:

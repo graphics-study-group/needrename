@@ -6,11 +6,11 @@
 
 `DummySolver` SHALL inherit from `ISolver` and implement all pure virtual methods. It SHALL be defined in `engine/Physics/Solver/DummySolver.h/.cpp`. It SHALL implement `GPUStep`, and SHALL rely on the base class for `OnBindToScene`. It SHALL NOT declare a preparation or post-processing phase.
 
-`DummySolver`'s constructor SHALL take `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&)` (replacing the former `RenderSystem&`) and store them internally. The solver SHALL access its bound PhysicsScene through `m_bound_scene` (set by `ISolver::OnBindToScene`). It SHALL NOT override `OnBindToScene` — the default implementation is sufficient.
+`DummySolver`'s constructor SHALL take `(Rhi::DeviceContext&)` (replacing the former `RenderSystem&`) and store it internally. The solver SHALL access its bound PhysicsScene through `m_bound_scene` (set by `ISolver::OnBindToScene`). It SHALL NOT override `OnBindToScene` — the default implementation is sufficient.
 
 #### Scenario: DummySolver is polymorphic
 
-- **WHEN** registered via `RegisterSolver(scene_id, std::make_unique<DummySolver>(device_interface, allocator))`
+- **WHEN** registered via `RegisterSolver(scene_id, std::make_unique<DummySolver>(device_context))`
 - **AND** `scene_id` maps to an existing scene
 - **THEN** `PhysicsSystem::GPUStep(cb)` SHALL correctly dispatch to `DummySolver::GPUStep(cb)`
 
@@ -22,7 +22,7 @@
 #### Scenario: DummySolver uses stored Rhi facilities
 
 - **WHEN** `DummySolver::GPUStep(cb)` is called
-- **THEN** the solver SHALL access the device and allocator through the references stored at construction time, not through a method parameter
+- **THEN** the solver SHALL access the device and allocator through the `Rhi::DeviceContext` stored at construction time, not through a method parameter
 
 #### Scenario: DummySolver declares no preparation phase
 

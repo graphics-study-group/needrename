@@ -4,14 +4,14 @@
 
 ### Requirement: XpbdGpuSolver inherits ISolver
 
-The system SHALL provide an `XpbdGpuSolver` class inheriting `ISolver`, defined in `engine/Physics/Solver/XpbdGpuSolver.h`. The constructor SHALL accept `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&)`. `PhysicsScene` access SHALL be obtained through `m_bound_scene` (set by `OnBindToScene`).
+The system SHALL provide an `XpbdGpuSolver` class inheriting `ISolver`, defined in `engine/Physics/Solver/XpbdGpuSolver.h`. The constructor SHALL accept `(Rhi::DeviceContext&)`. `PhysicsScene` access SHALL be obtained through `m_bound_scene` (set by `OnBindToScene`).
 
 The class SHALL NOT expose any `AddStepPasses()` or `RenderGraphBuilder &` — callers interact only through `GPUStep(cb)`.
 
 ```cpp
 class XpbdGpuSolver : public ISolver {
 public:
-    XpbdGpuSolver(const Rhi::DeviceInterface &device_interface, const Rhi::AllocatorState &allocator);
+    XpbdGpuSolver(Rhi::DeviceContext &device_context);
     ~XpbdGpuSolver() override;
 
     void GPUStep(vk::CommandBuffer cb) override;
@@ -24,13 +24,13 @@ public:
 
 #### Scenario: Solver registered via PhysicsSystem
 
-- **WHEN** `PhysicsSystem::RegisterSolver(scene_id, std::make_unique<XpbdGpuSolver>(device_interface, allocator))` is called
+- **WHEN** `PhysicsSystem::RegisterSolver(scene_id, std::make_unique<XpbdGpuSolver>(device_context))` is called
 - **THEN** `XpbdGpuSolver::OnBindToScene(scene)` is invoked, setting `m_bound_scene`
 - **AND** the solver appears in the per-frame `GPUStep` dispatch
 
 #### Scenario: Solver constructor does not allocate GPU resources
 
-- **WHEN** `XpbdGpuSolver` is constructed with valid Rhi facilities
+- **WHEN** `XpbdGpuSolver` is constructed with a valid `Rhi::DeviceContext`
 - **THEN** no compute pipeline, compute buffer, or descriptor resource is created
 - **AND** `IsInitialized()` returns `false`
 
@@ -93,10 +93,11 @@ Every input to this preparation SHALL be a value the CPU already holds at record
        [entry barrier] PostPosition passes
        for each velocity iteration:
            VelocityIter passes (each with entry barrier)
-   [entry barrier] ModelMatrix pass
    ```
 
 The PreCollision pass order SHALL be: substep-start position/orientation snapshots → integrate forces → pre-contact velocity snapshots → update shape world poses. This ensures pre-contact velocity snapshots capture post-integration velocity (including gravity) for correct restitution reference in the velocity solver.
+
+Model matrix output SHALL NOT be part of `GPUStep`: the step neither records a model matrix pass nor touches the render-owned model matrices buffer, which the caller fills by invoking the model matrix entry point.
 
 `GPUStep` MAY allocate and resize GPU resources. Resources it replaces are retired by the device and released only once the submissions that may reference them have completed, so a resize during recording cannot invalidate in-flight work.
 
@@ -105,12 +106,12 @@ Barrier placement SHALL remain explicit and recorded by the solver. The dispatch
 #### Scenario: Compute dispatches recorded directly to command buffer
 
 - **WHEN** `GPUStep(cb)` is called with a valid scene and simulation enabled
-- **THEN** all solver compute dispatches, detector dispatches, and model matrix dispatch are recorded directly to `cb` through the RHI compute dispatch interface
+- **THEN** all solver compute dispatches and detector dispatches are recorded directly to `cb` through the RHI compute dispatch interface
 - **AND** no `RenderGraph::RecordAllPasses` or `RenderGraphBuilder::BuildRenderGraph` is called
 
 #### Scenario: Entry barrier inserted at start of each phase
 
-- **WHEN** `GPUStep(cb)` begins a new phase (PreCollision, PostCollisionPreIter, PositionIter, PostPosition, VelocityIter, ModelMatrix)
+- **WHEN** `GPUStep(cb)` begins a new phase (PreCollision, PostCollisionPreIter, PositionIter, PostPosition, VelocityIter)
 - **THEN** a `vk::MemoryBarrier2` is recorded before the first dispatch of that phase
 - **AND** the barrier ensures all ShaderStorageWrite from the previous phase is visible
 
@@ -142,8 +143,9 @@ Barrier placement SHALL remain explicit and recorded by the solver. The dispatch
 #### Scenario: Model matrix recorded unconditionally
 
 - **WHEN** `PhysicsScene::IsSimulationEnabled()` returns `false`
-- **THEN** ModelMatrix pass is still recorded
+- **THEN** the step records no model matrix dispatch, because model matrix output is requested separately by the caller
 - **AND** other solver passes still dispatch (with time_step = 0, producing no position change)
+- **AND** the caller can still produce model matrices for that frame by invoking the model matrix entry point
 
 ## RENAMED Requirements
 

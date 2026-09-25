@@ -82,50 +82,24 @@ namespace Engine {
         Impl(Impl &&) = delete;
         Impl &operator=(Impl &&) = delete;
 
-        void EnsureBuffers() {
+        /// @brief Exact-size resize that keeps the buffer object at the same address.
+        void EnsureBuffer(std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name) {
             const auto &allocator = device_context.GetAllocatorState();
+            if (!buf) {
+                buf = Rhi::ComputeBuffer::CreateUnique(allocator, bytes, false, false, false, false, name);
+            } else if (buf->GetSize() != bytes) {
+                buf->Reallocate(allocator, bytes);
+            }
+        }
+
+        void EnsureBuffers() {
             const size_t result_entries = std::max<uint32_t>(1u, max_output_collision_pairs);
 
-            {
-                const size_t byte_size = result_entries * sizeof(glm::uvec2);
-                if (!gpu_collision_ids || gpu_collision_ids->GetSize() != byte_size) {
-                    gpu_collision_ids = Rhi::ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "CollisionIds"
-                    );
-                }
-            }
-            {
-                const size_t byte_size = result_entries * sizeof(glm::vec4);
-                if (!gpu_collision_normals || gpu_collision_normals->GetSize() != byte_size) {
-                    gpu_collision_normals = Rhi::ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "CollisionNormals"
-                    );
-                }
-            }
-            {
-                const size_t byte_size = result_entries * sizeof(glm::vec4);
-                if (!gpu_contact_point_a || gpu_contact_point_a->GetSize() != byte_size) {
-                    gpu_contact_point_a = Rhi::ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "ContactPointA"
-                    );
-                }
-            }
-            {
-                const size_t byte_size = result_entries * sizeof(glm::vec4);
-                if (!gpu_contact_point_b || gpu_contact_point_b->GetSize() != byte_size) {
-                    gpu_contact_point_b = Rhi::ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "ContactPointB"
-                    );
-                }
-            }
-            {
-                const size_t byte_size = sizeof(uint32_t);
-                if (!gpu_collision_count || gpu_collision_count->GetSize() != byte_size) {
-                    gpu_collision_count = Rhi::ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "CollisionCount"
-                    );
-                }
-            }
+            EnsureBuffer(gpu_collision_ids, result_entries * sizeof(glm::uvec2), "CollisionIds");
+            EnsureBuffer(gpu_collision_normals, result_entries * sizeof(glm::vec4), "CollisionNormals");
+            EnsureBuffer(gpu_contact_point_a, result_entries * sizeof(glm::vec4), "ContactPointA");
+            EnsureBuffer(gpu_contact_point_b, result_entries * sizeof(glm::vec4), "ContactPointB");
+            EnsureBuffer(gpu_collision_count, sizeof(uint32_t), "CollisionCount");
         }
 
         void EnsureShadersAndBindings() {

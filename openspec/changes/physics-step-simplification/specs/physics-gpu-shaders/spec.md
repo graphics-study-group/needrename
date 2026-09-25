@@ -23,7 +23,7 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/clear_int_buffer.comp.spv`
 - `solver/XPBDSolver/clear_entry_values.comp.spv` (entry count from a bound buffer)
 - `solver/XPBDSolver/clear_entry_values_push.comp.spv` (entry count from the push-constant block)
-- `solver/XPBDSolver/model_matrix.comp.spv`
+- `solver/common/model_matrix.comp.spv`
 - `solver/XPBDSolver/accumulate_hinge_position.comp.spv`
 - `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
 - `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
@@ -42,7 +42,7 @@ The counted clear SHALL exist in one form per count source, following the conven
 #### Scenario: First Step call loads SPIR-V from disk
 
 - **WHEN** the solver records its first `GPUStep` on a populated `PhysicsScene`
-- **THEN** the solver reads all XPBD shader SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/XPBDSolver/`
+- **THEN** the solver reads its shader SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>`, the model matrix shader from `solver/common/` and the rest from `solver/XPBDSolver/`
 - **AND** creates its compute pipelines from those words
 
 #### Scenario: No GLSL compilation occurs at runtime for XPBD shaders

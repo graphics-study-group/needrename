@@ -67,9 +67,11 @@ The app's own driver code (windowed test loop) SHALL call `Step()` only when `Is
 
 ### Requirement: CommitScene seeds initial model matrices
 
-In rendering modes (`Windowed`, `Offscreen`), `CommitScene` SHALL run a one-time solver pass while scene simulation is still disabled (before `SetSimulationEnabled(true)`) so that only the solver's model-matrix computation executes and the initial model matrices are written from the `FlushPhysics`-seeded poses. Bodies SHALL NOT advance during this pass.
+In rendering modes (`Windowed`, `Offscreen`), `CommitScene` SHALL produce model matrices once, before `SetSimulationEnabled(true)`, so that the initial model matrices are written from the `FlushPhysics`-seeded poses and the renderer never displays the buffer's initial contents.
 
-Because the solver's model-matrix dispatch is the only writer of the GPU model-matrices buffer and `FlushPhysics` does not seed it, without this pass the renderer would read a zeroed buffer while paused and every body would be invisible (only the skybox would show).
+The production SHALL be a direct model matrix call on the solver entry point, not a physics step: the step pipeline SHALL NOT be invoked, and no body SHALL advance during it.
+
+Because a solver's model matrix output is only produced when a caller asks for it, and `FlushPhysics` does not seed the buffer, without this call the renderer would read the buffer's creation-time contents while paused.
 
 #### Scenario: Bodies are visible while paused
 
@@ -80,7 +82,13 @@ Because the solver's model-matrix dispatch is the only writer of the GPU model-m
 #### Scenario: Seed pass does not advance simulation
 
 - **WHEN** `CommitScene` returns and the first `Step` is then called
-- **THEN** the simulation advances from the initial poses (the seed pass did not integrate)
+- **THEN** the simulation advances from the initial poses (the seed did not integrate)
+
+#### Scenario: Seed does not run the step pipeline
+
+- **WHEN** `CommitScene` produces the initial model matrices
+- **THEN** no `PreGPUStep`, `GPUStep` or `PostGPUStep` call is made for that production
+- **AND** only the model matrix entry point is invoked
 
 ### Requirement: Paused frames keep the renderer drained
 

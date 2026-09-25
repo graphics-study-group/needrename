@@ -8,12 +8,13 @@ The engine SHALL provide an abstract `ISolver` class in `engine/Physics/Solver/I
 
 - `virtual void OnBindToScene(PhysicsScene &scene)` — called by `PhysicsSystem::RegisterSolver` to bind this solver to a specific scene. Default implementation sets `m_bound_scene = &scene`.
 - `virtual void GPUStep(vk::CommandBuffer cb) = 0` — called BETWEEN `cb.begin()` and `cb.end()`; records the solver's compute dispatches to `cb`, performing on the spot any preparation it needs. The solver SHALL access its bound scene via `m_bound_scene`.
+- `virtual void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) = 0` — records a pass that writes model matrices into `target` from the solver's current scene state. Pure virtual, so every concrete solver provides an implementation rather than inheriting a shared default. Invoked by the caller, not by `GPUStep`, and only when the caller has a target to write into; the caller ensures the target's capacity.
 - `bool IsInitialized() const noexcept = 0` — returns true once the solver holds the pipelines and buffers it needs to record a step.
 - `PhysicsScene *m_bound_scene` — protected member set by `OnBindToScene`, accessible to derived classes to obtain GPU buffers and scene state.
 
-A solver SHALL NOT require a lifecycle phase outside command-buffer recording. Resource initialization, buffer sizing and per-dispatch constant preparation SHALL occur within `GPUStep`, including on the first call, because resources allocated or resized while a command buffer is being recorded are retired safely by the device.
+A solver SHALL NOT require a lifecycle phase outside command-buffer recording. Resource initialization, buffer sizing and per-dispatch constant preparation SHALL occur within `GPUStep`, including on the first call, because resources allocated or resized while a command buffer is being recorded are retired safely by the device. `GPUCalcModelMatrices` is likewise recorded on the caller's command buffer, and running a step SHALL NOT itself produce model matrices.
 
-`ISolver` SHALL forward-declare `PhysicsScene` (`class PhysicsScene;`) without including its header. `RenderSystem&` and `PhysicsScene&` SHALL NOT appear in method parameters — solvers access these through their stored references (constructor or `m_bound_scene`).
+`ISolver` SHALL forward-declare `PhysicsScene` (`class PhysicsScene;`) and `Rhi::ComputeBuffer` (`class ComputeBuffer;`) without including their headers. `RenderSystem&` and `PhysicsScene&` SHALL NOT appear in method parameters — solvers access these through their stored references (constructor or `m_bound_scene`).
 
 `vk::CommandBuffer` SHALL be forward-declared via `namespace vk { struct CommandBuffer; }`.
 
@@ -95,17 +96,17 @@ Solver storage backing SHALL be a mapping from `scene_id` to an ordered containe
 
 ### Requirement: XpbdGpuSolver implements ISolver
 
-The `XpbdGpuSolver` class SHALL inherit `ISolver` and implement the GPU step lifecycle. Its constructor SHALL accept `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&)` — replacing the former `RenderSystem &` — and the `PhysicsScene` reference SHALL be obtained through `m_bound_scene` (set by the inherited `OnBindToScene`). Solver GPU facilities (device, allocator) SHALL come from the stored `Rhi` references; `Rhi::SubmissionHelper` SHALL be used for uploads where needed.
+The `XpbdGpuSolver` class SHALL inherit `ISolver` and implement the GPU step lifecycle. Its constructor SHALL accept `(Rhi::DeviceContext&)` — replacing the former `RenderSystem &` — and the `PhysicsScene` reference SHALL be obtained through `m_bound_scene` (set by the inherited `OnBindToScene`). Solver GPU facilities SHALL come from the stored `Rhi::DeviceContext`; `Rhi::SubmissionHelper` SHALL be used for uploads where needed.
 
 `GPUStep(cb)` SHALL lazily acquire the solver's compute pipelines, size the buffers its geometry requires, prepare its per-dispatch constants, prepare its owned collision detectors for the current shape count, and record its dispatches in sequence with substep/iteration loops on the CPU side.
 
 `IsInitialized()` SHALL return `true` once the solver holds its compute pipelines and sized buffers. Because that acquisition happens on the first `GPUStep`, it MAY return `false` before the first step.
 
-`XpbdGpuSolver` SHALL NOT call `SceneDataManager::SetModelMatricesBuffer` — the model matrices buffer is forwarded by the `MainClass` assembly layer instead.
+`XpbdGpuSolver` SHALL NOT call `SceneDataManager::SetModelMatricesBuffer`, and SHALL NOT read a model matrices buffer from its bound scene. It SHALL write model matrices only into the buffer passed to `GPUCalcModelMatrices`.
 
 #### Scenario: XpbdGpuSolver registered via PhysicsSystem
 
-- **WHEN** `RegisterSolver(scene_id, std::make_unique<XpbdGpuSolver>(device_interface, allocator))` is called
+- **WHEN** `RegisterSolver(scene_id, std::make_unique<XpbdGpuSolver>(device_context))` is called
 - **THEN** `OnBindToScene(scene)` sets `m_bound_scene`
 - **AND** the solver participates in the per-frame `GPUStep` dispatch
 
@@ -113,7 +114,7 @@ The `XpbdGpuSolver` class SHALL inherit `ISolver` and implement the GPU step lif
 
 - **WHEN** `GPUStep(cb)` runs and the scene has rigid bodies
 - **THEN** no call is made to any `SceneDataManager` or other Render type
-- **AND** the model matrices buffer remains available via `m_bound_scene->GetGpuBuffers()`
+- **AND** the scene's GPU buffer set contains no model matrices buffer, because that buffer is owned by the render system
 
 #### Scenario: Geometry change between steps is absorbed inside the step
 

@@ -44,7 +44,7 @@ Where a requirement keeps its name, the block also reproduces every scenario nam
 
 Several blocks were factually wrong before this change. Because a `MODIFIED` block replaces the whole requirement, leaving them in place would re-assert them, so they are corrected and recorded here:
 
-- `physics-solver-interface`'s `XpbdGpuSolver` requirement and `xpbd-solver-multi-rg`'s constructor text both describe a `RenderSystem &` constructor; the constructor is `(const Rhi::DeviceInterface&, const Rhi::AllocatorState&)`.
+- `physics-solver-interface`'s `XpbdGpuSolver` requirement and `xpbd-solver-multi-rg`'s constructor text both describe a `RenderSystem &` constructor; the constructor is `(Rhi::DeviceContext&)`.
 - The same two requirements describe solver-owned render graphs, which the archived render-graph removal deleted.
 - `gpu-convex-collision-detection` places the narrow-phase SPIR-V under `solver/ConvexCollisionDetector/`; it is `collision/ConvexCollisionDetector/detect_collisions.comp.spv`.
 - The `Detect(...)` spelling used by the older detector requirements is `Record(...)` in the current contract.

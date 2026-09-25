@@ -96,4 +96,14 @@ namespace Engine {
         }
     }
 
+    void PhysicsSystem::GPUCalcModelMatrices(PhysicsScene &scene, vk::CommandBuffer cb, Rhi::ComputeBuffer &target) {
+        auto iter = m_solvers_per_scene.find(scene.GetSceneID());
+        if (iter == m_solvers_per_scene.end()) {
+            return;
+        }
+        for (auto &solver : iter->second) {
+            solver->GPUCalcModelMatrices(cb, target);
+        }
+    }
+
 } // namespace Engine

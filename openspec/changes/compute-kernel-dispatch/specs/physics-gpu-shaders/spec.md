@@ -22,7 +22,7 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/snapshot_position.comp.spv`
 - `solver/XPBDSolver/clear_int_buffer.comp.spv`
 - `solver/XPBDSolver/clear_entry_values.comp.spv`
-- `solver/XPBDSolver/model_matrix.comp.spv`
+- `solver/common/model_matrix.comp.spv`
 - `solver/XPBDSolver/accumulate_hinge_position.comp.spv`
 - `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
 - `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
