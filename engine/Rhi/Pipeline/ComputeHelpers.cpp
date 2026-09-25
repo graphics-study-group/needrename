@@ -13,9 +13,11 @@ namespace Engine::Rhi {
     void BindComputeResource(
         vk::CommandBuffer cb, ComputeStage &stage, ComputeResourceBinding &binding, uint32_t slot
     ) {
-        auto offsets = binding.UpdateGPUInfo(slot);
+        // Re-acquire on every use: the arena's recorded epoch must stay an upper
+        // bound on the epochs whose command buffers reference the set.
+        auto result = binding.UpdateGPUInfo(slot);
         cb.bindDescriptorSets(
-            vk::PipelineBindPoint::eCompute, stage.GetPipelineLayout(), 0, {binding.GetDescriptorSet(slot)}, offsets
+            vk::PipelineBindPoint::eCompute, stage.GetPipelineLayout(), 0, {result.set}, result.dynamic_offsets
         );
     }
 

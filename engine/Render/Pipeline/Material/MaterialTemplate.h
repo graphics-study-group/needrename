@@ -13,7 +13,6 @@ namespace vk {
     class PipelineLayout;
     class DescriptorSetLayout;
     class DescriptorSet;
-    class DescriptorPool;
     class DescriptorImageInfo;
     class ShaderModule;
 } // namespace vk
@@ -32,7 +31,6 @@ namespace Engine {
 
     namespace PipelineInfo {
         class MaterialPassInfo;
-        struct MaterialPoolInfo;
     } // namespace PipelineInfo
 
     namespace ShdrRfl {
@@ -99,9 +97,6 @@ namespace Engine {
      * are currently supported. Arrays are not supported either.
      */
     class RENDER_API MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
-    public:
-        using PoolInfo = PipelineInfo::MaterialPoolInfo;
-
     protected:
         RenderSystem &m_system;
 
@@ -119,7 +114,6 @@ namespace Engine {
             MaterialTemplateSinglePassProperties &properties,
             const std::vector<vk::ShaderModule> &shaders,
             vk::PipelineLayout layout,
-            vk::DescriptorPool pool,
             const Rhi::SPLayout &reflected,
             const PipelineRuntimeInfo &attribute,
             const std::string &name = ""
@@ -142,13 +136,6 @@ namespace Engine {
          * The pipeline layout associated with the specified pass index.
          */
         vk::PipelineLayout GetPipelineLayout() const noexcept;
-
-        /**
-         * @brief Get the descriptor pool for this material.
-         *
-         * @return vk::DescriptorPool can be null if no material descriptor presents.
-         */
-        vk::DescriptorPool GetDescriptorPool() const noexcept;
 
         /**
          * @brief Get all reflected shader info.

@@ -26,7 +26,6 @@ namespace Engine::Rhi {
         ComputeStage *stage;
         uint32_t slot_count;
 
-        std::array<vk::DescriptorSet, MAX_SLOT_COUNT> descriptor_sets{};
         std::unique_ptr<ShaderResourceBinding> p_srb{};
         std::unique_ptr<StructuredBuffer> p_buffer{};
         std::vector<std::byte> cpu_side_buffer{};
@@ -85,7 +84,7 @@ namespace Engine::Rhi {
         DeviceContext &device_context, ComputeStage &compute, uint32_t slot_count
     ) : pimpl(std::make_unique<impl>()) {
         assert(slot_count > 0 && slot_count <= impl::MAX_SLOT_COUNT);
-        pimpl->p_srb = std::make_unique<ShaderResourceBinding>(device_context.GetIRCache());
+        pimpl->p_srb = std::make_unique<ShaderResourceBinding>(device_context.GetDescriptorArena());
         pimpl->p_buffer = std::make_unique<StructuredBuffer>();
         pimpl->device_context = &device_context;
         pimpl->stage = &compute;
@@ -117,23 +116,16 @@ namespace Engine::Rhi {
         pimpl->owned_resource[name] = texture;
         pimpl->p_srb->BindTexture(name, *texture);
     }
-    std::vector<uint32_t> ComputeResourceBinding::UpdateGPUInfo(uint32_t slot) const noexcept {
+    DescriptorSetBinding ComputeResourceBinding::UpdateGPUInfo(uint32_t slot) {
         assert(slot < pimpl->slot_count);
         // First prepare descriptor writes
-        std::vector<uint32_t> dynamic_offsets;
+        DescriptorSetBinding binding;
         for (const auto &[k, v] : pimpl->ubo_manager.ubos) {
             pimpl->p_srb->BindBuffer(k, *v, 0, v->GetSliceSize());
             // FIXME: Dynamic offset order might not be correct.
-            dynamic_offsets.push_back(v->GetSliceOffset(slot));
+            binding.dynamic_offsets.push_back(v->GetSliceOffset(slot));
         }
-        pimpl->descriptor_sets[slot] = pimpl->p_srb->GetDescriptorSet(
-            0,
-            pimpl->stage->GetReflectedShaderInfo(),
-            pimpl->device_context->GetDevice(),
-            pimpl->stage->GetDescriptorPool(),
-            true,
-            false
-        );
+        binding.set = pimpl->p_srb->GetDescriptorSet(0, pimpl->stage->GetReflectedShaderInfo(), true, false);
 
         // Then do uniform writes.
         if (pimpl->ubo_manager.ubo_dirty[slot]) {
@@ -151,10 +143,6 @@ namespace Engine::Rhi {
 
             pimpl->ubo_manager.ubo_dirty[slot] = false;
         }
-        return dynamic_offsets;
-    }
-    vk::DescriptorSet ComputeResourceBinding::GetDescriptorSet(uint32_t slot) const noexcept {
-        assert(slot < pimpl->slot_count);
-        return pimpl->descriptor_sets[slot];
+        return binding;
     }
 } // namespace Engine::Rhi

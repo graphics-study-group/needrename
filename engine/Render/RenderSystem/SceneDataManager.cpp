@@ -4,6 +4,8 @@
 #include "Render/Resource/RenderResourceHandle.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Resource/DescriptorArena.h"
 #include <Rhi/Buffer/IndexedBuffer.h>
 
 #include <SDL3/SDL.h>
@@ -18,17 +20,6 @@
 namespace Engine::RenderSystemState {
     struct SceneDataManager::impl {
         vk::Device device{};
-        vk::UniqueDescriptorPool scene_descriptor_pool{};
-
-        static constexpr std::array SCENE_DESCRIPTOR_POOL_SIZE{
-            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 1 * FrameManager::FRAMES_IN_FLIGHT},
-            vk::DescriptorPoolSize{
-                // Shadowmaps + skybox cubemap
-                vk::DescriptorType::eCombinedImageSampler,
-                (MAX_SHADOW_CASTING_LIGHTS + 1) * FrameManager::FRAMES_IN_FLIGHT
-            },
-            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 1 * FrameManager::FRAMES_IN_FLIGHT}
-        };
 
         struct Scene {
             struct ShadowCastingLightUniformBuffer {
@@ -93,18 +84,23 @@ namespace Engine::RenderSystemState {
             vk::PipelineLayout scene_common_pipeline_layout{};
             std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
+            // The layout description, kept alive so the arena can allocate the
+            // per-in-flight sets against the same cached layout object.
+            std::vector<vk::DescriptorSetLayoutBinding> descriptor_bindings{};
+            std::array<vk::Sampler, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers{};
+
             // Model matrices storage buffer (owned here; for physics-driven objects)
             std::unique_ptr<Rhi::ComputeBuffer> model_matrices_buffer{};
 
-            void Create(RenderSystem &system, vk::DescriptorPool pool) {
+            void Create(RenderSystem &system) {
                 auto &allocator = system.GetAllocatorState();
                 auto device = system.GetDevice();
+                auto &arena = system.GetDeviceContext().GetDescriptorArena();
 
                 // Create decriptor set layout
                 {
-                    auto scene_descriptor_bindings = DESCRIPTOR_BINDINGS;
+                    descriptor_bindings.assign(DESCRIPTOR_BINDINGS.begin(), DESCRIPTOR_BINDINGS.end());
                     // Set up immutable samplers for shadow maps
-                    std::array<vk::Sampler, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers;
                     std::fill(
                         immutable_samplers.begin(),
                         immutable_samplers.end(),
@@ -120,13 +116,11 @@ namespace Engine::RenderSystemState {
                             }
                         )
                     );
-                    scene_descriptor_bindings[1].setImmutableSamplers(immutable_samplers);
-                    vk::DescriptorSetLayoutCreateInfo dslci{
-                        vk::DescriptorSetLayoutCreateFlags{}, scene_descriptor_bindings
-                    };
-                    scene_descriptor_set_layout =
-                        system.GetIRCache().GetDescriptorSetLayout(dslci, "Scene Descriptor Set Layout");
+                    descriptor_bindings[1].setImmutableSamplers(immutable_samplers);
                 }
+                vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, descriptor_bindings};
+                scene_descriptor_set_layout = arena.ResolveLayout(dslci, "Scene Descriptor Set Layout");
+
                 // Create common pipeline layout
                 {
                     std::array pcr{RendererManager::GetPushConstantRange()};
@@ -137,19 +131,15 @@ namespace Engine::RenderSystemState {
                         system.GetIRCache().GetPipelineLayout(plci, "Scene Common Pipeline Layout");
                 }
 
-                std::vector<vk::DescriptorSetLayout> layouts(scene_descriptor_sets.size(), scene_descriptor_set_layout);
-                vk::DescriptorSetAllocateInfo dsai{pool, layouts};
-                auto ret = device.allocateDescriptorSets(dsai);
-                std::copy_n(ret.begin(), scene_descriptor_sets.size(), scene_descriptor_sets.begin());
-
-#ifndef NDEBUG
+                // The arena owns the pool; these sets live until it is destroyed.
+                // Their contents change per frame, in place, so the caller carries
+                // the obligation not to rewrite one while a command buffer that
+                // binds it may still be executing — which the per-in-flight fence
+                // FrameManager waits before resetting a slot's command buffer
+                // already establishes.
                 for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
-                    DEBUG_SET_NAME_TEMPLATE(
-                        device, scene_descriptor_sets[i], std::format("Desc Set - Scene FIF {}", i)
-                    );
+                    scene_descriptor_sets[i] = arena.AcquireRawSet(dslci, std::format("Desc Set - Scene FIF {}", i));
                 }
-#endif
-
                 // Allocate the back buffer for lights.
                 light_back_buffer = Rhi::IndexedBuffer::CreateUnique(
                     allocator,
@@ -246,17 +236,7 @@ namespace Engine::RenderSystemState {
 
         void Create(RenderSystem &system) {
             device = system.GetDevice();
-
-            // Create dedicated descriptor pool
-            vk::DescriptorPoolCreateInfo dpci{
-                vk::DescriptorPoolCreateFlagBits{},
-                (uint32_t)scene.scene_descriptor_sets.size(),
-                impl::SCENE_DESCRIPTOR_POOL_SIZE
-            };
-            scene_descriptor_pool = device.createDescriptorPoolUnique(dpci);
-            DEBUG_SET_NAME_TEMPLATE(device, scene_descriptor_pool.get(), "Scene Descriptor Pool");
-
-            scene.Create(system, scene_descriptor_pool.get());
+            scene.Create(system);
         }
     };
     SceneDataManager::SceneDataManager(RenderSystem &system) noexcept :
@@ -451,13 +431,16 @@ namespace Engine::RenderSystemState {
 
         auto tpl = material->GetLibrary().FindMaterialTemplate("SKYBOX", {{0}, cb.GetRenderingInfo()});
         if (!tpl) return;
-        material->UpdateGPUInfo(*tpl, frame_in_flight);
+        auto material_binding = material->UpdateGPUInfo(*tpl, frame_in_flight);
 
         auto rcb = cb.GetCommandBuffer();
         rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
-        const auto &sky_box_descriptor_set = material->GetDescriptor(*tpl, frame_in_flight);
         rcb.bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics, tpl->GetPipelineLayout(), 2, {sky_box_descriptor_set}, {}
+            vk::PipelineBindPoint::eGraphics,
+            tpl->GetPipelineLayout(),
+            2,
+            {material_binding.set},
+            material_binding.dynamic_offsets
         );
         // camera PV matrix is pushed directly.
         rcb.pushConstants(

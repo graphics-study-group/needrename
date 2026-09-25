@@ -271,11 +271,16 @@ namespace Engine {
 
         if (!tpl.HasMaterialData()) return;
 
-        auto dynamic_offsets = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
-        auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
-        if (material_descriptor_set) {
+        // Refresh the set on every bind, so the epoch the arena records for it
+        // stays an upper bound on the epochs whose command buffers use it.
+        auto material_binding = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
+        if (material_binding.set) {
             cb.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics, pipeline_layout, 2, {material_descriptor_set}, dynamic_offsets
+                vk::PipelineBindPoint::eGraphics,
+                pipeline_layout,
+                2,
+                {material_binding.set},
+                material_binding.dynamic_offsets
             );
         }
     }
@@ -385,13 +390,14 @@ namespace Engine {
     void CommandBuffer::BindComputeResource(Rhi::ComputeResourceBinding &binding) {
         assert(m_bound_compute_stage.has_value() && "Compute pipeline is not bound.");
 
-        auto offsets = binding.UpdateGPUInfo(m_inflight_frame_index);
+        // Re-acquire on every dispatch: a set handle is never held across epochs.
+        auto result = binding.UpdateGPUInfo(m_inflight_frame_index);
         this->cb.bindDescriptorSets(
             vk::PipelineBindPoint::eCompute,
             m_bound_compute_stage.value().get().GetPipelineLayout(),
             0,
-            {binding.GetDescriptorSet(m_inflight_frame_index)},
-            offsets
+            {result.set},
+            result.dynamic_offsets
         );
     }
 

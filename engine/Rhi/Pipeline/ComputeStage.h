@@ -21,8 +21,9 @@ namespace Engine::Rhi {
     /**
      * @brief Compute pipeline used for compute kernel dispatches.
      *
-     * It maintains a pipeline layout, a descriptor set layout, a pipeline
-     * and a decriptor pool.
+     * It maintains a pipeline layout, a descriptor set layout and a pipeline.
+     * It owns no descriptor pool: descriptor sets used with the stage come from
+     * the device descriptor arena.
      *
      * Its descriptor set layout is reflected from the compute shader, and
      * follows the same restrictions specified in the @ref material_descriptor
@@ -72,8 +73,6 @@ namespace Engine::Rhi {
         vk::PipelineLayout GetPipelineLayout() const noexcept;
         /// @brief Get the descriptor set layout
         vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
-        /// @brief Get the descriptor pool
-        vk::DescriptorPool GetDescriptorPool() const noexcept;
     };
 } // namespace Engine::Rhi
 

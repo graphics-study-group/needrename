@@ -5,6 +5,7 @@
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Pipeline/ComputeResourceBinding.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
+#include "Rhi/Resource/ImmutableResourceCache.h"
 #include <bitset>
 #include <string>
 #include <unordered_map>
@@ -16,60 +17,37 @@
 namespace Engine::Rhi {
 
     struct ComputeStage::impl {
-
-        static constexpr size_t MAX_COMPUTE_DESCRIPTORS_PER_POOL = 128;
-        static constexpr std::array DEFAULT_COMPUTE_DESCRIPTOR_POOL_SIZE{
-            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBufferDynamic, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBufferDynamic, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, 128}
-        };
-
         PassInfo m_passInfo{};
-        // This will create a lot of allocations of descriptor pool.
-        // We might need to optimize it a little.
-        vk::UniqueDescriptorPool desc_pool{};
 
         std::vector<std::unique_ptr<ComputeResourceBinding>> allocated_bindings;
 
         Rhi::SPLayout layout{};
 
         void CreatePipeline(
-            const DeviceInterface &device_interface,
-            const std::vector<uint32_t> &spirv_code,
-            const std::string_view name = ""
+            DeviceContext &device_context, const std::vector<uint32_t> &spirv_code, const std::string_view name = ""
         ) {
-            // Create descriptor and pipeline layout
+            const auto &device_interface = device_context.GetDeviceInterface();
+            vk::Device device = device_interface.GetDevice();
+
+            // Create descriptor and pipeline layout. The set layout comes from
+            // the immutable resource cache, so the layout the pipeline layout is
+            // built over and the layout a set is allocated against are the same
+            // object.
             layout = Rhi::SPLayout::Reflect(spirv_code, false);
             auto desc_bindings = layout.GenerateLayoutBindings(0, true, false);
             vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, desc_bindings};
-            m_passInfo.desc_layout = device_interface.GetDevice().createDescriptorSetLayoutUnique(dslci);
+            m_passInfo.desc_layout = device_context.GetIRCache().GetDescriptorSetLayout(
+                dslci, std::format("Descriptor Set Layout - Compute {}", name).c_str()
+            );
 
             std::vector<vk::PushConstantRange> pc_ranges;
             if (layout.push_constant_size > 0) {
                 pc_ranges.emplace_back(vk::ShaderStageFlagBits::eCompute, 0, layout.push_constant_size);
             }
-            vk::PipelineLayoutCreateInfo plci{
-                vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, pc_ranges
-            };
-            m_passInfo.pipeline_layout = device_interface.GetDevice().createPipelineLayoutUnique(plci);
+            vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout}, pc_ranges};
+            m_passInfo.pipeline_layout = device.createPipelineLayoutUnique(plci);
             DEBUG_SET_NAME_TEMPLATE(
-                device_interface.GetDevice(),
-                m_passInfo.pipeline_layout.get(),
-                std::format("Pipeline Layout for Compute {}", name)
-            );
-
-            // Create descriptor pool
-            vk::DescriptorPoolCreateInfo dpci{
-                vk::DescriptorPoolCreateFlags{}, MAX_COMPUTE_DESCRIPTORS_PER_POOL, DEFAULT_COMPUTE_DESCRIPTOR_POOL_SIZE
-            };
-            desc_pool = device_interface.GetDevice().createDescriptorPoolUnique(dpci);
-            DEBUG_SET_NAME_TEMPLATE(
-                device_interface.GetDevice(),
-                desc_pool.get(),
-                std::format("Descriptor Pool for Compute Pipeline {}", name)
+                device, m_passInfo.pipeline_layout.get(), std::format("Pipeline Layout for Compute {}", name)
             );
 
             // Create shader module
@@ -78,22 +56,18 @@ namespace Engine::Rhi {
                 spirv_code.size() * sizeof(uint32_t),
                 reinterpret_cast<const uint32_t *>(spirv_code.data())
             };
-            m_passInfo.shader = device_interface.GetDevice().createShaderModuleUnique(smci);
+            m_passInfo.shader = device.createShaderModuleUnique(smci);
             DEBUG_SET_NAME_TEMPLATE(
-                device_interface.GetDevice(),
-                m_passInfo.shader.get(),
-                std::format("Shader Module for Compute Pipeline {}", name)
+                device, m_passInfo.shader.get(), std::format("Shader Module for Compute Pipeline {}", name)
             );
 
             vk::PipelineShaderStageCreateInfo pssci{
                 vk::PipelineShaderStageCreateFlags{}, vk::ShaderStageFlagBits::eCompute, m_passInfo.shader.get(), "main"
             };
             vk::ComputePipelineCreateInfo cpci{vk::PipelineCreateFlags{}, pssci, m_passInfo.pipeline_layout.get()};
-            auto ret = device_interface.GetDevice().createComputePipelineUnique(nullptr, cpci);
+            auto ret = device.createComputePipelineUnique(nullptr, cpci);
             m_passInfo.pipeline = std::move(ret.value);
-            DEBUG_SET_NAME_TEMPLATE(
-                device_interface.GetDevice(), m_passInfo.pipeline.get(), std::format("Compute Pipeline {}", name)
-            );
+            DEBUG_SET_NAME_TEMPLATE(device, m_passInfo.pipeline.get(), std::format("Compute Pipeline {}", name));
         }
     };
 
@@ -102,7 +76,7 @@ namespace Engine::Rhi {
     }
 
     void ComputeStage::Instantiate(const std::vector<uint32_t> &code, const std::string_view name) {
-        pimpl->CreatePipeline(m_device_context.GetDeviceInterface(), code, name);
+        pimpl->CreatePipeline(m_device_context, code, name);
     }
 
     ComputeStage::~ComputeStage() = default;
@@ -129,10 +103,7 @@ namespace Engine::Rhi {
         return pimpl->m_passInfo.pipeline_layout.get();
     }
     vk::DescriptorSetLayout ComputeStage::GetDescriptorSetLayout() const noexcept {
-        return pimpl->m_passInfo.desc_layout.get();
-    }
-    vk::DescriptorPool ComputeStage::GetDescriptorPool() const noexcept {
-        return pimpl->desc_pool.get();
+        return pimpl->m_passInfo.desc_layout;
     }
 
 } // namespace Engine::Rhi

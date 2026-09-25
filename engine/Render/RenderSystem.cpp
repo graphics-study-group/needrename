@@ -174,12 +174,9 @@ namespace Engine {
     }
 
     void RenderSystem::WaitForIdle() const {
-        pimpl->m_device_context.GetDevice().waitIdle();
-        // All GPU work has finished, so every parked (already retired) buffer
-        // allocation can be released now. Live resources are untouched: a
-        // device-idle wait proves submitted work finished, not that a live
-        // resource has no owner.
-        pimpl->m_device_context.GetEpochTracker().ReleaseAllParked();
+        // One device-idle broadcast for both ledgers: the retirement facility's
+        // parked allocations and the descriptor arena's eligibility.
+        pimpl->m_device_context.WaitForIdle();
     }
 
     void RenderSystem::UpdateSwapchain() {

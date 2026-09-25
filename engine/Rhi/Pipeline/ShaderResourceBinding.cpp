@@ -1,20 +1,22 @@
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
 
 #include "Rhi/Buffer/DeviceBuffer.h"
-#include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Pipeline/ShaderInterface.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
-#include "Rhi/Resource/ImmutableResourceCache.h"
+#include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/Texture/Texture.h"
 
+#include <algorithm>
+#include <cassert>
 #include <map>
 #include <tuple>
 #include <variant>
+#include <vector>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
     struct ShaderResourceBinding::impl {
-        Rhi::ImmutableResourceCache *irc{nullptr};
+        Rhi::DescriptorArena *arena{nullptr};
 
         using InterfaceVariant = std::variant<
             std::monostate,
@@ -23,42 +25,12 @@ namespace Engine::Rhi {
             // Buffer, offset and size
             std::tuple<vk::Buffer, size_t, size_t>>;
 
-        // This map has to be ordered to ensure consistent hash.
+        // This map has to be ordered to ensure consistent content.
         std::map<std::string, InterfaceVariant> interfaces{};
-
-        void hash_current_interfaces(RenderResourceHasher &h) const noexcept {
-            struct HashVisitor {
-                RenderResourceHasher *h;
-
-                void operator()(std::monostate) {
-                }
-                void operator()(const std::tuple<vk::ImageView, vk::Sampler> &r) {
-                    h->handle(std::get<0>(r));
-                    h->handle(std::get<1>(r));
-                }
-                void operator()(const std::tuple<vk::Buffer, size_t, size_t> &r) {
-                    h->handle(std::get<0>(r));
-                    h->u64(std::get<1>(r));
-                    h->u64(std::get<2>(r));
-                }
-            };
-
-            for (const auto &[k, v] : interfaces) {
-                h.string(k);
-                std::visit(HashVisitor{&h}, v);
-            }
-        }
-
-        // XXX: beware of hash collision.
-        std::unordered_map<
-            size_t,
-            // XXX: use a LRU cache instead of unordered map here, to mitigate memory leak.
-            std::unordered_map<size_t, vk::DescriptorSet>>
-            descriptor_sets{};
     };
 
-    ShaderResourceBinding::ShaderResourceBinding(Rhi::ImmutableResourceCache &irc) : pimpl(std::make_unique<impl>()) {
-        pimpl->irc = &irc;
+    ShaderResourceBinding::ShaderResourceBinding(Rhi::DescriptorArena &arena) : pimpl(std::make_unique<impl>()) {
+        pimpl->arena = &arena;
     }
 
     ShaderResourceBinding::~ShaderResourceBinding() noexcept = default;
@@ -80,42 +52,20 @@ namespace Engine::Rhi {
     }
 
     vk::DescriptorSet ShaderResourceBinding::GetDescriptorSet(
-        uint32_t set_id,
-        const Rhi::SPLayout &s,
-        vk::Device d,
-        vk::DescriptorPool pool,
-        bool enforce_dynamic_uniform,
-        bool enforce_dynamic_storage
+        uint32_t set_id, const Rhi::SPLayout &s, bool enforce_dynamic_uniform, bool enforce_dynamic_storage
     ) {
-        // First calculate a hash from currently bound resources.
-        RenderResourceHasher h;
-        h.pointer(&s);
-        // Set id won't be too large, so this might be safe.
-        h.u32((enforce_dynamic_uniform << 31u) | (enforce_dynamic_storage << 30u) | set_id);
-        auto layout_hash = h.get();
-
-        RenderResourceHasher ch;
-        pimpl->hash_current_interfaces(ch);
-        auto content_hash = ch.get();
-
-        // Return a cache hit
-        if (pimpl->descriptor_sets[layout_hash].contains(content_hash)) {
-            return pimpl->descriptor_sets[layout_hash][content_hash];
-        }
-
-        // Get the descriptor set layout for the descriptor set
+        // Map the bound names onto the reflected layout: the arena can only key
+        // on content it produced, so resolving is this class's job.
         auto dslb = s.GenerateLayoutBindings(set_id, enforce_dynamic_uniform, enforce_dynamic_storage);
 
-        // Produce descriptor writes
-        std::vector<vk::DescriptorImageInfo> image_infos;
-        std::vector<vk::DescriptorBufferInfo> buffer_infos;
-        std::vector<vk::WriteDescriptorSet> writes;
+        std::vector<Rhi::ResolvedBinding> content;
+        content.reserve(dslb.size());
+
         for (const auto &pinterface : s.interfaces) {
             if (pinterface->layout_set != set_id) continue;
 
-            auto &intfc = pimpl->interfaces;
-            auto itr = intfc.find(pinterface->name);
-            if (itr == intfc.end()) {
+            auto itr = pimpl->interfaces.find(pinterface->name);
+            if (itr == pimpl->interfaces.end()) {
                 continue;
             }
 
@@ -123,33 +73,26 @@ namespace Engine::Rhi {
                 auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
                 assert(pimg);
                 assert(popaque->array_size == 0);
-                image_infos.push_back(
-                    vk::DescriptorImageInfo{std::get<1>(*pimg), std::get<0>(*pimg), vk::ImageLayout::eReadOnlyOptimal}
-                );
-                writes.push_back(
-                    vk::WriteDescriptorSet{
-                        nullptr,
-                        popaque->layout_binding,
-                        0u, // 0th element
-                        1u, // 1 descriptor
-                        vk::DescriptorType::eCombinedImageSampler
+                content.emplace_back(
+                    Rhi::ResolvedBinding{
+                        .binding = popaque->layout_binding,
+                        .type = vk::DescriptorType::eCombinedImageSampler,
+                        .image_view = std::get<0>(*pimg),
+                        .sampler = std::get<1>(*pimg),
+                        .image_layout = vk::ImageLayout::eReadOnlyOptimal
                     }
                 );
             } else if (auto pstorage = dynamic_cast<const Rhi::SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
                 auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
                 assert(pimg);
                 assert(pstorage->array_size == 0);
-
-                image_infos.push_back(
-                    vk::DescriptorImageInfo{std::get<1>(*pimg), std::get<0>(*pimg), vk::ImageLayout::eGeneral}
-                );
-                writes.push_back(
-                    vk::WriteDescriptorSet{
-                        nullptr,
-                        pstorage->layout_binding,
-                        0u, // 0th element
-                        1u, // 1 descriptor
-                        vk::DescriptorType::eStorageImage
+                content.emplace_back(
+                    Rhi::ResolvedBinding{
+                        .binding = pstorage->layout_binding,
+                        .type = vk::DescriptorType::eStorageImage,
+                        .image_view = std::get<0>(*pimg),
+                        .sampler = std::get<1>(*pimg),
+                        .image_layout = vk::ImageLayout::eGeneral
                     }
                 );
             }
@@ -158,66 +101,33 @@ namespace Engine::Rhi {
                 auto pbuf = std::get_if<std::tuple<vk::Buffer, size_t, size_t>>(&itr->second);
                 assert(pbuf);
 
-                // Determine whether it is storage buffer or uniform buffer and static or dynamic
-                auto itr =
-                    std::find_if(dslb.begin(), dslb.end(), [&pbuffer](const vk::DescriptorSetLayoutBinding &p) -> bool {
+                // Static or dynamic, uniform or storage, comes from the layout.
+                auto binding_itr =
+                    std::find_if(dslb.begin(), dslb.end(), [pbuffer](const vk::DescriptorSetLayoutBinding &p) -> bool {
                         return p.binding == pbuffer->layout_binding;
                     });
-                assert(itr != dslb.end());
-                auto desctp = itr->descriptorType;
+                assert(binding_itr != dslb.end());
                 auto [buffer, offset, range] = *pbuf;
 
-                // TODO: Test for buffer type (storage vs uniform)
-
-                buffer_infos.push_back(vk::DescriptorBufferInfo{buffer, offset, range});
-                writes.push_back(
-                    vk::WriteDescriptorSet{
-                        nullptr,
-                        pbuffer->layout_binding,
-                        0u, // 0th element
-                        1u, // 1 descriptor
-                        desctp
+                content.emplace_back(
+                    Rhi::ResolvedBinding{
+                        .binding = pbuffer->layout_binding,
+                        .type = binding_itr->descriptorType,
+                        .buffer = buffer,
+                        .offset = offset,
+                        .range = range
                     }
                 );
             }
         }
 
-        auto dsl = pimpl->irc->GetDescriptorSetLayout(
-            vk::DescriptorSetLayoutCreateInfo{vk::DescriptorSetLayoutCreateFlags{}, dslb}
+        return pimpl->arena->Acquire(
+            vk::DescriptorSetLayoutCreateInfo{vk::DescriptorSetLayoutCreateFlags{}, dslb},
+            set_id,
+            enforce_dynamic_uniform,
+            enforce_dynamic_storage,
+            content
         );
-        // Allocate descriptor set
-        assert(pool);
-        vk::DescriptorSetAllocateInfo dsai{pool, {dsl}};
-        auto descriptor = d.allocateDescriptorSets(dsai)[0];
-        pimpl->descriptor_sets[layout_hash][content_hash] = descriptor;
-
-        size_t image_write_count{0}, buffer_write_count{0};
-        for (auto &w : writes) {
-            w.dstSet = descriptor;
-            switch (w.descriptorType) {
-                using enum vk::DescriptorType;
-            /* case eSampler:
-                case eSampledImage: */
-            case eCombinedImageSampler:
-            case eStorageImage:
-                w.setPImageInfo(&image_infos[image_write_count++]);
-                break;
-            case eUniformBuffer:
-            case eStorageBuffer:
-            case eUniformBufferDynamic:
-            case eStorageBufferDynamic:
-                w.setPBufferInfo(&buffer_infos[buffer_write_count++]);
-                break;
-            /* case eUniformTexelBuffer:
-                case eStorageTexelBuffer:
-                    w.setPTexelBufferView(nullptr);
-                    break; */
-            default:;
-            }
-        }
-
-        d.updateDescriptorSets(writes, {});
-        return descriptor;
     }
 
 } // namespace Engine::Rhi

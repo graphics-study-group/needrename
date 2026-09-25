@@ -6,11 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/rhi_export.h"
-
-namespace vk {
-    class DescriptorSet;
-}
 
 namespace Engine::Rhi {
     class ComputeStage;
@@ -65,19 +62,11 @@ namespace Engine::Rhi {
          * lockstep with its own submission cadence. Must be less than
          * `slot_count`.
          *
-         * @return offsets for dynamically offseted uniform buffers.
+         * @return The slot's descriptor set, acquired from the device
+         * descriptor arena, together with the dynamic offsets needed to bind
+         * it. Re-acquire in every epoch whose command buffers use the set.
          */
-        std::vector<uint32_t> UpdateGPUInfo(uint32_t slot) const noexcept;
-
-        /**
-         * @brief Get the descriptor set of this compute resource binding.
-         *
-         * Must be called after `UpdateGPUInfo`, or an invaild/outdated
-         * descriptor set might be returned.
-         *
-         * @param slot Rotation slot index, must be less than `slot_count`.
-         */
-        vk::DescriptorSet GetDescriptorSet(uint32_t slot) const noexcept;
+        DescriptorSetBinding UpdateGPUInfo(uint32_t slot);
     };
 } // namespace Engine::Rhi
 

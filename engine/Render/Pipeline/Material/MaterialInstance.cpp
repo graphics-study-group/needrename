@@ -8,6 +8,7 @@
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/Resource/MaterialLibraryManager.h"
 #include "Rhi/Buffer/StructuredBufferPlacer.h"
+#include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Pipeline/PipelineInfo.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
@@ -35,8 +36,6 @@ namespace Engine {
 
             std::unordered_map<uint32_t, std::string> ubo_name_lut{};
             std::unordered_map<uint32_t, std::unique_ptr<Rhi::IndexedBuffer>> ubos{};
-
-            std::array<vk::DescriptorSet, BACK_BUFFERS> desc_set_cache{};
 
             std::bitset<8> _is_ubo_dirty{};
         };
@@ -104,7 +103,7 @@ namespace Engine {
 
     MaterialInstance::MaterialInstance(RenderSystem &system, RenderSystemState::MaterialLibraryHandle library) :
         m_system(system), m_library(library), pimpl(std::make_unique<impl>()) {
-        pimpl->p_srb = std::make_unique<Rhi::ShaderResourceBinding>(m_system.GetIRCache());
+        pimpl->p_srb = std::make_unique<Rhi::ShaderResourceBinding>(m_system.GetDeviceContext().GetDescriptorArena());
         pimpl->p_buffer = std::make_unique<Rhi::StructuredBuffer>();
     }
 
@@ -166,10 +165,11 @@ namespace Engine {
         this->pimpl->p_srb->BindBuffer(name, *buffer);
     }
 
-    std::vector<uint32_t> MaterialInstance::UpdateGPUInfo(MaterialTemplate &tpl, uint32_t backbuffer) {
+    Rhi::DescriptorSetBinding MaterialInstance::UpdateGPUInfo(MaterialTemplate &tpl, uint32_t backbuffer) {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
 
-        if (!tpl.HasMaterialData()) return {};
+        Rhi::DescriptorSetBinding binding{};
+        if (!tpl.HasMaterialData()) return binding;
 
         auto itr = pimpl->m_pass_infos.find(&tpl);
         if (itr == pimpl->m_pass_infos.end()) {
@@ -183,16 +183,14 @@ namespace Engine {
         auto &pass_info = itr->second;
 
         // First prepare descriptor writes
-        std::vector<uint32_t> dynamic_offsets;
         for (const auto &[k, v] : pass_info.ubos) {
             pimpl->p_srb->BindBuffer(pass_info.ubo_name_lut[k], *v, 0, v->GetSliceSize());
             // FIXME: Dynamic offset order might not be correct.
-            dynamic_offsets.push_back(v->GetSliceOffset(backbuffer));
+            binding.dynamic_offsets.push_back(v->GetSliceOffset(backbuffer));
         }
 
-        pass_info.desc_set_cache[backbuffer] = pimpl->p_srb->GetDescriptorSet(
-            2, tpl.GetReflectedShaderInfo(), m_system.GetDevice(), tpl.GetDescriptorPool(), true, false
-        );
+        // Re-acquired on every bind: a handle is never held across epochs.
+        binding.set = pimpl->p_srb->GetDescriptorSet(2, tpl.GetReflectedShaderInfo(), true, false);
 
         // Then do UBO buffer writes
         if (pass_info._is_ubo_dirty[backbuffer]) {
@@ -212,10 +210,10 @@ namespace Engine {
             pass_info._is_ubo_dirty[backbuffer] = false;
         }
 
-        return dynamic_offsets;
+        return binding;
     }
 
-    std::vector<uint32_t> MaterialInstance::UpdateGPUInfo(
+    Rhi::DescriptorSetBinding MaterialInstance::UpdateGPUInfo(
         const std::string &tag, const PipelineRuntimeInfo &pri, uint32_t backbuffer
     ) {
         auto tpl = GetLibrary().FindMaterialTemplate(tag, pri);
@@ -223,21 +221,6 @@ namespace Engine {
         return this->UpdateGPUInfo(*tpl, backbuffer);
     }
 
-    vk::DescriptorSet MaterialInstance::GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept {
-        auto itr = pimpl->m_pass_infos.find(&tpl);
-        if (itr == pimpl->m_pass_infos.end()) return nullptr;
-        return itr->second.desc_set_cache[backbuffer];
-    }
-
-    vk::DescriptorSet MaterialInstance::GetDescriptor(
-        const std::string &tag, const PipelineRuntimeInfo &pri, uint32_t backbuffer
-    ) const noexcept {
-        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
-
-        auto tpl = GetLibrary().FindMaterialTemplate(tag, pri);
-        assert(tpl);
-        return this->GetDescriptor(*tpl, backbuffer);
-    }
     void MaterialInstance::Instantiate(MaterialAsset &asset) {
         for (const auto &prop : asset.m_properties) {
             auto p = prop.second;

@@ -1,8 +1,12 @@
 #include "CameraManager.h"
 
 #include "Render/Pipeline/Renderer/Camera.h"
+#include "Render/RenderSystem/RendererManager.h"
+#include "Render/RenderSystem/SceneDataManager.h"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Resource/DescriptorArena.h"
 #include <Rhi/Buffer/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <glm.hpp>
@@ -15,17 +19,11 @@ namespace Engine::RenderSystemState {
             glm::mat4 proj_matrix;
         };
 
-        static constexpr std::array<vk::DescriptorPoolSize, 1> CAMERA_DESCRIPTOR_POOL_SIZE{
-            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 16}
-        };
-
         static constexpr std::array<vk::DescriptorSetLayoutBinding, 1> CAMERA_DESCRIPTOR_BINDINGS{
             vk::DescriptorSetLayoutBinding{
                 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
             }
         };
-
-        vk::UniqueDescriptorPool camera_descriptor_pool{};
 
         // Camera descriptor set layout, currently containing only one UBO.
         vk::DescriptorSetLayout camera_descriptor_set_layout{};
@@ -53,21 +51,13 @@ namespace Engine::RenderSystemState {
     void CameraManager::Create() {
         const auto &allocator = m_system.GetAllocatorState();
         auto device = m_system.GetDevice();
+        auto &arena = m_system.GetDeviceContext().GetDescriptorArena();
 
-        vk::DescriptorPoolCreateInfo dpci{
-            vk::DescriptorPoolCreateFlagBits{}, (uint32_t)pimpl->descriptors.size(), impl::CAMERA_DESCRIPTOR_POOL_SIZE
+        const vk::DescriptorSetLayoutCreateInfo dslci{
+            vk::DescriptorSetLayoutCreateFlags{}, impl::CAMERA_DESCRIPTOR_BINDINGS
         };
-        pimpl->camera_descriptor_pool = device.createDescriptorPoolUnique(dpci);
-        DEBUG_SET_NAME_TEMPLATE(device, pimpl->camera_descriptor_pool.get(), "Camera Descriptor Pool");
+        pimpl->camera_descriptor_set_layout = arena.ResolveLayout(dslci, "Camera Descriptor Set Layout");
 
-        // Create decriptor set layout
-        {
-            vk::DescriptorSetLayoutCreateInfo dslci{
-                vk::DescriptorSetLayoutCreateFlags{}, pimpl->CAMERA_DESCRIPTOR_BINDINGS
-            };
-            pimpl->camera_descriptor_set_layout =
-                m_system.GetIRCache().GetDescriptorSetLayout(dslci, "Camera Descriptor Set Layout");
-        }
         // Create common pipeline layout
         {
             assert(m_system.GetSceneDataManager().GetLightDescriptorSetLayout());
@@ -82,17 +72,12 @@ namespace Engine::RenderSystemState {
                 m_system.GetIRCache().GetPipelineLayout(plci, "Camera Common Pipeline Layout");
         }
 
-        // Allocate descriptors
-        std::vector<vk::DescriptorSetLayout> layouts(pimpl->descriptors.size(), pimpl->camera_descriptor_set_layout);
-        vk::DescriptorSetAllocateInfo dsai{pimpl->camera_descriptor_pool.get(), layouts};
-        auto ret = device.allocateDescriptorSets(dsai);
-        std::copy_n(ret.begin(), pimpl->descriptors.size(), pimpl->descriptors.begin());
-
-#ifndef NDEBUG
+        // The arena owns the pool. These sets live until it is destroyed, and the
+        // caller must not rewrite one while a command buffer that binds it may
+        // still be executing.
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
-            DEBUG_SET_NAME_TEMPLATE(device, pimpl->descriptors[i], std::format("Desc Set - Camera FIF {}", i));
+            pimpl->descriptors[i] = arena.AcquireRawSet(dslci, std::format("Desc Set - Camera FIF {}", i));
         }
-#endif
 
         // Allocate the back buffer.
         static_assert(sizeof(impl::CameraData) * MAX_CAMERAS == sizeof(impl::front_buffer));

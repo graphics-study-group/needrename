@@ -107,6 +107,11 @@ namespace Engine {
         if (pimpl->vkr.descriptor_pool) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Recreating Vulkan backend for GUI subsystem.");
         } else {
+            // The one descriptor pool the engine still creates outside the
+            // descriptor arena. It is not a pool for engine bindings: the GUI
+            // library allocates and frees those sets itself, the engine never
+            // acquires one of them from the arena, and the arena cannot key or
+            // reclaim them.
             vk::DescriptorPoolCreateInfo dpci{
                 vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1000, pimpl->vkr.DESCRIPTOR_POOL_SIZES
             };

@@ -1,6 +1,7 @@
 #include "Rhi/Device/DeviceContext.h"
 
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
 #include "Rhi/Submission/EpochTracker.h"
 
@@ -15,6 +16,8 @@ namespace Engine::Rhi {
         m_immutable_resource_cache = std::make_unique<ImmutableResourceCache>(m_device_interface->GetDevice());
         m_allocator_state = std::make_unique<AllocatorState>(*m_device_interface);
         m_epoch_tracker = std::make_unique<EpochTracker>(m_device_interface->GetDevice());
+        // The arena reads the tracker, so the tracker must exist first.
+        m_descriptor_arena = std::make_unique<DescriptorArena>(*this);
         // Install the tracker as the allocator's retire sink: from here on every
         // buffer allocated through this context is retire-safe by construction.
         m_allocator_state->SetRetireSink(m_epoch_tracker.get());
@@ -46,6 +49,14 @@ namespace Engine::Rhi {
         return *m_immutable_resource_cache;
     }
 
+    DescriptorArena &DeviceContext::GetDescriptorArena() noexcept {
+        return *m_descriptor_arena;
+    }
+
+    const DescriptorArena &DeviceContext::GetDescriptorArena() const noexcept {
+        return *m_descriptor_arena;
+    }
+
     EpochTracker &DeviceContext::GetEpochTracker() noexcept {
         return *m_epoch_tracker;
     }
@@ -56,5 +67,14 @@ namespace Engine::Rhi {
 
     vk::Device DeviceContext::GetDevice() const noexcept {
         return m_device_interface->GetDevice();
+    }
+
+    void DeviceContext::WaitForIdle() {
+        m_device_interface->GetDevice().waitIdle();
+        // What was already parked can go: a device-idle wait proves that every
+        // submission finished, not that a live resource has no owner.
+        m_epoch_tracker->ReleaseAllParked();
+        // What the arena adds: entries become eligible, but nothing is released.
+        m_descriptor_arena->OnDeviceIdle();
     }
 } // namespace Engine::Rhi

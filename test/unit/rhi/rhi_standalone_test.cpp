@@ -1,8 +1,10 @@
 #include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryTypes.h"
 #include "Rhi/Device/Structs.h"
+#include "Rhi/Resource/DescriptorArena.h"
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <iostream>
@@ -34,24 +36,17 @@ int main() {
     SDL_Init(SDL_INIT_VIDEO);
 
     // Standalone headless facilities: no SDLWindow, no RenderSystem, no surface.
-    Rhi::DeviceInterface::DeviceConfiguration cfg{
+    Rhi::DeviceContext context{Rhi::DeviceInterface::DeviceConfiguration{
         .window = nullptr,
         .application_name = "Rhi Standalone Test",
         .application_version = 0,
         .dynamic_dispatcher = nullptr,
-    };
-    Rhi::DeviceInterface gpu_device{cfg};
-    Rhi::AllocatorState allocator{gpu_device};
-    const auto device = gpu_device.GetDevice();
-    const auto &queues = gpu_device.GetQueueInfo();
+    }};
+    auto &allocator = context.GetAllocatorState();
+    const auto device = context.GetDevice();
+    const auto &queues = context.GetDeviceInterface().GetQueueInfo();
     assert(device && "Rhi must create a Vulkan device headlessly.");
     assert(queues.graphicsQueue && "Headless device must expose a graphics queue.");
-
-    // Initialize this module's copy of the dynamic dispatch loader (instance
-    // first, then device — init(device) alone crashes with a null
-    // vkGetDeviceProcAddr DEP violation). Same pattern as RenderSystem::Create.
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(gpu_device.GetInstance(), ::vkGetInstanceProcAddr);
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
 
     // ── Compile the compute shader (ShaderCompiler has no Render dependency) ──
     ShaderCompiler compiler;
@@ -60,19 +55,19 @@ int main() {
     auto shader_module = device.createShaderModuleUnique(vk::ShaderModuleCreateInfo{{}, spirv});
 
     // ── Minimal compute pipeline (raw Vulkan, no Render helpers) ──
+    // The descriptor set comes from the device descriptor arena's pool layer,
+    // with no render system involved; this test writes the descriptors itself.
     vk::DescriptorSetLayoutBinding dslb{0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute};
-    auto descriptor_set_layout = device.createDescriptorSetLayoutUnique({{}, {dslb}});
-    auto pipeline_layout = device.createPipelineLayoutUnique({{}, {descriptor_set_layout.get()}});
+    const vk::DescriptorSetLayoutCreateInfo dslci{{}, {dslb}};
+    auto &arena = context.GetDescriptorArena();
+    auto descriptor_set_layout = arena.ResolveLayout(dslci, "Standalone Descriptor Set Layout");
+    auto pipeline_layout = device.createPipelineLayoutUnique({{}, {descriptor_set_layout}});
 
     vk::PipelineShaderStageCreateInfo stage{{}, vk::ShaderStageFlagBits::eCompute, shader_module.get(), "main"};
     vk::ComputePipelineCreateInfo pipeline_info{{}, stage, pipeline_layout.get()};
     auto pipeline = device.createComputePipelineUnique(nullptr, pipeline_info);
 
-    vk::DescriptorPoolSize pool_size{vk::DescriptorType::eStorageBuffer, 1};
-    auto descriptor_pool = device.createDescriptorPoolUnique(vk::DescriptorPoolCreateInfo{{}, 1, {pool_size}});
-    auto descriptor_set = device.allocateDescriptorSetsUnique(
-        vk::DescriptorSetAllocateInfo{descriptor_pool.get(), 1, &descriptor_set_layout.get()}
-    );
+    auto descriptor_set = arena.AcquireRawSet(dslci, "Standalone Descriptor Set");
 
     // ── Allocate the output buffer via Rhi::AllocatorState (standalone) ──
     // ReadbackFromDevice = CopyTo | HostRandomAccess: shader-writable,
@@ -84,7 +79,7 @@ int main() {
 
     vk::DescriptorBufferInfo descriptor_buffer_info{buffer.GetBuffer(), 0, buffer_size};
     vk::WriteDescriptorSet write_descriptor{
-        descriptor_set[0].get(), 0, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &descriptor_buffer_info
+        descriptor_set, 0, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &descriptor_buffer_info
     };
     device.updateDescriptorSets({write_descriptor}, {});
 
@@ -94,7 +89,7 @@ int main() {
     )[0];
     cb.begin(vk::CommandBufferBeginInfo{});
     cb.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.value.get());
-    cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline_layout.get(), 0, {descriptor_set[0].get()}, {});
+    cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline_layout.get(), 0, {descriptor_set}, {});
     cb.dispatch(ELEMENT_COUNT / 32, 1, 1);
     cb.end();
 

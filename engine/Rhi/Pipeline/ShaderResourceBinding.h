@@ -12,6 +12,7 @@
 
 namespace Engine::Rhi {
 
+    class DescriptorArena;
     class DeviceBuffer;
     class DeviceInterface;
     class ImmutableResourceCache;
@@ -21,16 +22,16 @@ namespace Engine::Rhi {
     /**
      * @brief A class that offers aggregated binding for shader resouces.
      *
-     * Includes:
-     * - hash map mapping names to textures or buffers;
-     * - descriptor set, cached to avoid additional writes.
+     * Includes a hash map mapping names to textures or buffers, and maps those
+     * names onto the reflected shader layout.
      *
      * As indicated by the interface, this class holds no ownership of
      * resources.
      *
-     * As per Vulkan best practice, descriptor sets are not de-allocated. So
-     * changes to descriptor sets (i.e. resetting texture or buffer references)
-     * can lead to memory leak if too frequent.
+     * The descriptor set itself is neither cached nor written here: the arena
+     * keys, writes and keeps sets resident, and reclaims them once the
+     * completed prefix has passed the epoch recorded for them. A caller must
+     * therefore re-acquire a set in every epoch whose command buffers use it.
      *
      * Using this class with `StructuredBuffer` together is recommended.
      * The other class handles trivial uniform buffer variables (e.g. floats,
@@ -41,7 +42,8 @@ namespace Engine::Rhi {
         std::unique_ptr<impl> pimpl;
 
     public:
-        ShaderResourceBinding(Rhi::ImmutableResourceCache &irc);
+        /// @param arena The device-scoped arena that owns the descriptor sets.
+        explicit ShaderResourceBinding(Rhi::DescriptorArena &arena);
         ~ShaderResourceBinding() noexcept;
 
         /**
@@ -73,17 +75,18 @@ namespace Engine::Rhi {
         void BindTexture(const std::string &name, Texture &texture, TextureSubresourceRange range) noexcept;
 
         /**
-         * @brief Get the current descriptor set, determined by bound buffers
-         * and textures, together with the layout.
+         * @brief Get the descriptor set of a set index, determined by the bound
+         * buffers and textures.
          *
-         * If no appropriate descriptor set is found, a new one will be
-         * allocated from the pool supplied.
+         * The set is resolved and written by the arena on a miss, and reused
+         * otherwise. Re-acquire it in every epoch whose command buffers use it.
+         *
+         * @param set_id The descriptor set index within the reflected layout.
+         * @param s The reflected layout the set is built against.
          */
         vk::DescriptorSet GetDescriptorSet(
             uint32_t set_id,
             const Rhi::SPLayout &s,
-            vk::Device d,
-            vk::DescriptorPool pool,
             bool enforce_dynamic_uniform = false,
             bool enforce_dynamic_storage = false
         );
