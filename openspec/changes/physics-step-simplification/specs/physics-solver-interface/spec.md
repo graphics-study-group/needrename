@@ -14,6 +14,8 @@ The engine SHALL provide an abstract `ISolver` class in `engine/Physics/Solver/I
 
 A solver SHALL NOT require a lifecycle phase outside command-buffer recording. Resource initialization, buffer sizing and per-dispatch constant preparation SHALL occur within `GPUStep`, including on the first call, because resources allocated or resized while a command buffer is being recorded are retired safely by the device. `GPUCalcModelMatrices` is likewise recorded on the caller's command buffer, and running a step SHALL NOT itself produce model matrices.
 
+The caller SHALL ensure that the `GPUCalcModelMatrices` target is large enough for the scene's rigid body slot count before the call. An implementation SHALL NOT write beyond the target's capacity; it SHALL clamp its dispatch to it and SHALL assert in debug builds when the requested element count exceeds the capacity.
+
 `ISolver` SHALL forward-declare `PhysicsScene` (`class PhysicsScene;`) and `Rhi::ComputeBuffer` (`class ComputeBuffer;`) without including their headers. `RenderSystem&` and `PhysicsScene&` SHALL NOT appear in method parameters — solvers access these through their stored references (constructor or `m_bound_scene`).
 
 `vk::CommandBuffer` SHALL be forward-declared via `namespace vk { struct CommandBuffer; }`.
@@ -42,6 +44,30 @@ The solver SHALL NOT expose its internal recording structure — callers only in
 - **WHEN** a solver is registered and the frame loop calls `GPUStep(cb)` without any earlier per-frame call on the solver
 - **THEN** the solver still records a complete step
 - **AND** the interface exposes no method that must run before `GPUStep`
+
+#### Scenario: Model matrices are produced without a step
+
+- **WHEN** `GPUCalcModelMatrices(cb, target)` is called on a scene whose poses are already uploaded, and no `GPUStep` is called for that frame
+- **THEN** the solver records a pass that writes model matrices derived from the current poses into `target`
+- **AND** no physics integration is performed
+
+#### Scenario: Model matrices are not produced by a step
+
+- **WHEN** `GPUStep(cb)` is called and `GPUCalcModelMatrices` is not
+- **THEN** the solver does not write any model matrices
+- **AND** the target buffer's contents are unchanged
+
+#### Scenario: The model matrix entry point is pure virtual
+
+- **WHEN** a concrete solver class is declared
+- **THEN** it provides `GPUCalcModelMatrices`, because `ISolver` declares that entry point pure virtual
+- **AND** a solver that produces no model matrices still provides the implementation itself — a no-op is that solver's choice, not a default the interface supplies
+
+#### Scenario: An undersized target is clamped
+
+- **WHEN** `GPUCalcModelMatrices` is called with a target whose capacity is smaller than the scene's rigid body slot count
+- **THEN** no write occurs beyond the target's capacity
+- **AND** the condition is reported in debug builds
 
 ### Requirement: PhysicsSystem supports per-scene solver registration
 
@@ -121,6 +147,12 @@ The `XpbdGpuSolver` class SHALL inherit `ISolver` and implement the GPU step lif
 - **WHEN** the bound scene's body, shape or joint count differs from the previous `GPUStep`
 - **THEN** the solver sizes the affected buffers during that `GPUStep`
 - **AND** no caller-visible preparation call is needed between the two steps
+
+#### Scenario: Model matrix pass reads only solver inputs and writes only the target
+
+- **WHEN** `GPUCalcModelMatrices(cb, target)` records its pass
+- **THEN** it binds the scene's rigid body pose buffers as inputs and `target` as its only output
+- **AND** it records a barrier before its dispatch
 
 ## RENAMED Requirements
 

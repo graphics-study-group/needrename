@@ -4,7 +4,9 @@
 
 ### Requirement: Physics pipeline in RunOneFrame
 
-`MainClass::RunOneFrame` SHALL execute the physics step through a single call to `PhysicsSystem::GPUStep(cb)` recorded into the frame's main command buffer. It SHALL NOT call any physics preparation or post-processing phase outside command-buffer recording. Physics compute and render graph passes SHALL share the same command buffer.
+`MainClass::RunOneFrame` SHALL execute the physics step through a single call to `PhysicsSystem::GPUStep(cb)` recorded into the frame's main command buffer. It SHALL NOT call any physics preparation or post-processing phase outside command-buffer recording. Physics compute, model matrix production and render graph passes SHALL share the same command buffer.
+
+Model matrices SHALL be produced after the physics step and before the render graph's passes are recorded, in every rendered frame, independent of play, pause and simulation state, by the caller invoking `PhysicsSystem::GPUCalcModelMatrices` with the render system's buffer. The producing call SHALL be skipped only when the main scene has no physics scene.
 
 #### Scenario: Physics step is a single recorded call
 
@@ -24,6 +26,24 @@
 - **WHEN** `RunOneFrame` records a frame with a registered solver
 - **THEN** physics compute passes and render graph passes are recorded on the same command buffer
 - **AND** no physics compute is recorded on a separate command buffer
+
+#### Scenario: Model matrices are produced before render passes
+
+- **WHEN** `RunOneFrame` records a frame and the main scene has a physics scene
+- **THEN** the physics side is asked to write model matrices into the render system's buffer after the physics step
+- **AND** the render graph's passes are recorded afterwards, on the same command buffer
+
+#### Scenario: A frame with no physics scene records no production
+
+- **WHEN** `RunOneFrame` records a frame and the main scene has no physics scene (or physics disabled)
+- **THEN** no model matrix production is recorded
+- **AND** rendering proceeds against the render-owned buffer's initial contents
+
+#### Scenario: Model matrices are produced while simulation is disabled
+
+- **WHEN** the physics scene's simulation is disabled for the frame
+- **THEN** model matrices are still produced from the current poses
+- **AND** the render graph's passes observe up-to-date matrices
 
 ### Requirement: Physics GPUStep records into raw command buffer
 

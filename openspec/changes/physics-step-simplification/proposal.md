@@ -12,7 +12,7 @@ The same workaround has three other costs that survive today:
 
 ## What Changes
 
-- **Delete `PreGPUStep` / `PostGPUStep`.** `ISolver` collapses to `OnBindToScene` / `GPUStep(vk::CommandBuffer)` / `IsInitialized`, and `PhysicsSystem` drops both forwarding loops. `PostGPUStep` has **no override anywhere in the engine**, so deleting it costs nothing; `XpbdGpuSolver::PreGPUStep`'s four jobs each move to the record site:
+- **Delete `PreGPUStep` / `PostGPUStep`.** `ISolver` collapses to `OnBindToScene` / `GPUStep(vk::CommandBuffer)` / `GPUCalcModelMatrices` / `IsInitialized`, and `PhysicsSystem` drops both forwarding loops. `PostGPUStep` has **no override anywhere in the engine**, so deleting it costs nothing; `XpbdGpuSolver::PreGPUStep`'s four jobs each move to the record site:
   1. lazy shader loading and stage/binding creation → on first use at record time;
   2. buffer sizing → at the point where the size is known;
   3. push-constant values → already computed at record time;
@@ -22,6 +22,7 @@ The same workaround has three other costs that survive today:
 - **CPU-known counts become push constants.** The hinge and fixed entry counts move into the push-constant block; only the contact group's count stays a bound buffer, because that one is produced by an earlier GPU pass. Net: three host-visible count buffers become one, and `SetConstantU32` disappears. The counted clear gains a push-constant variant (the repo's existing `copy_uint.comp` / `copy_uint_push.comp` split is the precedent), and `SumByKey` accepts its count either as a value or as a bound buffer.
 - **Detector configuration folds into recording.** `ConvexCollisionDetector::Configure` and `SpatialHashBroadDetector::Configure` become internal preparation performed on the record path when the geometry they depend on changes, so a caller no longer orchestrates a configure step before `Record`.
 - **Unused host-visible count buffers become device-local.** `gpu_total_assignments`, `gpu_global_count`, `gpu_pair_count` and `gpu_unique_count` are created host-visible but are never read or written by the CPU, while all four are bound in hot kernels.
+- **`SumByKey`'s record regions are laid out at the device's descriptor offset alignment.** The region partition it derives per call (`SumByKey.cpp:166-178`) is only 4-byte aligned, so the `RecValues` binding lands on a non-multiple of `minStorageBufferOffsetAlignment` for ordinary geometries — `capacity` between 15361 and 15616, or the `capacity = 70000` / 3-channel case the headless test already runs — which the validation layer rejects (`VUID-VkWriteDescriptorSet-descriptorType-00328`). The layout gains padding between a region's key array and its value array and between regions (never inside a value array, so the shader's channel stride is unchanged), `GetRequiredRecordsBytes` takes the alignment and reports the padded partition, and `Record` takes the alignment from its device context. The alignment is a prerequisite of the capacity work in the same sense as the dispatch-geometry fix: both are places where a value the code computes stops being usable as an address or a bound.
 - No compute dispatch API change and no change to the descriptor-set or retirement mechanisms: both belong to `gpu-buffer-retirement` and `compute-kernel-dispatch`.
 
 ## Capabilities
@@ -42,7 +43,7 @@ The same workaround has three other costs that survive today:
 - `xpbd-contact-solve`: the clause placing detector `Configure` in `PreGPUStep` is restated, and the counted-clear requirements admit a CPU-known-count variant alongside the GPU-produced one.
 - `detector-configure-detect`: `Configure` stops being a caller-visible phase; buffer sizing, count uploads and binding creation happen on the record path when their inputs change.
 - `physics-gpu-shaders`: a push-constant variant of the counted clear joins the shader inventory, and the loader no longer runs from a pre-recording phase.
-- `gpu-sum-by-key`: `Record`'s entry-count input becomes a count source that may be either a CPU-known value or a bound buffer.
+- `gpu-sum-by-key`: `Record`'s entry-count input becomes a count source that may be either a CPU-known value or a bound buffer; the record-region layout is aligned to the device's storage-buffer offset alignment and `GetRequiredRecordsBytes` gains the alignment parameter and reports the padded partition.
 - `spatial-hash-broad-phase`: dispatch geometry for the clear and copy passes derives from the logical element count rather than buffer capacity; the four count buffers that no CPU code reads become device-local; the detector's configure phase folds into recording and its requirement text is brought onto the current record-based detector contract.
 - `gpu-parallel-scan`: the requirements describing the removed render-graph `AddPasses` API, its per-pass parameter buffers and its render-graph dependency declarations are removed; construction, buffer bindings, location independence and the broad-detector migration are restated against the record-based contract.
 - `gpu-convex-collision-detection`: the narrow-phase detector is restated against the record-based contract — no self-owned render graph, preparation on the record path, and the pair buffers consumed as plain bound inputs.
@@ -53,13 +54,13 @@ The same workaround has three other costs that survive today:
 - `engine/Physics/Solver/ISolver.h`, `PhysicsSystem.{h,cpp}`, `Solver/XpbdGpuSolver.{h,cpp}`, `Solver/DummySolver.{h,cpp}` — lifecycle collapse and record-time preparation.
 - `engine/Physics/PhysicsScene.{h,cpp}` — grow-only sizing shared by the scene's SoA columns.
 - `engine/Physics/Collision/SpatialHashBroadDetector.{h,cpp}`, `Collision/ConvexCollisionDetector.{h,cpp}` — configure folds into recording, dispatch geometry from the logical count, device-local count buffers.
-- `engine/Physics/gpu_algorithm/SumByKey.{h,cpp}` — count-source input.
+- `engine/Physics/gpu_algorithm/SumByKey.{h,cpp}` — count-source input, and the aligned record-region layout with its sizing helper.
 - `engine/Physics/shader/solver/XPBDSolver/clear_entry_values*.comp` — the push-constant clear variant.
 - `engine/Framework/MainClass.cpp`, `app/physics/PhysicsApp.cpp`, `example/editor_run_game_example/main.cpp`, the editor pipeline — call-site updates.
 - `engine/Rhi/Buffer/` — the capacity contract and the shared sizing helper.
 
 **API**
-- Breaking: `ISolver` loses two virtual methods; `PhysicsSystem` loses `PreGPUStep` / `PostGPUStep`; `SumByKey::Record`'s entry-count parameter type changes. `Configure` leaves the detectors' public surface.
+- Breaking: `ISolver` loses two virtual methods; `PhysicsSystem` loses `PreGPUStep` / `PostGPUStep`; `SumByKey::Record`'s entry-count parameter type changes; `SumByKey::GetRequiredRecordsBytes` gains an `alignment` parameter. `Configure` leaves the detectors' public surface.
 
 **Dependency**
 - Requires `gpu-buffer-retirement` (record-time reallocation must be retire-safe), `stable-buffer-identity` (whose `rhi-buffer-reallocation` contract this change's `rhi-buffer-capacity` policy modifies, and which owns the exact-size/grow-only split this change makes geometric) and builds on `compute-kernel-dispatch` (dictionary dispatch is what makes record-time sizing readable). All are referenced by name only; this change does not depend on their exact wording.
@@ -69,3 +70,4 @@ The same workaround has three other costs that survive today:
 
 **Tests**
 - The physics app's stability test and a long dynamic run must show a flat memory profile across repeated grow/shrink of the shape and body counts, and the existing headless algorithm tests must pass unchanged apart from the count-source parameter.
+- The two geometries that trip the descriptor-offset alignment today must pass under the validation layer: `capacity = 70000` with 3 channels (the randomized reduction scenario) and a capacity in `[15361, 15616]` with 7 channels (the first region's value array at byte 488).

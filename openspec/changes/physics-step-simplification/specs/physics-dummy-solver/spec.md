@@ -24,6 +24,12 @@
 - **WHEN** `DummySolver::GPUStep(cb)` is called
 - **THEN** the solver SHALL access the device and allocator through the `Rhi::DeviceContext` stored at construction time, not through a method parameter
 
+#### Scenario: DummySolver produces model matrices on request
+
+- **WHEN** `DummySolver::GPUCalcModelMatrices(cb, target)` is called
+- **THEN** the solver records a pass that writes model matrices into `target` from the scene's current poses
+- **AND** it does not displace any body
+
 #### Scenario: DummySolver declares no preparation phase
 
 - **WHEN** the `DummySolver` class declaration is inspected
@@ -37,7 +43,7 @@ On each `GPUStep(cb)` call, the solver SHALL:
 2. Insert a `vk::MemoryBarrier2` (ComputeShader: ShaderStorageWrite → ComputeShader: ShaderStorageRead|Write) at the start
 3. Dispatch the compute shader through the compute kernel dispatch surface
 
-The compute shader SHALL displace each alive body by `position.z += gravity.z * time_step` and write its model matrix.
+The compute shader SHALL displace each alive body by `position.z += gravity.z * time_step`. It SHALL NOT write model matrices: model matrix output belongs to `GPUCalcModelMatrices`, which reads the poses the step produced.
 
 `DummySolver::GPUStep(cb)` SHALL perform both the initialization and the dispatch. The solver SHALL declare no preparation phase that a caller must invoke before it, because a kernel acquired during recording is safe and the solver's first `GPUStep` must be complete on its own.
 
@@ -53,6 +59,12 @@ The compute shader SHALL displace each alive body by `position.z += gravity.z * 
 - **THEN** no `RenderGraph`, `RenderGraphBuilder`, or `RenderGraphPass` is created or used
 - **AND** the dispatch is recorded directly through the kernel dispatch surface
 
+#### Scenario: The step does not write model matrices
+
+- **WHEN** `GPUStep(cb)` is called and `GPUCalcModelMatrices` is not
+- **THEN** no dispatch in the recorded frame binds a model matrices buffer as an output
+- **AND** the render-owned model matrices buffer is unchanged by the step
+
 #### Scenario: Dispatch reuses the kernel acquired earlier
 
 - **WHEN** `GPUStep(cb)` is called
@@ -67,16 +79,23 @@ The compute shader SHALL displace each alive body by `position.z += gravity.z * 
 
 ### Requirement: DummySolver compute shader
 
-The solver SHALL provide one shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
+The solver SHALL provide one displacement shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
 - Binding 0: `readonly buffer RigidBodyAlive`
 - Binding 1: `buffer RigidBodyCenterPosition` (read-write)
 - Binding 2: `readonly buffer RigidBodyCenterRotation`
-- Binding 3: `writeonly buffer ModelMatrices`
 - Push-constant block `DummyPush { vec4 gravity_dt; }` (xyz = gravity, w = time_step)
 - Workgroup size 64
-- Displaces `pos.z += gravity_dt.z * gravity_dt.w`, writes TRS model matrix
+- Displaces `pos.z += gravity_dt.z * gravity_dt.w`
+
+Model matrix output SHALL be produced by the shared model matrix shader rather than by this shader, so that the mapping from a body's pose to its model matrix exists in exactly one place.
 
 #### Scenario: Shader loaded from SPIR-V
 
 - **WHEN** the solver records its first `GPUStep(cb)`
 - **THEN** the shader SHALL be loaded from `ENGINE_PHYSICS_SPIRV_DIR/solver/DummySolver/dummy_solver.comp.spv`
+
+#### Scenario: Model matrix shader is shared with the XPBD solver
+
+- **WHEN** `GPUCalcModelMatrices` is recorded by either solver
+- **THEN** both load the same model matrix SPIR-V module
+- **AND** neither declares its own model matrix shader

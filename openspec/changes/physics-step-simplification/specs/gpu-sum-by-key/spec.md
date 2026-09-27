@@ -36,6 +36,34 @@ Because geometry is supplied per call, one instance SHALL be reusable for any ge
 - **WHEN** a call's entry count is produced on the GPU
 - **THEN** the call is recorded with the buffer-count kernel and binds the entry-count buffer
 
+### Requirement: Static sizing helpers
+
+The `SumByKey` class SHALL expose static sizing helpers so callers can allocate all working buffers before recording:
+
+- `GetNumLevels(uint32_t capacity)` SHALL return the recursion depth `k` for that capacity: `R_0 = capacity`, `R_{i+1} = 2 * ceil(R_i / 256)` until `R_k <= 256`. `k` SHALL be at least 1 and at most 4 for `capacity <= 2^28`.
+- `GetRequiredRecordsBytes(uint32_t capacity, uint32_t num_channels, uint32_t alignment)` SHALL return the size of the record-region partition that `Record` lays out for the same `(capacity, num_channels)` at the same `alignment`: the regions for levels `1 .. k-1`, each holding one key uint plus `num_channels` floats per record, plus the padding that keeps every region offset a multiple of `alignment`. When `k == 1` the result SHALL be 0.
+- Both SHALL be pure functions of their arguments and SHALL be callable without any instance.
+- The record-region offsets used by a call SHALL be a pure function of that call's capacity, `num_channels` and the device's storage-buffer offset alignment, so a caller that varies its capacity SHALL size its record buffer with the largest capacity it ever passes, at the alignment its device reports.
+
+`alignment` SHALL be the device's `minStorageBufferOffsetAlignment`, which the caller obtains from the device (`DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger::StorageBufferOffsetAlignment)`); it SHALL NOT be assumed to be a particular constant. A helper result and a recorded call SHALL agree: `Record` SHALL derive its layout from the alignment its own device context reports and SHALL reject a record buffer smaller than that partition, so a caller that sized for a different alignment gets a size error rather than a misaligned binding.
+
+#### Scenario: Record sizing for the contact array
+
+- **WHEN** `GetRequiredRecordsBytes(200000, 7, 16)` is called
+- **THEN** the level sequence is `R_1 = 1564`, `R_2 = 14`, and the result is `50504` bytes
+- **AND** the result equals the size of the partition `Record` lays out on a device with that alignment
+
+#### Scenario: Single-level reduction needs no record buffer
+
+- **WHEN** `GetRequiredRecordsBytes(256, 7, 16)` is called
+- **THEN** the result is 0 bytes
+- **AND** `GetNumLevels(256)` returns 1
+
+#### Scenario: Sizing does not require an instance
+
+- **WHEN** the helpers are called before any `SumByKey` instance exists
+- **THEN** they return the same values they would return for a constructed instance
+
 ### Requirement: Record dispatches the recursive level chain
 
 `Record` SHALL accept the sorted key array, the payload-index array, the packed value buffer, the record buffer, the output buffer, and an **entry-count source**, and SHALL dispatch exactly `k` compute passes (one per level) with a full compute barrier between consecutive levels:
@@ -69,6 +97,10 @@ An entry whose payload index is outside `[0, capacity)` SHALL contribute 0.0 to 
 The input mode SHALL travel in the push-constant block as a `gather_payload` flag that `Record` sets for level 0 and clears for every deeper level. In gather mode the level's input SHALL always be the caller's key array plus its payload-index array, and the entry-count bound SHALL apply to both. In non-gather mode the level's input SHALL always be the `KeysIn` / `ValuesIn` key and value arrays, and no entry-count bound SHALL apply, because a deeper-level input is produced by the previous level and is entirely valid.
 
 All other per-level parameters (region offsets, level element count, workgroup count, channel count, key bound) SHALL also travel via the shader's push-constant block. The caller SHALL insert the outer barriers around the whole `Record`.
+
+**The record regions SHALL be laid out at the device's storage-buffer offset alignment.** A region's key array and its value array are separate descriptor bindings, so each SHALL begin at a byte offset that is a multiple of the device's `minStorageBufferOffsetAlignment`, which `Record` SHALL take from its own device context rather than assume. The padding that achieves this SHALL sit between a region's key array and its value array and between consecutive regions, and never inside a value array: a region's channel stride SHALL remain exactly its own record count `R_i`, which is the value the shader's `record_stride` field carries. `Record` SHALL reject a record buffer smaller than the partition it derives.
+
+This is required because the compact layout is only 4-byte aligned: a region's value array starts at `key_offset + R_i * 4`, and a region's stride is `R_i * (1 + num_channels) * 4`. With `R_i = 2 * ceil(R_{i-1} / 256)` neither is a multiple of the alignment in general — for `capacity = 70000` and `num_channels = 3` the second region's value array would sit at byte 8792, which is not a multiple of 16 — and a descriptor bound at such an offset is invalid (`VUID-VkWriteDescriptorSet-descriptorType-00328`).
 
 The shader's storage-buffer bindings SHALL be `KeysIn`, `PayloadIn`, `ValuesIn`, `RecKeys`, `RecValues`, `OutValues` — six buffers — plus the entry-count buffer in the buffer-count variant only. There SHALL be no `uvec2` pair binding: level 0's key and payload index come from the same two scalar arrays every other level uses.
 
@@ -124,6 +156,19 @@ The shader's storage-buffer bindings SHALL be `KeysIn`, `PayloadIn`, `ValuesIn`,
 - **WHEN** `Record` is called with `num_channels` outside `[1, 8]`, with a zero capacity, or with a zero `max_key_value`
 - **THEN** a `std::invalid_argument` exception is thrown
 
+#### Scenario: Every record-region offset is aligned
+
+- **WHEN** `Record` is called for a geometry whose compact layout would place a region offset off the alignment (for example `capacity = 70000` and `num_channels = 3`, whose second region's value array would otherwise sit at byte 8792)
+- **THEN** every `RecKeys` and `RecValues` binding the call records carries an offset that is a multiple of the device's storage-buffer offset alignment
+- **AND** the padding does not change any region's channel stride, which stays equal to that region's record count
+- **AND** the call passes the binding-validation check
+
+#### Scenario: A record buffer sized without the alignment is rejected
+
+- **WHEN** `Record` is called with a record buffer sized by a smaller alignment than the device reports
+- **THEN** the call throws rather than binding an unaligned region offset
+- **AND** the message names the record buffer and the size it required
+
 #### Scenario: A CPU-known count needs no count buffer
 
 - **WHEN** `Record` is called with a count source that is a CPU-known value
@@ -141,7 +186,7 @@ The shader's storage-buffer bindings SHALL be `KeysIn`, `PayloadIn`, `ValuesIn`,
 
 ### Requirement: Temporary storage is reused across calls and its barrier is the caller's
 
-The temporary storage a reduction reads and writes SHALL be sized for the largest geometry it is recorded against and SHALL be reused across calls rather than reallocated per call. Storage SHALL grow when a call's geometry exceeds what it holds, SHALL NOT shrink when a later call's geometry is smaller, and SHALL NOT be reallocated by a call that fits.
+The temporary storage a reduction reads and writes SHALL be sized for the largest geometry it is recorded against and SHALL be reused across calls rather than reallocated per call. Storage SHALL grow when a call's geometry exceeds what it holds, SHALL NOT shrink when a later call's geometry is smaller, and SHALL NOT be reallocated by a call that fits. Storage SHALL be sized with the device's storage-buffer offset alignment, because a call's region partition depends on it.
 
 Because two recordings that share one storage set have an execution-order dependency through it, the caller SHALL record the barrier that dependency requires between consecutive recordings that reuse the same storage on the same instance. Recordings that use **different** storage sets SHALL be independent for storage reasons, so a caller that wants two reductions interleaved without a storage barrier supplies two storage sets and accepts the duplication.
 

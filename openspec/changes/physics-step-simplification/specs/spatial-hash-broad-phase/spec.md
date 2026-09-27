@@ -61,7 +61,7 @@ The dedup SHALL proceed in three stages:
 2. **Compact**: `CompactUnique::Record` removes adjacent duplicates and compacts the unique keys, writing the unique count to `gpu_unique_count`.
 3. **Unpack and publish**: `unpack_pairs.comp` reads the compacted keys and writes the canonical `uvec2(a, b)` pairs into `collision_pairs[]`, reconstructing `a = key / shape_count` and `b = key % shape_count`; the same pass SHALL publish `pair_count` from `gpu_unique_count`, replacing the separate count-copy dispatch.
 
-`shape_count` SHALL be the same value in all three stages: the value the detector is configured with, which is also the value the pair-generation shaders use as their shape bound. The detector SHALL assert `shape_count <= 65536` when configured, because `shape_count * shape_count` is the packed key's bound and `shape_count * (shape_count - 1)` already wraps in 32-bit arithmetic at 65537.
+`shape_count` SHALL be the same value in all three stages: the value the detector is recording with, which is also the value the pair-generation shaders use as their shape bound. The detector SHALL assert `shape_count <= 65536` at record time, because `shape_count * shape_count` is the packed key's bound and `shape_count * (shape_count - 1)` already wraps in 32-bit arithmetic at 65537.
 
 **Dispatch sizing**: every stage SHALL pass `max_output_pair_count` (buffer capacity) as its element capacity for dispatch sizing. The actual pair count (`gpu_pair_count`) SHALL be passed as a GPU buffer binding — each shader reads it at execution time to skip threads beyond the valid range; the host SHALL NOT read it at record time.
 
@@ -97,7 +97,7 @@ The detector SHALL use its existing `ParallelScan` instance for `CompactUnique`'
 
 #### Scenario: A shape count above the packing bound is rejected
 
-- **WHEN** the detector is configured with `shape_count = 65537`
+- **WHEN** the detector records with `shape_count = 65537`
 - **THEN** an assertion fires on the host
 - **AND** no dedup is recorded with a wrapped key bound
 

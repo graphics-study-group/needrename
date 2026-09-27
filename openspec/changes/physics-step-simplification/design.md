@@ -6,7 +6,7 @@ See `proposal.md` — Why for the motivation. This document records the decision
 
 ### The phase this change deletes
 
-`ISolver` declares five methods and `PhysicsSystem` forwards three of them per scene. `XpbdGpuSolver::PreGPUStep` (`XPBDGpuSolver.cpp:414-571`) performs four jobs before recording:
+`ISolver` declares six methods and `PhysicsSystem` forwards four of them per scene. `XpbdGpuSolver::PreGPUStep` (`XPBDGpuSolver.cpp:414-571`) performs four jobs before recording:
 
 1. lazy shader loading and stage/binding creation (`:265-332`);
 2. sizing every capacity-dependent buffer (`:427-531`);
@@ -48,10 +48,12 @@ Several blocks were factually wrong before this change. Because a `MODIFIED` blo
 - The same two requirements describe solver-owned render graphs, which the archived render-graph removal deleted.
 - `gpu-convex-collision-detection` places the narrow-phase SPIR-V under `solver/ConvexCollisionDetector/`; it is `collision/ConvexCollisionDetector/detect_collisions.comp.spv`.
 - The `Detect(...)` spelling used by the older detector requirements is `Record(...)` in the current contract.
+- `physics-dummy-solver`'s *DummySolver compute shader* requirement still declared a `ModelMatrices` binding and claimed the displacement shader writes a TRS model matrix. The model-matrices refactor removed that binding and moved the pose-to-matrix mapping into the shared shader, so the requirement is restated with the three buffers the shader actually binds.
+- The blocks written before the model-matrices refactor omitted the scenarios it added to requirements this change already rewrites — `physics-main-loop-integration`'s model-matrix production paragraph and its three scenarios, `editor-physics-pipeline`'s ungated production and its *Stopped frame still produces matrices* scenario, `physics-solver-interface`'s four `GPUCalcModelMatrices` scenarios (dropped twice over, because a `RENAMED` block escapes the archiver's scenario check), `physics-dummy-solver`'s two, and `physics-gpu-shaders`' *Model matrix shader is loaded from the shared directory*. All are reproduced here, because a `MODIFIED` block replaces the whole requirement and the archiver refuses to drop a scenario.
 
-**Pre-existing debt repaired in passing:** `physics-main-loop-integration`'s `Physics pipeline in RunOneFrame` requirement had **no scenarios at all**, so the capability already failed `--strict` before this change. The rewritten block supplies two, which repairs that failure. It is not a behaviour this change broke.
+**Pre-existing debt repaired in passing:** `physics-main-loop-integration`'s `Physics pipeline in RunOneFrame` requirement carried a single scenario (*Physics compute shares the frame command buffer*) before the model-matrices refactor added three more; the rewritten block keeps all four, so the earlier note claiming the requirement had no scenarios was wrong. `physics-app-pause` named the deleted phases in its *Seed does not run the step pipeline* scenario and had no delta at all, so this change adds one.
 
-**Pre-existing debt deliberately left alone:** `physics-main-loop-integration` and `editor-physics-pipeline` carry archiver placeholder `## Purpose` sections, and `physics-gpu-shaders` requirements 5 and 6 (*Shape world pose update shader*, *Quaternion multiplication helper*) have the same missing-scenario defect. A delta's `## Purpose` is read only when a capability is created, so it cannot replace an existing one, and those two shader requirements are unrelated to this change. All three are tracked separately; touching them here would misattribute unrelated churn.
+**Pre-existing debt deliberately left alone:** `physics-main-loop-integration` and `editor-physics-pipeline` carry archiver placeholder `## Purpose` sections; `detector-configure-detect`'s `## Purpose` describes the two-phase `Configure()` / `Record()` API this change deletes, so after archiving it will read as the opposite of the capability's own requirements; and `physics-gpu-shaders` requirements 5 and 6 (*Shape world pose update shader*, *Quaternion multiplication helper*) have the same missing-scenario defect. A delta's `## Purpose` is read only when a capability is created, so it cannot replace an existing one, and those two shader requirements are unrelated to this change. All four are tracked separately; touching them here would misattribute unrelated churn.
 
 ### What this change overturns in its sibling changes
 
@@ -82,7 +84,7 @@ This change removes both phases, so those clauses are superseded on purpose (see
 
 ### D1: The phase dies because its justification died
 
-`PreGPUStep` / `PostGPUStep` are removed from `ISolver` and `PhysicsSystem`, and their call sites are deleted. `PostGPUStep` costs nothing to remove — it has **no override anywhere in the engine**, and the only callers are the main loop, the editor, and `PhysicsApp`. `PreGPUStep`'s four jobs move to the record site, which D2 shows is possible.
+`PreGPUStep` / `PostGPUStep` are removed from `ISolver` and `PhysicsSystem`, and their call sites are deleted. `PostGPUStep` costs nothing to remove — it has **no override anywhere in the engine**, and the only callers are the main loop, the editor, `PhysicsApp`, the editor-run-game example, and three headless tests that drive the phases by hand. `PreGPUStep`'s four jobs move to the record site, which D2 shows is possible.
 
 **Alternative rejected:** keep `PreGPUStep` as an optional hook and merely stop calling it. It would leave a lifecycle contract that no caller honours and no test exercises, and the next solver author would have to work out which of the two paths is live.
 
@@ -154,6 +156,20 @@ This is stated once in `gpu-sum-by-key` and documented in the algorithm headers,
 
 The detectors return raw `ComputeBuffer*` and the solver caches the broad detector's pair buffers into the narrow detector. Retiring an allocation keeps the memory alive, but the `ComputeBuffer` facade is destroyed with the owning `unique_ptr`, so a pointer cached across a resize would dangle even though the memory would not. The pair buffers are therefore only re-pointed when their capacity actually changes, and the narrow detector's cached reference is refreshed from `GetResultBuffers()` at preparation time (D7) rather than held from a previous step.
 
+### D11: The record-region partition is aligned to the device, not to the element size
+
+`SumByKey::Record` partitions one caller-provided buffer into a key array and a value array per level, and binds each of those arrays as its own descriptor range. Both offsets were derived from record counts alone (`key_offset = cursor`, `val_offset = cursor + R_i * 4`, `cursor += R_i * (1 + num_channels) * 4`), which is a 4-byte alignment argument applied to a descriptor offset the device requires to be a multiple of `minStorageBufferOffsetAlignment` (16 on the development GPU). The layout is therefore invalid for ordinary geometries, and the validation layer reports it as `VUID-VkWriteDescriptorSet-descriptorType-00328` at the `RecValues` write. Three geometries in the tree hit it today: `capacity = 70000` with 3 channels (the headless test's randomized scenario; the second region's value array lands at byte 8792), the `capacity = 200000` / 7-channel example the `gpu-sum-by-key` scenarios use (byte 50104, from `R_2 * 4` after a 50048-byte first region), and any capacity whose level-0 block count `ceil(capacity / 256)` is odd, which puts the first region's value array at `2 * ceil(capacity / 256) * 4` — 488 for `capacity` in `[15361, 15616]`.
+
+The fix is a padding change, not a binding change: a region's key array and value array are separate bindings and the shader addresses records through the `record_stride` push-constant field, so padding **between** the two arrays and **between** regions is invisible to the shader as long as a value array's channel stride stays exactly `R_i`. `Record` takes the alignment from its device context (`DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger::StorageBufferOffsetAlignment)`), `GetRequiredRecordsBytes` gains the same alignment parameter and returns the padded partition, and a caller that sizes at one alignment and records at another gets a size error rather than a misaligned binding.
+
+This is folded into this change rather than split out because both of its edit sites — `SumByKey::Record` and the `gpu-sum-by-key` requirements that describe the level chain — are already being rewritten here for the count source; a separate change would have to modify the same two requirements, which is exactly the cross-change layering the baseline convention above exists to avoid. It is also a prerequisite of this change's own verification: D4's sibling problem is that a value the CPU computes stops being usable as an address or a bound, and tasks 7.1 and 7.2 run under the validation layer.
+
+**Alternative rejected:** align each region to a fixed 256 bytes, the largest value Vulkan permits for this limit. It keeps the sizing helper a pure function of `(capacity, num_channels)`, but it wastes up to 256 bytes per region and hardcodes a device property the RHI already exposes — `ParallelScan` documents the same precondition rather than assuming a value, and this repository queries device limits rather than guessing them.
+
+**Alternative rejected:** bind each region as its own buffer. It removes the alignment question by removing the shared scratch, which D9 and task 2.5 exist to keep.
+
+**Recorded, not fixed here:** `ParallelScan::Record`'s `block_sums_byte_offset` carries the same requirement as a documented `@pre` (`ParallelScan.h:117-119`) that no caller violates today — `RadixSort` passes `histogram_bytes = 1024 * num_blocks`, 256-aligned by construction. Enforcing it (a debug assert at the binding site) or converting it to an aligned layout belongs with that class, not here. For the same reason this change does **not** add an offset-alignment assert to `ComputeKernelResource` / `ComputeKernel::Dispatch`: the dispatch surface is an explicit non-goal of this change, and hardening it belongs to the change that owns it.
+
 ## Risks / Trade-offs
 
 - **[Record-time reallocation is only safe because of a sibling change]** → Mitigation: this change depends on `gpu-buffer-retirement`; the ordering is stated in the proposal, and a build without the retirement queue would reintroduce the use-after-free the phase was avoiding. The verification tasks run under the validation layer with two to three frames in flight.
@@ -166,7 +182,7 @@ The detectors return raw `ComputeBuffer*` and the solver caches the broad detect
 
 ## Migration Plan
 
-1. **Fix the dispatch-geometry prerequisite (D4).** Change the two helper dispatches to size from `elem_count`, and document `GetCount()`. This is behaviour-preserving under exact-fit sizing and must land before grow-only.
+1. **Fix the prerequisites that keep a computed value usable as an address or a bound (D4, D11).** Change the two helper dispatches to size from `elem_count` and document `GetCount()`; give the record-region layout its alignment padding, its alignment parameter on `GetRequiredRecordsBytes`, and its alignment source in `Record`. The dispatch-geometry fix is behaviour-preserving under exact-fit sizing; the alignment fix changes the record partition's size but not a reduction's result. Both must land before grow-only.
 2. **Introduce grow-only geometric sizing (D3)** behind the shared sizing helper, and convert the five `EnsureBuffer` copies and the scene's SoA sizing to it. Verify with the existing tests before touching the lifecycle.
 3. **Move the CPU-known counts to push constants (D5, D6):** add the push-count clear variant, give `SumByKey` its count source, extend the push blocks, and delete `SetConstantU32` and the two count buffers.
 4. **Fold detector configuration into recording (D7)** and delete the `Configure` surface, together with the narrow detector's cached pair-buffer plumbing (D10).

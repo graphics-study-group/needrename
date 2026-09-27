@@ -82,6 +82,12 @@ The counted clear SHALL exist in one form per count source, following the conven
 - **AND** a compute pipeline is created for each
 - **AND** `clear_int_buffer.comp.spv` is still loaded separately for the flat clears
 
+#### Scenario: Model matrix shader is loaded from the shared directory
+
+- **WHEN** the solver needs the model matrix shader
+- **THEN** it loads `solver/common/model_matrix.comp.spv` from `<ENGINE_PHYSICS_SPIRV_DIR>`
+- **AND** no `solver/XPBDSolver/model_matrix.comp.spv` is loaded or produced
+
 ### Requirement: SpatialHashBroadDetector shader source layout
 
 Broad-phase detector GLSL source files SHALL live under `engine/Physics/shader/collision/SpatialHashBroadDetector/`. The following shaders SHALL exist:
