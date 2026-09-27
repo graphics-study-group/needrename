@@ -81,7 +81,7 @@ Runtime physics code requiring a precompiled physics shader SHALL resolve its fi
 
 ### Requirement: XPBDGpuSolver loads precompiled SPIR-V
 
-`engine/Physics/XPBDGpuSolver.cpp` SHALL load all XPBD compute shaders by reading precompiled `.spv` files from disk and SHALL NOT invoke `ShaderCompiler::CompileGLSLtoSPV` for these shaders. The loaded `std::vector<uint32_t>` SHALL be passed to `ComputeStage::Instantiate` unchanged.
+`engine/Physics/XPBDGpuSolver.cpp` SHALL load all XPBD compute shaders by reading precompiled `.spv` files from disk and SHALL NOT invoke `ShaderCompiler::CompileGLSLtoSPV` for these shaders. A module's source-relative path SHALL be its compute kernel identity, and the loaded `std::vector<uint32_t>` SHALL be handed to the compute kernel facility unchanged when that identity is new.
 
 Loading SHALL occur lazily on first call to `Step()` (preserving the existing `EnsureInitialized()` behaviour). On loading failure (file missing, empty, or size not a multiple of 4 bytes), the loader SHALL throw `std::runtime_error` whose message includes the absolute path attempted.
 
@@ -117,7 +117,7 @@ The `SumByKey` reduce shader (`algorithm/sum_by_key.comp.spv`) SHALL be loaded b
 
 - **WHEN** `XPBDGpuSolver::Step` is called for the first time on a populated `PhysicsScene`
 - **THEN** the solver reads all XPBD shader SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/XPBDSolver/`
-- **AND** instantiates `ComputeStage` instances from those words
+- **AND** requests a compute kernel for each module, keyed by that module's path
 
 #### Scenario: No GLSL compilation occurs at runtime for XPBD shaders
 
@@ -135,25 +135,25 @@ The `SumByKey` reduce shader (`algorithm/sum_by_key.comp.spv`) SHALL be loaded b
 
 - **WHEN** `EnsureInitialized()` runs
 - **THEN** all four joint shader SPIR-V files are loaded from the same directory as contact shaders
-- **AND** `ComputeStage` instances are created for each
+- **AND** a compute kernel exists for each
 
 #### Scenario: No permutation inversion shader is loaded
 
 - **WHEN** `EnsureInitialized()` runs
-- **THEN** `invert_permutation.comp.spv` is not loaded and no `ComputeStage` is created for it
+- **THEN** `invert_permutation.comp.spv` is not loaded and no kernel is created for it
 - **AND** the accumulated value scratch is indexed by entry slot, not by sorted position
 
 #### Scenario: Entry-pass shaders are loaded alongside the accumulate shaders
 
 - **WHEN** `EnsureInitialized()` runs
 - **THEN** `entries/contact_entries.comp.spv`, `entries/hinge_entries.comp.spv` and `entries/fixed_entries.comp.spv` are loaded from `solver/XPBDSolver/entries/`
-- **AND** a `ComputeStage` instance is created for each
+- **AND** a compute kernel exists for each
 
 #### Scenario: Counted clear shader is loaded alongside the flat clear shader
 
 - **WHEN** `EnsureInitialized()` runs
 - **THEN** `clear_entry_values.comp.spv` is loaded from `solver/XPBDSolver/`
-- **AND** a `ComputeStage` instance is created for it
+- **AND** a compute kernel exists for it
 - **AND** `clear_int_buffer.comp.spv` is still loaded separately for the flat clears
 
 #### Scenario: Model matrix shader is loaded from the shared directory
@@ -171,14 +171,40 @@ Each solver pass SHALL be a separate `.comp` file under `engine/Physics/shader/s
 #### Scenario: All XPBD shaders are loaded on first Step call
 
 - **WHEN** `XPBDGpuSolver::Step` is called for the first time
-- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, entry-list construction, accumulate/apply position deltas, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and the `SumByKey`/`RadixSort` algorithm stages
-- **AND** instantiates a `ComputeStage` for each
+- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, entry-list construction, accumulate/apply position deltas, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and the `SumByKey`/`RadixSort` algorithm modules
+- **AND** a compute kernel exists for each
 
 #### Scenario: Algorithm shaders load through their owning classes
 
 - **WHEN** a reduction is recorded through the `SumByKey` class
 - **THEN** the solver does not load `sum_by_key.comp.spv` itself
-- **AND** the `SumByKey` class instantiates its own `ComputeStage`
+- **AND** the `SumByKey` class requests the kernel for its own module
+
+### Requirement: Physics SPIR-V loading is centralized in one helper
+
+`engine/Physics/` SHALL provide a single shared helper that reads a physics `.spv` file given its source-relative path, resolving it against `ENGINE_PHYSICS_SPIRV_DIR`. Every physics component that needs a precompiled shader — solver, detectors and `gpu_algorithm` classes alike — SHALL use that helper.
+
+Component-local copies of the loading helper SHALL NOT exist, and the helper SHALL be the only place that performs the file read and the size validation.
+
+The same module path SHALL be the shader's compute kernel identity, and the helper SHALL resolve a path to its kernel by consulting the device's kernel cache before reading the file: a module a component already requested SHALL be returned without a second read of the file.
+
+#### Scenario: One loader serves every component
+
+- **WHEN** `engine/Physics/` is searched for functions that read a `.spv` file from `ENGINE_PHYSICS_SPIRV_DIR`
+- **THEN** exactly one such helper exists
+- **AND** the solver, both detectors and all `gpu_algorithm` classes call it
+
+#### Scenario: A module two components share is read once
+
+- **WHEN** two physics components request the kernel for the same module path
+- **THEN** both resolve to the same kernel
+- **AND** the file is read only for the request that created the kernel
+
+#### Scenario: Failure diagnosis is uniform
+
+- **WHEN** any physics component requests a missing or malformed `.spv` file
+- **THEN** the same helper throws `std::runtime_error`
+- **AND** its `what()` includes the absolute path attempted
 
 ### Requirement: Shape world pose update shader
 

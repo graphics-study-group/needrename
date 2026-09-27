@@ -6,18 +6,21 @@ Remove render-frame concepts from physics internals: bindings drop to a single r
 
 ## Requirements
 
-### Requirement: Physics bindings use a single rotation slot
+### Requirement: Physics declares no rotation state
 
-All physics components (`XPBDGpuSolver`, `DummySolver`, `RadixSort`, `ParallelScan`, `CompactUnique`, `SpatialHashBroadDetector`, `ConvexCollisionDetector`) SHALL allocate resource bindings with the default `slot_count = 1` and SHALL record dispatches through the slot-0 path only. No physics component SHALL maintain a frame counter, and `engine/Physics/` SHALL contain no literal `3` rotation depth or `% 3` frame-counter expression.
+No physics component (`XPBDGpuSolver`, `DummySolver`, `RadixSort`, `ParallelScan`, `CompactUnique`, `SpatialHashBroadDetector`, `ConvexCollisionDetector`) SHALL declare a rotation depth, select a rotation slot, or maintain a frame counter. Every physics dispatch SHALL be recorded through the compute kernel dispatch surface, which takes no slot parameter. `engine/Physics/` SHALL contain no literal `3` rotation depth and no `% 3` frame-counter expression.
 
-#### Scenario: No rotation literals remain in physics
-- **WHEN** searching `engine/Physics/` for `AllocateResourceBinding(3)` and `m_frame_counter`
+#### Scenario: No rotation state remains in physics
+
+- **WHEN** searching `engine/Physics/` for `AllocateResourceBinding`, `BindComputeResource` and `m_frame_counter`
 - **THEN** no matches are found
+- **AND** no standalone identifier denoting a descriptor-slot rotation depth or a rotation slot is declared by any physics component: a whole-identifier search for `slot_count` — matching that token alone, not the unrelated pre-existing `rigid_body_slot_count` and `shape_slot_count` — finds none
 
 #### Scenario: XPBD dispatch paths are unified
+
 - **WHEN** `XPBDGpuSolver::GPUStep` records a dispatch
-- **THEN** every dispatch uses `Rhi::BindComputeResource(cb, stage, binding, 0)` (or the defaulted slot)
-- **AND** no alternate `GetDescriptorSet`-based dispatch helper remains
+- **THEN** every dispatch goes through the kernel dispatch surface
+- **AND** no alternate descriptor-set-based dispatch helper remains
 
 ### Requirement: Physics constant parameters are push constants
 

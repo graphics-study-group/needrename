@@ -28,7 +28,8 @@ The `Rhi` module SHALL organize its source files under `engine/Rhi/` into the re
 #### Scenario: Pipeline sources live in Pipeline/
 
 - **WHEN** the `Rhi` module is checked out
-- **THEN** `PipelineEnums.h` (with its `_reflection` companion), `PipelineInfo.*`, `ShaderInterface.h`, `ShaderParameterLayout.*`, `ShaderResourceBinding.*`, `ComputeResourceBinding.*`, `ComputeStage.*`, and `ComputeHelpers.h` SHALL reside in `engine/Rhi/Pipeline/`
+- **THEN** `PipelineEnums.h` (with its `_reflection` companion), `PipelineInfo.*`, `ShaderInterface.h`, `ShaderParameterLayout.*`, `ShaderResourceBinding.*`, and the compute kernel's sources SHALL reside in `engine/Rhi/Pipeline/`
+- **AND** `ComputeResourceBinding.*`, `ComputeStage.*`, and `ComputeHelpers.h` SHALL NOT exist anywhere in the module
 
 #### Scenario: Submission and Resource groups
 

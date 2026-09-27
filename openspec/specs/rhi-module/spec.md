@@ -23,13 +23,17 @@ The engine SHALL provide a `Rhi` shared library (`engine/Rhi/`) that compiles in
 
 ### Requirement: Rhi hosts the generic GPU infrastructure types
 
-`Rhi` SHALL contain the following types, moved from `engine/Render/` without semantic changes: `DeviceInterface`, `AllocatorState`, `MemoryTypes` / `MemoryAllocation`, `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer`, `Texture`, `ImageTexture`, `TextureSubresourceView`, `ImageUtils`, `ImmutableResourceCache`, `SubmissionHelper`, `ComputeStage`, `ComputeResourceBinding`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface`, `MemoryAccessTypes`, `PipelineEnums`.
+`Rhi` SHALL contain the following types, moved from `engine/Render/` without semantic changes: `DeviceInterface`, `AllocatorState`, `MemoryTypes` / `MemoryAllocation`, `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer`, `Texture`, `ImageTexture`, `TextureSubresourceView`, `ImageUtils`, `ImmutableResourceCache`, `SubmissionHelper`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface`, `MemoryAccessTypes`, `PipelineEnums`.
 
-`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility and its supporting types: the submission epoch tracker, which is itself the sole recipient of retired buffer allocations. It resides in `Rhi` because it depends on the device and allocator only, and both `Render` and `Physics` use it equally.
+`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility and its supporting types: the submission epoch tracker — which is itself the sole recipient of retired buffer allocations. It resides in `Rhi` because it depends on the device and allocator only, and both `Render` and `Physics` use it equally.
 
 `Rhi` SHALL NOT provide a shared-ownership (reference-counted) buffer factory. A buffer whose lifetime must outlive the component that created it is uniquely owned by whoever owns that lifetime, and is referenced elsewhere through a raw pointer.
 
 `Rhi` SHALL additionally own the device-scoped descriptor arena: the single owner of descriptor pools, which hands out descriptor sets through a pool layer for sets whose descriptors the caller writes and a content-keyed cache layer that keeps sets resident and reusable across submission epochs, reclaiming them only under a soft resident budget and only among entries the completed prefix has passed. The arena resides in `Rhi` because both `Render` (materials, scene data, cameras) and compute consumers use it equally, and neither may own a pool.
+
+`Rhi` SHALL additionally own the compute kernel facility and its dispatch surface. It resides in `Rhi` because it depends on the device, the allocator and the arena only, and both `Render` and `Physics` use it equally.
+
+The types `ComputeStage`, `ComputeResourceBinding` and the `ComputeHelpers` free functions SHALL NOT exist in `Rhi`: the kernel facility supersedes them.
 
 #### Scenario: Buffer types available from Rhi
 
@@ -43,8 +47,9 @@ The engine SHALL provide a `Rhi` shared library (`engine/Rhi/`) that compiles in
 
 #### Scenario: Compute pipeline facilities available from Rhi
 
-- **WHEN** a client includes `Rhi/ComputeStage.h`
-- **THEN** `Engine::Rhi::ComputeStage` / `Engine::Rhi::ComputeResourceBinding` are available, and a compute pipeline can be created from SPIR-V binary without any Asset dependency
+- **WHEN** a client includes the compute kernel facility's header
+- **THEN** a compute pipeline can be requested for a SPIR-V binary and dispatched with a resource dictionary, without any Asset dependency
+- **AND** `Engine::Rhi::ComputeStage` and `Engine::Rhi::ComputeResourceBinding` are not part of the module
 
 #### Scenario: RenderTargetTexture inherits from Rhi Texture
 
@@ -99,30 +104,6 @@ All types residing in `Rhi` SHALL use the namespace `Engine::Rhi`. The former na
 
 - **WHEN** `AllocateBuffer()` is called
 - **THEN** it calls `m_device_interface.GetDevice()` to set the debug name on the created buffer
-
-### Requirement: ComputeStage has no Asset dependency
-
-`ComputeStage` SHALL be constructible from Rhi facilities only and SHALL NOT depend on the Asset module. It SHALL provide `Instantiate(const std::vector<uint32_t>& code, std::string_view name)`; the `Instantiate(ShaderAsset&)` overload and the `IInstantiatedFromAsset` inheritance SHALL be removed.
-
-`ComputeStage` SHALL own its pipeline, pipeline layout and descriptor set layout, and SHALL NOT create or own a descriptor pool: descriptor sets used with the stage come from the device descriptor arena. Its descriptor set layout SHALL be obtained from the device's immutable resource cache, so that the layout its pipeline layout is built over and the layout a set is allocated against are the same object.
-
-#### Scenario: ComputeStage constructed from Rhi facilities
-
-- **WHEN** `ComputeStage` is constructed with `(DeviceContext&)` and instantiated from SPIR-V binary
-- **THEN** a compute pipeline, pipeline layout and descriptor set layout are created on the device
-- **AND** no descriptor pool is created for the stage
-- **AND** the descriptor set layout is the object the immutable resource cache returns for that layout description
-
-#### Scenario: Stage exposes no pool
-
-- **WHEN** a caller needs the descriptor set of a compute binding
-- **THEN** the set is acquired from the device descriptor arena
-- **AND** the stage offers no descriptor pool for the caller to allocate from
-
-#### Scenario: Asset-path caller adapted
-
-- **WHEN** `ComplexRenderGraphBuilder` creates its bloom compute stage
-- **THEN** it passes the shader's SPIR-V binary and name directly, with no `ShaderAsset` overload used
 
 ### Requirement: Rhi exports symbols via RHI_API macro
 
