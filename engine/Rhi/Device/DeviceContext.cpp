@@ -1,6 +1,7 @@
 #include "Rhi/Device/DeviceContext.h"
 
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 #include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
 #include "Rhi/Submission/EpochTracker.h"
@@ -18,6 +19,7 @@ namespace Engine::Rhi {
         m_epoch_tracker = std::make_unique<EpochTracker>(m_device_interface->GetDevice());
         // The arena reads the tracker, so the tracker must exist first.
         m_descriptor_arena = std::make_unique<DescriptorArena>(*this);
+        m_compute_kernel_cache = std::make_unique<ComputeKernelCache>(*this);
         // Install the tracker as the allocator's retire sink: from here on every
         // buffer allocated through this context is retire-safe by construction.
         m_allocator_state->SetRetireSink(m_epoch_tracker.get());
@@ -55,6 +57,24 @@ namespace Engine::Rhi {
 
     const DescriptorArena &DeviceContext::GetDescriptorArena() const noexcept {
         return *m_descriptor_arena;
+    }
+
+    ComputeKernelCache &DeviceContext::GetComputeKernelCache() noexcept {
+        return *m_compute_kernel_cache;
+    }
+
+    const ComputeKernelCache &DeviceContext::GetComputeKernelCache() const noexcept {
+        return *m_compute_kernel_cache;
+    }
+
+    ComputeKernel &DeviceContext::RequestComputeKernel(
+        std::string_view module_id, const std::vector<uint32_t> &spirv_code, std::string_view debug_name
+    ) {
+        return m_compute_kernel_cache->Request(module_id, spirv_code, debug_name);
+    }
+
+    ComputeKernel *DeviceContext::FindComputeKernel(std::string_view module_id) noexcept {
+        return m_compute_kernel_cache->Find(module_id);
     }
 
     EpochTracker &DeviceContext::GetEpochTracker() noexcept {

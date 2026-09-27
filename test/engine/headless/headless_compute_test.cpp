@@ -1,7 +1,7 @@
 #include "Framework/MainClass.h"
 #include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Render/FullRenderSystem.h"
-#include "Rhi/Pipeline/ComputeHelpers.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <random>
@@ -83,11 +83,8 @@ int main() {
     }
 
     auto spirv = GetSpirvBinaryFromGLSL(GLSL_CODE, EShLangCompute);
-    auto cstage = Rhi::ComputeStage{rsys->GetDeviceContext()};
-    cstage.Instantiate(spirv, "Headless Test Compute Shader");
-    auto &cbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
-    cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
-    cbinding.GetShaderResourceBinding().BindBuffer("Output", compbuf2->GetComputeBuffer());
+    Rhi::ComputeKernel &ckernel =
+        rsys->GetDeviceContext().RequestComputeKernel("test/headless-compute", spirv, "Headless Test Compute Shader");
 
     RenderGraphBuilder rgb{*rsys};
     auto cbi1 = rgb.ImportExternalResource(compbuf1->GetComputeBuffer());
@@ -99,10 +96,15 @@ int main() {
             .UseBuffer(cbi1, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead})
             .UseBuffer(cbi2, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
-            .SetPassFunction([&cstage, &cbinding](CommandBuffer &cb, const RenderGraph &) -> void {
-                cb.BindComputeStage(cstage);
-                cb.BindComputeResource(cbinding);
-                cb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
+            .SetPassFunction([&ckernel, &compbuf1, &compbuf2](CommandBuffer &cb, const RenderGraph &) -> void {
+                ckernel.Dispatch(
+                    cb.GetCommandBuffer(),
+                    {{"Input", Rhi::ComputeKernelResource::Buffer(compbuf1->GetComputeBuffer())},
+                     {"Output", Rhi::ComputeKernelResource::Buffer(compbuf2->GetComputeBuffer())}},
+                    BUFFER_SIZE / 16 + 1,
+                    1,
+                    1
+                );
             })
             .Get()
     );
@@ -113,12 +115,10 @@ int main() {
     std::shared_ptr compbuf3 =
         ComputeBufferTyped<float>::CreateUniqueTyped(rsys->GetAllocatorState(), BUFFER_SIZE, true, false, false, false);
     auto spirv_push = GetSpirvBinaryFromGLSL(GLSL_CODE_PUSH, EShLangCompute);
-    auto cstage_push = Rhi::ComputeStage{rsys->GetDeviceContext()};
-    cstage_push.Instantiate(spirv_push, "Headless Push-Constant Compute Shader");
-    assert(cstage_push.GetPushConstantSize() == 4u && "Push block must reflect 4 bytes");
-    auto &cbinding_push = cstage_push.AllocateResourceBinding();
-    cbinding_push.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
-    cbinding_push.GetShaderResourceBinding().BindBuffer("Output", compbuf3->GetComputeBuffer());
+    Rhi::ComputeKernel &ckernel_push = rsys->GetDeviceContext().RequestComputeKernel(
+        "test/headless-compute-push", spirv_push, "Headless Push-Constant Compute Shader"
+    );
+    assert(ckernel_push.GetPushConstantSize() == 4u && "Push block must reflect 4 bytes");
 
     RenderGraphBuilder rgb_push{*rsys};
     auto cbi3 = rgb_push.ImportExternalResource(compbuf3->GetComputeBuffer());
@@ -129,11 +129,16 @@ int main() {
             .UseBuffer(cbi3, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction(
-                [&cstage_push, &cbinding_push, PUSH_OFFSET](CommandBuffer &cb, const RenderGraph &) -> void {
-                    Rhi::PushConstants(cb.GetCommandBuffer(), cstage_push, PUSH_OFFSET);
-                    cb.BindComputeStage(cstage_push);
-                    cb.BindComputeResource(cbinding_push);
-                    cb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
+                [&ckernel_push, &compbuf1, &compbuf3, PUSH_OFFSET](CommandBuffer &cb, const RenderGraph &) -> void {
+                    ckernel_push.Dispatch(
+                        cb.GetCommandBuffer(),
+                        {{"Input", Rhi::ComputeKernelResource::Buffer(compbuf1->GetComputeBuffer())},
+                         {"Output", Rhi::ComputeKernelResource::Buffer(compbuf3->GetComputeBuffer())}},
+                        BUFFER_SIZE / 16 + 1,
+                        1,
+                        1,
+                        PUSH_OFFSET
+                    );
                 }
             )
             .Get()

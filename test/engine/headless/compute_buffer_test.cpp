@@ -1,6 +1,7 @@
 #include "Framework/MainClass.h"
 #include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <random>
@@ -65,11 +66,8 @@ int main(int argc, char *argv[]) {
     std::cout << std::endl;
 
     auto spirv = GetSpirvBinaryFromGLSL(GLSL_CODE, EShLangCompute);
-    auto cstage = Rhi::ComputeStage{rsys->GetDeviceContext()};
-    cstage.Instantiate(spirv, "Test Compute Shader");
-    auto &cbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
-    cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
-    cbinding.GetShaderResourceBinding().BindBuffer("Output", compbuf2->GetComputeBuffer());
+    Rhi::ComputeKernel &kernel =
+        rsys->GetDeviceContext().RequestComputeKernel("test/compute-buffer", spirv, "Test Compute Shader");
 
     RenderGraphBuilder rgb{*rsys};
     auto cbi1 = rgb.ImportExternalResource(compbuf1->GetComputeBuffer());
@@ -81,10 +79,15 @@ int main(int argc, char *argv[]) {
             .UseBuffer(cbi1, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead})
             .UseBuffer(cbi2, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
-            .SetPassFunction([&cstage, &cbinding](CommandBuffer &cb, const RenderGraph &) -> void {
-                cb.BindComputeStage(cstage);
-                cb.BindComputeResource(cbinding);
-                cb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
+            .SetPassFunction([&kernel, &compbuf1, &compbuf2](CommandBuffer &cb, const RenderGraph &) -> void {
+                kernel.Dispatch(
+                    cb.GetCommandBuffer(),
+                    {{"Input", Rhi::ComputeKernelResource::Buffer(compbuf1->GetComputeBuffer())},
+                     {"Output", Rhi::ComputeKernelResource::Buffer(compbuf2->GetComputeBuffer())}},
+                    BUFFER_SIZE / 16 + 1,
+                    1,
+                    1
+                );
             })
             .Get()
     );

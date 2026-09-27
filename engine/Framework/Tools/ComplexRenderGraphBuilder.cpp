@@ -3,6 +3,7 @@
 #include <Framework/MainClass.h>
 #include <Framework/World/WorldSystem.h>
 #include <Render/Asset/Shader/ShaderAsset.h>
+#include <Render/Asset/Shader/ShaderKernel.h>
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
@@ -14,9 +15,7 @@
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Resource/RenderTargetTexture.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include <Rhi/Pipeline/ComputeKernel.h>
 
 #include <vulkan/vulkan.hpp>
 
@@ -83,15 +82,13 @@ namespace Engine {
             );
         }
 
-        // Set up bloom compute stage
-        m_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system.GetDeviceContext());
-        m_bloom_compute_stage->Instantiate(
-            m_bloom_shader.as<ShaderAsset>()->binary, m_bloom_shader.as<ShaderAsset>()->m_name
-        );
+        // Set up the bloom kernel: one kernel exists per shader asset on the
+        // device, no matter how many builders request it.
+        m_bloom_kernel = &RequestComputeKernel(m_system.GetDeviceContext(), *m_bloom_shader.as<ShaderAsset>());
 
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
-        auto &bloom_compute_stage = *m_bloom_compute_stage;
+        auto &bloom_kernel = *m_bloom_kernel;
         using IAT = Rhi::MemoryAccessTypeImageBits;
 
         /**
@@ -200,27 +197,26 @@ namespace Engine {
         /**
          * Bloom FX compute pass.
          */
-        auto &bloom_compute_binding =
-            bloom_compute_stage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Bloom FX pass")
                 .UseImage(hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(final_color_target_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
-                .SetPassFunction([&bloom_compute_stage, &bloom_compute_binding, hdr_color_id, final_color_target_id](
-                                     CommandBuffer &cb, const RenderGraph &rg
-                                 ) {
-                    bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                        "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
-                    );
-                    bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                        "outputImage", *rg.GetInternalTextureResource(final_color_target_id)
-                    );
+                .SetPassFunction([&bloom_kernel,
+                                  hdr_color_id,
+                                  final_color_target_id](CommandBuffer &cb, const RenderGraph &rg) {
                     const auto &hdr_desc = rg.GetInternalTextureResource(hdr_color_id)->GetTextureDescription();
-                    cb.BindComputeStage(bloom_compute_stage);
-                    cb.BindComputeResource(bloom_compute_binding);
-                    cb.DispatchCompute(hdr_desc.width / 16 + 1, hdr_desc.height / 16 + 1, 1);
+                    bloom_kernel.Dispatch(
+                        cb.GetCommandBuffer(),
+                        {{"inputImage",
+                          Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(hdr_color_id))},
+                         {"outputImage",
+                          Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(final_color_target_id))}},
+                        hdr_desc.width / 16 + 1,
+                        hdr_desc.height / 16 + 1,
+                        1
+                    );
                 })
                 .Get()
         );

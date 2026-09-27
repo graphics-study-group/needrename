@@ -1,40 +1,16 @@
 #include "SumByKey.h"
 
-#include <cmake_config.h>
-
 #include <vulkan/vulkan.hpp>
 
-#include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeHelpers.h>
-
-#include <Rhi/Buffer/ComputeBuffer.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include "Physics/PhysicsSpirvLoader.h"
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 
 #include <cassert>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
 #include <vector>
 
 namespace {
-    std::vector<uint32_t> LoadPhysicsSpirvBytes(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        }
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
-    }
-
     const vk::MemoryBarrier2 kComputeBarrier{
         vk::PipelineStageFlagBits2::eComputeShader,
         vk::AccessFlagBits2::eShaderStorageWrite,
@@ -86,9 +62,7 @@ namespace Engine {
         Rhi::DeviceContext &device_context;
         bool initialized = false;
 
-        std::unique_ptr<Rhi::ComputeStage> reduce_stage{};
-        std::vector<uint32_t> reduce_spirv{};
-        Rhi::ComputeResourceBinding *reduce_binding = nullptr;
+        Rhi::ComputeKernel *reduce_kernel = nullptr;
 
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
@@ -102,11 +76,7 @@ namespace Engine {
             if (initialized) return;
             initialized = true;
 
-            const char *path = "algorithm/sum_by_key.comp.spv";
-            reduce_spirv = LoadPhysicsSpirvBytes(path);
-            reduce_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            reduce_stage->Instantiate(reduce_spirv, "SumByKey");
-            reduce_binding = &reduce_stage->AllocateResourceBinding();
+            reduce_kernel = &LoadPhysicsKernel(device_context, "algorithm/sum_by_key.comp.spv", "SumByKey");
         }
     };
 
@@ -174,7 +144,9 @@ namespace Engine {
             throw std::runtime_error("SumByKey::Record: value buffer is smaller than num_channels * capacity floats");
         }
         if (out_values_buf.GetSize() < out_bytes) {
-            throw std::runtime_error("SumByKey::Record: output buffer is smaller than num_channels * max_key_value floats");
+            throw std::runtime_error(
+                "SumByKey::Record: output buffer is smaller than num_channels * max_key_value floats"
+            );
         }
         if (records_buf.GetSize() < records_bytes) {
             throw std::runtime_error("SumByKey::Record: record buffer is smaller than GetRequiredRecordsBytes");
@@ -205,21 +177,13 @@ namespace Engine {
             cursor += region_bytes;
         }
 
-        auto &srb = m_impl->reduce_binding->GetShaderResourceBinding();
-
-        // The caller's sorted key array and its payload-index array.  Bound once
-        // for every level: they are the same buffers throughout and are read only
-        // where `gather_payload` is set (for an untouched descriptor the shader
-        // never dereferences them).
-        srb.BindBuffer("KeysIn", keys_in_buf, 0u, keys_bytes);
-        srb.BindBuffer("PayloadIn", payload_in_buf, 0u, keys_bytes);
-
-        // The entry count is bound at every level; its contents are read only at
-        // level 0, so no level needs a placeholder for it.
-        srb.BindBuffer("EntryCount", entry_count_buf, 0u, sizeof(uint32_t));
-
-        // Output value buffer: channel-major with stride max_key_value.
-        srb.BindBuffer("OutValues", out_values_buf, 0u, out_bytes);
+        // The caller's sorted key array and its payload-index array: the same
+        // buffers at every level, read only where `gather_payload` is set (for an
+        // untouched descriptor the shader never dereferences them).
+        Rhi::ComputeKernelResource keys_in = Rhi::ComputeKernelResource::Buffer(keys_in_buf, 0u, keys_bytes);
+        Rhi::ComputeKernelResource values_in = Rhi::ComputeKernelResource::Buffer(values_in_buf, 0u, values_bytes);
+        Rhi::ComputeKernelResource rec_keys{};
+        Rhi::ComputeKernelResource rec_values{};
 
         for (uint32_t level = 0u; level < k; ++level) {
             const uint32_t input_count = geometry.r[level];
@@ -228,20 +192,15 @@ namespace Engine {
             // ---- Read source for this level ----
             if (level == 0u) {
                 // Level 0 gathers from the caller's key array and payload-index
-                // array, both already bound above; only ValuesIn changes here.
-                // PayloadIn keeps pointing at the caller's payload array at deeper
-                // levels, where `gather_payload` is clear and it is never read.
-                srb.BindBuffer("ValuesIn", values_in_buf, 0u, values_bytes);
+                // array; only ValuesIn differs from the level-invariant binding.
+                values_in = Rhi::ComputeKernelResource::Buffer(values_in_buf, 0u, values_bytes);
             } else {
                 const auto &reg = regions[level - 1u];
-                srb.BindBuffer(
-                    "KeysIn", records_buf, reg.key_offset, static_cast<size_t>(reg.count) * sizeof(uint32_t)
+                keys_in = Rhi::ComputeKernelResource::Buffer(
+                    records_buf, reg.key_offset, static_cast<size_t>(reg.count) * sizeof(uint32_t)
                 );
-                srb.BindBuffer(
-                    "ValuesIn",
-                    records_buf,
-                    reg.val_offset,
-                    static_cast<size_t>(num_channels) * reg.count * sizeof(uint32_t)
+                values_in = Rhi::ComputeKernelResource::Buffer(
+                    records_buf, reg.val_offset, static_cast<size_t>(num_channels) * reg.count * sizeof(uint32_t)
                 );
             }
 
@@ -250,11 +209,10 @@ namespace Engine {
             if (level + 1u < k) {
                 // Non-final: emit records into region for R_{level+1}.
                 const auto &out_reg = regions[level]; // index level == region R_{level+1}
-                srb.BindBuffer(
-                    "RecKeys", records_buf, out_reg.key_offset, static_cast<size_t>(out_reg.count) * sizeof(uint32_t)
+                rec_keys = Rhi::ComputeKernelResource::Buffer(
+                    records_buf, out_reg.key_offset, static_cast<size_t>(out_reg.count) * sizeof(uint32_t)
                 );
-                srb.BindBuffer(
-                    "RecValues",
+                rec_values = Rhi::ComputeKernelResource::Buffer(
                     records_buf,
                     out_reg.val_offset,
                     static_cast<size_t>(num_channels) * out_reg.count * sizeof(uint32_t)
@@ -264,11 +222,10 @@ namespace Engine {
                 // Final level: no record output. Bind harmless ranges to keep the
                 // descriptor set complete.
                 const auto &last_reg = regions[k - 2u];
-                srb.BindBuffer(
-                    "RecKeys", records_buf, last_reg.key_offset, static_cast<size_t>(last_reg.count) * sizeof(uint32_t)
+                rec_keys = Rhi::ComputeKernelResource::Buffer(
+                    records_buf, last_reg.key_offset, static_cast<size_t>(last_reg.count) * sizeof(uint32_t)
                 );
-                srb.BindBuffer(
-                    "RecValues",
+                rec_values = Rhi::ComputeKernelResource::Buffer(
                     records_buf,
                     last_reg.val_offset,
                     static_cast<size_t>(num_channels) * last_reg.count * sizeof(uint32_t)
@@ -278,19 +235,30 @@ namespace Engine {
                 // shader's final branch never touches RecKeys/RecValues, but the
                 // descriptor set must still be complete, so point them at the
                 // (guaranteed non-empty) output buffer.
-                srb.BindBuffer("RecKeys", out_values_buf, 0u, out_bytes);
-                srb.BindBuffer("RecValues", out_values_buf, 0u, out_bytes);
+                rec_keys = Rhi::ComputeKernelResource::Buffer(out_values_buf, 0u, out_bytes);
+                rec_values = Rhi::ComputeKernelResource::Buffer(out_values_buf, 0u, out_bytes);
             }
 
             const uint32_t gather_payload = (level == 0u) ? 1u : 0u;
             const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_payload};
-            Rhi::PushConstants(cb, *m_impl->reduce_stage, params);
-            Rhi::BindComputeStage(cb, *m_impl->reduce_stage);
-            Rhi::BindComputeResource(cb, *m_impl->reduce_stage, *m_impl->reduce_binding);
-            Rhi::DispatchCompute(cb, num_blocks, 1, 1);
+            m_impl->reduce_kernel->Dispatch(
+                cb,
+                {{"KeysIn", keys_in},
+                 {"ValuesIn", values_in},
+                 {"PayloadIn", Rhi::ComputeKernelResource::Buffer(payload_in_buf, 0u, keys_bytes)},
+                 {"RecKeys", rec_keys},
+                 {"RecValues", rec_values},
+                 {"OutValues", Rhi::ComputeKernelResource::Buffer(out_values_buf, 0u, out_bytes)},
+                 {"EntryCount", Rhi::ComputeKernelResource::Buffer(entry_count_buf, 0u, sizeof(uint32_t))}},
+                num_blocks,
+                1,
+                1,
+                params
+            );
 
             if (level + 1u < k) {
-                cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+                const vk::MemoryBarrier2 dependencies[1] = {kComputeBarrier};
+                cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, 1, dependencies, 0, nullptr, 0, nullptr});
             }
         }
     }

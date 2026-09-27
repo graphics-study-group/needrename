@@ -2,25 +2,34 @@
 
 ## Purpose
 
-Defines the single call surface for invoking a compute shader: a kernel is identified by its SPIR-V module, invoked with a name-to-resource dictionary plus a dispatch grid, validated against the shader's reflected interface, and recorded without any implicit synchronization.
+Defines the single call surface for invoking a compute shader: a kernel is identified by a caller-supplied module identity, invoked with a name-to-resource dictionary plus a dispatch grid, validated against the shader's reflected interface, and recorded without any implicit synchronization.
 
 ## ADDED Requirements
 
-### Requirement: A kernel is identified by its SPIR-V module
+### Requirement: A kernel is identified by a caller-supplied module identity
 
-A compute kernel SHALL be identified by the SPIR-V module it was created from. Requesting a kernel for the same SPIR-V module more than once on the same device SHALL yield the same kernel, and the device SHALL hold exactly one compute pipeline per distinct SPIR-V module regardless of how many components dispatch it.
+A compute kernel SHALL be identified by a module identity string supplied alongside its SPIR-V words. Requesting a kernel for an identity the device already knows SHALL return the existing kernel without reading, hashing or retaining the module's words, and the device SHALL hold exactly one compute pipeline per identity regardless of how many components dispatch it.
 
-Kernel creation SHALL be lazy: no pipeline, descriptor set layout, or pipeline layout SHALL be created for a module before its first request.
+The identity is the caller's assertion that two requests bearing the same identity denote the same module. The facility MUST NOT verify it against the module's contents, and MUST NOT require any particular form of it. Identities come from wherever a shader is already managed: the engine's shader assets use their asset GUID, and directly file-loaded SPIR-V uses its path.
+
+Kernel creation SHALL be lazy: no pipeline, descriptor set layout, or pipeline layout SHALL be created for an identity before its first request.
 
 #### Scenario: Two components share one shader
 
-- **WHEN** two independent components each request the kernel for the same SPIR-V module
+- **WHEN** two independent components each request the kernel for the same module identity
 - **THEN** both receive the same kernel
-- **AND** exactly one compute pipeline exists for that module on the device
+- **AND** exactly one compute pipeline exists for that identity on the device
+- **AND** the second request needs no SPIR-V words
 
-#### Scenario: Distinct modules yield distinct kernels
+#### Scenario: A known identity is found without its words
 
-- **WHEN** kernels are requested for two different SPIR-V modules
+- **WHEN** a caller probes a module identity the device already knows
+- **THEN** the kernel is returned without the module being read, hashed or compared
+- **AND** probing an unknown identity yields no kernel and creates nothing
+
+#### Scenario: Distinct identities yield distinct kernels
+
+- **WHEN** kernels are requested for two different module identities
 - **THEN** each request yields a kernel bound to its own module and pipeline
 
 #### Scenario: Nothing is created before first use
@@ -30,11 +39,11 @@ Kernel creation SHALL be lazy: no pipeline, descriptor set layout, or pipeline l
 
 ### Requirement: A kernel has no Asset dependency
 
-A kernel SHALL be constructible from Rhi facilities and a SPIR-V word sequence. It MUST NOT depend on the Asset module, and MUST NOT accept an asset-typed creation overload.
+A kernel SHALL be constructible from Rhi facilities, a SPIR-V word sequence and a module identity. It MUST NOT depend on the Asset module, and MUST NOT accept an asset-typed creation overload.
 
 #### Scenario: Kernel created from SPIR-V words
 
-- **WHEN** a kernel is created from a `std::vector<uint32_t>` of SPIR-V words and a name
+- **WHEN** a kernel is created from a `std::vector<uint32_t>` of SPIR-V words, a module identity and a name
 - **THEN** a compute pipeline, pipeline layout and descriptor set layout are created on the device
 - **AND** no Asset type is referenced by the kernel's interface
 
@@ -58,6 +67,10 @@ Invoking a kernel SHALL be a single call taking the command buffer, the resource
 
 A dispatch SHALL obtain its descriptor set from the device's descriptor arena at the moment it is recorded, and a kernel SHALL NOT retain a descriptor-set handle between dispatches.
 
+A kernel SHALL obtain its descriptor-set layout from the arena once, at creation, build its pipeline layout over that resolved object, and pass that same object to the arena's cache layer on every dispatch, together with the dynamic-offset flags its layout description was created with and the set index it resolved. A kernel MUST NOT resolve a layout description of its own, and MUST NOT hand the arena a layout the arena did not resolve.
+
+The resolved binding entries a dispatch hands the arena SHALL be ordered canonically by ascending binding number, so that equal resources presented in any dictionary order key to one arena entry instead of minting a set per order.
+
 Re-acquiring on every dispatch is what keeps the arena's record of the acquiring epoch accurate, and therefore what makes the arena's reuse cache safe to reclaim from. A kernel that held a handle between dispatches would keep binding a set the arena may already have released.
 
 The caller MUST NOT supply a rotation slot or a binding object: the arena reclaims a set only once the completed prefix has passed the epoch recorded for it, and that record stays accurate because every dispatch refreshes it.
@@ -67,6 +80,12 @@ The caller MUST NOT supply a rotation slot or a binding object: the arena reclai
 - **WHEN** the same kernel is dispatched twice within one epoch with identical resources, and again in the next epoch
 - **THEN** each dispatch acquires its set from the arena
 - **AND** all three receive the same set, with no new set created after the first
+
+#### Scenario: Dictionary order does not change set identity
+
+- **WHEN** the same kernel is dispatched twice in one epoch with the same resources supplied in two different dictionary orders
+- **THEN** both dispatches acquire the same set
+- **AND** the arena mints no second set
 
 #### Scenario: A kernel holds no set between dispatches
 
@@ -78,11 +97,13 @@ The caller MUST NOT supply a rotation slot or a binding object: the arena reclai
 
 The mapping from an interface name to its descriptor set and binding SHALL be derived from the shader module's reflected decorations. The C++ side MUST NOT declare descriptor set or binding numbers.
 
-Each declared interface name SHALL be resolved to a dense table when the kernel is created. Dispatch-time work SHALL scale with the number of bound resources and MUST NOT hash or compare interface name strings.
+Each declared interface name SHALL be resolved to a dense table when the kernel is created, and each dictionary entry SHALL be matched against that table once per dispatch. Dispatch-time work SHALL be proportional to the number of resources the caller supplies: it MUST NOT walk the shader's whole declared interface table, and MUST NOT build or hash a container keyed by every declared interface.
+
+A kernel SHALL bind exactly one descriptor set, at set index 0 — where every compute shader in the engine declares its interfaces. Interfaces declared in other sets are outside this facility.
 
 #### Scenario: A shader with arbitrary binding numbers needs no C++ change
 
-- **WHEN** a shader declares its interfaces at any set and binding numbers
+- **WHEN** a shader declares its interfaces at non-contiguous binding numbers within set 0
 - **THEN** the caller binds them by the names declared in the shader
 - **AND** no C++ source states a descriptor set or binding number for that shader
 
@@ -202,17 +223,24 @@ Dispatch MUST NOT accept a rotation, slot, or frame parameter.
 
 A kernel's pipeline, reflected layout and resolved interface table SHALL be immutable after creation, and the kernel SHALL remain valid for the lifetime of the device context it was created from.
 
-Runtime shader reload is out of scope: SPIR-V that changes content MUST be treated as a distinct module identity rather than mutating an existing kernel.
+Runtime shader reload is out of scope: a kernel MUST NOT be mutated or rebuilt, and the facility MUST NOT offer a reload entry point. SPIR-V whose contents change is reached through a new module identity rather than by rebuilding an existing kernel.
 
 #### Scenario: Kernel outlives its requester
 
 - **WHEN** a component that requested a kernel is destroyed while another component still dispatches it
 - **THEN** the kernel remains valid and usable
 
-#### Scenario: Changed SPIR-V is a distinct kernel
+#### Scenario: A repeated request does not rebuild the kernel
 
-- **WHEN** a module's SPIR-V words change and a kernel is requested for them
-- **THEN** the request is not satisfied by a kernel created from the previous words
+- **WHEN** a kernel is requested again for an identity the device already knows
+- **THEN** the existing kernel is returned unchanged
+- **AND** no pipeline, layout or shader module is created a second time
+
+#### Scenario: A changed module is reached through a new identity
+
+- **WHEN** a module's SPIR-V words change and are requested under an identity the device does not know
+- **THEN** the request yields a kernel distinct from the one built from the previous words
+- **AND** the kernel built from the previous words is unchanged
 
 ### Requirement: The kernel facility works without a frame loop
 

@@ -10,7 +10,7 @@
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
-        class ComputeStage;
+        class ComputeKernel;
     } // namespace Rhi
     class RenderGraph;
     class RenderSystem;
@@ -42,7 +42,8 @@ namespace Engine {
     protected:
         RenderSystem &m_system;
         AssetRef m_bloom_shader{};
-        std::shared_ptr<Rhi::ComputeStage> m_bloom_compute_stage{};
+        /// @brief The bloom kernel, owned by the device context.
+        Rhi::ComputeKernel *m_bloom_kernel{};
     };
 } // namespace Engine
 

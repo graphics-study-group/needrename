@@ -1,43 +1,19 @@
 #include "DummySolver.h"
 
-#include <cmake_config.h>
-
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsScene.h>
+#include <Physics/PhysicsSpirvLoader.h>
 #include <Physics/Solver/XPBDGpuSolver.h>
-#include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeHelpers.h>
-
 #include <Rhi/Buffer/ComputeBuffer.h>
 #include <Rhi/Buffer/DeviceBuffer.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include <Rhi/Device/DeviceContext.h>
+#include <Rhi/Pipeline/ComputeKernel.h>
 
 #include <algorithm>
 #include <cassert>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
 
 namespace {
-    std::vector<uint32_t> LoadPhysicsSpirv(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        }
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
-    }
-
     const vk::MemoryBarrier2 kComputeBarrier{
         vk::PipelineStageFlagBits2::eComputeShader,
         vk::AccessFlagBits2::eShaderStorageWrite,
@@ -54,15 +30,11 @@ namespace Engine {
         XpbdConfig config{};
         bool initialized = false;
 
-        std::unique_ptr<Rhi::ComputeStage> compute_stage{};
-        std::vector<uint32_t> shader_spirv{};
-        Rhi::ComputeResourceBinding *resource_binding = nullptr;
+        Rhi::ComputeKernel *compute_kernel = nullptr;
 
         // The shared model matrix shader, used by GPUCalcModelMatrices. The
         // displacement step does not write model matrices.
-        std::unique_ptr<Rhi::ComputeStage> model_matrix_stage{};
-        std::vector<uint32_t> model_matrix_spirv{};
-        Rhi::ComputeResourceBinding *model_matrix_binding = nullptr;
+        Rhi::ComputeKernel *model_matrix_kernel = nullptr;
 
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
@@ -72,19 +44,14 @@ namespace Engine {
         Impl(Impl &&) = delete;
         Impl &operator=(Impl &&) = delete;
 
-        /// @brief Load both compute stages on first use.
+        /// @brief Acquire both compute kernels on first use.
         void EnsureLoaded() {
             if (initialized) return;
 
-            shader_spirv = LoadPhysicsSpirv("solver/DummySolver/dummy_solver.comp.spv");
-            compute_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            compute_stage->Instantiate(shader_spirv, "DummySolver");
-            resource_binding = &compute_stage->AllocateResourceBinding();
-
-            model_matrix_spirv = LoadPhysicsSpirv("solver/common/model_matrix.comp.spv");
-            model_matrix_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            model_matrix_stage->Instantiate(model_matrix_spirv, "DummySolver ModelMatrix");
-            model_matrix_binding = &model_matrix_stage->AllocateResourceBinding();
+            compute_kernel =
+                &LoadPhysicsKernel(device_context, "solver/DummySolver/dummy_solver.comp.spv", "DummySolver");
+            model_matrix_kernel =
+                &LoadPhysicsKernel(device_context, "solver/common/model_matrix.comp.spv", "DummySolver ModelMatrix");
 
             initialized = true;
         }
@@ -128,21 +95,22 @@ namespace Engine {
 
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        auto &srb = m_impl->resource_binding->GetShaderResourceBinding();
-        srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-        srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-        srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-
         const uint32_t body_wg = (gpu.rigid_body_slot_count + 63u) / 64u;
 
         const float effective_dt = m_bound_scene->IsSimulationEnabled() ? m_impl->config.time_step : 0.0f;
         const glm::vec4 gravity_dt =
             glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt);
 
-        Rhi::PushConstants(cb, *m_impl->compute_stage, gravity_dt);
-        Rhi::BindComputeStage(cb, *m_impl->compute_stage);
-        Rhi::BindComputeResource(cb, *m_impl->compute_stage, *m_impl->resource_binding);
-        Rhi::DispatchCompute(cb, body_wg, 1, 1);
+        m_impl->compute_kernel->Dispatch(
+            cb,
+            {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+             {"RigidBodyCenterPosition", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
+             {"RigidBodyCenterRotation", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)}},
+            body_wg,
+            1,
+            1,
+            gravity_dt
+        );
     }
 
     void DummySolver::GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) {
@@ -175,15 +143,16 @@ namespace Engine {
         // that makes the poses it reads visible.
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        auto &srb = m_impl->model_matrix_binding->GetShaderResourceBinding();
-        srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-        srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-        srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-        srb.BindBuffer("ModelMatrices", target);
-
-        Rhi::BindComputeStage(cb, *m_impl->model_matrix_stage);
-        Rhi::BindComputeResource(cb, *m_impl->model_matrix_stage, *m_impl->model_matrix_binding);
-        Rhi::DispatchCompute(cb, (write_count + 63u) / 64u, 1, 1);
+        m_impl->model_matrix_kernel->Dispatch(
+            cb,
+            {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+             {"RigidBodyCenterPosition", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
+             {"RigidBodyCenterRotation", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)},
+             {"ModelMatrices", Rhi::ComputeKernelResource::Buffer(target)}},
+            (write_count + 63u) / 64u,
+            1,
+            1
+        );
     }
 
 } // namespace Engine

@@ -1,40 +1,16 @@
 #include "ParallelScan.h"
 
-#include <cmake_config.h>
-
 #include <vulkan/vulkan.hpp>
 
-#include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeHelpers.h>
-
-#include <Rhi/Buffer/ComputeBuffer.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include "Physics/PhysicsSpirvLoader.h"
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 
 #include <cassert>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
 #include <vector>
 
 namespace {
-    std::vector<uint32_t> LoadPhysicsSpirvBytes(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        }
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
-    }
-
     const vk::MemoryBarrier2 kComputeBarrier{
         vk::PipelineStageFlagBits2::eComputeShader,
         vk::AccessFlagBits2::eShaderStorageWrite,
@@ -63,14 +39,8 @@ namespace Engine {
         uint32_t max_elem_count = 1u;
         bool initialized = false;
 
-        std::unique_ptr<Rhi::ComputeStage> scan_stage{};
-        std::vector<uint32_t> scan_spirv{};
-
-        std::unique_ptr<Rhi::ComputeStage> offset_stage{};
-        std::vector<uint32_t> offset_spirv{};
-
-        Rhi::ComputeResourceBinding *scan_binding = nullptr;
-        Rhi::ComputeResourceBinding *offset_binding = nullptr;
+        Rhi::ComputeKernel *scan_kernel = nullptr;
+        Rhi::ComputeKernel *offset_kernel = nullptr;
 
         explicit Impl(Rhi::DeviceContext &ctx, uint32_t mec) : device_context(ctx), max_elem_count(mec) {
             if (max_elem_count == 0u) {
@@ -87,17 +57,8 @@ namespace Engine {
             if (initialized) return;
             initialized = true;
 
-            const char *scan_path = "algorithm/parallel_scan.comp.spv";
-            scan_spirv = LoadPhysicsSpirvBytes(scan_path);
-            scan_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            scan_stage->Instantiate(scan_spirv, "ParallelScan");
-            scan_binding = &scan_stage->AllocateResourceBinding();
-
-            const char *offset_path = "algorithm/add_block_offset.comp.spv";
-            offset_spirv = LoadPhysicsSpirvBytes(offset_path);
-            offset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            offset_stage->Instantiate(offset_spirv, "AddBlockOffset");
-            offset_binding = &offset_stage->AllocateResourceBinding();
+            scan_kernel = &LoadPhysicsKernel(device_context, "algorithm/parallel_scan.comp.spv", "ParallelScan");
+            offset_kernel = &LoadPhysicsKernel(device_context, "algorithm/add_block_offset.comp.spv", "AddBlockOffset");
         }
 
         void RecordScanPass(
@@ -110,15 +71,16 @@ namespace Engine {
             size_t data_binding_offset,
             size_t block_sums_binding_offset
         ) {
-            auto &srb = scan_binding->GetShaderResourceBinding();
-            srb.BindBuffer("InputData", data_input_buf, data_binding_offset);
-            srb.BindBuffer("OutputData", data_output_buf, data_binding_offset);
-            srb.BindBuffer("BlockSums", block_sums_buf, block_sums_binding_offset);
-
-            Rhi::PushConstants(cb, *scan_stage, params);
-            Rhi::BindComputeStage(cb, *scan_stage);
-            Rhi::BindComputeResource(cb, *scan_stage, *scan_binding);
-            Rhi::DispatchCompute(cb, num_workgroups, 1, 1);
+            scan_kernel->Dispatch(
+                cb,
+                {{"InputData", Rhi::ComputeKernelResource::Buffer(data_input_buf, data_binding_offset)},
+                 {"OutputData", Rhi::ComputeKernelResource::Buffer(data_output_buf, data_binding_offset)},
+                 {"BlockSums", Rhi::ComputeKernelResource::Buffer(block_sums_buf, block_sums_binding_offset)}},
+                num_workgroups,
+                1,
+                1,
+                params
+            );
         }
 
         void RecordOffsetPass(
@@ -131,15 +93,16 @@ namespace Engine {
             size_t data_binding_offset,
             size_t block_sums_binding_offset
         ) {
-            auto &srb = offset_binding->GetShaderResourceBinding();
-            srb.BindBuffer("InputData", data_input_buf, data_binding_offset);
-            srb.BindBuffer("OutputData", data_output_buf, data_binding_offset);
-            srb.BindBuffer("BlockSums", block_sums_buf, block_sums_binding_offset);
-
-            Rhi::PushConstants(cb, *offset_stage, params);
-            Rhi::BindComputeStage(cb, *offset_stage);
-            Rhi::BindComputeResource(cb, *offset_stage, *offset_binding);
-            Rhi::DispatchCompute(cb, num_workgroups, 1, 1);
+            offset_kernel->Dispatch(
+                cb,
+                {{"InputData", Rhi::ComputeKernelResource::Buffer(data_input_buf, data_binding_offset)},
+                 {"OutputData", Rhi::ComputeKernelResource::Buffer(data_output_buf, data_binding_offset)},
+                 {"BlockSums", Rhi::ComputeKernelResource::Buffer(block_sums_buf, block_sums_binding_offset)}},
+                num_workgroups,
+                1,
+                1,
+                params
+            );
         }
 
         void RecordScanInternal(

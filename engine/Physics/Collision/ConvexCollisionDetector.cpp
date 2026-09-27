@@ -1,43 +1,17 @@
 #include "ConvexCollisionDetector.h"
 
-#include <cmake_config.h>
-
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsScene.h>
+#include <Physics/PhysicsSpirvLoader.h>
 #include <Rhi/Buffer/ComputeBuffer.h>
 #include <Rhi/Buffer/DeviceBuffer.h>
 #include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeHelpers.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include <Rhi/Pipeline/ComputeKernel.h>
 
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
 #include <vector>
 
 namespace {
-    /**
-     * @brief Load a precompiled physics SPIR-V blob from disk.
-     */
-    std::vector<uint32_t> LoadPhysicsSpirv(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        }
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
-    }
-
     const vk::MemoryBarrier2 kComputeBarrier{
         vk::PipelineStageFlagBits2::eComputeShader,
         vk::AccessFlagBits2::eShaderStorageWrite,
@@ -62,11 +36,8 @@ namespace Engine {
 
         bool shaders_loaded = false;
 
-        std::unique_ptr<Rhi::ComputeStage> clear_stage{};
-        Rhi::ComputeResourceBinding *clear_binding = nullptr;
-
-        std::unique_ptr<Rhi::ComputeStage> detect_stage{};
-        Rhi::ComputeResourceBinding *detect_binding = nullptr;
+        Rhi::ComputeKernel *clear_kernel = nullptr;
+        Rhi::ComputeKernel *detect_kernel = nullptr;
 
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_ids{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_normals{};
@@ -106,51 +77,16 @@ namespace Engine {
             if (shaders_loaded) return;
             shaders_loaded = true;
 
-            {
-                auto spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_int_buffer.comp.spv");
-                clear_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-                clear_stage->Instantiate(spirv, "ConvexDetect ClearCount");
-                clear_binding = &clear_stage->AllocateResourceBinding();
-                auto &srb = clear_binding->GetShaderResourceBinding();
-                srb.BindBuffer("Target", *gpu_collision_count);
-            }
-
-            {
-                auto spirv = LoadPhysicsSpirv("collision/ConvexCollisionDetector/detect_collisions.comp.spv");
-                detect_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-                detect_stage->Instantiate(spirv, "Convex Collision Detection");
-                detect_binding = &detect_stage->AllocateResourceBinding();
-                auto &srb = detect_binding->GetShaderResourceBinding();
-                srb.BindBuffer("ShapeAlive", *cached_scene->GetGpuBuffers().shape_alive);
-                srb.BindBuffer("ShapeType", *cached_scene->GetGpuBuffers().shape_type);
-                srb.BindBuffer("ShapeFeature", *cached_scene->GetGpuBuffers().shape_feature);
-                srb.BindBuffer("ShapeWorldPosition", *cached_scene->GetGpuBuffers().shape_world_position);
-                srb.BindBuffer("ShapeWorldRotation", *cached_scene->GetGpuBuffers().shape_world_rotation);
-                srb.BindBuffer("CollisionPairs", *cached_pair_buffer);
-                srb.BindBuffer("PairCount", *cached_pair_count_buffer);
-                srb.BindBuffer("CollisionIds", *gpu_collision_ids);
-                srb.BindBuffer("CollisionNormals", *gpu_collision_normals);
-                srb.BindBuffer("ContactPointA", *gpu_contact_point_a);
-                srb.BindBuffer("ContactPointB", *gpu_contact_point_b);
-                srb.BindBuffer("CollisionCount", *gpu_collision_count);
-            }
-        }
-
-        void RebindDetectBuffers() {
-            if (!detect_binding) return;
-            auto &srb = detect_binding->GetShaderResourceBinding();
-            srb.BindBuffer("ShapeAlive", *cached_scene->GetGpuBuffers().shape_alive);
-            srb.BindBuffer("ShapeType", *cached_scene->GetGpuBuffers().shape_type);
-            srb.BindBuffer("ShapeFeature", *cached_scene->GetGpuBuffers().shape_feature);
-            srb.BindBuffer("ShapeWorldPosition", *cached_scene->GetGpuBuffers().shape_world_position);
-            srb.BindBuffer("ShapeWorldRotation", *cached_scene->GetGpuBuffers().shape_world_rotation);
-            srb.BindBuffer("CollisionPairs", *cached_pair_buffer);
-            srb.BindBuffer("PairCount", *cached_pair_count_buffer);
-            srb.BindBuffer("CollisionIds", *gpu_collision_ids);
-            srb.BindBuffer("CollisionNormals", *gpu_collision_normals);
-            srb.BindBuffer("ContactPointA", *gpu_contact_point_a);
-            srb.BindBuffer("ContactPointB", *gpu_contact_point_b);
-            srb.BindBuffer("CollisionCount", *gpu_collision_count);
+            // `clear_int_buffer.comp` is shared with the XPBD solver: both
+            // components resolve to the same device-level kernel.
+            clear_kernel = &LoadPhysicsKernel(
+                device_context, "solver/XPBDSolver/clear_int_buffer.comp.spv", "ConvexDetect ClearCount"
+            );
+            detect_kernel = &LoadPhysicsKernel(
+                device_context,
+                "collision/ConvexCollisionDetector/detect_collisions.comp.spv",
+                "Convex Collision Detection"
+            );
         }
     };
 
@@ -207,13 +143,10 @@ namespace Engine {
 
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        m_impl->EnsureShadersAndBindings();
-        m_impl->RebindDetectBuffers();
-
-        Rhi::PushConstants(cb, *m_impl->clear_stage, 1u);
-        Rhi::BindComputeStage(cb, *m_impl->clear_stage);
-        Rhi::BindComputeResource(cb, *m_impl->clear_stage, *m_impl->clear_binding);
-        Rhi::DispatchCompute(cb, 1, 1, 1);
+        // Every kernel was acquired in Configure: recording creates no pipeline.
+        m_impl->clear_kernel->Dispatch(
+            cb, {{"Target", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_collision_count)}}, 1, 1, 1, 1u
+        );
 
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
@@ -225,9 +158,25 @@ namespace Engine {
         const DetectPushParams params{m_impl->contact_margin, m_impl->shape_slot_count};
 
         uint32_t detect_wg = std::max(1u, (m_impl->max_input_collision_pairs + 63u) / 64u);
-        Rhi::PushConstants(cb, *m_impl->detect_stage, params);
-        Rhi::BindComputeStage(cb, *m_impl->detect_stage);
-        Rhi::BindComputeResource(cb, *m_impl->detect_stage, *m_impl->detect_binding);
-        Rhi::DispatchCompute(cb, detect_wg, 1, 1);
+        const auto scene_gpu = m_impl->cached_scene->GetGpuBuffers();
+        m_impl->detect_kernel->Dispatch(
+            cb,
+            {{"ShapeAlive", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_alive)},
+             {"ShapeType", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_type)},
+             {"ShapeFeature", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_feature)},
+             {"ShapeWorldPosition", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_world_position)},
+             {"ShapeWorldRotation", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_world_rotation)},
+             {"CollisionPairs", Rhi::ComputeKernelResource::Buffer(*m_impl->cached_pair_buffer)},
+             {"PairCount", Rhi::ComputeKernelResource::Buffer(*m_impl->cached_pair_count_buffer)},
+             {"CollisionIds", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_collision_ids)},
+             {"CollisionNormals", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_collision_normals)},
+             {"ContactPointA", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_point_a)},
+             {"ContactPointB", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_point_b)},
+             {"CollisionCount", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_collision_count)}},
+            detect_wg,
+            1,
+            1,
+            params
+        );
     }
 } // namespace Engine

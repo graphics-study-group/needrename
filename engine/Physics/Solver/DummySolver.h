@@ -13,7 +13,6 @@ namespace vk {
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
-        class ComputeStage;
     } // namespace Rhi
     namespace Rhi {
         class DeviceContext;

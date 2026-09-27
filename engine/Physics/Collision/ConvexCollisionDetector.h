@@ -90,8 +90,8 @@ namespace Engine {
          * @brief GPU-side: record compute dispatches directly to the command buffer.
          *
          * Must be called after Configure().  Inserts a MemoryBarrier2 at the start.
-         * All passes dispatch via BindComputeStage / DispatchCompute directly
-         * (no RenderGraph).
+         * Every pass dispatches through the compute kernel dispatch surface, and
+         * every kernel was acquired in Configure: recording creates no pipeline.
          */
         void Record(vk::CommandBuffer cb);
 

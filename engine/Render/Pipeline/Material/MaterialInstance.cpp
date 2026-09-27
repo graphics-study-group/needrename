@@ -10,7 +10,6 @@
 #include "Rhi/Buffer/StructuredBufferPlacer.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
-#include "Rhi/Pipeline/PipelineInfo.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
 #include "Rhi/Submission/SubmissionHelper.h"

@@ -5,7 +5,10 @@
 #include "Asset/AssetManager/AssetManager.h"
 #include "Framework/MainClass.h"
 #include "Render/Asset/Shader/ShaderAsset.h"
+#include "Render/Asset/Shader/ShaderKernel.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 #include <cmake_config.h>
 
 using namespace Engine;
@@ -17,8 +20,8 @@ auto BuildRenderGraph(
     RenderTargetTexture &color_in,
     RenderTargetTexture &color_out,
     RenderTargetTexture &color_present,
-    Rhi::ComputeStage &compute,
-    Rhi::ComputeResourceBinding &cbinding
+    Rhi::ComputeKernel &compute,
+    Rhi::ComputeBuffer &ubo
 ) {
     RenderGraphBuilder rgb{rsys};
     auto ci = rgb.ImportExternalResource(color_in, Rhi::MemoryAccessTypeImageBits::TransferWrite);
@@ -31,11 +34,21 @@ auto BuildRenderGraph(
             .UseImage(co, Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite)
             .UseImage(cp, Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite)
             .SetAffinity(RenderGraphPassAffinity::Compute)
-            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &) -> void {
-                cb.BindComputeStage(compute);
-                cb.BindComputeResource(cbinding);
-                cb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
-            })
+            .SetPassFunction(
+                [&compute, &ubo, &color_in, &color_out, &color_present](CommandBuffer &cb, const RenderGraph &)
+                    -> void {
+                    compute.Dispatch(
+                        cb.GetCommandBuffer(),
+                        {{"UBO", Rhi::ComputeKernelResource::Buffer(ubo)},
+                         {"inputImage", Rhi::ComputeKernelResource::Image(color_in)},
+                         {"outputImage", Rhi::ComputeKernelResource::Image(color_out)},
+                         {"outputColorImage", Rhi::ComputeKernelResource::Image(color_present)}},
+                        1280 / 16 + 1,
+                        720 / 16 + 1,
+                        1
+                    );
+                }
+            )
             .Get()
     );
 
@@ -99,14 +112,13 @@ int main(int argc, char *argv[]) {
         rsys->GetDeviceContext(), desc, Rhi::Texture::SamplerDesc{}, "Color Present"
     );
 
-    Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
-    cstage.Instantiate(cs->binary, cs->m_name);
-    auto &cbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
-    cbinding.GetShaderResourceBinding().BindTexture("outputImage", *color_output);
-    cbinding.GetShaderResourceBinding().BindTexture("inputImage", *color_input);
-    cbinding.GetShaderResourceBinding().BindTexture("outputColorImage", *color_present);
+    Rhi::ComputeKernel &fluid_kernel = RequestComputeKernel(rsys->GetDeviceContext(), *cs);
+    // The shader's `UBO` block is bound as an ordinary uniform buffer: the kernel
+    // exposes no named uniform-block variables, so the caller owns the bytes.
+    std::unique_ptr<Rhi::ComputeBuffer> fluid_ubo =
+        Rhi::ComputeBuffer::CreateUnique(rsys->GetAllocatorState(), 16u, true, true, false, false, "Fluid UBO");
 
-    auto rg = BuildRenderGraph(*rsys, *color_input, *color_output, *color_present, cstage, cbinding);
+    auto rg = BuildRenderGraph(*rsys, *color_input, *color_output, *color_present, fluid_kernel, *fluid_ubo);
 
     uint64_t frame_count = 0;
     while (++frame_count) {
@@ -125,7 +137,8 @@ int main(int argc, char *argv[]) {
             // Swapchain out of date after retry — skip this frame.
             continue;
         }
-        cbinding.GetStructuredBuffer().SetVariable<uint32_t>("UBO::frame_count", static_cast<uint32_t>(frame_count));
+        *reinterpret_cast<uint32_t *>(fluid_ubo->GetVMAddress()) = static_cast<uint32_t>(frame_count);
+        fluid_ubo->Flush();
 
         if (frame_count == 1) rg->AddExternalInputDependency(g_color_in_handle, Rhi::MemoryAccessTypeImageBits::None);
         rsys->GetFrameManager().BeginMainCommandBuffer();

@@ -1,41 +1,17 @@
 #include "CompactUnique.h"
-#include "ParallelScan.h"
-
-#include <cmake_config.h>
 
 #include <vulkan/vulkan.hpp>
 
-#include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeHelpers.h>
-
-#include <Rhi/Buffer/ComputeBuffer.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include "Physics/PhysicsSpirvLoader.h"
+#include "Physics/gpu_algorithm/ParallelScan.h"
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 
 #include <cassert>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
 #include <vector>
 
 namespace {
-    std::vector<uint32_t> LoadPhysicsSpirvBytes(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        }
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
-    }
-
     const vk::MemoryBarrier2 kComputeBarrier{
         vk::PipelineStageFlagBits2::eComputeShader,
         vk::AccessFlagBits2::eShaderStorageWrite,
@@ -51,22 +27,10 @@ namespace Engine {
         uint32_t max_elem_count = 1u;
         bool initialized = false;
 
-        std::unique_ptr<Rhi::ComputeStage> flag_stage{};
-        std::vector<uint32_t> flag_spirv{};
-
-        std::unique_ptr<Rhi::ComputeStage> scatter_stage{};
-        std::vector<uint32_t> scatter_spirv{};
-
-        std::unique_ptr<Rhi::ComputeStage> copy_stage{};
-        std::vector<uint32_t> copy_spirv{};
-
-        std::unique_ptr<Rhi::ComputeStage> memset_stage{};
-        std::vector<uint32_t> memset_spirv{};
-
-        Rhi::ComputeResourceBinding *flag_binding = nullptr;
-        Rhi::ComputeResourceBinding *scatter_binding = nullptr;
-        Rhi::ComputeResourceBinding *copy_binding = nullptr;
-        Rhi::ComputeResourceBinding *memset_binding = nullptr;
+        Rhi::ComputeKernel *flag_kernel = nullptr;
+        Rhi::ComputeKernel *scatter_kernel = nullptr;
+        Rhi::ComputeKernel *copy_kernel = nullptr;
+        Rhi::ComputeKernel *memset_kernel = nullptr;
 
         explicit Impl(Rhi::DeviceContext &ctx, uint32_t mec) : device_context(ctx), max_elem_count(mec) {
             if (max_elem_count == 0u) {
@@ -83,29 +47,14 @@ namespace Engine {
             if (initialized) return;
             initialized = true;
 
-            const char *flag_path = "algorithm/flag_unique.comp.spv";
-            flag_spirv = LoadPhysicsSpirvBytes(flag_path);
-            flag_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            flag_stage->Instantiate(flag_spirv, "FlagUnique");
-            flag_binding = &flag_stage->AllocateResourceBinding();
-
-            const char *scatter_path = "algorithm/compact_scatter.comp.spv";
-            scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
-            scatter_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            scatter_stage->Instantiate(scatter_spirv, "CompactScatter");
-            scatter_binding = &scatter_stage->AllocateResourceBinding();
-
-            const char *copy_path = "collision/SpatialHashBroadDetector/copy_uint.comp.spv";
-            copy_spirv = LoadPhysicsSpirvBytes(copy_path);
-            copy_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            copy_stage->Instantiate(copy_spirv, "CompactUnique Copy");
-            copy_binding = &copy_stage->AllocateResourceBinding();
-
-            const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
-            memset_spirv = LoadPhysicsSpirvBytes(memset_path);
-            memset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            memset_stage->Instantiate(memset_spirv, "CompactUnique Memset");
-            memset_binding = &memset_stage->AllocateResourceBinding();
+            flag_kernel = &LoadPhysicsKernel(device_context, "algorithm/flag_unique.comp.spv", "FlagUnique");
+            scatter_kernel = &LoadPhysicsKernel(device_context, "algorithm/compact_scatter.comp.spv", "CompactScatter");
+            copy_kernel = &LoadPhysicsKernel(
+                device_context, "collision/SpatialHashBroadDetector/copy_uint.comp.spv", "CompactUnique Copy"
+            );
+            memset_kernel = &LoadPhysicsKernel(
+                device_context, "collision/SpatialHashBroadDetector/memset_uint.comp.spv", "CompactUnique Memset"
+            );
         }
 
         void RecordFlagPass(
@@ -115,16 +64,17 @@ namespace Engine {
             Rhi::ComputeBuffer &elem_count_buf,
             uint32_t elem_capacity
         ) {
-            auto &srb = flag_binding->GetShaderResourceBinding();
-            srb.BindBuffer("SortedKeys", keys_buf);
-            srb.BindBuffer("UniqueFlags", flags_buf);
-            srb.BindBuffer("ElemCount", elem_count_buf);
-
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            Rhi::BindComputeStage(cb, *flag_stage);
-            Rhi::BindComputeResource(cb, *flag_stage, *flag_binding);
-            Rhi::DispatchCompute(cb, wg, 1, 1);
+            flag_kernel->Dispatch(
+                cb,
+                {{"SortedKeys", Rhi::ComputeKernelResource::Buffer(keys_buf)},
+                 {"UniqueFlags", Rhi::ComputeKernelResource::Buffer(flags_buf)},
+                 {"ElemCount", Rhi::ComputeKernelResource::Buffer(elem_count_buf)}},
+                wg,
+                1,
+                1
+            );
         }
 
         void RecordCopyPass(
@@ -134,26 +84,21 @@ namespace Engine {
             Rhi::ComputeBuffer &elem_count_buf,
             uint32_t elem_capacity
         ) {
-            auto &srb = copy_binding->GetShaderResourceBinding();
-            srb.BindBuffer("SrcBuffer", src_buf);
-            srb.BindBuffer("DstBuffer", dst_buf);
-            srb.BindBuffer("ElemCount", elem_count_buf);
-
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            Rhi::BindComputeStage(cb, *copy_stage);
-            Rhi::BindComputeResource(cb, *copy_stage, *copy_binding);
-            Rhi::DispatchCompute(cb, wg, 1, 1);
+            copy_kernel->Dispatch(
+                cb,
+                {{"SrcBuffer", Rhi::ComputeKernelResource::Buffer(src_buf)},
+                 {"DstBuffer", Rhi::ComputeKernelResource::Buffer(dst_buf)},
+                 {"ElemCount", Rhi::ComputeKernelResource::Buffer(elem_count_buf)}},
+                wg,
+                1,
+                1
+            );
         }
 
         void RecordClearCountPass(vk::CommandBuffer cb, Rhi::ComputeBuffer &count_buf) {
-            auto &srb = memset_binding->GetShaderResourceBinding();
-            srb.BindBuffer("Target", count_buf);
-
-            Rhi::PushConstants(cb, *memset_stage, 1u);
-            Rhi::BindComputeStage(cb, *memset_stage);
-            Rhi::BindComputeResource(cb, *memset_stage, *memset_binding);
-            Rhi::DispatchCompute(cb, 1, 1, 1);
+            memset_kernel->Dispatch(cb, {{"Target", Rhi::ComputeKernelResource::Buffer(count_buf)}}, 1, 1, 1, 1u);
         }
 
         void RecordScatterPass(
@@ -165,19 +110,20 @@ namespace Engine {
             Rhi::ComputeBuffer &elem_count_buf,
             uint32_t elem_capacity
         ) {
-            auto &srb = scatter_binding->GetShaderResourceBinding();
-            srb.BindBuffer("SortedKeys", keys_buf);
-            srb.BindBuffer("CompactKeys", keys_buf);
-            srb.BindBuffer("OriginalFlags", flags_buf);
-            srb.BindBuffer("FlagOffsets", offsets_buf);
-            srb.BindBuffer("UniqueCount", count_buf);
-            srb.BindBuffer("ElemCount", elem_count_buf);
-
             uint32_t wg = (elem_capacity + 63u) / 64u;
 
-            Rhi::BindComputeStage(cb, *scatter_stage);
-            Rhi::BindComputeResource(cb, *scatter_stage, *scatter_binding);
-            Rhi::DispatchCompute(cb, wg, 1, 1);
+            scatter_kernel->Dispatch(
+                cb,
+                {{"SortedKeys", Rhi::ComputeKernelResource::Buffer(keys_buf)},
+                 {"CompactKeys", Rhi::ComputeKernelResource::Buffer(keys_buf)},
+                 {"OriginalFlags", Rhi::ComputeKernelResource::Buffer(flags_buf)},
+                 {"FlagOffsets", Rhi::ComputeKernelResource::Buffer(offsets_buf)},
+                 {"UniqueCount", Rhi::ComputeKernelResource::Buffer(count_buf)},
+                 {"ElemCount", Rhi::ComputeKernelResource::Buffer(elem_count_buf)}},
+                wg,
+                1,
+                1
+            );
         }
     };
 

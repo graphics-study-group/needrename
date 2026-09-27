@@ -1,6 +1,7 @@
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
 
 #include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Pipeline/InterfaceBindingResolver.h"
 #include "Rhi/Pipeline/ShaderInterface.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Resource/DescriptorArena.h"
@@ -70,61 +71,39 @@ namespace Engine::Rhi {
                 continue;
             }
 
-            if (auto popaque = dynamic_cast<const Rhi::SPInterfaceOpaqueImage *>(pinterface.get())) {
-                auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
-                assert(pimg);
-                assert(popaque->array_size == 0);
-                content.emplace_back(
-                    Rhi::ResolvedBinding{
-                        .binding = popaque->layout_binding,
-                        .type = vk::DescriptorType::eCombinedImageSampler,
-                        .image_view = std::get<0>(*pimg),
-                        .sampler = std::get<1>(*pimg),
-                        .image_layout = vk::ImageLayout::eReadOnlyOptimal
-                    }
-                );
-            } else if (auto pstorage = dynamic_cast<const Rhi::SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
-                auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
-                assert(pimg);
-                assert(pstorage->array_size == 0);
-                content.emplace_back(
-                    Rhi::ResolvedBinding{
-                        .binding = pstorage->layout_binding,
-                        .type = vk::DescriptorType::eStorageImage,
-                        .image_view = std::get<0>(*pimg),
-                        .sampler = std::get<1>(*pimg),
-                        .image_layout = vk::ImageLayout::eGeneral
-                    }
-                );
+            // The descriptor type and the image layout follow from the
+            // reflected interface together with the enforced flags; the layout
+            // description is not consulted.
+            const auto resolved =
+                ResolveInterfaceBinding(*pinterface, enforce_dynamic_uniform, enforce_dynamic_storage);
+            if (!resolved) {
+                assert(!dynamic_cast<const Rhi::SPInterfaceBuffer *>(pinterface.get()) && "Unknown buffer type.");
+                continue;
             }
-            // The interface is a buffer
-            else if (auto pbuffer = dynamic_cast<const Rhi::SPInterfaceBuffer *>(pinterface.get())) {
+
+            if (resolved->is_image) {
+                auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
+                assert(pimg);
+                auto popaque = dynamic_cast<const Rhi::SPInterfaceOpaque *>(pinterface.get());
+                assert(popaque && popaque->array_size == 0);
+                content.emplace_back(
+                    Rhi::ResolvedBinding{
+                        .binding = pinterface->layout_binding,
+                        .type = resolved->type,
+                        .image_view = std::get<0>(*pimg),
+                        .sampler = std::get<1>(*pimg),
+                        .image_layout = resolved->image_layout
+                    }
+                );
+            } else {
                 auto pbuf = std::get_if<std::tuple<vk::Buffer, size_t, size_t>>(&itr->second);
                 assert(pbuf);
-
-                // Uniform or storage, static or dynamic, follows from the
-                // reflected interface together with the enforced flags; the
-                // layout description is not consulted.
-                vk::DescriptorType type = vk::DescriptorType::eUniformBuffer;
-                switch (pbuffer->type) {
-                case Rhi::SPInterfaceBuffer::Type::UniformBuffer:
-                    type = enforce_dynamic_uniform ? vk::DescriptorType::eUniformBufferDynamic
-                                                   : vk::DescriptorType::eUniformBuffer;
-                    break;
-                case Rhi::SPInterfaceBuffer::Type::StorageBuffer:
-                    type = enforce_dynamic_storage ? vk::DescriptorType::eStorageBufferDynamic
-                                                   : vk::DescriptorType::eStorageBuffer;
-                    break;
-                default:
-                    assert(!"Ignoring buffer with unknown type.");
-                    continue;
-                }
 
                 auto [buffer, offset, range] = *pbuf;
                 content.emplace_back(
                     Rhi::ResolvedBinding{
-                        .binding = pbuffer->layout_binding,
-                        .type = type,
+                        .binding = pinterface->layout_binding,
+                        .type = resolved->type,
                         .buffer = buffer,
                         .offset = offset,
                         .range = range

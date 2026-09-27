@@ -10,7 +10,6 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Rhi/Device/DebugUtils.h"
-#include "Rhi/Pipeline/PipelineInfo.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Texture/ImageUtilsFunc.h"
 

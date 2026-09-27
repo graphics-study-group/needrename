@@ -1,44 +1,23 @@
 #include "XPBDGpuSolver.h"
 
-#include <cmake_config.h>
-
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/Collision/ConvexCollisionDetector.h>
 #include <Physics/Collision/SpatialHashBroadDetector.h>
 #include <Physics/PhysicsScene.h>
+#include <Physics/PhysicsSpirvLoader.h>
 #include <Physics/gpu_algorithm/RadixSort.h>
 #include <Physics/gpu_algorithm/SumByKey.h>
-#include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeHelpers.h>
-
 #include <Rhi/Buffer/ComputeBuffer.h>
 #include <Rhi/Buffer/DeviceBuffer.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include <Rhi/Device/DeviceContext.h>
+#include <Rhi/Pipeline/ComputeKernel.h>
 
 #include <algorithm>
 #include <cassert>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
 #include <vector>
 
 namespace {
-    std::vector<uint32_t> LoadSpirv(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u)
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
-    }
-
     const vk::MemoryBarrier2 kComputeBarrier{
         vk::PipelineStageFlagBits2::eComputeShader,
         vk::AccessFlagBits2::eShaderStorageWrite,
@@ -110,44 +89,25 @@ namespace Engine {
         std::unique_ptr<SpatialHashBroadDetector> broad_detector{};
         std::unique_ptr<ConvexCollisionDetector> narrow_detector{};
 
-        // ---- Compute stages ----
-        std::unique_ptr<Rhi::ComputeStage> clear_int_stage{};
-        std::unique_ptr<Rhi::ComputeStage> clear_values_stage{};
-        std::unique_ptr<Rhi::ComputeStage> clear_hinge_stage{};
-        std::unique_ptr<Rhi::ComputeStage> clear_fixed_stage{};
-        std::unique_ptr<Rhi::ComputeStage> snapshot_stage{};
-        std::unique_ptr<Rhi::ComputeStage> update_shape_world_pose_stage{};
-        std::unique_ptr<Rhi::ComputeStage> integrate_stage{};
-        std::unique_ptr<Rhi::ComputeStage> contact_entries_stage{};
-        std::unique_ptr<Rhi::ComputeStage> hinge_entries_stage{};
-        std::unique_ptr<Rhi::ComputeStage> fixed_entries_stage{};
-        std::unique_ptr<Rhi::ComputeStage> accum_pos_stage{};
-        std::unique_ptr<Rhi::ComputeStage> apply_pos_stage{};
-        std::unique_ptr<Rhi::ComputeStage> update_vel_stage{};
-        std::unique_ptr<Rhi::ComputeStage> accum_vel_stage{};
-        std::unique_ptr<Rhi::ComputeStage> apply_vel_stage{};
-        std::unique_ptr<Rhi::ComputeStage> model_matrix_stage{};
-        std::unique_ptr<Rhi::ComputeStage> accum_hinge_stage{};
-        std::unique_ptr<Rhi::ComputeStage> accum_fixed_stage{};
-
-        Rhi::ComputeResourceBinding *clear_int_binding = nullptr;
-        Rhi::ComputeResourceBinding *clear_values_binding = nullptr;
-        Rhi::ComputeResourceBinding *clear_hinge_binding = nullptr;
-        Rhi::ComputeResourceBinding *clear_fixed_binding = nullptr;
-        Rhi::ComputeResourceBinding *snapshot_binding = nullptr;
-        Rhi::ComputeResourceBinding *update_shape_world_pose_binding = nullptr;
-        Rhi::ComputeResourceBinding *integrate_binding = nullptr;
-        Rhi::ComputeResourceBinding *contact_entries_binding = nullptr;
-        Rhi::ComputeResourceBinding *hinge_entries_binding = nullptr;
-        Rhi::ComputeResourceBinding *fixed_entries_binding = nullptr;
-        Rhi::ComputeResourceBinding *accum_pos_binding = nullptr;
-        Rhi::ComputeResourceBinding *apply_pos_binding = nullptr;
-        Rhi::ComputeResourceBinding *update_vel_binding = nullptr;
-        Rhi::ComputeResourceBinding *accum_vel_binding = nullptr;
-        Rhi::ComputeResourceBinding *apply_vel_binding = nullptr;
-        Rhi::ComputeResourceBinding *model_matrix_binding = nullptr;
-        Rhi::ComputeResourceBinding *accum_hinge_binding = nullptr;
-        Rhi::ComputeResourceBinding *accum_fixed_binding = nullptr;
+        // ---- Compute kernels (device-owned, acquired in PreGPUStep) ----
+        Rhi::ComputeKernel *clear_int_kernel = nullptr;
+        Rhi::ComputeKernel *clear_values_kernel = nullptr;
+        Rhi::ComputeKernel *clear_hinge_kernel = nullptr;
+        Rhi::ComputeKernel *clear_fixed_kernel = nullptr;
+        Rhi::ComputeKernel *snapshot_kernel = nullptr;
+        Rhi::ComputeKernel *update_shape_world_pose_kernel = nullptr;
+        Rhi::ComputeKernel *integrate_kernel = nullptr;
+        Rhi::ComputeKernel *contact_entries_kernel = nullptr;
+        Rhi::ComputeKernel *hinge_entries_kernel = nullptr;
+        Rhi::ComputeKernel *fixed_entries_kernel = nullptr;
+        Rhi::ComputeKernel *accum_pos_kernel = nullptr;
+        Rhi::ComputeKernel *apply_pos_kernel = nullptr;
+        Rhi::ComputeKernel *update_vel_kernel = nullptr;
+        Rhi::ComputeKernel *accum_vel_kernel = nullptr;
+        Rhi::ComputeKernel *apply_vel_kernel = nullptr;
+        Rhi::ComputeKernel *model_matrix_kernel = nullptr;
+        Rhi::ComputeKernel *accum_hinge_kernel = nullptr;
+        Rhi::ComputeKernel *accum_fixed_kernel = nullptr;
 
         // ---- Intermediate GPU buffers ----
         std::unique_ptr<Rhi::ComputeBuffer> gpu_pre_contact_linear_vel{};
@@ -273,68 +233,33 @@ namespace Engine {
             shaders_loaded = true;
 
             auto load = [this](const char *path, const char *name) {
-                auto spirv = LoadSpirv(path);
-                auto stage = std::make_unique<Rhi::ComputeStage>(device_context);
-                stage->Instantiate(spirv, name);
-                return stage;
+                return &LoadPhysicsKernel(device_context, path, name);
             };
-            clear_int_stage = load("solver/XPBDSolver/clear_int_buffer.comp.spv", "XPBD Clear Int");
-            clear_int_binding = &clear_int_stage->AllocateResourceBinding();
 
-            clear_values_stage = load("solver/XPBDSolver/clear_entry_values.comp.spv", "XPBD ClearEntryValues");
-            clear_values_binding = &clear_values_stage->AllocateResourceBinding();
+            clear_int_kernel = load("solver/XPBDSolver/clear_int_buffer.comp.spv", "XPBD Clear Int");
+            clear_values_kernel = load("solver/XPBDSolver/clear_entry_values.comp.spv", "XPBD ClearEntryValues");
 
             // The hinge and fixed lagrange multipliers hold floats and are cleared
             // by their own shaders (each zeroes both of its type's buffers) rather
             // than by the integer-clear workaround.
-            clear_hinge_stage = load("solver/XPBDSolver/clear_hinge_lagrange.comp.spv", "XPBD ClearHingeLagrange");
-            clear_hinge_binding = &clear_hinge_stage->AllocateResourceBinding();
+            clear_hinge_kernel = load("solver/XPBDSolver/clear_hinge_lagrange.comp.spv", "XPBD ClearHingeLagrange");
+            clear_fixed_kernel = load("solver/XPBDSolver/clear_fixed_lagrange.comp.spv", "XPBD ClearFixedLagrange");
 
-            clear_fixed_stage = load("solver/XPBDSolver/clear_fixed_lagrange.comp.spv", "XPBD ClearFixedLagrange");
-            clear_fixed_binding = &clear_fixed_stage->AllocateResourceBinding();
-
-            snapshot_stage = load("solver/XPBDSolver/snapshot_position.comp.spv", "XPBD Snapshot");
-            snapshot_binding = &snapshot_stage->AllocateResourceBinding();
-
-            update_shape_world_pose_stage =
+            snapshot_kernel = load("solver/XPBDSolver/snapshot_position.comp.spv", "XPBD Snapshot");
+            update_shape_world_pose_kernel =
                 load("solver/XPBDSolver/update_shape_world_pose.comp.spv", "XPBD UpdateShape");
-            update_shape_world_pose_binding = &update_shape_world_pose_stage->AllocateResourceBinding();
-
-            integrate_stage = load("solver/XPBDSolver/integrate_forces.comp.spv", "XPBD Integrate");
-            integrate_binding = &integrate_stage->AllocateResourceBinding();
-
-            accum_pos_stage = load("solver/XPBDSolver/accumulate_contact_position.comp.spv", "XPBD AccumPos");
-            accum_pos_binding = &accum_pos_stage->AllocateResourceBinding();
-
-            contact_entries_stage = load("solver/XPBDSolver/entries/contact_entries.comp.spv", "XPBD ContactEntries");
-            contact_entries_binding = &contact_entries_stage->AllocateResourceBinding();
-
-            hinge_entries_stage = load("solver/XPBDSolver/entries/hinge_entries.comp.spv", "XPBD HingeEntries");
-            hinge_entries_binding = &hinge_entries_stage->AllocateResourceBinding();
-
-            fixed_entries_stage = load("solver/XPBDSolver/entries/fixed_entries.comp.spv", "XPBD FixedEntries");
-            fixed_entries_binding = &fixed_entries_stage->AllocateResourceBinding();
-
-            apply_pos_stage = load("solver/XPBDSolver/apply_body_position_deltas.comp.spv", "XPBD ApplyPos");
-            apply_pos_binding = &apply_pos_stage->AllocateResourceBinding();
-
-            update_vel_stage = load("solver/XPBDSolver/update_velocities_from_pose.comp.spv", "XPBD UpdateVel");
-            update_vel_binding = &update_vel_stage->AllocateResourceBinding();
-
-            accum_vel_stage = load("solver/XPBDSolver/accumulate_contact_velocity.comp.spv", "XPBD AccumVel");
-            accum_vel_binding = &accum_vel_stage->AllocateResourceBinding();
-
-            apply_vel_stage = load("solver/XPBDSolver/apply_body_velocity_deltas.comp.spv", "XPBD ApplyVel");
-            apply_vel_binding = &apply_vel_stage->AllocateResourceBinding();
-
-            model_matrix_stage = load("solver/common/model_matrix.comp.spv", "XPBD ModelMatrix");
-            model_matrix_binding = &model_matrix_stage->AllocateResourceBinding();
-
-            accum_hinge_stage = load("solver/XPBDSolver/accumulate_hinge_position.comp.spv", "XPBD AccumHingePos");
-            accum_hinge_binding = &accum_hinge_stage->AllocateResourceBinding();
-
-            accum_fixed_stage = load("solver/XPBDSolver/accumulate_fixed_position.comp.spv", "XPBD AccumFixedPos");
-            accum_fixed_binding = &accum_fixed_stage->AllocateResourceBinding();
+            integrate_kernel = load("solver/XPBDSolver/integrate_forces.comp.spv", "XPBD Integrate");
+            accum_pos_kernel = load("solver/XPBDSolver/accumulate_contact_position.comp.spv", "XPBD AccumPos");
+            contact_entries_kernel = load("solver/XPBDSolver/entries/contact_entries.comp.spv", "XPBD ContactEntries");
+            hinge_entries_kernel = load("solver/XPBDSolver/entries/hinge_entries.comp.spv", "XPBD HingeEntries");
+            fixed_entries_kernel = load("solver/XPBDSolver/entries/fixed_entries.comp.spv", "XPBD FixedEntries");
+            apply_pos_kernel = load("solver/XPBDSolver/apply_body_position_deltas.comp.spv", "XPBD ApplyPos");
+            update_vel_kernel = load("solver/XPBDSolver/update_velocities_from_pose.comp.spv", "XPBD UpdateVel");
+            accum_vel_kernel = load("solver/XPBDSolver/accumulate_contact_velocity.comp.spv", "XPBD AccumVel");
+            apply_vel_kernel = load("solver/XPBDSolver/apply_body_velocity_deltas.comp.spv", "XPBD ApplyVel");
+            model_matrix_kernel = load("solver/common/model_matrix.comp.spv", "XPBD ModelMatrix");
+            accum_hinge_kernel = load("solver/XPBDSolver/accumulate_hinge_position.comp.spv", "XPBD AccumHingePos");
+            accum_fixed_kernel = load("solver/XPBDSolver/accumulate_fixed_position.comp.spv", "XPBD AccumFixedPos");
         }
 
         // Sorts one group's entry list.  The shared radix sort takes the group's
@@ -587,23 +512,10 @@ namespace Engine {
 
         auto barrier = [&cb]() { cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}}); };
 
-        auto dispatch = [&cb](
-                            Rhi::ComputeStage &stage,
-                            Rhi::ComputeResourceBinding &binding,
-                            uint32_t x,
-                            uint32_t y = 1,
-                            uint32_t z = 1
-                        ) {
-            Rhi::BindComputeStage(cb, stage);
-            Rhi::BindComputeResource(cb, stage, binding);
-            Rhi::DispatchCompute(cb, x, y, z);
-        };
-
-        auto dispatch_clear = [this, &cb, &dispatch](Rhi::ComputeBuffer &tgt, uint32_t elem_count, uint32_t wg) {
-            Rhi::PushConstants(cb, *m_impl->clear_int_stage, elem_count);
-            auto &srb = m_impl->clear_int_binding->GetShaderResourceBinding();
-            srb.BindBuffer("Target", tgt);
-            dispatch(*m_impl->clear_int_stage, *m_impl->clear_int_binding, wg);
+        auto dispatch_clear = [this, &cb](Rhi::ComputeBuffer &tgt, uint32_t elem_count, uint32_t wg) {
+            m_impl->clear_int_kernel->Dispatch(
+                cb, {{"Target", Rhi::ComputeKernelResource::Buffer(tgt)}}, wg, 1, 1, elem_count
+            );
         };
 
         // Count-bounded clear of one group's per-iteration value buffer: only the
@@ -612,15 +524,17 @@ namespace Engine {
         // this replaces the full-capacity clear without changing its workgroup
         // count.
         auto dispatch_clear_values =
-            [this,
-             &cb,
-             &dispatch](Rhi::ComputeBuffer &values, Rhi::ComputeBuffer &entry_count, uint32_t capacity, uint32_t wg) {
+            [this, &cb](Rhi::ComputeBuffer &values, Rhi::ComputeBuffer &entry_count, uint32_t capacity, uint32_t wg) {
                 const ClearEntryValuesPush push{capacity, kNumChannels};
-                Rhi::PushConstants(cb, *m_impl->clear_values_stage, push);
-                auto &srb = m_impl->clear_values_binding->GetShaderResourceBinding();
-                srb.BindBuffer("Values", values);
-                srb.BindBuffer("EntryCount", entry_count);
-                dispatch(*m_impl->clear_values_stage, *m_impl->clear_values_binding, wg);
+                m_impl->clear_values_kernel->Dispatch(
+                    cb,
+                    {{"Values", Rhi::ComputeKernelResource::Buffer(values)},
+                     {"EntryCount", Rhi::ComputeKernelResource::Buffer(entry_count)}},
+                    wg,
+                    1,
+                    1,
+                    push
+                );
             };
 
         if (m_bound_scene->IsSimulationEnabled()) {
@@ -654,71 +568,101 @@ namespace Engine {
                 barrier();
 
                 {
-                    auto &srb = m_impl->snapshot_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("SrcBuffer", *gpu.rigid_body_center_world_position);
-                    srb.BindBuffer("DstBuffer", *m_impl->gpu_substep_start_position);
-                    Rhi::PushConstants(cb, *m_impl->snapshot_stage, body_count);
-                    dispatch(*m_impl->snapshot_stage, *m_impl->snapshot_binding, body_wg);
+                    m_impl->snapshot_kernel->Dispatch(
+                        cb,
+                        {{"SrcBuffer", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
+                         {"DstBuffer", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_substep_start_position)}},
+                        body_wg,
+                        1,
+                        1,
+                        body_count
+                    );
                 }
                 barrier();
 
                 {
-                    auto &srb = m_impl->snapshot_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("SrcBuffer", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("DstBuffer", *m_impl->gpu_substep_start_orientation);
-                    Rhi::PushConstants(cb, *m_impl->snapshot_stage, body_count);
-                    dispatch(*m_impl->snapshot_stage, *m_impl->snapshot_binding, body_wg);
+                    m_impl->snapshot_kernel->Dispatch(
+                        cb,
+                        {{"SrcBuffer", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)},
+                         {"DstBuffer", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_substep_start_orientation)}},
+                        body_wg,
+                        1,
+                        1,
+                        body_count
+                    );
                 }
                 barrier();
 
                 {
-                    auto &srb = m_impl->integrate_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-                    srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-                    srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
-                    srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
-                    srb.BindBuffer("RigidBodyInertia", *gpu.rigid_body_inertia);
-                    srb.BindBuffer("RigidBodyExternalForce", *gpu.rigid_body_external_force);
-                    srb.BindBuffer("RigidBodyExternalTorque", *gpu.rigid_body_external_torque);
-                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    Rhi::PushConstants(cb, *m_impl->integrate_stage, m_impl->push_gravity_dt);
-                    dispatch(*m_impl->integrate_stage, *m_impl->integrate_binding, body_wg);
+                    m_impl->integrate_kernel->Dispatch(
+                        cb,
+                        {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+                         {"RigidBodyCenterPosition",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
+                         {"RigidBodyCenterRotation",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)},
+                         {"RigidBodyLinearVelocity",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_linear_velocity)},
+                         {"RigidBodyAngularVelocity",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_angular_velocity)},
+                         {"RigidBodyMass", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_mass)},
+                         {"RigidBodyInverseInertia",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_inverse_inertia)},
+                         {"RigidBodyInertia", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_inertia)},
+                         {"RigidBodyExternalForce", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_external_force)},
+                         {"RigidBodyExternalTorque",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_external_torque)},
+                         {"RigidBodyIsKinematic", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_is_kinematic)}},
+                        body_wg,
+                        1,
+                        1,
+                        m_impl->push_gravity_dt
+                    );
                 }
                 barrier();
 
                 {
-                    auto &srb = m_impl->snapshot_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("SrcBuffer", *gpu.rigid_body_linear_velocity);
-                    srb.BindBuffer("DstBuffer", *m_impl->gpu_pre_contact_linear_vel);
-                    Rhi::PushConstants(cb, *m_impl->snapshot_stage, body_count);
-                    dispatch(*m_impl->snapshot_stage, *m_impl->snapshot_binding, body_wg);
+                    m_impl->snapshot_kernel->Dispatch(
+                        cb,
+                        {{"SrcBuffer", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_linear_velocity)},
+                         {"DstBuffer", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_pre_contact_linear_vel)}},
+                        body_wg,
+                        1,
+                        1,
+                        body_count
+                    );
                 }
                 barrier();
 
                 {
-                    auto &srb = m_impl->snapshot_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("SrcBuffer", *gpu.rigid_body_angular_velocity);
-                    srb.BindBuffer("DstBuffer", *m_impl->gpu_pre_contact_angular_vel);
-                    Rhi::PushConstants(cb, *m_impl->snapshot_stage, body_count);
-                    dispatch(*m_impl->snapshot_stage, *m_impl->snapshot_binding, body_wg);
+                    m_impl->snapshot_kernel->Dispatch(
+                        cb,
+                        {{"SrcBuffer", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_angular_velocity)},
+                         {"DstBuffer", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_pre_contact_angular_vel)}},
+                        body_wg,
+                        1,
+                        1,
+                        body_count
+                    );
                 }
                 barrier();
 
                 if (shape_count > 1u && gpu.shape_world_position != nullptr) {
-                    auto &srb = m_impl->update_shape_world_pose_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
-                    srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
-                    srb.BindBuffer("ShapeLocalPosition", *gpu.shape_local_position);
-                    srb.BindBuffer("ShapeLocalRotation", *gpu.shape_local_rotation);
-                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
-                    srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
-                    dispatch(
-                        *m_impl->update_shape_world_pose_stage, *m_impl->update_shape_world_pose_binding, shape_wg
+                    m_impl->update_shape_world_pose_kernel->Dispatch(
+                        cb,
+                        {{"ShapeAlive", Rhi::ComputeKernelResource::Buffer(*gpu.shape_alive)},
+                         {"ShapeBoundRigidBody", Rhi::ComputeKernelResource::Buffer(*gpu.shape_bound_rigid_body)},
+                         {"ShapeLocalPosition", Rhi::ComputeKernelResource::Buffer(*gpu.shape_local_position)},
+                         {"ShapeLocalRotation", Rhi::ComputeKernelResource::Buffer(*gpu.shape_local_rotation)},
+                         {"RigidBodyCenterPosition",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
+                         {"RigidBodyCenterRotation",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)},
+                         {"ShapeWorldPosition", Rhi::ComputeKernelResource::Buffer(*gpu.shape_world_position)},
+                         {"ShapeWorldRotation", Rhi::ComputeKernelResource::Buffer(*gpu.shape_world_rotation)}},
+                        shape_wg,
+                        1,
+                        1
                     );
                 }
 
@@ -741,19 +685,29 @@ namespace Engine {
                 RadixSortOutput hinge_sorted{};
                 RadixSortOutput fixed_sorted{};
                 {
-                    auto &srb = m_impl->contact_entries_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("CollisionIds", *m_impl->narrow_detector->GetResultBuffers().collision_ids);
-                    srb.BindBuffer("CollisionCount", *m_impl->narrow_detector->GetResultBuffers().collision_count);
-                    srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryKeys", *m_impl->gpu_contact_keys);
-                    srb.BindBuffer("EntryPayload", *m_impl->gpu_contact_payload);
-                    // The entry pass derives and publishes the substep's entry
-                    // count from the collision count it reads here.
-                    srb.BindBuffer("EntryCount", *m_impl->gpu_contact_entry_count);
                     const ContactEntryPush push{contact_cap};
-                    Rhi::PushConstants(cb, *m_impl->contact_entries_stage, push);
-                    dispatch(*m_impl->contact_entries_stage, *m_impl->contact_entries_binding, contact_pt_wg);
+                    m_impl->contact_entries_kernel->Dispatch(
+                        cb,
+                        {{"CollisionIds",
+                          Rhi::ComputeKernelResource::Buffer(
+                              *m_impl->narrow_detector->GetResultBuffers().collision_ids
+                          )},
+                         {"CollisionCount",
+                          Rhi::ComputeKernelResource::Buffer(
+                              *m_impl->narrow_detector->GetResultBuffers().collision_count
+                          )},
+                         {"ShapeBoundRigidBody", Rhi::ComputeKernelResource::Buffer(*gpu.shape_bound_rigid_body)},
+                         {"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+                         {"EntryKeys", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_keys)},
+                         {"EntryPayload", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_payload)},
+                         // The entry pass derives and publishes the substep's entry
+                         // count from the collision count it reads here.
+                         {"EntryCount", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_entry_count)}},
+                        contact_pt_wg,
+                        1,
+                        1,
+                        push
+                    );
                 }
                 barrier();
                 contact_sorted = m_impl->RecordSort(
@@ -770,14 +724,18 @@ namespace Engine {
                 barrier();
 
                 {
-                    auto &srb = m_impl->hinge_entries_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryKeys", *m_impl->gpu_hinge_keys);
-                    srb.BindBuffer("EntryPayload", *m_impl->gpu_hinge_payload);
                     const JointCountPush push{gpu.hinge_joint_count, hinge_slots};
-                    Rhi::PushConstants(cb, *m_impl->hinge_entries_stage, push);
-                    dispatch(*m_impl->hinge_entries_stage, *m_impl->hinge_entries_binding, hinge_entry_wg);
+                    m_impl->hinge_entries_kernel->Dispatch(
+                        cb,
+                        {{"HingeJoints", Rhi::ComputeKernelResource::Buffer(*gpu.gpu_hinge_joints)},
+                         {"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+                         {"EntryKeys", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_hinge_keys)},
+                         {"EntryPayload", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_hinge_payload)}},
+                        hinge_entry_wg,
+                        1,
+                        1,
+                        push
+                    );
                 }
                 barrier();
                 hinge_sorted = m_impl->RecordSort(
@@ -794,14 +752,18 @@ namespace Engine {
                 barrier();
 
                 {
-                    auto &srb = m_impl->fixed_entries_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("EntryKeys", *m_impl->gpu_fixed_keys);
-                    srb.BindBuffer("EntryPayload", *m_impl->gpu_fixed_payload);
                     const JointCountPush push{gpu.fixed_joint_count, fixed_slots};
-                    Rhi::PushConstants(cb, *m_impl->fixed_entries_stage, push);
-                    dispatch(*m_impl->fixed_entries_stage, *m_impl->fixed_entries_binding, fixed_entry_wg);
+                    m_impl->fixed_entries_kernel->Dispatch(
+                        cb,
+                        {{"FixedJoints", Rhi::ComputeKernelResource::Buffer(*gpu.gpu_fixed_joints)},
+                         {"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+                         {"EntryKeys", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_fixed_keys)},
+                         {"EntryPayload", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_fixed_payload)}},
+                        fixed_entry_wg,
+                        1,
+                        1,
+                        push
+                    );
                 }
                 barrier();
                 fixed_sorted = m_impl->RecordSort(
@@ -840,26 +802,29 @@ namespace Engine {
                 dispatch_clear(*m_impl->gpu_fixed_out, out_pos_elems, out_wg);
                 barrier();
                 {
-                    auto &srb = m_impl->clear_hinge_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
-                    srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
-                    Rhi::PushConstants(cb, *m_impl->clear_hinge_stage, ClearJointLagrangePush{gpu.hinge_joint_count});
-                    dispatch(
-                        *m_impl->clear_hinge_stage,
-                        *m_impl->clear_hinge_binding,
-                        std::max(1u, (gpu.hinge_joint_count + 255u) / 256u)
+                    m_impl->clear_hinge_kernel->Dispatch(
+                        cb,
+                        {{"HingeAxisLagrange", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_hinge_axis_lagrange)},
+                         {"HingeAnchorLagrange",
+                          Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_hinge_anchor_lagrange)}},
+                        std::max(1u, (gpu.hinge_joint_count + 255u) / 256u),
+                        1,
+                        1,
+                        ClearJointLagrangePush{gpu.hinge_joint_count}
                     );
                 }
                 barrier();
                 {
-                    auto &srb = m_impl->clear_fixed_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
-                    srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
-                    Rhi::PushConstants(cb, *m_impl->clear_fixed_stage, ClearJointLagrangePush{gpu.fixed_joint_count});
-                    dispatch(
-                        *m_impl->clear_fixed_stage,
-                        *m_impl->clear_fixed_binding,
-                        std::max(1u, (gpu.fixed_joint_count + 255u) / 256u)
+                    m_impl->clear_fixed_kernel->Dispatch(
+                        cb,
+                        {{"FixedRotationLagrange",
+                          Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_fixed_rotation_lagrange)},
+                         {"FixedPositionLagrange",
+                          Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_fixed_position_lagrange)}},
+                        std::max(1u, (gpu.fixed_joint_count + 255u) / 256u),
+                        1,
+                        1,
+                        ClearJointLagrangePush{gpu.fixed_joint_count}
                     );
                 }
                 barrier();
@@ -879,28 +844,48 @@ namespace Engine {
                     );
                     barrier();
                     {
-                        auto &srb = m_impl->accum_pos_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("CollisionIds", *m_impl->narrow_detector->GetResultBuffers().collision_ids);
-                        srb.BindBuffer(
-                            "CollisionNormals", *m_impl->narrow_detector->GetResultBuffers().collision_normals
-                        );
-                        srb.BindBuffer("ContactPointA", *m_impl->narrow_detector->GetResultBuffers().contact_point_a);
-                        srb.BindBuffer("ContactPointB", *m_impl->narrow_detector->GetResultBuffers().contact_point_b);
-                        srb.BindBuffer("CollisionCount", *m_impl->narrow_detector->GetResultBuffers().collision_count);
-                        srb.BindBuffer("ShapeBoundRigidBody", *g.shape_bound_rigid_body);
-                        srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
-                        srb.BindBuffer("RigidBodyCenterPosition", *g.rigid_body_center_world_position);
-                        srb.BindBuffer("RigidBodyCenterRotation", *g.rigid_body_center_world_rotation);
-                        srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
-                        srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
-                        srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("ShapeLocalPosition", *g.shape_local_position);
-                        srb.BindBuffer("ShapeLocalRotation", *g.shape_local_rotation);
-                        srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-                        srb.BindBuffer("Values", *m_impl->gpu_contact_values);
                         const AccumContactPush push{contact_cap};
-                        Rhi::PushConstants(cb, *m_impl->accum_pos_stage, push);
-                        dispatch(*m_impl->accum_pos_stage, *m_impl->accum_pos_binding, contact_pt_wg);
+                        m_impl->accum_pos_kernel->Dispatch(
+                            cb,
+                            {{"CollisionIds",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().collision_ids
+                              )},
+                             {"CollisionNormals",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().collision_normals
+                              )},
+                             {"ContactPointA",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().contact_point_a
+                              )},
+                             {"ContactPointB",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().contact_point_b
+                              )},
+                             {"CollisionCount",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().collision_count
+                              )},
+                             {"ShapeBoundRigidBody", Rhi::ComputeKernelResource::Buffer(*g.shape_bound_rigid_body)},
+                             {"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_alive)},
+                             {"RigidBodyCenterPosition",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_position)},
+                             {"RigidBodyCenterRotation",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_rotation)},
+                             {"RigidBodyMass", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_mass)},
+                             {"RigidBodyInverseInertia",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_inverse_inertia)},
+                             {"RigidBodyIsKinematic", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_is_kinematic)},
+                             {"ShapeLocalPosition", Rhi::ComputeKernelResource::Buffer(*g.shape_local_position)},
+                             {"ShapeLocalRotation", Rhi::ComputeKernelResource::Buffer(*g.shape_local_rotation)},
+                             {"ContactLagrange", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_lagrange)},
+                             {"Values", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_values)}},
+                            contact_pt_wg,
+                            1,
+                            1,
+                            push
+                        );
                     }
                     barrier();
                     m_impl->RecordReduce(
@@ -921,21 +906,30 @@ namespace Engine {
                     );
                     barrier();
                     if (gpu.hinge_joint_count > 0u) {
-                        auto &srb = m_impl->accum_hinge_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
-                        srb.BindBuffer("HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange);
-                        srb.BindBuffer("HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange);
-                        srb.BindBuffer("HingeJointAlive", *gpu.gpu_hinge_joint_alive);
-                        srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
-                        srb.BindBuffer("RigidBodyCenterPosition", *g.rigid_body_center_world_position);
-                        srb.BindBuffer("RigidBodyCenterRotation", *g.rigid_body_center_world_rotation);
-                        srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
-                        srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
-                        srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("Values", *m_impl->gpu_hinge_values);
                         const AccumJointPush push{m_impl->push_gravity_dt, gpu.hinge_joint_count, hinge_slots};
-                        Rhi::PushConstants(cb, *m_impl->accum_hinge_stage, push);
-                        dispatch(*m_impl->accum_hinge_stage, *m_impl->accum_hinge_binding, hinge_wg);
+                        m_impl->accum_hinge_kernel->Dispatch(
+                            cb,
+                            {{"HingeJoints", Rhi::ComputeKernelResource::Buffer(*gpu.gpu_hinge_joints)},
+                             {"HingeAxisLagrange",
+                              Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_hinge_axis_lagrange)},
+                             {"HingeAnchorLagrange",
+                              Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_hinge_anchor_lagrange)},
+                             {"HingeJointAlive", Rhi::ComputeKernelResource::Buffer(*gpu.gpu_hinge_joint_alive)},
+                             {"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_alive)},
+                             {"RigidBodyCenterPosition",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_position)},
+                             {"RigidBodyCenterRotation",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_rotation)},
+                             {"RigidBodyMass", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_mass)},
+                             {"RigidBodyInverseInertia",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_inverse_inertia)},
+                             {"RigidBodyIsKinematic", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_is_kinematic)},
+                             {"Values", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_hinge_values)}},
+                            hinge_wg,
+                            1,
+                            1,
+                            push
+                        );
                     }
                     barrier();
                     m_impl->RecordReduce(
@@ -956,21 +950,30 @@ namespace Engine {
                     );
                     barrier();
                     if (gpu.fixed_joint_count > 0u) {
-                        auto &srb = m_impl->accum_fixed_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
-                        srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
-                        srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
-                        srb.BindBuffer("FixedJointAlive", *gpu.gpu_fixed_joint_alive);
-                        srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
-                        srb.BindBuffer("RigidBodyCenterPosition", *g.rigid_body_center_world_position);
-                        srb.BindBuffer("RigidBodyCenterRotation", *g.rigid_body_center_world_rotation);
-                        srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
-                        srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
-                        srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("Values", *m_impl->gpu_fixed_values);
                         const AccumJointPush push{m_impl->push_gravity_dt, gpu.fixed_joint_count, fixed_slots};
-                        Rhi::PushConstants(cb, *m_impl->accum_fixed_stage, push);
-                        dispatch(*m_impl->accum_fixed_stage, *m_impl->accum_fixed_binding, fixed_wg);
+                        m_impl->accum_fixed_kernel->Dispatch(
+                            cb,
+                            {{"FixedJoints", Rhi::ComputeKernelResource::Buffer(*gpu.gpu_fixed_joints)},
+                             {"FixedRotationLagrange",
+                              Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_fixed_rotation_lagrange)},
+                             {"FixedPositionLagrange",
+                              Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_fixed_position_lagrange)},
+                             {"FixedJointAlive", Rhi::ComputeKernelResource::Buffer(*gpu.gpu_fixed_joint_alive)},
+                             {"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_alive)},
+                             {"RigidBodyCenterPosition",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_position)},
+                             {"RigidBodyCenterRotation",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_rotation)},
+                             {"RigidBodyMass", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_mass)},
+                             {"RigidBodyInverseInertia",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_inverse_inertia)},
+                             {"RigidBodyIsKinematic", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_is_kinematic)},
+                             {"Values", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_fixed_values)}},
+                            fixed_wg,
+                            1,
+                            1,
+                            push
+                        );
                     }
                     barrier();
                     m_impl->RecordReduce(
@@ -987,34 +990,50 @@ namespace Engine {
 
                     // Merged position apply.
                     {
-                        auto &srb = m_impl->apply_pos_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
-                        srb.BindBuffer("RigidBodyCenterPosition", *g.rigid_body_center_world_position);
-                        srb.BindBuffer("RigidBodyCenterRotation", *g.rigid_body_center_world_rotation);
-                        srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("ContactOut", *m_impl->gpu_contact_out_pos);
-                        srb.BindBuffer("HingeOut", *m_impl->gpu_hinge_out);
-                        srb.BindBuffer("FixedOut", *m_impl->gpu_fixed_out);
                         const BodyCountPush push{body_count};
-                        Rhi::PushConstants(cb, *m_impl->apply_pos_stage, push);
-                        dispatch(*m_impl->apply_pos_stage, *m_impl->apply_pos_binding, body_wg);
+                        m_impl->apply_pos_kernel->Dispatch(
+                            cb,
+                            {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_alive)},
+                             {"RigidBodyCenterPosition",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_position)},
+                             {"RigidBodyCenterRotation",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_rotation)},
+                             {"RigidBodyIsKinematic", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_is_kinematic)},
+                             {"ContactOut", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_out_pos)},
+                             {"HingeOut", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_hinge_out)},
+                             {"FixedOut", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_fixed_out)}},
+                            body_wg,
+                            1,
+                            1,
+                            push
+                        );
                     }
                 }
 
                 // ====== PostPosition: update velocities from pose ======
                 barrier();
                 {
-                    auto &srb = m_impl->update_vel_binding->GetShaderResourceBinding();
-                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-                    srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-                    srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                    srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
-                    srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
-                    Rhi::PushConstants(cb, *m_impl->update_vel_stage, m_impl->push_gravity_dt);
-                    dispatch(*m_impl->update_vel_stage, *m_impl->update_vel_binding, body_wg);
+                    m_impl->update_vel_kernel->Dispatch(
+                        cb,
+                        {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+                         {"RigidBodyCenterPosition",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
+                         {"RigidBodyCenterRotation",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)},
+                         {"RigidBodyLinearVelocity",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_linear_velocity)},
+                         {"RigidBodyAngularVelocity",
+                          Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_angular_velocity)},
+                         {"RigidBodyIsKinematic", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_is_kinematic)},
+                         {"SubstepStartPosition",
+                          Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_substep_start_position)},
+                         {"SubstepStartOrientation",
+                          Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_substep_start_orientation)}},
+                        body_wg,
+                        1,
+                        1,
+                        m_impl->push_gravity_dt
+                    );
                 }
 
                 // ====== Velocity iterations (reuse contact permutation) ======
@@ -1030,33 +1049,57 @@ namespace Engine {
                     barrier();
                     {
                         const auto g = m_bound_scene->GetGpuBuffers();
-                        auto &srb = m_impl->accum_vel_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("CollisionIds", *m_impl->narrow_detector->GetResultBuffers().collision_ids);
-                        srb.BindBuffer(
-                            "CollisionNormals", *m_impl->narrow_detector->GetResultBuffers().collision_normals
-                        );
-                        srb.BindBuffer("ContactPointA", *m_impl->narrow_detector->GetResultBuffers().contact_point_a);
-                        srb.BindBuffer("ContactPointB", *m_impl->narrow_detector->GetResultBuffers().contact_point_b);
-                        srb.BindBuffer("CollisionCount", *m_impl->narrow_detector->GetResultBuffers().collision_count);
-                        srb.BindBuffer("ShapeBoundRigidBody", *g.shape_bound_rigid_body);
-                        srb.BindBuffer("RigidBodyAlive", *g.rigid_body_alive);
-                        srb.BindBuffer("RigidBodyCenterRotation", *g.rigid_body_center_world_rotation);
-                        srb.BindBuffer("RigidBodyLinearVelocity", *g.rigid_body_linear_velocity);
-                        srb.BindBuffer("RigidBodyAngularVelocity", *g.rigid_body_angular_velocity);
-                        srb.BindBuffer("RigidBodyMass", *g.rigid_body_mass);
-                        srb.BindBuffer("RigidBodyInverseInertia", *g.rigid_body_inverse_inertia);
-                        srb.BindBuffer("RigidBodyDynamicFriction", *g.rigid_body_dynamic_friction);
-                        srb.BindBuffer("RigidBodyRestitution", *g.rigid_body_restitution);
-                        srb.BindBuffer("RigidBodyIsKinematic", *g.rigid_body_is_kinematic);
-                        srb.BindBuffer("PreContactLinearVelocity", *m_impl->gpu_pre_contact_linear_vel);
-                        srb.BindBuffer("PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel);
-                        srb.BindBuffer("ShapeLocalPosition", *g.shape_local_position);
-                        srb.BindBuffer("ShapeLocalRotation", *g.shape_local_rotation);
-                        srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-                        srb.BindBuffer("Values", *m_impl->gpu_contact_values);
                         const AccumVelocityPush push{m_impl->push_gravity_dt, contact_cap};
-                        Rhi::PushConstants(cb, *m_impl->accum_vel_stage, push);
-                        dispatch(*m_impl->accum_vel_stage, *m_impl->accum_vel_binding, contact_pt_wg);
+                        m_impl->accum_vel_kernel->Dispatch(
+                            cb,
+                            {{"CollisionIds",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().collision_ids
+                              )},
+                             {"CollisionNormals",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().collision_normals
+                              )},
+                             {"ContactPointA",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().contact_point_a
+                              )},
+                             {"ContactPointB",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().contact_point_b
+                              )},
+                             {"CollisionCount",
+                              Rhi::ComputeKernelResource::Buffer(
+                                  *m_impl->narrow_detector->GetResultBuffers().collision_count
+                              )},
+                             {"ShapeBoundRigidBody", Rhi::ComputeKernelResource::Buffer(*g.shape_bound_rigid_body)},
+                             {"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_alive)},
+                             {"RigidBodyCenterRotation",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_center_world_rotation)},
+                             {"RigidBodyLinearVelocity",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_linear_velocity)},
+                             {"RigidBodyAngularVelocity",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_angular_velocity)},
+                             {"RigidBodyMass", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_mass)},
+                             {"RigidBodyInverseInertia",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_inverse_inertia)},
+                             {"RigidBodyDynamicFriction",
+                              Rhi::ComputeKernelResource::Buffer(*g.rigid_body_dynamic_friction)},
+                             {"RigidBodyRestitution", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_restitution)},
+                             {"RigidBodyIsKinematic", Rhi::ComputeKernelResource::Buffer(*g.rigid_body_is_kinematic)},
+                             {"PreContactLinearVelocity",
+                              Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_pre_contact_linear_vel)},
+                             {"PreContactAngularVelocity",
+                              Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_pre_contact_angular_vel)},
+                             {"ShapeLocalPosition", Rhi::ComputeKernelResource::Buffer(*g.shape_local_position)},
+                             {"ShapeLocalRotation", Rhi::ComputeKernelResource::Buffer(*g.shape_local_rotation)},
+                             {"ContactLagrange", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_lagrange)},
+                             {"Values", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_values)}},
+                            contact_pt_wg,
+                            1,
+                            1,
+                            push
+                        );
                     }
                     barrier();
                     m_impl->RecordReduce(
@@ -1071,15 +1114,21 @@ namespace Engine {
                     );
                     barrier();
                     {
-                        auto &srb = m_impl->apply_vel_binding->GetShaderResourceBinding();
-                        srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-                        srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-                        srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-                        srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-                        srb.BindBuffer("VelOut", *m_impl->gpu_contact_out_vel);
                         const BodyCountPush push{body_count};
-                        Rhi::PushConstants(cb, *m_impl->apply_vel_stage, push);
-                        dispatch(*m_impl->apply_vel_stage, *m_impl->apply_vel_binding, body_wg);
+                        m_impl->apply_vel_kernel->Dispatch(
+                            cb,
+                            {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+                             {"RigidBodyIsKinematic", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_is_kinematic)},
+                             {"RigidBodyLinearVelocity",
+                              Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_linear_velocity)},
+                             {"RigidBodyAngularVelocity",
+                              Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_angular_velocity)},
+                             {"VelOut", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_out_vel)}},
+                            body_wg,
+                            1,
+                            1,
+                            push
+                        );
                     }
                 }
             }
@@ -1110,14 +1159,15 @@ namespace Engine {
         // barrier that makes the poses it reads visible.
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        auto &srb = m_impl->model_matrix_binding->GetShaderResourceBinding();
-        srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-        srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
-        srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-        srb.BindBuffer("ModelMatrices", target);
-
-        Rhi::BindComputeStage(cb, *m_impl->model_matrix_stage);
-        Rhi::BindComputeResource(cb, *m_impl->model_matrix_stage, *m_impl->model_matrix_binding);
-        Rhi::DispatchCompute(cb, (write_count + 63u) / 64u, 1, 1);
+        m_impl->model_matrix_kernel->Dispatch(
+            cb,
+            {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
+             {"RigidBodyCenterPosition", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
+             {"RigidBodyCenterRotation", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)},
+             {"ModelMatrices", Rhi::ComputeKernelResource::Buffer(target)}},
+            (write_count + 63u) / 64u,
+            1,
+            1
+        );
     }
 } // namespace Engine

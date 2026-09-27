@@ -4,7 +4,7 @@
 
 ### Requirement: XPBDGpuSolver loads precompiled SPIR-V
 
-`engine/Physics/XPBDGpuSolver.cpp` SHALL load all XPBD compute shaders by reading precompiled `.spv` files from disk and SHALL NOT invoke `ShaderCompiler::CompileGLSLtoSPV` for these shaders. The loaded `std::vector<uint32_t>` SHALL be handed to the compute kernel facility unchanged, and a kernel SHALL be requested for each module.
+`engine/Physics/XPBDGpuSolver.cpp` SHALL load all XPBD compute shaders by reading precompiled `.spv` files from disk and SHALL NOT invoke `ShaderCompiler::CompileGLSLtoSPV` for these shaders. A module's source-relative path SHALL be its compute kernel identity, and the loaded `std::vector<uint32_t>` SHALL be handed to the compute kernel facility unchanged when that identity is new.
 
 Loading SHALL occur lazily on first call to `Step()` (preserving the existing `EnsureInitialized()` behaviour). On loading failure (file missing, empty, or size not a multiple of 4 bytes), the loader SHALL throw `std::runtime_error` whose message includes the absolute path attempted.
 
@@ -40,7 +40,7 @@ The `SumByKey` reduce shader (`algorithm/sum_by_key.comp.spv`) SHALL be loaded b
 
 - **WHEN** `XPBDGpuSolver::Step` is called for the first time on a populated `PhysicsScene`
 - **THEN** the solver reads all XPBD shader SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/XPBDSolver/`
-- **AND** requests a compute kernel for each module from those words
+- **AND** requests a compute kernel for each module, keyed by that module's path
 
 #### Scenario: No GLSL compilation occurs at runtime for XPBD shaders
 
@@ -111,11 +111,19 @@ Each solver pass SHALL be a separate `.comp` file under `engine/Physics/shader/s
 
 Component-local copies of the loading helper SHALL NOT exist, and the helper SHALL be the only place that performs the file read and the size validation.
 
+The same module path SHALL be the shader's compute kernel identity, and the helper SHALL resolve a path to its kernel by consulting the device's kernel cache before reading the file: a module a component already requested SHALL be returned without a second read of the file.
+
 #### Scenario: One loader serves every component
 
 - **WHEN** `engine/Physics/` is searched for functions that read a `.spv` file from `ENGINE_PHYSICS_SPIRV_DIR`
 - **THEN** exactly one such helper exists
 - **AND** the solver, both detectors and all `gpu_algorithm` classes call it
+
+#### Scenario: A module two components share is read once
+
+- **WHEN** two physics components request the kernel for the same module path
+- **THEN** both resolve to the same kernel
+- **AND** the file is read only for the request that created the kernel
 
 #### Scenario: Failure diagnosis is uniform
 

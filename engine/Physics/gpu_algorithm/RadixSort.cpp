@@ -1,41 +1,17 @@
 #include "RadixSort.h"
 
-#include <cmake_config.h>
-
 #include <vulkan/vulkan.hpp>
 
-#include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeHelpers.h>
-
-#include <Rhi/Buffer/ComputeBuffer.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include "Physics/PhysicsSpirvLoader.h"
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 
 #include <cassert>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
 namespace {
-    std::vector<uint32_t> LoadPhysicsSpirvBytes(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        }
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
-    }
-
     const vk::MemoryBarrier2 kComputeBarrier{
         vk::PipelineStageFlagBits2::eComputeShader,
         vk::AccessFlagBits2::eShaderStorageWrite,
@@ -89,14 +65,8 @@ namespace Engine {
         Rhi::DeviceContext &device_context;
         bool initialized = false;
 
-        std::unique_ptr<Rhi::ComputeStage> histogram_stage{};
-        std::vector<uint32_t> histogram_spirv{};
-
-        std::unique_ptr<Rhi::ComputeStage> scatter_stage{};
-        std::vector<uint32_t> scatter_spirv{};
-
-        Rhi::ComputeResourceBinding *histogram_binding = nullptr;
-        Rhi::ComputeResourceBinding *scatter_binding = nullptr;
+        Rhi::ComputeKernel *histogram_kernel = nullptr;
+        Rhi::ComputeKernel *scatter_kernel = nullptr;
 
         // The prefix-sum step is an implementation detail: the class owns the
         // instance and rebuilds it when a call's element capacity outgrows it.
@@ -115,17 +85,9 @@ namespace Engine {
             if (initialized) return;
             initialized = true;
 
-            const char *histogram_path = "algorithm/radix_block_histogram.comp.spv";
-            histogram_spirv = LoadPhysicsSpirvBytes(histogram_path);
-            histogram_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            histogram_stage->Instantiate(histogram_spirv, "RadixBlockHistogram");
-            histogram_binding = &histogram_stage->AllocateResourceBinding();
-
-            const char *scatter_path = "algorithm/radix_scatter.comp.spv";
-            scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
-            scatter_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            scatter_stage->Instantiate(scatter_spirv, "RadixScatter");
-            scatter_binding = &scatter_stage->AllocateResourceBinding();
+            histogram_kernel =
+                &LoadPhysicsKernel(device_context, "algorithm/radix_block_histogram.comp.spv", "RadixBlockHistogram");
+            scatter_kernel = &LoadPhysicsKernel(device_context, "algorithm/radix_scatter.comp.spv", "RadixScatter");
         }
 
         /// @brief Make sure the internal scan can cover @p elem_count elements.
@@ -146,15 +108,16 @@ namespace Engine {
             const RadixHistogramPush &params,
             uint32_t num_workgroups
         ) {
-            auto &srb = histogram_binding->GetShaderResourceBinding();
-            srb.BindBuffer("KeysIn", keys_in_buf);
-            srb.BindBuffer("Histogram", scratch_buf, 0u, histogram_bytes);
-            srb.BindBuffer("ElemCount", elem_count_buf, 0u, sizeof(uint32_t));
-
-            Rhi::PushConstants(cb, *histogram_stage, params);
-            Rhi::BindComputeStage(cb, *histogram_stage);
-            Rhi::BindComputeResource(cb, *histogram_stage, *histogram_binding);
-            Rhi::DispatchCompute(cb, num_workgroups, 1, 1);
+            histogram_kernel->Dispatch(
+                cb,
+                {{"KeysIn", Rhi::ComputeKernelResource::Buffer(keys_in_buf)},
+                 {"Histogram", Rhi::ComputeKernelResource::Buffer(scratch_buf, 0u, histogram_bytes)},
+                 {"ElemCount", Rhi::ComputeKernelResource::Buffer(elem_count_buf, 0u, sizeof(uint32_t))}},
+                num_workgroups,
+                1,
+                1,
+                params
+            );
         }
 
         void RecordScatterPass(
@@ -169,18 +132,19 @@ namespace Engine {
             const RadixScatterPush &params,
             uint32_t num_workgroups
         ) {
-            auto &srb = scatter_binding->GetShaderResourceBinding();
-            srb.BindBuffer("KeysIn", keys_in_buf);
-            srb.BindBuffer("KeysOut", keys_out_buf);
-            srb.BindBuffer("PayloadIn", payload_in_buf);
-            srb.BindBuffer("PayloadOut", payload_out_buf);
-            srb.BindBuffer("Histogram", scratch_buf, 0u, histogram_bytes);
-            srb.BindBuffer("ElemCount", elem_count_buf, 0u, sizeof(uint32_t));
-
-            Rhi::PushConstants(cb, *scatter_stage, params);
-            Rhi::BindComputeStage(cb, *scatter_stage);
-            Rhi::BindComputeResource(cb, *scatter_stage, *scatter_binding);
-            Rhi::DispatchCompute(cb, num_workgroups, 1, 1);
+            scatter_kernel->Dispatch(
+                cb,
+                {{"KeysIn", Rhi::ComputeKernelResource::Buffer(keys_in_buf)},
+                 {"KeysOut", Rhi::ComputeKernelResource::Buffer(keys_out_buf)},
+                 {"PayloadIn", Rhi::ComputeKernelResource::Buffer(payload_in_buf)},
+                 {"PayloadOut", Rhi::ComputeKernelResource::Buffer(payload_out_buf)},
+                 {"Histogram", Rhi::ComputeKernelResource::Buffer(scratch_buf, 0u, histogram_bytes)},
+                 {"ElemCount", Rhi::ComputeKernelResource::Buffer(elem_count_buf, 0u, sizeof(uint32_t))}},
+                num_workgroups,
+                1,
+                1,
+                params
+            );
         }
     };
 
@@ -205,10 +169,7 @@ namespace Engine {
     }
 
     RadixSortOutput RadixSort::Record(
-        vk::CommandBuffer cb,
-        const RadixSortBuffers &buffers,
-        uint32_t elem_capacity,
-        uint32_t max_key_value
+        vk::CommandBuffer cb, const RadixSortBuffers &buffers, uint32_t elem_capacity, uint32_t max_key_value
     ) {
         // The record is a key array plus an *optional* payload array, so supplying
         // exactly one of the two payload arrays is a caller error, not a mode.
@@ -245,17 +206,14 @@ namespace Engine {
         const size_t key_bytes = static_cast<size_t>(elem_capacity) * sizeof(uint32_t);
         if (buffers.keys_a->GetSize() < key_bytes || buffers.keys_b->GetSize() < key_bytes) {
             throw std::runtime_error(
-                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity)
-                + " needs " + std::to_string(key_bytes)
-                + " bytes per key array, which exceeds the buffer bound for this call"
+                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity) + " needs "
+                + std::to_string(key_bytes) + " bytes per key array, which exceeds the buffer bound for this call"
             );
         }
-        if (has_payload
-            && (buffers.payload_a->GetSize() < key_bytes || buffers.payload_b->GetSize() < key_bytes)) {
+        if (has_payload && (buffers.payload_a->GetSize() < key_bytes || buffers.payload_b->GetSize() < key_bytes)) {
             throw std::runtime_error(
-                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity)
-                + " needs " + std::to_string(key_bytes)
-                + " bytes per payload array, which exceeds the buffer bound for this call"
+                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity) + " needs "
+                + std::to_string(key_bytes) + " bytes per payload array, which exceeds the buffer bound for this call"
             );
         }
         if (buffers.count->GetSize() < sizeof(uint32_t)) {
@@ -264,9 +222,8 @@ namespace Engine {
         const size_t scratch_required = GetRequiredScratchBytes(elem_capacity);
         if (buffers.scratch->GetSize() < scratch_required) {
             throw std::runtime_error(
-                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity)
-                + " needs a scratch buffer of " + std::to_string(scratch_required)
-                + " bytes, which exceeds the buffer bound for this call"
+                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity) + " needs a scratch buffer of "
+                + std::to_string(scratch_required) + " bytes, which exceeds the buffer bound for this call"
             );
         }
 

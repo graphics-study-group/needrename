@@ -136,7 +136,7 @@ namespace Engine {
          * @brief Construct the radix sort executor.
          *
          * Allocates no GPU resources and stores no element geometry; shader
-         * loading and `ComputeStage` instantiation are deferred until the first
+         * loading and kernel acquisition are deferred until the first
          * `Record` call.
          *
          * @param device_context  Device context for pipeline creation.
@@ -214,10 +214,7 @@ namespace Engine {
          *         the size this call's geometry implies.
          */
         RadixSortOutput Record(
-            vk::CommandBuffer cb,
-            const RadixSortBuffers &buffers,
-            uint32_t elem_capacity,
-            uint32_t max_key_value
+            vk::CommandBuffer cb, const RadixSortBuffers &buffers, uint32_t elem_capacity, uint32_t max_key_value
         );
 
         bool IsInitialized() const noexcept;

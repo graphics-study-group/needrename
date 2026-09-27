@@ -3,10 +3,15 @@
 
 #include "Rhi/Device/DeviceInterface.h"
 
+#include <cstdint>
 #include <memory>
+#include <string_view>
+#include <vector>
 
 namespace Engine::Rhi {
     class AllocatorState;
+    class ComputeKernel;
+    class ComputeKernelCache;
     class ImmutableResourceCache;
     class DescriptorArena;
     class EpochTracker;
@@ -33,6 +38,11 @@ namespace Engine::Rhi {
         /// pools hold device objects, and before the tracker it reads so that
         /// the ledger is torn down first.
         std::unique_ptr<DescriptorArena> m_descriptor_arena;
+        /// @note Declared after the resource cache and the arena because a
+        /// kernel owns a pipeline and a pipeline layout, and names a
+        /// descriptor-set layout the arena resolved and the resource cache
+        /// owns; declaring it here destroys the kernels *before* them.
+        std::unique_ptr<ComputeKernelCache> m_compute_kernel_cache;
         /// @note Declared last so that it is destroyed *first*: releasing the
         /// resources still parked in the tracker needs the allocator and the
         /// device to be alive.
@@ -68,6 +78,38 @@ namespace Engine::Rhi {
          */
         DescriptorArena &GetDescriptorArena() noexcept;
         const DescriptorArena &GetDescriptorArena() const noexcept;
+
+        /**
+         * @brief Get the device-scoped compute kernel cache.
+         *
+         * Exactly one compute kernel exists per module identity on this device,
+         * regardless of how many components dispatch it.
+         */
+        ComputeKernelCache &GetComputeKernelCache() noexcept;
+        const ComputeKernelCache &GetComputeKernelCache() const noexcept;
+
+        /**
+         * @brief Request the compute kernel for a module identity, creating it lazily.
+         *
+         * The returned kernel is owned by the device context and stays valid for
+         * its lifetime. Requesting an identity again returns the same kernel
+         * without reading or scanning the module's words.
+         *
+         * @param module_id Identity of the module, unique per module on this device.
+         * @param spirv_code The module's SPIR-V words; used only on the first request.
+         * @param debug_name Debug name applied to the kernel and its objects.
+         */
+        ComputeKernel &RequestComputeKernel(
+            std::string_view module_id, const std::vector<uint32_t> &spirv_code, std::string_view debug_name = {}
+        );
+
+        /**
+         * @brief Find the compute kernel created for a module identity.
+         *
+         * @return The kernel, or nullptr when none exists for that identity.
+         * Nothing is created and no module is read.
+         */
+        ComputeKernel *FindComputeKernel(std::string_view module_id) noexcept;
 
         /**
          * @brief Get the device-scoped GPU resource retirement facility.

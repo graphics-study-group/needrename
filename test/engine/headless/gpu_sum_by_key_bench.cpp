@@ -19,7 +19,6 @@
 
 #include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Rhi/Pipeline/ComputeHelpers.h"
 
 #include <Physics/gpu_algorithm/SumByKey.h>
 

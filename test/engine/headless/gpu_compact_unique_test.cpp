@@ -1,28 +1,22 @@
 #include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Rhi/Pipeline/ComputeHelpers.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 
+#include <Physics/PhysicsSpirvLoader.h>
 #include <Physics/gpu_algorithm/CompactUnique.h>
 #include <Physics/gpu_algorithm/ParallelScan.h>
 #include <Physics/gpu_algorithm/RadixSort.h>
-
-#include <cmake_config.h>
 
 #include <vulkan/vulkan.hpp>
 
 #include <Rhi/Buffer/ComputeBuffer.h>
 #include <Rhi/Buffer/DeviceBuffer.h>
 #include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <filesystem>
-#include <fstream>
 #include <glm.hpp>
 #include <iostream>
 #include <random>
@@ -86,22 +80,6 @@ namespace {
         )[0];
         cb.begin(vk::CommandBufferBeginInfo{});
         return cb;
-    }
-
-    std::vector<uint32_t> LoadPhysicsSpirvBytes(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
-        }
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
     }
 
     // The broad phase's packing: `a * shape_count + b`, injective over
@@ -216,11 +194,29 @@ namespace {
 
         // The detector's unpack pass, loaded directly: it is a collision-layer
         // shader, not part of any gpu_algorithm module.
-        const std::vector<uint32_t> unpack_spirv =
-            LoadPhysicsSpirvBytes("collision/SpatialHashBroadDetector/unpack_pairs.comp.spv");
-        Rhi::ComputeStage unpack_stage{rsys.GetDeviceContext()};
-        unpack_stage.Instantiate(unpack_spirv, "Test UnpackPairs");
-        auto &unpack_binding = unpack_stage.AllocateResourceBinding();
+        Rhi::ComputeKernel &unpack_kernel = LoadPhysicsKernel(
+            rsys.GetDeviceContext(), "collision/SpatialHashBroadDetector/unpack_pairs.comp.spv", "Test UnpackPairs"
+        );
+
+        // Task 8.3: a module's path is its identity, so a second requester of the
+        // same shader resolves to the kernel the first one created.
+        {
+            Rhi::ComputeKernel &shared_unpack_kernel = LoadPhysicsKernel(
+                rsys.GetDeviceContext(), "collision/SpatialHashBroadDetector/unpack_pairs.comp.spv", "Ignored name"
+            );
+            Check(&shared_unpack_kernel == &unpack_kernel, "a shared physics module resolves to one kernel");
+
+            // The helper consults the device's kernel cache before the file: an
+            // identity that is already known resolves even when the path it
+            // names holds no module at all, so a second read cannot happen.
+            const std::vector<uint32_t> words =
+                LoadPhysicsSpirv("collision/SpatialHashBroadDetector/unpack_pairs.comp.spv");
+            Rhi::ComputeKernel &seeded =
+                rsys.GetDeviceContext().RequestComputeKernel("test/absent-module", words, "Seeded kernel");
+            Rhi::ComputeKernel &resolved =
+                LoadPhysicsKernel(rsys.GetDeviceContext(), "test/absent-module", "Ignored name");
+            Check(&resolved == &seeded, "a known module identity resolves without reading the file");
+        }
 
         const RadixSortBuffers sort_buffers{
             .keys_a = keys_a.get(),
@@ -246,15 +242,17 @@ namespace {
         );
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        auto &srb = unpack_binding.GetShaderResourceBinding();
-        srb.BindBuffer("CompactedKeys", *sorted.keys);
-        srb.BindBuffer("CollisionPairs", *pairs_buf);
-        srb.BindBuffer("UniqueCount", *unique_count_buf);
-        srb.BindBuffer("PairCount", *pair_count_buf);
-        Rhi::PushConstants(cb, unpack_stage, kShapeCount);
-        Rhi::BindComputeStage(cb, unpack_stage);
-        Rhi::BindComputeResource(cb, unpack_stage, unpack_binding);
-        Rhi::DispatchCompute(cb, (kCapacity + 63u) / 64u, 1, 1);
+        unpack_kernel.Dispatch(
+            cb,
+            {{"CompactedKeys", Rhi::ComputeKernelResource::Buffer(*sorted.keys)},
+             {"CollisionPairs", Rhi::ComputeKernelResource::Buffer(*pairs_buf)},
+             {"UniqueCount", Rhi::ComputeKernelResource::Buffer(*unique_count_buf)},
+             {"PairCount", Rhi::ComputeKernelResource::Buffer(*pair_count_buf)}},
+            (kCapacity + 63u) / 64u,
+            1,
+            1,
+            kShapeCount
+        );
         cb.end();
         Submit(rsys, cb);
 

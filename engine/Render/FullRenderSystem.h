@@ -23,8 +23,7 @@
 
 #include "Render/Pipeline/CommandBuffer.h"
 
-#include "Rhi/Pipeline/ComputeResourceBinding.h"
-#include "Rhi/Pipeline/ComputeStage.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"

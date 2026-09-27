@@ -18,10 +18,12 @@
 #include "Render/Asset/Material/MaterialAsset.h"
 #include "Render/Asset/Material/MaterialTemplateAsset.h"
 #include "Render/Asset/Mesh/MeshAsset.h"
+#include "Render/Asset/Shader/ShaderKernel.h"
 #include "Render/Asset/Texture/Image2DTextureAsset.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "Render/UserInterface/GUISystem.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 
 #include "cmake_config.h"
 
@@ -283,10 +285,7 @@ int main(int argc, char **argv) {
 
     // Setup compute shader
     auto cs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/bloom.comp.asset"});
-    auto bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(rsys->GetDeviceContext());
-    bloom_compute_stage->Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
-    auto &bloom_compute_binding =
-        bloom_compute_stage->AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
+    Rhi::ComputeKernel &bloom_kernel = RequestComputeKernel(rsys->GetDeviceContext(), *cs_ref.as<ShaderAsset>());
 
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};
@@ -335,20 +334,18 @@ int main(int argc, char **argv) {
             .UseImage(hc, IAT::ShaderRandomRead)
             .UseImage(c, IAT::ShaderRandomWrite)
             .SetAffinity(RenderGraphPassAffinity::Compute)
-            .SetPassFunction([bloom_compute_stage, &bloom_compute_binding, hc, c, screenWidth, screenHeight](
-                                 CommandBuffer &cb, const RenderGraph &rg
-                             ) {
-                // These descriptors should be cached, so there should be only one write.
-                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                    "inputImage", *rg.GetInternalTextureResource(hc)
-                );
-                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                    "outputImage", *rg.GetInternalTextureResource(c)
-                );
-                cb.BindComputeStage(*bloom_compute_stage);
-                cb.BindComputeResource(bloom_compute_binding);
-                cb.DispatchCompute(screenWidth / 16 + 1, screenHeight / 16 + 1, 1);
-            })
+            .SetPassFunction(
+                [&bloom_kernel, hc, c, screenWidth, screenHeight](CommandBuffer &cb, const RenderGraph &rg) {
+                    bloom_kernel.Dispatch(
+                        cb.GetCommandBuffer(),
+                        {{"inputImage", Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(hc))},
+                         {"outputImage", Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(c))}},
+                        screenWidth / 16 + 1,
+                        screenHeight / 16 + 1,
+                        1
+                    );
+                }
+            )
             .Get()
     );
 

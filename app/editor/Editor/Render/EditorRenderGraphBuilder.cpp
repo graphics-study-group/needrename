@@ -4,6 +4,7 @@
 #include <Framework/MainClass.h>
 #include <Framework/World/WorldSystem.h>
 #include <Render/Asset/Shader/ShaderAsset.h>
+#include <Render/Asset/Shader/ShaderKernel.h>
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
@@ -16,8 +17,7 @@
 #include <Render/Resource/RenderTargetTexture.h>
 #include <Render/UserInterface/GUISystem.h>
 #include <Rhi/Buffer/ComputeBuffer.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
+#include <Rhi/Pipeline/ComputeKernel.h>
 #include <Rhi/Pipeline/ShaderResourceBinding.h>
 
 #include <Editor/Widget/GameWidget.h>
@@ -93,15 +93,8 @@ namespace Editor {
             );
         }
 
-        // Init compute stages
-        m_game_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system.GetDeviceContext());
-        m_game_bloom_compute_stage->Instantiate(
-            m_bloom_shader.as<ShaderAsset>()->binary, m_bloom_shader.as<ShaderAsset>()->m_name
-        );
-        m_scene_bloom_compute_stage = std::make_shared<Rhi::ComputeStage>(m_system.GetDeviceContext());
-        m_scene_bloom_compute_stage->Instantiate(
-            m_bloom_shader.as<ShaderAsset>()->binary, m_bloom_shader.as<ShaderAsset>()->m_name
-        );
+        // Both bloom passes share one shader asset and therefore one kernel.
+        m_bloom_kernel = &RequestComputeKernel(m_system.GetDeviceContext(), *m_bloom_shader.as<ShaderAsset>());
 
         using IBT = Rhi::MemoryAccessTypeBufferBits;
         // Import the render-owned model matrices buffer unconditionally: it
@@ -115,8 +108,7 @@ namespace Editor {
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
         auto gui_system = MainClass::GetInstance()->GetGUISystem().get();
-        auto &scene_bloom = *m_scene_bloom_compute_stage;
-        auto &game_bloom = *m_game_bloom_compute_stage;
+        auto &bloom_kernel = *m_bloom_kernel;
 
         using IAT = Rhi::MemoryAccessTypeImageBits;
 
@@ -216,29 +208,27 @@ namespace Editor {
         /**
          * Scene widget bloom compute pass.
          */
-        auto &scene_bloom_binding =
-            scene_bloom.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Scene Bloom FX pass")
                 .UseImage(scene_hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(scene_widget_color_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
-                .SetPassFunction([&scene_bloom,
+                .SetPassFunction([&bloom_kernel,
                                   texture_width,
                                   texture_height,
-                                  &scene_bloom_binding,
                                   scene_hdr_color_id,
                                   scene_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
-                    scene_bloom_binding.GetShaderResourceBinding().BindTexture(
-                        "inputImage", *rg.GetInternalTextureResource(scene_hdr_color_id)
+                    bloom_kernel.Dispatch(
+                        cb.GetCommandBuffer(),
+                        {{"inputImage",
+                          Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(scene_hdr_color_id))},
+                         {"outputImage",
+                          Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(scene_widget_color_id))}},
+                        texture_width / 16 + 1,
+                        texture_height / 16 + 1,
+                        1
                     );
-                    scene_bloom_binding.GetShaderResourceBinding().BindTexture(
-                        "outputImage", *rg.GetInternalTextureResource(scene_widget_color_id)
-                    );
-                    cb.BindComputeStage(scene_bloom);
-                    cb.BindComputeResource(scene_bloom_binding);
-                    cb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
                 })
                 .Get()
         );
@@ -298,29 +288,27 @@ namespace Editor {
         /**
          * Game widget bloom compute pass.
          */
-        auto &game_bloom_binding =
-            game_bloom.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Game Bloom FX pass")
                 .UseImage(game_hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(game_widget_color_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
-                .SetPassFunction([&game_bloom,
+                .SetPassFunction([&bloom_kernel,
                                   texture_width,
                                   texture_height,
-                                  &game_bloom_binding,
                                   game_hdr_color_id,
                                   game_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
-                    game_bloom_binding.GetShaderResourceBinding().BindTexture(
-                        "inputImage", *rg.GetInternalTextureResource(game_hdr_color_id)
+                    bloom_kernel.Dispatch(
+                        cb.GetCommandBuffer(),
+                        {{"inputImage",
+                          Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(game_hdr_color_id))},
+                         {"outputImage",
+                          Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(game_widget_color_id))}},
+                        texture_width / 16 + 1,
+                        texture_height / 16 + 1,
+                        1
                     );
-                    game_bloom_binding.GetShaderResourceBinding().BindTexture(
-                        "outputImage", *rg.GetInternalTextureResource(game_widget_color_id)
-                    );
-                    cb.BindComputeStage(game_bloom);
-                    cb.BindComputeResource(game_bloom_binding);
-                    cb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
                 })
                 .Get()
         );
