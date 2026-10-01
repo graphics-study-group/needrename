@@ -54,6 +54,15 @@ namespace Engine::Rhi {
         }
 
         /**
+         * @brief Bind all of a buffer.
+         *
+         * The implicit form exists so a dictionary entry reads as the buffer it
+         * binds — `{"KeysIn", keys_buffer}` — and no binding site has to restate
+         * the bound extent. Use `Buffer()` to restrict the range.
+         */
+        ComputeKernelResource(const DeviceBuffer &buffer);
+
+        /**
          * @brief Bind a buffer, optionally restricted to a sub-range.
          *
          * @param buffer The buffer to bind.

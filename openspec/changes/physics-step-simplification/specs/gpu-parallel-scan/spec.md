@@ -4,17 +4,20 @@
 
 ### Requirement: ParallelScan class construction
 
-The `ParallelScan` class SHALL be constructible with `(Rhi::DeviceContext &device_context, uint32_t max_elem_count)`. Shader loading and compute-pipeline acquisition SHALL be deferred until the first `Record` call. The class SHALL NOT internally allocate a block-sums scratch buffer; the scratch buffer is caller-provided to `Record` and sized using the static helper `GetRequiredBlockSumsBytes(max_elem_count)`.
+The `ParallelScan` class SHALL be constructible with `(Rhi::DeviceContext &device_context)` alone. Shader loading, compute-pipeline acquisition and block-sums allocation SHALL be deferred until the first `Record` call. The class SHALL own its block-sums storage: the recursion writes one sum per block per level into a buffer the instance allocates, grows geometrically and reuses across calls, so a caller SHALL NOT size, allocate or bind any scratch.
+
+The block-sums storage SHALL be sized for the largest element count the instance has been recorded against, SHALL grow when a call exceeds what it holds, SHALL NOT shrink when a later call is smaller, and SHALL NOT be reallocated by a call that fits. Its size SHALL account for every recursion level. Because the storage is shared by every call, the caller SHALL record a barrier between two `Record` calls on one instance in the same command buffer, and the class SHALL state that obligation in its interface documentation.
 
 #### Scenario: Construction with valid parameters
-- **WHEN** `ParallelScan` is constructed with a device context and `max_elem_count = 2000`
-- **THEN** the internal compute pipeline is lazily acquired on first `Record` call
-- **AND** `GetRequiredBlockSumsBytes(2000)` returns at least `ceil(2000 / 512) * sizeof(uint32_t)` bytes
+- **WHEN** `ParallelScan` is constructed with a device context
+- **THEN** no GPU resources are allocated and no shaders are loaded
+- **AND** the internal compute pipeline and the block-sums storage are acquired on the first `Record` call
 - **AND** no exceptions are thrown
 
 #### Scenario: Construction rejects zero max_elem_count
-- **WHEN** `ParallelScan` is constructed with `max_elem_count = 0`
-- **THEN** a `std::invalid_argument` exception is thrown (or the value is clamped to 1)
+- **WHEN** the element count is no longer a construction parameter
+- **THEN** the former construction-time rejection is gone: `Record` accepts any element count, and a zero element count records nothing
+- **AND** the storage is grown by the calls themselves rather than validated against a declared maximum
 
 ### Requirement: Separate input and output buffer bindings
 
@@ -41,7 +44,7 @@ The `ParallelScan` class SHALL reside in `engine/Physics/gpu_algorithm/` and SHA
 
 ### Requirement: BroadDetector migration
 
-`SpatialHashBroadDetector` SHALL use `ParallelScan` for both shape-cell-offset and cell-offset prefix-sum computations. The detector SHALL create a single block-sums scratch buffer (sized via `ParallelScan::GetRequiredBlockSumsBytes`), reuse that same buffer for both scans, and record the barrier each scan needs. The inline scan dispatch code SHALL NOT be reintroduced, and the detector SHALL NOT own a separate scan-parameter or scan-element-count buffer.
+`SpatialHashBroadDetector` SHALL use `ParallelScan` for both shape-cell-offset and cell-offset prefix-sum computations. The detector SHALL create a single `ParallelScan` instance, use it for both scans, and record the barrier each scan needs; the instance owns the block-sums storage both scans reuse. The inline scan dispatch code SHALL NOT be reintroduced, and the detector SHALL NOT own a scan-parameter, scan-element-count or block-sums buffer.
 
 #### Scenario: BroadDetector shape-cell-offset scan uses ParallelScan
 - **WHEN** the spatial-hash path is recorded with `shape_count = 2000`
@@ -60,7 +63,7 @@ The `ParallelScan` class SHALL reside in `engine/Physics/gpu_algorithm/` and SHA
 
 **Reason**: The requirement describes `ParallelScan::AddPasses(RenderGraphBuilder&, RGBufferHandle, ...)`. The physics pipeline no longer uses `RenderGraph` at all — the archived `remove-rendergraph-from-physics-gpu` change replaced graph building with direct command-buffer recording — so the method, its builder parameter, and its resource handles do not exist. The capability's own level-counting and scratch-sizing contract survives in *ParallelScan class construction*.
 
-**Migration**: Callers record a scan with `Record(vk::CommandBuffer cb, ...)`, passing the input buffer, the output buffer, the caller-owned block-sums scratch, and the element count; the class records its levels and their barriers directly to the command buffer. The `elem_count <= max_elem_count` precondition is still enforced by the call.
+**Migration**: Callers record a scan with `Record(vk::CommandBuffer cb, ...)`, passing the input buffer, the output buffer and the element count; the class owns its block-sums storage, records its levels and their barriers directly to the command buffer, and grows that storage as calls require.
 
 ### Requirement: Per-pass parameter buffers
 

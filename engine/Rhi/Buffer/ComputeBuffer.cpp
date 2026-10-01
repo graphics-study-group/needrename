@@ -2,6 +2,9 @@
 
 #include "Rhi/Device/AllocatorState.h"
 
+#include <algorithm>
+#include <limits>
+
 namespace Engine::Rhi {
     namespace {
         BufferType ComputeBufferType(
@@ -41,7 +44,26 @@ namespace Engine::Rhi {
     }
 
     void ComputeBuffer::EnsureCapacity(const Rhi::AllocatorState &allocator, size_t bytes) {
-        if (bytes <= GetSize()) return;
-        ReallocateStorage(allocator, bytes);
+        const size_t current = GetSize();
+        if (bytes <= current) return;
+        // Geometric, never shrinking: capacity tracks capacity steps rather than
+        // every value change, so an oscillating workload stops reallocating once
+        // it has reached its high-water mark.
+        const size_t doubled = (current > std::numeric_limits<size_t>::max() / 2u) ? current : current * 2u;
+        ReallocateStorage(allocator, std::max(bytes, doubled));
+    }
+
+    void EnsureComputeBuffer(
+        std::unique_ptr<ComputeBuffer> &buffer,
+        const Rhi::AllocatorState &allocator,
+        size_t bytes,
+        bool allow_cpu_access,
+        const std::string &name
+    ) {
+        if (!buffer) {
+            buffer = ComputeBuffer::CreateUnique(allocator, bytes, allow_cpu_access, false, false, false, name);
+            return;
+        }
+        buffer->EnsureCapacity(allocator, bytes);
     }
 } // namespace Engine::Rhi

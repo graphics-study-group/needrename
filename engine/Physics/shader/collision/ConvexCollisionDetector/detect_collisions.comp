@@ -70,7 +70,8 @@ layout(set = 0, binding = 10) buffer CollisionCount {
 
 layout(push_constant) uniform DetectPush {
     float contact_margin;
-    uint  shape_slot_count;
+    uint  shape_slot_count;  // live collision shape slot count (not a buffer length)
+    uint  contact_budget;    // configured contact-point write budget
 } params;
 
 // ---- Shared GLSL headers ----
@@ -100,9 +101,10 @@ void main() {
     uint shape_a = pair.x;
     uint shape_b = pair.y;
 
-    // Skip if either shape is dead.
-    if (shape_a >= shape_alive.v.length() || shape_alive.v[shape_a] == 0u) return;
-    if (shape_b >= shape_alive.v.length() || shape_alive.v[shape_b] == 0u) return;
+    // Skip if either shape is dead.  The live slot count travels as a value: under
+    // the capacity contract a buffer's length is its allocation size.
+    if (shape_a >= params.shape_slot_count || shape_alive.v[shape_a] == 0u) return;
+    if (shape_b >= params.shape_slot_count || shape_alive.v[shape_b] == 0u) return;
 
     // Skip self-collision (should not happen with upper-triangle pairs, but
     // guard against corrupted input).
@@ -155,8 +157,9 @@ void main() {
     for (uint pi = 0u; pi < num_points; pi++) {
         uint write_idx = write_idx_start + pi;
 
-        // Guard against buffer overflow.
-        if (write_idx >= collision_ids.v.length()) {
+        // Guard against exceeding the configured contact budget.  The budget is
+        // supplied explicitly: the result buffer's capacity may exceed it.
+        if (write_idx >= params.contact_budget) {
             break;
         }
 

@@ -809,7 +809,6 @@ namespace AppPhysics {
         // Pre-wait: render frames (3 in flight) must finish reading the physics
         // buffers before the next physics step writes them.
         impl.renderer->WaitForIdle();
-        impl.physics->PreGPUStep();
 
         // Dedicated command buffer for physics (independent from the render main
         // command buffer). The engine's RHI provides queue + pool through the
@@ -856,8 +855,6 @@ namespace AppPhysics {
         // The recorded uploads have been submitted and executed; clear the dirty
         // flags so unset fields are not re-uploaded next step.
         impl.any_dirty.fill(false);
-
-        impl.physics->PostGPUStep();
 
         // Post-wait: physics writes are visible before the next render frame.
         impl.renderer->WaitForIdle();

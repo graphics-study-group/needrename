@@ -10,11 +10,15 @@ The constructor SHALL accept `(Rhi::DeviceContext&)`. Sizing parameters (`max_co
 
 The detector SHALL expose:
 ```cpp
+void BindToScene(
+    PhysicsScene &scene, const SpatialHashBroadDetector &broad_detector, uint32_t max_contact_points,
+    float contact_margin
+);
 void Record(vk::CommandBuffer cb);
 CollisionResultBuffers GetResultBuffers() const;
 ```
 
-The detector SHALL cache the bound `PhysicsScene*` and the broad-phase pair buffers it reads from. `contact_margin` SHALL reach the shader through a recorded push-constant block rather than a CPU write to a host-visible uniform buffer. `Record` SHALL size its result buffers on first use and whenever the pair capacity it observes exceeds their capacity.
+`BindToScene` SHALL cache the bound `PhysicsScene*`, the broad-phase source and the sizing parameters, and SHALL do nothing else: no allocation, no kernel acquisition and no buffer sizing. The detector SHALL take the broad-phase pair buffers it reads from the broad detector's live `GetResultBuffers()` at preparation time, so a growth of the broad detector's pair capacity between two steps is observed rather than a stale reference being reused. `contact_margin` SHALL reach the shader through a recorded push-constant block rather than a CPU write to a host-visible uniform buffer. `Record` SHALL size its result buffers on first use and whenever the pair capacity it observes exceeds their capacity.
 
 #### Scenario: Lazy initialization on first Detect call
 

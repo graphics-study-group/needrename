@@ -2,28 +2,23 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "Physics/PhysicsDispatch.h"
 #include "Physics/PhysicsSpirvLoader.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
 #include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
 
+#include <algorithm>
 #include <cassert>
+#include <string>
 #include <vector>
-
-namespace {
-    const vk::MemoryBarrier2 kComputeBarrier{
-        vk::PipelineStageFlagBits2::eComputeShader,
-        vk::AccessFlagBits2::eShaderStorageWrite,
-        vk::PipelineStageFlagBits2::eComputeShader,
-        vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite
-    };
-} // namespace
 
 namespace Engine {
 
     // Push-constant layout, matching the SumByKeyPush block in
-    // engine/Physics/shader/algorithm/sum_by_key.comp (std430).  The entry count
-    // is deliberately absent: it is produced on the GPU and travels in a binding.
+    // engine/Physics/shader/algorithm/sum_by_key.comp (std430).  The buffer-count
+    // form reads its entry count from a binding, so it carries no count field.
     struct SumByKeyPush {
         uint32_t input_count;
         uint32_t num_channels;
@@ -32,6 +27,18 @@ namespace Engine {
         uint32_t gather_payload;
     };
     static_assert(sizeof(SumByKeyPush) == 20, "SumByKeyPush must be 20 bytes");
+
+    // Push-constant layout of the value-count form (sum_by_key_push.comp): the
+    // same block plus the CPU-known entry count.
+    struct SumByKeyValuePush {
+        uint32_t input_count;
+        uint32_t num_channels;
+        uint32_t max_key_value;
+        uint32_t record_stride;
+        uint32_t gather_payload;
+        uint32_t entry_count;
+    };
+    static_assert(sizeof(SumByKeyValuePush) == 24, "SumByKeyValuePush must be 24 bytes");
 
     // Level geometry helper shared by the static sizing functions and Record.
     struct LevelGeometry {
@@ -58,11 +65,53 @@ namespace Engine {
         size_t val_offset = 0u;
     };
 
+    // The padded record-region partition: one region per level 1..k-1, each key
+    // array and value array starting on the device's descriptor offset
+    // alignment, and the total size the caller's record buffer must provide.
+    struct RecordLayout {
+        std::vector<RecordRegion> regions;
+        size_t total_bytes = 0u;
+    };
+
+    size_t AlignUp(size_t value, size_t alignment) noexcept {
+        if (alignment <= 1u) return value;
+        return ((value + alignment - 1u) / alignment) * alignment;
+    }
+
+    // Padding sits between a region's key array and its value array and between
+    // consecutive regions, never inside a value array: a region's channel stride
+    // stays exactly its own record count, which is what the shader's
+    // `record_stride` field carries.
+    RecordLayout ComputeRecordLayout(const LevelGeometry &geometry, uint32_t num_channels, size_t alignment) {
+        RecordLayout layout;
+        if (geometry.r.size() <= 1u) return layout;
+        layout.regions.reserve(geometry.r.size() - 1u);
+
+        size_t cursor = 0u;
+        for (size_t i = 1u; i < geometry.r.size(); ++i) {
+            RecordRegion reg;
+            reg.count = geometry.r[i];
+            reg.key_offset = AlignUp(cursor, alignment);
+            reg.val_offset = AlignUp(reg.key_offset + static_cast<size_t>(reg.count) * sizeof(uint32_t), alignment);
+            layout.regions.push_back(reg);
+            cursor = reg.val_offset + static_cast<size_t>(num_channels) * reg.count * sizeof(uint32_t);
+        }
+        layout.total_bytes = cursor;
+        return layout;
+    }
+
     struct SumByKey::Impl {
         Rhi::DeviceContext &device_context;
         bool initialized = false;
 
+        // One kernel per count source: the buffer-count form binds the caller's
+        // entry-count buffer, the value-count form takes the count in its push
+        // block and binds nothing extra.
         Rhi::ComputeKernel *reduce_kernel = nullptr;
+        Rhi::ComputeKernel *reduce_push_kernel = nullptr;
+
+        /// Owned record-region storage, grown geometrically and reused across calls.
+        std::unique_ptr<Rhi::ComputeBuffer> records{};
 
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
@@ -77,6 +126,13 @@ namespace Engine {
             initialized = true;
 
             reduce_kernel = &LoadPhysicsKernel(device_context, "algorithm/sum_by_key.comp.spv", "SumByKey");
+            reduce_push_kernel =
+                &LoadPhysicsKernel(device_context, "algorithm/sum_by_key_push.comp.spv", "SumByKey Push");
+        }
+
+        /// @brief Grow the record-region storage to @p bytes.
+        void EnsureRecords(size_t bytes) {
+            Rhi::EnsureComputeBuffer(records, device_context.GetAllocatorState(), bytes, false, "SumByKey Records");
         }
     };
 
@@ -90,16 +146,6 @@ namespace Engine {
         return static_cast<uint32_t>(ComputeGeometry(capacity).r.size());
     }
 
-    size_t SumByKey::GetRequiredRecordsBytes(uint32_t capacity, uint32_t num_channels) noexcept {
-        if (capacity == 0u || num_channels == 0u) return 0u;
-        LevelGeometry g = ComputeGeometry(capacity);
-        size_t total_records = 0u;
-        for (size_t i = 1u; i < g.r.size(); ++i) {
-            total_records += g.r[i];
-        }
-        return total_records * (sizeof(uint32_t) + num_channels * sizeof(uint32_t));
-    }
-
     bool SumByKey::IsInitialized() const noexcept {
         return m_impl->initialized;
     }
@@ -109,9 +155,8 @@ namespace Engine {
         Rhi::ComputeBuffer &keys_in_buf,
         Rhi::ComputeBuffer &payload_in_buf,
         Rhi::ComputeBuffer &values_in_buf,
-        Rhi::ComputeBuffer &records_buf,
         Rhi::ComputeBuffer &out_values_buf,
-        Rhi::ComputeBuffer &entry_count_buf,
+        EntryCountSource entry_count,
         uint32_t capacity,
         uint32_t num_channels,
         uint32_t max_key_value
@@ -128,12 +173,38 @@ namespace Engine {
             throw std::invalid_argument("SumByKey: max_key_value must be > 0");
         }
 
+        // The count source selects the kernel. A CPU-known count travels in the
+        // push block and binds nothing; a GPU-produced count is read from the
+        // caller's buffer, whose size is validated here.
+        const auto *entry_count_buf = std::get_if<const Rhi::ComputeBuffer *>(&entry_count);
+        const auto *entry_count_value = std::get_if<uint32_t>(&entry_count);
+        if (entry_count_buf != nullptr && *entry_count_buf == nullptr) {
+            throw std::invalid_argument("SumByKey: entry-count source buffer must not be null");
+        }
+        if (entry_count_buf != nullptr && (*entry_count_buf)->GetSize() < sizeof(uint32_t)) {
+            throw std::runtime_error("SumByKey::Record: entry-count buffer must hold at least one uint");
+        }
+
+        // The whole level chain is a pure function of this call's capacity, and the
+        // record-region partition is a pure function of the capacity, the channel
+        // count and the device's descriptor offset alignment.
+        const LevelGeometry geometry = ComputeGeometry(capacity);
+        const uint32_t k = static_cast<uint32_t>(geometry.r.size());
+        if (k == 0u) return;
+
+        const size_t alignment = std::max<size_t>(
+            1u,
+            m_impl->device_context.GetDeviceInterface().QueryLimit(
+                Rhi::DeviceInterface::PhysicalDeviceLimitInteger::StorageBufferOffsetAlignment
+            )
+        );
+        const RecordLayout layout = ComputeRecordLayout(geometry, num_channels, alignment);
+
         // The construction-time bound is gone, so the out-of-bounds guard is
         // checked per call against the buffers actually bound for this call.
         const size_t keys_bytes = static_cast<size_t>(capacity) * sizeof(uint32_t);
         const size_t values_bytes = static_cast<size_t>(num_channels) * capacity * sizeof(uint32_t);
         const size_t out_bytes = static_cast<size_t>(num_channels) * max_key_value * sizeof(uint32_t);
-        const size_t records_bytes = GetRequiredRecordsBytes(capacity, num_channels);
         if (keys_in_buf.GetSize() < keys_bytes) {
             throw std::runtime_error("SumByKey::Record: key buffer is smaller than capacity * sizeof(uint32_t)");
         }
@@ -148,53 +219,37 @@ namespace Engine {
                 "SumByKey::Record: output buffer is smaller than num_channels * max_key_value floats"
             );
         }
-        if (records_buf.GetSize() < records_bytes) {
-            throw std::runtime_error("SumByKey::Record: record buffer is smaller than GetRequiredRecordsBytes");
-        }
-        if (entry_count_buf.GetSize() < sizeof(uint32_t)) {
-            throw std::runtime_error("SumByKey::Record: entry-count buffer must hold at least one uint");
+        if (entry_count_buf == nullptr && entry_count_value == nullptr) {
+            throw std::invalid_argument("SumByKey: entry-count source is empty");
         }
 
         m_impl->EnsureInitialized();
+        // A single-level reduction has no record regions, so the storage is
+        // created at a minimal size and the shader's unused bindings point at the
+        // output instead; see the level loop below.
+        m_impl->EnsureRecords(std::max<size_t>(layout.total_bytes, sizeof(uint32_t)));
+        Rhi::ComputeBuffer &records_buf = *m_impl->records;
 
-        // The whole level chain is a pure function of this call's capacity.
-        const LevelGeometry geometry = ComputeGeometry(capacity);
-        const uint32_t k = static_cast<uint32_t>(geometry.r.size());
-        if (k == 0u) return;
+        const std::vector<RecordRegion> &regions = layout.regions;
 
-        // Lay out the record regions for levels 1..k-1 sequentially.
-        const size_t record_scalars = static_cast<size_t>(1u + num_channels); // key + N floats
-        size_t cursor = 0u;
-        std::vector<RecordRegion> regions;
-        regions.reserve(geometry.r.size() > 0u ? geometry.r.size() - 1u : 0u);
-        for (size_t i = 1u; i < geometry.r.size(); ++i) {
-            RecordRegion reg;
-            reg.count = geometry.r[i];
-            reg.key_offset = cursor;
-            reg.val_offset = cursor + static_cast<size_t>(reg.count) * sizeof(uint32_t);
-            regions.push_back(reg);
-            const size_t region_bytes = static_cast<size_t>(reg.count) * record_scalars * sizeof(uint32_t);
-            cursor += region_bytes;
-        }
-
-        // The caller's sorted key array and its payload-index array: the same
-        // buffers at every level, read only where `gather_payload` is set (for an
-        // untouched descriptor the shader never dereferences them).
-        Rhi::ComputeKernelResource keys_in = Rhi::ComputeKernelResource::Buffer(keys_in_buf, 0u, keys_bytes);
-        Rhi::ComputeKernelResource values_in = Rhi::ComputeKernelResource::Buffer(values_in_buf, 0u, values_bytes);
-        Rhi::ComputeKernelResource rec_keys{};
-        Rhi::ComputeKernelResource rec_values{};
+        // Bindings that do not change with the level: the caller's level-0
+        // key array, the caller's payload-index array (read only where
+        // `gather_payload` is set — an untouched descriptor is never dereferenced),
+        // and the output.
+        const Rhi::ComputeKernelResource keys_in_level0 =
+            Rhi::ComputeKernelResource::Buffer(keys_in_buf, 0u, keys_bytes);
+        const Rhi::ComputeKernelResource payload_in =
+            Rhi::ComputeKernelResource::Buffer(payload_in_buf, 0u, keys_bytes);
+        const Rhi::ComputeKernelResource out_values = Rhi::ComputeKernelResource::Buffer(out_values_buf, 0u, out_bytes);
 
         for (uint32_t level = 0u; level < k; ++level) {
             const uint32_t input_count = geometry.r[level];
             const uint32_t num_blocks = (input_count + kBlockSize - 1u) / kBlockSize;
 
             // ---- Read source for this level ----
-            if (level == 0u) {
-                // Level 0 gathers from the caller's key array and payload-index
-                // array; only ValuesIn differs from the level-invariant binding.
-                values_in = Rhi::ComputeKernelResource::Buffer(values_in_buf, 0u, values_bytes);
-            } else {
+            Rhi::ComputeKernelResource keys_in = keys_in_level0;
+            Rhi::ComputeKernelResource values_in = Rhi::ComputeKernelResource::Buffer(values_in_buf, 0u, values_bytes);
+            if (level > 0u) {
                 const auto &reg = regions[level - 1u];
                 keys_in = Rhi::ComputeKernelResource::Buffer(
                     records_buf, reg.key_offset, static_cast<size_t>(reg.count) * sizeof(uint32_t)
@@ -206,6 +261,8 @@ namespace Engine {
 
             // ---- Write target for this level ----
             uint32_t record_stride = 0u;
+            Rhi::ComputeKernelResource rec_keys{};
+            Rhi::ComputeKernelResource rec_values{};
             if (level + 1u < k) {
                 // Non-final: emit records into region for R_{level+1}.
                 const auto &out_reg = regions[level]; // index level == region R_{level+1}
@@ -235,30 +292,49 @@ namespace Engine {
                 // shader's final branch never touches RecKeys/RecValues, but the
                 // descriptor set must still be complete, so point them at the
                 // (guaranteed non-empty) output buffer.
-                rec_keys = Rhi::ComputeKernelResource::Buffer(out_values_buf, 0u, out_bytes);
-                rec_values = Rhi::ComputeKernelResource::Buffer(out_values_buf, 0u, out_bytes);
+                rec_keys = out_values;
+                rec_values = out_values;
             }
 
             const uint32_t gather_payload = (level == 0u) ? 1u : 0u;
-            const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_payload};
-            m_impl->reduce_kernel->Dispatch(
-                cb,
-                {{"KeysIn", keys_in},
-                 {"ValuesIn", values_in},
-                 {"PayloadIn", Rhi::ComputeKernelResource::Buffer(payload_in_buf, 0u, keys_bytes)},
-                 {"RecKeys", rec_keys},
-                 {"RecValues", rec_values},
-                 {"OutValues", Rhi::ComputeKernelResource::Buffer(out_values_buf, 0u, out_bytes)},
-                 {"EntryCount", Rhi::ComputeKernelResource::Buffer(entry_count_buf, 0u, sizeof(uint32_t))}},
-                num_blocks,
-                1,
-                1,
-                params
-            );
+            if (entry_count_buf != nullptr) {
+                const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_payload};
+                m_impl->reduce_kernel->Dispatch(
+                    cb,
+                    {{"KeysIn", keys_in},
+                     {"ValuesIn", values_in},
+                     {"PayloadIn", payload_in},
+                     {"RecKeys", rec_keys},
+                     {"RecValues", rec_values},
+                     {"OutValues", out_values},
+                     {"EntryCount", Rhi::ComputeKernelResource::Buffer(**entry_count_buf, 0u, sizeof(uint32_t))}},
+                    num_blocks,
+                    1,
+                    1,
+                    params
+                );
+            } else {
+                const SumByKeyValuePush params{
+                    input_count, num_channels, max_key_value, record_stride, gather_payload, *entry_count_value
+                };
+                m_impl->reduce_push_kernel->Dispatch(
+                    cb,
+                    {{"KeysIn", keys_in},
+                     {"ValuesIn", values_in},
+                     {"PayloadIn", payload_in},
+                     {"RecKeys", rec_keys},
+                     {"RecValues", rec_values},
+                     {"OutValues", out_values}},
+                    num_blocks,
+                    1,
+                    1,
+                    params
+                );
+            }
 
+            // The next level reads what this one just wrote.
             if (level + 1u < k) {
-                const vk::MemoryBarrier2 dependencies[1] = {kComputeBarrier};
-                cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, 1, dependencies, 0, nullptr, 0, nullptr});
+                DispatchBarrier(cb);
             }
         }
     }

@@ -8,11 +8,17 @@ Each collision detector SHALL expose a `Record(vk::CommandBuffer cb)` method tha
 
 `Record` SHALL prepare the detector for the geometry it observes — sizing its result buffers, acquiring the compute kernels it dispatches, and preparing its per-dispatch constants — before it records the first dispatch of the call, so that no caller-visible preparation call is required before `Record`. Preparation SHALL be a no-op when nothing it depends on has changed.
 
-`Record` SHALL return `void`. Output buffer pointers SHALL be obtained via `GetResultBuffers()` (or equivalent const accessor).
-
-`ConvexCollisionDetector::Record` SHALL NOT use `RenderGraph` or `RenderGraphBuilder`.
+Naming the scene a detector observes and its configuration values SHALL be a separate, CPU-only binding call that allocates no GPU resource, acquires no kernel and sizes no buffer. It is not a preparation phase: it carries no ordering precondition, and a detector that has been bound once prepares itself on every subsequent `Record`.
 
 ```cpp
+void SpatialHashBroadDetector::BindToScene(
+    PhysicsScene &scene, const GridConfig &grid_config, uint32_t fallback_all_pairs_threshold,
+    uint32_t max_global_shape_count
+);
+void ConvexCollisionDetector::BindToScene(
+    PhysicsScene &scene, const SpatialHashBroadDetector &broad_detector, uint32_t max_contact_points,
+    float contact_margin
+);
 void ConvexCollisionDetector::Record(vk::CommandBuffer cb);
 void SpatialHashBroadDetector::Record(vk::CommandBuffer cb);
 ```

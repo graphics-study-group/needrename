@@ -10,11 +10,15 @@ The constructor SHALL accept `(Rhi::DeviceContext&)`. The detector SHALL prepare
 
 The detector SHALL expose:
 ```cpp
+void BindToScene(
+    PhysicsScene &scene, const GridConfig &grid_config, uint32_t fallback_all_pairs_threshold,
+    uint32_t max_global_shape_count
+);
 void Record(vk::CommandBuffer cb);
 BroadDetectorOutputBuffers GetResultBuffers() const;
 ```
 
-Detector preparation SHALL cache the bound `PhysicsScene*` and its sizing parameters. Configuration values that reach the shader SHALL travel in recorded push-constant blocks rather than in CPU writes to buffer memory.
+`BindToScene` SHALL cache the bound `PhysicsScene*`, the grid configuration and the sizing parameters, and SHALL do nothing else: no allocation, no kernel acquisition and no buffer sizing. Detector preparation SHALL happen inside `Record` and SHALL size the detector for the shape count the scene reports at that moment. Configuration values that reach the shader SHALL travel in recorded push-constant blocks rather than in CPU writes to buffer memory.
 
 `Record` SHALL select its pass sequence from the configured shape count: if `shape_count <= fallback_all_pairs_threshold`, the fallback sequence runs (AABBs → clear pair count → fallback all-pairs); otherwise the full spatial-hash sequence runs (using `ParallelScan` for prefix sums). `Record` SHALL read scene buffers through the cached `PhysicsScene*` and SHALL make its output pair buffers available through `GetResultBuffers()` as `ComputeBuffer*` references.
 
@@ -67,14 +71,13 @@ The dedup SHALL proceed in three stages:
 
 **Counts are device-local.** The detector's count buffers — `gpu_pair_count`, `gpu_unique_count`, `gpu_total_assignments` and `gpu_global_count` — are written and read on the GPU only. No CPU code reads or writes them, so they SHALL be allocated as device-local buffers rather than host-visible ones.
 
-The detector SHALL allocate the following buffers:
-- `gpu_pairs_temp`: ping-pong temp for the key array (`max_output_pair_count × sizeof(uint32_t)`)
-- `gpu_radix_scratch`: the radix sort's scratch, sized by `RadixSort::GetRequiredScratchBytes(max_output_pair_count)`
-- `gpu_unique_flags`: original 0/1 flags (`max_output_pair_count × sizeof(uint32_t)`)
-- `gpu_unique_offsets`: prefix-sum offsets, same size as the flags
+The dedup section SHALL allocate only the data buffers it exchanges between its own passes, and SHALL NOT allocate the working storage an algorithm owns:
+- `gpu_pair_keys`: the packed-key array the generators write, the sort sorts in place and the compaction compacts in place (`max_output_pair_count × sizeof(uint32_t)`)
 - `gpu_unique_count`: the compacted unique count (`sizeof(uint32_t)`, device-local)
 
-The detector SHALL use its existing `ParallelScan` instance for `CompactUnique`'s internal prefix sum. The dedup SHALL be skipped if the fallback all-pairs path is used.
+The sort's ping-pong partner array and transposed-histogram scratch, `CompactUnique`'s flag and offset arrays, and the block sums of both scans SHALL be the algorithms' own working storage: each SHALL grow geometrically inside the instance that owns it and be reused across calls, and the detector SHALL NOT size, allocate or bind any of it.
+
+The detector SHALL create one `ParallelScan`, one `RadixSort` and one `CompactUnique` instance and reuse each for its whole lifetime. `CompactUnique` SHALL own the `ParallelScan` instance it records; the detector's own scan instance serves the shape-cell-offset and cell-offset prefix sums. The dedup SHALL be skipped if the fallback all-pairs path is used.
 
 #### Scenario: Duplicate pairs are removed
 

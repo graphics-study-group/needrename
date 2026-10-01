@@ -28,9 +28,9 @@ using namespace Engine::Rhi;
 // they use capacities that span several histogram/scatter blocks.
 //
 // They also cover the contract's edges: a keys-only sort, a one-pass and a
-// multi-pass key bound (the pass count is derived, so the result can land in
-// either ping-pong array and `Record` returns which), a count below the capacity
-// with whole blocks beyond it, and a zero capacity.
+// multi-pass key bound (the pass count is derived, and the result is left in the
+// caller's array either way), a count below the capacity with whole blocks beyond
+// it, and a zero capacity.
 
 namespace {
     int g_failures = 0;
@@ -53,20 +53,16 @@ namespace {
         return ComputeBuffer::CreateUnique(rsys.GetAllocatorState(), bytes, true, false, false, false, name);
     }
 
-    /// What one `Record` call produced, plus the buffers it reported.
+    /// What one `Record` call produced, read back from the caller's own arrays.
     struct SortOutcome {
-        std::vector<uint32_t> keys;     // the returned key array, `count` entries
-        std::vector<uint32_t> payloads; // the returned payload array, when bound
-        Rhi::ComputeBuffer *result_keys = nullptr;
-        Rhi::ComputeBuffer *keys_a = nullptr;
-        Rhi::ComputeBuffer *keys_b = nullptr;
-        bool initialized_after = false;
+        std::vector<uint32_t> keys;     // the caller's key array, `count` entries
+        std::vector<uint32_t> payloads; // the caller's payload array, when bound
     };
 
-    /// Sorts `count` elements of `input_keys` / `input_payloads` on capacity-sized
-    /// buffers and returns what the sort's own result buffers hold.  Both input
-    /// vectors are capacity-sized; the tail beyond `count` is garbage that must
-    /// not influence the sorted prefix.
+    /// Sorts `count` elements of `input_keys` / `input_payloads` through a
+    /// capacity-sized caller array and returns what that array holds afterwards.
+    /// Both input vectors are capacity-sized; the tail beyond `count` is garbage
+    /// that must not influence the sorted prefix.
     SortOutcome RunSort(
         RenderSystem &rsys,
         RadixSort &sorter,
@@ -79,44 +75,31 @@ namespace {
         const bool has_payload = !input_payloads.empty();
         const size_t bytes = static_cast<size_t>(capacity) * sizeof(uint32_t);
 
-        auto keys_a = MakeHostBuffer(rsys, bytes, "Radix keys a");
-        auto keys_b = MakeHostBuffer(rsys, bytes, "Radix keys b");
-        auto scratch = MakeHostBuffer(rsys, RadixSort::GetRequiredScratchBytes(capacity), "Radix scratch");
+        auto keys = MakeHostBuffer(rsys, bytes, "Radix keys");
         auto count_buf = MakeHostBuffer(rsys, sizeof(uint32_t), "Radix count");
-        std::unique_ptr<ComputeBuffer> payload_a{};
-        std::unique_ptr<ComputeBuffer> payload_b{};
+        std::unique_ptr<ComputeBuffer> payload{};
         if (has_payload) {
-            payload_a = MakeHostBuffer(rsys, bytes, "Radix payload a");
-            payload_b = MakeHostBuffer(rsys, bytes, "Radix payload b");
+            payload = MakeHostBuffer(rsys, bytes, "Radix payload");
         }
 
         auto fill = [capacity](ComputeBuffer &buf, const std::vector<uint32_t> &src) {
             std::memset(buf.GetVMAddress(), 0, buf.GetSize());
             std::memcpy(buf.GetVMAddress(), src.data(), static_cast<size_t>(capacity) * sizeof(uint32_t));
         };
-        fill(*keys_a, input_keys);
-        std::memset(keys_b->GetVMAddress(), 0, keys_b->GetSize());
+        fill(*keys, input_keys);
         if (has_payload) {
-            fill(*payload_a, input_payloads);
-            std::memset(payload_b->GetVMAddress(), 0, payload_b->GetSize());
+            fill(*payload, input_payloads);
         }
-        std::memset(scratch->GetVMAddress(), 0, scratch->GetSize());
         *reinterpret_cast<uint32_t *>(count_buf->GetVMAddress()) = count;
-        keys_a->Flush();
-        keys_b->Flush();
-        scratch->Flush();
+        keys->Flush();
         count_buf->Flush();
         if (has_payload) {
-            payload_a->Flush();
-            payload_b->Flush();
+            payload->Flush();
         }
 
         const RadixSortBuffers buffers{
-            .keys_a = keys_a.get(),
-            .keys_b = keys_b.get(),
-            .payload_a = has_payload ? payload_a.get() : nullptr,
-            .payload_b = has_payload ? payload_b.get() : nullptr,
-            .scratch = scratch.get(),
+            .keys = keys.get(),
+            .payload = has_payload ? payload.get() : nullptr,
             .count = count_buf.get(),
         };
 
@@ -125,22 +108,17 @@ namespace {
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
         cb.begin(vk::CommandBufferBeginInfo{});
-        const RadixSortOutput result = sorter.Record(cb, buffers, capacity, max_key_value);
+        sorter.Record(cb, buffers, capacity, max_key_value);
         cb.end();
         Submit(rsys, cb);
 
         SortOutcome outcome{};
-        outcome.result_keys = result.keys;
-        outcome.keys_a = keys_a.get();
-        outcome.keys_b = keys_b.get();
-        outcome.initialized_after = sorter.IsInitialized();
-
-        result.keys->Invalidate();
-        const auto *keys = reinterpret_cast<const uint32_t *>(result.keys->GetVMAddress());
-        outcome.keys.assign(keys, keys + count);
-        if (result.payload != nullptr) {
-            result.payload->Invalidate();
-            const auto *payloads = reinterpret_cast<const uint32_t *>(result.payload->GetVMAddress());
+        keys->Invalidate();
+        const auto *sorted_keys = reinterpret_cast<const uint32_t *>(keys->GetVMAddress());
+        outcome.keys.assign(sorted_keys, sorted_keys + count);
+        if (has_payload) {
+            payload->Invalidate();
+            const auto *payloads = reinterpret_cast<const uint32_t *>(payload->GetVMAddress());
             outcome.payloads.assign(payloads, payloads + count);
         }
         return outcome;
@@ -258,8 +236,7 @@ int main() {
         const SortOutcome outcome =
             RunSort(*rsys, sorter, input_keys, {}, kCapacity, kCapacity, /*max_key_value=*/255u);
         CheckAscending(outcome.keys, "keys-only sort");
-        Check(outcome.payloads.empty(), "a keys-only sort returns no payload buffer");
-        Check(outcome.result_keys != nullptr, "a keys-only sort still returns a key buffer");
+        Check(outcome.payloads.empty(), "a keys-only sort reports no payload array");
     }
 
     // ── A count below the capacity: whole blocks lie beyond it ────────────
@@ -296,10 +273,12 @@ int main() {
         }
     }
 
-    // ── The derived pass count decides which array holds the result ───────
-    // 200 needs one byte (1 pass, odd -> the pong array); 1000 needs two bytes
-    // (2 passes, even -> the ping array).  `Record` must report the buffer the
-    // last pass actually wrote in both cases.
+    // ── The result lands in the caller's array whatever the parity ───────
+    // 200 needs one byte (1 pass, odd: the last pass leaves the result in the
+    // sort's own array and the copy-back is what puts it back in the caller's);
+    // 1000 needs two bytes (2 passes, even: the last pass already wrote the
+    // caller's array).  A missing or misplaced copy-back leaves the caller's
+    // array unsorted in the odd case, which the ascending checks below catch.
     {
         constexpr uint32_t kCapacity = 512u;
         std::vector<uint32_t> input_keys(kCapacity);
@@ -314,7 +293,6 @@ int main() {
             RunSort(*rsys, sorter, input_keys, input_payloads, kCapacity, kCapacity, /*max_key_value=*/200u);
         CheckAscending(one_pass.keys, "one-byte key bound");
         CheckStable(one_pass.keys, one_pass.payloads, "one-byte key bound");
-        Check(one_pass.result_keys == one_pass.keys_b, "a one-pass sort returns the pong array it wrote");
 
         // Two bytes: the same instance, another capacity bound and another parity.
         std::vector<uint32_t> wide_keys(kCapacity);
@@ -325,7 +303,6 @@ int main() {
             RunSort(*rsys, sorter, wide_keys, input_payloads, kCapacity, kCapacity, /*max_key_value=*/1000u);
         CheckAscending(two_pass.keys, "two-byte key bound");
         CheckStable(two_pass.keys, two_pass.payloads, "two-byte key bound");
-        Check(two_pass.result_keys == two_pass.keys_a, "a two-pass sort returns the ping array it wrote");
 
         // A key exactly equal to the bound stays valid: 256 needs two bytes.
         std::vector<uint32_t> bound_keys(kCapacity, 0u);
@@ -343,23 +320,15 @@ int main() {
         constexpr uint32_t kCapacity = 4u;
         RadixSort sorter{rsys->GetDeviceContext()};
         const std::vector<uint32_t> input_keys{4u, 2u, 3u, 1u};
-        auto keys_a = MakeHostBuffer(*rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "zero keys a");
-        auto keys_b = MakeHostBuffer(*rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "zero keys b");
-        auto scratch = MakeHostBuffer(*rsys, RadixSort::GetRequiredScratchBytes(kCapacity), "zero scratch");
+        auto keys = MakeHostBuffer(*rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "zero keys");
         auto count_buf = MakeHostBuffer(*rsys, sizeof(uint32_t), "zero count");
-        std::memcpy(keys_a->GetVMAddress(), input_keys.data(), input_keys.size() * sizeof(uint32_t));
-        std::memset(keys_b->GetVMAddress(), 0, keys_b->GetSize());
-        std::memset(scratch->GetVMAddress(), 0, scratch->GetSize());
+        std::memcpy(keys->GetVMAddress(), input_keys.data(), input_keys.size() * sizeof(uint32_t));
         *reinterpret_cast<uint32_t *>(count_buf->GetVMAddress()) = 0u;
-        keys_a->Flush();
-        keys_b->Flush();
-        scratch->Flush();
+        keys->Flush();
         count_buf->Flush();
 
         const RadixSortBuffers buffers{
-            .keys_a = keys_a.get(),
-            .keys_b = keys_b.get(),
-            .scratch = scratch.get(),
+            .keys = keys.get(),
             .count = count_buf.get(),
         };
 
@@ -369,20 +338,18 @@ int main() {
         )[0];
         bool threw = false;
         cb.begin(vk::CommandBufferBeginInfo{});
-        RadixSortOutput result{};
         try {
-            result = sorter.Record(cb, buffers, 0u, 4096u);
+            sorter.Record(cb, buffers, 0u, 4096u);
         } catch (...) {
             threw = true;
         }
         cb.end();
         Check(!threw, "a zero capacity does not throw");
         Check(!sorter.IsInitialized(), "a zero capacity records no dispatch at all");
-        Check(result.keys == keys_a.get(), "a zero capacity returns the caller's input key array");
         Submit(*rsys, cb);
 
-        keys_a->Invalidate();
-        const auto *base = reinterpret_cast<const uint32_t *>(keys_a->GetVMAddress());
+        keys->Invalidate();
+        const auto *base = reinterpret_cast<const uint32_t *>(keys->GetVMAddress());
         Check(
             base[0] == 4u && base[1] == 2u && base[2] == 3u && base[3] == 1u,
             "a zero capacity leaves the caller's keys untouched"
@@ -393,17 +360,11 @@ int main() {
     {
         constexpr uint32_t kCapacity = 8u;
         RadixSort sorter{rsys->GetDeviceContext()};
-        auto keys_a = MakeHostBuffer(*rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "cap keys a");
-        auto keys_b = MakeHostBuffer(*rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "cap keys b");
-        auto scratch = MakeHostBuffer(*rsys, RadixSort::GetRequiredScratchBytes(kCapacity), "cap scratch");
+        auto keys = MakeHostBuffer(*rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "cap keys");
         auto count_buf = MakeHostBuffer(*rsys, sizeof(uint32_t), "cap count");
-        std::memset(keys_a->GetVMAddress(), 0, keys_a->GetSize());
-        std::memset(keys_b->GetVMAddress(), 0, keys_b->GetSize());
-        std::memset(scratch->GetVMAddress(), 0, scratch->GetSize());
+        std::memset(keys->GetVMAddress(), 0, keys->GetSize());
         *reinterpret_cast<uint32_t *>(count_buf->GetVMAddress()) = kCapacity;
-        keys_a->Flush();
-        keys_b->Flush();
-        scratch->Flush();
+        keys->Flush();
         count_buf->Flush();
 
         const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
@@ -414,10 +375,8 @@ int main() {
 
         bool zero_bound_threw = false;
         try {
-            const RadixSortBuffers buffers{
-                .keys_a = keys_a.get(), .keys_b = keys_b.get(), .scratch = scratch.get(), .count = count_buf.get()
-            };
-            (void)sorter.Record(cb, buffers, kCapacity, 0u);
+            const RadixSortBuffers buffers{.keys = keys.get(), .count = count_buf.get()};
+            sorter.Record(cb, buffers, kCapacity, 0u);
         } catch (const std::invalid_argument &) {
             zero_bound_threw = true;
         } catch (...) {
@@ -426,36 +385,55 @@ int main() {
 
         bool oversize_threw = false;
         try {
-            const RadixSortBuffers buffers{
-                .keys_a = keys_a.get(), .keys_b = keys_b.get(), .scratch = scratch.get(), .count = count_buf.get()
-            };
-            (void)sorter.Record(cb, buffers, kCapacity * 2u, 4096u);
+            const RadixSortBuffers buffers{.keys = keys.get(), .count = count_buf.get()};
+            sorter.Record(cb, buffers, kCapacity * 2u, 4096u);
         } catch (const std::runtime_error &) {
             oversize_threw = true;
         } catch (...) {
         }
-        Check(oversize_threw, "Record rejects a capacity larger than the bound key arrays");
+        Check(oversize_threw, "Record rejects a capacity larger than the caller's key array");
 
-        bool half_payload_threw = false;
+        bool short_payload_threw = false;
         try {
-            auto payload = MakeHostBuffer(*rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "cap payload");
+            auto payload = MakeHostBuffer(*rsys, static_cast<size_t>(kCapacity / 2u) * sizeof(uint32_t), "cap payload");
             const RadixSortBuffers buffers{
-                .keys_a = keys_a.get(),
-                .keys_b = keys_b.get(),
-                .payload_a = payload.get(),
-                .payload_b = nullptr,
-                .scratch = scratch.get(),
+                .keys = keys.get(),
+                .payload = payload.get(),
                 .count = count_buf.get(),
             };
-            (void)sorter.Record(cb, buffers, kCapacity, 4096u);
-        } catch (const std::invalid_argument &) {
-            half_payload_threw = true;
+            sorter.Record(cb, buffers, kCapacity, 4096u);
+        } catch (const std::runtime_error &) {
+            short_payload_threw = true;
         } catch (...) {
         }
-        Check(half_payload_threw, "Record rejects a payload array supplied for only one ping-pong buffer");
+        Check(short_payload_threw, "Record rejects a payload array smaller than the call's capacity");
 
         cb.end();
         Submit(*rsys, cb);
+    }
+
+    // ── A smaller call after a larger one still sorts ─────────────────────
+    // The instance's working storage is grow-only, so the second call runs
+    // against storage sized for the first. A call must therefore bound itself by
+    // its own geometry and never by the buffers it is handed.
+    {
+        constexpr uint32_t kCapacity = 5000u;
+        constexpr uint32_t kSmallCapacity = 1000u;
+        std::vector<uint32_t> keys(kCapacity);
+        for (uint32_t i = 0u; i < kCapacity; ++i) {
+            keys[i] = (i * 2654435761u) % 4096u; // a spread that needs several blocks
+        }
+        std::vector<uint32_t> small_keys(kSmallCapacity);
+        for (uint32_t i = 0u; i < kSmallCapacity; ++i) {
+            small_keys[i] = (i * 2654435761u) % 4096u;
+        }
+
+        RadixSort sorter{rsys->GetDeviceContext()};
+        const SortOutcome large = RunSort(*rsys, sorter, keys, {}, kCapacity, kCapacity, 4096u);
+        const SortOutcome small = RunSort(*rsys, sorter, small_keys, {}, kSmallCapacity, kSmallCapacity, 4096u);
+
+        CheckAscending(large.keys, "5000 elements over several blocks");
+        CheckAscending(small.keys, "a smaller call on the same instance after a larger one");
     }
 
     rsys->WaitForIdle();

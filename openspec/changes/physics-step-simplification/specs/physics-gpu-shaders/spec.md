@@ -33,7 +33,7 @@ There is no permutation-inversion shader: the sorted `(key, slot)` pair array pr
 
 The `step.comp` placeholder SHALL be a no-op.
 
-The `SumByKey` reduce shader (`algorithm/sum_by_key.comp.spv`) SHALL be loaded by the `SumByKey` algorithm class rather than directly by the solver, matching how `RadixSort` loads its own shaders.
+The `SumByKey` reduce shaders (`algorithm/sum_by_key.comp.spv` and its count-source variant `algorithm/sum_by_key_push.comp.spv`) SHALL be loaded by the `SumByKey` algorithm class rather than directly by the solver, matching how `RadixSort` loads its own shaders. The count source selects the variant: the buffer-count form reads a GPU-produced count from a bound buffer, and the value-count form takes a CPU-known count from its push-constant block.
 
 The counted entry-value clear SHALL be a separate shader from `clear_int_buffer.comp` rather than a mode of it: it clears `num_channels` channel planes with a stride taken from a push-constant capacity, whereas `clear_int_buffer.comp` clears a flat range whose length is a push constant. Following the solver's existing convention, the two jobs SHALL NOT be selected by a mode flag.
 

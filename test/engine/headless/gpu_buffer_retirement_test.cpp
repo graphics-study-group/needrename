@@ -272,7 +272,6 @@ int main() {
         scene.SyncGpuBuffers(device_context, rsys->GetFrameManager().GetSubmissionHelper());
 
         for (uint32_t frame = 0; frame < kFramesPerCycle; ++frame) {
-            physics.PreGPUStep();
             if (rsys->StartFrame() == std::numeric_limits<uint32_t>::max()) {
                 Check(false, "headless acquisition must never fail in this loop");
                 continue;
@@ -287,7 +286,6 @@ int main() {
             physics.GPUCalcModelMatrices(scene, cb.GetCommandBuffer(), scene_data.GetModelMatricesBuffer());
             present_graph->RecordIntoMainCommandBuffer(*rsys);
             rsys->CompleteFrame(*present_texture, Rhi::MemoryAccessTypeImageBits::TransferWrite);
-            physics.PostGPUStep();
             parked_samples.push_back(tracker.GetParkedResourceCount());
         }
 

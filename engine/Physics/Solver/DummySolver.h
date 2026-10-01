@@ -44,7 +44,6 @@ namespace Engine {
         DummySolver(DummySolver &&) = delete;
         DummySolver &operator=(DummySolver &&) = delete;
 
-        void PreGPUStep() override;
         void GPUStep(vk::CommandBuffer cb) override;
         void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) override;
 

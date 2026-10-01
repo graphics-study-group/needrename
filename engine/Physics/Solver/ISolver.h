@@ -18,10 +18,11 @@ namespace Engine {
      * @brief Abstract base class for GPU physics solvers.
      *
      * Solvers own their compute pipelines and resource bindings internally
-     * and are driven by PhysicsSystem via the three-phase PreGPUStep →
-     * GPUStep → PostGPUStep lifecycle.
+     * and are driven by PhysicsSystem through a single-call lifecycle:
+     * `GPUStep(cb)` prepares whatever it needs for the geometry it observes and
+     * records its dispatches, so there is no caller-visible phase before or
+     * after it.
      *
-     * PreGPUStep / PostGPUStep run outside the CommandBuffer scope.
      * GPUStep receives the raw vk::CommandBuffer and records compute
      * dispatches directly — callers never access the solver's internal
      * resources.
@@ -50,34 +51,17 @@ namespace Engine {
         }
 
         /**
-         * @brief Called BEFORE cb.begin() each frame.
+         * @brief Prepare for the observed geometry and record this step's dispatches.
          *
-         * Hook for CPU-side preparation work such as uploading new
-         * data to GPU buffers. The solver accesses its scene through
-         * m_bound_scene. Default implementation is a no-op.
-         */
-        virtual void PreGPUStep() {
-        }
-
-        /**
-         * @brief Called BETWEEN cb.begin() and cb.end() each frame.
-         *
-         * The solver MUST record its compute dispatches to @p cb before
-         * returning. The solver accesses its scene through m_bound_scene.
+         * Called BETWEEN cb.begin() and cb.end() each frame. The solver MUST
+         * record its compute dispatches to @p cb before returning, and MUST
+         * complete every allocation, kernel acquisition and constant derivation
+         * before its first dispatch of the call. The solver accesses its scene
+         * through m_bound_scene; no other call is needed to drive a step.
          *
          * @param cb Raw command buffer in Recording state (after begin, before end).
          */
         virtual void GPUStep(vk::CommandBuffer cb) = 0;
-
-        /**
-         * @brief Called AFTER cb.end() + submit each frame.
-         *
-         * Hook for GPU→CPU readback or post-processing work.
-         * The solver accesses its scene through m_bound_scene.
-         * Default implementation is a no-op.
-         */
-        virtual void PostGPUStep() {
-        }
 
         /**
          * @brief Produce model matrices for the bound scene into a caller-provided buffer.

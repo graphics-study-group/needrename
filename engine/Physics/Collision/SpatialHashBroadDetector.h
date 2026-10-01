@@ -49,9 +49,11 @@ namespace Engine {
      *
      * Lifecycle:
      *   1. Construct with Rhi::DeviceContext& only (no GPU allocation).
-     *   2. Configure(scene, shape_count, grid_config, threshold) -- CPU prep,
-     *      buffer allocation, shader loading, binding creation.
-     *   3. Record(cb) -- dispatch compute passes directly to cb, return void.
+     *   2. BindToScene(scene, grid_config, threshold, max_global_shape_count) --
+     *      caches CPU values only, no allocation.
+     *   3. Record(cb) -- prepares itself for the geometry it observes (sizing,
+     *      kernel acquisition, per-dispatch constants) and dispatches compute
+     *      passes directly to cb. Preparation is a no-op when nothing changed.
      */
     class SpatialHashBroadDetector {
     public:
@@ -63,26 +65,32 @@ namespace Engine {
         SpatialHashBroadDetector(SpatialHashBroadDetector &&) = delete;
         SpatialHashBroadDetector &operator=(SpatialHashBroadDetector &&) = delete;
 
-        void Configure(
+        /**
+         * @brief Bind the detector to the scene it observes and to its configuration.
+         *
+         * @param scene                       Scene whose shape buffers are read.
+         * @param grid_config                 Spatial hash grid bounds and cell size.
+         * @param fallback_all_pairs_threshold Shape count at or below which the
+         *                                    all-pairs fallback runs.
+         * @param max_global_shape_count      Global-shape dispatch bound.
+         */
+        void BindToScene(
             PhysicsScene &scene,
-            uint32_t shape_count,
             const GridConfig &grid_config,
             uint32_t fallback_all_pairs_threshold,
             uint32_t max_global_shape_count
         );
 
         /**
-         * @brief GPU-side: record compute dispatches directly to the command buffer.
+         * @brief GPU-side: prepare for the observed geometry, then record dispatches.
          *
-         * Must be called after Configure().  Inserts a MemoryBarrier2 at the start.
-         * The path (fallback vs spatial-hash) is selected via if-else based on the
-         * threshold cached in Configure().
+         * Sizes its buffers, acquires its kernels and prepares its per-dispatch
+         * constants before the first dispatch, and only when the observed shape
+         * count changed since the previous call. Inserts a MemoryBarrier2 at the
+         * start. The path (fallback vs spatial-hash) is selected by the threshold
+         * cached by BindToScene().
          */
         void Record(vk::CommandBuffer cb);
-
-        bool IsInitialized() const noexcept;
-
-        uint32_t GetMaxPairs() const noexcept;
 
         BroadDetectorOutputBuffers GetResultBuffers() const noexcept;
 

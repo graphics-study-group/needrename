@@ -4,7 +4,6 @@
 
 #include <Physics/PhysicsSpirvLoader.h>
 #include <Physics/gpu_algorithm/CompactUnique.h>
-#include <Physics/gpu_algorithm/ParallelScan.h>
 #include <Physics/gpu_algorithm/RadixSort.h>
 
 #include <vulkan/vulkan.hpp>
@@ -99,33 +98,21 @@ namespace {
 
     CompactOutcome RunCompactUnique(RenderSystem &rsys, const std::vector<uint32_t> &sorted_keys, uint32_t count) {
         auto keys_buf = MakeHostBuffer(rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "CU keys");
-        auto flags_buf = MakeHostBuffer(rsys, CompactUnique::GetRequiredFlagBytes(kCapacity), "CU flags");
-        auto offsets_buf = MakeHostBuffer(rsys, CompactUnique::GetRequiredFlagBytes(kCapacity), "CU offsets");
         auto count_buf = MakeHostBuffer(rsys, sizeof(uint32_t), "CU count");
         auto elem_count_buf = MakeHostBuffer(rsys, sizeof(uint32_t), "CU elem count");
-        auto scan_scratch = MakeHostBuffer(rsys, ParallelScan::GetRequiredBlockSumsBytes(kCapacity), "CU scan scratch");
 
         std::memset(keys_buf->GetVMAddress(), 0, keys_buf->GetSize());
         std::memcpy(keys_buf->GetVMAddress(), sorted_keys.data(), sorted_keys.size() * sizeof(uint32_t));
-        std::memset(flags_buf->GetVMAddress(), 0, flags_buf->GetSize());
-        std::memset(offsets_buf->GetVMAddress(), 0, offsets_buf->GetSize());
-        std::memset(scan_scratch->GetVMAddress(), 0, scan_scratch->GetSize());
         *reinterpret_cast<uint32_t *>(count_buf->GetVMAddress()) = 0u;
         *reinterpret_cast<uint32_t *>(elem_count_buf->GetVMAddress()) = count;
         keys_buf->Flush();
-        flags_buf->Flush();
-        offsets_buf->Flush();
         count_buf->Flush();
         elem_count_buf->Flush();
-        scan_scratch->Flush();
 
-        CompactUnique compact{rsys.GetDeviceContext(), kCapacity};
-        ParallelScan scan{rsys.GetDeviceContext(), kCapacity};
+        CompactUnique compact{rsys.GetDeviceContext()};
 
         auto cb = BeginCommandBuffer(rsys);
-        compact.Record(
-            cb, *keys_buf, *flags_buf, *offsets_buf, *count_buf, *scan_scratch, scan, *elem_count_buf, kCapacity
-        );
+        compact.Record(cb, *keys_buf, *count_buf, *elem_count_buf, kCapacity);
         cb.end();
         Submit(rsys, cb);
 
@@ -149,16 +136,10 @@ namespace {
     DedupOutcome RunDedup(
         RenderSystem &rsys, const std::vector<glm::uvec2> &candidates, std::vector<uint32_t> &candidate_keys_out
     ) {
-        auto keys_a = MakeHostBuffer(rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "Dedup keys a");
-        auto keys_b = MakeHostBuffer(rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "Dedup keys b");
+        auto keys_a = MakeHostBuffer(rsys, static_cast<size_t>(kCapacity) * sizeof(uint32_t), "Dedup keys");
         auto pairs_buf = MakeHostBuffer(rsys, static_cast<size_t>(kCapacity) * sizeof(glm::uvec2), "Dedup pairs");
         auto pair_count_buf = MakeHostBuffer(rsys, sizeof(uint32_t), "Dedup pair count");
         auto unique_count_buf = MakeHostBuffer(rsys, sizeof(uint32_t), "Dedup unique count");
-        auto flags_buf = MakeHostBuffer(rsys, CompactUnique::GetRequiredFlagBytes(kCapacity), "Dedup flags");
-        auto offsets_buf = MakeHostBuffer(rsys, CompactUnique::GetRequiredFlagBytes(kCapacity), "Dedup offsets");
-        auto radix_scratch = MakeHostBuffer(rsys, RadixSort::GetRequiredScratchBytes(kCapacity), "Dedup radix scratch");
-        auto scan_scratch =
-            MakeHostBuffer(rsys, ParallelScan::GetRequiredBlockSumsBytes(kCapacity), "Dedup scan scratch");
 
         // The pair generators write only `candidate_count` keys; the tail is left
         // as the sort's guards expect it (never read).
@@ -170,27 +151,16 @@ namespace {
 
         std::memset(keys_a->GetVMAddress(), 0, keys_a->GetSize());
         std::memcpy(keys_a->GetVMAddress(), candidate_keys.data(), candidate_keys.size() * sizeof(uint32_t));
-        std::memset(keys_b->GetVMAddress(), 0, keys_b->GetSize());
         std::memset(pairs_buf->GetVMAddress(), 0, pairs_buf->GetSize());
-        std::memset(flags_buf->GetVMAddress(), 0, flags_buf->GetSize());
-        std::memset(offsets_buf->GetVMAddress(), 0, offsets_buf->GetSize());
-        std::memset(radix_scratch->GetVMAddress(), 0, radix_scratch->GetSize());
-        std::memset(scan_scratch->GetVMAddress(), 0, scan_scratch->GetSize());
         *reinterpret_cast<uint32_t *>(pair_count_buf->GetVMAddress()) = static_cast<uint32_t>(candidates.size());
         *reinterpret_cast<uint32_t *>(unique_count_buf->GetVMAddress()) = 0u;
         keys_a->Flush();
-        keys_b->Flush();
         pairs_buf->Flush();
         pair_count_buf->Flush();
         unique_count_buf->Flush();
-        flags_buf->Flush();
-        offsets_buf->Flush();
-        radix_scratch->Flush();
-        scan_scratch->Flush();
 
         RadixSort radix_sort{rsys.GetDeviceContext()};
-        CompactUnique compact{rsys.GetDeviceContext(), kCapacity};
-        ParallelScan scan{rsys.GetDeviceContext(), kCapacity};
+        CompactUnique compact{rsys.GetDeviceContext()};
 
         // The detector's unpack pass, loaded directly: it is a collision-layer
         // shader, not part of any gpu_algorithm module.
@@ -219,32 +189,20 @@ namespace {
         }
 
         const RadixSortBuffers sort_buffers{
-            .keys_a = keys_a.get(),
-            .keys_b = keys_b.get(),
-            .scratch = radix_scratch.get(),
+            .keys = keys_a.get(),
             .count = pair_count_buf.get(),
         };
 
         auto cb = BeginCommandBuffer(rsys);
-        const RadixSortOutput sorted = radix_sort.Record(cb, sort_buffers, kCapacity, kShapeCount * kShapeCount - 1u);
+        radix_sort.Record(cb, sort_buffers, kCapacity, kShapeCount * kShapeCount - 1u);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        compact.Record(
-            cb,
-            *sorted.keys,
-            *flags_buf,
-            *offsets_buf,
-            *unique_count_buf,
-            *scan_scratch,
-            scan,
-            *pair_count_buf,
-            kCapacity
-        );
+        compact.Record(cb, *keys_a, *unique_count_buf, *pair_count_buf, kCapacity);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         unpack_kernel.Dispatch(
             cb,
-            {{"CompactedKeys", Rhi::ComputeKernelResource::Buffer(*sorted.keys)},
+            {{"CompactedKeys", Rhi::ComputeKernelResource::Buffer(*keys_a)},
              {"CollisionPairs", Rhi::ComputeKernelResource::Buffer(*pairs_buf)},
              {"UniqueCount", Rhi::ComputeKernelResource::Buffer(*unique_count_buf)},
              {"PairCount", Rhi::ComputeKernelResource::Buffer(*pair_count_buf)}},

@@ -60,18 +60,6 @@ namespace Engine {
         m_solvers_per_scene[scene_id].push_back(std::move(solver));
     }
 
-    void PhysicsSystem::PreGPUStep() {
-        for (auto &[scene_id, scene] : m_scene_map) {
-            auto iter = m_solvers_per_scene.find(scene_id);
-            if (iter == m_solvers_per_scene.end()) {
-                continue;
-            }
-            for (auto &solver : iter->second) {
-                solver->PreGPUStep();
-            }
-        }
-    }
-
     void PhysicsSystem::GPUStep(vk::CommandBuffer cb) {
         for (auto &[scene_id, scene] : m_scene_map) {
             auto iter = m_solvers_per_scene.find(scene_id);
@@ -80,18 +68,6 @@ namespace Engine {
             }
             for (auto &solver : iter->second) {
                 solver->GPUStep(cb);
-            }
-        }
-    }
-
-    void PhysicsSystem::PostGPUStep() {
-        for (auto &[scene_id, scene] : m_scene_map) {
-            auto iter = m_solvers_per_scene.find(scene_id);
-            if (iter == m_solvers_per_scene.end()) {
-                continue;
-            }
-            for (auto &solver : iter->second) {
-                solver->PostGPUStep();
             }
         }
     }

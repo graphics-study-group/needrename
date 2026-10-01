@@ -28,8 +28,8 @@ namespace Engine {
      *
      * Solvers are registered per-scene via RegisterSolver(scene_id, ...) and
      * bound to their target scene through ISolver::OnBindToScene() at
-     * registration time. The three-phase PreGPUStep / GPUStep / PostGPUStep
-     * iterate all scenes and dispatch to each scene's registered solvers.
+     * registration time. GPUStep() iterates all scenes and dispatches to each
+     * scene's registered solvers.
      */
     class PHYSICS_API PhysicsSystem {
     public:
@@ -111,15 +111,7 @@ namespace Engine {
         void RegisterSolver(uint32_t scene_id, std::unique_ptr<ISolver> solver);
 
         /**
-         * @brief CPU-side preparation before GPU work.
-         *
-         * Calls PreGPUStep on each registered solver for every scene.
-         * Must be called BEFORE cb.begin().
-         */
-        void PreGPUStep();
-
-        /**
-         * @brief GPU work — solvers record compute dispatches to cb.
+         * @brief GPU work — solvers prepare and record their compute dispatches to cb.
          *
          * Calls GPUStep on each registered solver for every scene.
          * Must be called BETWEEN cb.begin() and cb.end().
@@ -127,14 +119,6 @@ namespace Engine {
          * @param cb Raw command buffer in Recording state.
          */
         void GPUStep(vk::CommandBuffer cb);
-
-        /**
-         * @brief Post-GPU work (readback, cleanup).
-         *
-         * Calls PostGPUStep on each registered solver for every scene.
-         * Must be called AFTER cb.end() + submit.
-         */
-        void PostGPUStep();
 
         /**
          * @brief Produce model matrices for one named physics scene.

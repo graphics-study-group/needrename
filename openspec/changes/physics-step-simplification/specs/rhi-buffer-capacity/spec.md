@@ -74,9 +74,9 @@ Every consumer that needs a logical bound SHALL obtain it explicitly from the ca
 
 A consumer that validates a buffer against a required size SHALL accept any buffer whose capacity is at least that size, and SHALL operate only on the region it was asked to process. An oversized buffer SHALL NOT change a consumer's result.
 
-#### Scenario: An oversized scratch buffer is accepted
+#### Scenario: An oversized caller buffer is accepted
 
-- **WHEN** an algorithm is given a scratch buffer larger than the size its geometry requires
+- **WHEN** a consumer is given a data buffer larger than the size its geometry requires — a key array larger than the capacity the reduction was called with, for example
 - **THEN** the call succeeds
 - **AND** the result is identical to the same call with an exactly sized buffer
 

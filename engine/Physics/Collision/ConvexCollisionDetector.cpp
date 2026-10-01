@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <Physics/Collision/SpatialHashBroadDetector.h>
+#include <Physics/PhysicsDispatch.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSpirvLoader.h>
 #include <Rhi/Buffer/ComputeBuffer.h>
@@ -9,32 +11,40 @@
 #include <Rhi/Device/DeviceContext.h>
 #include <Rhi/Pipeline/ComputeKernel.h>
 
+#include <algorithm>
+#include <cassert>
 #include <vector>
 
-namespace {
-    const vk::MemoryBarrier2 kComputeBarrier{
-        vk::PipelineStageFlagBits2::eComputeShader,
-        vk::AccessFlagBits2::eShaderStorageWrite,
-        vk::PipelineStageFlagBits2::eComputeShader,
-        vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite
-    };
-} // namespace
-
 namespace Engine {
+
+    // Push-constant layout, matching the block in detect_collisions.comp (std430).
+    struct DetectPushParams {
+        float contact_margin;
+        uint32_t shape_slot_count;
+        uint32_t contact_budget;
+    };
+    static_assert(sizeof(DetectPushParams) == 12, "DetectPushParams must match shader push block");
 
     struct ConvexCollisionDetector::Impl {
         Rhi::DeviceContext &device_context;
 
-        PhysicsScene *cached_scene = nullptr;
-        const Rhi::ComputeBuffer *cached_pair_buffer = nullptr;
-        const Rhi::ComputeBuffer *cached_pair_count_buffer = nullptr;
+        PhysicsScene *bound_scene = nullptr;
+        const SpatialHashBroadDetector *broad_detector = nullptr;
+
+        // The broad-phase output, refreshed from the detector's live result buffers
+        // at every preparation rather than held from a previous step.
+        const Rhi::ComputeBuffer *pair_buffer = nullptr;
+        const Rhi::ComputeBuffer *pair_count_buffer = nullptr;
 
         uint32_t max_input_collision_pairs = 1;
         uint32_t max_output_collision_pairs = 1;
+        uint32_t max_contact_points = 1;
         float contact_margin = 0.001f;
         uint32_t shape_slot_count = 0;
 
         bool shaders_loaded = false;
+        /// True once the result buffers and kernels match the observed capacity.
+        bool prepared = false;
 
         Rhi::ComputeKernel *clear_kernel = nullptr;
         Rhi::ComputeKernel *detect_kernel = nullptr;
@@ -53,14 +63,10 @@ namespace Engine {
         Impl(Impl &&) = delete;
         Impl &operator=(Impl &&) = delete;
 
-        /// @brief Exact-size resize that keeps the buffer object at the same address.
+        /// @brief Grow a detector buffer to at least `bytes`, following the shared
+        /// capacity rule: created on first use, geometric and grow-only after.
         void EnsureBuffer(std::unique_ptr<Rhi::ComputeBuffer> &buf, size_t bytes, const char *name) {
-            const auto &allocator = device_context.GetAllocatorState();
-            if (!buf) {
-                buf = Rhi::ComputeBuffer::CreateUnique(allocator, bytes, false, false, false, false, name);
-            } else if (buf->GetSize() != bytes) {
-                buf->Reallocate(allocator, bytes);
-            }
+            Rhi::EnsureComputeBuffer(buf, device_context.GetAllocatorState(), bytes, false, name);
         }
 
         void EnsureBuffers() {
@@ -73,7 +79,7 @@ namespace Engine {
             EnsureBuffer(gpu_collision_count, sizeof(uint32_t), "CollisionCount");
         }
 
-        void EnsureShadersAndBindings() {
+        void EnsureKernels() {
             if (shaders_loaded) return;
             shaders_loaded = true;
 
@@ -96,30 +102,26 @@ namespace Engine {
 
     ConvexCollisionDetector::~ConvexCollisionDetector() = default;
 
-    bool ConvexCollisionDetector::IsInitialized() const noexcept {
-        return m_impl->shaders_loaded;
-    }
-
-    void ConvexCollisionDetector::Configure(
+    void ConvexCollisionDetector::BindToScene(
         PhysicsScene &scene,
-        uint32_t max_input_collision_pairs,
-        uint32_t max_output_collision_pairs,
-        float contact_margin,
-        const Rhi::ComputeBuffer &pair_buffer,
-        const Rhi::ComputeBuffer &pair_count_buffer
+        const SpatialHashBroadDetector &broad_detector,
+        uint32_t max_contact_points,
+        float contact_margin
     ) {
-        m_impl->cached_scene = &scene;
-        m_impl->cached_pair_buffer = &pair_buffer;
-        m_impl->cached_pair_count_buffer = &pair_count_buffer;
-        m_impl->max_input_collision_pairs = std::max(1u, max_input_collision_pairs);
-        m_impl->max_output_collision_pairs = std::max(1u, max_output_collision_pairs);
+        const bool config_changed = m_impl->bound_scene != &scene || m_impl->broad_detector != &broad_detector
+                                    || m_impl->max_contact_points != std::max(1u, max_contact_points)
+                                    || m_impl->contact_margin != contact_margin;
+
+        m_impl->bound_scene = &scene;
+        m_impl->broad_detector = &broad_detector;
+        m_impl->max_contact_points = std::max(1u, max_contact_points);
         m_impl->contact_margin = contact_margin;
 
-        m_impl->EnsureBuffers();
-        m_impl->EnsureShadersAndBindings();
-
-        const auto gpu = scene.GetGpuBuffers();
-        m_impl->shape_slot_count = gpu.shape_slot_count;
+        // A changed configuration invalidates the preparation the next Record would
+        // otherwise reuse; the pair capacity itself is observed there.
+        if (config_changed) {
+            m_impl->prepared = false;
+        }
     }
 
     CollisionResultBuffers ConvexCollisionDetector::GetResultBuffers() const noexcept {
@@ -134,45 +136,65 @@ namespace Engine {
     }
 
     void ConvexCollisionDetector::Record(vk::CommandBuffer cb) {
-        assert(m_impl->cached_scene && "Configure must be called before Record");
-        const auto gpu = m_impl->cached_scene->GetGpuBuffers();
+        assert(m_impl->bound_scene != nullptr && "BindToScene must be called before Record");
+
+        // Prepare for the pair capacity the broad-phase detector currently reports.
+        // Everything that allocates or acquires a kernel happens here, before the
+        // call's first dispatch, and only when the observed capacity changed.
+        {
+            const BroadDetectorOutputBuffers broad = m_impl->broad_detector->GetResultBuffers();
+            const uint32_t observed_shape_count = m_impl->bound_scene->GetGpuBuffers().shape_slot_count;
+            // The broad detector's live pair buffers, not a reference held from a previous step.
+            m_impl->pair_buffer = broad.pair_buffer;
+            m_impl->pair_count_buffer = broad.pair_count_buffer;
+            m_impl->max_input_collision_pairs = std::max(1u, broad.max_pairs);
+            m_impl->shape_slot_count = observed_shape_count;
+
+            const uint32_t output_pairs = std::max(1u, std::min(broad.max_pairs * 5u, m_impl->max_contact_points));
+            if (!m_impl->prepared || m_impl->max_output_collision_pairs != output_pairs) {
+                m_impl->max_output_collision_pairs = output_pairs;
+                m_impl->prepared = true;
+                m_impl->EnsureBuffers();
+                m_impl->EnsureKernels();
+            }
+        }
+
+        const auto gpu = m_impl->bound_scene->GetGpuBuffers();
 
         if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || gpu.shape_slot_count == 0u) {
             return;
         }
+        if (m_impl->pair_buffer == nullptr || m_impl->pair_count_buffer == nullptr) {
+            return;
+        }
 
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        DispatchBarrier(cb);
 
-        // Every kernel was acquired in Configure: recording creates no pipeline.
-        m_impl->clear_kernel->Dispatch(
-            cb, {{"Target", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_collision_count)}}, 1, 1, 1, 1u
-        );
+        // Every kernel was acquired during preparation above: recording creates no
+        // pipeline.
+        m_impl->clear_kernel->Dispatch(cb, {{"Target", *m_impl->gpu_collision_count}}, 1, 1, 1, 1u);
 
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        DispatchBarrier(cb);
 
-        struct DetectPushParams {
-            float contact_margin;
-            uint32_t shape_slot_count;
+        const DetectPushParams params{
+            m_impl->contact_margin, m_impl->shape_slot_count, m_impl->max_output_collision_pairs
         };
-        static_assert(sizeof(DetectPushParams) == 8, "DetectPushParams must match shader push block");
-        const DetectPushParams params{m_impl->contact_margin, m_impl->shape_slot_count};
 
-        uint32_t detect_wg = std::max(1u, (m_impl->max_input_collision_pairs + 63u) / 64u);
-        const auto scene_gpu = m_impl->cached_scene->GetGpuBuffers();
+        const uint32_t detect_wg = std::max(1u, (m_impl->max_input_collision_pairs + 63u) / 64u);
         m_impl->detect_kernel->Dispatch(
             cb,
-            {{"ShapeAlive", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_alive)},
-             {"ShapeType", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_type)},
-             {"ShapeFeature", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_feature)},
-             {"ShapeWorldPosition", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_world_position)},
-             {"ShapeWorldRotation", Rhi::ComputeKernelResource::Buffer(*scene_gpu.shape_world_rotation)},
-             {"CollisionPairs", Rhi::ComputeKernelResource::Buffer(*m_impl->cached_pair_buffer)},
-             {"PairCount", Rhi::ComputeKernelResource::Buffer(*m_impl->cached_pair_count_buffer)},
-             {"CollisionIds", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_collision_ids)},
-             {"CollisionNormals", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_collision_normals)},
-             {"ContactPointA", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_point_a)},
-             {"ContactPointB", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_contact_point_b)},
-             {"CollisionCount", Rhi::ComputeKernelResource::Buffer(*m_impl->gpu_collision_count)}},
+            {{"ShapeAlive", *gpu.shape_alive},
+             {"ShapeType", *gpu.shape_type},
+             {"ShapeFeature", *gpu.shape_feature},
+             {"ShapeWorldPosition", *gpu.shape_world_position},
+             {"ShapeWorldRotation", *gpu.shape_world_rotation},
+             {"CollisionPairs", *m_impl->pair_buffer},
+             {"PairCount", *m_impl->pair_count_buffer},
+             {"CollisionIds", *m_impl->gpu_collision_ids},
+             {"CollisionNormals", *m_impl->gpu_collision_normals},
+             {"ContactPointA", *m_impl->gpu_contact_point_a},
+             {"ContactPointB", *m_impl->gpu_contact_point_b},
+             {"CollisionCount", *m_impl->gpu_collision_count}},
             detect_wg,
             1,
             1,

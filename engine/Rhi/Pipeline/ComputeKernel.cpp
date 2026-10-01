@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <format>
 #include <functional>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -151,10 +152,15 @@ namespace Engine::Rhi {
         }
     };
 
+    ComputeKernelResource::ComputeKernelResource(const DeviceBuffer &buffer) {
+        kind = Kind::Buffer;
+        this->buffer.handle = buffer.GetBuffer();
+        this->buffer.offset = 0u;
+        this->buffer.size = std::numeric_limits<size_t>::max();
+    }
+
     ComputeKernelResource ComputeKernelResource::Buffer(const DeviceBuffer &buffer, size_t offset, size_t size) {
-        ComputeKernelResource resource;
-        resource.kind = Kind::Buffer;
-        resource.buffer.handle = buffer.GetBuffer();
+        ComputeKernelResource resource(buffer);
         resource.buffer.offset = offset;
         resource.buffer.size = size;
         return resource;

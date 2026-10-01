@@ -44,8 +44,10 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 #define WARP_SIZE  32u
 #define NUM_WARPS  (BLOCK_SIZE / WARP_SIZE)
 
-// Pass input (read-only) and output (write-only): the caller's two ping-pong key
-// arrays.  `keys_out` is the array this pass fills; the next pass reads it.
+// Pass input (read-only) and output (write-only): the array this pass reads and
+// the array it fills.  One of the two is the caller's key array and the other is
+// the sort's own partner array, so a pass alternates between them.  The next
+// pass reads what this one wrote.
 layout(set = 0, binding = 0) readonly buffer KeysIn {
     uint v[];
 } keys_in;

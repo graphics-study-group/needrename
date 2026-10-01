@@ -272,10 +272,6 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        if (main_window.m_is_playing) {
-            cmc->GetPhysicsSystem()->PreGPUStep();
-        }
-
         auto cb = rsys->GetFrameManager().BeginMainCommandBuffer();
 
         if (main_window.m_is_playing) {
@@ -295,10 +291,6 @@ int main(int argc, char **argv) {
         rsys->CompleteFrame(
             *rg->GetInternalTextureResource(final_color_id), Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
         );
-
-        if (main_window.m_is_playing) {
-            cmc->GetPhysicsSystem()->PostGPUStep();
-        }
     }
     rsys->WaitForIdle();
 

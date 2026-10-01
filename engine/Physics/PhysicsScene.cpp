@@ -22,13 +22,11 @@ namespace {
     }
 
     /**
-     * @brief Exact-size resize that keeps the buffer object at the same address.
+     * @brief Grow a scene buffer to hold at least `element_count` elements.
      *
      * The buffer is created once and its storage replaced in place afterwards,
-     * so every long-lived reference to the buffer (a render graph's imported
-     * resource, for instance) stays valid across a slot-count change. The
-     * exact-size semantics are unchanged: a differing size still resizes, and
-     * only the size comparison decides whether a reallocation happens.
+     * so every long-lived reference to the buffer stays valid across a
+     * slot-count change.
      */
     template <typename T>
     void EnsureBuffer(
@@ -38,12 +36,7 @@ namespace {
         const std::string &name
     ) {
         const size_t safe_count = std::max<size_t>(1, element_count);
-        const size_t byte_size = safe_count * sizeof(T);
-        if (!buffer) {
-            buffer = Engine::Rhi::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
-        } else if (buffer->GetSize() != byte_size) {
-            buffer->Reallocate(allocator, byte_size);
-        }
+        Engine::Rhi::EnsureComputeBuffer(buffer, allocator, safe_count * sizeof(T), false, name);
     }
 } // namespace
 

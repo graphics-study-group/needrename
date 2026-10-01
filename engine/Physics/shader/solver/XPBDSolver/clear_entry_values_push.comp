@@ -1,0 +1,55 @@
+#version 450 core
+
+// clear_entry_values_push.comp — Count-bounded clear with a CPU-known count.
+//
+// The push-count form of clear_entry_values.comp, for a group whose entry count
+// the host knows at record time (the hinge and fixed groups).  The SSBO-count
+// form remains for the contact group, whose count an earlier GPU pass produces
+// in the same substep.  The two are separate shaders rather than a mode flag
+// because a kernel must not declare a binding it does not bind, and because one
+// count is in memory while the other never needs to be.
+//
+// The XPBD solver's per-iteration scratch is a channel-major value buffer with
+// stride == the entry capacity, indexed by entry slot (see
+// common/xpbd_entry_layout.glsl).  Before each accumulate pass only the slots
+// below this substep's entry count can receive a contribution, and the segmented
+// reduction reads values only at the payload slots of entries below that count,
+// so only those slots need clearing.
+//
+// The count is a value here, so the dispatch geometry follows the count itself:
+// the last workgroup may run past it, hence the guard.  The flat index is
+// decomposed into (channel, slot) before the comparison, because the cleared
+// elements are the first `entry_count` slots of *each* of the `num_channels`
+// planes, not the first `num_channels * entry_count` flat indices.  The hinge
+// and fixed groups keep `entry_count == entry_capacity` whenever a joint exists,
+// so the dispatched range covers exactly those slots.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// ---- Channel-major value buffer to clear, indexed by entry slot ----
+layout(set = 0, binding = 0) buffer Values { float v[]; } values;
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform ClearEntryValuesPush {
+    uint entry_capacity; // channel stride (== the entry capacity)
+    uint num_channels;   // number of channel planes to clear
+    uint entry_count;    // slots below this count can hold a contribution
+} params;
+
+void main() {
+    const uint idx = gl_GlobalInvocationID.x;
+
+    // The capacity is never zero (the caller keeps a one-joint floor), so the
+    // decomposition is well defined.
+    const uint channel = idx / params.entry_capacity;
+    const uint slot = idx % params.entry_capacity;
+
+    // The dispatch rounds up to whole workgroups and covers every channel, so
+    // the index can run past the last plane.
+    if (channel >= params.num_channels) return;
+    // Data extent: only the slots below the entry count can hold a contribution
+    // this iteration.
+    if (slot >= params.entry_count) return;
+
+    values.v[channel * params.entry_capacity + slot] = 0.0f;
+}

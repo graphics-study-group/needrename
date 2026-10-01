@@ -19,11 +19,14 @@
 // contribution is decided by the accumulate shaders' guards, and a slot that is
 // never written stays inert because the value buffer is cleared every iteration.
 //
-// The invalid-slot key is `body_count` (the live body slot count), which the
-// entry passes read from `RigidBodyAlive.length()`.  It is deliberately *not* a
-// fixed constant: it is larger than every real key, so unowned slots sort after
-// every owned one, and it is exactly the `max_key_value` the solver passes to
-// SumByKey, which drops every key at or above that bound.
+// The invalid-slot key is `body_count` (the live body slot count), which each
+// entry pass receives as a per-dispatch value in its push-constant block.  It is
+// deliberately *not* a fixed constant: it is larger than every real key, so
+// unowned slots sort after every owned one, and it is exactly the
+// `max_key_value` the solver passes to SumByKey, which drops every key at or
+// above that bound.  It is also deliberately not read from a buffer's length:
+// under the capacity contract a length is an allocation size, not the live slot
+// count.
 //
 // The payload is the entry's own **slot id**, and it is used twice: the radix
 // sort permutes it together with its key, and SumByKey's level-0 gather reads
@@ -51,7 +54,7 @@ const uint kChanFlag = 6u;
 const uint kNumValueChannels = 7u;
 
 // Key used for slots with no owner, and for out-of-range owner indices: the
-// live body slot count, read per dispatch as `RigidBodyAlive.length()`.  There
+// live body slot count, received per dispatch in the push-constant block.  There
 // is deliberately no constant for it here — see the note above.
 
 // Hinge/fixed: 4 slots per joint = 2 bodies x 2 scalar constraints.

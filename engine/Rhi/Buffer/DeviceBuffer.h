@@ -55,7 +55,14 @@ namespace Engine::Rhi {
         /// @brief Get the underlying Vulkan buffer object.
         vk::Buffer GetBuffer() const;
 
-        /// @brief Get the actual size of the buffer.
+        /**
+         * @brief Get the buffer's allocated capacity in bytes.
+         *
+         * The result is a capacity, not a logical element count: it may exceed
+         * the amount of data the buffer currently holds. A caller that needs a
+         * logical bound must supply it explicitly, and must never derive a
+         * dispatch geometry or a valid-input bound from this value.
+         */
         size_t GetSize() const;
 
         /**

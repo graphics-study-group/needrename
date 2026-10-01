@@ -43,21 +43,32 @@ struct FixedJointComDescriptor {
 
 layout(set = 0, binding = 0) readonly buffer FixedJoints { FixedJointComDescriptor v[]; } fixed_joints;
 
-// ---- Body count bound (only `.length()` is used) ----
-layout(set = 0, binding = 1) readonly buffer RigidBodyAlive { uint v[]; } rigid_body_alive;
-
 // ---- Output: the entry key array and its payload (slot id) array ----
-layout(set = 0, binding = 2) buffer EntryKeys    { uint v[]; } entry_keys;
-layout(set = 0, binding = 3) buffer EntryPayload { uint v[]; } entry_payload;
+layout(set = 0, binding = 1) buffer EntryKeys    { uint v[]; } entry_keys;
+layout(set = 0, binding = 2) buffer EntryPayload { uint v[]; } entry_payload;
+
+// ---- Output: the group's entry count, read by the radix sort ----
+// The host knows this count, but the sort's count guard reads it from a buffer at
+// execution time, so the pass that owns the list publishes it.  It is
+// `kJointSlotBase * joint_count`, clamped to the capacity.
+layout(set = 0, binding = 3) buffer EntryCount { uint count; } entry_count;
 
 // ---- Per-dispatch constants (push constant, recorded by the solver) ----
+// The body count travels as a value: under the capacity contract a buffer's
+// length is its allocation size, not a logical bound.
 layout(push_constant) uniform JointCountPush {
     uint joint_count;
     uint entry_capacity;   // number of fixed entry slots (== 4 * fixed joint capacity)
+    uint body_count;       // live rigid body slot count (the invalid-slot key)
 } params;
 
 void main() {
     uint j = gl_GlobalInvocationID.x;
+
+    // One invocation publishes the group's entry count for the whole dispatch.
+    if (j == 0u) {
+        entry_count.count = min(kJointSlotBase * params.joint_count, params.entry_capacity);
+    }
 
     const uint slot1_rot = joint_slot(j, 0u, kJointAxisSlot);
     const uint slot1_pos = joint_slot(j, 0u, kJointAnchorSlot);
@@ -69,7 +80,7 @@ void main() {
 
     // The invalid-slot key is the body count: the largest key this substep can
     // produce, and the value SumByKey is told to drop.
-    const uint body_count = rigid_body_alive.v.length();
+    const uint body_count = params.body_count;
     uint key1 = body_count;
     uint key2 = body_count;
 

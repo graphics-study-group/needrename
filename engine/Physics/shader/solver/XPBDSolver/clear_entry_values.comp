@@ -9,13 +9,16 @@
 // reduction reads values only at the payload slots of entries below that count,
 // so only those slots need clearing.
 //
-// The entry count is produced on the GPU in the same substep, so it is read from
-// a buffer at execution time (exactly as the radix sort's count guard does) and
-// cannot be a push constant.  The dispatch geometry therefore stays derived from
-// the entry capacity — ceil(num_channels * entry_capacity / 64) workgroups, the
-// same count the flat clear uses — and this shader early-outs once the slot
-// index reaches the count.  Only the number of elements actually written follows
-// the count.
+// The entry count is produced on the GPU in the same substep — the contact
+// group's entry pass publishes it from the collision count it reads — so it is
+// read from a buffer at execution time (exactly as the radix sort's count guard
+// does) and cannot be a push constant.  This is therefore the **GPU-produced
+// count** form: the hinge and fixed groups' counts are CPU-known and use
+// clear_entry_values_push.comp, which binds no count buffer.  The dispatch
+// geometry therefore stays derived from the entry capacity — ceil(num_channels *
+// entry_capacity / 64) workgroups, the same count the flat clear uses — and this
+// shader early-outs once the slot index reaches the count.  Only the number of
+// elements actually written follows the count.
 //
 // A flat early-out on the invocation index would be wrong: the cleared elements
 // are the first `count` slots of *each* of the `num_channels` planes, not the

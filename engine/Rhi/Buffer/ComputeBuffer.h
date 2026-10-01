@@ -35,8 +35,8 @@ namespace Engine::Rhi {
         /**
          * @brief Replace this buffer's storage in place, at an exact size.
          *
-         * The invalidation contract: the Vulkan buffer handle from `GetBuffer()` 
-         * and any pointer from `GetVMAddress()` do **not** survive the call; 
+         * The invalidation contract: the Vulkan buffer handle from `GetBuffer()`
+         * and any pointer from `GetVMAddress()` do **not** survive the call;
          * and the contents are **not** preserved — re-establishing them is the caller's job.
          *
          * @param allocator The allocator the replacement storage is allocated from.
@@ -50,7 +50,10 @@ namespace Engine::Rhi {
          * A request at or below the buffer's current size is a no-op: the
          * storage, its contents and the buffer handle are all left untouched.
          * A request above the current size replaces the storage in place,
-         * exactly as `Reallocate` does.
+         * exactly as `Reallocate` does, with a capacity of `max(bytes, current *
+         * 2)`: growth is geometric, so capacity tracks capacity steps rather
+         * than every value change and only increases. Use `Reallocate` to
+         * shrink.
          *
          * The invalidation contract of `Reallocate` applies whenever the
          * request does reallocate.
@@ -60,6 +63,29 @@ namespace Engine::Rhi {
          */
         void EnsureCapacity(const Rhi::AllocatorState &allocator, size_t bytes);
     };
+
+    /**
+     * @brief Create a compute buffer on first use and grow it geometrically afterwards.
+     *
+     * This is the shared sizing rule for engine-owned buffers: the first request
+     * allocates exactly `bytes`, and every later request is a grow-only,
+     * geometric capacity request (`EnsureCapacity`). Capacity therefore never
+     * decreases, and a workload that oscillates below the high-water mark it has
+     * already reached reallocates nothing.
+     *
+     * @param buffer           Buffer slot to create or grow.
+     * @param allocator        Allocator new storage is taken from.
+     * @param bytes            Minimum capacity the buffer must have afterwards.
+     * @param allow_cpu_access Enables CPU access when the buffer is created.
+     * @param name             Debug name, used when the buffer is created.
+     */
+    RHI_API void EnsureComputeBuffer(
+        std::unique_ptr<ComputeBuffer> &buffer,
+        const Rhi::AllocatorState &allocator,
+        size_t bytes,
+        bool allow_cpu_access,
+        const std::string &name = ""
+    );
 
     /// @brief Typed adaptor of the `ComputeBuffer` class.
     template <class T>
@@ -98,7 +124,15 @@ namespace Engine::Rhi {
         }
 
         /**
-         * @brief Get the count of elements in the buffer.
+         * @brief Get the buffer's element capacity, not a logical element count.
+         *
+         * The result is `GetSize() / sizeof(T)`, and `GetSize()` reports the
+         * allocated capacity, so it is an upper bound on the elements that can
+         * be stored — never a valid-input bound and never a dispatch bound. A
+         * caller that needs the logical extent must carry it explicitly and
+         * derive its dispatch geometry from that value. The only legitimate use
+         * of this as a bound is clamping a dispatch to the destination's
+         * capacity, as the `GPUCalcModelMatrices` sites do.
          */
         size_t GetCount() const noexcept {
             return buffer->GetSize() / sizeof(T);

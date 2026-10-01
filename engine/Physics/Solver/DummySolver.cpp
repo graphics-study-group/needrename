@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <Physics/PhysicsDispatch.h>
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSpirvLoader.h>
 #include <Physics/Solver/XPBDGpuSolver.h>
@@ -12,15 +13,6 @@
 
 #include <algorithm>
 #include <cassert>
-
-namespace {
-    const vk::MemoryBarrier2 kComputeBarrier{
-        vk::PipelineStageFlagBits2::eComputeShader,
-        vk::AccessFlagBits2::eShaderStorageWrite,
-        vk::PipelineStageFlagBits2::eComputeShader,
-        vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite
-    };
-} // namespace
 
 namespace Engine {
 
@@ -74,18 +66,6 @@ namespace Engine {
         return m_impl->config;
     }
 
-    void DummySolver::PreGPUStep() {
-        const auto gpu = m_bound_scene->GetGpuBuffers();
-
-        if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) {
-            return;
-        }
-
-        if (!m_impl->initialized) {
-            m_impl->EnsureLoaded();
-        }
-    }
-
     void DummySolver::GPUStep(vk::CommandBuffer cb) {
         const auto gpu = m_bound_scene->GetGpuBuffers();
 
@@ -93,7 +73,11 @@ namespace Engine {
             return;
         }
 
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        // Kernel acquisition happens here, before the call's first dispatch; a
+        // second step acquires nothing.
+        m_impl->EnsureLoaded();
+
+        DispatchBarrier(cb);
 
         const uint32_t body_wg = (gpu.rigid_body_slot_count + 63u) / 64u;
 
@@ -103,9 +87,9 @@ namespace Engine {
 
         m_impl->compute_kernel->Dispatch(
             cb,
-            {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
-             {"RigidBodyCenterPosition", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
-             {"RigidBodyCenterRotation", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)}},
+            {{"RigidBodyAlive", *gpu.rigid_body_alive},
+             {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
+             {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation}},
             body_wg,
             1,
             1,
@@ -141,14 +125,14 @@ namespace Engine {
 
         // The production is separate from the step, so it records the barrier
         // that makes the poses it reads visible.
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
+        DispatchBarrier(cb);
 
         m_impl->model_matrix_kernel->Dispatch(
             cb,
-            {{"RigidBodyAlive", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_alive)},
-             {"RigidBodyCenterPosition", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_position)},
-             {"RigidBodyCenterRotation", Rhi::ComputeKernelResource::Buffer(*gpu.rigid_body_center_world_rotation)},
-             {"ModelMatrices", Rhi::ComputeKernelResource::Buffer(target)}},
+            {{"RigidBodyAlive", *gpu.rigid_body_alive},
+             {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
+             {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
+             {"ModelMatrices", target}},
             (write_count + 63u) / 64u,
             1,
             1

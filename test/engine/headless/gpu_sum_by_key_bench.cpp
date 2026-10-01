@@ -60,7 +60,6 @@ namespace {
         std::unique_ptr<ComputeBuffer> keys;
         std::unique_ptr<ComputeBuffer> payloads;
         std::unique_ptr<ComputeBuffer> values;
-        std::unique_ptr<ComputeBuffer> records;
         std::unique_ptr<ComputeBuffer> out;
         std::unique_ptr<ComputeBuffer> count;
         uint32_t capacity = 0u;
@@ -80,7 +79,6 @@ namespace {
             keys->Flush();
             payloads->Flush();
             values->Flush();
-            records->Flush();
             out->Flush();
             count->Flush();
         }
@@ -93,9 +91,6 @@ namespace {
         ctx.keys = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * sizeof(uint32_t), "Bench keys");
         ctx.payloads = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * sizeof(uint32_t), "Bench payloads");
         ctx.values = MakeHostBuffer(rsys, static_cast<size_t>(kChannels) * capacity * sizeof(uint32_t), "Bench values");
-        size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(capacity, kChannels);
-        if (rec_bytes == 0u) rec_bytes = 1u;
-        ctx.records = MakeHostBuffer(rsys, rec_bytes, "Bench records");
         ctx.out = MakeHostBuffer(rsys, static_cast<size_t>(kChannels) * max_key_value * sizeof(uint32_t), "Bench out");
         ctx.count = MakeHostBuffer(rsys, sizeof(uint32_t), "Bench count");
 
@@ -103,7 +98,6 @@ namespace {
         std::memset(ctx.payloads->GetVMAddress(), 0, ctx.payloads->GetSize());
         std::memset(ctx.values->GetVMAddress(), 0, ctx.values->GetSize());
         std::memset(ctx.out->GetVMAddress(), 0, ctx.out->GetSize());
-        std::memset(ctx.records->GetVMAddress(), 0, ctx.records->GetSize());
         *reinterpret_cast<uint32_t *>(ctx.count->GetVMAddress()) = capacity;
         return ctx;
     }
@@ -186,9 +180,8 @@ namespace {
                 *ctx.keys,
                 *ctx.payloads,
                 *ctx.values,
-                *ctx.records,
                 *ctx.out,
-                *ctx.count,
+                &*ctx.count,
                 ctx.capacity,
                 kChannels,
                 ctx.max_key_value

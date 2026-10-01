@@ -1,0 +1,49 @@
+#version 450 core
+
+// Copies a completed sort's result out of the sort's own ping-pong arrays and
+// back into the caller's arrays.
+//
+// A radix pass alternates which of the two arrays it writes, so a call whose
+// pass count is odd leaves its result in the instance's arrays. One pass of this
+// shader moves it back, which is what makes the result's location independent of
+// the pass count's parity: the caller's array always holds the sorted records
+// afterwards, so one instance can serve several data sets in one command buffer
+// without a later sort overwriting an earlier result.
+//
+// The keys are always copied; the payloads only when the call supplied one. A
+// caller without a payload binds its key arrays as the payload placeholders and
+// sets `has_payload` to 0, so neither payload binding is dereferenced.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer SrcKeys {
+    uint v[];
+} src_keys;
+
+layout(set = 0, binding = 1) writeonly buffer DstKeys {
+    uint v[];
+} dst_keys;
+
+layout(set = 0, binding = 2) readonly buffer SrcPayload {
+    uint v[];
+} src_payload;
+
+layout(set = 0, binding = 3) writeonly buffer DstPayload {
+    uint v[];
+} dst_payload;
+
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+
+layout(push_constant) uniform CopyBackPush {
+    uint elem_count;
+    uint has_payload;
+} params;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= params.elem_count) return;
+    dst_keys.v[idx] = src_keys.v[idx];
+    if (params.has_payload != 0u) {
+        dst_payload.v[idx] = src_payload.v[idx];
+    }
+}

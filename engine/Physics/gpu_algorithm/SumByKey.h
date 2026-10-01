@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <variant>
 #include <vector>
 
 namespace vk {
@@ -52,14 +53,16 @@ namespace Engine {
      * classification's per-block real extent, the record-region partition and
      * the per-level dispatch count, and it is a pure function of `capacity`, so
      * `Record` computes the whole chain.  The *entry count* is how many leading
-     * elements carry real input data; it bounds **data extent only** and is read
-     * by the shader from the caller's entry-count buffer at execution time,
-     * because the producing pass runs on the GPU.  An entry count equal to
-     * `capacity` behaves exactly as if the bound were absent.
+     * elements carry real input data; it bounds **data extent only** and its
+     * source is the call's `EntryCountSource`: a CPU-known value travels in the
+     * push-constant block, a GPU-produced one is read from the caller's buffer
+     * at execution time.  An entry count equal to `capacity` behaves exactly as
+     * if the bound were absent.
      *
-     * Record regions for the intermediate levels live in one caller-provided
-     * buffer partitioned by level (offsets derived per call), mirroring the
-     * `ParallelScan::GetRequiredBlockSumsBytes` pattern.
+     * The record regions for the intermediate levels live in the instance's own
+     * storage, partitioned by level with offsets derived per call from the call's
+     * capacity, its channel count and the device's descriptor offset alignment.
+     * The caller allocates nothing and cannot get the layout wrong.
      *
      * The `num_channels` float values per record are batched into a single
      * buffer in channel-major layout: `value(c, i) = buf[c * stride + i]`,
@@ -70,16 +73,29 @@ namespace Engine {
      *
      * The instance holds no geometry: every `Record` call supplies its own, so
      * one instance serves any number of geometries within a single frame and
-     * never needs rebuilding when the caller's geometry changes.
+     * never needs rebuilding when the caller's geometry changes.  The record
+     * storage is shared by every call, so two `Record` calls on one instance in
+     * the same command buffer have an execution-order dependency through it and
+     * the caller must record a barrier between them.
      *
-     * Owned GPU resources: none (all working buffers caller-provided).  Owns
-     * only the compute pipeline, whose shader is loaded lazily on first
-     * `Record` (matching `RadixSort`).
+     * Owned GPU resources: the compute pipelines, loaded lazily on the first
+     * `Record` (matching `RadixSort`), and the record-region storage, grown
+     * geometrically and reused across calls.
      */
     class PHYSICS_API SumByKey {
     public:
         static constexpr uint32_t kBlockSize = 256u;
         static constexpr uint32_t kMaxChannels = 8u;
+
+        /**
+         * @brief Where a call's entry count comes from.
+         *
+         * A `uint32_t` is a CPU-known count: it travels in the push-constant
+         * block and the call binds no count buffer. A `const Rhi::ComputeBuffer *`
+         * is a GPU-produced count: the shader reads it from that buffer at
+         * execution time. The source selects the kernel the call records.
+         */
+        using EntryCountSource = std::variant<uint32_t, const Rhi::ComputeBuffer *>;
 
         /**
          * @brief Construct a SumByKey reducer.
@@ -110,19 +126,6 @@ namespace Engine {
         static uint32_t GetNumLevels(uint32_t capacity) noexcept;
 
         /**
-         * @brief Required record-buffer size in bytes.
-         *
-         * The record regions for levels 1..k-1: `(R_1 + ... + R_{k-1}) *
-         * (4 + 4 * num_channels)` bytes (one key uint plus `num_channels`
-         * floats per record).  Zero when `k == 1`.
-         *
-         * @param capacity      Element count whose geometry is requested.
-         * @param num_channels  Number of value channels per record.
-         * @return Minimum record-buffer size in bytes.
-         */
-        static size_t GetRequiredRecordsBytes(uint32_t capacity, uint32_t num_channels) noexcept;
-
-        /**
          * @brief Record the full recursive reduction to the command buffer.
          *
          * Reduces the sorted key array @p keys_in_buf — gathering each entry's
@@ -136,7 +139,7 @@ namespace Engine {
          * Level 0 always dispatches `ceil(capacity / 256)` workgroups and each
          * level reads its input as an array of `capacity` / `R_i` elements, so
          * the record chain is rewritten in full on every call.  The entry count
-         * read from @p entry_count_buf bounds only which **values** are read.
+         * bounds only which **values** are read.
          *
          * All level parameters (region offsets, element counts, workgroup
          * counts, channel stride, channel count, key bound, gather mode) are
@@ -147,11 +150,10 @@ namespace Engine {
          *     read at level 0 only, bound at every level.
          *   - `ValuesIn`  — caller's packed values at level 0 (channel-major,
          *     stride `capacity`); the record region's values at level >= 1.
-         *   - `RecKeys` / `RecValues` — the record buffer (level >= 1 input,
-         *     non-final-level output).
+         *   - `RecKeys` / `RecValues` — the instance's record storage (level >= 1
+         *     input, non-final-level output). Their offsets are multiples of the
+         *     device's storage-buffer offset alignment.
          *   - `OutValues` — output (channel-major, stride @p max_key_value).
-         *   - `EntryCount` — the call's entry count (1 uint), bound at every
-         *     level and read only at level 0.
          *
          * @param cb               Command buffer in recording state.
          * @param keys_in_buf      Sorted key array (`capacity` uints).
@@ -160,11 +162,12 @@ namespace Engine {
          *                         `payload_in_buf[e]`.
          * @param values_in_buf    Packed value buffer (channel-major, indexed by
          *                         the payload index).
-         * @param records_buf      Record buffer, >= GetRequiredRecordsBytes.
          * @param out_values_buf   Output value buffer (channel-major, stride
          *                         @p max_key_value), `num_channels *
          *                         max_key_value` floats.
-         * @param entry_count_buf  Entry count buffer (1 uint, read on the GPU).
+         * @param entry_count      Entry-count source: a CPU-known value, or a
+         *                         bound buffer (1 uint) holding a GPU-produced
+         *                         one. A bound buffer is read at level 0 only.
          * @param capacity         Level-0 element count (the entry capacity);
          *                         must be greater than zero.
          * @param num_channels     Number of float value channels per record,
@@ -185,9 +188,8 @@ namespace Engine {
             Rhi::ComputeBuffer &keys_in_buf,
             Rhi::ComputeBuffer &payload_in_buf,
             Rhi::ComputeBuffer &values_in_buf,
-            Rhi::ComputeBuffer &records_buf,
             Rhi::ComputeBuffer &out_values_buf,
-            Rhi::ComputeBuffer &entry_count_buf,
+            EntryCountSource entry_count,
             uint32_t capacity,
             uint32_t num_channels,
             uint32_t max_key_value

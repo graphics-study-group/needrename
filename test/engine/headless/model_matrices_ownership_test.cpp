@@ -167,7 +167,11 @@ int main() {
         auto graph = rgb.BuildRenderGraph();
 
         const vk::Buffer handle_imported = address->GetBuffer();
-        const uint32_t grown_again = grown + 32u;
+        // Capacity grows geometrically, so the next growth must ask for more than
+        // the capacity the previous request established rather than for a small
+        // increment over the earlier element count.
+        const uint32_t capacity_after_growth = static_cast<uint32_t>(address->GetSize() / sizeof(glm::mat4));
+        const uint32_t grown_again = capacity_after_growth + 32u;
         scene_data.EnsureModelMatricesCapacity(grown_again);
         Check(
             &scene_data.GetModelMatricesBuffer() == address,
@@ -247,7 +251,6 @@ int main() {
 
         // A step alone writes no model matrices: the target stays untouched.
         zero_target();
-        physics.PreGPUStep();
         run_command_buffer([&](vk::CommandBuffer cb) { physics.GPUStep(cb); });
         Check(target_is_zeroed(), "a step alone must issue no model matrix dispatch");
 
@@ -264,7 +267,6 @@ int main() {
         // The frame rule: production after a step observes the step's poses.
         scene.SetSimulationEnabled(true);
         zero_target();
-        physics.PreGPUStep();
         run_command_buffer([&](vk::CommandBuffer cb) {
             physics.GPUStep(cb);
             physics.GPUCalcModelMatrices(scene, cb, *target);

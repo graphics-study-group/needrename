@@ -1,14 +1,14 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
 
-// sum_by_key.comp — Segmented reduction with a GPU-produced entry count.
+// sum_by_key_push.comp — Segmented reduction with a CPU-known entry count.
 //
-// The buffer-count form of SumByKey: the entry count is produced on the GPU by
-// an earlier pass in the same command buffer, so it is read from the `EntryCount`
-// binding at execution time.  The value-count form (sum_by_key_push.comp) takes
-// a CPU-known count from its push block and binds no count buffer.  The two are
-// separate shaders rather than one with a mode flag, because a variant must not
-// declare a descriptor binding it does not bind.
+// The value-count form of SumByKey: the host knows the entry count at record
+// time, so it travels in the push block and no count buffer is bound.  The
+// buffer-count form (sum_by_key.comp) reads a GPU-produced count from its
+// `EntryCount` binding instead.  The two are separate shaders rather than one
+// with a mode flag, because a variant must not declare a descriptor binding it
+// does not bind.
 //
 // The reduction body, its bindings and its dispatch geometry are documented in
 // sum_by_key_body.glsl.
@@ -17,12 +17,6 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-// How many leading entries carry real data, read at execution time because the
-// producing pass runs on the GPU.  Read in gather mode only, where it bounds the
-// element index and the payload index alike; the caller clamps it to the
-// capacity.
-layout(set = 0, binding = 6) readonly  buffer EntryCount  { uint count; } entry_count;
-
 // ---- Per-dispatch constants (push constant, recorded by the caller) ----
 layout(push_constant) uniform SumByKeyPush {
     uint input_count;     // R_i = number of records this level
@@ -30,6 +24,7 @@ layout(push_constant) uniform SumByKeyPush {
     uint max_key_value;   // keys >= max_key are ignored (never written to out)
     uint record_stride;   // next region's per-channel count (=2*num_blocks); used when writing records
     uint gather_payload;  // 1 = level 0: gather by payload index, 0 = record arrays
+    uint entry_count;     // leading entries carrying real data; bounds gather in level 0 only
 } params;
 
 #include "sum_by_key_body.glsl"
@@ -41,6 +36,6 @@ void main() {
         params.max_key_value,
         params.record_stride,
         params.gather_payload,
-        entry_count.count
+        params.entry_count
     );
 }

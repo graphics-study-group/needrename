@@ -233,8 +233,6 @@ namespace {
         /// Run `steps` full steps without re-uploading the scene.
         void Step(uint32_t steps) {
             for (uint32_t i = 0; i < steps; ++i) {
-                physics.PreGPUStep();
-
                 const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
                 auto cb = rsys.GetDevice().allocateCommandBuffers(
                     vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
@@ -246,7 +244,6 @@ namespace {
                 queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {cb}, {}});
                 rsys.WaitForIdle();
 
-                physics.PostGPUStep();
                 AfterStep();
             }
         }
@@ -270,12 +267,11 @@ namespace {
         return bodies;
     }
 
-    /// Step every fixture's scene in lockstep.  `PhysicsSystem::PreGPUStep` /
-    /// `GPUStep` advance every scene in the system, so two scenes that must stay
-    /// comparable have to be driven from one submission each step.
+    /// Step every fixture's scene in lockstep.  `PhysicsSystem::GPUStep` advances
+    /// every scene in the system, so two scenes that must stay comparable have to
+    /// be driven from one submission each step.
     void StepAll(RenderSystem &rsys, PhysicsSystem &physics, const std::vector<Fixture *> &fixtures, uint32_t steps) {
         for (uint32_t s = 0; s < steps; ++s) {
-            physics.PreGPUStep();
             const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
             auto cb = rsys.GetDevice().allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
@@ -288,7 +284,6 @@ namespace {
             cb.end();
             queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {cb}, {}});
             rsys.WaitForIdle();
-            physics.PostGPUStep();
             for (Fixture *f : fixtures) {
                 f->AfterStep();
             }

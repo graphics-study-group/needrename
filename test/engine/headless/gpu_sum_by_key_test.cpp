@@ -51,7 +51,6 @@ namespace {
         std::unique_ptr<ComputeBuffer> keys;     // sorted key array
         std::unique_ptr<ComputeBuffer> payloads; // payload-index array (level-0 gather)
         std::unique_ptr<ComputeBuffer> values;
-        std::unique_ptr<ComputeBuffer> records;
         std::unique_ptr<ComputeBuffer> out;
         std::unique_ptr<ComputeBuffer> count; // entry count (GPU-read, host-written here)
 
@@ -87,16 +86,13 @@ namespace {
         }
     };
 
-    // Build a RunCtx sized for the given geometry and zero the output + records.
+    // Build a RunCtx sized for the given geometry and zero the output.
     RunCtx MakeCtx(RenderSystem &rsys, uint32_t capacity, uint32_t max_key_value, uint32_t num_channels) {
-        RunCtx ctx{rsys, {}, {}, {}, {}, {}, {}, num_channels, capacity, max_key_value};
+        RunCtx ctx{rsys, {}, {}, {}, {}, {}, num_channels, capacity, max_key_value};
         ctx.keys = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * sizeof(uint32_t), "SumByKey keys");
         ctx.payloads = MakeHostBuffer(rsys, static_cast<size_t>(capacity) * sizeof(uint32_t), "SumByKey payloads");
         ctx.values =
             MakeHostBuffer(rsys, static_cast<size_t>(num_channels) * capacity * sizeof(uint32_t), "SumByKey values");
-        size_t rec_bytes = SumByKey::GetRequiredRecordsBytes(capacity, num_channels);
-        if (rec_bytes == 0u) rec_bytes = 1u; // ensure a non-empty allocation
-        ctx.records = MakeHostBuffer(rsys, rec_bytes, "SumByKey records");
         ctx.out =
             MakeHostBuffer(rsys, static_cast<size_t>(num_channels) * max_key_value * sizeof(uint32_t), "SumByKey out");
         ctx.count = MakeHostBuffer(rsys, sizeof(uint32_t), "SumByKey count");
@@ -105,7 +101,6 @@ namespace {
         std::memset(ctx.payloads->GetVMAddress(), 0, ctx.payloads->GetSize());
         std::memset(ctx.values->GetVMAddress(), 0, ctx.values->GetSize());
         std::memset(ctx.out->GetVMAddress(), 0, ctx.out->GetSize());
-        std::memset(ctx.records->GetVMAddress(), 0, ctx.records->GetSize());
         ctx.SetCount(capacity);
         return ctx;
     }
@@ -114,7 +109,6 @@ namespace {
         ctx.keys->Flush();
         ctx.payloads->Flush();
         ctx.values->Flush();
-        ctx.records->Flush();
         ctx.out->Flush();
         ctx.count->Flush();
     }
@@ -132,9 +126,8 @@ namespace {
             *ctx.keys,
             *ctx.payloads,
             *ctx.values,
-            *ctx.records,
             *ctx.out,
-            *ctx.count,
+            &*ctx.count,
             ctx.capacity,
             ctx.num_channels,
             ctx.max_key_value
@@ -143,7 +136,6 @@ namespace {
         Submit(rsys, cb);
 
         ctx.out->Invalidate();
-        ctx.records->Invalidate();
     }
 
     void RunSumByKey(RenderSystem &rsys, RunCtx &ctx) {
@@ -508,16 +500,7 @@ int main() {
         auto throws_invalid = [&](uint32_t capacity, uint32_t channels, uint32_t max_key) {
             try {
                 reducer.Record(
-                    cb,
-                    *ctx.keys,
-                    *ctx.payloads,
-                    *ctx.values,
-                    *ctx.records,
-                    *ctx.out,
-                    *ctx.count,
-                    capacity,
-                    channels,
-                    max_key
+                    cb, *ctx.keys, *ctx.payloads, *ctx.values, *ctx.out, &*ctx.count, capacity, channels, max_key
                 );
             } catch (const std::invalid_argument &) {
                 return true;
@@ -535,16 +518,7 @@ int main() {
         bool threw_runtime = false;
         try {
             reducer.Record(
-                cb,
-                *ctx.keys,
-                *ctx.payloads,
-                *ctx.values,
-                *ctx.records,
-                *ctx.out,
-                *ctx.count,
-                kEntries * 4u,
-                1u,
-                kMaxKey
+                cb, *ctx.keys, *ctx.payloads, *ctx.values, *ctx.out, &*ctx.count, kEntries * 4u, 1u, kMaxKey
             );
         } catch (const std::runtime_error &) {
             threw_runtime = true;
@@ -840,6 +814,39 @@ int main() {
             RunSumByKey(*rsys, ctx);
             CheckExpected(ctx, expect, 1e-2f, "randomized ascending keys against a host-side sum");
         }
+    }
+
+    // ── Scenario U: a smaller call after a larger one still reduces ────────
+    // The instance's record-region storage is grow-only, so the second call runs
+    // against storage sized for the first.  A call must therefore lay its
+    // partition out from its own capacity, never from the buffer it is handed.
+    {
+        constexpr uint32_t kCapacity = 5000u;
+        constexpr uint32_t kSmallCapacity = 800u;
+        constexpr uint32_t kMaxKey = 8u;
+        constexpr uint32_t kChannels = 3u;
+        auto fill = [](RunCtx &ctx, uint32_t capacity, uint32_t entries_per_key) {
+            for (uint32_t i = 0u; i < capacity; ++i) {
+                ctx.SetEntry(i, i / entries_per_key, i);
+                for (uint32_t c = 0u; c < kChannels; ++c) {
+                    ctx.SetValue(c, i, 1.0f + static_cast<float>(c));
+                }
+            }
+        };
+
+        auto large = MakeCtx(*rsys, kCapacity, kMaxKey, kChannels);
+        fill(large, kCapacity, 700u); // keys 0..7 over 5000 entries
+        auto small = MakeCtx(*rsys, kSmallCapacity, kMaxKey, kChannels);
+        fill(small, kSmallCapacity, 100u); // the same key domain over 800 entries
+
+        const std::vector<float> want_large = HostExpected(large, kCapacity);
+        const std::vector<float> want_small = HostExpected(small, kSmallCapacity);
+
+        SumByKey reducer{rsys->GetDeviceContext()};
+        RunSumByKeyWith(*rsys, large, reducer);
+        CheckExpected(large, want_large, 1e-2f, "a large reduction before a smaller one");
+        RunSumByKeyWith(*rsys, small, reducer);
+        CheckExpected(small, want_small, 1e-2f, "a smaller reduction on the same instance");
     }
 
     rsys->WaitForIdle();

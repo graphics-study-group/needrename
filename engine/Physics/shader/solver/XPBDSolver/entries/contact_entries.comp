@@ -45,19 +45,20 @@ layout(set = 0, binding = 0) readonly buffer CollisionIds        { uvec2 v[]; } 
 layout(set = 0, binding = 1) readonly buffer CollisionCount      { uint count; } collision_count;
 layout(set = 0, binding = 2) readonly buffer ShapeBoundRigidBody { uint v[]; } shape_bound_rigid_body;
 
-// ---- Body count bound (only `.length()` is used) ----
-layout(set = 0, binding = 3) readonly buffer RigidBodyAlive { uint v[]; } rigid_body_alive;
-
 // ---- Output: the entry key array and its payload (slot id) array ----
-layout(set = 0, binding = 4) buffer EntryKeys    { uint v[]; } entry_keys;
-layout(set = 0, binding = 5) buffer EntryPayload { uint v[]; } entry_payload;
+layout(set = 0, binding = 3) buffer EntryKeys    { uint v[]; } entry_keys;
+layout(set = 0, binding = 4) buffer EntryPayload { uint v[]; } entry_payload;
 
 // ---- Output: the substep's entry count, read by the sort and the reduction ----
-layout(set = 0, binding = 6) buffer EntryCount { uint count; } entry_count;
+layout(set = 0, binding = 5) buffer EntryCount { uint count; } entry_count;
 
 // ---- Per-dispatch constants (push constant, recorded by the solver) ----
+// The two live-slot counts travel as values: under the capacity contract a
+// buffer's length is its allocation size, not a logical bound.
 layout(push_constant) uniform CapacityPush {
-    uint entry_capacity;
+    uint entry_capacity;    // contact entry slots (== 2 * contact point capacity)
+    uint body_count;        // live rigid body slot count (the invalid-slot key)
+    uint shape_slot_count;  // live collision shape slot count
 } params;
 
 void main() {
@@ -78,7 +79,7 @@ void main() {
 
     // The invalid-slot key is the body count: the largest key this substep can
     // produce, and the value SumByKey is told to drop.
-    const uint body_count = rigid_body_alive.v.length();
+    const uint body_count = params.body_count;
     uint key_a = body_count;
     uint key_b = body_count;
 
@@ -86,7 +87,7 @@ void main() {
         uvec2 pair = collision_ids.v[cidx];
         uint shape_a = pair.x;
         uint shape_b = pair.y;
-        if (shape_a >= shape_bound_rigid_body.v.length() || shape_b >= shape_bound_rigid_body.v.length()) {
+        if (shape_a >= params.shape_slot_count || shape_b >= params.shape_slot_count) {
             // Unresolvable shape pair: both sides stay unowned.
         } else {
             uint body_a = shape_bound_rigid_body.v[shape_a];

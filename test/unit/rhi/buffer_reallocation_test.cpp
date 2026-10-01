@@ -6,6 +6,10 @@
 //   - the debug name is reproduced by the replacement storage (task 1.5)
 //   - an allocator with no retirement facility frees the replaced storage
 //     immediately (task 1.6)
+//   - capacity only grows and grows geometrically (rhi-buffer-capacity:
+//     a within-capacity request and a shrink request allocate nothing, a small
+//     increment over capacity doubles, and one-element-at-a-time growth crosses
+//     a capacity step logarithmically often)
 //
 // The setup is standalone: a `DeviceInterface`, an `AllocatorState` and an
 // `EpochTracker`, with no `DeviceContext`.
@@ -189,6 +193,61 @@ int main() {
 
         buffer.reset();
         CHECK(LiveAllocationCount(plain_allocator) == 0u);
+    }
+
+    // ── rhi-buffer-capacity: geometric, grow-only capacity ──────────────────
+
+    {
+        const EpochWatermark epoch = tracker.BeginEpoch();
+        constexpr size_t kElem = sizeof(uint32_t);
+
+        auto buffer =
+            ComputeBuffer::CreateUnique(allocator, 1000u * kElem, true, false, false, false, "Capacity policy");
+        CHECK(LiveAllocationCount(allocator) == 1u);
+
+        // A one-element increment over capacity doubles rather than fitting exactly.
+        buffer->EnsureCapacity(allocator, 1001u * kElem);
+        CHECK(buffer->GetSize() == 2000u * kElem && "growth must be geometric, not exact");
+        CHECK(LiveAllocationCount(allocator) == 2u && "the first growth is the second allocation");
+
+        // A second up-size within the new capacity allocates nothing.
+        buffer->EnsureCapacity(allocator, 1500u * kElem);
+        CHECK(buffer->GetSize() == 2000u * kElem && "a within-capacity request must not change the capacity");
+        CHECK(LiveAllocationCount(allocator) == 2u && "a second up-size within capacity must allocate nothing");
+
+        // A down-size request never shrinks: capacity only grows.
+        buffer->EnsureCapacity(allocator, 10u * kElem);
+        CHECK(buffer->GetSize() == 2000u * kElem && "capacity must never decrease");
+        CHECK(LiveAllocationCount(allocator) == 2u && "a shrink request must allocate nothing");
+
+        // Exactly two allocations back this whole sequence.
+        CHECK(LiveAllocationCount(allocator) == 2u);
+        tracker.ReleaseAllParked();
+        tracker.ReportComplete(epoch);
+        buffer.reset();
+        CHECK(LiveAllocationCount(allocator) == 0u);
+    }
+
+    // Growth by one element at a time crosses a capacity step only logarithmically
+    // often, so the allocation count does not track the number of resize calls.
+    {
+        const EpochWatermark epoch = tracker.BeginEpoch();
+        auto buffer =
+            ComputeBuffer::CreateUnique(allocator, sizeof(uint32_t), true, false, false, false, "Growth steps");
+        uint32_t allocations = 1u;
+        for (uint32_t elements = 2u; elements <= 100000u; ++elements) {
+            const size_t capacity_before = buffer->GetSize();
+            buffer->EnsureCapacity(allocator, static_cast<size_t>(elements) * sizeof(uint32_t));
+            if (buffer->GetSize() != capacity_before) {
+                ++allocations;
+            }
+        }
+        CHECK(allocations <= 20u && "capacity steps must keep the allocation count logarithmic");
+        CHECK(buffer->GetSize() >= 100000u * sizeof(uint32_t));
+        tracker.ReleaseAllParked();
+        tracker.ReportComplete(epoch);
+        buffer.reset();
+        CHECK(LiveAllocationCount(allocator) == 0u);
     }
 
     device.waitIdle();

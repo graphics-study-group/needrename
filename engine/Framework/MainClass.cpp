@@ -289,9 +289,8 @@ namespace Engine {
             // resumes cleanly.
             return;
         }
-        // Phase 1: CPU-side physics prep (no CB needed).
-        this->physics->PreGPUStep();
-        // Phase 2: GPU recording — physics + rendering share one CB.
+        // Physics prepares itself inside GPUStep, then records its compute passes;
+        // physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
         this->physics->GPUStep(cb.GetCommandBuffer()); // physics solvers record their compute passes
         // Calculate model matrices for main scene
@@ -310,8 +309,5 @@ namespace Engine {
             *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),
             Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite
         );
-
-        // Phase 4: Physics readback / post-processing (batch already submitted).
-        this->physics->PostGPUStep();
     }
 } // namespace Engine
