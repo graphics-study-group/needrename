@@ -56,10 +56,10 @@ The render graph SHALL declare `UseBuffer` on both the rigid body position/rotat
 
 The system SHALL run collision detection in two stages inside each substep loop, after force integration and shape world pose update have completed, and before position constraint solving begins:
 
-1. **Broad-phase** (`SpatialHashBroadDetector::Detect(cb)`): Owns its own RenderGraph. Computes per-shape AABBs, assigns shapes to spatial grid cells, sorts by cell ID, generates candidate collision pairs. Called once per substep, records its RG directly to the command buffer.
-2. **Narrow-phase** (`ConvexCollisionDetector::Detect(cb)`): Owns its own RenderGraph. Reads the candidate pair buffer from broad-phase and runs MPR narrow-phase detection. Called once per substep, records its RG directly to the command buffer.
+1. **Broad-phase** (`SpatialHashBroadDetector::Record(cb)`): Computes per-shape AABBs, assigns shapes to spatial grid cells, sorts by cell ID, generates candidate collision pairs. Called once per substep, records its dispatches directly to the command buffer.
+2. **Narrow-phase** (`ConvexCollisionDetector::Record(cb)`): Reads the candidate pair buffer from broad-phase and runs MPR narrow-phase detection. Called once per substep, records its dispatches directly to the command buffer.
 
-Collision detection SHALL be owned and managed internally by `XpbdGpuSolver` via `SpatialHashBroadDetector` and `ConvexCollisionDetector` instances. Detector lifecycle SHALL follow the `Configure`/`Detect` two-phase pattern: `Configure` in `PreGPUStep`, `Detect` in `GPUStep`.
+Collision detection SHALL be owned and managed internally by `XpbdGpuSolver` via `SpatialHashBroadDetector` and `ConvexCollisionDetector` instances. A detector SHALL prepare itself for the current shape count on the record path — sizing its internal buffers, creating its bindings and configuring itself — so that the solver needs no separate configure step between the substeps of a step or between steps. The solver SHALL obtain the broad detector's pair buffers and pass them to the narrow detector as part of that preparation.
 
 #### Scenario: Contacts detected via two-stage pipeline
 
@@ -72,9 +72,15 @@ Collision detection SHALL be owned and managed internally by `XpbdGpuSolver` via
 #### Scenario: Detectors record independent RGs in sequence
 
 - **WHEN** `GPUStep(cb)` runs a substep iteration
-- **THEN** `broad_detector->Detect(cb)` is called, recording its own RenderGraph to `cb`
-- **AND** `narrow_detector->Detect(cb)` is called next, recording its own RenderGraph to `cb`
-- **AND** the solver's PostCollisionPreIterRG is recorded after both detectors
+- **THEN** `broad_detector->Record(cb)` is called, recording its dispatches to `cb`
+- **AND** `narrow_detector->Record(cb)` is called next, recording its dispatches to `cb`
+- **AND** the solver's PostCollisionPreIter passes are recorded after both detectors
+
+#### Scenario: A shape count change needs no configure step
+
+- **WHEN** the shape count differs from the previous step's when a step begins
+- **THEN** the detectors prepare themselves for the new count while recording that step
+- **AND** the solver does not call a separate configure method before recording
 
 ### Requirement: Jacobi contact position solving
 
@@ -291,11 +297,14 @@ The per-body partial-sum output buffers (one per constraint type) SHALL be zeroe
 
 A per-iteration scratch clear SHALL be bounded by that substep's entry count rather than by the entry capacity: it SHALL clear the `num_channels` channel planes for slots below the published count, using the entry capacity as the channel stride. Slots at or above the count SHALL NOT need clearing, because the reduction reads values only for entries below the count.
 
-The counted clear SHALL read the entry count from a buffer inside the shader at execution time, exactly as the radix sort's count guard does, because the count is produced on the GPU in the same substep. The number of workgroups it dispatches SHALL therefore still be derived from the entry capacity — only the number of elements actually written SHALL follow the count. This mirrors the level-0 rule of the segmented reduction: the dispatch geometry follows the capacity, the data extent follows the count.
+**The clear's count source and its dispatch geometry SHALL follow the group's count source.**
+
+- For the **contact** group the count is produced on the GPU in the same substep, so the counted clear SHALL read it from a buffer inside the shader at execution time, exactly as the radix sort's count guard does. Its number of workgroups SHALL remain derived from the entry capacity — only the number of elements actually written follows the count. This mirrors the level-0 rule of the segmented reduction: the dispatch geometry follows the capacity, the data extent follows the count.
+- For the **hinge** and **fixed** groups the count is known on the CPU, so it SHALL travel in the push-constant block and the number of workgroups SHALL follow the count itself. No count buffer SHALL be bound for those groups.
 
 The contact position and velocity phases SHALL share a single scratch buffer. This is sound because the phases are strictly sequential — every position iteration completes, then velocities are refreshed from the pose, then the velocity iterations run — and each phase clears the buffer immediately before its accumulate pass, so no position-phase value can reach the velocity reduction.
 
-The clearing of the flat per-body and lagrange buffers SHALL keep using `clear_int_buffer.comp`; the counted scratch clears SHALL use a separate shader that reads the entry count from a buffer, so neither job needs a mode flag.
+The clearing of the flat per-body and lagrange buffers SHALL keep using `clear_int_buffer.comp`, whose element count is already a push constant. The counted scratch clears SHALL use a separate shader from `clear_int_buffer.comp`, and the CPU-known count source SHALL be a separate shader from the GPU-produced one, so that no shader declares a binding it does not bind and neither job needs a mode flag.
 
 #### Scenario: A body with no contributions keeps zeros
 
@@ -315,7 +324,8 @@ The clearing of the flat per-body and lagrange buffers SHALL keep using `clear_i
 - **WHEN** a substep's entry count is far below the entry capacity
 - **THEN** each scratch clear writes only the slots below that count
 - **AND** the number of cleared elements follows the count, not the capacity
-- **AND** the number of dispatched workgroups still follows the capacity, because the count is only known on the GPU
+- **AND** for the contact group the number of dispatched workgroups still follows the capacity, because its count is only known on the GPU
+- **AND** for the hinge and fixed groups the number of dispatched workgroups follows the count, because their counts are known on the CPU
 
 #### Scenario: Scratch is cleared per iteration, not per substep
 

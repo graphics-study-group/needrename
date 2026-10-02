@@ -10,26 +10,34 @@ Define the refactored two-phase API for GPU collision detectors (`ConvexCollisio
 
 Each collision detector SHALL expose a `Record(vk::CommandBuffer cb)` method that records compute dispatches directly to `cb` through the compute kernel dispatch surface. The method SHALL insert a `vk::MemoryBarrier2` (ComputeShader: ShaderStorageWrite → ComputeShader: ShaderStorageRead|Write) at the start.
 
-`Record` SHALL return `void`. Output buffer pointers SHALL be obtained via `GetResultBuffers()` (or equivalent const accessor).
+`Record` SHALL prepare the detector for the geometry it observes — sizing its result buffers, acquiring the compute kernels it dispatches, and preparing its per-dispatch constants — before it records the first dispatch of the call, so that no caller-visible preparation call is required before `Record`. Preparation SHALL be a no-op when nothing it depends on has changed.
 
-`ConvexCollisionDetector::Record` SHALL NOT use `RenderGraph` or `RenderGraphBuilder`. All compute kernels SHALL be acquired in `Configure`, so that `Record` creates no pipeline and no shader module.
+Naming the scene a detector observes and its configuration values SHALL be a separate, CPU-only binding call that allocates no GPU resource, acquires no kernel and sizes no buffer. It is not a preparation phase: it carries no ordering precondition, and a detector that has been bound once prepares itself on every subsequent `Record`.
 
 ```cpp
+void SpatialHashBroadDetector::BindToScene(
+    PhysicsScene &scene, const GridConfig &grid_config, uint32_t fallback_all_pairs_threshold,
+    uint32_t max_global_shape_count
+);
+void ConvexCollisionDetector::BindToScene(
+    PhysicsScene &scene, const SpatialHashBroadDetector &broad_detector, uint32_t max_contact_points,
+    float contact_margin
+);
 void ConvexCollisionDetector::Record(vk::CommandBuffer cb);
 void SpatialHashBroadDetector::Record(vk::CommandBuffer cb);
 ```
 
 #### Scenario: Record dispatches compute passes directly
 
-- **WHEN** `Record(cb)` is called after `Configure`
+- **WHEN** `Record(cb)` is called
 - **THEN** the detector records its compute dispatches directly to `cb` through the kernel dispatch surface
 - **AND** no `RenderGraph::RecordAllPasses` is called
 
 #### Scenario: Record creates no pipeline
 
-- **WHEN** `Record(cb)` is called
-- **THEN** every kernel it dispatches was already acquired during `Configure`
-- **AND** no pipeline or shader module is created during recording
+- **WHEN** `Record(cb)` records its dispatches
+- **THEN** every kernel the call dispatches was acquired before the first of those dispatches was recorded
+- **AND** no pipeline or shader module is created between the call's first and last dispatch
 
 #### Scenario: Record returns void
 
@@ -45,59 +53,20 @@ void SpatialHashBroadDetector::Record(vk::CommandBuffer cb);
 
 #### Scenario: BroadPhase Record selects path with if-else
 
-- **WHEN** `Record(cb)` is called and `shape_count <= fallback_all_pairs_threshold` (cached from Configure)
+- **WHEN** `Record(cb)` is called and `shape_count <= fallback_all_pairs_threshold`
 - **THEN** the fallback path is taken: AABB → fallback all-pairs directly
 - **WHEN** `Record(cb)` is called and `shape_count > fallback_all_pairs_threshold`
 - **THEN** the spatial hash path is taken: AABB → count cells → scan → fill cells → histogram → scan → scatter sort → generate pairs → generate global pairs → RadixSort → CompactUnique
 
-### Requirement: Detector Configure method handles CPU preparation
+#### Scenario: Record prepares itself on first call
 
-Each collision detector SHALL expose a `Configure(...)` method that performs all CPU-side work: validating input, resizing internal buffers, uploading uniform/configuration data to GPU-visible memory, acquiring the compute kernels it dispatches, and caching references for later `Record` calls. `Configure` SHALL be safe to call every frame — it SHALL be a no-op when nothing changed.
+- **WHEN** `Record(cb)` is called for the first time after the detector is bound to a scene
+- **THEN** the detector sizes its result buffers and acquires its kernels during that call
+- **AND** the dispatches are recorded in the same call
 
-`Configure` SHALL accept sizing parameters and input buffer references so the detector knows how large to make its result buffers and where to read input data. Detectors SHALL cache the `PhysicsScene*` reference and all input buffer pointers for use in `Record`.
+#### Scenario: Record absorbs a geometry change
 
-```cpp
-void ConvexCollisionDetector::Configure(
-    PhysicsScene &scene,
-    uint32_t max_collision_pairs,
-    float contact_margin,
-    const ComputeBuffer &pair_buffer,
-    const ComputeBuffer &pair_count_buffer
-);
-
-void SpatialHashBroadDetector::Configure(
-    PhysicsScene &scene,
-    uint32_t shape_count,
-    GridConfig grid_config,
-    uint32_t fallback_all_pairs_threshold
-);
-```
-
-`ConvexCollisionDetector::Configure` SHALL cache `&pair_buffer` and `&pair_count_buffer` — these are the broad-phase detector's output buffers, and their addresses are stable after the broad-phase detector is first configured.
-
-#### Scenario: Configure on first call creates buffers and bindings
-
-- **WHEN** `Configure(scene, max_pairs, margin, pair_buf, count_buf)` is called for the first time
-- **THEN** the detector allocates its result GPU buffers sized to `max_collision_pairs * 5`
-- **AND** creates the detector config uniform buffer
-- **AND** acquires a compute kernel for each shader module it dispatches
-- **AND** caches `&scene`, `&pair_buf`, and `&count_buf` for later `Record` calls
-
-#### Scenario: Configure resizes buffers when parameters change
-
-- **WHEN** `Configure` is called with a larger `max_collision_pairs` than the previous call
-- **THEN** result buffers are recreated at the new size
-- **AND** the old buffers are released through the normal buffer-lifetime path
-- **AND** no per-detector binding object needs re-creating, because resources are supplied per dispatch
-
-#### Scenario: Configure is a no-op when nothing changed
-
-- **WHEN** `Configure` is called with the same parameters as the previous call
-- **THEN** no buffer allocations, kernel acquisitions, or uploads occur
-- **AND** the cached references remain valid
-
-#### Scenario: Configure uploads CPU data to GPU
-
-- **WHEN** `Configure` is called
-- **THEN** `shape_slot_count` (for broad-phase) or `contact_margin` (for narrow-phase) is written to the detector's host-visible GPU buffer
-- **AND** `GridConfig` data is uploaded for broad-phase
+- **WHEN** `Record(cb)` is called with a shape count or a pair capacity larger than the previous call's
+- **THEN** the detector sizes its affected buffers during that call
+- **AND** the replaced buffers' storage is released through the normal buffer-lifetime path
+- **AND** the caller performs no preparation call between the two `Record` calls

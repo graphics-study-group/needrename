@@ -8,42 +8,41 @@ Govern GPU convex collision detection using the Minkowski Portal Refinement (MPR
 
 ### Requirement: ConvexCollisionDetector owns GPU collision detection pipeline
 
-The `ConvexCollisionDetector` class SHALL own a compute shader pipeline for GPU narrow-phase convex collision detection using the MPR algorithm. It SHALL follow the new detector pattern: lazy SPIR-V loading on first `Detect` call (or during `Configure`), `ComputeStage` ownership, `ComputeResourceBinding` management, and self-owned RenderGraph recording via a `Detect(vk::CommandBuffer cb)` method.
+The `ConvexCollisionDetector` class SHALL own a compute shader pipeline for GPU narrow-phase convex collision detection using the MPR algorithm. It SHALL load its SPIR-V lazily on first use, own its compute pipelines and resource bindings, and record its dispatches directly to a caller-supplied command buffer through a `Record(vk::CommandBuffer cb)` method. It SHALL NOT own or build a `RenderGraph`.
 
-The constructor SHALL accept a `RenderSystem &` only. Sizing parameters (`max_collision_pairs`, `contact_margin`) SHALL be passed to `Configure()`. No GPU resources SHALL be allocated until `Configure` or `Detect` is first called.
+The constructor SHALL accept `(Rhi::DeviceContext&)`. Sizing parameters (`max_collision_pairs`, `contact_margin`) SHALL be supplied to the detector before or at its first record. No GPU resources SHALL be allocated before the first `Record`.
 
-The detector SHALL expose a two-phase API:
+The detector SHALL expose:
 ```cpp
-void Configure(
-    PhysicsScene &scene,
-    uint32_t max_collision_pairs,
-    float contact_margin,
-    const ComputeBuffer &pair_buffer,
-    const ComputeBuffer &pair_count_buffer
+void BindToScene(
+    PhysicsScene &scene, const SpatialHashBroadDetector &broad_detector, uint32_t max_contact_points,
+    float contact_margin
 );
-CollisionResultBuffers Detect(vk::CommandBuffer cb);
+void Record(vk::CommandBuffer cb);
+CollisionResultBuffers GetResultBuffers() const;
 ```
 
-`Configure` SHALL cache `&scene`, `&pair_buffer`, and `&pair_count_buffer`; ensure internal result buffers are sized; and upload `contact_margin` to a host-visible GPU uniform buffer. `Detect` SHALL lazily build the detector's own RenderGraph, import scene buffers from the cached `PhysicsScene*` and pair buffers from cached pointers with correct `prev_access`, record passes to `cb`, and return raw `ComputeBuffer*` references to collision result buffers.
+`BindToScene` SHALL cache the bound `PhysicsScene*`, the broad-phase source and the sizing parameters, and SHALL do nothing else: no allocation, no kernel acquisition and no buffer sizing. The detector SHALL take the broad-phase pair buffers it reads from the broad detector's live `GetResultBuffers()` at preparation time, so a growth of the broad detector's pair capacity between two steps is observed rather than a stale reference being reused. `contact_margin` SHALL reach the shader through a recorded push-constant block rather than a CPU write to a host-visible uniform buffer. `Record` SHALL size its result buffers on first use and whenever the pair capacity it observes exceeds their capacity.
 
 #### Scenario: Lazy initialization on first Detect call
 
-- **WHEN** `ConvexCollisionDetector::Detect(cb)` is called for the first time after `Configure`
-- **THEN** the detector loads the precompiled narrow-phase SPIR-V from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/ConvexCollisionDetector/detect_collisions.comp.spv`
-- **AND** creates a `ComputeStage` and `ComputeResourceBinding`
-- **AND** builds its RenderGraph and records it to `cb`
-- **AND** subsequent calls reuse the same pipeline and RG
+- **WHEN** `ConvexCollisionDetector::Record(cb)` is called for the first time
+- **THEN** the detector loads the precompiled narrow-phase SPIR-V from `<ENGINE_PHYSICS_SPIRV_DIR>/collision/ConvexCollisionDetector/detect_collisions.comp.spv`
+- **AND** creates its compute pipeline and resource bindings
+- **AND** records its dispatches to `cb`
+- **AND** subsequent calls reuse the same pipeline
 
 #### Scenario: Missing SPIR-V produces error
 
 - **WHEN** the collision detection SPIR-V file does not exist at runtime
-- **AND** `Detect(cb)` is called
+- **AND** `Record(cb)` is called
 - **THEN** a `std::runtime_error` is thrown with the absolute path in the error message
 
 #### Scenario: Detect integrates with render graph using self-imported scene buffers
 
-- **WHEN** `Detect(cb)` is called
-- **THEN** the detector creates a `RenderGraphBuilder`, calls `ImportExternalResource` for each required PhysicsScene buffer (using correct `prev_access`), imports its internal result buffers, adds clear and detect passes, builds the RG, and records it to `cb`
+- **WHEN** `Record(cb)` is called
+- **THEN** the detector reads the scene buffers it needs through its cached `PhysicsScene*` and its cached pair buffers, and records its clear and detect dispatches directly to `cb`
+- **AND** it declares no render-graph resource and inserts no render-graph barrier
 - **AND** the detect pass dispatches `(max_collision_pairs + 63) / 64` workgroups
 
 ### Requirement: Collision pair input buffer
@@ -52,16 +51,25 @@ CollisionResultBuffers Detect(vk::CommandBuffer cb);
 
 CPU dispatch SHALL use `max_collision_pairs` workgroups. Threads with `gl_GlobalInvocationID.x >= pair_count` SHALL return immediately.
 
+The contact-write budget SHALL be supplied explicitly, not inferred from the result buffer. The shader's write guard currently compares the write index against `collision_ids.v.length()`, so the buffer's length doubles as the configured contact budget; under the capacity contract that length is capacity, which may exceed the budget, and the guard would then let writes run past the configured limit. The budget SHALL therefore reach the shader as its own value (a per-dispatch constant or an explicit bound), and the guard SHALL compare against that value. The result buffers SHALL still be large enough for every write the guard admits.
+
 #### Scenario: Collision pairs are read from external GPU buffer
 - **WHEN** the collision detection shader executes
 - **THEN** each invocation reads one `uvec2` from the external collision pair input buffer at `gl_GlobalInvocationID.x`
 - **AND** uses the two shape indices to look up shape data from PhysicsScene buffers
 - **AND** threads beyond `pair_count` return immediately
 
+#### Scenario: The write guard enforces the configured budget, not the capacity
+
+- **WHEN** the result buffer's capacity exceeds the configured contact budget
+- **THEN** the shader writes no contact beyond that budget
+- **AND** the guard compares against the explicitly supplied budget rather than `collision_ids.v.length()`
+
 #### Scenario: Pair buffer is a render-graph resource
-- **WHEN** `AddDetectPasses()` populates the render graph
-- **THEN** the pair buffer and pair count buffer are imported as external resources (or passed via pre-imported handles)
-- **AND** the render graph manages barrier transitions automatically
+- **WHEN** the detector records its detect pass
+- **THEN** the pair buffer and pair count buffer are bound as the pass's inputs, having been produced by the broad-phase detector earlier in the same command buffer
+- **AND** the barrier making the broad-phase writes visible to the detect pass has been recorded before the dispatch
+- **AND** no render-graph resource or handle is involved
 
 ### Requirement: Collision result GPU buffers
 

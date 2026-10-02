@@ -8,30 +8,22 @@ Define the contract for a reusable GPU compact-unique post-processing pass (`Com
 
 ### Requirement: CompactUnique class construction
 
-The `CompactUnique` class SHALL be constructible with a `RenderSystem&` and a `uint32_t max_elem_count`. The constructor SHALL NOT allocate any GPU resources. Shader loading SHALL be deferred until the first `AddPasses` call.
+The `CompactUnique` class SHALL be constructible with `(Rhi::DeviceContext &device_context)` alone. Element geometry SHALL NOT be a construction-time parameter, and the instance SHALL hold no geometry state. The constructor SHALL NOT allocate any GPU resources. Shader loading, kernel acquisition and working-storage allocation SHALL be deferred until the first `Record` call.
 
 The class SHALL reside in `engine/Physics/gpu_algorithm/` and SHALL NOT depend on any detector, solver, or collision-specific types.
 
+The class SHALL own its working storage — the unique-flag array, the flag-offset array and a private `ParallelScan` with its own block sums — sized for the largest element capacity the instance has been recorded against and reused across calls: it SHALL grow when a call's capacity exceeds what it holds, SHALL NOT shrink when a later call is smaller, and SHALL NOT be reallocated by a call that fits. A caller SHALL provide only its own key array, its count buffer and its element-count buffer, and SHALL NOT size or allocate any working storage.
+
+Because the working storage is shared by every call, two `Record` calls on one instance in the same command buffer SHALL have an execution-order dependency through it, and the class SHALL state the caller's barrier obligation in its interface documentation.
+
 #### Scenario: Construction defers GPU allocation
 
-- **WHEN** `CompactUnique` is constructed with `RenderSystem& rs` and `max_elem_count = 10000`
+- **WHEN** `CompactUnique` is constructed with a device context
 - **THEN** no GPU resources are allocated
 - **AND** no shaders are loaded
 - **AND** `IsInitialized()` returns false
 
-### Requirement: Static sizing helpers
-
-`CompactUnique` SHALL expose static methods for scratch buffer sizing:
-
-- `GetRequiredFlagBytes(uint32_t max_elem_count)` SHALL return `static_cast<size_t>(max_elem_count) * sizeof(uint32_t)` — the unique-flags buffer size.
-- `GetRequiredScratchBytes()` SHALL return `sizeof(uint32_t)` (4 bytes) — the unique-count atomic counter.
-
-#### Scenario: Flag buffer scales with element count
-
-- **WHEN** `CompactUnique::GetRequiredFlagBytes(5000)` is called
-- **THEN** the return value is `5000 * 4 = 20000` bytes
-
-### Requirement: Single-call AddPasses API
+### Requirement: CompactUnique Record API
 
 `CompactUnique` SHALL expose a single `Record` method:
 
@@ -39,11 +31,7 @@ The class SHALL reside in `engine/Physics/gpu_algorithm/` and SHALL NOT depend o
 void Record(
     vk::CommandBuffer cb,
     Rhi::ComputeBuffer &keys_buf,       // input: sorted keys; output: compacted unique keys
-    Rhi::ComputeBuffer &flags_buf,      // original unique flags (max_elem_count uints)
-    Rhi::ComputeBuffer &offsets_buf,    // flag offsets (prefix sum output, same size)
     Rhi::ComputeBuffer &count_buf,      // output unique count (1 uint)
-    Rhi::ComputeBuffer &scan_scratch_buf,
-    ParallelScan &scan,                 // external ParallelScan for the prefix sum
     Rhi::ComputeBuffer &elem_count_buf, // GPU-side element count, written upstream
     uint32_t elem_capacity              // buffer capacity (for dispatch sizing)
 );
@@ -53,11 +41,11 @@ The method SHALL operate on a sorted array of `uint` **keys** and SHALL NOT know
 
 The method SHALL:
 
-1. Flag unique entries → `flags_buf`: `flags[i] = (i == 0 || keys[i] != keys[i-1]) ? 1 : 0`
-2. Copy `flags_buf` → `offsets_buf`
-3. Perform an exclusive prefix sum on `offsets_buf` using the provided `ParallelScan` instance, in place. The scan SHALL use `elem_capacity` as the element count — zeros beyond the element count do not affect the result.
+1. Flag unique entries into the instance's own flag buffer: `flags[i] = (i == 0 || keys[i] != keys[i-1]) ? 1 : 0`
+2. Copy those flags into the instance's own offset buffer
+3. Perform an exclusive prefix sum on that buffer using the instance's own `ParallelScan`, in place. The scan SHALL use `elem_capacity` as the element count — zeros beyond the element count do not affect the result.
 4. Clear `count_buf` to zero
-5. Scatter unique entries: for each `i` where `flags_buf[i] == 1`, write `keys_buf[i]` to `keys_buf[offsets_buf[i]]`
+5. Scatter unique entries: for each `i` where `flags[i] == 1`, write `keys_buf[i]` to `keys_buf[offsets[i]]`
 6. Write the total unique count to `count_buf`
 
 **Dispatch sizing**: every dispatch SHALL be sized for `elem_capacity`. The actual number of valid elements SHALL be read at GPU execution time from `elem_count_buf`, bound to the shader's `ElemCount` binding; invocations at or beyond it SHALL return immediately.
@@ -98,7 +86,18 @@ If `elem_capacity == 0`, the method SHALL record nothing.
 
 - **WHEN** `Record` completes
 - **THEN** only `count_buf` holds the unique count
-- **AND** no other buffer was written by the compaction
+- **AND** no caller-provided buffer other than `keys_buf` and `count_buf` was written by the compaction
+
+### Requirement: CompactUnique owns its ParallelScan
+
+`CompactUnique` SHALL own the `ParallelScan` instance and the block-sums storage its prefix-sum step uses; both SHALL be created lazily on the first `Record` call and reused for the instance's lifetime. `Record` SHALL NOT accept a scan instance or a scan scratch buffer, and the caller SHALL NOT be responsible for sizing either.
+
+#### Scenario: CompactUnique records its own scan
+
+- **WHEN** `Record` is called
+- **THEN** the instance's own `ParallelScan` performs the exclusive prefix sum on the flag offsets, in place
+- **AND** no scan instance or scratch buffer is passed to the call
+- **AND** the scan's block sums are the scan instance's own storage
 
 ### Requirement: Element count via GPU buffer binding
 
@@ -155,13 +154,3 @@ A `compact_scatter.comp` compute shader SHALL write unique keys to compact posit
 - **AND** thread 1 writes nothing
 - **AND** thread 2 writes key `11` to slot 1
 - **AND** the total unique count is 2
-
-### Requirement: Integration with ParallelScan
-
-`CompactUnique::AddPasses` SHALL accept an external `ParallelScan&` reference for the prefix sum step. The caller is responsible for sizing and providing the scan scratch buffer. The method SHALL call `ParallelScan::AddPasses` to add the prefix-sum passes to the render graph.
-
-#### Scenario: CompactUnique uses external ParallelScan
-
-- **WHEN** `CompactUnique::AddPasses` is called with a `ParallelScan` instance
-- **THEN** `ParallelScan::AddPasses` is called once with `elem_count`
-- **AND** the scan processes the `flags` buffer in-place (exclusive prefix sum)

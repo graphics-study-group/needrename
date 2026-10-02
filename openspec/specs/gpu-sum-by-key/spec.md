@@ -8,11 +8,13 @@ Defines the contract for a reusable GPU segmented reduction algorithm (`SumByKey
 
 ### Requirement: SumByKey class construction
 
-The `SumByKey` class SHALL be constructible with `(Rhi::DeviceContext &device_context)` alone. Element geometry SHALL NOT be a construction-time parameter and the instance SHALL hold no geometry state. The constructor SHALL NOT allocate any GPU resources; shader loading and kernel acquisition SHALL be deferred until the first `Record` call.
+The `SumByKey` class SHALL be constructible with `(Rhi::DeviceContext &device_context)` alone. Element geometry SHALL NOT be a construction-time parameter and the instance SHALL hold no geometry state. The constructor SHALL NOT allocate any GPU resources; shader loading, kernel acquisition and record-storage allocation SHALL be deferred until the first `Record` call.
 
 The class SHALL reside in `engine/Physics/gpu_algorithm/` and SHALL NOT depend on any detector, solver, or collision-specific types. Dependencies SHALL be limited to the Rhi compute infrastructure (`ComputeBuffer`, the compute kernel facility, `DeviceContext`) plus `vk::CommandBuffer`.
 
 Because geometry is supplied per call, one instance SHALL be reusable for any geometry, including several different geometries within a single frame, and SHALL NOT require rebuilding when the caller's geometry changes.
+
+The class SHALL own its record-region storage: the regions the recursion reads and writes SHALL live in a buffer the instance allocates, grows geometrically and reuses across calls, so a caller supplies only its own sorted keys, payload indices, values and output — never a record buffer and never a size. A caller SHALL NOT be able to disagree with the layout, because no caller-supplied size exists for it to disagree with. The record-region offsets SHALL be derived per call from the call's capacity, its channel count and the alignment the instance's own device context reports.
 
 #### Scenario: Construction allocates nothing and stores no geometry
 
@@ -26,6 +28,7 @@ Because geometry is supplied per call, one instance SHALL be reusable for any ge
 - **WHEN** a single instance is called for reductions with different capacities, key bounds and entry counts
 - **THEN** each call uses the geometry passed to that call
 - **AND** no call is affected by a previous call's geometry
+- **AND** each call's record layout is derived from its own capacity, never from the storage's capacity
 
 #### Scenario: No shader-module bookkeeping is exposed
 
@@ -33,34 +36,73 @@ Because geometry is supplied per call, one instance SHALL be reusable for any ge
 - **THEN** it holds no per-instance shader stage or binding object
 - **AND** its shader is obtained from the device-level kernel facility on demand
 
+#### Scenario: The count source selects the kernel
+
+- **WHEN** a call's entry count is a CPU-known value
+- **THEN** the call is recorded with the value-count kernel, which binds no entry-count buffer
+- **WHEN** a call's entry count is produced on the GPU
+- **THEN** the call is recorded with the buffer-count kernel and binds the entry-count buffer
+
 ### Requirement: Static sizing helpers
 
-The `SumByKey` class SHALL expose static sizing helpers so callers can allocate all working buffers before recording:
+The `SumByKey` class SHALL expose a static `GetNumLevels(uint32_t capacity)` that returns the recursion depth `k` for that capacity: `R_0 = capacity`, `R_{i+1} = 2 * ceil(R_i / 256)` until `R_k <= 256`. `k` SHALL be at least 1 and at most 4 for `capacity <= 2^28`. It SHALL be a pure function of its argument and SHALL be callable without any instance.
 
-- `GetNumLevels(uint32_t capacity)` SHALL return the recursion depth `k` for that capacity: `R_0 = capacity`, `R_{i+1} = 2 * ceil(R_i / 256)` until `R_k <= 256`. `k` SHALL be at least 1 and at most 4 for `capacity <= 2^28`.
-- `GetRequiredRecordsBytes(uint32_t capacity, uint32_t num_channels)` SHALL return `(R_1 + R_2 + ... + R_{k-1}) * (4 + 4 * num_channels)` bytes — the total size of the record regions (one key uint plus `num_channels` floats per record). When `k == 1` the result SHALL be 0.
-- Both SHALL be pure functions of their arguments and SHALL be callable without any instance.
-- The record-region offsets used by a call SHALL be derived from that call's capacity and `num_channels`, so a caller that varies its capacity SHALL size its record buffer with the largest capacity it ever passes.
+The record regions themselves SHALL NOT be a caller's business: they are working storage the instance owns and sizes, so the class SHALL NOT expose a helper that reports the partition's size, and the alignment the partition depends on SHALL be taken from the instance's own device context rather than assumed. A caller that varies its capacity therefore has no record buffer to size for the largest of them.
 
 #### Scenario: Record sizing for the contact array
 
-- **WHEN** `GetRequiredRecordsBytes(200000, 7)` is called
-- **THEN** the level sequence is `R_1 = 1564`, `R_2 = 14`, and the result is `1578 * 32 = 50496` bytes
+The scenario name predates the ownership move; its subject is now the level chain alone, because no caller sizes the record buffer.
+
+- **WHEN** `GetNumLevels(200000)` is called
+- **THEN** the level sequence is `R_1 = 1564`, `R_2 = 14`
+- **AND** the result is 3
+- **AND** the call's record layout is derived from that sequence at the alignment the instance's own device reports
 
 #### Scenario: Single-level reduction needs no record buffer
 
-- **WHEN** `GetRequiredRecordsBytes(256, 7)` is called
-- **THEN** the result is 0 bytes
-- **AND** `GetNumLevels(256)` returns 1
+- **WHEN** `GetNumLevels(256)` is called
+- **THEN** the result is 1
+- **AND** such a call has no record region, so the instance's storage is created at a minimal size
 
 #### Scenario: Sizing does not require an instance
 
-- **WHEN** the helpers are called before any `SumByKey` instance exists
-- **THEN** they return the same values they would return for a constructed instance
+- **WHEN** `GetNumLevels` is called before any `SumByKey` instance exists
+- **THEN** it returns the same value it would return for a constructed instance
+
+### Requirement: Working storage is the instance's and is reused across calls
+
+The record-region storage a reduction reads and writes SHALL be owned by the `SumByKey` instance, and SHALL be sized for the largest geometry that instance has been recorded against. It SHALL be reused across calls rather than reallocated per call: it SHALL grow when a call's geometry exceeds what it holds, SHALL NOT shrink when a later call's geometry is smaller, and SHALL NOT be reallocated by a call that fits. It SHALL be sized with the device's storage-buffer offset alignment, because a call's region partition depends on it.
+
+Because two recordings on one instance share that storage, they have an execution-order dependency through it, and the caller SHALL record the barrier that dependency requires between consecutive `Record` calls on that instance. Recordings that use **different instances** SHALL be independent for storage reasons, so a caller that wants two reductions interleaved without a storage barrier uses two instances and accepts the duplication.
+
+#### Scenario: Repeated calls at the same geometry reuse the storage
+
+- **WHEN** `Record` is called repeatedly with the same capacity
+- **THEN** only the first call sizes the storage
+- **AND** subsequent calls reuse it and allocate nothing
+
+#### Scenario: A capacity increase grows the storage once
+
+- **WHEN** a call's capacity exceeds the storage's current capacity
+- **THEN** that call grows the storage
+- **AND** calls up to the new capacity perform no further allocation
+
+#### Scenario: A capacity decrease reuses the storage
+
+- **WHEN** a call's capacity is smaller than the storage's current capacity
+- **THEN** the call succeeds without allocating
+- **AND** the storage is not shrunk
+- **AND** the call's level chain and record layout follow the smaller capacity
+
+#### Scenario: Two instances are independent
+
+- **WHEN** two reductions are recorded on two instances in one command buffer
+- **THEN** neither reduction's storage is read or written by the other's dispatches
+- **AND** no barrier between the two recordings is required for storage reasons
 
 ### Requirement: Record dispatches the recursive level chain
 
-`Record` SHALL accept the sorted key array, the payload-index array, the packed value buffer, the record buffer, the output buffer, and an entry-count buffer, and SHALL dispatch exactly `k` compute passes (one per level) with a full compute barrier between consecutive levels:
+`Record` SHALL accept the sorted key array, the payload-index array, the packed value buffer, the output buffer, and an **entry-count source**, and SHALL dispatch exactly `k` compute passes (one per level) with a full compute barrier between consecutive levels:
 
 - Level 0 SHALL read the caller's sorted key array and payload-index array, take each entry's key from `keys_in[e]`, gather each of its `num_channels` values from `values[c * capacity + payload_in[e]]`, and SHALL write boundary records into record region 1.
 - Levels `1 .. k-2` SHALL read record region `i` and SHALL write record region `i+1`. At these levels the key of record `e` SHALL be `keys_in[e]` and channel `c` SHALL be `values_in[c * R_i + e]`.
@@ -76,7 +118,9 @@ The **level element count** is the element count of the array a level reads: the
 - the record-region partition (`R_{i+1} = 2 * ceil(R_i / 256)` records, one pair of slots per block);
 - the level-0 channel stride of the value buffer.
 
-The **entry count** is the number of leading elements that carry real input data. It SHALL bound **data extent only**: at level 0 no value SHALL be read for an element at or beyond it, and it SHALL have no effect on the element-index bound, on run classification, on the workgroup count, or on the record-region layout. It SHALL be read from the caller's entry-count buffer inside the shader at execution time, because the producing pass runs on the GPU and the host does not know the value at record time. A call whose entry count equals the call's capacity SHALL behave exactly as if the bound were absent.
+The **entry count** is the number of leading elements that carry real input data. It SHALL bound **data extent only**: at level 0 no value SHALL be read for an element at or beyond it, and it SHALL have no effect on the element-index bound, on run classification, on the workgroup count, or on the record-region layout. A call whose entry count equals the call's capacity SHALL behave exactly as if the bound were absent.
+
+**The entry count SHALL be supplied through a count source, which is either a CPU-known value or a GPU-produced value.** A GPU-produced count SHALL be read from the caller's entry-count buffer inside the shader at execution time, because the producing pass runs on the GPU and the host does not know the value at record time. A CPU-known count SHALL travel in the push-constant block. The source SHALL select the shader variant used for the call, and a variant SHALL declare only the descriptor bindings it actually binds: the buffer-count variant binds the entry-count buffer at every level, and the value-count variant binds no such buffer. A caller whose count is a CPU-known value equal to the call's capacity passes the value form and gets the identity behaviour described above.
 
 Because the level element count and not the entry count sizes level 0, every block of level 0 always writes its portion of region 1, and the record chain stays dense: each of the `2 * ceil(capacity / 256)` slots of region 1 is written on every call. Sizing level 0's workgroup count by the entry count would leave record slots from an earlier call in place, which the next level reads as phantom partials.
 
@@ -86,11 +130,15 @@ An entry whose payload index is outside `[0, capacity)` SHALL contribute 0.0 to 
 
 `num_channels` SHALL be in `[1, 8]` and `capacity` SHALL be greater than zero; a call violating either, or a `max_key_value` of zero, SHALL throw `std::invalid_argument`. `Record` SHALL additionally reject a capacity whose implied buffer sizes exceed the buffers bound for that call.
 
-The input mode SHALL travel in the push-constant block as a `gather_payload` flag that `Record` sets for level 0 and clears for every deeper level. In gather mode the level's input SHALL always be the caller's key array plus its payload-index array, and the entry-count bound SHALL apply to both. In non-gather mode the level's input SHALL always be the `KeysIn` / `ValuesIn` key and value arrays, and no entry-count bound SHALL apply, because a deeper-level input is produced by the previous level and is entirely valid. The entry-count buffer SHALL be bound at every level (its contents are read only in gather mode), so no level needs a placeholder for it.
+The input mode SHALL travel in the push-constant block as a `gather_payload` flag that `Record` sets for level 0 and clears for every deeper level. In gather mode the level's input SHALL always be the caller's key array plus its payload-index array, and the entry-count bound SHALL apply to both. In non-gather mode the level's input SHALL always be the `KeysIn` / `ValuesIn` key and value arrays, and no entry-count bound SHALL apply, because a deeper-level input is produced by the previous level and is entirely valid.
 
-All other per-level parameters (region offsets, level element count, workgroup count, channel count, key bound) SHALL also travel via the shader's push-constant block. The push-constant block SHALL NOT carry the entry count, which is GPU-produced. The caller SHALL insert the outer barriers around the whole `Record`.
+All other per-level parameters (region offsets, level element count, workgroup count, channel count, key bound) SHALL also travel via the shader's push-constant block. The caller SHALL insert the outer barriers around the whole `Record`.
 
-The shader's storage-buffer bindings SHALL be `KeysIn`, `PayloadIn`, `ValuesIn`, `RecKeys`, `RecValues`, `OutValues` and the entry-count buffer — seven buffers, with one pass per level for all channels. There SHALL be no `uvec2` pair binding: level 0's key and payload index come from the same two scalar arrays every other level uses.
+**The record regions SHALL be laid out at the device's storage-buffer offset alignment.** A region's key array and its value array are separate descriptor bindings, so each SHALL begin at a byte offset that is a multiple of the device's `minStorageBufferOffsetAlignment`, which `Record` SHALL take from its own device context rather than assume. The padding that achieves this SHALL sit between a region's key array and its value array and between consecutive regions, and never inside a value array: a region's channel stride SHALL remain exactly its own record count `R_i`, which is the value the shader's `record_stride` field carries. The instance SHALL size its own storage to at least the partition the call derives, so no caller-supplied size can disagree with the layout.
+
+This is required because the compact layout is only 4-byte aligned: a region's value array starts at `key_offset + R_i * 4`, and a region's stride is `R_i * (1 + num_channels) * 4`. With `R_i = 2 * ceil(R_{i-1} / 256)` neither is a multiple of the alignment in general — for `capacity = 70000` and `num_channels = 3` the second region's value array would sit at byte 8792, which is not a multiple of 16 — and a descriptor bound at such an offset is invalid (`VUID-VkWriteDescriptorSet-descriptorType-00328`).
+
+The shader's storage-buffer bindings SHALL be `KeysIn`, `PayloadIn`, `ValuesIn`, `RecKeys`, `RecValues`, `OutValues` — six buffers — plus the entry-count buffer in the buffer-count variant only. There SHALL be no `uvec2` pair binding: level 0's key and payload index come from the same two scalar arrays every other level uses.
 
 #### Scenario: Full recursion for a large array
 
@@ -143,6 +191,35 @@ The shader's storage-buffer bindings SHALL be `KeysIn`, `PayloadIn`, `ValuesIn`,
 
 - **WHEN** `Record` is called with `num_channels` outside `[1, 8]`, with a zero capacity, or with a zero `max_key_value`
 - **THEN** a `std::invalid_argument` exception is thrown
+
+#### Scenario: Every record-region offset is aligned
+
+- **WHEN** `Record` is called for a geometry whose compact layout would place a region offset off the alignment (for example `capacity = 70000` and `num_channels = 3`, whose second region's value array would otherwise sit at byte 8792)
+- **THEN** every `RecKeys` and `RecValues` binding the call records carries an offset that is a multiple of the device's storage-buffer offset alignment
+- **AND** the padding does not change any region's channel stride, which stays equal to that region's record count
+- **AND** the call passes the binding-validation check
+
+#### Scenario: The record layout is derived from the instance's own device
+
+The scenario name is retained from the contract in which a caller sized the record buffer; there is no caller-supplied record buffer any more, and the defect it guarded against is unrepresentable.
+
+- **WHEN** a call records its record regions
+- **THEN** every `RecKeys` and `RecValues` binding carries an offset that is a multiple of the alignment the instance's own device context reports
+- **AND** the instance's storage is grown to at least the partition the call derives
+- **AND** no caller-provided size is consulted
+
+#### Scenario: A CPU-known count needs no count buffer
+
+- **WHEN** `Record` is called with a count source that is a CPU-known value
+- **THEN** the count travels in a push-constant block
+- **AND** no entry-count buffer is bound for that call
+- **AND** the variant's declared bindings are exactly the buffers it binds
+
+#### Scenario: A CPU-known count equal to the capacity matches the unbound case
+
+- **WHEN** `Record` is called with a count source that is a CPU-known value equal to the capacity
+- **THEN** the result equals the same call made with the buffer-count source
+- **AND** neither call's result differs from the bound being absent
 
 ### Requirement: Recursive segmented reduction correctness
 

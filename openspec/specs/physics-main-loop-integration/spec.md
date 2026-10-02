@@ -37,9 +37,22 @@ After `ProcessEvents` and before `UpdateRendererData` in the main loop, the engi
 
 ### Requirement: Physics pipeline in RunOneFrame
 
-`MainClass::RunOneFrame` SHALL execute the full physics pipeline in order: `PreGPUStep`, `GPUStep`, `PostGPUStep`. Physics compute, model matrix production and render graph passes SHALL share the same command buffer.
+`MainClass::RunOneFrame` SHALL execute the physics step through a single call to `PhysicsSystem::GPUStep(cb)` recorded into the frame's main command buffer. It SHALL NOT call any physics preparation or post-processing phase outside command-buffer recording. Physics compute, model matrix production and render graph passes SHALL share the same command buffer.
 
-Model matrices SHALL be produced after the physics step and before the render graph's passes are recorded, in every rendered frame, independent of play, pause and simulation state. The producing call SHALL be skipped only when the main scene has no physics scene.
+Model matrices SHALL be produced after the physics step and before the render graph's passes are recorded, in every rendered frame, independent of play, pause and simulation state, by the caller invoking `PhysicsSystem::GPUCalcModelMatrices` with the render system's buffer. The producing call SHALL be skipped only when the main scene has no physics scene.
+
+#### Scenario: Physics step is a single recorded call
+
+- **WHEN** `RunOneFrame` executes with a registered solver
+- **THEN** `physics->GPUStep(cb)` is called exactly once for the frame
+- **AND** no physics preparation call is made before the command buffer is recording
+- **AND** no physics post-processing call is made after it is submitted
+
+#### Scenario: Geometry changes are absorbed without a separate phase
+
+- **WHEN** the number of rigid bodies, shapes or joints changes between two frames
+- **THEN** the physics step still consists of the one `GPUStep(cb)` call
+- **AND** the buffers the new geometry needs are sized within that call
 
 #### Scenario: Physics compute shares the frame command buffer
 
@@ -72,8 +85,7 @@ Model matrices SHALL be produced after the physics step and before the render gr
 #### Scenario: Physics step executes within shared command buffer
 
 - **WHEN** `RunOneFrame` is called and a solver is registered
-- **THEN** `PreGPUStep` is called before `cb.begin()`
-- **AND** `GPUStep(cb)` is called between `cb.begin()` and `cb.end()`
-- **AND** `PostGPUStep` is called after `cb.end()` and submit
+- **THEN** `GPUStep(cb)` is called between `cb.begin()` and `cb.end()`
 - **AND** `render_graph->RecordAllPasses(cb)` is called after `GPUStep(cb)` on the same command buffer
+- **AND** no physics-related call is made outside that `begin()` / `end()` pair
 

@@ -8,13 +8,15 @@ Define the contract for a reusable GPU 8-bit LSD radix sort algorithm (`RadixSor
 
 ### Requirement: RadixSort class construction
 
-The `RadixSort` class SHALL be constructible with a `Rhi::DeviceContext &` alone. Element geometry SHALL NOT be a construction-time parameter and the instance SHALL hold no geometry state. The constructor SHALL NOT allocate any GPU resources. Shader loading and kernel acquisition SHALL be deferred until the first `Record` call.
+The `RadixSort` class SHALL be constructible with a `Rhi::DeviceContext &` alone. Element geometry SHALL NOT be a construction-time parameter and the instance SHALL hold no geometry state. The constructor SHALL NOT allocate any GPU resources. Shader loading, kernel acquisition and working-storage allocation SHALL be deferred until the first `Record` call.
 
 The class SHALL reside in `engine/Physics/gpu_algorithm/` and SHALL NOT depend on any detector, solver, or collision-specific types. Dependencies SHALL be limited to `Rhi::DeviceContext`, `ComputeBuffer`, the Rhi compute kernel facility, `ParallelScan` and `vk::CommandBuffer`.
 
 Because the element capacity and the key bound are supplied per call, one instance SHALL be reusable for any capacity and any bound, including several different ones within a single frame, and SHALL NOT require rebuilding when the caller's geometry changes.
 
-The class SHALL own an internal `ParallelScan` instance for its prefix-sum step and SHALL rebuild it internally when a call's element capacity exceeds the capacity it was built for. That instance SHALL NOT appear in the class's interface, and the class SHALL NOT allocate any buffer: every buffer it binds SHALL be caller-provided.
+The class SHALL own its working storage: an internal `ParallelScan` instance for the prefix-sum step, the transposed per-block histogram scratch, and the ping-pong partner arrays a call's records are sorted into and out of. That storage SHALL be sized for the largest capacity the instance has been recorded against and SHALL be reused across calls rather than reallocated per call: it SHALL grow when a call's capacity exceeds what it holds, SHALL NOT shrink when a later call's capacity is smaller, and SHALL NOT be reallocated by a call that fits. Neither the internal `ParallelScan` nor any working buffer SHALL appear in the class's interface; a caller provides only its own records and the element-count buffer, and SHALL NOT size or allocate any working storage.
+
+Because the working storage is shared by every call, two `Record` calls on one instance in the same command buffer have an execution-order dependency through it: the caller SHALL record a barrier between them. The class SHALL state that obligation in its interface documentation.
 
 #### Scenario: Construction with valid parameters
 
@@ -34,6 +36,7 @@ The element count is no longer a construction parameter, so the former construct
 - **WHEN** the same instance records two sorts with different element capacities in one frame
 - **THEN** each call dispatches for its own capacity
 - **AND** no rebuild is required at the call site
+- **AND** the second call's dispatch geometry follows its own capacity, not the storage's larger capacity
 
 #### Scenario: No shader-module bookkeeping is exposed
 
@@ -41,34 +44,13 @@ The element count is no longer a construction parameter, so the former construct
 - **THEN** it holds no per-instance shader stage or binding object
 - **AND** its shaders are obtained from the device-level kernel facility on demand
 
-### Requirement: Static sizing helpers
-
-The `RadixSort` class SHALL expose static methods for callers to size the buffers they provide, expressed in terms of the largest element capacity the caller will ever pass:
-
-- `GetRequiredScratchBytes(uint32_t max_elem_capacity)` SHALL return the total size of the single scratch buffer the sort needs: `256 * ceil(max_elem_capacity / 256)` `uint`s for the transposed per-block digit histogram, plus `ParallelScan::GetRequiredBlockSumsBytes(256 * ceil(max_elem_capacity / 256))` for the scan's block sums. The class SHALL partition that buffer internally and SHALL NOT expose the partition.
-- `GetRequiredTempBytes(uint32_t max_elem_capacity)` SHALL return `max_elem_capacity * sizeof(uint32_t)` — the size of **each** ping-pong temporary array (one for keys, and one more for the payload array when the caller supplies one).
-
-Both helpers SHALL be callable before any instance exists.
-
-#### Scenario: Scratch buffer sizing is constant
-
-The scratch size is no longer a constant: it scales with the capacity the caller declares, because it holds the transposed per-block histogram and the scan's block sums.
-
-- **WHEN** `GetRequiredScratchBytes(2560)` is called
-- **THEN** the return value is `2560 * 4 + ParallelScan::GetRequiredBlockSumsBytes(2560)` bytes
-
-#### Scenario: Temp pairs buffer scales with element count
-
-- **WHEN** `GetRequiredTempBytes(5000)` is called
-- **THEN** the return value is `5000 * 4 = 20000` bytes
-
 ### Requirement: 8-bit LSD radix sort algorithm
 
-The sort SHALL be an 8-bit Least Significant Digit radix sort: one pass per significant byte of the key, least significant byte first, with the pass count derived from the caller's key bound (see *Stable ascending sort with a derived pass count*). Each pass SHALL write into the key array that is not its input, and consecutive passes SHALL alternate between the two caller-provided key arrays.
+The sort SHALL be an 8-bit Least Significant Digit radix sort: one pass per significant byte of the key, least significant byte first, with the pass count derived from the caller's key bound (see *Stable ascending sort with a derived pass count*). Each pass SHALL write into the array that is not its input. The two arrays it alternates between SHALL be the caller's key array and the instance's own ping-pong partner array, so the caller supplies one key array and the sort owns the other.
 
 Each pass SHALL consist of exactly three sub-steps, with no clear pass:
 
-1. **Per-block histogram** (`radix_block_histogram.comp`): each block of 256 elements builds a 256-bin histogram of its own elements' digits in shared memory and writes it **transposed** into the scratch buffer, so that `hist[digit * num_blocks + block]` holds the count of that digit in that block. Every cell of that array SHALL be written by exactly one invocation on every call, which is why no clear pass is required.
+1. **Per-block histogram** (`radix_block_histogram.comp`): each block of 256 elements builds a 256-bin histogram of its own elements' digits in shared memory and writes it **transposed** into the instance's scratch buffer, so that `hist[digit * num_blocks + block]` holds the count of that digit in that block. Every cell of that array SHALL be written by exactly one invocation on every call, which is why no clear pass is required.
 2. **Prefix sum** (the internal `ParallelScan`): an in-place exclusive scan over the whole `256 * num_blocks`-element transposed histogram. Because the digit is the outer dimension and the block the inner one, the scanned value at `digit * num_blocks + block` is exactly the sum of the digit's global base offset and the counts of that digit in all earlier blocks.
 3. **Stable scatter** (`radix_scatter.comp`): each element's destination is the scanned offset for its `(digit, block)` pair plus its deterministic in-block rank (see *Stable per-block digit ranking*).
 
@@ -103,9 +85,9 @@ Each pass SHALL consist of exactly three sub-steps, with no clear pass:
 
 #### Scenario: Ping-pong swaps buffers between passes
 
-- **WHEN** a two-pass sort is recorded with `keys_a` and `keys_b`
-- **THEN** the first pass reads `keys_a` and writes `keys_b`
-- **AND** the second pass reads `keys_b` and writes `keys_a`
+- **WHEN** a two-pass sort is recorded with the caller's key array and the instance's partner array
+- **THEN** the first pass reads the caller's key array and writes the partner array
+- **AND** the second pass reads the partner array and writes the caller's key array
 
 ### Requirement: PairCount buffer binding for GPU-side element count
 
@@ -148,21 +130,22 @@ The radix sort compute shaders SHALL reside at:
 |--------|------|
 | `radix_block_histogram.comp` | `engine/Physics/shader/algorithm/radix_block_histogram.comp` |
 | `radix_scatter.comp` | `engine/Physics/shader/algorithm/radix_scatter.comp` |
+| `radix_copy_back.comp` | `engine/Physics/shader/algorithm/radix_copy_back.comp` |
 
-`radix_histogram.comp` and `radix_prefix_sum_256.comp` SHALL NOT exist: the per-block histogram replaces the global one, and the generic `ParallelScan` replaces the 256-element scan.
+`radix_copy_back.comp` SHALL copy a completed sort's result out of the instance's partner arrays and back into the caller's arrays when a call's pass count is odd, copying the payload array alongside the key array when the call supplied one. `radix_histogram.comp` and `radix_prefix_sum_256.comp` SHALL NOT exist: the per-block histogram replaces the global one, and the generic `ParallelScan` replaces the 256-element scan.
 
 All of them SHALL compile to SPIR-V via `glslangValidator` and be placed in the build output at the physics SPIR-V root under `algorithm/`.
 
 #### Scenario: Shaders compile to SPIR-V
 
 - **WHEN** CMake is configured for the physics target
-- **THEN** `radix_block_histogram.comp` and `radix_scatter.comp` compile to `.spv` files in the physics SPIR-V output directory under `algorithm/`
+- **THEN** `radix_block_histogram.comp`, `radix_scatter.comp` and `radix_copy_back.comp` compile to `.spv` files in the physics SPIR-V output directory under `algorithm/`
 
 #### Scenario: Removed shaders are gone
 
 - **WHEN** the physics shader pipeline is configured
 - **THEN** no `radix_histogram.comp.spv` and no `radix_prefix_sum_256.comp.spv` is produced
-- **AND** `radix_block_histogram.comp.spv` and `radix_scatter.comp.spv` are produced
+- **AND** `radix_block_histogram.comp.spv`, `radix_scatter.comp.spv` and `radix_copy_back.comp.spv` are produced
 
 ### Requirement: Key and payload record layout
 
@@ -194,7 +177,7 @@ num_passes = ceil(bit_width(max_key_value) / 8)
 
 A key bound that fits in one byte SHALL therefore produce exactly one pass, and a bound of zero or one SHALL produce no passes at all and leave the input untouched.
 
-Because the pass count can be odd, the sorted result can end up in either of the two key arrays. `Record` SHALL therefore **return** references to the buffers holding the sorted result (the key array and, when present, the payload array) instead of requiring the caller to know the parity rule.
+Because the pass count can be odd, the last pass can leave the sorted result in the instance's own partner array. `Record` SHALL therefore copy the result back into the caller's arrays whenever the derived pass count is odd — the payload array alongside the key array when one was supplied — so that after every call the caller's own arrays hold the sorted records, whatever the pass count. The caller SHALL NOT need to know the pass count, and a later `Record` on the same instance SHALL NOT be able to overwrite an earlier call's result.
 
 #### Scenario: Equal keys keep their input order
 
@@ -207,17 +190,20 @@ Because the pass count can be odd, the sorted result can end up in either of the
 
 - **WHEN** `Record` is called with `max_key_value = 200`
 - **THEN** exactly one pass is recorded (three dispatches: histogram, scan, scatter)
+- **AND** one further copy-back dispatch is recorded, because a one-pass sort leaves its result in the partner array
 
 #### Scenario: A small bound produces no passes
 
 - **WHEN** `Record` is called with `max_key_value <= 1`
 - **THEN** no dispatch is recorded
-- **AND** the returned result buffers are the caller's input buffers
+- **AND** the caller's arrays are left untouched and already hold the result
 
 #### Scenario: The result buffer is returned, not assumed
 
-- **WHEN** `Record` is called with an odd pass count
-- **THEN** the returned key buffer reference is the one the last pass wrote
+The scenario name is retained from the contract that returned the result buffers; `Record` no longer returns anything, because the answer is no longer in doubt. Its subject is unchanged: the caller binds the sorted result without knowing the pass count.
+
+- **WHEN** `Record` is called with an odd pass count and again with an even one
+- **THEN** the caller's key array holds the sorted records after each call
 - **AND** the caller does not need to know the pass count to bind the sorted result
 
 ### Requirement: Key bound contract
@@ -263,25 +249,26 @@ The destination SHALL be a bijection onto `[0, count)`, so no two elements write
 
 ### Requirement: RadixSort Record API
 
-`RadixSort` SHALL expose a single `Record` method that takes the command buffer, the caller's buffers, the element capacity and the key bound, and returns the buffers holding the sorted result:
+`RadixSort` SHALL expose a single `Record` method that takes the command buffer, the caller's records, the element capacity and the key bound. It SHALL record the sort and leave the sorted result in the caller's own arrays:
 
 ```cpp
-struct RadixSortOutput {
-    Rhi::ComputeBuffer *keys;    // the array holding the sorted keys
-    Rhi::ComputeBuffer *payload; // the array holding the permuted payloads, or nullptr
+struct RadixSortBuffers {
+    Rhi::ComputeBuffer *keys;    // the caller's key array: input, and the result
+    Rhi::ComputeBuffer *payload; // the caller's payload array, or nullptr
+    Rhi::ComputeBuffer *count;   // the GPU-written element-count buffer
 };
 
-RadixSortOutput Record(
+void Record(
     vk::CommandBuffer cb,
-    const RadixSortBuffers &buffers,  // key arrays a/b, optional payload arrays a/b, scratch, count
+    const RadixSortBuffers &buffers,
     uint32_t elem_capacity,
     uint32_t max_key_value
 );
 ```
 
-`Record` SHALL insert the barriers it needs internally, SHALL reject a capacity whose implied byte size exceeds the buffers bound for that call with a `std::runtime_error`, and SHALL record nothing (returning the input key array as the result) when the capacity is zero or the derived pass count is zero.
+`Record` SHALL insert the barriers it needs internally, SHALL reject a capacity whose implied byte size exceeds the buffers bound for that call with a `std::runtime_error`, and SHALL record nothing when the capacity is zero or the derived pass count is zero.
 
-The caller SHALL NOT be required to know how many passes ran, which scratch region was used, or which of the two key arrays holds the result.
+The caller SHALL NOT be required to know how many passes ran, which working storage was used, or which array holds the result.
 
 #### Scenario: A capacity larger than the bound buffers is rejected
 
@@ -293,4 +280,4 @@ The caller SHALL NOT be required to know how many passes ran, which scratch regi
 - **WHEN** `Record` is called with `elem_capacity = 0`
 - **THEN** no dispatch is recorded
 - **AND** no exception is thrown
-- **AND** the returned key buffer is the caller's input key buffer
+- **AND** the caller's key array is left untouched

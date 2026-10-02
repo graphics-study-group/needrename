@@ -8,7 +8,7 @@ Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a 
 
 ### Requirement: DummySolver implements ISolver
 
-`DummySolver` SHALL inherit from `ISolver` and implement all pure virtual methods. It SHALL be defined in `engine/Physics/Solver/DummySolver.h/.cpp`. It SHALL override `PreGPUStep`, `GPUStep` and `GPUCalcModelMatrices`, and SHALL use the default `PostGPUStep` (no-op).
+`DummySolver` SHALL inherit from `ISolver` and implement all pure virtual methods. It SHALL be defined in `engine/Physics/Solver/DummySolver.h/.cpp`. It SHALL implement `GPUStep`, and SHALL rely on the base class for `OnBindToScene`. It SHALL NOT declare a preparation or post-processing phase.
 
 `DummySolver`'s constructor SHALL take `(Rhi::DeviceContext&)` (replacing the former `RenderSystem&`) and store it internally. The solver SHALL access its bound PhysicsScene through `m_bound_scene` (set by `ISolver::OnBindToScene`). It SHALL NOT override `OnBindToScene` — the default implementation is sufficient.
 
@@ -34,16 +34,22 @@ Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a 
 - **THEN** the solver records a pass that writes model matrices into `target` from the scene's current poses
 - **AND** it does not displace any body
 
+#### Scenario: DummySolver declares no preparation phase
+
+- **WHEN** the `DummySolver` class declaration is inspected
+- **THEN** it declares no method that a caller must invoke before `GPUStep`
+- **AND** a freshly constructed solver records a complete step on its first `GPUStep(cb)`
+
 ### Requirement: DummySolver dispatches compute directly in GPUStep
 
 On each `GPUStep(cb)` call, the solver SHALL:
-1. Insert a `vk::MemoryBarrier2` (ComputeShader: ShaderStorageWrite → ComputeShader: ShaderStorageRead|Write) at the start
-2. Dispatch the compute shader through the compute kernel dispatch surface
-3. Use the kernel acquired during `PreGPUStep`
+1. Acquire the compute kernel for its shader if it does not hold one yet, and prepare its per-dispatch constants
+2. Insert a `vk::MemoryBarrier2` (ComputeShader: ShaderStorageWrite → ComputeShader: ShaderStorageRead|Write) at the start
+3. Dispatch the compute shader through the compute kernel dispatch surface
 
 The compute shader SHALL displace each alive body by `position.z += gravity.z * time_step`. It SHALL NOT write model matrices: model matrix output belongs to `GPUCalcModelMatrices`, which reads the poses the step produced.
 
-`DummySolver::PreGPUStep()` SHALL perform the shader initialization, the uniform buffer write, and the kernel acquisition. `DummySolver::GPUStep(cb)` SHALL only dispatch.
+`DummySolver::GPUStep(cb)` SHALL perform both the initialization and the dispatch. The solver SHALL declare no preparation phase that a caller must invoke before it, because a kernel acquired during recording is safe and the solver's first `GPUStep` must be complete on its own.
 
 #### Scenario: Bodies move downward each frame
 
@@ -66,8 +72,14 @@ The compute shader SHALL displace each alive body by `position.z += gravity.z * 
 #### Scenario: Dispatch reuses the kernel acquired earlier
 
 - **WHEN** `GPUStep(cb)` is called
-- **THEN** the kernel it dispatches was already acquired during `PreGPUStep`
-- **AND** no pipeline or shader module is created during `GPUStep`
+- **THEN** the kernel it dispatches was acquired no later than the start of that call
+- **AND** no pipeline or shader module is created between the call's first and last dispatch
+- **AND** a second `GPUStep` call acquires nothing
+
+#### Scenario: The first step initializes the solver
+
+- **WHEN** `GPUStep(cb)` is called on a solver that holds no kernel yet
+- **THEN** the shader is loaded, the kernel is acquired, and the dispatch is recorded in that same call
 
 ### Requirement: DummySolver compute shader
 
@@ -83,8 +95,8 @@ Model matrix output SHALL be produced by the shared model matrix shader rather t
 
 #### Scenario: Shader loaded from SPIR-V
 
-- **WHEN** first initialized via `PreGPUStep`
-- **THEN** the displacement shader SHALL be loaded from `ENGINE_PHYSICS_SPIRV_DIR/solver/DummySolver/dummy_solver.comp.spv`
+- **WHEN** the solver records its first `GPUStep(cb)`
+- **THEN** the shader SHALL be loaded from `ENGINE_PHYSICS_SPIRV_DIR/solver/DummySolver/dummy_solver.comp.spv`
 
 #### Scenario: Model matrix shader is shared with the XPBD solver
 

@@ -69,7 +69,7 @@ The app's own driver code (windowed test loop) SHALL call `Step()` only when `Is
 
 In rendering modes (`Windowed`, `Offscreen`), `CommitScene` SHALL produce model matrices once, before `SetSimulationEnabled(true)`, so that the initial model matrices are written from the `FlushPhysics`-seeded poses and the renderer never displays the buffer's initial contents.
 
-The production SHALL be a direct model matrix call on the solver entry point, not a physics step: the step pipeline SHALL NOT be invoked, and no body SHALL advance during it.
+The production SHALL be a direct model matrix call on the solver entry point (`PhysicsSystem::GPUCalcModelMatrices`), not a physics step: no `GPUStep` call SHALL be made for it, and no body SHALL advance during it.
 
 Because a solver's model matrix output is only produced when a caller asks for it, and `FlushPhysics` does not seed the buffer, without this call the renderer would read the buffer's creation-time contents while paused.
 
@@ -87,7 +87,7 @@ Because a solver's model matrix output is only produced when a caller asks for i
 #### Scenario: Seed does not run the step pipeline
 
 - **WHEN** `CommitScene` produces the initial model matrices
-- **THEN** no `PreGPUStep`, `GPUStep` or `PostGPUStep` call is made for that production
+- **THEN** no `GPUStep` call is made for that production
 - **AND** only the model matrix entry point is invoked
 
 ### Requirement: Paused frames keep the renderer drained
