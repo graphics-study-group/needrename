@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
 #define ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
 
+#include "../physics_export.h"
+
 #include <memory>
 
 namespace vk {
@@ -28,7 +30,9 @@ namespace Engine {
         const Rhi::ComputeBuffer *contact_point_a{};
         const Rhi::ComputeBuffer *contact_point_b{};
         const Rhi::ComputeBuffer *collision_count{};
-        uint32_t max_output_collision_pairs{0};
+        /// Contact-point capacity the detector was bound with.  The result buffers
+        /// hold at least this many entries, and `collision_count` never exceeds it.
+        uint32_t contact_capacity{0};
     };
 
     /**
@@ -40,9 +44,9 @@ namespace Engine {
      *
      * Lifecycle:
      *   1. Construct with Rhi::DeviceContext& only (no GPU allocation).
-     *   2. BindToScene(scene, broad_detector, max_contact_points, contact_margin)
+     *   2. BindToScene(scene, broad_detector, contact_capacity, contact_margin)
      *      -- caches CPU values and the broad-phase source only, no allocation.
-     *   3. Record(cb) -- prepares itself for the pair capacity it observes and
+     *   3. Record(cb) -- prepares itself for the observed pair capacity and
      *      dispatches compute passes directly to cb. Preparation is a no-op when
      *      nothing changed.
      *
@@ -51,13 +55,14 @@ namespace Engine {
      *   - collision_normals:   vec4  (xyz = normal, w = penetration depth)
      *   - contact_point_a:     vec4  (contact point on A, shape-local space)
      *   - contact_point_b:     vec4  (contact point on B, shape-local space)
-     *   - collision_count:     uint  (total contact points, each atomicAdd'd)
+     *   - collision_count:     uint  (contact points written this substep)
      *
      * Each collision pair may produce up to 5 contact entries (4 perturbation
-     * + optionally 1 MPR fallback).  All result buffers are sized to
-     * max_collision_pairs * 5.
+     * + optionally 1 MPR fallback).  All result buffers are sized to the contact
+     * capacity the caller owns, which is the same number the caller's per-contact
+     * multiplier buffers are sized to.
      */
-    class ConvexCollisionDetector {
+    class PHYSICS_API ConvexCollisionDetector {
     public:
         explicit ConvexCollisionDetector(Rhi::DeviceContext &device_context);
         ~ConvexCollisionDetector();
@@ -70,15 +75,17 @@ namespace Engine {
         /**
          * @brief Bind the detector to its scene and to the broad-phase source it reads.
          *
-         * @param scene               Scene whose shape buffers are read.
-         * @param broad_detector      Broad-phase detector whose pair buffers are read.
-         * @param max_contact_points  Upper bound on contact points written per step.
-         * @param contact_margin      Contact margin for penetration validation.
+         * @param scene             Scene whose shape buffers are read.
+         * @param broad_detector    Broad-phase detector whose pair buffers are read.
+         * @param contact_capacity  Contact-point capacity, owned by the caller.  The
+         *                          result buffers are sized to it and it is the write
+         *                          budget the shader enforces.
+         * @param contact_margin    Contact margin for penetration validation.
          */
         void BindToScene(
             PhysicsScene &scene,
             const SpatialHashBroadDetector &broad_detector,
-            uint32_t max_contact_points,
+            uint32_t contact_capacity,
             float contact_margin
         );
 

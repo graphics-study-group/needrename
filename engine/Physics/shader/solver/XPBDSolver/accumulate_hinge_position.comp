@@ -83,10 +83,12 @@ void main() {
     bool scripted_obj2 = (rigid_body_is_kinematic.v[obj2_idx] != 0u);
     if (scripted_obj1 && scripted_obj2) return;
 
-    float inv_mass_obj1 = rigid_body_mass.v[obj1_idx];
-    float inv_mass_obj2 = rigid_body_mass.v[obj2_idx];
-    inv_mass_obj1 = (inv_mass_obj1 > 1e-12) ? (1.0 / inv_mass_obj1) : 0.0;
-    inv_mass_obj2 = (inv_mass_obj2 > 1e-12) ? (1.0 / inv_mass_obj2) : 0.0;
+    // A kinematic body is immovable: zero inverse mass and no inverse-inertia
+    // term, whatever mass and inertia it was authored with.
+    float inv_mass_obj1 =
+        (!scripted_obj1 && rigid_body_mass.v[obj1_idx] > 1e-12) ? (1.0 / rigid_body_mass.v[obj1_idx]) : 0.0;
+    float inv_mass_obj2 =
+        (!scripted_obj2 && rigid_body_mass.v[obj2_idx] > 1e-12) ? (1.0 / rigid_body_mass.v[obj2_idx]) : 0.0;
 
     vec3 pos1 = rigid_body_center_position.v[obj1_idx].xyz;
     vec3 pos2 = rigid_body_center_position.v[obj2_idx].xyz;
@@ -123,8 +125,8 @@ void main() {
         vec3 n = angular_correction / angular_norm;
         vec3 obj1_world_inv_i_n = apply_world_inv_inertia(inv_inertia1, ori1, n);
         vec3 obj2_world_inv_i_n = apply_world_inv_inertia(inv_inertia2, ori2, n);
-        float w1 = dot(obj1_world_inv_i_n, n);
-        float w2 = dot(obj2_world_inv_i_n, n);
+        float w1 = scripted_obj1 ? 0.0 : dot(obj1_world_inv_i_n, n);
+        float w2 = scripted_obj2 ? 0.0 : dot(obj2_world_inv_i_n, n);
         float denom = w1 + w2 + tilde_alpha;
 
         if (denom > kEpsilon) {
@@ -160,8 +162,8 @@ void main() {
         vec3 r2_n = cross(r2, n);
         vec3 i1_r1n = apply_world_inv_inertia(inv_inertia1, ori1, r1_n);
         vec3 i2_r2n = apply_world_inv_inertia(inv_inertia2, ori2, r2_n);
-        float w1 = inv_mass_obj1 + dot(i1_r1n, r1_n);
-        float w2 = inv_mass_obj2 + dot(i2_r2n, r2_n);
+        float w1 = inv_mass_obj1 + (scripted_obj1 ? 0.0 : dot(i1_r1n, r1_n));
+        float w2 = inv_mass_obj2 + (scripted_obj2 ? 0.0 : dot(i2_r2n, r2_n));
         float denom = w1 + w2 + tilde_alpha;
 
         if (denom > kEpsilon) {

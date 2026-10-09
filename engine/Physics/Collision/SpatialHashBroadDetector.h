@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_SPATIALHASHBROADDETECTOR_INCLUDED
 #define ENGINE_PHYSICS_SPATIALHASHBROADDETECTOR_INCLUDED
 
+#include "../physics_export.h"
+
 #include <glm.hpp>
 #include <memory>
 
@@ -55,7 +57,7 @@ namespace Engine {
      *      kernel acquisition, per-dispatch constants) and dispatches compute
      *      passes directly to cb. Preparation is a no-op when nothing changed.
      */
-    class SpatialHashBroadDetector {
+    class PHYSICS_API SpatialHashBroadDetector {
     public:
         explicit SpatialHashBroadDetector(Rhi::DeviceContext &device_context);
         ~SpatialHashBroadDetector();

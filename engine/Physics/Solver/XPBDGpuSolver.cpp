@@ -129,6 +129,8 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_substep_start_position{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_substep_start_orientation{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_tangent_lagrange{};
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_tangent_impulse{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_axis_lagrange{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_anchor_lagrange{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_rotation_lagrange{};
@@ -317,6 +319,23 @@ namespace Engine {
             static_cast<size_t>(m_impl->max_contact_point) * sizeof(float),
             "XPBD ContactLagrange"
         );
+        // The two tangential accumulators are per contact point and per substep:
+        // the position phase's static friction multiplier (`lambda_t`, bounded by
+        // `mu_s * lambda_n`) and the velocity phase's kinetic friction impulse
+        // (`p_friction`, bounded by `mu_d * |lambda_n| / dt`).  Both are VECTORS
+        // (vec4 per contact, .xyz used): each constraint's direction is
+        // recomputed every iteration and rotates, so the accumulated quantity the
+        // Coulomb bound applies to is the vector sum, not the sum of magnitudes.
+        m_impl->EnsureBuffer(
+            m_impl->gpu_contact_tangent_lagrange,
+            static_cast<size_t>(m_impl->max_contact_point) * sizeof(glm::vec4),
+            "XPBD ContactTangentLagrange"
+        );
+        m_impl->EnsureBuffer(
+            m_impl->gpu_contact_tangent_impulse,
+            static_cast<size_t>(m_impl->max_contact_point) * sizeof(glm::vec4),
+            "XPBD ContactTangentImpulse"
+        );
         m_impl->EnsureBuffer(
             m_impl->gpu_pre_contact_linear_vel, static_cast<size_t>(body_count) * sizeof(glm::vec4), "XPBD PreLin"
         );
@@ -408,11 +427,13 @@ namespace Engine {
             }
             // The narrow detector takes its pair buffers from the broad detector's
             // live output at its own preparation time, so the solver only names the
-            // source and the contact budget.
+            // source and the contact capacity.  The solver owns that capacity: its
+            // per-contact multiplier buffers are sized to it, so it is the single
+            // derivation of the number and the detector uses it verbatim.
             m_impl->narrow_detector->BindToScene(
                 *m_bound_scene,
                 *m_impl->broad_detector,
-                m_impl->config.max_contact_points,
+                m_impl->max_contact_point,
                 m_impl->config.contact_margin
             );
         }
@@ -641,6 +662,15 @@ namespace Engine {
                 // entries always reads zeros.
                 dispatch_clear(*m_impl->gpu_contact_lagrange, m_impl->max_contact_point);
                 barrier();
+                // Both tangential accumulators are substep budgets, so they are
+                // cleared here — once per substep — and never inside either
+                // iteration loop; clearing them per iteration would re-grant the
+                // Coulomb bound every iteration.  Each holds one vec4 per contact
+                // point, and the clear is element-counted in ints.
+                dispatch_clear(*m_impl->gpu_contact_tangent_lagrange, 4u * m_impl->max_contact_point);
+                barrier();
+                dispatch_clear(*m_impl->gpu_contact_tangent_impulse, 4u * m_impl->max_contact_point);
+                barrier();
                 dispatch_clear(*m_impl->contact.out, out_elems);
                 barrier();
                 dispatch_clear(*m_impl->contact_out_vel, out_elems);
@@ -701,6 +731,10 @@ namespace Engine {
                          {"ShapeLocalPosition", *gpu.shape_local_position},
                          {"ShapeLocalRotation", *gpu.shape_local_rotation},
                          {"ContactLagrange", *m_impl->gpu_contact_lagrange},
+                         {"RigidBodyStaticFriction", *gpu.rigid_body_static_friction},
+                         {"ContactTangentLagrange", *m_impl->gpu_contact_tangent_lagrange},
+                         {"SubstepStartPosition", *m_impl->gpu_substep_start_position},
+                         {"SubstepStartOrientation", *m_impl->gpu_substep_start_orientation},
                          {"Values", *m_impl->contact.values}},
                         contact_pt_wg,
                         1,
@@ -842,6 +876,7 @@ namespace Engine {
                              {"ShapeLocalPosition", *gpu.shape_local_position},
                              {"ShapeLocalRotation", *gpu.shape_local_rotation},
                              {"ContactLagrange", *m_impl->gpu_contact_lagrange},
+                             {"ContactTangentImpulse", *m_impl->gpu_contact_tangent_impulse},
                              {"Values", *m_impl->contact.values}},
                             contact_pt_wg,
                             1,

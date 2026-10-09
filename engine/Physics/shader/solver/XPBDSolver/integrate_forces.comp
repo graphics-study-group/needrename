@@ -78,6 +78,12 @@ void main() {
     rigid_body_linear_velocity.v[idx].xyz += total_linear_accel * dt;
     rigid_body_center_position.v[idx].xyz += rigid_body_linear_velocity.v[idx].xyz * dt;
 
+    // A kinematic body's rotation is authored, so the whole angular block is
+    // skipped for it.  Zeroing the external torque is not enough: the Coriolis
+    // term is subtracted *after* the torque is zeroed, so it would become the
+    // body's only torque and precess a spin about a non-principal axis.
+    if (rigid_body_is_kinematic.v[idx] != 0u) return;
+
     // ---- Angular integration (body frame, matching CUDA reference) ----
     vec4 orientation = rigid_body_center_rotation.v[idx];
     vec3 w           = rigid_body_angular_velocity.v[idx].xyz;
@@ -87,7 +93,6 @@ void main() {
 
     // External torque in body frame: tb = q^{-1} * tau_ext
     vec3 tb = quat_inv_rotate(orientation, rigid_body_external_torque.v[idx].xyz);
-    if (rigid_body_is_kinematic.v[idx] != 0u) tb = vec3(0.0);
 
     // Coriolis: tb -= cross(wb, I_local * wb)
     vec3 I_wb = multiply_mat4_3x3_vec3(rigid_body_inertia.v[idx], wb);

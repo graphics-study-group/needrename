@@ -2,6 +2,7 @@ anro_add_test(physics_app_physics_only_test LINK "Engine;PhysicsApp" FOLDER test
 anro_add_test(physics_app_offscreen_test LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_windowed_test WINDOWED FRAMES 120 TIMEOUT 300 LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_actuator_unit_test LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
+anro_add_test(physics_app_friction_test LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_actuator_stand_test WINDOWED FRAMES 600 TIMEOUT 300 LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 
 # Long-run stability probe for the XPBD GPU solver: the 6-layer brick pyramid must

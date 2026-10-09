@@ -277,7 +277,7 @@ PerturbResult perturb_manifold(
             contact_normal, fitted_normal_b, centroid_b
         );
 
-        // Per-point raw depth: contact_normal points B→A, so
+        // Per-point raw depth: contact_normal points A→B, so
         // dot(pt_b - pt_a, contact_normal) is negative when shapes overlap.
         float raw_depth = -dot(pt_b - pt_a, contact_normal);
 

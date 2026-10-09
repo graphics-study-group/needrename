@@ -196,7 +196,7 @@ namespace Engine {
 
     void PhysicsScene::SubmitRigidBody(uint32_t rigid_body_index, const RigidBodyComDescriptor &desc) {
         if (!IsRigidBodyIndexValid(rigid_body_index)) return;
-        m_rigid_body_mass[rigid_body_index] = desc.mass;
+        m_rigid_body_mass[rigid_body_index] = desc.is_kinematic ? 0.0f : desc.mass;
         m_rigid_body_static_friction[rigid_body_index] = desc.static_friction;
         m_rigid_body_dynamic_friction[rigid_body_index] = desc.dynamic_friction;
         m_rigid_body_restitution[rigid_body_index] = desc.restitution;
@@ -204,7 +204,7 @@ namespace Engine {
         m_rigid_body_center_world_position[rigid_body_index] = desc.center_world_position;
         m_rigid_body_center_world_rotation[rigid_body_index] = desc.center_world_rotation;
         m_rigid_body_inertia[rigid_body_index] = desc.inertia;
-        m_rigid_body_inverse_inertia[rigid_body_index] = desc.inverse_inertia;
+        m_rigid_body_inverse_inertia[rigid_body_index] = desc.is_kinematic ? glm::mat4(0.0f) : desc.inverse_inertia;
         m_rigid_body_linear_velocity[rigid_body_index] = desc.linear_velocity;
         m_rigid_body_angular_velocity[rigid_body_index] = desc.angular_velocity;
         m_rigid_body_external_force[rigid_body_index] = desc.external_force;

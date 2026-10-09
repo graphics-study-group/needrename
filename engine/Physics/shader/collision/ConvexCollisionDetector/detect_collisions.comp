@@ -63,8 +63,12 @@ layout(set = 0, binding = 9) writeonly buffer ContactPointB {
 } contact_point_b;
 
 layout(set = 0, binding = 10) buffer CollisionCount {
-    uint v[]; // single-element array, atomically incremented
+    uint v[]; // v[0] = contact points published this substep, never above the budget
 } collision_count;
+
+layout(set = 0, binding = 12) buffer ContactCursor {
+    uint v[]; // single-element array, atomically incremented
+} contact_cursor;
 
 // ---- Per-dispatch constants (push constant, recorded by the detector) ----
 
@@ -80,13 +84,16 @@ layout(push_constant) uniform DetectPush {
 #include "mpr.glsl"
 #include "perturbation.glsl"
 
-// ---------------------------------------------------------------------------
-// Debug printf helper
-// ---------------------------------------------------------------------------
+uint reserve_contact_slots(uint count, uint budget) {
+    const uint base = atomicAdd(contact_cursor.v[0], count);
+    const uint admissible = (base >= budget) ? 0u : min(count, budget - base);
 
-// ---------------------------------------------------------------------------
-// Main entry point
-// ---------------------------------------------------------------------------
+    if (admissible > 0u) {
+        atomicMax(collision_count.v[0], base + admissible);
+    }
+
+    return base;
+}
 
 void main() {
     uint pair_index = gl_GlobalInvocationID.x;
@@ -151,14 +158,14 @@ void main() {
         depths[0] = base_result.penetration;
     }
 
-    // Write each manifold point as a separate result entry.
+    // Write each manifold point as a separate result entry, reserving only the
+    // points that fit the configured contact budget
     // Convert world-space contact points to shape-local space.
-    uint write_idx_start = atomicAdd(collision_count.v[0], num_points);
+    const uint write_idx_start = reserve_contact_slots(num_points, params.contact_budget);
     for (uint pi = 0u; pi < num_points; pi++) {
-        uint write_idx = write_idx_start + pi;
+        const uint write_idx = write_idx_start + pi;
 
-        // Guard against exceeding the configured contact budget.  The budget is
-        // supplied explicitly: the result buffer's capacity may exceed it.
+        // The reservation's published extent stops at the budget
         if (write_idx >= params.contact_budget) {
             break;
         }

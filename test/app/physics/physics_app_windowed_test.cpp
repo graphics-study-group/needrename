@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <iostream>
 #include <string>
 
 using namespace AppPhysics;
@@ -164,8 +165,64 @@ namespace {
         AddUrdfRobotScene(app, glm::vec3(6.0f, 0.0f, 1.5f) + global_offset, glm::quat(0.0, 0.0, 0.0, 1.0));
     }
 
-    void AddTemplateScene2(PhysicsApp &app, const glm::vec3 &global_offset) {
-        constexpr float kWallHalfHeight = 3.0f;
+    // ── Contact friction debugging scene ──────────────────────────────
+    // A row of kinematic ramps at angles around the static friction limit
+    // `tan(theta) = mu_s`, each carrying an identical box placed at rest on it.
+    // Both friction coefficients of the ramp and of the box are the same value,
+    // so the analytic hold limit of a row with `mu` is `atan(mu)` degrees: the
+    // boxes below it hold, the ones above it slide away.  This is the visual
+    // counterpart of `test/engine/headless/xpbd_contact_friction_test.cpp`,
+    // whose Scenario E measures the same transition numerically.
+    //
+    // Run the executable directly (no frame-count argument) and press SPACE to
+    // resume; every ramp is labelled by its angle in the console banner.
+    void AddFrictionRamp(PhysicsApp &app, const glm::vec3 &anchor, float degrees, float mu) {
+        constexpr float kRampHalfThickness = 0.2f;
+        constexpr float kBoxHalf = 0.5f;
+
+        // A rotation about +Y tips the ramp's top surface down towards +x, so the
+        // boxes slide towards +x.
+        const glm::quat q = glm::angleAxis(glm::radians(degrees), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        // The ramp is placed so that its top surface contains `anchor`.
+        app.AddBox({
+            .position = anchor + q * glm::vec3(0.0f, 0.0f, -kRampHalfThickness),
+            .rotation = q,
+            .half_extents = {2.5f, 1.0f, kRampHalfThickness},
+            .mass = 0.0f,
+            .kinematic = true,
+            .static_friction = mu,
+            .dynamic_friction = mu,
+            .color = "cyan",
+        });
+
+        // The box rests flat on that surface, 1 mm into it so the pair is in
+        // contact on the very first substep.
+        app.AddBox({
+            .position = anchor + q * glm::vec3(0.0f, 0.0f, kBoxHalf - 0.001f),
+            .rotation = q,
+            .half_extents = {kBoxHalf, kBoxHalf, kBoxHalf},
+            .mass = 1.0f,
+            .static_friction = mu,
+            .dynamic_friction = mu,
+            .color = "red",
+        });
+    }
+
+    void AddFrictionSlopeScene(PhysicsApp &app, const glm::vec3 &global_offset, float mu) {
+        const float kAngles[] = {24.0f, 26.0f, 27.0f, 28.0f, 28.5f, 29.0f, 30.0f};
+        const uint32_t kCount = static_cast<uint32_t>(sizeof(kAngles) / sizeof(kAngles[0]));
+
+        std::cout << "friction slope scene: mu = " << mu << ", analytic hold limit " << glm::degrees(std::atan(mu))
+                  << " deg" << std::endl;
+        for (uint32_t i = 0; i < kCount; ++i) {
+            AddFrictionRamp(app, global_offset + glm::vec3(0.0f, static_cast<float>(i) * 3.0f, 3.0f), kAngles[i], mu);
+            std::cout << "  ramp " << i << " at y = " << (global_offset.y + static_cast<float>(i) * 3.0f) << ": "
+                      << kAngles[i] << " deg" << std::endl;
+        }
+    }
+
+    void AddTemplateScene2(PhysicsApp &app, const glm::vec3 &global_offset) {        constexpr float kWallHalfHeight = 3.0f;
         constexpr float kWallHalfSize = 15.0f;
 
         app.AddBox({
@@ -270,10 +327,15 @@ int main(int argc, char **argv) {
     AddTemplateScene(*app, glm::vec3(0.0f, 5.0f, 0.0f));
     // AddTemplateScene2(*app, glm::vec3(0.0f, 0.0f, 0.0f));
 
-    app->AddDirectionalLight({.direction = {0.0f, 0.0f, -1.0f}, .intensity = 1.5f, .cast_shadow = true});
-    app->AddDirectionalLight({.direction = {1.0f, 1.0f, -1.0f}, .intensity = 1.0f, .cast_shadow = true});
+    // Contact friction debugging scene: see AddFrictionSlopeScene.  It sits clear
+    // of the template scene (which lives around y = 5) and the camera below
+    // frames it.
+    AddFrictionSlopeScene(*app, glm::vec3(0.0f, 18.0f, 0.0f), /*mu=*/0.5f);
 
-    app->SetCameraPose(glm::vec3(6.0f, -5.0f, 4.0f), glm::vec3(0.0f, 0.0f, 3.0f));
+    app->AddDirectionalLight({.direction = {0.0f, 0.0f, -1.0f}, .intensity = 1.0f, .cast_shadow = true});
+    app->AddDirectionalLight({.direction = {1.0f, 1.0f, -1.0f}, .intensity = 0.7f, .cast_shadow = true});
+
+    app->SetCameraPose(glm::vec3(15.0f, 27.0f, 11.0f), glm::vec3(0.0f, 27.0f, 3.0f));
 
     app->CommitScene();
 

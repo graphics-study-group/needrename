@@ -37,8 +37,7 @@ namespace Engine {
         const Rhi::ComputeBuffer *pair_count_buffer = nullptr;
 
         uint32_t max_input_collision_pairs = 1;
-        uint32_t max_output_collision_pairs = 1;
-        uint32_t max_contact_points = 1;
+        uint32_t contact_capacity = 1;
         float contact_margin = 0.001f;
         uint32_t shape_slot_count = 0;
 
@@ -53,7 +52,11 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_normals{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_point_a{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_point_b{};
+        /// @brief The number of collision points returned in the result array. Never exceed the capacity
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_count{};
+        /// @brief The actual number of detected collision points may exceed the capacity.
+        /// The portion exceeding the capacity will not be included in the result array.
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_cursor{};
 
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
@@ -70,13 +73,14 @@ namespace Engine {
         }
 
         void EnsureBuffers() {
-            const size_t result_entries = std::max<uint32_t>(1u, max_output_collision_pairs);
+            const size_t result_entries = std::max<uint32_t>(1u, contact_capacity);
 
             EnsureBuffer(gpu_collision_ids, result_entries * sizeof(glm::uvec2), "CollisionIds");
             EnsureBuffer(gpu_collision_normals, result_entries * sizeof(glm::vec4), "CollisionNormals");
             EnsureBuffer(gpu_contact_point_a, result_entries * sizeof(glm::vec4), "ContactPointA");
             EnsureBuffer(gpu_contact_point_b, result_entries * sizeof(glm::vec4), "ContactPointB");
             EnsureBuffer(gpu_collision_count, sizeof(uint32_t), "CollisionCount");
+            EnsureBuffer(gpu_contact_cursor, sizeof(uint32_t), "ContactCursor");
         }
 
         void EnsureKernels() {
@@ -105,16 +109,16 @@ namespace Engine {
     void ConvexCollisionDetector::BindToScene(
         PhysicsScene &scene,
         const SpatialHashBroadDetector &broad_detector,
-        uint32_t max_contact_points,
+        uint32_t contact_capacity,
         float contact_margin
     ) {
         const bool config_changed = m_impl->bound_scene != &scene || m_impl->broad_detector != &broad_detector
-                                    || m_impl->max_contact_points != std::max(1u, max_contact_points)
+                                    || m_impl->contact_capacity != std::max(1u, contact_capacity)
                                     || m_impl->contact_margin != contact_margin;
 
         m_impl->bound_scene = &scene;
         m_impl->broad_detector = &broad_detector;
-        m_impl->max_contact_points = std::max(1u, max_contact_points);
+        m_impl->contact_capacity = std::max(1u, contact_capacity);
         m_impl->contact_margin = contact_margin;
 
         // A changed configuration invalidates the preparation the next Record would
@@ -131,7 +135,7 @@ namespace Engine {
         result.contact_point_a = m_impl->gpu_contact_point_a.get();
         result.contact_point_b = m_impl->gpu_contact_point_b.get();
         result.collision_count = m_impl->gpu_collision_count.get();
-        result.max_output_collision_pairs = m_impl->max_output_collision_pairs;
+        result.contact_capacity = m_impl->contact_capacity;
         return result;
     }
 
@@ -150,9 +154,8 @@ namespace Engine {
             m_impl->max_input_collision_pairs = std::max(1u, broad.max_pairs);
             m_impl->shape_slot_count = observed_shape_count;
 
-            const uint32_t output_pairs = std::max(1u, std::min(broad.max_pairs * 5u, m_impl->max_contact_points));
-            if (!m_impl->prepared || m_impl->max_output_collision_pairs != output_pairs) {
-                m_impl->max_output_collision_pairs = output_pairs;
+            // The result buffers are sized to the contact capacity the caller owns,
+            if (!m_impl->prepared) {
                 m_impl->prepared = true;
                 m_impl->EnsureBuffers();
                 m_impl->EnsureKernels();
@@ -170,15 +173,13 @@ namespace Engine {
 
         DispatchBarrier(cb);
 
-        // Every kernel was acquired during preparation above: recording creates no
-        // pipeline.
+        // Every kernel was acquired during preparation above: recording creates no pipeline.
         m_impl->clear_kernel->Dispatch(cb, {{"Target", *m_impl->gpu_collision_count}}, 1, 1, 1, 1u);
+        m_impl->clear_kernel->Dispatch(cb, {{"Target", *m_impl->gpu_contact_cursor}}, 1, 1, 1, 1u);
 
         DispatchBarrier(cb);
 
-        const DetectPushParams params{
-            m_impl->contact_margin, m_impl->shape_slot_count, m_impl->max_output_collision_pairs
-        };
+        const DetectPushParams params{m_impl->contact_margin, m_impl->shape_slot_count, m_impl->contact_capacity};
 
         const uint32_t detect_wg = std::max(1u, (m_impl->max_input_collision_pairs + 63u) / 64u);
         m_impl->detect_kernel->Dispatch(
@@ -194,7 +195,8 @@ namespace Engine {
              {"CollisionNormals", *m_impl->gpu_collision_normals},
              {"ContactPointA", *m_impl->gpu_contact_point_a},
              {"ContactPointB", *m_impl->gpu_contact_point_b},
-             {"CollisionCount", *m_impl->gpu_collision_count}},
+             {"CollisionCount", *m_impl->gpu_collision_count},
+             {"ContactCursor", *m_impl->gpu_contact_cursor}},
             detect_wg,
             1,
             1,
