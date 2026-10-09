@@ -32,6 +32,7 @@
 #include <Rhi/Device/MemoryAccessTypes.h>
 #include <Rhi/Device/MemoryTypes.h>
 #include <Rhi/Device/Structs.h>
+#include <Rhi/Submission/EpochTracker.h>
 #include <SDL3/SDL.h>
 #include <cmake_config.h>
 #include <glm.hpp>
@@ -821,27 +822,37 @@ namespace AppPhysics {
         vk::CommandBufferAllocateInfo cbainfo{queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
         auto cbs = device.allocateCommandBuffersUnique(cbainfo);
         auto cb = std::move(cbs[0]);
+        // Open the epoch this step's submission belongs to before recording
+        auto &epoch_tracker = dc.GetEpochTracker();
+        const Rhi::EpochWatermark step_epoch = epoch_tracker.BeginEpoch();
         vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
         cb->begin(cbbinfo);
-        // Measure joint state from the last readback and write actuator torques
-        // into the ExternalTorque write staging before the solver reads them.
-        impl.RunActuators();
-        // Write staging -> GPU uploads first so the solver reads overridden values.
-        impl.RecordBodyStateUpload(cb.get());
-        impl.physics->GPUStep(cb.get());
-        // Produce model matrices on the same command buffer, after the step, so
-        // that a render frame following this step observes the new poses.
-        if (impl.mode != AppMode::PhysicsOnly) {
-            if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
-                auto &scene_data = impl.renderer->GetSceneDataManager();
-                scene_data.EnsureModelMatricesCapacity(phys_scene->GetGpuBuffers().rigid_body_slot_count);
-                impl.physics->GPUCalcModelMatrices(*phys_scene, cb.get(), scene_data.GetModelMatricesBuffer());
+        try {
+            // Measure joint state from the last readback and write actuator torques
+            // into the ExternalTorque write staging before the solver reads them.
+            impl.RunActuators();
+            // Write staging -> GPU uploads first so the solver reads overridden values.
+            impl.RecordBodyStateUpload(cb.get());
+            impl.physics->GPUStep(cb.get());
+            // Produce model matrices on the same command buffer, after the step, so
+            // that a render frame following this step observes the new poses.
+            if (impl.mode != AppMode::PhysicsOnly) {
+                if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
+                    auto &scene_data = impl.renderer->GetSceneDataManager();
+                    scene_data.EnsureModelMatricesCapacity(phys_scene->GetGpuBuffers().rigid_body_slot_count);
+                    impl.physics->GPUCalcModelMatrices(*phys_scene, cb.get(), scene_data.GetModelMatricesBuffer());
+                }
             }
+            // Physics readback: copy the SoA into resident staging in the same CB,
+            // so the existing fence wait makes the state CPU-visible on return.
+            impl.RecordBodyStateCopy(cb.get());
+            cb->end();
+        } catch (...) {
+            // Nothing reached the queue, so the epoch produced no GPU work and
+            // must not be left to stall the completed prefix.
+            epoch_tracker.AbandonEpoch(step_epoch);
+            throw;
         }
-        // Physics readback: copy the SoA into resident staging in the same CB,
-        // so the existing fence wait makes the state CPU-visible on return.
-        impl.RecordBodyStateCopy(cb.get());
-        cb->end();
 
         vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
         vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
@@ -851,6 +862,8 @@ namespace AppPhysics {
         if (wait_result != vk::Result::eSuccess) {
             throw std::runtime_error("PhysicsApp: physics submission wait failed");
         }
+        // The completion signal of this step's own submission has been observed
+        epoch_tracker.ReportComplete(step_epoch);
 
         // The recorded uploads have been submitted and executed; clear the dirty
         // flags so unset fields are not re-uploaded next step.
