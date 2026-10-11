@@ -2,8 +2,7 @@
 //
 // Included by sum_by_key.comp (GPU-produced entry count, read from a bound
 // buffer) and sum_by_key_push.comp (CPU-known entry count, taken from the push
-// block).  Those two are separate shaders rather than one with a mode flag,
-// because a variant must not declare a descriptor binding it does not bind.
+// block).
 //
 // Reduces a key-ascending array of records (uint key + N float channels) into
 // per-key sums: `OutValues[c * max_key_value + key]` is the sum of channel c
@@ -18,68 +17,50 @@
 //     `key = KeysIn[e]`, channel c at `ValuesIn[c * input_count + PayloadIn[e]]`;
 //   - record: the record arrays — `key = KeysIn[e]`,
 //     channel c at `ValuesIn[c * input_count + e]`.
-// `num_channels` and the level geometry travel as push constants, so all
-// channels reduce in one pass per level.
 //
-// Algorithm.  A run is a maximal span of equal keys.  The block merges runs in
+// Level geometry.  The *level element count* `input_count` is the length of the
+// array the level reads: the caller's capacity at level 0, and `R_i = 2 *
+// ceil(R_{i-1} / 256)` at level i — the record count the previous level wrote,
+// one pair of slots per block.  It alone sizes the per-block real extent, the
+// record-region partition, the channel stride and the dispatch.  Level 0
+// dispatches `ceil(input_count / 256)` workgroups, so it rewrites every record
+// slot of the next region on every call; a final level is a single workgroup.
+//
+// Bound.  A level reads only the elements below `bound = min(entry_count,
+// input_count)`: an element at or beyond it has no key, no payload index and no
+// value to read, and carries the out-of-range pad key with a contribution of
+// 0.0.  The bound never changes the geometry above.
+//
+// Merge.  A run is a maximal span of equal keys.  The block merges runs in
 // shared memory by segmented pairwise doubling: in the round for spacing `d`
 // (1, 2, 4, ... 128) an invocation adds the value at `tid - d` to its own when
-// that element exists and carries the same key.  After the round for `d`,
-// `val[tid]` is the sum of run(tid) over `[tid - 2d + 1, tid]` (clamped at 0),
-// so a run's last element ends up holding that run's in-block sum.  Depth is
-// ceil(log2(run length)) rounds, and every invocation joins every round.
-//
-// Ascending keys make the merge guard a single comparison: equal keys at the
-// window's two ends imply that every key between them is equal, so a passing
-// window lies inside one run and both operands are complete sums of their
-// halves, while a failing window leaves `val` holding the smaller window's
-// run-suffix, which is already final.  A round reads its partner into registers,
-// barriers, adds, barriers again, because the add writes the slot every
-// invocation reads.  Rounds stop once no run's last element still needs to merge
-// (`s_pending`), and that exit is read after a barrier so the block leaves
-// together.
+// that element exists and carries the same key.  Every invocation joins every
+// executed round, and the rounds stop once no run's last element still needs to
+// merge — an exit read after a barrier, so the block leaves together.
 //
 // Settlement.  Each run's last element writes the run's in-block sum: straight
 // to `OutValues` when the run lies inside the block, otherwise as a record at
 // slot `2*wg` (the run reaches the block's first element) and/or `2*wg+1` (it
-// reaches the block's last real element), for the next level to merge.  A block
-// that is a single run writes an all-zero second record, keeping the chain dense
-// without double counting.  A level with a single workgroup writes every
-// remaining run directly, and keys >= `max_key_value` (the caller's invalid-slot
-// sentinel and the out-of-range pad 0xFFFFFFFF) are never written out.
+// reaches the block's last real element) for the next level to merge.  A block
+// that is a single run writes an all-zero second record, and a key at or above
+// `max_key_value` is never written out.
 //
-// ---- Two lengths bound a level, and they are not interchangeable ----
-//
-//   - The *level element count* `input_count` is the length of the array the
-//     level reads (the caller's capacity at the first level, `R_i` above).  It
-//     defines the element-index bound, the per-block real extent, the
-//     record-region partition, the dispatch count and the channel stride.
-//   - The *entry count* is how many leading elements carry real data, in gather
-//     mode only: nothing is read for an element at or beyond it, nor for an
-//     element whose payload index is at or beyond it.  It never affects geometry.
-//     Its source is the including shader's business: the value form takes it
-//     from the push block, the buffer form reads the GPU-produced value from
-//     the `EntryCount` binding.
-//
-// Elements at or beyond the entry count keep their keys and contribute 0.0, so
-// they take part in the run structure like any other element.  Both of a block's
-// record slots are written on every call, because the dispatch covers the whole
-// capacity, which keeps the record chain dense.
+// Every record slot of a region is rewritten on every call: a block whose first
+// element is at or beyond the bound leaves before any barrier, and if the level
+// writes records it writes its two record slots as pad records first.
 //
 // Dispatch: ceil(input_count / 256), 1, 1.
 
 layout(set = 0, binding = 0) readonly  buffer KeysIn     { uint  v[]; } keys_in;
 layout(set = 0, binding = 1) readonly  buffer ValuesIn   { float v[]; } values_in;
-// The caller's payload-index array, read in gather mode.  Bound at every level
-// so no level needs a placeholder for it.
+// The caller's payload-index array, read in gather mode.
 layout(set = 0, binding = 2) readonly  buffer PayloadIn    { uint  v[]; } payload_in;
 layout(set = 0, binding = 3) buffer    RecKeys          { uint  v[]; } rec_keys;
 layout(set = 0, binding = 4) buffer    RecValues        { float v[]; } rec_values;
 layout(set = 0, binding = 5) buffer    OutValues        { float v[]; } out_values;
 
-// Out-of-range key pad (distinct from the caller's invalid-slot sentinel so the
-// tail of a real run does not merge into the padding).  SumByKey never learns
-// what a caller's sentinel is: it only knows that keys >= `max_key_value` are
+// Out-of-range key pad: larger than every key a caller can produce and at or
+// above every possible `max_key_value`, so it forms one trailing run that is
 // never written out.
 const uint kOobKey   = 0xFFFFFFFFu;
 // Shared-memory channel capacity; `num_channels` is at most this.
@@ -87,13 +68,32 @@ const uint kMaxChannels = 8u;
 
 shared uint s_key[256];
 // Channel-major, like the value and output buffers: the merge walks one channel
-// at a time with a stride-1 access across invocations, so it is bank-conflict
-// free for any channel count.
+// at a time with a stride-1 access across invocations.
 shared float s_val[8][256];
 // One exit flag per merge round.  A round's slot is never reused, so no round
 // needs to reset it.
 shared uint s_pending[8];
 
+// Runs one level of the reduction for one 256-element block of the dispatch.
+//
+// Every parameter below is a push constant of the including shader's block,
+// except `entry_count`, which the value-count form takes from the push block and
+// the buffer-count form reads from its `EntryCount` binding.
+//
+//   - `input_count`   — level element count `R_i`: the length of the array this
+//     level reads (the caller's capacity at level 0, the previous level's record
+//     count above).  At least 1.
+//   - `num_channels`  — float channels per record, in `[1, kMaxChannels]`.
+//   - `max_key_value` — number of output slots: a key below it is writable, a
+//     key at or above it is never written out.  At least 1.
+//   - `record_stride` — next record region's per-channel stride
+//     (`2 * ceil(input_count / 256)`); zero exactly when this level writes no
+//     records, which is the final level.
+//   - `gather_payload` — 1 at level 0, where the keys and payload indices come
+//     from the caller's arrays; 0 at every deeper level, where they come from
+//     the record arrays.
+//   - `entry_count`   — how many leading elements carry real data; the level's
+//     bound is `min(entry_count, input_count)`.
 void SumByKeyRun(
     uint input_count,
     uint num_channels,
@@ -105,35 +105,50 @@ void SumByKeyRun(
     const uint wg  = gl_WorkGroupID.x;
     const uint tid = gl_LocalInvocationID.x;
 
+    // The level's data length; see the header.
+    const uint bound = min(entry_count, input_count);
+
     // Block's span of the level's records.  real_count = number of records in
     // this block (may be < 256 for the last block).
     const uint base       = wg * 256u;
     const uint real_count = min(256u, input_count - min(base, input_count));
     const uint e          = base + tid;
 
-    // Cooperative load.  `real` gates the value load; `elem_key` holds the
-    // element's key, or the OOB pad key when the element does not exist at all.
-    const bool in_range = (e < input_count);
-    bool real = in_range;
+    // A block whose first element is at or beyond the bound holds no live
+    // element.  The predicate is uniform across the workgroup, so the block
+    // leaves together and before every barrier.
+    if (base >= bound) {
+        // The level still rewrites this block's record slots: a later level
+        // reads its region over the full level element count.
+        if (record_stride != 0u) {
+            const uint slot_base = 2u * wg;
+            rec_keys.v[slot_base] = kOobKey;
+            rec_keys.v[slot_base + 1u] = kOobKey;
+            for (uint c = 0u; c < num_channels; ++c) {
+                rec_values.v[c * record_stride + slot_base] = 0.0f;
+                rec_values.v[c * record_stride + slot_base + 1u] = 0.0f;
+            }
+        }
+        return;
+    }
+
+    // Cooperative load.  `real` gates the value load; `elem_key` is the pad key
+    // for an element the bound excludes.
+    const bool live = (e < bound);
+    bool real = live;
     uint elem_key = kOobKey;
     uint value_index = e;
 
-    if (gather_payload != 0u) {
-        // Gather mode (level 0 only): the key comes from the caller's sorted key
-        // array and the payload array gives the slot this element's values are
-        // gathered from.  The key is kept unchanged even when the element or its
-        // payload index is past the entry count, because rewriting it would break
-        // the ascending order the run structure depends on; only the value read
-        // follows the count.
-        if (in_range) {
-            elem_key = keys_in.v[e];
-            value_index = payload_in.v[e];
-            real = (e < entry_count) && (value_index < entry_count);
-        }
-    } else if (in_range) {
-        // Record path: the previous level wrote this array, so every element in
-        // range is valid and the entry count does not apply.
+    if (live) {
         elem_key = keys_in.v[e];
+        if (gather_payload != 0u) {
+            // Gather mode (level 0 only): the payload array names the slot this
+            // element's values are read from.  A payload index the bound
+            // excludes contributes zero, and the key stays as read, because it
+            // is real data and the run structure depends on the keys ascending.
+            value_index = payload_in.v[e];
+            real = (value_index < bound);
+        }
     }
 
     s_key[tid] = elem_key;

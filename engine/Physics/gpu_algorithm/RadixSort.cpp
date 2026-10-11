@@ -226,11 +226,7 @@ namespace Engine {
             std::swap(payload_in, payload_out);
         }
 
-        // Each pass writes into the array it did not read, so an even pass count
-        // leaves the result in the caller's array and an odd one leaves it in the
-        // instance's.  It is copied back because the instance's arrays are shared
-        // by every call: a later call would otherwise overwrite the result this
-        // one produced, and the caller would have to know which array to read.
+        // Copy the ping-pong if the number of passes is odd.
         if (num_passes % 2u == 1u) {
             DispatchBarrier(cb);
             m_impl->copy_back_kernel->Dispatch(
@@ -238,7 +234,8 @@ namespace Engine {
                 {{"SrcKeys", *keys_in},
                  {"DstKeys", *buffers.keys},
                  {"SrcPayload", *payload_in},
-                 {"DstPayload", has_payload ? *buffers.payload : *buffers.keys}},
+                 {"DstPayload", has_payload ? *buffers.payload : *buffers.keys},
+                 {"ValidCount", Rhi::ComputeKernelResource::Buffer(*buffers.count, 0u, sizeof(uint32_t))}},
                 (elem_capacity + 63u) / 64u,
                 1,
                 1,

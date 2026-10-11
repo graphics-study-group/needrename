@@ -18,24 +18,18 @@
 //   - `rank_in_warp` is the number of earlier lanes of the same warp with the
 //     same digit.
 //
-// Neither the warp offset nor the rank is derived from an atomic: they are
-// computed deterministically in shared memory from a snapshot of the block's
-// digits (a per-warp count table, whose *counts* are order-independent and may
-// therefore be built with shared atomics, plus a bounded comparison loop over
-// the snapshot).  No element's position depends on the order the memory system
-// happens to service concurrent operations, so the pass is **stable**: elements
-// with equal digits keep their relative input order.  LSD radix sort is only
-// correct when every pass is stable.
+// The pass is stable: elements with equal digits keep their relative input
+// order.  No rank is taken from an atomic; the shared atomics only build the
+// per-warp digit counts.
 //
 // Dispatch: num_blocks workgroups of 256 invocations, where
 //   num_blocks = ceil(elem_capacity / 256)
 // and the workgroup count comes from the capacity, never from the GPU-side count.
 //
-// The whole body is predicated on the element index; there is deliberately no
-// early `return`, because the shader contains `barrier()` calls.  An inactive
-// invocation contributes the sentinel digit to the shared snapshot so the rank
-// loop and the per-warp counts agree on which invocations are active, claims no
-// rank and writes nothing.
+// The whole body is predicated on the element index and contains no early
+// `return`.  An inactive invocation contributes the sentinel digit to the shared
+// snapshot so the rank loop and the per-warp counts agree on which invocations
+// are active, claims no rank and writes nothing.
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 

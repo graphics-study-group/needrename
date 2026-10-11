@@ -99,7 +99,11 @@ layout(set = 0, binding = N) readonly buffer ElemCount {
 } elem_count;
 ```
 
-An invocation whose element index is at or beyond that count SHALL contribute no histogram count, no rank and no output write. Because the shaders contain `barrier()` calls, that SHALL be expressed as predication over the whole body and SHALL NOT be an early `return`: a non-uniform early return before a barrier is undefined behaviour, and in the histogram sub-step it would also leave that invocation's transposed cell unwritten. An inactive invocation SHALL contribute a sentinel digit that no real element can produce, so that the rank computation and the per-warp histograms agree on which invocations are active.
+`radix_copy_back.comp` SHALL bind the same buffer the same way, because the number of elements a sort may write is the number it sorted, not the capacity it dispatched over.
+
+An invocation whose element index is at or beyond that count SHALL contribute no histogram count, no rank, no copy and no other output write. In the two shaders that contain `barrier()` calls, that SHALL be expressed as predication over the whole body and SHALL NOT be an early `return`: a non-uniform early return before a barrier is undefined behaviour, and in the histogram sub-step it would also leave that invocation's transposed cell unwritten. An inactive invocation SHALL contribute a sentinel digit that no real element can produce, so that the rank computation and the per-warp histograms agree on which invocations are active.
+
+`radix_copy_back.comp` contains no barrier and owns no shared state, so it SHALL express the same bound as an early `return` before any read or write, and an index at or beyond the count SHALL leave the caller's arrays exactly as they were.
 
 Dispatch workgroup count SHALL be calculated from `elem_capacity`, never from the GPU-side count. The count buffer SHALL be a GPU buffer written by an upstream pass in the same frame and SHALL be read at execution time.
 
@@ -108,6 +112,12 @@ Dispatch workgroup count SHALL be calculated from `elem_capacity`, never from th
 - **WHEN** `elem_capacity = 10000` and the GPU-side count is 50
 - **THEN** invocations with an index at or beyond 50 write no histogram count, claim no rank and write no output
 - **AND** the sorted prefix is identical to a sort of those 50 elements alone
+
+#### Scenario: The copy-back writes only the sorted prefix
+
+- **WHEN** a copy-back runs with `elem_capacity = 10000` and a GPU-side count of 50
+- **THEN** invocations with an index at or beyond 50 copy nothing
+- **AND** the caller's key and payload arrays at or beyond 50 still hold what they held before the sort
 
 #### Scenario: PairCount handle is declared for RG barrier tracking
 
@@ -132,7 +142,7 @@ The radix sort compute shaders SHALL reside at:
 | `radix_scatter.comp` | `engine/Physics/shader/algorithm/radix_scatter.comp` |
 | `radix_copy_back.comp` | `engine/Physics/shader/algorithm/radix_copy_back.comp` |
 
-`radix_copy_back.comp` SHALL copy a completed sort's result out of the instance's partner arrays and back into the caller's arrays when a call's pass count is odd, copying the payload array alongside the key array when the call supplied one. `radix_histogram.comp` and `radix_prefix_sum_256.comp` SHALL NOT exist: the per-block histogram replaces the global one, and the generic `ParallelScan` replaces the 256-element scan.
+`radix_copy_back.comp` SHALL copy a completed sort's result out of the instance's partner arrays and back into the caller's arrays when a call's pass count is odd, copying the payload array alongside the key array when the call supplied one. It SHALL copy only the elements below the call's element count and SHALL NOT write the caller's arrays at or beyond it, so a sort never disturbs data the caller keeps past the elements it asked to sort. `radix_histogram.comp` and `radix_prefix_sum_256.comp` SHALL NOT exist: the per-block histogram replaces the global one, and the generic `ParallelScan` replaces the 256-element scan.
 
 All of them SHALL compile to SPIR-V via `glslangValidator` and be placed in the build output at the physics SPIR-V root under `algorithm/`.
 
@@ -146,6 +156,13 @@ All of them SHALL compile to SPIR-V via `glslangValidator` and be placed in the 
 - **WHEN** the physics shader pipeline is configured
 - **THEN** no `radix_histogram.comp.spv` and no `radix_prefix_sum_256.comp.spv` is produced
 - **AND** `radix_block_histogram.comp.spv`, `radix_scatter.comp.spv` and `radix_copy_back.comp.spv` are produced
+
+#### Scenario: The copy-back declares the element count it obeys
+
+- **WHEN** the bindings of `radix_copy_back.comp` are inspected
+- **THEN** it declares a readonly count buffer alongside its two source and two destination arrays
+- **AND** the mirroring `Record` binds the call's element-count buffer to it
+- **AND** the copy-back writes nothing at or beyond that count
 
 ### Requirement: Key and payload record layout
 
@@ -179,6 +196,8 @@ A key bound that fits in one byte SHALL therefore produce exactly one pass, and 
 
 Because the pass count can be odd, the last pass can leave the sorted result in the instance's own partner array. `Record` SHALL therefore copy the result back into the caller's arrays whenever the derived pass count is odd — the payload array alongside the key array when one was supplied — so that after every call the caller's own arrays hold the sorted records, whatever the pass count. The caller SHALL NOT need to know the pass count, and a later `Record` on the same instance SHALL NOT be able to overwrite an earlier call's result.
 
+The copy-back SHALL be bounded by the call's element count, which is the number of elements the sort ordered. Whatever a caller keeps in its arrays at or beyond that count SHALL survive every `Record` unchanged, so a caller that writes a full-capacity tail and sorts a shorter prefix keeps that tail — and a sort SHALL NOT be able to introduce a value of its own into a slot the caller depends on.
+
 #### Scenario: Equal keys keep their input order
 
 - **WHEN** keys are `[3, 1, 3, 1, 3, 1]` with payloads equal to their input indices, over a capacity that spans several blocks
@@ -197,6 +216,13 @@ Because the pass count can be odd, the last pass can leave the sorted result in 
 - **WHEN** `Record` is called with `max_key_value <= 1`
 - **THEN** no dispatch is recorded
 - **AND** the caller's arrays are left untouched and already hold the result
+
+#### Scenario: The caller's tail survives an odd pass count
+
+- **WHEN** a caller's arrays hold sentinel values at or beyond the element count, as a full-capacity entry pass leaves them
+- **AND** a sort whose pass count is odd runs over the elements below that count
+- **THEN** the sorted prefix holds the sorted records
+- **AND** every slot at or beyond the element count still holds the sentinel value it held before the sort
 
 #### Scenario: The result buffer is returned, not assumed
 

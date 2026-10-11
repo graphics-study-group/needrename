@@ -4,23 +4,19 @@
 // sum_by_key.comp — Segmented reduction with a GPU-produced entry count.
 //
 // The buffer-count form of SumByKey: the entry count is produced on the GPU by
-// an earlier pass in the same command buffer, so it is read from the `EntryCount`
-// binding at execution time.  The value-count form (sum_by_key_push.comp) takes
-// a CPU-known count from its push block and binds no count buffer.  The two are
-// separate shaders rather than one with a mode flag, because a variant must not
-// declare a descriptor binding it does not bind.
+// an earlier pass in the same frame and is read from the `EntryCount` binding at
+// execution time, at every level.
 //
-// The reduction body, its bindings and its dispatch geometry are documented in
-// sum_by_key_body.glsl.
+// The reduction body, its bindings, its bound and its dispatch geometry are
+// documented in sum_by_key_body.glsl.
 //
-// Dispatch: ceil(input_count / 256), 1, 1.
+// Dispatch: ceil(input_count / 256) workgroups of 256 invocations, 1, 1.
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-// How many leading entries carry real data, read at execution time because the
-// producing pass runs on the GPU.  Read in gather mode only, where it bounds the
-// element index and the payload index alike; the caller clamps it to the
-// capacity.
+// How many leading entries carry real data, written by an upstream pass in the
+// same frame and read at execution time.  The level's bound is
+// `min(entry_count, input_count)`.
 layout(set = 0, binding = 6) readonly  buffer EntryCount  { uint count; } entry_count;
 
 // ---- Per-dispatch constants (push constant, recorded by the caller) ----

@@ -4,29 +4,23 @@
 // transposed.
 //
 // One workgroup owns one block of 256 elements and builds that block's digit
-// histogram for the current radix pass.  The block's 256 counts are then written
-// to the scratch array as
+// histogram for the current radix pass.  The block's 256 counts are written to
+// the histogram array as
 //
 //     hist[digit * num_blocks + block]
 //
-// so the digit is the outer dimension and the block the inner one.  That layout
-// is what makes a *single flat exclusive scan* over the whole array yield
-// `bin base offset + counts of this digit in all earlier blocks` for every
-// (digit, block) pair — no separate 256-bin scan is needed (see
-// gpu_radix_sort / RadixSort.cpp).
+// so the digit is the outer dimension and the block the inner one, and the
+// exclusive scan over the array is a single flat scan.
 //
 // Dispatch: num_blocks workgroups of 256 invocations, where
 //   num_blocks = ceil(elem_capacity / 256)
 // and the workgroup count comes from the capacity, never from the GPU-side count.
 //
-// Two invariants this shader must keep:
+// Invariants:
 //   1. Every cell of the transposed array is written by exactly one invocation
-//      (invocation `tid` writes bin `tid`), on every call.  That is why the sort
-//      needs no clear pass: stale counts can never survive.
-//   2. The whole body is *predicated* on the element index; there is deliberately
-//      no early `return`, because the shader contains a `barrier()` and a
-//      non-uniform early return before a barrier is undefined behaviour (and
-//      would leave this block's transposed cells unwritten).
+//      (invocation `tid` writes bin `tid`), on every call.
+//   2. The whole body is predicated on the element index and contains no early
+//      `return`, so every invocation of the workgroup reaches the barriers.
 //
 // An invocation at or beyond the GPU-side element count contributes no count at
 // all; it only takes part in the write-back of its own (zero) bin.

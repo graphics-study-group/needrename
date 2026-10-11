@@ -1,14 +1,18 @@
 #version 450 core
 
-// Copies a completed sort's result out of the sort's own ping-pong arrays and
-// back into the caller's arrays.
+// radix_copy_back.comp — Copies a completed sort's result out of the sort's own
+// ping-pong arrays and back into the caller's arrays.
 //
 // A radix pass alternates which of the two arrays it writes, so a call whose
-// pass count is odd leaves its result in the instance's arrays. One pass of this
-// shader moves it back, which is what makes the result's location independent of
-// the pass count's parity: the caller's array always holds the sorted records
-// afterwards, so one instance can serve several data sets in one command buffer
-// without a later sort overwriting an earlier result.
+// pass count is odd leaves its result in the instance's arrays. One dispatch of
+// this shader moves it back, so after every call the caller's array holds the
+// sorted records, whatever the pass count.
+//
+// Only `[0, count)` is copied: the keys and payloads the sort placed, the count
+// being the caller's element-count buffer read at execution time. The dispatch
+// covers the whole capacity (`[0, elem_count)`), and an invocation at or beyond
+// either bound returns without reading or writing, so an index at or beyond the
+// count leaves the caller's arrays exactly as they were.
 //
 // The keys are always copied; the payloads only when the call supplied one. A
 // caller without a payload binds its key arrays as the payload placeholders and
@@ -32,16 +36,23 @@ layout(set = 0, binding = 3) writeonly buffer DstPayload {
     uint v[];
 } dst_payload;
 
+// Elements the sort placed, written by an upstream pass in the same frame and
+// read here at execution time — never a host constant.
+layout(set = 0, binding = 4) readonly buffer ValidCount {
+    uint count;
+} valid_count;
+
 // ---- Per-dispatch constants (push constant, recorded by the caller) ----
 
 layout(push_constant) uniform CopyBackPush {
-    uint elem_count;
-    uint has_payload;
+    uint elem_count;   // the caller's capacity: the dispatch's element bound
+    uint has_payload;  // 1 = copy the payload array too, 0 = keys-only sort
 } params;
 
 void main() {
-    uint idx = gl_GlobalInvocationID.x;
+    const uint idx = gl_GlobalInvocationID.x;
     if (idx >= params.elem_count) return;
+    if (idx >= valid_count.count) return;
     dst_keys.v[idx] = src_keys.v[idx];
     if (params.has_payload != 0u) {
         dst_payload.v[idx] = src_payload.v[idx];

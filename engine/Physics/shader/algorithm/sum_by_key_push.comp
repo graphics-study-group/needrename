@@ -4,16 +4,12 @@
 // sum_by_key_push.comp — Segmented reduction with a CPU-known entry count.
 //
 // The value-count form of SumByKey: the host knows the entry count at record
-// time, so it travels in the push block and no count buffer is bound.  The
-// buffer-count form (sum_by_key.comp) reads a GPU-produced count from its
-// `EntryCount` binding instead.  The two are separate shaders rather than one
-// with a mode flag, because a variant must not declare a descriptor binding it
-// does not bind.
+// time, so it travels in the push block and the shader binds no count buffer.
 //
-// The reduction body, its bindings and its dispatch geometry are documented in
-// sum_by_key_body.glsl.
+// The reduction body, its bindings, its bound and its dispatch geometry are
+// documented in sum_by_key_body.glsl.
 //
-// Dispatch: ceil(input_count / 256), 1, 1.
+// Dispatch: ceil(input_count / 256) workgroups of 256 invocations, 1, 1.
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
@@ -24,7 +20,7 @@ layout(push_constant) uniform SumByKeyPush {
     uint max_key_value;   // keys >= max_key are ignored (never written to out)
     uint record_stride;   // next region's per-channel count (=2*num_blocks); used when writing records
     uint gather_payload;  // 1 = level 0: gather by payload index, 0 = record arrays
-    uint entry_count;     // leading entries carrying real data; bounds gather in level 0 only
+    uint entry_count;     // leading entries carrying real data; the level's bound is min(entry_count, input_count)
 } params;
 
 #include "sum_by_key_body.glsl"

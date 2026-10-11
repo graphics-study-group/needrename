@@ -35,7 +35,7 @@ namespace Engine {
      *     the payload index its payload array carries (`value(c) =
      *     values[c * capacity + payload[e]]`).  The caller therefore needs no
      *     separate key array: the payload its sort carried along *is* the value
-     *     index.  An entry whose payload index is outside `[0, capacity)`
+     *     index.  An entry whose payload index is at or beyond the bound
      *     contributes zero and is never read from the value buffer; its key is
      *     left unchanged, since rewriting it would break the ascending-order
      *     requirement and could split a real key's run.
@@ -47,22 +47,6 @@ namespace Engine {
      *     boundary records; the final single-block level writes every remaining
      *     segment directly.
      *
-     * **Two lengths bound level 0 and are not interchangeable.**  The *level
-     * element count* is the length of the array a level reads (`capacity` at
-     * level 0, `R_i` above); it alone defines the element-index bound, the run
-     * classification's per-block real extent, the record-region partition and
-     * the per-level dispatch count, and it is a pure function of `capacity`, so
-     * `Record` computes the whole chain.  The *entry count* is how many leading
-     * elements carry real input data; it bounds **data extent only** and its
-     * source is the call's `EntryCountSource`: a CPU-known value travels in the
-     * push-constant block, a GPU-produced one is read from the caller's buffer
-     * at execution time.  An entry count equal to `capacity` behaves exactly as
-     * if the bound were absent.
-     *
-     * The record regions for the intermediate levels live in the instance's own
-     * storage, partitioned by level with offsets derived per call from the call's
-     * capacity, its channel count and the device's descriptor offset alignment.
-     * The caller allocates nothing and cannot get the layout wrong.
      *
      * The `num_channels` float values per record are batched into a single
      * buffer in channel-major layout: `value(c, i) = buf[c * stride + i]`,
@@ -136,11 +120,6 @@ namespace Engine {
          * the caller is responsible for the outer barriers around the whole
          * `Record`.
          *
-         * Level 0 always dispatches `ceil(capacity / 256)` workgroups and each
-         * level reads its input as an array of `capacity` / `R_i` elements, so
-         * the record chain is rewritten in full on every call.  The entry count
-         * bounds only which **values** are read.
-         *
          * All level parameters (region offsets, element counts, workgroup
          * counts, channel stride, channel count, key bound, gather mode) are
          * passed as push constants.  Bindings:
@@ -167,7 +146,7 @@ namespace Engine {
          *                         max_key_value` floats.
          * @param entry_count      Entry-count source: a CPU-known value, or a
          *                         bound buffer (1 uint) holding a GPU-produced
-         *                         one. A bound buffer is read at level 0 only.
+         *                         one. A bound buffer is read at every level.
          * @param capacity         Level-0 element count (the entry capacity);
          *                         must be greater than zero.
          * @param num_channels     Number of float value channels per record,

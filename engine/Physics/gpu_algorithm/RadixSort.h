@@ -54,6 +54,7 @@ namespace Engine {
      * whatever the pass count: when the pass count is odd the last pass leaves it
      * in the instance's own array, and `Record` copies it back.  A later call on
      * the same instance therefore cannot destroy an earlier call's result.
+     * **Only `[0, count)` is sorted or written.**
      *
      * **Pass count.** The number of passes is derived from the caller's key
      * bound, not fixed:
@@ -120,10 +121,11 @@ namespace Engine {
         /**
          * @brief Record the radix sort's dispatches to the command buffer.
          *
-         * Sorts the first `elem_capacity` elements of `buffers.keys` into
+         * Sorts the `buffers.count` leading elements of `buffers.keys` into
          * ascending stable key order, in place, permuting `buffers.payload` in
-         * lockstep when one is supplied.  Inserts the compute barriers its
-         * sub-steps, passes and result copy need.
+         * lockstep when one is supplied, and writes nothing at or beyond that
+         * count.  Inserts the compute barriers its sub-steps, passes and result
+         * copy need.
          *
          * A capacity of zero, or a key bound that implies no passes, records
          * nothing: the caller's key array is already the sorted result.
@@ -131,10 +133,10 @@ namespace Engine {
          * @param cb              Command buffer in recording state.
          * @param buffers         The caller's key array, optional payload array
          *                        and element-count buffer.
-         * @param elem_capacity   Element capacity the buffers are sized for, and
-         *                        the count of elements this call sorts.  Dispatch
-         *                        geometry comes from this value, never from the
-         *                        GPU-side count.
+         * @param elem_capacity   Element capacity the buffers are sized for.
+         *                        Dispatch geometry comes from this value, never
+         *                        from the GPU-side count, which decides how many
+         *                        leading elements are sorted and written.
          * @param max_key_value   A value at or above every key the call will
          *                        write, used to derive the pass count.
          *
