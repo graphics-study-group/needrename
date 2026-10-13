@@ -252,6 +252,16 @@ namespace {
             const auto *p = reinterpret_cast<const glm::vec4 *>(pos_staging->GetVMAddress());
             return p[body];
         }
+
+        glm::vec4 Rotation(uint32_t body) const {
+            const auto *r = reinterpret_cast<const glm::vec4 *>(rot_staging->GetVMAddress());
+            return r[body];
+        }
+
+        glm::vec4 AngularVelocity(uint32_t body) const {
+            const auto *a = reinterpret_cast<const glm::vec4 *>(angvel_staging->GetVMAddress());
+            return a[body];
+        }
     };
 
     // A stack of `count` dynamic boxes on a kinematic ground.  Returns the body
@@ -467,6 +477,60 @@ int main() {
         Check(
             std::fabs(free_z - (kFreeZ - expected_drop)) < 0.1f,
             "a body with no contacts falls exactly as gravity dictates"
+        );
+    }
+
+    // ── Scenario D: a scripted body advances by *both* authored velocities ──
+    // A kinematic body standing clear of everything, on its own: its authored
+    // linear velocity has to carry its position and its authored angular velocity
+    // has to carry its rotation.  A scripted body that only translates (because
+    // the angular block skips kinematic bodies) is the bug this pins down.
+    {
+        PhysicsSystem physics;
+        Fixture f(*rsys, physics, 1u);
+        const uint32_t scripted = f.AddBox({0.0f, 0.0f, 5.0f}, {0.25f, 0.25f, 0.25f}, 0.0f, true);
+
+        constexpr float kOmega = 1.5707964f; // π/2 rad/s about +Z
+        constexpr float kTimeStep = 1.0f / 60.0f;
+        constexpr uint32_t kSteps = 60u; // one simulated second
+        // The solver's authored linear velocity is in world units per second.
+        const glm::vec4 authored_linear(1.0f, 0.0f, 0.0f, 0.0f);
+        const glm::vec4 authored_angular(0.0f, 0.0f, kOmega, 0.0f);
+        f.SetBodyPose(scripted, {0.0f, 0.0f, 5.0f}, authored_linear, authored_angular);
+        f.UploadHostState();
+        f.Step(kSteps);
+
+        const glm::vec4 p = f.Position(scripted);
+        Check(Finite(p), "a scripted body keeps a finite position");
+        // A constant linear velocity integrates exactly, so p = p0 + v * t.
+        Check(std::fabs(p.x - 1.0f) < 1e-4f, "a scripted body advances by its authored linear velocity (x + 1.0)");
+        Check(
+            std::fabs(p.y - 0.0f) < 1e-4f && std::fabs(p.z - 5.0f) < 1e-4f, "gravity does not deflect a scripted body"
+        );
+
+        // One second of a π/2 rad/s spin is a quarter turn about +Z.  The
+        // integrator advances the angle by 2*atan(w*dt/2) per substep instead of
+        // w*dt, so the result sits (w*dt)^2/12 ≈ 2e-5 rad below the analytic
+        // w*t — orders of magnitude inside this tolerance, while a skipped
+        // rotation is off by the full π/2.
+        const glm::vec4 q = f.Rotation(scripted);
+        const float half_angle = std::atan2(glm::length(glm::vec3(q)), q.w);
+        const float angle = 2.0f * half_angle;
+        Check(
+            std::fabs(angle - kOmega * kTimeStep * static_cast<float>(kSteps)) < 1e-3f,
+            "a scripted body rotates by its authored angular velocity (a quarter turn in one second)"
+        );
+        Check(
+            std::fabs(q.x) < 1e-4f && std::fabs(q.y) < 1e-4f && q.z > 0.0f,
+            "a scripted body spins about the authored axis (+Z)"
+        );
+
+        // The authored spin is a constant, not a state the solver may integrate
+        // or damp: no torque and no Coriolis term belongs in it.
+        const glm::vec4 w = f.AngularVelocity(scripted);
+        Check(
+            std::fabs(w.z - kOmega) < 1e-6f && std::fabs(w.x) < 1e-6f && std::fabs(w.y) < 1e-6f,
+            "a scripted body's authored angular velocity is never modified"
         );
     }
 

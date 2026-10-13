@@ -3,7 +3,8 @@
 
 // integrate_forces.comp — Semi-implicit Euler integration of gravity and
 // external forces/torques on each rigid body.  Angular integration is
-// performed in body-frame.
+// performed in body-frame.  Scripted (kinematic) bodies take a separate path:
+// they advance by their authored linear and angular velocity only.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -70,19 +71,25 @@ void main() {
 
     vec3 gravity_vec = params.gravity_dt.xyz;
     float dt = params.gravity_dt.w;
+    bool scripted = (rigid_body_is_kinematic.v[idx] != 0u);
 
     // ---- Linear integration ----
     vec3 total_linear_accel = gravity_vec + rigid_body_external_force.v[idx].xyz * inv_mass;
-    if (rigid_body_is_kinematic.v[idx] != 0u) total_linear_accel = vec3(0.0);
+    if (scripted) total_linear_accel = vec3(0.0);
 
     rigid_body_linear_velocity.v[idx].xyz += total_linear_accel * dt;
     rigid_body_center_position.v[idx].xyz += rigid_body_linear_velocity.v[idx].xyz * dt;
 
-    // A kinematic body's rotation is authored, so the whole angular block is
-    // skipped for it.  Zeroing the external torque is not enough: the Coriolis
-    // term is subtracted *after* the torque is zeroed, so it would become the
-    // body's only torque and precess a spin about a non-principal axis.
-    if (rigid_body_is_kinematic.v[idx] != 0u) return;
+    // ---- Scripted (kinematic) angular integration ----
+    // A scripted body advances by its authored linear *and* angular velocity,
+    // and no force, torque or Coriolis term may change either of them.
+    if (scripted) {
+        vec4 orientation = rigid_body_center_rotation.v[idx];
+        vec4 q_update = vec4(rigid_body_angular_velocity.v[idx].xyz, 0.0);
+        orientation += 0.5 * quat_mul(q_update, orientation) * dt;
+        rigid_body_center_rotation.v[idx] = quat_normalize(orientation);
+        return;
+    }
 
     // ---- Angular integration (body frame, matching CUDA reference) ----
     vec4 orientation = rigid_body_center_rotation.v[idx];

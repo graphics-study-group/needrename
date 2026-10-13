@@ -210,7 +210,7 @@ namespace {
     }
 
     void AddFrictionSlopeScene(PhysicsApp &app, const glm::vec3 &global_offset, float mu) {
-        const float kAngles[] = {24.0f, 26.0f, 27.0f, 28.0f, 28.5f, 29.0f, 30.0f};
+        const float kAngles[] = {20.0f, 26.0f, 27.0f, 28.0f, 29.0f, 40.0f, 60.0f};
         const uint32_t kCount = static_cast<uint32_t>(sizeof(kAngles) / sizeof(kAngles[0]));
 
         std::cout << "friction slope scene: mu = " << mu << ", analytic hold limit " << glm::degrees(std::atan(mu))
