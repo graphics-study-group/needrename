@@ -45,8 +45,8 @@
             "MaterialTemplateSinglePassProperties::rasterizer": {
                 "%type": "Engine::PipelineProperties::RasterizerProperties",
                 "RasterizerProperties::culling": "None",
-                "RasterizerProperties::depth_bias_constant": 0.05000000074505806,
-                "RasterizerProperties::depth_bias_slope": 1.0,
+                "RasterizerProperties::depth_bias_constant": 0.0,
+                "RasterizerProperties::depth_bias_slope": 1.5,
                 "RasterizerProperties::filling": "Fill",
                 "RasterizerProperties::front": "Counterclockwise",
                 "RasterizerProperties::line_width": 1.0

@@ -41,6 +41,18 @@ namespace Engine {
         std::shared_ptr<Camera> GetActiveCamera() const noexcept;
 
         /**
+         * @brief Count the shadow-casting directional lights of the main scene.
+         *
+         * The render graph allocates one shadow map per shadow-casting light
+         * when it is built, so this count must agree with the light selection
+         * `UpdateLightData` performs. It is capped by the engine's light budget.
+         *
+         * @return Number of lights that cast dynamic shadows, at most
+         *         `RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS`.
+         */
+        uint32_t GetShadowCastingLightCount() const noexcept;
+
+        /**
          * @brief Set the active camera, and try registering it to the render system.
          *
          * If registrar if left to be nullptr, no attempts will be made to register it.

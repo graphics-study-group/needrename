@@ -1,6 +1,7 @@
 #include "ComplexRenderGraphBuilder.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Framework/MainClass.h>
+#include <Framework/Tools/ShadowCascadeResources.h>
 #include <Framework/World/WorldSystem.h>
 #include <Render/Asset/Shader/ShaderAsset.h>
 #include <Render/Asset/Shader/ShaderKernel.h>
@@ -63,24 +64,11 @@ namespace Engine {
         auto depth_id =
             rgb.RequestResizableRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{}, 1.0f, 1.0f, "Depth");
 
-        RenderTargetTexture::RenderTargetTextureDesc shadow_desc{
-            .dimensions = 2,
-            .width = SHADOWMAP_WIDTH,
-            .height = SHADOWMAP_HEIGHT,
-            .depth = 1,
-            .mipmap_levels = 1,
-            .array_layers = 1,
-            .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT,
-            .multisample = 1,
-            .is_cube_map = false
-        };
-        std::vector<RGTextureHandle> shadow_ids;
-        shadow_ids.resize(RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS);
-        for (size_t i = 0; i < shadow_ids.size(); i++) {
-            shadow_ids[i] = rgb.RequestRenderTargetTexture(
-                shadow_desc, Rhi::Texture::SamplerDesc{}, "Shadow Map " + std::to_string(i)
-            );
-        }
+        // Shadow map storage and cascade passes. One array texture (one layer per
+        // cascade) is allocated per shadow-casting light present, and every pass
+        // renders all of its light's cascades. Shared with the editor's graph
+        // builder so both applications stay in step.
+        const std::vector<RGTextureHandle> shadow_ids = AddShadowCascadePasses(rgb, m_system, mm_handle);
 
         // Set up the bloom kernel: one kernel exists per shader asset on the
         // device, no matter how many builders request it.
@@ -90,54 +78,6 @@ namespace Engine {
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
         auto &bloom_kernel = *m_bloom_kernel;
         using IAT = Rhi::MemoryAccessTypeImageBits;
-
-        /**
-         * Shadowmap passes — one per shadow-casting light.
-         * Manual BeginRendering/EndRendering, no WrapRenderPass().
-         */
-        for (size_t i = 0; i < shadow_ids.size(); i++) {
-            auto shadow_builder = RenderGraphPassBuilder{m_system}.SetName("Shadowmap Pass " + std::to_string(i));
-            shadow_builder.UseBuffer(
-                mm_handle, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)
-            );
-            rgb.AddPass(
-                shadow_builder
-                    .SetDepthStencilAttachment(
-                        {shadow_ids[i],
-                         {},
-                         AttachmentUtils::LoadOperation::Clear,
-                         AttachmentUtils::StoreOperation::Store,
-                         AttachmentUtils::DepthClearValue{1.0f, 0U}}
-                    )
-                    .SetPassFunction([&system, shadow_ids, i](CommandBuffer &cb, const RenderGraph &rg) {
-                        vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
-                        vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
-                        if (i < system.GetSceneDataManager().GetNumShadowCastingLights()) {
-                            auto shadow_map_target = rg.GetInternalTextureResource(shadow_ids[i]);
-                            cb.BeginRendering(
-                                {nullptr},
-                                {shadow_map_target,
-                                 Rhi::TextureSubresourceRange::GetSingleRange(),
-                                 AttachmentUtils::LoadOperation::Clear,
-                                 AttachmentUtils::StoreOperation::Store,
-                                 AttachmentUtils::DepthClearValue{1.0f, 0U}},
-                                shadow_map_extent,
-                                "Shadowmap Pass"
-                            );
-                            cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-                            cb.DrawRenderers(
-                                "Shadowmap",
-                                system.GetRendererManager().FilterAndSortRenderers({}),
-                                i,
-                                shadow_map_extent
-                            );
-                            cb.EndRendering();
-                        }
-                    })
-                    .Get()
-                // NOTE: No WrapRenderPass() — we manually manage BeginRendering/EndRendering
-            );
-        }
 
         /**
          * Main Lit pass — rasterizer with color + depth attachments, WrapRenderPass().
@@ -224,10 +164,7 @@ namespace Engine {
         auto rg = rgb.BuildRenderGraph();
 
         // Post-build: register shadow maps with scene data manager
-        for (size_t i = 0; i < shadow_ids.size(); i++) {
-            auto shadow_map_target = rg->GetInternalTextureResource(shadow_ids[i]);
-            system.GetSceneDataManager().SetLightShadowMap(i, *shadow_map_target);
-        }
+        RegisterShadowCascadeMaps(*rg, system, shadow_ids);
 
         return rg;
     }

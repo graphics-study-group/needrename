@@ -8,6 +8,7 @@
 #include <Framework/Component/TransformComponent/TransformComponent.h>
 #include <Framework/MainClass.h>
 #include <Framework/Object/GameObject.h>
+#include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/RendererManager.h>
@@ -16,6 +17,8 @@
 #include <AnnoRefl/serialization.h>
 #include <Asset/AssetRef.h>
 #include <Framework/Scene/LevelAsset.h>
+
+#include <algorithm>
 
 namespace Engine {
     WorldSystem::WorldSystem() {
@@ -26,6 +29,14 @@ namespace Engine {
 
     WorldSystem::~WorldSystem() {
     }
+
+    namespace {
+        /// Radiance a light contributes, used to rank shadow-casting lights.
+        float LightBrightness(const LightComponent &light) {
+            const glm::vec3 radiance = light.m_color * light.m_intensity;
+            return std::max(radiance.r, std::max(radiance.g, radiance.b));
+        }
+    } // namespace
 
     void WorldSystem::UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager) {
         std::vector<LightComponent *> casting_light;
@@ -50,17 +61,70 @@ namespace Engine {
                 }
             }
         }
-        scene_data_manager.SetLightCount(casting_light.size());
-        for (uint32_t i = 0; i < casting_light.size(); ++i) {
-            auto transform = casting_light[i]->GetParentGameObject()->GetWorldTransform();
-            scene_data_manager.SetLightDirectional(
-                i,
-                glm::normalize(transform.GetRotation() * glm::vec3(0.0f, 1.0f, 0.0f)),
-                casting_light[i]->m_color * casting_light[i]->m_intensity
+
+        // Only a bounded number of directional lights can hold a shadow map
+        // slot. Keep the brightest ones and let the rest light the scene
+        // without dynamic shadows.
+        std::stable_sort(
+            casting_light.begin(), casting_light.end(), [](const LightComponent *lhs, const LightComponent *rhs) {
+                return LightBrightness(*lhs) > LightBrightness(*rhs);
+            }
+        );
+        constexpr size_t MAX_CASTING = RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS;
+        for (size_t i = MAX_CASTING; i < casting_light.size(); i++) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "Shadow casting directional light '%s' is dropped: at most %zu shadow casting directional lights are "
+                "supported. It keeps lighting the scene without shadows.",
+                casting_light[i]->GetParentGameObject()->m_name.c_str(),
+                MAX_CASTING
             );
+            non_casting_light.push_back(casting_light[i]);
         }
-        scene_data_manager.SetLightCountNonShadowCasting(non_casting_light.size());
-        for (uint32_t i = 0; i < non_casting_light.size(); ++i) {
+        if (casting_light.size() > MAX_CASTING) casting_light.resize(MAX_CASTING);
+
+        constexpr size_t MAX_NON_CASTING = RenderSystemState::SceneDataManager::MAX_NON_SHADOW_CASTING_LIGHTS;
+        if (non_casting_light.size() > MAX_NON_CASTING) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "%zu non shadow casting lights are present, but only %zu are supported; the extra ones are ignored.",
+                non_casting_light.size(),
+                MAX_NON_CASTING
+            );
+            non_casting_light.resize(MAX_NON_CASTING);
+        }
+
+        // The cascades follow the active camera; without one the lights keep
+        // their previous fit, so no invalid shadow sampling can occur.
+        const auto active_camera = GetActiveCamera();
+
+        const uint32_t casting_count = static_cast<uint32_t>(casting_light.size());
+        scene_data_manager.SetLightCount(casting_count);
+        for (uint32_t i = 0; i < casting_count; ++i) {
+            auto transform = casting_light[i]->GetParentGameObject()->GetWorldTransform();
+            const glm::vec3 direction = glm::normalize(transform.GetRotation() * glm::vec3(0.0f, 1.0f, 0.0f));
+            const glm::vec3 radiance = casting_light[i]->m_color * casting_light[i]->m_intensity;
+            if (active_camera) {
+                // The shadow distance and the cascade count are clamped inside
+                // the scene data manager, next to the fit that consumes them.
+                scene_data_manager.SetLightDirectional(
+                    i,
+                    direction,
+                    radiance,
+                    active_camera->GetViewMatrix(),
+                    active_camera->GetProjectionMatrix(),
+                    active_camera->m_clipping_near,
+                    active_camera->m_clipping_far,
+                    casting_light[i]->m_shadow_distance,
+                    casting_light[i]->m_cascade_count
+                );
+            } else {
+                scene_data_manager.SetLightDirectional(i, direction, radiance);
+            }
+        }
+        const uint32_t non_casting_count = static_cast<uint32_t>(non_casting_light.size());
+        scene_data_manager.SetLightCountNonShadowCasting(non_casting_count);
+        for (uint32_t i = 0; i < non_casting_count; ++i) {
             auto transform = non_casting_light[i]->GetParentGameObject()->GetWorldTransform();
             switch (non_casting_light[i]->m_type) {
             case LightType::Directional:
@@ -97,6 +161,17 @@ namespace Engine {
         auto camera_comp = m_main_scene->GetComponent<CameraComponent>(m_active_camera);
         if (camera_comp) return camera_comp->m_camera;
         return nullptr;
+    }
+
+    uint32_t WorldSystem::GetShadowCastingLightCount() const noexcept {
+        uint32_t count = 0;
+        for (auto &comp : m_main_scene->GetComponents()) {
+            auto *light = dynamic_cast<LightComponent *>(comp.get());
+            if (light == nullptr) continue;
+            if (!light->m_cast_shadow || light->m_type != LightType::Directional) continue;
+            count++;
+        }
+        return std::min<uint32_t>(count, RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS);
     }
     void WorldSystem::SetActiveCamera(
         ComponentHandle camera_comp, RenderSystemState::CameraManager *registrar

@@ -18,15 +18,15 @@ void main()
     ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
 
     vec3 color = imageLoad(inputImage, uv).rgb;
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-            ivec2 nuv = uv + ivec2(i - 2, j - 2);
-            vec3 hdr = imageLoad(inputImage, nuv).rgb;
-            float lum = Luminance(hdr);
-            if (lum > LUMINANCE_THRESHOLD) {
-                color += hdr * kernel[i] * kernel[j];
-            }
-        }
-    }
+    // for (int i = 0; i < 5; i++) {
+    //     for (int j = 0; j < 5; j++) {
+    //         ivec2 nuv = uv + ivec2(i - 2, j - 2);
+    //         vec3 hdr = imageLoad(inputImage, nuv).rgb;
+    //         float lum = Luminance(hdr);
+    //         if (lum > LUMINANCE_THRESHOLD) {
+    //             color += hdr * kernel[i] * kernel[j];
+    //         }
+    //     }
+    // }
     imageStore(outputImage, uv, vec4(color, 1.0));
 }
