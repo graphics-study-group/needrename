@@ -18,4 +18,4 @@ set_tests_properties(gpu_sum_by_key_bench PROPERTIES DISABLED TRUE)
 
 # This test is too slow
 anro_add_test(xpbd_contact_friction_test FOLDER tests/engine/headless)
-set_tests_properties(gpu_sum_by_key_bench PROPERTIES DISABLED TRUE)
+set_tests_properties(xpbd_contact_friction_test PROPERTIES DISABLED TRUE)

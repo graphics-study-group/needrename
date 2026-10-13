@@ -57,7 +57,7 @@ CollisionResultBuffers GetResultBuffers() const;
 - `contact_point_a`: `vec4` buffer storing the contact point on shape A in **shape-local space** (relative to shape A's local frame, not world space)
 - `contact_point_b`: `vec4` buffer storing the contact point on shape B in **shape-local space** (relative to shape B's local frame, not world space)
 - `collision_count`: single `uint` buffer holding the number of contact points **written** this substep
-- `contact_cursor`: single `uint` buffer holding the contact-slot reservation cursor, private to the detection dispatch and cleared with `collision_count` before every dispatch
+- `contact_cursor`: single `uint` buffer holding the contact-slot reservation cursor, private to the detection dispatch and cleared with `collision_count` before every dispatch — owned and reset by the detector, but deliberately not part of the result set it exposes, because no later stage may read it
 
 All buffers SHALL be separate SSBOs (SoA layout) for cache-friendly access.
 
@@ -67,7 +67,7 @@ local_pt_a = quat_inv_rotate(shape_world_rot[shape_a], world_pt_a - shape_world_
 local_pt_b = quat_inv_rotate(shape_world_rot[shape_b], world_pt_b - shape_world_pos[shape_b]);
 ```
 
-**`collision_count` SHALL equal the number of points this substep wrote, and SHALL NOT exceed the configured contact-write budget.** A thread that produces N manifold points SHALL reserve only the slots it will actually write, so that the published count is a bound on the valid data: every index below the count addresses result buffers written by this substep, and no index at or above the count does.
+**`collision_count` SHALL equal the number of points this substep wrote, and SHALL NOT exceed the configured contact-write budget.** Only the points a thread actually writes SHALL count towards the published total, so that the count is a bound on the valid data: every index below the count addresses result buffers written by this substep, and no index at or above the count does. A thread whose range is truncated by the budget contributes the end of the written prefix, not its own range end.
 
 The count is consumed as both a data extent and an upper bound by later stages: the entry pass derives the substep's entry count from it, and both contact accumulate shaders iterate over it. Reserving N slots and then dropping the writes that exceed the budget publishes a count over slots that still hold an earlier substep's geometry. A consumer iterating that count then reads stale contacts, and a consumer that accumulates an unguarded per-contact value at such an index writes past the end of a buffer sized to the contact-point capacity.
 
@@ -80,9 +80,9 @@ The count is consumed as both a data extent and an upper bound by later stages: 
 #### Scenario: Results written per manifold point, up to 5 per pair
 
 - **WHEN** a compute thread detects a collision and produces N manifold points (1-5)
-- **THEN** it reserves N contiguous slots only when all N lie within the contact-write budget
+- **THEN** it writes each point that falls within the contact-write budget and no point beyond it
 - **AND** writes each point as a separate entry with its own contact positions (in shape-local space) and independently computed penetration depth
-- **AND** the published count is incremented by exactly the number of points written
+- **AND** the published count is raised to exactly the end of the written prefix
 
 #### Scenario: The count never exceeds the contact-write budget
 
@@ -93,8 +93,8 @@ The count is consumed as both a data extent and an upper bound by later stages: 
 #### Scenario: A partially admissible manifold does not over-count
 
 - **WHEN** a pair produces N manifold points and only M < N of them fall within the remaining budget
-- **THEN** M slots are reserved and written
-- **AND** the published count is incremented by M, so the count matches the data
+- **THEN** the first M slots of the range the thread was handed are written, and no others
+- **AND** the published count is raised to the end of that written prefix, so the count matches the data
 
 #### Scenario: Contact points are in shape-local space
 

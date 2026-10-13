@@ -159,7 +159,7 @@ struct PerturbResult {
 //
 // Parameters:
 //   shape_a, shape_b  — shape indices
-//   contact_normal    — world-space normal from MPR (pointing B→A)
+//   contact_normal    — world-space normal from MPR (pointing A→B)
 //   contact_center    — midpoint between MPR contact points
 //   penetration       — MPR penetration depth (fallback for MPR point)
 //   contact_margin    — configurable tolerance; points with raw_depth > -margin
