@@ -169,9 +169,11 @@ namespace Engine::RenderSystemState {
                 // Initialize it to identity matrices
                 {
                     std::vector<glm::mat4> identity(MAX_MODEL_MATRICES, glm::mat4{1.0f});
-                    system.GetFrameManager().GetSubmissionHelper().EnqueueBufferSubmission(
+                    auto &submission_helper = system.GetFrameManager().GetSubmissionHelper();
+                    submission_helper.EnqueueBufferSubmission(
                         *model_matrices_buffer, std::as_bytes(std::span{identity})
                     );
+                    submission_helper.ExecuteSubmissionImmediately();
                 }
 
                 // Prepare default depth map
