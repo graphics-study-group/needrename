@@ -9,7 +9,12 @@
 
 namespace {
     static constexpr std::array PREFERED_COLOR_FORMATS = {
-        vk::Format::eR8G8B8A8Srgb, vk::Format::eR8G8B8A8Unorm, vk::Format::eR8G8B8Srgb, vk::Format::eR8G8B8Unorm
+        vk::Format::eR8G8B8A8Srgb,
+        vk::Format::eR8G8B8A8Unorm,
+        vk::Format::eR8G8B8Srgb,
+        vk::Format::eR8G8B8Unorm,
+        vk::Format::eB8G8R8A8Srgb,
+        vk::Format::eB8G8R8A8Unorm
     };
 
     vk::SurfaceFormatKHR SelectSwapchainFormat(const std::vector<vk::SurfaceFormatKHR> &formats) {
