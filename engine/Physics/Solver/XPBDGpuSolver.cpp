@@ -431,10 +431,7 @@ namespace Engine {
             // per-contact multiplier buffers are sized to it, so it is the single
             // derivation of the number and the detector uses it verbatim.
             m_impl->narrow_detector->BindToScene(
-                *m_bound_scene,
-                *m_impl->broad_detector,
-                m_impl->max_contact_point,
-                m_impl->config.contact_margin
+                *m_bound_scene, *m_impl->broad_detector, m_impl->max_contact_point, m_impl->config.contact_margin
             );
         }
 

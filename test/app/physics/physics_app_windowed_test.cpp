@@ -222,7 +222,8 @@ namespace {
         }
     }
 
-    void AddTemplateScene2(PhysicsApp &app, const glm::vec3 &global_offset) {        constexpr float kWallHalfHeight = 3.0f;
+    void AddTemplateScene2(PhysicsApp &app, const glm::vec3 &global_offset) {
+        constexpr float kWallHalfHeight = 3.0f;
         constexpr float kWallHalfSize = 15.0f;
 
         app.AddBox({

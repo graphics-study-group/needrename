@@ -29,8 +29,6 @@ BreakBeforeBinaryOperators: NonAssignment
 BreakConstructorInitializers: AfterColon
 BreakTemplateDeclarations: Yes
 InsertNewlineAtEOF: true
-# Enforce LF line ending.
-LineEnding: LF
 NamespaceIndentation: All
 # Ignore doxygen directives starting with an at symbol
 CommentPragmas:  '^@.+'

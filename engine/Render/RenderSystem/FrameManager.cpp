@@ -203,9 +203,7 @@ namespace Engine::RenderSystemState {
         for (uint32_t i = 0; i < image_count; i++) {
             frame_completed_semaphores.push_back(device.createSemaphoreUnique(scinfo));
             DEBUG_SET_NAME_TEMPLATE(
-                device,
-                frame_completed_semaphores.back().get(),
-                std::format("Semaphore - frame completed image {}", i)
+                device, frame_completed_semaphores.back().get(), std::format("Semaphore - frame completed image {}", i)
             );
         }
     }

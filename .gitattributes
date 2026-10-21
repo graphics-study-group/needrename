@@ -1,3 +1,33 @@
+# Text / source code: store and check out with LF line endings
+
+# C / C++
+*.c            text eol=lf
+*.cc           text eol=lf
+*.cpp          text eol=lf
+*.cxx          text eol=lf
+*.h            text eol=lf
+*.hh           text eol=lf
+*.hpp          text eol=lf
+*.hxx          text eol=lf
+*.inl          text eol=lf
+*.ipp          text eol=lf
+*.inc          text eol=lf
+
+# Shaders
+*.glsl         text eol=lf
+*.vert         text eol=lf
+*.frag         text eol=lf
+*.comp         text eol=lf
+*.geom         text eol=lf
+
+# Build scripts and configuration
+CMakeLists.txt text eol=lf
+*.cmake        text eol=lf
+*.py           text eol=lf
+*.json         text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+
 # Git LFS
 
 # Image files

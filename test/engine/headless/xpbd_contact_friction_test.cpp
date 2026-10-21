@@ -273,22 +273,16 @@ namespace {
 
     /// A kinematic plane whose top surface is the world z = 0 plane.
     uint32_t AddGroundPlane(Fixture &f) {
-        return f.AddBox(
-            {0.0f, 0.0f, -0.25f},
-            {0.0f, 0.0f, 0.0f, 1.0f},
-            {6.0f, 6.0f, 0.25f},
-            0.0f,
-            true,
-            0.5f,
-            0.5f
-        );
+        return f.AddBox({0.0f, 0.0f, -0.25f}, {0.0f, 0.0f, 0.0f, 1.0f}, {6.0f, 6.0f, 0.25f}, 0.0f, true, 0.5f, 0.5f);
     }
 
     /// A plane tilted by `angle` about Y, whose top surface contains the origin,
     /// plus a box resting flat on it.  Returns the box's body index.
     uint32_t AddSlopeAndBox(Fixture &f, float angle, float half_extent, float static_friction, float dynamic_friction) {
         const glm::vec4 q = RotationAboutY(angle);
-        f.AddBox(Rotate(q, {0.0f, 0.0f, -0.25f}), q, {6.0f, 6.0f, 0.25f}, 0.0f, true, static_friction, dynamic_friction);
+        f.AddBox(
+            Rotate(q, {0.0f, 0.0f, -0.25f}), q, {6.0f, 6.0f, 0.25f}, 0.0f, true, static_friction, dynamic_friction
+        );
         // 1 mm of initial penetration keeps the pair in contact on substep one.
         return f.AddBox(
             Rotate(q, {0.0f, 0.0f, half_extent - 0.001f}),
@@ -321,9 +315,8 @@ int main() {
         PhysicsSystem physics;
         Fixture f(*rsys, physics, 1u, BaseConfig());
         AddGroundPlane(f);
-        const uint32_t box = f.AddBox(
-            {0.0f, 0.0f, 0.5f - 0.002f}, {0.0f, 0.0f, 0.0f, 1.0f}, {0.5f, 0.5f, 0.5f}, 1.0f, false, kMu, kMu
-        );
+        const uint32_t box =
+            f.AddBox({0.0f, 0.0f, 0.5f - 0.002f}, {0.0f, 0.0f, 0.0f, 1.0f}, {0.5f, 0.5f, 0.5f}, 1.0f, false, kMu, kMu);
         f.SetBodyVelocity(box, {2.0f, 0.0f, 0.0f});
         f.Upload();
 
@@ -470,15 +463,11 @@ int main() {
         const glm::vec3 half{1.0f, 0.5f, 0.5f};
         const uint32_t box_x = ([&] {
             AddGroundPlane(slide_x);
-            return slide_x.AddBox(
-                {0.0f, 0.0f, 0.5f - 0.002f}, {0.0f, 0.0f, 0.0f, 1.0f}, half, 1.0f, false, kMu, kMu
-            );
+            return slide_x.AddBox({0.0f, 0.0f, 0.5f - 0.002f}, {0.0f, 0.0f, 0.0f, 1.0f}, half, 1.0f, false, kMu, kMu);
         })();
         const uint32_t box_y = ([&] {
             AddGroundPlane(slide_y);
-            return slide_y.AddBox(
-                {0.0f, 0.0f, 0.5f - 0.002f}, {0.0f, 0.0f, 0.0f, 1.0f}, half, 1.0f, false, kMu, kMu
-            );
+            return slide_y.AddBox({0.0f, 0.0f, 0.5f - 0.002f}, {0.0f, 0.0f, 0.0f, 1.0f}, half, 1.0f, false, kMu, kMu);
         })();
         slide_x.SetBodyVelocity(box_x, {2.0f, 0.0f, 0.0f});
         slide_y.SetBodyVelocity(box_y, {0.0f, 2.0f, 0.0f});
@@ -602,8 +591,8 @@ int main() {
         const glm::vec3 down_slope = Rotate(RotationAboutY(angle), {1.0f, 0.0f, 0.0f});
         const float creep = glm::length(end - start);
         const float creep_down_slope = glm::dot(end - start, down_slope);
-        std::cout << "no-creep at " << (angle * 180.0f / 3.14159265f) << " deg: moved " << creep
-                  << " m (down-slope " << creep_down_slope << " m) over 600 substeps" << std::endl;
+        std::cout << "no-creep at " << (angle * 180.0f / 3.14159265f) << " deg: moved " << creep << " m (down-slope "
+                  << creep_down_slope << " m) over 600 substeps" << std::endl;
         Check(creep < 1e-3f, "a body at rest on a slope below the static limit moves less than 1 mm over 600 substeps");
     }
 

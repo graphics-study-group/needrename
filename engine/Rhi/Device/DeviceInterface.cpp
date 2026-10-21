@@ -15,9 +15,7 @@ namespace Engine::Rhi {
 
         static constexpr const char *VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
 
-        static constexpr std::array<const char *, 1> DEVICE_EXTENSION_NAMES{
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME
-        };
+        static constexpr std::array<const char *, 1> DEVICE_EXTENSION_NAMES{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
         bool m_headless = false;
 
