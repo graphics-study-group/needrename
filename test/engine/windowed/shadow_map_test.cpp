@@ -326,7 +326,7 @@ int main(int argc, char **argv) {
             // Swapchain out of date after retry — skip this frame.
             continue;
         }
-        assert(index < 3);
+        assert(index < rsys->GetPresentProvider().GetImageCount());
 
         floor_mesh_comp.PreRenderUpdate();
         cube_mesh_comp.PreRenderUpdate();

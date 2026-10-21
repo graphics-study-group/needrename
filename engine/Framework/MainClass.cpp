@@ -60,6 +60,21 @@ namespace Engine {
     MainClass::~MainClass() {
         SetRenderRuntime({});
         SetAssetRuntime({});
+
+        // Teardown order is load-bearing: the swapchain's present operations
+        // reference the platform window, and SDL_Quit() destroys every window.
+        // Destroying a swapchain after its window is gone makes the driver's
+        // WSI tear down a dead window (observed as a libxcb "buffer overflow
+        // detected" abort at process exit), so: drain the GPU, destroy the
+        // renderer (swapchain) and the GUI backend while the window is still
+        // alive, and only then destroy the window and quit SDL.
+        if (renderer) {
+            renderer->WaitForIdle();
+        }
+        gui.reset();
+        renderer.reset();
+        input.reset();
+        window.reset();
         SDL_Quit();
     }
 
