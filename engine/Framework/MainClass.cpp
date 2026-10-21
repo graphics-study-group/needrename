@@ -71,6 +71,13 @@ namespace Engine {
         if (renderer) {
             renderer->WaitForIdle();
         }
+
+        // The render graph owns RRTTHandles, which reference the
+        // ResizableRTTManager inside the renderer. It must be released while
+        // the renderer is still alive; left to member destruction it would
+        // release handles through a dangling reference after renderer.reset().
+        render_graph.reset();
+
         gui.reset();
         renderer.reset();
         input.reset();
