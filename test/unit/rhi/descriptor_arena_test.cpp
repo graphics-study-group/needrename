@@ -503,6 +503,46 @@ int main() {
         );
     }
 
+    // ── A bound buffer resolves to its replacement after reallocation ───────
+    // Bindings name resources, not handles: the handle and identity are read
+    // when the set is acquired, so a buffer that grew in place contributes its
+    // replacement rather than the allocation it had when it was bound.
+    {
+        Fixture f;
+        auto &arena = f.Arena();
+        auto &allocator = f.context.GetAllocatorState();
+
+        Rhi::SPLayout reflected{};
+        auto buffer_interface = std::make_unique<SPInterfaceStructuredBuffer>();
+        buffer_interface->name = "data";
+        buffer_interface->layout_set = 2;
+        buffer_interface->layout_binding = 0;
+        buffer_interface->type = SPInterfaceBuffer::Type::StorageBuffer;
+        reflected.interface_name_mapping["data"] = buffer_interface.get();
+        reflected.interfaces.push_back(std::move(buffer_interface));
+
+        const auto bindings = reflected.GenerateLayoutBindings(2, false, false);
+        const auto set_layout = arena.ResolveLayout(vk::DescriptorSetLayoutCreateInfo{{}, bindings});
+
+        auto buffer = ComputeBuffer::CreateUnique(allocator, 64, false, false, false, false, "Binding growth");
+        ShaderResourceBinding srb{arena};
+        srb.BindBuffer("data", *buffer);
+
+        const auto e = f.Tracker().BeginEpoch();
+        const auto before_growth = srb.GetDescriptorSet(2, set_layout, reflected);
+        CHECK(static_cast<bool>(before_growth) && "a declared binding acquires a set");
+
+        const size_t minted_before = arena.GetMintedSetCount();
+        buffer->EnsureCapacity(allocator, 4096);
+        const auto after_growth = srb.GetDescriptorSet(2, set_layout, reflected);
+        CHECK(
+            !Same(before_growth, after_growth)
+            && "a replaced buffer must not match the entry written for its predecessor"
+        );
+        CHECK(arena.GetMintedSetCount() == minted_before + 1u && "the replacement is minted as its own entry");
+        f.Tracker().ReportComplete(e);
+    }
+
     // ── Task 1.7: teardown with entries still resident ──────────────────────
 
     {
