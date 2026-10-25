@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "Render/Pipeline/Renderer/VertexAttribute.h"
+#include "Rhi/Device/ResourceRef.h"
 
 namespace vk {
     class Pipeline;
@@ -119,7 +120,7 @@ namespace Engine {
             MaterialTemplateSinglePassProperties &properties,
             const std::vector<vk::ShaderModule> &shaders,
             vk::PipelineLayout layout,
-            vk::DescriptorSetLayout desc_set_layout,
+            Rhi::DescriptorSetLayoutRef desc_set_layout,
             const Rhi::SPLayout &reflected,
             const PipelineRuntimeInfo &attribute,
             const std::string &name = ""
@@ -150,6 +151,14 @@ namespace Engine {
          * layout declares no per-material set.
          */
         vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
+
+        /**
+         * @brief Get the layout of the per-material descriptor set, with its
+         * never-reused identity.
+         *
+         * This is what a descriptor acquisition hands the arena.
+         */
+        Rhi::DescriptorSetLayoutRef GetDescriptorSetLayoutRef() const noexcept;
 
         /**
          * @brief Get all reflected shader info.

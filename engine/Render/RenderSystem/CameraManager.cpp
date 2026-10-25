@@ -26,7 +26,7 @@ namespace Engine::RenderSystemState {
         };
 
         // Camera descriptor set layout, currently containing only one UBO.
-        vk::DescriptorSetLayout camera_descriptor_set_layout{};
+        Rhi::DescriptorSetLayoutRef camera_descriptor_set_layout{};
 
         // Common pipeline layout for scene & camera.
         vk::PipelineLayout camera_common_pipeline_layout{};
@@ -62,7 +62,8 @@ namespace Engine::RenderSystemState {
         {
             assert(m_system.GetSceneDataManager().GetLightDescriptorSetLayout());
             std::array pipeline_layout_descriptor_sets{
-                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(), pimpl->camera_descriptor_set_layout
+                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                pimpl->camera_descriptor_set_layout.handle
             };
             std::array pipeline_layout_pcr{RendererManager::GetPushConstantRange()};
             vk::PipelineLayoutCreateInfo plci{
@@ -152,8 +153,8 @@ namespace Engine::RenderSystemState {
         return pimpl->descriptors[frame_in_flight];
     }
     vk::DescriptorSetLayout CameraManager::GetDescriptorSetLayout() const noexcept {
-        assert(pimpl->camera_descriptor_set_layout);
-        return pimpl->camera_descriptor_set_layout;
+        assert(pimpl->camera_descriptor_set_layout.handle);
+        return pimpl->camera_descriptor_set_layout.handle;
     }
     vk::PipelineLayout CameraManager::GetCommonPipelineLayout() const noexcept {
         return pimpl->camera_common_pipeline_layout;

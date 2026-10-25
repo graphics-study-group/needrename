@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_TEXTURE_INCLUDED
 #define ENGINE_RHI_TEXTURE_INCLUDED
 
+#include "Rhi/Device/ResourceRef.h"
 #include "Rhi/Texture/ImageUtils.h"
 #include "Rhi/rhi_export.h"
 
@@ -71,6 +72,12 @@ namespace Engine::Rhi {
         vk::Sampler GetSampler() const noexcept;
 
         /**
+         * @brief Get the sampler's binding reference: its handle plus its
+         * never-reused identity.
+         */
+        SamplerRef GetSamplerRef() const noexcept;
+
+        /**
          * @brief Get the underlying handle of the full texture subresource view.
          */
         vk::ImageView GetImageView() const;
@@ -79,6 +86,16 @@ namespace Engine::Rhi {
          * @brief Get the underlying handle of a texture subresource view.
          */
         vk::ImageView GetImageView(const TextureSubresourceRange &tsr) const;
+
+        /**
+         * @brief Get the binding reference of a texture subresource view.
+         *
+         * The view is created on the first request for that range and cached;
+         * repeated requests of one range yield one view and one identity. The
+         * identity is what a descriptor binding is keyed on — the view handle
+         * alone is recycled by the driver once the texture is destroyed.
+         */
+        ViewRef GetViewRef(const TextureSubresourceRange &tsr) const;
 
         /**
          * @brief Calculate the size of staging buffer required to hold the

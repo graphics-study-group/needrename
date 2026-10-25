@@ -55,22 +55,16 @@ namespace Engine::Rhi {
                    || type == vk::DescriptorType::eSampledImage || type == vk::DescriptorType::eSampler;
         }
 
-        /// @brief Compare two Vulkan-Hpp handles by native value; the handles
-        /// themselves carry no `operator==` under typesafe conversion.
-        template <typename T>
-        bool SameHandle(T lhs, T rhs) noexcept {
-            return static_cast<typename T::CType>(lhs) == static_cast<typename T::CType>(rhs);
-        }
-
-        uint64_t HandleValue(vk::DescriptorSetLayout layout) noexcept {
-            return reinterpret_cast<uint64_t>(static_cast<VkDescriptorSetLayout>(layout));
+        /// @brief Map key of a layout: its never-reused identity.
+        uint64_t LayoutKey(DescriptorSetLayoutRef layout) noexcept {
+            return layout.id.GetValue();
         }
     } // namespace
 
     bool ResolvedBinding::operator==(const ResolvedBinding &other) const noexcept {
         return binding == other.binding && type == other.type && image_layout == other.image_layout
-               && offset == other.offset && range == other.range && SameHandle(image_view, other.image_view)
-               && SameHandle(sampler, other.sampler) && SameHandle(buffer, other.buffer);
+               && offset == other.offset && range == other.range && image_view == other.image_view
+               && sampler == other.sampler && buffer == other.buffer;
     }
 
     struct DescriptorArena::impl {
@@ -92,25 +86,26 @@ namespace Engine::Rhi {
             "because no epoch has opened yet, not because it is complete."
         );
 
-        /// @brief Cache key: layout handle, dynamic-offset flags and set index,
+        /// @brief Cache key: layout identity, dynamic-offset flags and set index,
         /// plus a hash of the resolved binding content. The full content is kept
         /// on the entry so equality is exact rather than hash-based.
         struct EntryKey {
-            vk::DescriptorSetLayout layout{};
+            /// @brief Identity of the layout the set is allocated against.
+            ObjectId layout{};
             uint32_t set_id{0};
             uint32_t flags{0};
             size_t content_hash{0};
 
             bool operator==(const EntryKey &other) const noexcept {
                 return set_id == other.set_id && flags == other.flags && content_hash == other.content_hash
-                       && SameHandle(layout, other.layout);
+                       && layout == other.layout;
             }
         };
 
         struct EntryKeyHash {
             size_t operator()(const EntryKey &key) const noexcept {
                 RenderResourceHasher h;
-                h.handle(key.layout);
+                h.u64(key.layout.GetValue());
                 h.u32(key.set_id);
                 h.u32(key.flags);
                 h.u64(key.content_hash);
@@ -166,10 +161,10 @@ namespace Engine::Rhi {
             for (const auto &entry : content) {
                 h.u32(entry.binding);
                 h.e(entry.type);
-                h.handle(entry.image_view);
-                h.handle(entry.sampler);
+                h.u64(entry.image_view.id.GetValue());
+                h.u64(entry.sampler.id.GetValue());
                 h.e(entry.image_layout);
-                h.handle(entry.buffer);
+                h.u64(entry.buffer.id.GetValue());
                 h.u64(entry.offset);
                 h.u64(entry.range);
             }
@@ -210,8 +205,8 @@ namespace Engine::Rhi {
         ///
         /// A layout handle carries no bindings, so the requirement must have been
         /// recorded when the layout was resolved.
-        const DescriptorRequirements &RequirementsFor(vk::DescriptorSetLayout layout) {
-            auto itr = requirements_by_layout.find(HandleValue(layout));
+        const DescriptorRequirements &RequirementsFor(DescriptorSetLayoutRef layout) {
+            auto itr = requirements_by_layout.find(LayoutKey(layout));
             if (itr != requirements_by_layout.end()) return itr->second;
             assert(false && "Every descriptor-set layout must be resolved through DescriptorArena::ResolveLayout.");
             return FallbackRequirements();
@@ -220,19 +215,19 @@ namespace Engine::Rhi {
         /// @brief Pick the pool that serves a layout, growing the arena when the
         /// current one cannot satisfy the request.
         Pool *SelectPool(
-            vk::DescriptorSetLayout layout,
+            DescriptorSetLayoutRef layout,
             const DescriptorRequirements &requirements,
             std::string_view name,
             bool force_new
         ) {
             if (!force_new) {
-                auto itr = serving_pool.find(HandleValue(layout));
+                auto itr = serving_pool.find(LayoutKey(layout));
                 if (itr != serving_pool.end() && itr->second->sets_used < itr->second->set_capacity) {
                     return itr->second;
                 }
             }
             Pool *pool = CreatePool(requirements, name);
-            serving_pool[HandleValue(layout)] = pool;
+            serving_pool[LayoutKey(layout)] = pool;
             return pool;
         }
 
@@ -243,12 +238,13 @@ namespace Engine::Rhi {
             vk::DescriptorSet set{};
         };
 
-        Allocation AllocateSet(vk::DescriptorSetLayout layout, std::string_view name) {
+        Allocation AllocateSet(DescriptorSetLayoutRef layout, std::string_view name) {
             const auto &requirements = RequirementsFor(layout);
 
             auto allocate_from = [this, layout](Pool *pool) {
-                auto set =
-                    Device().allocateDescriptorSets(vk::DescriptorSetAllocateInfo{pool->handle.get(), {layout}})[0];
+                auto set = Device().allocateDescriptorSets(
+                    vk::DescriptorSetAllocateInfo{pool->handle.get(), {layout.handle}}
+                )[0];
                 pool->sets_used++;
                 return Allocation{pool, set};
             };
@@ -330,9 +326,11 @@ namespace Engine::Rhi {
 
             for (const auto &binding : content) {
                 if (IsImageDescriptor(binding.type)) {
-                    image_infos.emplace_back(binding.sampler, binding.image_view, binding.image_layout);
+                    image_infos.emplace_back(
+                        binding.sampler.handle, binding.image_view.handle, binding.image_layout
+                    );
                 } else {
-                    buffer_infos.emplace_back(binding.buffer, binding.offset, binding.range);
+                    buffer_infos.emplace_back(binding.buffer.handle, binding.offset, binding.range);
                 }
                 writes.emplace_back(set, binding.binding, 0u, 1u, binding.type);
             }
@@ -358,18 +356,18 @@ namespace Engine::Rhi {
 
     DescriptorArena::~DescriptorArena() = default;
 
-    vk::DescriptorSetLayout DescriptorArena::ResolveLayout(
+    DescriptorSetLayoutRef DescriptorArena::ResolveLayout(
         const vk::DescriptorSetLayoutCreateInfo &layout, const char *name
     ) {
         // Remember what one set of this layout consumes: a pool must declare its
         // per-type capacity up front, and a resolved handle cannot be asked for
         // its bindings afterwards.
-        const auto resolved = pimpl->Cache().GetDescriptorSetLayout(layout, name);
-        pimpl->requirements_by_layout[HandleValue(resolved)] = RequirementsOf(layout);
+        const auto resolved = pimpl->Cache().GetDescriptorSetLayoutRef(layout, name);
+        pimpl->requirements_by_layout[LayoutKey(resolved)] = RequirementsOf(layout);
         return resolved;
     }
 
-    vk::DescriptorSet DescriptorArena::AcquireRawSet(vk::DescriptorSetLayout layout, std::string_view name) {
+    vk::DescriptorSet DescriptorArena::AcquireRawSet(DescriptorSetLayoutRef layout, std::string_view name) {
         const std::string debug_name = name.empty() ? std::string{"Arena Raw Set"} : std::string{name};
 
         auto set = pimpl->AllocateSet(layout, debug_name).set;
@@ -379,7 +377,7 @@ namespace Engine::Rhi {
     }
 
     vk::DescriptorSet DescriptorArena::Acquire(
-        vk::DescriptorSetLayout layout,
+        DescriptorSetLayoutRef layout,
         uint32_t set_id,
         bool enforce_dynamic_uniform,
         bool enforce_dynamic_storage,
@@ -390,7 +388,7 @@ namespace Engine::Rhi {
         pimpl->SyncEpochs();
 
         const impl::EntryKey key{
-            .layout = layout,
+            .layout = layout.id,
             .set_id = set_id,
             .flags = (enforce_dynamic_uniform ? 1u : 0u) | (enforce_dynamic_storage ? 2u : 0u),
             .content_hash = impl::HashContent(content),

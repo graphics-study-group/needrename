@@ -91,11 +91,21 @@ namespace {
 namespace Engine::Rhi {
 
     struct ImmutableResourceCache::impl {
+        struct SamplerEntry {
+            vk::UniqueSampler handle{};
+            /// @brief Issued once, when the sampler is created.
+            ObjectId id{};
+        };
+        struct DescriptorSetLayoutEntry {
+            vk::UniqueDescriptorSetLayout handle{};
+            /// @brief Issued once, when the layout is created.
+            ObjectId id{};
+        };
 
         vk::Device dvc;
 
-        std::unordered_map<vk::SamplerCreateInfo, vk::UniqueSampler, sampler_hasher> sampler_cache;
-        std::unordered_map<size_t, vk::UniqueDescriptorSetLayout> descriptor_set_layout_cache;
+        std::unordered_map<vk::SamplerCreateInfo, SamplerEntry, sampler_hasher> sampler_cache;
+        std::unordered_map<size_t, DescriptorSetLayoutEntry> descriptor_set_layout_cache;
         std::unordered_map<size_t, vk::UniquePipelineLayout> pipeline_layout_cache;
     };
 
@@ -106,6 +116,9 @@ namespace Engine::Rhi {
     ImmutableResourceCache::~ImmutableResourceCache() noexcept = default;
 
     vk::Sampler ImmutableResourceCache::GetSampler(const Rhi::SamplerDesc &desc) {
+        return GetSamplerRef(desc).handle;
+    }
+    SamplerRef ImmutableResourceCache::GetSamplerRef(const Rhi::SamplerDesc &desc) {
         vk::SamplerCreateInfo sci{
             vk::SamplerCreateFlags{},
             Rhi::ToVkFilter(desc.min_filter),
@@ -134,34 +147,44 @@ namespace Engine::Rhi {
             sci.borderColor = Rhi::ToVkBorderColor(desc.w_address);
         }
 
-        return GetSampler(sci);
+        return GetSamplerRef(sci);
     }
     vk::Sampler ImmutableResourceCache::GetSampler(const vk::SamplerCreateInfo &sci) {
+        return GetSamplerRef(sci).handle;
+    }
+    SamplerRef ImmutableResourceCache::GetSamplerRef(const vk::SamplerCreateInfo &sci) {
         auto itr = pimpl->sampler_cache.find(sci);
 
         if (itr == pimpl->sampler_cache.end()) {
-            auto &r = pimpl->sampler_cache[sci];
-            r = pimpl->dvc.createSamplerUnique(sci);
-            return r.get();
+            impl::SamplerEntry entry{};
+            entry.handle = pimpl->dvc.createSamplerUnique(sci);
+            entry.id = MintObjectId();
+            itr = pimpl->sampler_cache.emplace(sci, std::move(entry)).first;
         }
-        return itr->second.get();
+        return SamplerRef{itr->second.handle.get(), itr->second.id};
     }
     vk::DescriptorSetLayout ImmutableResourceCache::GetDescriptorSetLayout(
+        const vk::DescriptorSetLayoutCreateInfo &dlci, const char *name
+    ) {
+        return GetDescriptorSetLayoutRef(dlci, name).handle;
+    }
+    DescriptorSetLayoutRef ImmutableResourceCache::GetDescriptorSetLayoutRef(
         const vk::DescriptorSetLayoutCreateInfo &dlci, const char *name
     ) {
         auto h = descriptor_set_layout_hasher{}(dlci);
         auto itr = pimpl->descriptor_set_layout_cache.find(h);
 
         if (itr == pimpl->descriptor_set_layout_cache.end()) {
-            auto &r = pimpl->descriptor_set_layout_cache[h];
-            r = pimpl->dvc.createDescriptorSetLayoutUnique(dlci);
+            impl::DescriptorSetLayoutEntry entry{};
+            entry.handle = pimpl->dvc.createDescriptorSetLayoutUnique(dlci);
+            entry.id = MintObjectId();
 
             if (name) {
-                DEBUG_SET_NAME_TEMPLATE(pimpl->dvc, r.get(), name);
+                DEBUG_SET_NAME_TEMPLATE(pimpl->dvc, entry.handle.get(), name);
             }
-            return r.get();
+            itr = pimpl->descriptor_set_layout_cache.emplace(h, std::move(entry)).first;
         }
-        return itr->second.get();
+        return DescriptorSetLayoutRef{itr->second.handle.get(), itr->second.id};
     }
     vk::PipelineLayout ImmutableResourceCache::GetPipelineLayout(
         const vk::PipelineLayoutCreateInfo &plci, const char *name

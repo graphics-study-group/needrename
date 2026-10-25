@@ -36,8 +36,9 @@ namespace Engine::Rhi {
         vk::UniquePipeline pipeline{};
         vk::UniquePipelineLayout pipeline_layout{};
         /// @note The descriptor set layout is owned by the immutable
-        /// resource cache, never by the pass.
-        vk::DescriptorSetLayout desc_layout{};
+        /// resource cache, never by the pass; the reference carries the
+        /// identity its descriptor sets are keyed on.
+        Rhi::DescriptorSetLayoutRef desc_layout{};
         vk::UniqueShaderModule shader;
     };
 
@@ -92,7 +93,9 @@ namespace Engine::Rhi {
             if (push_constant_size > 0) {
                 pc_ranges.emplace_back(vk::ShaderStageFlagBits::eCompute, 0, push_constant_size);
             }
-            vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {pass_info.desc_layout}, pc_ranges};
+            vk::PipelineLayoutCreateInfo plci{
+                vk::PipelineLayoutCreateFlags{}, {pass_info.desc_layout.handle}, pc_ranges
+            };
             pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
             DEBUG_SET_NAME_TEMPLATE(
                 device,
@@ -154,7 +157,7 @@ namespace Engine::Rhi {
 
     ComputeKernelResource::ComputeKernelResource(const DeviceBuffer &buffer) {
         kind = Kind::Buffer;
-        this->buffer.handle = buffer.GetBuffer();
+        this->buffer.ref = buffer.GetBufferRef();
         this->buffer.offset = 0u;
         this->buffer.size = std::numeric_limits<size_t>::max();
     }
@@ -169,8 +172,8 @@ namespace Engine::Rhi {
     ComputeKernelResource ComputeKernelResource::Image(Texture &texture, const TextureSubresourceRange &range) {
         ComputeKernelResource resource;
         resource.kind = Kind::Texture;
-        resource.image.view = texture.GetImageView(range);
-        resource.image.sampler = texture.GetSampler();
+        resource.image.view = texture.GetViewRef(range);
+        resource.image.sampler = texture.GetSamplerRef();
         return resource;
     }
 
@@ -197,7 +200,7 @@ namespace Engine::Rhi {
     }
 
     vk::DescriptorSetLayout ComputeKernel::GetDescriptorSetLayout() const noexcept {
-        return pimpl->pass_info.desc_layout;
+        return pimpl->pass_info.desc_layout.handle;
     }
 
     void ComputeKernel::Dispatch(
@@ -314,7 +317,7 @@ namespace Engine::Rhi {
                         )
                     );
                 }
-                binding.buffer = resource.buffer.handle;
+                binding.buffer = resource.buffer.ref;
                 binding.offset = resource.buffer.offset;
                 binding.range = resource.buffer.size;
             }

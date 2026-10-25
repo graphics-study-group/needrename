@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_SHADERRESOURCEBINDING_INCLUDED
 #define ENGINE_RHI_SHADERRESOURCEBINDING_INCLUDED
 
+#include "Rhi/Device/ResourceRef.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
 #include "Rhi/rhi_export.h"
 
@@ -27,6 +28,13 @@ namespace Engine::Rhi {
      *
      * As indicated by the interface, this class holds no ownership of
      * resources.
+     *
+     * A binding names a resource; the handle and the resource identity are
+     * resolved when the set is acquired, not when the binding is declared. A
+     * buffer whose storage is replaced after it was bound therefore resolves to
+     * the replacement. The caller carries the matching obligation: a bound
+     * resource MUST neither be destroyed nor moved while a binding may still
+     * name it, because the binding stores the resource object's address.
      *
      * The descriptor set itself is neither cached nor written here: the arena
      * keys, writes and keeps sets resident, and reclaims them once the
@@ -78,17 +86,20 @@ namespace Engine::Rhi {
          * @brief Get the descriptor set of a set index, determined by the bound
          * buffers and textures.
          *
-         * The set is resolved and written by the arena on a miss, and reused
-         * otherwise. Re-acquire it in every epoch whose command buffers use it.
+         * The bound resources are resolved here — their current handles and
+         * identities — so a resource whose storage was replaced after binding
+         * contributes its replacement. The set is resolved and written by the
+         * arena on a miss, and reused otherwise. Re-acquire it in every epoch
+         * whose command buffers use it.
          *
          * @param set_id The descriptor set index within the reflected layout.
-         * @param layout The descriptor-set layout the caller resolved through the
-         * arena and built its pipeline layout over.
+         * @param layout The descriptor-set layout reference the caller resolved
+         * through the arena and built its pipeline layout over.
          * @param s The reflected layout the set is built against.
          */
         vk::DescriptorSet GetDescriptorSet(
             uint32_t set_id,
-            vk::DescriptorSetLayout layout,
+            DescriptorSetLayoutRef layout,
             const Rhi::SPLayout &s,
             bool enforce_dynamic_uniform = false,
             bool enforce_dynamic_storage = false

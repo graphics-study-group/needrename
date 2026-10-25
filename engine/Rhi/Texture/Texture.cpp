@@ -136,9 +136,17 @@ namespace Engine::Rhi {
             };
         };
 
-        std::unordered_map<TextureSubresourceRange, vk::UniqueImageView, subresource_hasher> m_views{};
+        /// @brief A created view together with the identity it was issued at
+        /// creation. The handle is recycled by the driver after the texture is
+        /// destroyed; the identity is not.
+        struct ViewEntry {
+            vk::UniqueImageView view{};
+            ObjectId id{};
+        };
 
-        vk::Sampler m_sampler{};
+        std::unordered_map<TextureSubresourceRange, ViewEntry, subresource_hasher> m_views{};
+
+        SamplerRef m_sampler_ref{};
         std::string m_name{};
     };
 
@@ -181,7 +189,7 @@ namespace Engine::Rhi {
         pimpl->m_tdesc = texture;
         pimpl->m_name = name;
 
-        pimpl->m_sampler = device_context.GetIRCache().GetSampler(sampler);
+        pimpl->m_sampler_ref = device_context.GetIRCache().GetSamplerRef(sampler);
         pimpl->m_sdesc = sampler;
     }
 
@@ -209,29 +217,40 @@ namespace Engine::Rhi {
     }
 
     vk::ImageView Texture::GetImageView(const TextureSubresourceRange &tsv) const {
-        auto itr = pimpl->m_views.find(tsv);
-        if (itr != pimpl->m_views.end()) return itr->second.get();
+        return GetViewRef(tsv).handle;
+    }
 
-        vk::ImageViewCreateInfo ivci{
-            vk::ImageViewCreateFlags{},
-            pimpl->m_image->GetImage(),
-            GetImageViewType(pimpl->m_tdesc, tsv),
-            ConvertSrgbFormat(Rhi::GetVkFormat(pimpl->m_tdesc.format), tsv.swizzle_and_srgb),
-            ToVkComponentMapping(tsv.swizzle_and_srgb),
-            vk::ImageSubresourceRange{
-                Rhi::GetVkAspect(pimpl->m_tdesc.format),
-                tsv.mip_level_base,
-                tsv.mip_level_size,
-                tsv.array_layer_base,
-                tsv.array_layer_size
-            }
-        };
-        pimpl->m_views[tsv] = pimpl->device.createImageViewUnique(ivci);
-        return pimpl->m_views[tsv].get();
+    ViewRef Texture::GetViewRef(const TextureSubresourceRange &tsv) const {
+        auto itr = pimpl->m_views.find(tsv);
+        if (itr == pimpl->m_views.end()) {
+            vk::ImageViewCreateInfo ivci{
+                vk::ImageViewCreateFlags{},
+                pimpl->m_image->GetImage(),
+                GetImageViewType(pimpl->m_tdesc, tsv),
+                ConvertSrgbFormat(Rhi::GetVkFormat(pimpl->m_tdesc.format), tsv.swizzle_and_srgb),
+                ToVkComponentMapping(tsv.swizzle_and_srgb),
+                vk::ImageSubresourceRange{
+                    Rhi::GetVkAspect(pimpl->m_tdesc.format),
+                    tsv.mip_level_base,
+                    tsv.mip_level_size,
+                    tsv.array_layer_base,
+                    tsv.array_layer_size
+                }
+            };
+            impl::ViewEntry entry{};
+            entry.view = pimpl->device.createImageViewUnique(ivci);
+            entry.id = MintObjectId();
+            itr = pimpl->m_views.emplace(tsv, std::move(entry)).first;
+        }
+        return ViewRef{itr->second.view.get(), itr->second.id};
     }
 
     vk::Sampler Texture::GetSampler() const noexcept {
-        return pimpl->m_sampler;
+        return pimpl->m_sampler_ref.handle;
+    }
+
+    SamplerRef Texture::GetSamplerRef() const noexcept {
+        return pimpl->m_sampler_ref;
     }
 
     size_t Texture::CalculateStagingBufferSizeNoMipmap() const noexcept {

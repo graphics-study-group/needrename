@@ -80,7 +80,7 @@ namespace Engine::RenderSystemState {
             std::shared_ptr<RenderTargetTexture> default_light_map;
 
             // Scene data
-            vk::DescriptorSetLayout scene_descriptor_set_layout{};
+            Rhi::DescriptorSetLayoutRef scene_descriptor_set_layout{};
             vk::PipelineLayout scene_common_pipeline_layout{};
             std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
@@ -125,7 +125,7 @@ namespace Engine::RenderSystemState {
                 {
                     std::array pcr{RendererManager::GetPushConstantRange()};
                     vk::PipelineLayoutCreateInfo plci{
-                        vk::PipelineLayoutCreateFlags{}, {scene_descriptor_set_layout}, pcr
+                        vk::PipelineLayoutCreateFlags{}, {scene_descriptor_set_layout.handle}, pcr
                     };
                     scene_common_pipeline_layout =
                         system.GetIRCache().GetPipelineLayout(plci, "Scene Common Pipeline Layout");
@@ -463,7 +463,7 @@ namespace Engine::RenderSystemState {
     }
 
     vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
-        return pimpl->scene.scene_descriptor_set_layout;
+        return pimpl->scene.scene_descriptor_set_layout.handle;
     }
     vk::PipelineLayout SceneDataManager::GetCommonPipelineLayout() const noexcept {
         return pimpl->scene.scene_common_pipeline_layout;

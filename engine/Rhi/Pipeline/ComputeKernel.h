@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_COMPUTEKERNEL_INCLUDED
 #define ENGINE_RHI_COMPUTEKERNEL_INCLUDED
 
+#include "Rhi/Device/ResourceRef.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
 #include "Rhi/rhi_export.h"
 
@@ -34,13 +35,16 @@ namespace Engine::Rhi {
         };
 
         struct BufferEntry {
-            vk::Buffer handle{};
+            /// @brief The buffer and its never-reused identity.
+            BufferRef ref{};
             size_t offset{0};
             size_t size{std::numeric_limits<size_t>::max()};
         };
         struct ImageEntry {
-            vk::ImageView view{};
-            vk::Sampler sampler{};
+            /// @brief The image view and its never-reused identity.
+            ViewRef view{};
+            /// @brief The sampler and its never-reused identity.
+            SamplerRef sampler{};
         };
 
         Kind kind{Kind::Buffer};

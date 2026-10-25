@@ -26,7 +26,7 @@ namespace Engine {
             Rhi::SPLayout reflected{};
 
             /// Descriptor set layout for material descriptors (could be null if no material descriptor is found).
-            vk::DescriptorSetLayout descriptor_set_layout{};
+            Rhi::DescriptorSetLayoutRef descriptor_set_layout{};
             /// Material pipeline layout.
             vk::PipelineLayout pipeline_layout{};
 
@@ -111,7 +111,7 @@ namespace Engine {
                     RenderSystemState::RendererManager::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
-                    scene_descriptors, camera_descriptors, b.descriptor_set_layout
+                    scene_descriptors, camera_descriptors, b.descriptor_set_layout.handle
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
                 b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plci);

@@ -11,6 +11,8 @@
 // which is also the "arena available without a render system" scenario, and
 // leaves entries resident at teardown.
 
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
@@ -20,6 +22,7 @@
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
 #include "Rhi/Resource/DescriptorArena.h"
+#include "Rhi/Resource/ImmutableResourceCache.h"
 #include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Texture/ImageTexture.h"
 
@@ -59,7 +62,7 @@ namespace {
         return vk::DescriptorSetLayoutCreateInfo{vk::DescriptorSetLayoutCreateFlags{}, {DYNAMIC_UBO_BINDING}};
     }
 
-    std::vector<ResolvedBinding> One(vk::Buffer buffer, size_t offset = 0) {
+    std::vector<ResolvedBinding> One(BufferRef buffer, size_t offset = 0) {
         return {ResolvedBinding{
             .binding = 0,
             .type = vk::DescriptorType::eUniformBufferDynamic,
@@ -112,13 +115,13 @@ namespace {
             .application_version = 0,
             .dynamic_dispatcher = nullptr,
         }};
-        std::vector<BufferAllocation> buffers{};
+        std::vector<DeviceBuffer> buffers{};
 
         explicit Fixture(size_t buffer_count = 40) {
             buffers.reserve(buffer_count);
             for (size_t i = 0; i < buffer_count; i++) {
                 buffers.push_back(
-                    context.GetAllocatorState().AllocateBuffer({BufferTypeBits::CopyTo}, 256, "Arena test buffer")
+                    DeviceBuffer::Create(context.GetAllocatorState(), {BufferTypeBits::CopyTo}, 256, "Arena test buffer")
                 );
             }
         }
@@ -129,12 +132,12 @@ namespace {
         EpochTracker &Tracker() {
             return context.GetEpochTracker();
         }
-        vk::Buffer Buffer(size_t index) {
-            return buffers[index].GetBuffer();
+        BufferRef Buffer(size_t index) {
+            return buffers[index].GetBufferRef();
         }
 
         /// @brief Resolve a layout description through this device's arena.
-        vk::DescriptorSetLayout Resolve(const vk::DescriptorSetLayoutCreateInfo &layout) {
+        DescriptorSetLayoutRef Resolve(const vk::DescriptorSetLayoutCreateInfo &layout) {
             return Arena().ResolveLayout(layout);
         }
     };
@@ -447,6 +450,56 @@ int main() {
         CHECK(
             arena.GetResidentEntryCount() <= baseline + 1u
             && "the live set count returns to its baseline once pressure is applied"
+        );
+    }
+
+    // ── Resource identity: minted per Vulkan object, never reused ───────────
+    // The cache's correctness rests on this contract, so it is pinned here:
+    // identities name resources, handle values do not.
+    {
+        Fixture f;
+        auto &allocator = f.context.GetAllocatorState();
+
+        // Distinct allocations bear distinct identities.
+        std::vector<DeviceBuffer> buffers;
+        for (int i = 0; i < 4; i++) {
+            buffers.push_back(DeviceBuffer::Create(allocator, {BufferTypeBits::CopyTo}, 64, "Identity buffer"));
+        }
+        CHECK(
+            buffers[0].GetBufferRef().id != buffers[1].GetBufferRef().id
+            && "distinct allocations bear distinct identities"
+        );
+
+        // A destroyed object's identity is never issued again.
+        const ObjectId destroyed_id = buffers[0].GetBufferRef().id;
+        buffers.clear();
+        for (int i = 0; i < 8; i++) {
+            DeviceBuffer fresh = DeviceBuffer::Create(allocator, {BufferTypeBits::CopyTo}, 64, "Identity buffer");
+            CHECK(fresh.GetBufferRef().id != destroyed_id && "an identity is never reused");
+        }
+
+        // Replacing a buffer's storage issues the replacement a new identity.
+        auto growing = ComputeBuffer::CreateUnique(allocator, 64, false, false, false, false, "Identity growth");
+        const ObjectId before_reallocation = growing->GetBufferRef().id;
+        growing->EnsureCapacity(allocator, 4096);
+        CHECK(
+            growing->GetBufferRef().id != before_reallocation
+            && "replacing a buffer's storage issues a new identity"
+        );
+
+        // Every created view is its own object; one range yields one identity.
+        auto texture = MakeTexture(f.context, "Identity texture");
+        const auto full_view = texture->GetViewRef(TextureSubresourceRange::GetFullRange());
+        const auto full_view_again = texture->GetViewRef(TextureSubresourceRange::GetFullRange());
+        const auto single_view = texture->GetViewRef(TextureSubresourceRange::GetSingleRange());
+        CHECK(full_view.id == full_view_again.id && "one range yields one view and one identity");
+        CHECK(full_view.id != single_view.id && "different ranges are different views with different identities");
+
+        // The immutable cache interns one sampler under one identity.
+        auto &irc = f.context.GetIRCache();
+        CHECK(
+            irc.GetSamplerRef(Texture::SamplerDesc{}).id == irc.GetSamplerRef(Texture::SamplerDesc{}).id
+            && "an interned sampler keeps the identity it was issued at creation"
         );
     }
 
