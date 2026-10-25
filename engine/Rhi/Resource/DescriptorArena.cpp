@@ -133,7 +133,7 @@ namespace Engine::Rhi {
         /// @brief Per-set descriptor requirement of every layout the arena resolved.
         std::unordered_map<uint64_t, DescriptorRequirements> requirements_by_layout{};
 
-        std::unordered_map<EntryKey, Entry, EntryKeyHash> resident{};
+        std::unordered_map<EntryKey, std::vector<Entry>, EntryKeyHash> resident{};
 
         size_t resident_budget{DEFAULT_RESIDENT_BUDGET};
         uint64_t acquisition_clock{0};
@@ -268,10 +268,19 @@ namespace Engine::Rhi {
             const EpochWatermark newest = Tracker().GetNewestWatermark();
             if (newest <= claimed_through) return;
             const EpochWatermark claimant = claimed_through + 1;
-            for (auto &[key, entry] : resident) {
-                if (entry.last_epoch == UNCLAIMED) entry.last_epoch = claimant;
+            for (auto &[key, chain] : resident) {
+                for (auto &entry : chain) {
+                    if (entry.last_epoch == UNCLAIMED) entry.last_epoch = claimant;
+                }
             }
             claimed_through = newest;
+        }
+
+        /// @brief Total number of resident entries across every chain.
+        size_t ResidentCount() const noexcept {
+            size_t count = 0;
+            for (const auto &[key, chain] : resident) count += chain.size();
+            return count;
         }
 
         EpochWatermark EffectivePrefix() const noexcept {
@@ -292,21 +301,31 @@ namespace Engine::Rhi {
         /// @brief Release the least recently acquired eligible entries until the
         /// resident count is at `target`, or until none is eligible.
         ///
-        /// @param protect An entry never chosen for release: the one the current
-        /// call is about to return.
-        void EvictDownTo(size_t target, const Entry *protect = nullptr) {
-            while (resident.size() > target) {
-                auto oldest = resident.end();
+        /// @param protect_order Acquisition order of an entry never chosen for
+        /// release: the one the current call is about to return. The order is
+        /// unique per entry, so it identifies the protected entry without
+        /// holding a pointer that evicting its chain could invalidate.
+        void EvictDownTo(size_t target, uint64_t protect_order = 0) {
+            while (ResidentCount() > target) {
+                auto oldest_chain = resident.end();
+                size_t oldest_index = 0;
+                const Entry *oldest = nullptr;
                 for (auto itr = resident.begin(); itr != resident.end(); ++itr) {
-                    if (&itr->second == protect) continue;
-                    if (!IsEligible(itr->second)) continue;
-                    if (oldest == resident.end() || itr->second.acquisition_order < oldest->second.acquisition_order) {
-                        oldest = itr;
+                    for (size_t i = 0; i < itr->second.size(); i++) {
+                        const Entry &entry = itr->second[i];
+                        if (entry.acquisition_order == protect_order) continue;
+                        if (!IsEligible(entry)) continue;
+                        if (oldest == nullptr || entry.acquisition_order < oldest->acquisition_order) {
+                            oldest = &entry;
+                            oldest_chain = itr;
+                            oldest_index = i;
+                        }
                     }
                 }
-                if (oldest == resident.end()) return; // every entry is still referenced
-                FreeEntry(oldest->second);
-                resident.erase(oldest);
+                if (oldest == nullptr) return; // every entry is still referenced
+                FreeEntry(*oldest);
+                oldest_chain->second.erase(oldest_chain->second.begin() + static_cast<ptrdiff_t>(oldest_index));
+                if (oldest_chain->second.empty()) resident.erase(oldest_chain);
             }
         }
 
@@ -399,13 +418,19 @@ namespace Engine::Rhi {
                    && std::equal(entry.content.begin(), entry.content.end(), content.begin());
         };
 
-        auto itr = pimpl->resident.find(key);
-        if (itr != pimpl->resident.end() && same_content(itr->second)) {
-            // A hit is the normal case: in steady state the arena mints nothing.
-            itr->second.last_epoch = pimpl->CurrentEpoch();
-            itr->second.acquisition_order = ++pimpl->acquisition_clock;
-            pimpl->EvictDownTo(pimpl->resident_budget, &itr->second);
-            return itr->second.set;
+        auto key_itr = pimpl->resident.find(key);
+        if (key_itr != pimpl->resident.end()) {
+            // A colliding key keeps both contents: only an entry whose stored
+            // content is exactly this request's content may answer it.
+            for (auto &entry : key_itr->second) {
+                if (!same_content(entry)) continue;
+                // A hit is the normal case: in steady state the arena mints nothing.
+                entry.last_epoch = pimpl->CurrentEpoch();
+                entry.acquisition_order = ++pimpl->acquisition_clock;
+                const vk::DescriptorSet hit_set = entry.set;
+                pimpl->EvictDownTo(pimpl->resident_budget, entry.acquisition_order);
+                return hit_set;
+            }
         }
 
         // Make room for one more entry before minting it, so the resident count
@@ -424,11 +449,12 @@ namespace Engine::Rhi {
         pimpl->WriteDescriptors(entry.set, content);
         pimpl->minted_set_count++;
 
-        auto [inserted, ok] = pimpl->resident.emplace(key, std::move(entry));
-        assert(ok);
-        (void)ok;
-        impl::NameSet(pimpl->Device(), inserted->second.set, std::format("Arena Cache Set (set {})", set_id));
-        return inserted->second.set;
+        // The chain keeps every distinct content that shares this key; insertion
+        // can therefore never fail and never displaces another content's set.
+        auto &chain = pimpl->resident[key];
+        chain.push_back(std::move(entry));
+        impl::NameSet(pimpl->Device(), chain.back().set, std::format("Arena Cache Set (set {})", set_id));
+        return chain.back().set;
     }
 
     void DescriptorArena::OnDeviceIdle() noexcept {
@@ -448,17 +474,19 @@ namespace Engine::Rhi {
     }
 
     size_t DescriptorArena::GetLiveSetCount() const noexcept {
-        return pimpl->resident.size() + pimpl->raw_set_count;
+        return pimpl->ResidentCount() + pimpl->raw_set_count;
     }
 
     size_t DescriptorArena::GetResidentEntryCount() const noexcept {
-        return pimpl->resident.size();
+        return pimpl->ResidentCount();
     }
 
     size_t DescriptorArena::GetGuardedEntryCount() const noexcept {
         size_t count = 0;
-        for (const auto &[key, entry] : pimpl->resident) {
-            if (!pimpl->IsEligible(entry)) count++;
+        for (const auto &[key, chain] : pimpl->resident) {
+            for (const auto &entry : chain) {
+                if (!pimpl->IsEligible(entry)) count++;
+            }
         }
         return count;
     }
@@ -468,6 +496,7 @@ namespace Engine::Rhi {
     }
 
     size_t DescriptorArena::GetBudgetExcess() const noexcept {
-        return pimpl->resident.size() > pimpl->resident_budget ? pimpl->resident.size() - pimpl->resident_budget : 0;
+        const size_t resident = pimpl->ResidentCount();
+        return resident > pimpl->resident_budget ? resident - pimpl->resident_budget : 0;
     }
 } // namespace Engine::Rhi
