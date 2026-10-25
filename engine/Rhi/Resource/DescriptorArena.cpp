@@ -91,7 +91,7 @@ namespace Engine::Rhi {
         /// on the entry so equality is exact rather than hash-based.
         struct EntryKey {
             /// @brief Identity of the layout the set is allocated against.
-            ObjectId layout{};
+            VulkanIdentity layout{};
             uint32_t set_id{0};
             uint32_t flags{0};
             size_t content_hash{0};

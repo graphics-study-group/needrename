@@ -2,7 +2,7 @@
 
 ## 1. Identity infrastructure (commit 1)
 
-- [x] 1.1 Create `engine/Rhi/Device/ResourceRef.h` with `ObjectId` (monotonic, never reused) and `BufferRef` / `ViewRef` / `SamplerRef` / `DescriptorSetLayoutRef` (`{handle, ObjectId}`, identity-only equality); verify the project builds and a reference cannot be constructed from a bare handle (no such constructor exists)
+- [x] 1.1 Create `engine/Rhi/Device/BindingRef.h` with `VulkanIdentity` (monotonic, never reused) and `BufferRef` / `ViewRef` / `SamplerRef` / `DescriptorSetLayoutRef` (`{handle, VulkanIdentity}`, identity-only equality); verify the project builds and a reference cannot be constructed from a bare handle (no such constructor exists)
 - [x] 1.2 Mint an identity in `BufferAllocation` / `ImageAllocation` construction (the sole `vmaCreateBuffer` path) and expose it through `DeviceBuffer`; verify each allocation in a create/destroy loop receives a distinct identity and a reallocated buffer's replacement receives a new one
 - [x] 1.3 Mint an identity per created image view in `Texture::GetImageView`'s view cache; verify two views of one texture hold different identities and repeated queries of one range return the same identity
 - [x] 1.4 Mint identities in `ImmutableResourceCache` for samplers and descriptor-set layouts and expose ref-returning accessors beside the existing getters; verify a repeated `GetSampler` of one description returns one identity

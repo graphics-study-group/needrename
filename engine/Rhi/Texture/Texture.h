@@ -1,7 +1,7 @@
 #ifndef ENGINE_RHI_TEXTURE_INCLUDED
 #define ENGINE_RHI_TEXTURE_INCLUDED
 
-#include "Rhi/Device/ResourceRef.h"
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/Texture/ImageUtils.h"
 #include "Rhi/rhi_export.h"
 

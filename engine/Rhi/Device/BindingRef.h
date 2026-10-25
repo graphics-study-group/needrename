@@ -1,5 +1,5 @@
-#ifndef ENGINE_RHI_RESOURCEREF_INCLUDED
-#define ENGINE_RHI_RESOURCEREF_INCLUDED
+#ifndef ENGINE_RHI_BINDINGREF_INCLUDED
+#define ENGINE_RHI_BINDINGREF_INCLUDED
 
 #include "Rhi/rhi_export.h"
 
@@ -22,10 +22,10 @@ namespace Engine::Rhi {
      *
      * The default value is the invalid identity: it names no object.
      */
-    class ObjectId {
+    class VulkanIdentity {
     public:
-        constexpr ObjectId() noexcept = default;
-        explicit constexpr ObjectId(uint64_t value) noexcept : m_value(value) {
+        constexpr VulkanIdentity() noexcept = default;
+        explicit constexpr VulkanIdentity(uint64_t value) noexcept : m_value(value) {
         }
 
         /// @brief Get the underlying value, for hashing and debug output.
@@ -37,10 +37,10 @@ namespace Engine::Rhi {
             return m_value != 0;
         }
 
-        friend constexpr bool operator==(const ObjectId &lhs, const ObjectId &rhs) noexcept {
+        friend constexpr bool operator==(const VulkanIdentity &lhs, const VulkanIdentity &rhs) noexcept {
             return lhs.m_value == rhs.m_value;
         }
-        friend constexpr bool operator!=(const ObjectId &lhs, const ObjectId &rhs) noexcept {
+        friend constexpr bool operator!=(const VulkanIdentity &lhs, const VulkanIdentity &rhs) noexcept {
             return !(lhs == rhs);
         }
 
@@ -55,7 +55,7 @@ namespace Engine::Rhi {
      *
      * @return The new identity, never the invalid identity.
      */
-    RHI_API ObjectId MintObjectId() noexcept;
+    RHI_API VulkanIdentity MintVulkanIdentity() noexcept;
 
     /**
      * @brief A descriptor-relevant Vulkan object: its handle and its identity.
@@ -68,23 +68,23 @@ namespace Engine::Rhi {
      * @note The default value names no object.
      */
     template <typename Handle>
-    struct ResourceRef {
+    struct BindingRef {
         /// @brief The Vulkan handle, for writing descriptors and recording.
         Handle handle{};
         /// @brief The object's never-reused identity.
-        ObjectId id{};
+        VulkanIdentity id{};
 
-        ResourceRef() noexcept = default;
+        BindingRef() noexcept = default;
 
-        bool operator==(const ResourceRef &other) const noexcept {
+        bool operator==(const BindingRef &other) const noexcept {
             return id == other.id;
         }
-        bool operator!=(const ResourceRef &other) const noexcept {
+        bool operator!=(const BindingRef &other) const noexcept {
             return !(*this == other);
         }
 
     private:
-        constexpr ResourceRef(Handle object_handle, ObjectId object_id) noexcept : handle(object_handle), id(object_id) {
+        constexpr BindingRef(Handle object_handle, VulkanIdentity object_id) noexcept : handle(object_handle), id(object_id) {
         }
 
         friend class DeviceBuffer;
@@ -93,13 +93,13 @@ namespace Engine::Rhi {
     };
 
     /// @brief A buffer allocation's reference.
-    using BufferRef = ResourceRef<vk::Buffer>;
+    using BufferRef = BindingRef<vk::Buffer>;
     /// @brief An image view's reference.
-    using ViewRef = ResourceRef<vk::ImageView>;
+    using ViewRef = BindingRef<vk::ImageView>;
     /// @brief A sampler's reference.
-    using SamplerRef = ResourceRef<vk::Sampler>;
+    using SamplerRef = BindingRef<vk::Sampler>;
     /// @brief A descriptor-set layout's reference.
-    using DescriptorSetLayoutRef = ResourceRef<vk::DescriptorSetLayout>;
+    using DescriptorSetLayoutRef = BindingRef<vk::DescriptorSetLayout>;
 } // namespace Engine::Rhi
 
-#endif // ENGINE_RHI_RESOURCEREF_INCLUDED
+#endif // ENGINE_RHI_BINDINGREF_INCLUDED

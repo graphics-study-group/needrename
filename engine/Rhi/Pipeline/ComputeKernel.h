@@ -1,7 +1,7 @@
 #ifndef ENGINE_RHI_COMPUTEKERNEL_INCLUDED
 #define ENGINE_RHI_COMPUTEKERNEL_INCLUDED
 
-#include "Rhi/Device/ResourceRef.h"
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
 #include "Rhi/rhi_export.h"
 

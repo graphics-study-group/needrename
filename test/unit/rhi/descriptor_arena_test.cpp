@@ -471,7 +471,7 @@ int main() {
         );
 
         // A destroyed object's identity is never issued again.
-        const ObjectId destroyed_id = buffers[0].GetBufferRef().id;
+        const VulkanIdentity destroyed_id = buffers[0].GetBufferRef().id;
         buffers.clear();
         for (int i = 0; i < 8; i++) {
             DeviceBuffer fresh = DeviceBuffer::Create(allocator, {BufferTypeBits::CopyTo}, 64, "Identity buffer");
@@ -480,7 +480,7 @@ int main() {
 
         // Replacing a buffer's storage issues the replacement a new identity.
         auto growing = ComputeBuffer::CreateUnique(allocator, 64, false, false, false, false, "Identity growth");
-        const ObjectId before_reallocation = growing->GetBufferRef().id;
+        const VulkanIdentity before_reallocation = growing->GetBufferRef().id;
         growing->EnsureCapacity(allocator, 4096);
         CHECK(
             growing->GetBufferRef().id != before_reallocation

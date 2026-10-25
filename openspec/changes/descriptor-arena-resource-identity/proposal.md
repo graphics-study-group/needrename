@@ -6,8 +6,8 @@ The descriptor arena's content-keyed cache identifies bound resources by their r
 
 ## What Changes
 
-- Introduce a never-reused `ObjectId` minted when a descriptor-relevant Vulkan object is created — buffer allocations, image views, samplers and descriptor-set layouts.
-- Introduce typed binding references (`BufferRef` / `ViewRef` / `SamplerRef` / `DescriptorSetLayoutRef`, each a handle plus its `ObjectId`) that can only be constructed from the RHI wrapper that owns the object; raw handles can no longer enter a binding identity.
+- Introduce a never-reused `VulkanIdentity` minted when a descriptor-relevant Vulkan object is created — buffer allocations, image views, samplers and descriptor-set layouts.
+- Introduce typed binding references (`BufferRef` / `ViewRef` / `SamplerRef` / `DescriptorSetLayoutRef`, each a handle plus its `VulkanIdentity`) that can only be constructed from the RHI wrapper that owns the object; raw handles can no longer enter a binding identity.
 - Binding structures (`ComputeKernelResource`, `ShaderResourceBinding`'s binding map, `ResolvedBinding`) carry these references instead of raw handles; cache equality and hashing use object identity, so recycled handle values can never alias two distinct resources.
 - Fix the cache-insert collision path: two distinct contents that share a content hash remain distinct entries, and a request is never answered with a set written for different content.
 - `ShaderResourceBinding` resolves handles and identity at acquisition instead of snapshotting raw handles at bind time, so a reallocated buffer self-heals; the documented contract becomes "a bound resource is neither moved nor destroyed while bound".
@@ -25,7 +25,7 @@ The descriptor arena's content-keyed cache identifies bound resources by their r
 
 ## Impact
 
-- **engine/Rhi**: new `Rhi/Device/ResourceRef.h`; identity minting in `BufferAllocation` / `ImageAllocation`, `Texture`'s image-view cache and `ImmutableResourceCache`; consumption in `ComputeKernel`, `ShaderResourceBinding` and `DescriptorArena`. `DescriptorArena::Acquire` / `AcquireRawSet` / `ResolveLayout` cross the arena boundary as references.
+- **engine/Rhi**: new `Rhi/Device/BindingRef.h`; identity minting in `BufferAllocation` / `ImageAllocation`, `Texture`'s image-view cache and `ImmutableResourceCache`; consumption in `ComputeKernel`, `ShaderResourceBinding` and `DescriptorArena`. `DescriptorArena::Acquire` / `AcquireRawSet` / `ResolveLayout` cross the arena boundary as references.
 - **engine/Render**: `MaterialTemplate` / `MaterialLibrary` / `CameraManager` / `SceneDataManager` store layout references from `ResolveLayout`; a reference-returning layout accessor is added beside the existing getter. Public raw-handle getters keep their names and signatures (record-time use only).
 - **Not affected**: command recording (copies, barriers, index/vertex binds), ImGui interop, the pool layer's set lifetime rules, epoch-based reclamation.
 - **Verification**: the three failing tests across Debug/Release × validation-layer on/off, a new handle-recycling stress test (buffer churn and texture/view churn), and the full ctest suite.

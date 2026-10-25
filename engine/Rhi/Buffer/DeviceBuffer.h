@@ -3,7 +3,7 @@
 
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Device/MemoryTypes.h"
-#include "Rhi/Device/ResourceRef.h"
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/rhi_export.h"
 
 #include <memory>

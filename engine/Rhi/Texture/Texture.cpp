@@ -141,7 +141,7 @@ namespace Engine::Rhi {
         /// destroyed; the identity is not.
         struct ViewEntry {
             vk::UniqueImageView view{};
-            ObjectId id{};
+            VulkanIdentity id{};
         };
 
         std::unordered_map<TextureSubresourceRange, ViewEntry, subresource_hasher> m_views{};
@@ -239,7 +239,7 @@ namespace Engine::Rhi {
             };
             impl::ViewEntry entry{};
             entry.view = pimpl->device.createImageViewUnique(ivci);
-            entry.id = MintObjectId();
+            entry.id = MintVulkanIdentity();
             itr = pimpl->m_views.emplace(tsv, std::move(entry)).first;
         }
         return ViewRef{itr->second.view.get(), itr->second.id};

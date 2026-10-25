@@ -94,12 +94,12 @@ namespace Engine::Rhi {
         struct SamplerEntry {
             vk::UniqueSampler handle{};
             /// @brief Issued once, when the sampler is created.
-            ObjectId id{};
+            VulkanIdentity id{};
         };
         struct DescriptorSetLayoutEntry {
             vk::UniqueDescriptorSetLayout handle{};
             /// @brief Issued once, when the layout is created.
-            ObjectId id{};
+            VulkanIdentity id{};
         };
 
         vk::Device dvc;
@@ -158,7 +158,7 @@ namespace Engine::Rhi {
         if (itr == pimpl->sampler_cache.end()) {
             impl::SamplerEntry entry{};
             entry.handle = pimpl->dvc.createSamplerUnique(sci);
-            entry.id = MintObjectId();
+            entry.id = MintVulkanIdentity();
             itr = pimpl->sampler_cache.emplace(sci, std::move(entry)).first;
         }
         return SamplerRef{itr->second.handle.get(), itr->second.id};
@@ -177,7 +177,7 @@ namespace Engine::Rhi {
         if (itr == pimpl->descriptor_set_layout_cache.end()) {
             impl::DescriptorSetLayoutEntry entry{};
             entry.handle = pimpl->dvc.createDescriptorSetLayoutUnique(dlci);
-            entry.id = MintObjectId();
+            entry.id = MintVulkanIdentity();
 
             if (name) {
                 DEBUG_SET_NAME_TEMPLATE(pimpl->dvc, entry.handle.get(), name);

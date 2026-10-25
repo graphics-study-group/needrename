@@ -1,7 +1,7 @@
 #ifndef ENGINE_RHI_DESCRIPTORARENA_INCLUDED
 #define ENGINE_RHI_DESCRIPTORARENA_INCLUDED
 
-#include "Rhi/Device/ResourceRef.h"
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/rhi_export.h"
 
 #include <cstddef>

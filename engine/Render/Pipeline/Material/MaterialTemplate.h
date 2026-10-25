@@ -7,7 +7,7 @@
 #include <variant>
 
 #include "Render/Pipeline/Renderer/VertexAttribute.h"
-#include "Rhi/Device/ResourceRef.h"
+#include "Rhi/Device/BindingRef.h"
 
 namespace vk {
     class Pipeline;

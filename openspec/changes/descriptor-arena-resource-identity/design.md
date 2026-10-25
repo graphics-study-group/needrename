@@ -30,7 +30,7 @@ Constraints that shape the approach:
 
 ### Typed binding references carrying object identity (level 2)
 
-`ResourceRef.h` (new, `engine/Rhi/Device/`) defines `ObjectId` (a `uint64_t`-based strong type, monotonic, never reused) and `ResourceRef`-style references — `BufferRef`, `ViewRef`, `SamplerRef`, `DescriptorSetLayoutRef` — each holding `{handle, ObjectId}`, constructible **only** from the owning wrapper. Equality and hashing use identity only; the handle is carried solely to write descriptors and record commands.
+`BindingRef.h` (new, `engine/Rhi/Device/`) defines `VulkanIdentity` (a `uint64_t`-based strong type, monotonic, never reused) and `BindingRef`-style references — `BufferRef`, `ViewRef`, `SamplerRef`, `DescriptorSetLayoutRef` — each holding `{handle, VulkanIdentity}`, constructible **only** from the owning wrapper. Equality and hashing use identity only; the handle is carried solely to write descriptors and record commands.
 
 *Alternatives:* (1) keep raw handles flowing and only swap the key to an id — fixes the bug but leaves the trap armed for the next `HashContent`; (2) full handle typing across the whole engine — weeks of churn on record-time code for zero additional safety in cache keys. Level 2 makes identity a required part of the type while leaving record-time currency untouched.
 
