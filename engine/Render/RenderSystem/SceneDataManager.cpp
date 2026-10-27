@@ -84,7 +84,7 @@ namespace Engine::RenderSystemState {
          * texel snapped extents in light space X/Y. A non-finite intermediate
          * value invalidates the whole fit.
          *
-         * @param direction         Unit vector pointing from the scene towards the light.
+         * @param direction         Unit vector the light travels along, pointing from the light towards the scene.
          * @param camera_view       View matrix of the camera to fit to.
          * @param camera_projection Projection matrix of that camera.
          * @param camera_near       Near clipping distance of that camera.
@@ -155,8 +155,10 @@ namespace Engine::RenderSystemState {
             const glm::vec3 reference_up = std::abs(glm::dot(direction, glm::vec3{0.0f, 1.0f, 0.0f})) > 0.99f
                                                ? glm::vec3{0.0f, 0.0f, 1.0f}
                                                : glm::vec3{0.0f, 1.0f, 0.0f};
-            // The shadow camera looks from the light towards the scene.
-            const glm::vec3 forward = -direction;
+            // The shadow camera sits behind the light and looks along its
+            // direction of travel, so that the nearest surface in the map is the
+            // one the light reaches first.
+            const glm::vec3 forward = direction;
             const glm::vec3 right = glm::cross(forward, reference_up);
             const float right_length = glm::length(right);
             if (!std::isfinite(right_length) || right_length < 1e-6f) return result;

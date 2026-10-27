@@ -3,8 +3,8 @@
  *
  * A large scale scene (200x200 ground, objects one to a hundred and twenty
  * world units away from the camera's orbit) is rendered with the engine's
- * cascaded shadow maps, while the light rotates through the straight down
- * orientation and the camera orbits the scene. The run asserts what a
+ * cascaded shadow maps, while the light sweeps from straight down to almost
+ * horizontal and the camera orbits the scene. The run asserts what a
  * frame-running program can check without reading pixels:
  *
  *   - every cascade matrix of every shadow-casting light is finite, and the
@@ -14,6 +14,13 @@
  *   - no Vulkan validation error is reported during the run.
  *
  * Remaining acceptance is visual; see the change's acceptance checklist.
+ *
+ * Run it with a frame count to get exactly that: the light and the camera are
+ * animated from the frame counter and the program exits on its own. Run it
+ * without arguments to get an interactive session instead, where a control
+ * window drives the light's orientation, the light settings that feed the
+ * cascade fit and the camera placement, and the same per frame checks keep
+ * running so the window cannot hide a regression.
  */
 #include <SDL3/SDL.h>
 #include <atomic>
@@ -48,16 +55,25 @@
 #include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/RenderSystem/SceneDataManager.h"
 #include "Render/Resource/RenderTargetTexture.h"
+#include "Render/UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include <imgui.h>
 
 #include "cmake_config.h"
 
 using namespace Engine;
 
 namespace {
-    /// Frames the whole animation spans: one full light revolution and one full
+    /// Frames the whole animation spans: one full light sweep and one full
     /// camera orbit.
     constexpr int64_t ANIMATION_FRAMES = 300;
+
+    /// How far the light leans away from straight down at the peak of the
+    /// sweep, in degrees. Past 81.9 degrees the light direction is close enough
+    /// to the world Y axis for the shadow basis to switch its reference up axis
+    /// from Y to Z, and staying below 90 degrees keeps the sun above the horizon
+    /// so the run never renders a legitimately black scene.
+    constexpr float MAX_LIGHT_TILT_DEGREES = 85.0f;
 
     /// The light invariance check runs on these two frames, where the animation
     /// is frozen so that only the light's position differs between them.
@@ -129,16 +145,28 @@ namespace {
 
     /**
      * @brief Assert that every cascade of every shadow-casting light is usable.
+     *
+     * @param scene_data          Scene data to inspect.
+     * @param frame               Frame counter, used for the failure message.
+     * @param expect_all_cascades Whether the light is expected to keep every
+     *                            cascade. The automatic mode animates a light that
+     *                            is always configured with four; the interactive
+     *                            mode lets the count be edited, so it only checks
+     *                            that the fitted count stays in the supported
+     *                            range and that each fitted cascade is usable.
      */
-    void CheckCascadeMatrices(const RenderSystemState::SceneDataManager &scene_data, int64_t frame) {
+    void CheckCascadeMatrices(
+        const RenderSystemState::SceneDataManager &scene_data, int64_t frame, bool expect_all_cascades
+    ) {
         const uint32_t light_count = scene_data.GetNumShadowCastingLights();
         assert(light_count == 1 && "The test scene has exactly one shadow-casting directional light.");
         for (uint32_t light = 0; light < light_count; light++) {
             const uint32_t cascade_count = scene_data.GetLightCascadeCount(light);
             assert(
-                cascade_count == RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES
-                && "The light was configured with four cascades."
+                cascade_count >= 1 && cascade_count <= RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES
+                && "A shadow casting light keeps between one and MAX_SHADOW_CASCADES cascades."
             );
+            assert(!expect_all_cascades || cascade_count == RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES);
             for (uint32_t cascade = 0; cascade < cascade_count; cascade++) {
                 const glm::mat4 matrix = scene_data.GetLightCascadeMatrix(light, cascade);
                 if (!IsFinite(matrix)) {
@@ -166,8 +194,230 @@ namespace {
         }
         return cascades;
     }
+
+    /**
+     * @brief Light and camera placement the interactive mode exposes.
+     *
+     * Only the interactive mode (started without a frame count) writes this; a
+     * run with a frame count drives the very same objects from the frame counter
+     * so that the automatic checks stay reproducible.
+     */
+    struct InteractiveState {
+        /// How far the light leans away from straight down, in degrees. Kept
+        /// below 90 so the sun stays above the horizon.
+        float light_tilt_degrees{35.0f};
+        /// Rotation of the light around the world Z axis, in degrees.
+        float light_azimuth_degrees{40.0f};
+        /// Colour scaled intensity handed to the light component.
+        float light_intensity{1.0f};
+        /// Distance the light's shadows reach.
+        float shadow_distance{100.0f};
+        /// Number of cascades the light is configured with.
+        int cascade_count{static_cast<int>(RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES)};
+        /// Whether the camera is placed by its position instead of the orbit.
+        bool free_camera{false};
+        float camera_azimuth_degrees{60.0f};
+        /// Far enough back that every primitive in the scene fits the view.
+        float camera_orbit_radius{26.0f};
+        float camera_orbit_height{13.0f};
+        /// Used while `free_camera` is set; defaults to the orbit's first pose.
+        glm::vec3 camera_position{13.0f, 22.516661f, 13.0f};
+    };
+
+    /**
+     * @brief World position of the camera the interactive state describes.
+     */
+    glm::vec3 InteractiveCameraPosition(const InteractiveState &state) {
+        if (state.free_camera) return state.camera_position;
+        const float azimuth = glm::radians(state.camera_azimuth_degrees);
+        return {
+            state.camera_orbit_radius * std::cos(azimuth),
+            state.camera_orbit_radius * std::sin(azimuth),
+            state.camera_orbit_height
+        };
+    }
+
+    /**
+     * @brief Rotation whose local +Y is the light's direction of travel.
+     */
+    glm::quat InteractiveLightRotation(const InteractiveState &state) {
+        return glm::angleAxis(glm::radians(state.light_azimuth_degrees), glm::vec3{0.0f, 0.0f, 1.0f})
+               * glm::angleAxis(
+                   glm::radians(state.light_tilt_degrees) - glm::half_pi<float>(), glm::vec3{1.0f, 0.0f, 0.0f}
+               );
+    }
+
+    /**
+     * @brief Build the interactive mode's control window.
+     *
+     * Exposes the light's orientation, the light settings that reach the cascade
+     * fit and the camera placement, so the cascade layout and the shadow quality
+     * can be inspected by hand. The fitted cascades are listed with the world
+     * width the shading derives from their matrices, which is the number that
+     * says how dense each cascade's texels are.
+     */
+    void BuildControlWindow(InteractiveState &state, const RenderSystemState::SceneDataManager &scene_data) {
+        ImGui::Begin("Cascaded Shadow Maps Test", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        // Fix the widget width so the labels next to the sliders keep their room
+        // whatever the window ends up being wide.
+        ImGui::PushItemWidth(190.0f);
+
+        ImGui::TextWrapped("Interactive mode: no frame limit. Pass a frame count to run the checks only.");
+        if (ImGui::Button("Reset view")) state = InteractiveState{};
+
+        ImGui::SeparatorText("Light");
+        ImGui::SliderFloat("Tilt (deg)", &state.light_tilt_degrees, 0.0f, 89.0f, "%.1f");
+        ImGui::SliderFloat("Azimuth (deg)", &state.light_azimuth_degrees, 0.0f, 360.0f, "%.1f");
+        ImGui::SliderFloat("Intensity", &state.light_intensity, 0.0f, 5.0f, "%.2f");
+        ImGui::SliderFloat("Shadow distance", &state.shadow_distance, 1.0f, 300.0f, "%.1f");
+        ImGui::SliderInt(
+            "Cascades",
+            &state.cascade_count,
+            1,
+            static_cast<int>(RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES)
+        );
+
+        ImGui::SeparatorText("Camera");
+        ImGui::Checkbox("Free position", &state.free_camera);
+        if (state.free_camera) {
+            ImGui::SliderFloat("X", &state.camera_position.x, -150.0f, 150.0f, "%.1f");
+            ImGui::SliderFloat("Y", &state.camera_position.y, -150.0f, 150.0f, "%.1f");
+            ImGui::SliderFloat("Z", &state.camera_position.z, -20.0f, 150.0f, "%.1f");
+        } else {
+            ImGui::SliderFloat("Orbit azimuth (deg)", &state.camera_azimuth_degrees, 0.0f, 360.0f, "%.1f");
+            ImGui::SliderFloat("Orbit radius", &state.camera_orbit_radius, 1.0f, 150.0f, "%.1f");
+            ImGui::SliderFloat("Orbit height", &state.camera_orbit_height, 0.1f, 150.0f, "%.1f");
+        }
+        const glm::vec3 camera_position = InteractiveCameraPosition(state);
+        ImGui::Text(
+            "Camera at (%.2f, %.2f, %.2f), looking at the origin",
+            camera_position.x,
+            camera_position.y,
+            camera_position.z
+        );
+
+        ImGui::SeparatorText("Fitted cascades");
+        const uint32_t light_count = scene_data.GetNumShadowCastingLights();
+        for (uint32_t light = 0; light < light_count; light++) {
+            const uint32_t cascade_count = scene_data.GetLightCascadeCount(light);
+            ImGui::Text("Light %u: %u cascade(s)", light, cascade_count);
+            for (uint32_t cascade = 0; cascade < cascade_count; cascade++) {
+                const glm::mat4 matrix = scene_data.GetLightCascadeMatrix(light, cascade);
+                const float scale = glm::length(glm::vec3{matrix[0][0], matrix[1][0], matrix[2][0]});
+                const float width = scale > 0.0f ? 2.0f / scale : 0.0f;
+                ImGui::Text(
+                    "  %u: %.2f units wide, %.4f per texel",
+                    cascade,
+                    width,
+                    width / static_cast<float>(RenderSystemState::SceneDataManager::SHADOWMAP_SIZE)
+                );
+            }
+        }
+
+        ImGui::PopItemWidth();
+        ImGui::End();
+    }
+
+    /**
+     * @brief Fill a mesh asset with a cylinder of radius 1 and height 2.
+     *
+     * The builtin assets ship a cube and a sphere but no cylinder, and the scene
+     * wants every primitive shape to be shadow checked. The size matches the
+     * loaded meshes (two units across), the axis is world Z and the caps are
+     * closed, so the cylinder both shadows itself and casts from both ends.
+     */
+    void BuildCylinderMesh(MeshAsset &mesh) {
+        constexpr uint32_t SEGMENTS = 32;
+        constexpr float RADIUS = 1.0f;
+        constexpr float HALF_HEIGHT = 1.0f;
+
+        std::vector<float> positions{};
+        std::vector<float> normals{};
+        std::vector<float> texcoords{};
+        std::vector<uint32_t> indices{};
+
+        const float step = 2.0f * std::numbers::pi_v<float> / static_cast<float>(SEGMENTS);
+        // Side wall: two rings of vertices with radial normals.
+        for (uint32_t segment = 0; segment < SEGMENTS; segment++) {
+            const float angle = step * static_cast<float>(segment);
+            const float cosine = std::cos(angle);
+            const float sine = std::sin(angle);
+            for (const float z : {-HALF_HEIGHT, HALF_HEIGHT}) {
+                positions.insert(positions.end(), {cosine * RADIUS, sine * RADIUS, z});
+                normals.insert(normals.end(), {cosine, sine, 0.0f});
+                texcoords.insert(
+                    texcoords.end(),
+                    {static_cast<float>(segment) / static_cast<float>(SEGMENTS), (z + HALF_HEIGHT) * 0.5f}
+                );
+            }
+        }
+        for (uint32_t segment = 0; segment < SEGMENTS; segment++) {
+            const uint32_t current = segment * 2;
+            const uint32_t next = ((segment + 1) % SEGMENTS) * 2;
+            indices.insert(indices.end(), {current, next, current + 1, next, next + 1, current + 1});
+        }
+        // Caps: a centre vertex plus a ring, with flat normals along the axis.
+        for (const float z : {-HALF_HEIGHT, HALF_HEIGHT}) {
+            const float side = z < 0.0f ? -1.0f : 1.0f;
+            const uint32_t centre = static_cast<uint32_t>(positions.size() / 3);
+            positions.insert(positions.end(), {0.0f, 0.0f, z});
+            normals.insert(normals.end(), {0.0f, 0.0f, side});
+            texcoords.insert(texcoords.end(), {0.5f, 0.5f});
+            const uint32_t ring = static_cast<uint32_t>(positions.size() / 3);
+            for (uint32_t segment = 0; segment < SEGMENTS; segment++) {
+                const float angle = step * static_cast<float>(segment);
+                positions.insert(positions.end(), {std::cos(angle) * RADIUS, std::sin(angle) * RADIUS, z});
+                normals.insert(normals.end(), {0.0f, 0.0f, side});
+                texcoords.insert(texcoords.end(), {std::cos(angle) * 0.5f + 0.5f, std::sin(angle) * 0.5f + 0.5f});
+            }
+            for (uint32_t segment = 0; segment < SEGMENTS; segment++) {
+                const uint32_t current = ring + segment;
+                const uint32_t next = ring + (segment + 1) % SEGMENTS;
+                if (side < 0.0f) {
+                    indices.insert(indices.end(), {centre, next, current});
+                } else {
+                    indices.insert(indices.end(), {centre, current, next});
+                }
+            }
+        }
+
+        // The attribute array is laid out per attribute, the way the other
+        // builtin meshes store it.
+        const size_t vertex_count = positions.size() / 3;
+        const size_t position_bytes = positions.size() * sizeof(float);
+        const size_t texcoord_bytes = texcoords.size() * sizeof(float);
+        mesh.m_name = "Cylinder";
+        mesh.m_submeshes.resize(1);
+        auto &submesh = mesh.m_submeshes[0];
+        submesh.m_indices = std::move(indices);
+        submesh.vertex_count = static_cast<uint32_t>(vertex_count);
+        submesh.positions = {VertexAttributeType::SFloat32x3, 0, position_bytes};
+        submesh.color = {VertexAttributeType::SFloat32x3, position_bytes, position_bytes};
+        submesh.normal = {VertexAttributeType::SFloat32x3, position_bytes * 2, position_bytes};
+        submesh.texcoord0 = {VertexAttributeType::SFloat32x2, position_bytes * 3, texcoord_bytes};
+
+        submesh.m_vertex_attributes.resize(position_bytes * 3 + texcoord_bytes);
+        std::byte *cursor = submesh.m_vertex_attributes.data();
+        std::memcpy(cursor, positions.data(), position_bytes);
+        cursor += position_bytes;
+        // Vertex colour stays white: the material's texture provides the colour.
+        const std::vector<float> colors(vertex_count * 3, 1.0f);
+        std::memcpy(cursor, colors.data(), position_bytes);
+        cursor += position_bytes;
+        std::memcpy(cursor, normals.data(), position_bytes);
+        cursor += position_bytes;
+        std::memcpy(cursor, texcoords.data(), texcoord_bytes);
+    }
 } // namespace
 
+/**
+ * @brief Ground plane whose surface sits at the parent transform's origin.
+ *
+ * `PlaneMeshAsset` spends half of its unit extent along Z, so the four corners
+ * are pushed to +0.5 to put the surface on the transform's own plane. The
+ * normals keep pointing at +Z, the side the orbiting camera looks at, so the
+ * ground is lit by the light while it is above the horizon.
+ */
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     constexpr static std::array<float, 12> REPLACEMENT_POSITION = {
         1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f
@@ -181,16 +431,6 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
             reinterpret_cast<const std::byte *>(REPLACEMENT_POSITION.data()),
             this->m_submeshes[0].positions.buffer_size
         );
-        float *nb{
-            reinterpret_cast<float *>(m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset)
-        };
-        float *ne{reinterpret_cast<float *>(
-            m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset
-            + m_submeshes[0].normal.buffer_size
-        )};
-        for (float *i = nb; i < ne; i += 3) {
-            *(i + 2) = -1.0f;
-        };
     }
 };
 
@@ -254,8 +494,13 @@ MaterialLibraryAsset *ConstructMaterialLibrary(std::array<MaterialTemplateAsset 
 }
 
 int main(int argc, char **argv) {
+    // A frame count selects the automatic mode: the light and the camera are
+    // driven by the frame counter and the run stops after that many frames.
+    // Without one the run is interactive and exposes the same objects through a
+    // control window instead.
+    const bool interactive = argc <= 1;
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
-    if (argc > 1) {
+    if (!interactive) {
         max_frame_count = std::atoll(argv[1]);
         if (max_frame_count == 0) return -1;
     }
@@ -297,10 +542,14 @@ int main(int argc, char **argv) {
     std::shared_ptr blank_color_gray = Engine::Rhi::ImageTexture::CreateUnique(
         rsys->GetDeviceContext(), idesc, Rhi::Texture::SamplerDesc{}, "Blank color gray"
     );
+    std::shared_ptr blank_color_blue = Engine::Rhi::ImageTexture::CreateUnique(
+        rsys->GetDeviceContext(), idesc, Rhi::Texture::SamplerDesc{}, "Blank color blue"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_red, {1.0f, 0.0f, 0.0f, 0.0f});
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_gray, {0.5f, 0.5f, 0.5f, 0.0f});
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_blue, {0.1f, 0.35f, 1.0f, 0.0f});
 
-    // ── Ground: a 200x200 plane whose surface sits at z = 0 ──────────────────
+    // Ground: a 200x200 plane whose surface sits at z = 0.
     auto floor_mat_asset = am->CreateAsset<MaterialAsset>();
     floor_mat_asset->m_library = test_library_asset_ref;
     auto floor_mat_asset_ref = AssetRef(floor_mat_asset);
@@ -322,7 +571,7 @@ int main(int argc, char **argv) {
         floor_inst->AssignTexture("base_tex", blank_color_gray);
     }
 
-    // ── Casters at roughly 1 / 5 / 20 / 60 / 120 units from the orbit ────────
+    // Casters at roughly 1 / 5 / 20 / 60 / 120 units from the orbit.
     auto cube_mat_asset = am->CreateAsset<MaterialAsset>();
     cube_mat_asset->m_library = test_library_asset_ref;
     auto cube_mat_asset_ref = AssetRef(cube_mat_asset);
@@ -334,43 +583,88 @@ int main(int argc, char **argv) {
         cube_inst->AssignTexture("base_tex", blank_color_red);
     }
 
-    auto load_cube = [&](const char *name, glm::vec3 position, bool cast_shadow) -> void {
+    // Renderers that opted out of shadow casting use their own colour, so the
+    // picture says which objects cast without reading the flag.
+    auto non_casting_mat_asset = am->CreateAsset<MaterialAsset>();
+    non_casting_mat_asset->m_library = test_library_asset_ref;
+    auto non_casting_mat_asset_ref = AssetRef(non_casting_mat_asset);
+    {
+        auto handle = mi_mng->CreateOrReuseFromAsset(non_casting_mat_asset_ref.GetGUID());
+        auto instance = mi_mng->Resolve(handle);
+        instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
+        instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
+        instance->AssignTexture("base_tex", blank_color_blue);
+    }
+
+    // Every primitive asset spans two world units, so a 0.5 scale makes a one
+    // unit tall object that rests on the ground at z = 0.5.
+    constexpr float PRIMITIVE_SCALE = 0.5f;
+    constexpr float RESTING_HEIGHT = 0.5f;
+
+    auto load_mesh = [&](const char *name, const char *mesh_file, glm::vec3 position, bool cast_shadow) -> void {
         auto &go = scene.CreateGameObject();
         go.m_name = name;
-        go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition(position);
+        go.GetTransformRef().SetScale(glm::vec3{PRIMITIVE_SCALE}).SetPosition(position);
         auto &mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(go);
-        mesh_comp.LoadData(std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"});
+        mesh_comp.LoadData(std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/" + mesh_file});
         mesh_comp.m_material_assets.resize(1);
-        mesh_comp.m_material_assets[0] = cube_mat_asset_ref;
+        mesh_comp.m_material_assets[0] = cast_shadow ? cube_mat_asset_ref : non_casting_mat_asset_ref;
         // Read when the renderer registers itself, so it has to be set before the
         // scene's command queue is flushed.
         mesh_comp.m_cast_shadow = cast_shadow;
     };
 
+    // The cylinder is built here: the builtin assets ship a cube and a sphere but
+    // no cylinder, and the scene wants every primitive to be shape checked.
+    auto cylinder_mesh = am->CreateAsset<MeshAsset>();
+    BuildCylinderMesh(*cylinder_mesh);
+    auto cylinder_mesh_ref = AssetRef(cylinder_mesh);
+
+    auto load_cylinder = [&](const char *name, glm::vec3 position, bool cast_shadow) -> void {
+        auto &go = scene.CreateGameObject();
+        go.m_name = name;
+        go.GetTransformRef().SetScale(glm::vec3{PRIMITIVE_SCALE}).SetPosition(position);
+        auto &mesh_comp = scene.CreateComponent<StaticMeshComponent>(go);
+        mesh_comp.m_mesh_asset = cylinder_mesh_ref;
+        mesh_comp.m_material_assets.resize(1);
+        mesh_comp.m_material_assets[0] = cast_shadow ? cube_mat_asset_ref : non_casting_mat_asset_ref;
+        mesh_comp.m_cast_shadow = cast_shadow;
+    };
+
     for (const float distance : {1.0f, 5.0f, 20.0f, 60.0f, 120.0f}) {
-        load_cube("Caster", {distance, 0.0f, 0.25f}, true);
+        load_mesh("Caster", "cube.obj", {distance, 0.0f, RESTING_HEIGHT}, true);
     }
     // Hovers 0.05 world units above the ground, for the contact shadow check.
-    load_cube("Hovering caster", {5.0f, 6.0f, 0.30f}, true);
-    // Deliberately opted out: it must contribute no shadow while still being lit.
-    load_cube("Opted out caster", {20.0f, 15.0f, 0.25f}, false);
+    load_mesh("Hovering caster", "cube.obj", {5.0f, 6.0f, RESTING_HEIGHT + 0.05f}, true);
+    // Deliberately opted out: they must contribute no shadow while still being lit.
+    load_mesh("Opted out cube", "cube.obj", {8.0f, -2.0f, RESTING_HEIGHT}, false);
+    load_mesh("Opted out sphere", "sphere.obj", {-9.0f, -2.0f, RESTING_HEIGHT}, false);
 
-    // ── Light: one full revolution, through the straight down orientation ───
+    load_mesh("Sphere caster", "sphere.obj", {-6.0f, 2.0f, RESTING_HEIGHT}, true);
+    load_mesh("Sphere caster", "sphere.obj", {3.0f, -6.0f, RESTING_HEIGHT}, true);
+
+    load_cylinder("Cylinder caster", {9.0f, 2.0f, RESTING_HEIGHT}, true);
+    load_cylinder("Cylinder caster", {-5.0f, -8.0f, RESTING_HEIGHT}, true);
+
+    // Light: sweeps from straight down to almost horizontal.
     auto &light_go = scene.CreateGameObject();
     light_go.m_name = "Rotating directional light";
     auto &light_comp = scene.CreateComponent<LightComponent>(light_go);
     light_comp.m_type = LightType::Directional;
     light_comp.m_cast_shadow = true;
+    // The default intensity saturates the test's 0.5 grey ground into flat
+    // white, which would hide the shadow pattern the run is meant to show.
+    light_comp.m_intensity = 1.0f;
     light_comp.m_shadow_distance = 100.0f;
     light_comp.m_cascade_count = RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES;
 
-    // ── Camera: orbits the scene and looks at its centre ────────────────────
+    // Camera: orbits the scene and looks at its centre.
     auto &camera_go = scene.CreateGameObject();
     camera_go.m_name = "Orbiting camera";
     auto &camera_comp = scene.CreateComponent<CameraComponent>(camera_go);
     camera_comp.m_camera->m_clipping_near = 1e-3f;
     camera_comp.m_camera->m_clipping_far = 1e3f;
-    camera_comp.m_camera->set_aspect_ratio(1920.0 / 1080.0);
+    camera_comp.m_camera->set_aspect_ratio(1920.0f / 1080.0f);
     world->SetActiveCamera(camera_comp.GetHandle(), &rsys->GetCameraManager());
     rsys->GetCameraManager().SetActiveCameraIndex(camera_comp.m_camera->m_display_id);
 
@@ -384,16 +678,15 @@ int main(int argc, char **argv) {
     // the world, so the light has to exist by now.
     assert(world->GetShadowCastingLightCount() == 1);
 
-    // The shadow pass draws only renderers that opted in. The ground and the
-    // hovering caster were created without touching the flag, so they prove the
-    // default still casts; the deliberately opted out caster proves the flag is
-    // honoured.
+    // The shadow pass draws only renderers that opted in. Everything except the
+    // two blue primitives casts, and the ones created without touching the flag
+    // prove the default still casts.
     const auto all_renderers = rsys->GetRendererManager().FilterAndSortRenderers({});
     const auto shadow_casters = rsys->GetRendererManager().FilterAndSortRenderers(
         {RenderSystemState::RendererManager::FilterCriteria::BinaryCriterion::Yes}
     );
-    assert(all_renderers.size() == 8 && "Ground, five casters, one hovering and one opted out renderer.");
-    assert(shadow_casters.size() == 7 && "The opted out renderer must not be drawn into shadow maps.");
+    assert(all_renderers.size() == 13 && "Ground, seven cubes, three spheres and two cylinders.");
+    assert(shadow_casters.size() == 11 && "The two opted out renderers must not be drawn into shadow maps.");
 
     // Out-of-range configuration is clamped where it is consumed, so a stale or
     // hand-edited value can never reach the fit.
@@ -423,7 +716,15 @@ int main(int argc, char **argv) {
         scene_data.SetLightCount(1);
     }
 
-    // ── Render graph ────────────────────────────────────────────────────────
+    // Render graph.
+    // The interactive mode composites a control window over the lit image, so it
+    // needs the GUI backend; the automatic mode touches nothing of it.
+    GUISystem *gui_system = nullptr;
+    if (interactive) {
+        gui_system = cmc->GetGUISystem().get();
+        gui_system->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Rhi::ImageFormat::R8G8B8A8UNorm));
+    }
+
     RenderGraphBuilder rgb{*rsys};
 
     const RGBufferHandle mm_handle = rgb.ImportExternalResource(
@@ -442,7 +743,21 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto c = rgb.RequestRenderTargetTexture(desc, {});
+
+    // The interactive mode draws the control window in a second pass over the
+    // lit image. Two passes sharing one *transient* target are ordered by a
+    // "read before write" heuristic that would put the compositing pass first,
+    // so the interactive run owns the color texture and imports it instead: the
+    // pass order of an external resource is kept as it is declared.
+    std::unique_ptr<RenderTargetTexture> interactive_color{};
+    RGTextureHandle c{};
+    if (interactive) {
+        interactive_color = RenderTargetTexture::CreateUnique(rsys->GetDeviceContext(), desc, {}, "Lit Color");
+        c = rgb.ImportExternalResource(*interactive_color);
+    } else {
+        c = rgb.RequestRenderTargetTexture(desc, {});
+    }
+
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
     auto d = rgb.RequestRenderTargetTexture(desc, {});
 
@@ -483,49 +798,97 @@ int main(int argc, char **argv) {
         rgb.AddPass(lit_builder.Get());
     }
 
+    if (interactive) {
+        // Composite the control window over the lit image. `Load` keeps the lit
+        // pass' contents; the GUI draws on top of them.
+        rgb.AddPass(
+            RenderGraphPassBuilder{*rsys}
+                .SetName("GUI Pass")
+                .AppendColorAttachment(
+                    {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
+                )
+                .SetPassFunction([gui_system](CommandBuffer &cb, const RenderGraph &) {
+                    gui_system->DrawGUI(cb.GetCommandBuffer());
+                })
+                .WrapRenderPass()
+                .Get()
+        );
+    }
+
     auto rg{rgb.BuildRenderGraph()};
     RegisterShadowCascadeMaps(*rg, *rsys, shadow_ids);
 
-    // ── Frame loop ──────────────────────────────────────────────────────────
+    // Frame loop.
     bool quited = false;
     int64_t frame_count = 0;
     CascadeArray saved_cascades{};
+    InteractiveState interactive_state{};
 
     while (true) {
         SDL_Event event;
         while (SDL_PollEvent(&event) != 0) {
             if (event.type == SDL_EVENT_QUIT) quited = true;
+            if (interactive) gui_system->ProcessEvent(&event);
         }
         if (quited) break;
 
         ++frame_count;
 
-        // Freeze the animation around the light invariance check, so that only
-        // the light's position differs between those two frames.
-        const bool frozen = frame_count == LIGHT_INVARIANCE_FIRST_FRAME || frame_count == LIGHT_INVARIANCE_SECOND_FRAME;
-        const float phase = frozen ? 0.7f
-                                   : 2.0f * std::numbers::pi_v<float>
-                                         * static_cast<float>(frame_count) / static_cast<float>(ANIMATION_FRAMES);
+        if (interactive) {
+            // The control window owns the light and the camera, so the objects
+            // are driven from its state instead of the frame counter.
+            light_comp.m_intensity = interactive_state.light_intensity;
+            light_comp.m_shadow_distance = interactive_state.shadow_distance;
+            light_comp.m_cascade_count = static_cast<uint32_t>(std::max(interactive_state.cascade_count, 1));
+            light_go.GetTransformRef()
+                .SetRotation(InteractiveLightRotation(interactive_state))
+                .SetPosition({0.0f, 0.0f, 25.0f});
 
-        // The light makes one revolution about the world X axis per animation
-        // span, which sweeps it through straight down, straight up and the
-        // orientations the light basis would degenerate at.
-        const float light_height = frozen ? 25.0f : 25.0f + 5.0f * std::sin(phase);
-        light_go.GetTransformRef()
-            .SetRotation(glm::angleAxis(phase, glm::vec3{1.0f, 0.0f, 0.0f}))
-            .SetPosition({0.0f, 0.0f, light_height});
+            // The camera always looks at the world origin, which has no valid
+            // view rotation when the camera sits on it, so it is nudged off.
+            glm::vec3 camera_position = InteractiveCameraPosition(interactive_state);
+            if (glm::length(camera_position) < 1e-3f) camera_position.z = 1e-3f;
+            camera_go.GetTransformRef()
+                .SetPosition(camera_position)
+                .SetRotation(LookAtRotation(camera_position, glm::vec3{0.0f, 0.0f, 0.0f}));
+            camera_comp.Tick();
+        } else {
+            // Freeze the animation around the light invariance check, so that only
+            // the light's position differs between those two frames.
+            const bool frozen =
+                frame_count == LIGHT_INVARIANCE_FIRST_FRAME || frame_count == LIGHT_INVARIANCE_SECOND_FRAME;
+            const float phase = frozen ? 0.7f
+                                       : 2.0f * std::numbers::pi_v<float>
+                                             * static_cast<float>(frame_count) / static_cast<float>(ANIMATION_FRAMES);
 
-        // The camera makes one orbit around the world origin per animation span.
-        const glm::vec3 camera_position{20.0f * std::cos(phase), 20.0f * std::sin(phase), 10.0f};
-        camera_go.GetTransformRef()
-            .SetPosition(camera_position)
-            .SetRotation(LookAtRotation(camera_position, glm::vec3{0.0f, 0.0f, 0.0f}));
-        camera_comp.Tick();
+            // The light sweeps from straight down to almost horizontal and back,
+            // so the run covers the straight down orientation and the light
+            // direction the basis switches its reference up axis for, while
+            // staying above the horizon: a sun below the ground would
+            // legitimately render the scene black and hide everything the test
+            // is meant to show.
+            const float light_tilt = glm::radians(MAX_LIGHT_TILT_DEGREES) * 0.5f * (1.0f - std::cos(phase));
+            const float light_height = frozen ? 25.0f : 25.0f + 5.0f * std::sin(phase);
+            light_go.GetTransformRef()
+                .SetRotation(glm::angleAxis(light_tilt - glm::half_pi<float>(), glm::vec3{1.0f, 0.0f, 0.0f}))
+                .SetPosition({0.0f, 0.0f, light_height});
+
+            // The camera makes one orbit around the world origin per animation span.
+            const glm::vec3 camera_position{20.0f * std::cos(phase), 20.0f * std::sin(phase), 10.0f};
+            camera_go.GetTransformRef()
+                .SetPosition(camera_position)
+                .SetRotation(LookAtRotation(camera_position, glm::vec3{0.0f, 0.0f, 0.0f}));
+            camera_comp.Tick();
+        }
 
         world->UpdateRendererData(*rsys);
-        CheckCascadeMatrices(rsys->GetSceneDataManager(), frame_count);
+        CheckCascadeMatrices(rsys->GetSceneDataManager(), frame_count, !interactive);
 
-        if (frame_count == LIGHT_INVARIANCE_FIRST_FRAME) {
+        if (interactive) {
+            gui_system->PrepareGUI();
+            ImGui::SetCurrentContext(gui_system->GetCurrentContext());
+            BuildControlWindow(interactive_state, rsys->GetSceneDataManager());
+        } else if (frame_count == LIGHT_INVARIANCE_FIRST_FRAME) {
             saved_cascades = ReadCascades(rsys->GetSceneDataManager());
         } else if (frame_count == LIGHT_INVARIANCE_SECOND_FRAME) {
             // Translating the light must not change a single cascade matrix.
@@ -548,14 +911,14 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         if (index == std::numeric_limits<uint32_t>::max()) {
-            // Swapchain out of date after retry — skip this frame.
+            // Swapchain out of date after a retry, skip this frame.
             continue;
         }
         assert(index < rsys->GetPresentProvider().GetImageCount());
 
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
-        auto color = rg->GetInternalTextureResource(c);
+        auto color = interactive ? interactive_color.get() : rg->GetInternalTextureResource(c);
         rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);

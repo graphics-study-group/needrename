@@ -70,8 +70,11 @@ float sampleShadowCascade(
     );
 
     const mat4 light_vp = scene.casting_lights.light_vp_matrix[lightIndex * MAX_SHADOW_CASCADES + cascade];
-    // The orthographic matrix encodes the cascade's world width in its first row.
-    const float texel_world_size = 2.0 / (light_vp[0][0] * SHADOWMAP_SIZE);
+    // The orthographic matrix scales light space by 2 / cascade width along its
+    // rows; the first row is the light's right axis scaled by that factor, so
+    // its length gives the width whatever the light's orientation is.
+    const float light_basis_scale = max(length(vec3(light_vp[0][0], light_vp[1][0], light_vp[2][0])), 1e-6);
+    const float texel_world_size = 2.0 / (light_basis_scale * SHADOWMAP_SIZE);
     const vec3 offset_position = world_position + geometric_normal * (SHADOW_NORMAL_OFFSET * texel_world_size);
 
     const vec4 light_space = light_vp * vec4(offset_position, 1.0);

@@ -181,11 +181,12 @@ namespace Engine::PipelineUtils {
             constexpr float max = std::numeric_limits<float>::max();
             return f == f && f <= max && f >= -max;
         };
+        // Depth bias is a sum of the constant and the slope scaled terms, so a
+        // single non zero factor is meaningful: shadow maps commonly use the
+        // slope factor alone to follow the depth gradient of grazing surfaces.
         bool is_depth_bias_enabled = is_finite(prop.depth_bias_constant) && is_finite(prop.depth_bias_slope);
         is_depth_bias_enabled =
-            is_depth_bias_enabled && (prop.depth_bias_constant != 0.0f && prop.depth_bias_constant != -0.0f);
-        is_depth_bias_enabled =
-            is_depth_bias_enabled && (prop.depth_bias_slope != 0.0f && prop.depth_bias_slope != -0.0f);
+            is_depth_bias_enabled && (prop.depth_bias_constant != 0.0f || prop.depth_bias_slope != 0.0f);
         if (is_depth_bias_enabled) {
             info.depthBiasEnable = vk::True;
             info.depthBiasConstantFactor = prop.depth_bias_constant;
