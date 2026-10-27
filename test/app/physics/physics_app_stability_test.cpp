@@ -72,7 +72,8 @@ namespace {
         for (size_t i = 0; i < s.positions.size(); ++i) {
             const glm::vec4 &p = s.positions[i];
             const glm::vec4 &v = s.velocities[i];
-            if (i == 0u || glm::length(glm::vec3(v)) > 0.5f || glm::length(glm::vec3(p) - glm::vec3(5.0f, 5.0f, 0.0f)) > 3.0f) {
+            if (i == 0u || glm::length(glm::vec3(v)) > 0.5f
+                || glm::length(glm::vec3(p) - glm::vec3(5.0f, 5.0f, 0.0f)) > 3.0f) {
                 std::cout << "  slot " << i << "  p(" << p.x << ", " << p.y << ", " << p.z << ")  v(" << v.x << ", "
                           << v.y << ", " << v.z << ")\n";
             }
@@ -130,7 +131,8 @@ int main(int argc, char **argv) {
 
     if (!found) {
         std::cout << "physics_app_stability_test PASSED: " << steps << " steps, " << layers
-                  << "-layer pyramid, final max |v| " << (history.empty() ? 0.0f : history.back().max_speed) << std::endl;
+                  << "-layer pyramid, final max |v| " << (history.empty() ? 0.0f : history.back().max_speed)
+                  << std::endl;
         return 0;
     }
 

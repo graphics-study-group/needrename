@@ -8,7 +8,7 @@ Linear integration SHALL compute `v += (gravity + external_force / mass) * dt` f
 
 Angular integration SHALL be performed in the body's local frame: `wb = q_inv * w`, `tb = q_inv * torque - cross(wb, I_local * wb)`, `wb += I_local_inv * tb * dt`, `w = q * wb`, `q += 0.5 * Quat(w, 0) * q * dt` followed by quaternion normalization.
 
-For a kinematic body the angular block SHALL be skipped in full, the Coriolis term included: neither its angular velocity nor its orientation SHALL be modified by the integration pass. Zeroing the external torque is not sufficient, because the Coriolis term `-cross(wb, I_local * wb)` is subtracted after the torque is zeroed and is non-zero for any spin about an axis that is not a principal axis of a non-isotropic inertia tensor.
+For a kinematic body the force and torque block SHALL be skipped in full, the Coriolis term included: gravity, the external force, the external torque and the Coriolis term SHALL contribute nothing, so neither its linear nor its angular velocity is modified by the integration pass. Its pose SHALL still advance kinematically by those authored velocities alone — the position by the authored linear velocity, the orientation by the authored angular velocity — because a kinematic body's motion is authored, not solved. Zeroing the external torque is not sufficient, because the Coriolis term `-cross(wb, I_local * wb)` is subtracted after the torque is zeroed and is non-zero for any spin about an axis that is not a principal axis of a non-isotropic inertia tensor.
 
 #### Scenario: Gravity pulls a dynamic body downward
 
@@ -20,7 +20,8 @@ For a kinematic body the angular block SHALL be skipped in full, the Coriolis te
 
 - **WHEN** a body is marked as kinematic (`is_kinematic != 0`)
 - **THEN** the integration shader applies no gravity and no external force or torque to it
-- **AND** its angular velocity and orientation are left exactly as they were
+- **AND** its linear and angular velocities are left exactly as they were by that pass
+- **AND** its position and orientation advance by those authored velocities alone
 
 #### Scenario: A spinning kinematic body keeps its spin
 

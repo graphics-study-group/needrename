@@ -18,12 +18,15 @@ namespace Engine::Rhi {
     struct ShaderResourceBinding::impl {
         Rhi::DescriptorArena *arena{nullptr};
 
+        /// @brief A declared binding names a resource object and a window; the
+        /// handle and identity are resolved when the set is acquired, so a
+        /// replaced buffer resolves to its replacement.
         using InterfaceVariant = std::variant<
             std::monostate,
             // XXX: immutable sampler is not properly considered for hashing.
-            std::tuple<vk::ImageView, vk::Sampler>,
+            std::tuple<const Texture *, TextureSubresourceRange>,
             // Buffer, offset and size
-            std::tuple<vk::Buffer, size_t, size_t>>;
+            std::tuple<const DeviceBuffer *, size_t, size_t>>;
 
         // This map has to be ordered to ensure consistent content.
         std::map<std::string, InterfaceVariant> interfaces{};
@@ -39,7 +42,7 @@ namespace Engine::Rhi {
         const std::string &name, const DeviceBuffer &buf, size_t offset, size_t size
     ) noexcept {
         static_assert(vk::WholeSize == std::numeric_limits<size_t>::max());
-        pimpl->interfaces[name] = std::make_tuple(buf.GetBuffer(), offset, size);
+        pimpl->interfaces[name] = std::make_tuple(&buf, offset, size);
     }
     void ShaderResourceBinding::BindTexture(const std::string &name, Texture &texture) noexcept {
         this->BindTexture(name, texture, TextureSubresourceRange::GetFullRange());
@@ -48,12 +51,12 @@ namespace Engine::Rhi {
     void ShaderResourceBinding::BindTexture(
         const std::string &name, Texture &texture, TextureSubresourceRange range
     ) noexcept {
-        pimpl->interfaces[name] = std::make_tuple(texture.GetImageView(range), texture.GetSampler());
+        pimpl->interfaces[name] = std::make_tuple(&texture, range);
     }
 
     vk::DescriptorSet ShaderResourceBinding::GetDescriptorSet(
         uint32_t set_id,
-        vk::DescriptorSetLayout layout,
+        DescriptorSetLayoutRef layout,
         const Rhi::SPLayout &s,
         bool enforce_dynamic_uniform,
         bool enforce_dynamic_storage
@@ -82,21 +85,23 @@ namespace Engine::Rhi {
             }
 
             if (resolved->is_image) {
-                auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
+                auto pimg = std::get_if<std::tuple<const Texture *, TextureSubresourceRange>>(&itr->second);
                 assert(pimg);
                 auto popaque = dynamic_cast<const Rhi::SPInterfaceOpaque *>(pinterface.get());
                 assert(popaque && popaque->array_size == 0);
+                const Texture *texture = std::get<0>(*pimg);
+                const TextureSubresourceRange range = std::get<1>(*pimg);
                 content.emplace_back(
                     Rhi::ResolvedBinding{
                         .binding = pinterface->layout_binding,
                         .type = resolved->type,
-                        .image_view = std::get<0>(*pimg),
-                        .sampler = std::get<1>(*pimg),
+                        .image_view = texture->GetViewRef(range),
+                        .sampler = texture->GetSamplerRef(),
                         .image_layout = resolved->image_layout
                     }
                 );
             } else {
-                auto pbuf = std::get_if<std::tuple<vk::Buffer, size_t, size_t>>(&itr->second);
+                auto pbuf = std::get_if<std::tuple<const DeviceBuffer *, size_t, size_t>>(&itr->second);
                 assert(pbuf);
 
                 auto [buffer, offset, range] = *pbuf;
@@ -104,7 +109,7 @@ namespace Engine::Rhi {
                     Rhi::ResolvedBinding{
                         .binding = pinterface->layout_binding,
                         .type = resolved->type,
-                        .buffer = buffer,
+                        .buffer = buffer->GetBufferRef(),
                         .offset = offset,
                         .range = range
                     }

@@ -40,6 +40,13 @@ namespace Engine {
             vk::Format GetColorFormat() const override;
             uint32_t GetImageCount() const override;
 
+            /// @brief Headless present is a no-op, so it never waits on the
+            /// frame completion semaphore. Signaling it would leave it
+            /// permanently signaled and make the next frame's signal invalid.
+            bool NeedsPresentSemaphore() const noexcept override {
+                return false;
+            }
+
             uint32_t AcquireNextImage(
                 vk::Device device, vk::Semaphore image_ready_semaphore, uint64_t timeout
             ) override;

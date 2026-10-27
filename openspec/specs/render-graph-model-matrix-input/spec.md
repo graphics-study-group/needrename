@@ -39,6 +39,8 @@ The import SHALL NOT depend on any build-time condition, and the built graph SHA
 
 `SceneDataManager` SHALL size the buffer on demand through an element-count entry point, growing its storage in place when a larger capacity is requested, and SHALL start from an initial reservation so that early frames do not reallocate repeatedly. The buffer SHALL be initialized once at creation to identity matrices, so that a frame which produces nothing renders a wrong transform rather than reading undefined memory.
 
+That initialization SHALL be an initialization submission of its own: it SHALL be submitted and waited for before `SceneDataManager::Create` returns, and it SHALL NOT be left in the frame manager's deferred upload batch for a later frame to submit. A producer that writes the buffer after creation SHALL therefore remain the last writer when it completes, whether or not any frame has been submitted yet.
+
 `SceneDataManager` SHALL NOT accept a forwarded model matrices buffer, and no setter for one SHALL exist. Physics SHALL NOT hold a reference to this buffer between calls, and descriptor binding 2 SHALL always point at it.
 
 #### Scenario: The buffer exists before any producer runs
@@ -46,6 +48,18 @@ The import SHALL NOT depend on any build-time condition, and the built graph SHA
 - **WHEN** the scene descriptor set is written for a frame in which no physics work has been produced
 - **THEN** binding 2 points at the render-owned buffer
 - **AND** the buffer holds the identity matrices written at creation
+
+#### Scenario: Identity is readable before any frame is submitted
+
+- **WHEN** the model matrices buffer is read immediately after render-system creation
+- **THEN** it holds the identity matrices written at creation
+- **AND** no frame submission was required to make that content visible
+
+#### Scenario: Initialization precedes any producer
+
+- **WHEN** a producer writes the buffer after creation and before any frame has been submitted
+- **THEN** the buffer holds the producer's output once the producer's write completes
+- **AND** the initialization does not overwrite the buffer afterwards
 
 #### Scenario: Capacity grows on demand without moving the object
 

@@ -194,6 +194,9 @@ namespace Engine {
         width = static_cast<uint32_t>(w);
         height = static_cast<uint32_t>(h);
         pimpl->m_present_provider->Recreate({width, height});
+        // The old swapchain's present semaphores may still be in use by
+        // presentation operations; replace them together with the images.
+        pimpl->m_frame_manager.OnPresentTargetRecreated();
         pimpl->m_resizable_rtt_manger.SetReferenceSize(w, h);
     }
 

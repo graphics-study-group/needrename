@@ -61,7 +61,7 @@ int main() {
     const vk::DescriptorSetLayoutCreateInfo dslci{{}, {dslb}};
     auto &arena = context.GetDescriptorArena();
     auto descriptor_set_layout = arena.ResolveLayout(dslci, "Standalone Descriptor Set Layout");
-    auto pipeline_layout = device.createPipelineLayoutUnique({{}, {descriptor_set_layout}});
+    auto pipeline_layout = device.createPipelineLayoutUnique({{}, {descriptor_set_layout.handle}});
 
     vk::PipelineShaderStageCreateInfo stage{{}, vk::ShaderStageFlagBits::eCompute, shader_module.get(), "main"};
     vk::ComputePipelineCreateInfo pipeline_info{{}, stage, pipeline_layout.get()};

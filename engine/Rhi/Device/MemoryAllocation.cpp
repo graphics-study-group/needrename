@@ -1,5 +1,6 @@
 #include "Rhi/Device/MemoryAllocation.h"
 
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/Submission/EpochTracker.h"
 
 #include <vk_mem_alloc.h>
@@ -9,6 +10,8 @@ namespace Engine::Rhi {
     struct ImageAllocation::impl {
         vk::Image image;
         ImageMemoryType type;
+        /// @brief Issued once, when this image is created.
+        VulkanIdentity identity{MintVulkanIdentity()};
     };
 
     void ImageAllocation::Destory() noexcept {
@@ -50,6 +53,10 @@ namespace Engine::Rhi {
         assert(pimpl);
         return pimpl->type;
     }
+    VulkanIdentity ImageAllocation::GetIdentity() const noexcept {
+        assert(pimpl);
+        return pimpl->identity;
+    }
 
     struct BufferAllocation::impl {
         vk::Buffer buffer;
@@ -58,6 +65,9 @@ namespace Engine::Rhi {
         /// @brief Optional tracker that takes ownership on destruction. Cleared
         /// before the hand-off so the tracker can destroy the allocation itself.
         EpochTracker *retire_sink;
+        /// @brief Issued once, when this buffer is created. A replacement
+        /// allocation issues a new one.
+        VulkanIdentity identity{MintVulkanIdentity()};
     };
     void BufferAllocation::Destroy() noexcept {
         if (pimpl && pimpl->buffer) {
@@ -99,6 +109,10 @@ namespace Engine::Rhi {
     vk::Buffer BufferAllocation::GetBuffer() const noexcept {
         assert(pimpl);
         return pimpl->buffer;
+    }
+    VulkanIdentity BufferAllocation::GetIdentity() const noexcept {
+        assert(pimpl);
+        return pimpl->identity;
     }
     void BufferAllocation::ClearRetireSink() noexcept {
         if (pimpl) pimpl->retire_sink = nullptr;

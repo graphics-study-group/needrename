@@ -27,7 +27,7 @@ namespace Engine {
 
         vk::PipelineLayout pipeline_layout{};
         /// @brief Layout of the per-material set, the object the arena resolved.
-        vk::DescriptorSetLayout desc_set_layout{};
+        Rhi::DescriptorSetLayoutRef desc_set_layout{};
         const Rhi::SPLayout *m_layout{};
         /// @brief Whether the reflected layout has material data set. Computed once at
         /// construction, because `GenerateLayoutBindings` allocates.
@@ -157,7 +157,7 @@ namespace Engine {
         MaterialTemplateSinglePassProperties &properties,
         const std::vector<vk::ShaderModule> &shaders,
         vk::PipelineLayout layout,
-        vk::DescriptorSetLayout desc_set_layout,
+        Rhi::DescriptorSetLayoutRef desc_set_layout,
         const Rhi::SPLayout &reflected,
         const PipelineRuntimeInfo &pri,
         const std::string &name
@@ -188,6 +188,10 @@ namespace Engine {
     }
 
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const noexcept {
+        return pimpl->desc_set_layout.handle;
+    }
+
+    Rhi::DescriptorSetLayoutRef MaterialTemplate::GetDescriptorSetLayoutRef() const noexcept {
         return pimpl->desc_set_layout;
     }
 

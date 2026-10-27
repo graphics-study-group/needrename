@@ -23,6 +23,10 @@ namespace Engine::Rhi {
         return allocation.GetBuffer();
     }
 
+    BufferRef DeviceBuffer::GetBufferRef() const {
+        return BufferRef{allocation.GetBuffer(), allocation.GetIdentity()};
+    }
+
     size_t DeviceBuffer::GetSize() const {
         return m_size;
     }

@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_DESCRIPTORARENA_INCLUDED
 #define ENGINE_RHI_DESCRIPTORARENA_INCLUDED
 
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/rhi_export.h"
 
 #include <cstddef>
@@ -30,20 +31,26 @@ namespace Engine::Rhi {
         /// @brief Descriptor type the binding is declared with.
         vk::DescriptorType type{vk::DescriptorType::eUniformBuffer};
         /// @brief Image view, for image bindings.
-        vk::ImageView image_view{};
+        ViewRef image_view{};
         /// @brief Sampler, for combined-image-sampler bindings.
-        vk::Sampler sampler{};
+        SamplerRef sampler{};
         /// @brief Layout the sampled image is in.
         vk::ImageLayout image_layout{vk::ImageLayout::eReadOnlyOptimal};
-        /// @brief Buffer handle, for buffer bindings.
-        vk::Buffer buffer{};
+        /// @brief Buffer, for buffer bindings.
+        BufferRef buffer{};
         /// @brief Byte offset into the buffer.
         size_t offset{0};
         /// @brief Byte range of the buffer binding (`vk::WholeSize` for all of it).
         size_t range{std::numeric_limits<size_t>::max()};
 
-        /// @note Handles are compared by native value: Vulkan-Hpp's handles have
-        /// no `operator==` when typesafe conversion is enabled.
+        /**
+         * @brief Compare two bindings by content.
+         *
+         * Resources compare by their never-reused identity, never by handle
+         * value: a driver recycles handle values, so two distinct resources can
+         * present equal handles at different times. The offset and range window
+         * is part of the content, not of the resource identity.
+         */
         bool operator==(const ResolvedBinding &other) const noexcept;
     };
 
@@ -120,19 +127,19 @@ namespace Engine::Rhi {
          *
          * This is the only way to obtain a layout the arena will allocate
          * against, and it is called once per layout rather than once per
-         * acquisition: the caller keeps the returned object, builds its pipeline
-         * layout over it, and hands it back on every acquisition. Equal layout
-         * descriptions resolve to one object, because the handle is
-         * content-addressed and never released — unlike a reflected-layout
-         * object's address.
+         * acquisition: the caller keeps the returned reference, builds its
+         * pipeline layout over its handle, and hands the reference back on
+         * every acquisition. Equal layout descriptions resolve to one object
+         * and one identity, because the underlying handle is content-addressed
+         * and never released — unlike a reflected-layout object's address.
          *
          * The per-descriptor-type requirement of every layout resolved here is
-         * remembered, so that a pool can later be sized for it; a layout handle
-         * cannot be queried for its bindings.
+         * remembered against the layout's identity, so that a pool can later be
+         * sized for it; a layout handle cannot be queried for its bindings.
          *
          * @param name Debug name applied to the layout.
          */
-        vk::DescriptorSetLayout ResolveLayout(
+        DescriptorSetLayoutRef ResolveLayout(
             const vk::DescriptorSetLayoutCreateInfo &layout, const char *name = nullptr
         );
 
@@ -147,7 +154,7 @@ namespace Engine::Rhi {
          * @param layout A layout this arena resolved through `ResolveLayout`.
          * @param name Debug name applied to the set.
          */
-        vk::DescriptorSet AcquireRawSet(vk::DescriptorSetLayout layout, std::string_view name = {});
+        vk::DescriptorSet AcquireRawSet(DescriptorSetLayoutRef layout, std::string_view name = {});
 
         /**
          * @brief Cache layer: return the set for a content, writing it on a miss.
@@ -157,11 +164,15 @@ namespace Engine::Rhi {
          * request whose content differs from a resident entry's mints a distinct
          * entry rather than rewriting the resident one.
          *
+         * Content is compared by resource identity: two requests that name
+         * different resources never share an entry, even when the driver issued
+         * their handles the same values at different times.
+         *
          * @param layout A layout this arena resolved through `ResolveLayout`.
          * @param content The resolved bindings the arena writes on a miss.
          */
         vk::DescriptorSet Acquire(
-            vk::DescriptorSetLayout layout,
+            DescriptorSetLayoutRef layout,
             uint32_t set_id,
             bool enforce_dynamic_uniform,
             bool enforce_dynamic_storage,

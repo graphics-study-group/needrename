@@ -20,6 +20,7 @@ namespace vk {
 
 namespace Engine::Rhi {
     class EpochTracker;
+    class VulkanIdentity;
 
     /**
      * @brief A piece of memory allocated by Vulkan via Vulkan Memory Allocator.
@@ -114,6 +115,14 @@ namespace Engine::Rhi {
         vk::Image GetImage() const noexcept;
         /// @brief Query the memory type specified on creation.
         ImageMemoryType GetMemoryType() const noexcept;
+
+        /**
+         * @brief Get this allocation's never-reused identity.
+         *
+         * The identity is issued when the allocation is created and never
+         * issued again: a replacement allocation bears a new one.
+         */
+        VulkanIdentity GetIdentity() const noexcept;
     };
 
     /**
@@ -178,6 +187,16 @@ namespace Engine::Rhi {
 
         /// @brief Get the underlying Vulkan buffer object.
         vk::Buffer GetBuffer() const noexcept;
+
+        /**
+         * @brief Get this allocation's never-reused identity.
+         *
+         * The identity is issued when the allocation is created and never
+         * issued again: replacing a buffer's storage creates a new allocation
+         * with a new identity, which is what distinguishes the buffer from its
+         * own predecessor.
+         */
+        VulkanIdentity GetIdentity() const noexcept;
 
         /**
          * @brief Detach the retire sink, so that destruction frees device memory.

@@ -337,7 +337,7 @@ namespace Engine::RenderSystemState {
             std::shared_ptr<RenderTargetTexture> default_light_map;
 
             // Scene data
-            vk::DescriptorSetLayout scene_descriptor_set_layout{};
+            Rhi::DescriptorSetLayoutRef scene_descriptor_set_layout{};
             vk::PipelineLayout scene_common_pipeline_layout{};
             std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
@@ -382,7 +382,7 @@ namespace Engine::RenderSystemState {
                 {
                     std::array pcr{RendererManager::GetPushConstantRange()};
                     vk::PipelineLayoutCreateInfo plci{
-                        vk::PipelineLayoutCreateFlags{}, {scene_descriptor_set_layout}, pcr
+                        vk::PipelineLayoutCreateFlags{}, {scene_descriptor_set_layout.handle}, pcr
                     };
                     scene_common_pipeline_layout =
                         system.GetIRCache().GetPipelineLayout(plci, "Scene Common Pipeline Layout");
@@ -426,9 +426,11 @@ namespace Engine::RenderSystemState {
                 // Initialize it to identity matrices
                 {
                     std::vector<glm::mat4> identity(MAX_MODEL_MATRICES, glm::mat4{1.0f});
-                    system.GetFrameManager().GetSubmissionHelper().EnqueueBufferSubmission(
+                    auto &submission_helper = system.GetFrameManager().GetSubmissionHelper();
+                    submission_helper.EnqueueBufferSubmission(
                         *model_matrices_buffer, std::as_bytes(std::span{identity})
                     );
+                    submission_helper.ExecuteSubmissionImmediately();
                 }
 
                 // Prepare default depth map. It is an array texture with the same
@@ -820,7 +822,7 @@ namespace Engine::RenderSystemState {
     }
 
     vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
-        return pimpl->scene.scene_descriptor_set_layout;
+        return pimpl->scene.scene_descriptor_set_layout.handle;
     }
     vk::PipelineLayout SceneDataManager::GetCommonPipelineLayout() const noexcept {
         return pimpl->scene.scene_common_pipeline_layout;

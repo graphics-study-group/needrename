@@ -85,12 +85,18 @@ namespace Engine {
         Rhi::ComputeBuffer &flags_buf = *m_impl->flags;
         Rhi::ComputeBuffer &offsets_buf = *m_impl->offsets;
 
-        // 1. Flag unique, 2. copy the flags into the scan's input, 3. scan them
-        // into compacted positions, 4. clear the count, 5. scatter into place.
+        // 1. Flag unique, 2. clear the scan's input, 3. copy the flags into it,
+        // 4. scan it into compacted positions, 5. clear the count, 6. scatter.
         const uint32_t wg = (elem_capacity + 63u) / 64u;
         m_impl->flag_kernel->Dispatch(
             cb, {{"SortedKeys", keys_buf}, {"UniqueFlags", flags_buf}, {"ElemCount", elem_count_buf}}, wg, 1, 1
         );
+        DispatchBarrier(cb);
+
+        // The flag pass only writes `[0, count)`, but the scan below spans the whole
+        // capacity, so the tail must be cleared first: a scan must never read
+        // uninitialized storage, even where its result is discarded.
+        m_impl->memset_kernel->Dispatch(cb, {{"Target", offsets_buf}}, wg, 1, 1, elem_capacity);
         DispatchBarrier(cb);
 
         m_impl->copy_kernel->Dispatch(

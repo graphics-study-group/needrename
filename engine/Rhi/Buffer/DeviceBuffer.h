@@ -3,6 +3,7 @@
 
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/rhi_export.h"
 
 #include <memory>
@@ -54,6 +55,17 @@ namespace Engine::Rhi {
 
         /// @brief Get the underlying Vulkan buffer object.
         vk::Buffer GetBuffer() const;
+
+        /**
+         * @brief Get this buffer's binding reference: its handle plus its
+         * never-reused identity.
+         *
+         * Anything that keys, caches or compares bound resources must use this
+         * instead of `GetBuffer()`: a handle value is recycled by the driver
+         * after the buffer is destroyed, an identity never is. Replacing the
+         * storage in place yields a reference with a new identity.
+         */
+        BufferRef GetBufferRef() const;
 
         /**
          * @brief Get the buffer's allocated capacity in bytes.

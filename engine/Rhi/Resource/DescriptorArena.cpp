@@ -55,22 +55,16 @@ namespace Engine::Rhi {
                    || type == vk::DescriptorType::eSampledImage || type == vk::DescriptorType::eSampler;
         }
 
-        /// @brief Compare two Vulkan-Hpp handles by native value; the handles
-        /// themselves carry no `operator==` under typesafe conversion.
-        template <typename T>
-        bool SameHandle(T lhs, T rhs) noexcept {
-            return static_cast<typename T::CType>(lhs) == static_cast<typename T::CType>(rhs);
-        }
-
-        uint64_t HandleValue(vk::DescriptorSetLayout layout) noexcept {
-            return reinterpret_cast<uint64_t>(static_cast<VkDescriptorSetLayout>(layout));
+        /// @brief Map key of a layout: its never-reused identity.
+        uint64_t LayoutKey(DescriptorSetLayoutRef layout) noexcept {
+            return layout.id.GetValue();
         }
     } // namespace
 
     bool ResolvedBinding::operator==(const ResolvedBinding &other) const noexcept {
         return binding == other.binding && type == other.type && image_layout == other.image_layout
-               && offset == other.offset && range == other.range && SameHandle(image_view, other.image_view)
-               && SameHandle(sampler, other.sampler) && SameHandle(buffer, other.buffer);
+               && offset == other.offset && range == other.range && image_view == other.image_view
+               && sampler == other.sampler && buffer == other.buffer;
     }
 
     struct DescriptorArena::impl {
@@ -92,25 +86,26 @@ namespace Engine::Rhi {
             "because no epoch has opened yet, not because it is complete."
         );
 
-        /// @brief Cache key: layout handle, dynamic-offset flags and set index,
+        /// @brief Cache key: layout identity, dynamic-offset flags and set index,
         /// plus a hash of the resolved binding content. The full content is kept
         /// on the entry so equality is exact rather than hash-based.
         struct EntryKey {
-            vk::DescriptorSetLayout layout{};
+            /// @brief Identity of the layout the set is allocated against.
+            VulkanIdentity layout{};
             uint32_t set_id{0};
             uint32_t flags{0};
             size_t content_hash{0};
 
             bool operator==(const EntryKey &other) const noexcept {
                 return set_id == other.set_id && flags == other.flags && content_hash == other.content_hash
-                       && SameHandle(layout, other.layout);
+                       && layout == other.layout;
             }
         };
 
         struct EntryKeyHash {
             size_t operator()(const EntryKey &key) const noexcept {
                 RenderResourceHasher h;
-                h.handle(key.layout);
+                h.u64(key.layout.GetValue());
                 h.u32(key.set_id);
                 h.u32(key.flags);
                 h.u64(key.content_hash);
@@ -138,7 +133,7 @@ namespace Engine::Rhi {
         /// @brief Per-set descriptor requirement of every layout the arena resolved.
         std::unordered_map<uint64_t, DescriptorRequirements> requirements_by_layout{};
 
-        std::unordered_map<EntryKey, Entry, EntryKeyHash> resident{};
+        std::unordered_map<EntryKey, std::vector<Entry>, EntryKeyHash> resident{};
 
         size_t resident_budget{DEFAULT_RESIDENT_BUDGET};
         uint64_t acquisition_clock{0};
@@ -166,10 +161,10 @@ namespace Engine::Rhi {
             for (const auto &entry : content) {
                 h.u32(entry.binding);
                 h.e(entry.type);
-                h.handle(entry.image_view);
-                h.handle(entry.sampler);
+                h.u64(entry.image_view.id.GetValue());
+                h.u64(entry.sampler.id.GetValue());
                 h.e(entry.image_layout);
-                h.handle(entry.buffer);
+                h.u64(entry.buffer.id.GetValue());
                 h.u64(entry.offset);
                 h.u64(entry.range);
             }
@@ -210,8 +205,8 @@ namespace Engine::Rhi {
         ///
         /// A layout handle carries no bindings, so the requirement must have been
         /// recorded when the layout was resolved.
-        const DescriptorRequirements &RequirementsFor(vk::DescriptorSetLayout layout) {
-            auto itr = requirements_by_layout.find(HandleValue(layout));
+        const DescriptorRequirements &RequirementsFor(DescriptorSetLayoutRef layout) {
+            auto itr = requirements_by_layout.find(LayoutKey(layout));
             if (itr != requirements_by_layout.end()) return itr->second;
             assert(false && "Every descriptor-set layout must be resolved through DescriptorArena::ResolveLayout.");
             return FallbackRequirements();
@@ -220,19 +215,19 @@ namespace Engine::Rhi {
         /// @brief Pick the pool that serves a layout, growing the arena when the
         /// current one cannot satisfy the request.
         Pool *SelectPool(
-            vk::DescriptorSetLayout layout,
+            DescriptorSetLayoutRef layout,
             const DescriptorRequirements &requirements,
             std::string_view name,
             bool force_new
         ) {
             if (!force_new) {
-                auto itr = serving_pool.find(HandleValue(layout));
+                auto itr = serving_pool.find(LayoutKey(layout));
                 if (itr != serving_pool.end() && itr->second->sets_used < itr->second->set_capacity) {
                     return itr->second;
                 }
             }
             Pool *pool = CreatePool(requirements, name);
-            serving_pool[HandleValue(layout)] = pool;
+            serving_pool[LayoutKey(layout)] = pool;
             return pool;
         }
 
@@ -243,12 +238,13 @@ namespace Engine::Rhi {
             vk::DescriptorSet set{};
         };
 
-        Allocation AllocateSet(vk::DescriptorSetLayout layout, std::string_view name) {
+        Allocation AllocateSet(DescriptorSetLayoutRef layout, std::string_view name) {
             const auto &requirements = RequirementsFor(layout);
 
             auto allocate_from = [this, layout](Pool *pool) {
-                auto set =
-                    Device().allocateDescriptorSets(vk::DescriptorSetAllocateInfo{pool->handle.get(), {layout}})[0];
+                auto set = Device().allocateDescriptorSets(
+                    vk::DescriptorSetAllocateInfo{pool->handle.get(), {layout.handle}}
+                )[0];
                 pool->sets_used++;
                 return Allocation{pool, set};
             };
@@ -272,10 +268,19 @@ namespace Engine::Rhi {
             const EpochWatermark newest = Tracker().GetNewestWatermark();
             if (newest <= claimed_through) return;
             const EpochWatermark claimant = claimed_through + 1;
-            for (auto &[key, entry] : resident) {
-                if (entry.last_epoch == UNCLAIMED) entry.last_epoch = claimant;
+            for (auto &[key, chain] : resident) {
+                for (auto &entry : chain) {
+                    if (entry.last_epoch == UNCLAIMED) entry.last_epoch = claimant;
+                }
             }
             claimed_through = newest;
+        }
+
+        /// @brief Total number of resident entries across every chain.
+        size_t ResidentCount() const noexcept {
+            size_t count = 0;
+            for (const auto &[key, chain] : resident) count += chain.size();
+            return count;
         }
 
         EpochWatermark EffectivePrefix() const noexcept {
@@ -296,21 +301,31 @@ namespace Engine::Rhi {
         /// @brief Release the least recently acquired eligible entries until the
         /// resident count is at `target`, or until none is eligible.
         ///
-        /// @param protect An entry never chosen for release: the one the current
-        /// call is about to return.
-        void EvictDownTo(size_t target, const Entry *protect = nullptr) {
-            while (resident.size() > target) {
-                auto oldest = resident.end();
+        /// @param protect_order Acquisition order of an entry never chosen for
+        /// release: the one the current call is about to return. The order is
+        /// unique per entry, so it identifies the protected entry without
+        /// holding a pointer that evicting its chain could invalidate.
+        void EvictDownTo(size_t target, uint64_t protect_order = 0) {
+            while (ResidentCount() > target) {
+                auto oldest_chain = resident.end();
+                size_t oldest_index = 0;
+                const Entry *oldest = nullptr;
                 for (auto itr = resident.begin(); itr != resident.end(); ++itr) {
-                    if (&itr->second == protect) continue;
-                    if (!IsEligible(itr->second)) continue;
-                    if (oldest == resident.end() || itr->second.acquisition_order < oldest->second.acquisition_order) {
-                        oldest = itr;
+                    for (size_t i = 0; i < itr->second.size(); i++) {
+                        const Entry &entry = itr->second[i];
+                        if (entry.acquisition_order == protect_order) continue;
+                        if (!IsEligible(entry)) continue;
+                        if (oldest == nullptr || entry.acquisition_order < oldest->acquisition_order) {
+                            oldest = &entry;
+                            oldest_chain = itr;
+                            oldest_index = i;
+                        }
                     }
                 }
-                if (oldest == resident.end()) return; // every entry is still referenced
-                FreeEntry(oldest->second);
-                resident.erase(oldest);
+                if (oldest == nullptr) return; // every entry is still referenced
+                FreeEntry(*oldest);
+                oldest_chain->second.erase(oldest_chain->second.begin() + static_cast<ptrdiff_t>(oldest_index));
+                if (oldest_chain->second.empty()) resident.erase(oldest_chain);
             }
         }
 
@@ -330,9 +345,11 @@ namespace Engine::Rhi {
 
             for (const auto &binding : content) {
                 if (IsImageDescriptor(binding.type)) {
-                    image_infos.emplace_back(binding.sampler, binding.image_view, binding.image_layout);
+                    image_infos.emplace_back(
+                        binding.sampler.handle, binding.image_view.handle, binding.image_layout
+                    );
                 } else {
-                    buffer_infos.emplace_back(binding.buffer, binding.offset, binding.range);
+                    buffer_infos.emplace_back(binding.buffer.handle, binding.offset, binding.range);
                 }
                 writes.emplace_back(set, binding.binding, 0u, 1u, binding.type);
             }
@@ -358,18 +375,18 @@ namespace Engine::Rhi {
 
     DescriptorArena::~DescriptorArena() = default;
 
-    vk::DescriptorSetLayout DescriptorArena::ResolveLayout(
+    DescriptorSetLayoutRef DescriptorArena::ResolveLayout(
         const vk::DescriptorSetLayoutCreateInfo &layout, const char *name
     ) {
         // Remember what one set of this layout consumes: a pool must declare its
         // per-type capacity up front, and a resolved handle cannot be asked for
         // its bindings afterwards.
-        const auto resolved = pimpl->Cache().GetDescriptorSetLayout(layout, name);
-        pimpl->requirements_by_layout[HandleValue(resolved)] = RequirementsOf(layout);
+        const auto resolved = pimpl->Cache().GetDescriptorSetLayoutRef(layout, name);
+        pimpl->requirements_by_layout[LayoutKey(resolved)] = RequirementsOf(layout);
         return resolved;
     }
 
-    vk::DescriptorSet DescriptorArena::AcquireRawSet(vk::DescriptorSetLayout layout, std::string_view name) {
+    vk::DescriptorSet DescriptorArena::AcquireRawSet(DescriptorSetLayoutRef layout, std::string_view name) {
         const std::string debug_name = name.empty() ? std::string{"Arena Raw Set"} : std::string{name};
 
         auto set = pimpl->AllocateSet(layout, debug_name).set;
@@ -379,7 +396,7 @@ namespace Engine::Rhi {
     }
 
     vk::DescriptorSet DescriptorArena::Acquire(
-        vk::DescriptorSetLayout layout,
+        DescriptorSetLayoutRef layout,
         uint32_t set_id,
         bool enforce_dynamic_uniform,
         bool enforce_dynamic_storage,
@@ -390,7 +407,7 @@ namespace Engine::Rhi {
         pimpl->SyncEpochs();
 
         const impl::EntryKey key{
-            .layout = layout,
+            .layout = layout.id,
             .set_id = set_id,
             .flags = (enforce_dynamic_uniform ? 1u : 0u) | (enforce_dynamic_storage ? 2u : 0u),
             .content_hash = impl::HashContent(content),
@@ -401,13 +418,19 @@ namespace Engine::Rhi {
                    && std::equal(entry.content.begin(), entry.content.end(), content.begin());
         };
 
-        auto itr = pimpl->resident.find(key);
-        if (itr != pimpl->resident.end() && same_content(itr->second)) {
-            // A hit is the normal case: in steady state the arena mints nothing.
-            itr->second.last_epoch = pimpl->CurrentEpoch();
-            itr->second.acquisition_order = ++pimpl->acquisition_clock;
-            pimpl->EvictDownTo(pimpl->resident_budget, &itr->second);
-            return itr->second.set;
+        auto key_itr = pimpl->resident.find(key);
+        if (key_itr != pimpl->resident.end()) {
+            // A colliding key keeps both contents: only an entry whose stored
+            // content is exactly this request's content may answer it.
+            for (auto &entry : key_itr->second) {
+                if (!same_content(entry)) continue;
+                // A hit is the normal case: in steady state the arena mints nothing.
+                entry.last_epoch = pimpl->CurrentEpoch();
+                entry.acquisition_order = ++pimpl->acquisition_clock;
+                const vk::DescriptorSet hit_set = entry.set;
+                pimpl->EvictDownTo(pimpl->resident_budget, entry.acquisition_order);
+                return hit_set;
+            }
         }
 
         // Make room for one more entry before minting it, so the resident count
@@ -426,11 +449,12 @@ namespace Engine::Rhi {
         pimpl->WriteDescriptors(entry.set, content);
         pimpl->minted_set_count++;
 
-        auto [inserted, ok] = pimpl->resident.emplace(key, std::move(entry));
-        assert(ok);
-        (void)ok;
-        impl::NameSet(pimpl->Device(), inserted->second.set, std::format("Arena Cache Set (set {})", set_id));
-        return inserted->second.set;
+        // The chain keeps every distinct content that shares this key; insertion
+        // can therefore never fail and never displaces another content's set.
+        auto &chain = pimpl->resident[key];
+        chain.push_back(std::move(entry));
+        impl::NameSet(pimpl->Device(), chain.back().set, std::format("Arena Cache Set (set {})", set_id));
+        return chain.back().set;
     }
 
     void DescriptorArena::OnDeviceIdle() noexcept {
@@ -450,17 +474,19 @@ namespace Engine::Rhi {
     }
 
     size_t DescriptorArena::GetLiveSetCount() const noexcept {
-        return pimpl->resident.size() + pimpl->raw_set_count;
+        return pimpl->ResidentCount() + pimpl->raw_set_count;
     }
 
     size_t DescriptorArena::GetResidentEntryCount() const noexcept {
-        return pimpl->resident.size();
+        return pimpl->ResidentCount();
     }
 
     size_t DescriptorArena::GetGuardedEntryCount() const noexcept {
         size_t count = 0;
-        for (const auto &[key, entry] : pimpl->resident) {
-            if (!pimpl->IsEligible(entry)) count++;
+        for (const auto &[key, chain] : pimpl->resident) {
+            for (const auto &entry : chain) {
+                if (!pimpl->IsEligible(entry)) count++;
+            }
         }
         return count;
     }
@@ -470,6 +496,7 @@ namespace Engine::Rhi {
     }
 
     size_t DescriptorArena::GetBudgetExcess() const noexcept {
-        return pimpl->resident.size() > pimpl->resident_budget ? pimpl->resident.size() - pimpl->resident_budget : 0;
+        const size_t resident = pimpl->ResidentCount();
+        return resident > pimpl->resident_budget ? resident - pimpl->resident_budget : 0;
     }
 } // namespace Engine::Rhi
