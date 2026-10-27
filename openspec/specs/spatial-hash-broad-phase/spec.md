@@ -8,42 +8,41 @@ Govern the GPU spatial-hash broad-phase collision detection pipeline: AABB compu
 
 ### Requirement: SpatialHashBroadDetector class
 
-The `SpatialHashBroadDetector` class SHALL be an independent broad-phase collision detector that owns GPU compute pipelines and buffers for spatial-hash-based candidate pair generation. It SHALL follow the new detector pattern: lazy SPIR-V loading on first `Detect` call, `ComputeStage` ownership, `ComputeResourceBinding` management, and self-owned RenderGraph recording via a `Detect(vk::CommandBuffer cb)` method.
+The `SpatialHashBroadDetector` class SHALL be an independent broad-phase collision detector that owns GPU compute pipelines and buffers for spatial-hash-based candidate pair generation. It SHALL load its SPIR-V lazily on first use, own its compute pipelines and resource bindings, and record its dispatches directly to a caller-supplied command buffer through a `Record(vk::CommandBuffer cb)` method. It SHALL NOT own or build a `RenderGraph`.
 
-The constructor SHALL accept a `RenderSystem &` only. Sizing and configuration parameters SHALL be passed to `Configure()`. No GPU resources SHALL be allocated until `Configure` or `Detect` is first called.
+The constructor SHALL accept `(Rhi::DeviceContext&)`. The detector SHALL prepare itself for the geometry it observes: on the first `Record` after binding to a scene, and thereafter whenever the shape count or the pair capacity changes, it SHALL size its internal buffers, create its bindings, and prepare its per-dispatch constants. No GPU resources SHALL be allocated before the first `Record`.
 
-The detector SHALL expose a two-phase API:
+The detector SHALL expose:
 ```cpp
-void Configure(
-    PhysicsScene &scene,
-    uint32_t shape_count,
-    GridConfig grid_config,
-    uint32_t fallback_all_pairs_threshold
+void BindToScene(
+    PhysicsScene &scene, const GridConfig &grid_config, uint32_t fallback_all_pairs_threshold,
+    uint32_t max_global_shape_count
 );
-BroadDetectorOutputBuffers Detect(vk::CommandBuffer cb);
+void Record(vk::CommandBuffer cb);
+BroadDetectorOutputBuffers GetResultBuffers() const;
 ```
 
-`Configure` SHALL cache `&scene` and all sizing parameters, ensure internal buffers are sized, and upload grid config and shape slot count to host-visible GPU buffers.
+`BindToScene` SHALL cache the bound `PhysicsScene*`, the grid configuration and the sizing parameters, and SHALL do nothing else: no allocation, no kernel acquisition and no buffer sizing. Detector preparation SHALL happen inside `Record` and SHALL size the detector for the shape count the scene reports at that moment. Configuration values that reach the shader SHALL travel in recorded push-constant blocks rather than in CPU writes to buffer memory.
 
-`Detect` SHALL lazily build the detector's own RenderGraph. The RG structure SHALL be determined at build time: if `shape_count <= fallback_all_pairs_threshold`, a fallback RG is built (AABBs → clear pair count → fallback all-pairs); otherwise the full spatial-hash RG is built (using ParallelScan utility for prefix sums). `Detect` SHALL import scene buffers directly from the cached `PhysicsScene*`, record all passes to `cb`, and return raw `ComputeBuffer*` references to the output pair buffers.
+`Record` SHALL select its pass sequence from the configured shape count: if `shape_count <= fallback_all_pairs_threshold`, the fallback sequence runs (AABBs → clear pair count → fallback all-pairs); otherwise the full spatial-hash sequence runs (using `ParallelScan` for prefix sums). `Record` SHALL read scene buffers through the cached `PhysicsScene*` and SHALL make its output pair buffers available through `GetResultBuffers()` as `ComputeBuffer*` references.
 
 #### Scenario: Lazy initialization on first Detect call
 
-- **WHEN** `SpatialHashBroadDetector::Detect(cb)` is called for the first time after `Configure`
-- **THEN** the detector loads all broad-phase SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/SpatialHashBroadDetector/`
-- **AND** creates `ComputeStage` and `ComputeResourceBinding` instances for each shader
-- **AND** builds its RenderGraph and records it to `cb`
+- **WHEN** `SpatialHashBroadDetector::Record(cb)` is called for the first time
+- **THEN** the detector loads all broad-phase SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>/collision/SpatialHashBroadDetector/`
+- **AND** creates its compute pipelines and resource bindings for each shader
+- **AND** records its dispatches to `cb`
 - **AND** subsequent calls reuse the same pipelines
 
 #### Scenario: Detector exposes output buffers to narrow-phase
 
-- **WHEN** `SpatialHashBroadDetector::Detect(cb)` completes
-- **THEN** it returns a `BroadDetectorOutputBuffers` struct with raw `ComputeBuffer` references (`.pair_buffer`, `.pair_count_buffer`) and `.max_pairs`
-- **AND** all buffers are owned by the detector and valid until the next call or detector destruction
+- **WHEN** `SpatialHashBroadDetector::Record(cb)` completes
+- **THEN** `GetResultBuffers()` reports a `BroadDetectorOutputBuffers` struct with `ComputeBuffer` references (`.pair_buffer`, `.pair_count_buffer`) and `.max_pairs`
+- **AND** all buffers are owned by the detector and valid until the next call that resizes them or until detector destruction
 
 #### Scenario: Detector returns empty result for insufficient shapes
 
-- **WHEN** `Detect(cb)` is called with `shape_slot_count <= 1`
+- **WHEN** `Record(cb)` is called with `shape_slot_count <= 1`
 - **THEN** the detector writes `pair_count = 0` and returns without dispatching any compute passes
 
 #### Scenario: Fallback RG built for small N
@@ -244,35 +243,60 @@ The fallback shader SHALL additionally require that the two shapes' world-space 
 
 ### Requirement: Post-generation pair deduplication
 
-After within-cell pair generation (`generate_broad_pairs.comp`) and global pair generation (`generate_global_pairs.comp`) complete, the detector SHALL perform deduplication on the combined `collision_pairs[]` output buffer before returning results to the caller.
+After within-cell pair generation (`generate_broad_pairs.comp`) and global pair generation (`generate_global_pairs.comp`) complete, the detector SHALL perform deduplication on the combined candidate pair set before returning results to the caller.
 
-The dedup SHALL proceed in two stages:
-1. **Sort**: `RadixSort::AddPasses` sorts all pairs in `collision_pairs[]` by `(a, b)` ascending. The sorted result SHALL overwrite `collision_pairs[]`.
-2. **Compact**: `CompactUnique::AddPasses` removes adjacent duplicates and compacts the result. The compacted unique pairs SHALL overwrite `collision_pairs[]` and `pair_count` SHALL be updated via a copy from `unique_count`.
+A candidate pair is `(a, b)` with `a < b` and both indices below `shape_count`. The dedup SHALL encode each pair as the **packed key** `a * shape_count + b`, which is injective over that domain and order-preserving, and SHALL carry that key through the sort and the compaction; the canonical `uvec2` pair SHALL be restored before the results leave the detector, so the narrow phase's input format and the `pair.x < pair.y` invariant are unchanged.
 
-**Dispatch sizing**: Both stages SHALL pass `max_pairs` (buffer capacity) as `elem_capacity` for dispatch workgroup sizing. The actual pair count (`gpu_pair_count`) SHALL be passed as a GPU buffer binding — each shader reads this at execution time to skip threads beyond the valid range. At RenderGraph build time, `gpu_pair_count` is NOT read via `GetVMAddress()` (which would return stale data since the GPU hasn't executed yet).
+The dedup SHALL proceed in three stages:
 
-The detector SHALL allocate the following additional buffers:
-- `gpu_pairs_temp`: ping-pong temp for RadixSort (`max_pairs × sizeof(glm::uvec2)`)
-- `gpu_radix_scratch`: 256-uint histogram (1 KB)
-- `gpu_unique_flags`: original 0/1 flags (`max_pairs × sizeof(uint32_t)`)
-- `gpu_unique_offsets`: prefix-sum offsets, same size as flags
-- `gpu_unique_count`: output unique count (`sizeof(uint32_t)`, host-visible)
+1. **Sort**: `RadixSort::Record` stably sorts the packed keys ascending, with `max_key_value = shape_count * shape_count - 1` and no payload array. The sorted result SHALL overwrite the key array.
+2. **Compact**: `CompactUnique::Record` removes adjacent duplicates and compacts the unique keys, writing the unique count to `gpu_unique_count`.
+3. **Unpack and publish**: `unpack_pairs.comp` reads the compacted keys and writes the canonical `uvec2(a, b)` pairs into `collision_pairs[]`, reconstructing `a = key / shape_count` and `b = key % shape_count`; the same pass SHALL publish `pair_count` from `gpu_unique_count`, replacing the separate count-copy dispatch.
 
-The detector SHALL use its existing `ParallelScan` instance for `CompactUnique`'s internal prefix sum. The dedup SHALL be skipped if the fallback all-pairs path is used.
+`shape_count` SHALL be the same value in all three stages: the value the detector is recording with, which is also the value the pair-generation shaders use as their shape bound. The detector SHALL assert `shape_count <= 65536` at record time, because `shape_count * shape_count` is the packed key's bound and `shape_count * (shape_count - 1)` already wraps in 32-bit arithmetic at 65537.
+
+**Dispatch sizing**: every stage SHALL pass `max_output_pair_count` (buffer capacity) as its element capacity for dispatch sizing. The actual pair count (`gpu_pair_count`) SHALL be passed as a GPU buffer binding — each shader reads it at execution time to skip threads beyond the valid range; the host SHALL NOT read it at record time.
+
+**Counts are device-local.** The detector's count buffers — `gpu_pair_count`, `gpu_unique_count`, `gpu_total_assignments` and `gpu_global_count` — are written and read on the GPU only. No CPU code reads or writes them, so they SHALL be allocated as device-local buffers rather than host-visible ones.
+
+The dedup section SHALL allocate only the data buffers it exchanges between its own passes, and SHALL NOT allocate the working storage an algorithm owns:
+- `gpu_pair_keys`: the packed-key array the generators write, the sort sorts in place and the compaction compacts in place (`max_output_pair_count × sizeof(uint32_t)`)
+- `gpu_unique_count`: the compacted unique count (`sizeof(uint32_t)`, device-local)
+
+The sort's ping-pong partner array and transposed-histogram scratch, `CompactUnique`'s flag and offset arrays, and the block sums of both scans SHALL be the algorithms' own working storage: each SHALL grow geometrically inside the instance that owns it and be reused across calls, and the detector SHALL NOT size, allocate or bind any of it.
+
+The detector SHALL create one `ParallelScan`, one `RadixSort` and one `CompactUnique` instance and reuse each for its whole lifetime. `CompactUnique` SHALL own the `ParallelScan` instance it records; the detector's own scan instance serves the shape-cell-offset and cell-offset prefix sums. The dedup SHALL be skipped if the fallback all-pairs path is used.
 
 #### Scenario: Duplicate pairs are removed
 
-- **WHEN** within-cell generation produces pairs `[(1,4), (2,3), (1,4)]` (pair (1,4) appears twice)
+- **WHEN** within-cell generation emits the packed keys for `(1,4)`, `(2,3)` and `(1,4)` again
 - **AND** no global pairs are generated
-- **THEN** after dedup, `collision_pairs[]` contains `[(1,4), (2,3)]`
+- **THEN** after dedup, `collision_pairs[]` contains `(1,4)` and `(2,3)` as `uvec2`s
 - **AND** `pair_count = 2`
+
+#### Scenario: The unpacked pairs keep the canonical order
+
+- **WHEN** a compacted key is unpacked with `shape_count = 200`
+- **THEN** the pair's `.x` is the smaller shape index and `.y` is the larger one
+- **AND** the reconstructed pair equals the pair that was packed
 
 #### Scenario: Dedup dispatches for max_pairs, reads actual count from GPU
 
-- **WHEN** the detector builds the dedup section of the render graph
-- **THEN** `RadixSort::AddPasses` is called with `elem_capacity = max_pairs` and `pair_count_buf = gpu_pair_count`
-- **AND** `GetVMAddress()` is NOT called on `gpu_pair_count` during RG build
+- **WHEN** the detector records the dedup section
+- **THEN** the sort is recorded with `elem_capacity = max_output_pair_count` and the pair-count buffer
+- **AND** the host does not read the pair count while recording
+
+#### Scenario: A shape count above the packing bound is rejected
+
+- **WHEN** the detector records with `shape_count = 65537`
+- **THEN** an assertion fires on the host
+- **AND** no dedup is recorded with a wrapped key bound
+
+#### Scenario: Count buffers are device-local
+
+- **WHEN** the detector allocates `gpu_pair_count`, `gpu_unique_count`, `gpu_total_assignments` or `gpu_global_count`
+- **THEN** each is allocated without CPU access
+- **AND** no CPU code in the detector reads or writes them
 
 ### Requirement: Out-of-bounds shape exclusion in cell passes
 

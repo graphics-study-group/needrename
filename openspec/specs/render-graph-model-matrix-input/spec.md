@@ -2,43 +2,73 @@
 
 ## Purpose
 
-Extends `ComplexRenderGraphBuilder` to optionally accept an external model matrices buffer (produced by GPU physics) and declare the correct buffer access in shadow map and lit passes so that physics-driven model matrices are used for rendering.
+Defines the render-owned model matrices buffer (produced by GPU physics into a buffer the render system owns) and its unconditional import by the default and editor render graphs, so that physics-driven model matrices are used for rendering.
 
 ## Requirements
 
-### Requirement: ComplexRenderGraphBuilder accepts optional model matrices buffer
+### Requirement: ComplexRenderGraphBuilder imports the render-owned model matrices buffer
 
-`ComplexRenderGraphBuilder::BuildDefaultRenderGraph` SHALL provide an overload accepting `const ComputeBuffer *model_matrices_buffer = nullptr`. When non-null, the builder SHALL:
+`ComplexRenderGraphBuilder::BuildDefaultRenderGraph` SHALL take no model matrices parameter. It SHALL import the render system's model matrices buffer unconditionally and SHALL:
 1. Import the buffer with `prev_access = MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomWrite)`
 2. Declare `UseBuffer(mm_handle, ShaderRandomRead)` on all shadow map passes
 3. Declare `UseBuffer(mm_handle, ShaderRandomRead)` on the main lit pass
 
-When `model_matrices_buffer` is `nullptr`, the builder SHALL behave identically to the existing implementation.
+The import SHALL NOT depend on any build-time condition, and the built graph SHALL NOT need to be rebuilt when the producer starts writing. The graph SHALL hold a reference to the buffer object, which stays valid for the graph's lifetime because the object is never replaced — only its storage may be reallocated in place.
 
 #### Scenario: Physics model matrices used in shadow pass
 
-- **WHEN** a non-null `model_matrices_buffer` is passed
+- **WHEN** the default render graph is built
 - **THEN** each shadow map pass SHALL declare `UseBuffer(mm_handle, ShaderRandomRead)`
 - **AND** a barrier from `COMPUTE_SHADER | SHADER_STORAGE_WRITE` to graphics read SHALL be inserted
 
-#### Scenario: No model matrices buffer passed
+#### Scenario: The import is unconditional
 
-- **WHEN** `BuildDefaultRenderGraph` is called with `model_matrices_buffer = nullptr` (default)
-- **THEN** no model matrices buffer SHALL be imported
-- **AND** the graph SHALL be identical to the pre-change implementation
+- **WHEN** `BuildDefaultRenderGraph` is called before any physics work has been recorded
+- **THEN** the model matrices buffer SHALL still be imported and declared on the shadow map and lit passes
+- **AND** the built graph SHALL NOT be rebuilt when the producer later starts writing the buffer
 
-### Requirement: SceneDataManager receives model matrices buffer from the assembly layer
+#### Scenario: Reallocation after graph construction does not dangle
 
-The model matrices buffer produced by physics SHALL be forwarded to `SceneDataManager::SetModelMatricesBuffer()` by the `MainClass` assembly layer — no longer by the physics solver or `PhysicsScene::SyncGpuBuffers`.
+- **WHEN** the model matrices buffer's storage is reallocated after the render graph has been built
+- **THEN** the graph SHALL continue to reference a live buffer, because the buffer object is not replaced
+- **AND** the buffer handle the graph resolves when recording SHALL be the current one
 
-#### Scenario: Model matrices buffer forwarded after physics step
+### Requirement: SceneDataManager owns the model matrices buffer
 
-- **WHEN** `MainClass::RunOneFrame` runs and the main scene has a physics scene with GPU buffers
-- **THEN** after the physics flush/step, `SceneDataManager::SetModelMatricesBuffer()` is called with the physics scene's `model_matrices` buffer pointer (from `GetGpuBuffers().model_matrices`)
-- **AND** the buffer pointer is forwarded even when the physics scene's buffer set was initialized this frame
+`SceneDataManager` SHALL uniquely own the model matrices buffer: it SHALL create it once, SHALL never replace the buffer object, and SHALL expose it so that the frame's producer can write into it. This SHALL be the only model matrices storage in the engine.
 
-#### Scenario: Physics no longer notifies SceneDataManager
+`SceneDataManager` SHALL size the buffer on demand through an element-count entry point, growing its storage in place when a larger capacity is requested, and SHALL start from an initial reservation so that early frames do not reallocate repeatedly. The buffer SHALL be initialized once at creation to identity matrices, so that a frame which produces nothing renders a wrong transform rather than reading undefined memory.
 
-- **WHEN** `XpbdGpuSolver::GPUStep` or `PhysicsScene::SyncGpuBuffers` runs
-- **THEN** neither calls `SceneDataManager::SetModelMatricesBuffer`
-- **AND** no Render header is included by the physics module
+That initialization SHALL be an initialization submission of its own: it SHALL be submitted and waited for before `SceneDataManager::Create` returns, and it SHALL NOT be left in the frame manager's deferred upload batch for a later frame to submit. A producer that writes the buffer after creation SHALL therefore remain the last writer when it completes, whether or not any frame has been submitted yet.
+
+`SceneDataManager` SHALL NOT accept a forwarded model matrices buffer, and no setter for one SHALL exist. Physics SHALL NOT hold a reference to this buffer between calls, and descriptor binding 2 SHALL always point at it.
+
+#### Scenario: The buffer exists before any producer runs
+
+- **WHEN** the scene descriptor set is written for a frame in which no physics work has been produced
+- **THEN** binding 2 points at the render-owned buffer
+- **AND** the buffer holds the identity matrices written at creation
+
+#### Scenario: Identity is readable before any frame is submitted
+
+- **WHEN** the model matrices buffer is read immediately after render-system creation
+- **THEN** it holds the identity matrices written at creation
+- **AND** no frame submission was required to make that content visible
+
+#### Scenario: Initialization precedes any producer
+
+- **WHEN** a producer writes the buffer after creation and before any frame has been submitted
+- **THEN** the buffer holds the producer's output once the producer's write completes
+- **AND** the initialization does not overwrite the buffer afterwards
+
+#### Scenario: Capacity grows on demand without moving the object
+
+- **WHEN** the producer reports a rigid body slot count larger than the buffer's current capacity
+- **THEN** the buffer's storage is reallocated in place to hold at least that many matrices
+- **AND** the buffer object stays at the same address
+
+#### Scenario: No forwarded buffer is accepted
+
+- **WHEN** the engine is built and the assembly layers are inspected
+- **THEN** `SceneDataManager` exposes no setter that accepts a model matrices buffer
+- **AND** no code outside the render system assigns the model matrices buffer

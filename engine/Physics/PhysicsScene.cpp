@@ -21,6 +21,13 @@ namespace {
         return std::as_bytes(std::span{source});
     }
 
+    /**
+     * @brief Grow a scene buffer to hold at least `element_count` elements.
+     *
+     * The buffer is created once and its storage replaced in place afterwards,
+     * so every long-lived reference to the buffer stays valid across a
+     * slot-count change.
+     */
     template <typename T>
     void EnsureBuffer(
         std::unique_ptr<Engine::Rhi::ComputeBuffer> &buffer,
@@ -29,10 +36,7 @@ namespace {
         const std::string &name
     ) {
         const size_t safe_count = std::max<size_t>(1, element_count);
-        const size_t byte_size = safe_count * sizeof(T);
-        if (!buffer || buffer->GetSize() != byte_size) {
-            buffer = Engine::Rhi::ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, name);
-        }
+        Engine::Rhi::EnsureComputeBuffer(buffer, allocator, safe_count * sizeof(T), false, name);
     }
 } // namespace
 
@@ -110,8 +114,6 @@ namespace Engine {
         m_gpu_shape_local_rotation.reset();
         m_gpu_shape_world_position.reset();
         m_gpu_shape_world_rotation.reset();
-
-        m_gpu_model_matrices.reset();
 
         m_gpu_shape_filter_data.reset();
     }
@@ -194,7 +196,7 @@ namespace Engine {
 
     void PhysicsScene::SubmitRigidBody(uint32_t rigid_body_index, const RigidBodyComDescriptor &desc) {
         if (!IsRigidBodyIndexValid(rigid_body_index)) return;
-        m_rigid_body_mass[rigid_body_index] = desc.mass;
+        m_rigid_body_mass[rigid_body_index] = desc.is_kinematic ? 0.0f : desc.mass;
         m_rigid_body_static_friction[rigid_body_index] = desc.static_friction;
         m_rigid_body_dynamic_friction[rigid_body_index] = desc.dynamic_friction;
         m_rigid_body_restitution[rigid_body_index] = desc.restitution;
@@ -202,7 +204,7 @@ namespace Engine {
         m_rigid_body_center_world_position[rigid_body_index] = desc.center_world_position;
         m_rigid_body_center_world_rotation[rigid_body_index] = desc.center_world_rotation;
         m_rigid_body_inertia[rigid_body_index] = desc.inertia;
-        m_rigid_body_inverse_inertia[rigid_body_index] = desc.inverse_inertia;
+        m_rigid_body_inverse_inertia[rigid_body_index] = desc.is_kinematic ? glm::mat4(0.0f) : desc.inverse_inertia;
         m_rigid_body_linear_velocity[rigid_body_index] = desc.linear_velocity;
         m_rigid_body_angular_velocity[rigid_body_index] = desc.angular_velocity;
         m_rigid_body_external_force[rigid_body_index] = desc.external_force;
@@ -264,7 +266,6 @@ namespace Engine {
             m_gpu_shape_local_rotation.get(),
             m_gpu_shape_world_position.get(),
             m_gpu_shape_world_rotation.get(),
-            m_gpu_model_matrices.get(),
             m_gpu_shape_filter_data.get(),
             m_gpu_fixed_joints.get(),
             m_gpu_fixed_joint_alive.get(),
@@ -353,8 +354,6 @@ namespace Engine {
         EnsureBuffer<glm::vec4>(
             m_gpu_shape_world_rotation, allocator, m_gpu_shape_slot_count, "Physics Shape WorldRot"
         );
-
-        EnsureBuffer<glm::mat4>(m_gpu_model_matrices, allocator, m_gpu_rigid_body_slot_count, "Physics ModelMatrices");
 
         EnsureBuffer<uint32_t>(
             m_gpu_shape_filter_data, allocator, m_gpu_shape_slot_count * MAX_FILTER_ENTRIES, "Physics ShapeFilterData"

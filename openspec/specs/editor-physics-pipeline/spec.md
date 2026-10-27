@@ -1,53 +1,70 @@
 # editor-physics-pipeline Specification
 
 ## Purpose
-TBD - created by archiving change integrate-physics-into-main-loop. Update Purpose after archive.
+
+Defines how the editor main loop drives the physics pipeline: the step pipeline runs only while the editor is playing, shares the frame's command buffer with rendering, produces model matrices every frame into the render system's buffer, and is toggled by the editor's start and stop callbacks.
+
 ## Requirements
 ### Requirement: Editor loop physics pipeline gated on play state
 
-The editor main loop SHALL execute the full physics pipeline (`PreGPUStep`, `GPUStep`, `PostGPUStep`) only when `MainWindow::m_is_playing` is `true`. When not playing, the physics pipeline SHALL be skipped entirely.
+The editor main loop SHALL execute the physics step through `PhysicsSystem::GPUStep(cb)` only when `MainWindow::m_is_playing` is `true`. When not playing, the physics step SHALL be skipped entirely. The editor SHALL NOT make any physics preparation or post-processing call outside command-buffer recording, in either state.
+
+Model matrix production SHALL NOT be gated on the play state: the editor loop SHALL produce model matrices in every rendered frame, whether playing or stopped, because the physics-driven renderers' transforms are read from the same buffer in both states.
 
 #### Scenario: Playing — physics pipeline runs
 
 - **WHEN** the editor is in play mode (`m_is_playing == true`)
-- **THEN** `PhysicsSystem::PreGPUStep` is called before `cb.begin()`
-- **AND** `PhysicsSystem::GPUStep(cb)` is called between `cb.begin()` and `cb.end()`
-- **AND** `PhysicsSystem::PostGPUStep` is called after `cb.end()` and submit
+- **THEN** `PhysicsSystem::GPUStep(cb)` is called between `cb.begin()` and `cb.end()`
+- **AND** no physics call is made before `cb.begin()` or after the frame is submitted
 
 #### Scenario: Stopped — physics pipeline is skipped
 
 - **WHEN** the editor is stopped (`m_is_playing == false`)
-- **THEN** no `PreGPUStep`, `GPUStep`, or `PostGPUStep` calls are made
+- **THEN** no `GPUStep` call is made
+- **AND** model matrices are still produced for the frame before render passes are recorded
 - **AND** the render graph executes normally without physics synchronization
 
 ### Requirement: Editor loop shares command buffer for physics and rendering
 
-The editor loop SHALL share a single command buffer for physics compute (`GPUStep`) and render graph passes (`RecordAllPasses`), matching `MainClass::RunOneFrame` structure.
+The editor loop SHALL share a single command buffer for physics compute, model matrix production and render graph passes (`RecordAllPasses`), matching `MainClass::RunOneFrame` structure. Model matrix production SHALL be recorded after the physics step and before the render graph's passes, so that every pass reading the buffer observes matrices produced in the same frame. Physics records its dispatches into the same command buffer the render passes use; it does not submit, and it does not run any phase outside that command buffer's recording scope.
 
 #### Scenario: Physics and rendering on shared command buffer
 
 - **WHEN** the editor is in play mode
-- **THEN** `GPUStep(cb)` writes physics model matrices to the SSBO
+- **THEN** `GPUStep(cb)` records physics dispatches into `cb`
+- **AND** model matrices are produced into the render-owned buffer on the same command buffer
 - **AND** `RecordAllPasses(cb)` records all render passes on the same command buffer
-- **AND** both operations happen between a single `cb.begin()` and `cb.end()` pair
+- **AND** all of these happen between a single `cb.begin()` and `cb.end()` pair
 
-### Requirement: EditorRenderGraphBuilder accepts model matrices buffer
+#### Scenario: Stopped frame still produces matrices
 
-`EditorRenderGraphBuilder::BuildEditorRenderGraph` SHALL accept an optional `const ComputeBuffer *model_matrices_buffer` parameter. When non-null, the buffer SHALL be imported as an external render graph resource and declared with read access on shadowmap, scene lit, and game lit passes.
+- **WHEN** the editor is stopped and records a frame
+- **THEN** model matrix production is recorded between `cb.begin()` and `RecordAllPasses(cb)`
+- **AND** the passes reading the buffer observe matrices derived from the current scene poses
 
-#### Scenario: SSBO available — render graph imports it
+### Requirement: EditorRenderGraphBuilder imports the render-owned model matrices buffer
 
-- **WHEN** `BuildEditorRenderGraph` is called with a non-null `model_matrices_buffer`
+`EditorRenderGraphBuilder::BuildEditorRenderGraph` SHALL take no model matrices parameter. It SHALL import the render system's model matrices buffer unconditionally and declare read access on the shadowmap, scene lit, and game lit passes. Because the buffer object is owned by the render system and never replaced, the editor graph SHALL NOT need to be rebuilt when the producer starts writing.
+
+#### Scenario: Render graph imports the buffer
+
+- **WHEN** `BuildEditorRenderGraph` is called
 - **THEN** the buffer is imported via `ImportExternalResource` with `ShaderRandomWrite` access
 - **AND** shadowmap pass declares `UseBuffer` with `ShaderRandomRead`
 - **AND** scene lit pass declares `UseBuffer` with `ShaderRandomRead`
 - **AND** game lit pass declares `UseBuffer` with `ShaderRandomRead`
 
-#### Scenario: SSBO not available — render graph skips import
+#### Scenario: The graph is built once
 
-- **WHEN** `BuildEditorRenderGraph` is called with a `nullptr` `model_matrices_buffer`
-- **THEN** no `ImportExternalResource` or `UseBuffer` calls are made for model matrices
-- **AND** no export barriers are generated for the model matrices buffer
+- **WHEN** the editor's first render graph has been built and the producer starts writing model matrices
+- **THEN** no graph rebuild occurs
+- **AND** no display texture is re-pointed as a consequence of model matrices becoming available
+
+#### Scenario: Reallocation does not invalidate the editor graph
+
+- **WHEN** the model matrices buffer's storage is reallocated after the editor's render graph has been built
+- **THEN** the buffer the graph imported remains valid for the graph's lifetime
+- **AND** no shadowmap, scene lit, or game lit pass reads a destroyed buffer
 
 ### Requirement: Start callback enables simulation
 

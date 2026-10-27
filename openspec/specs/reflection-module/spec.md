@@ -1,7 +1,9 @@
 # reflection-module Specification
 
 ## Purpose
-TBD - created by archiving change extract-core-and-reflection-dlls. Update Purpose after archive.
+
+Defines the standalone Reflection shared library: the type registry and serialization symbols it exports, the macros that generate DLL-compatible registration and serialization code per module, and the built-in archive, glm, and std type providers.
+
 ## Requirements
 ### Requirement: Reflection is a standalone shared library
 The engine SHALL compile Reflection as a separate `Reflection.dll` shared library that depends on no other engine module (only std, glm, and nlohmann/json).

@@ -9,7 +9,12 @@
 
 namespace {
     static constexpr std::array PREFERED_COLOR_FORMATS = {
-        vk::Format::eR8G8B8A8Srgb, vk::Format::eR8G8B8A8Unorm, vk::Format::eR8G8B8Srgb, vk::Format::eR8G8B8Unorm
+        vk::Format::eR8G8B8A8Srgb,
+        vk::Format::eR8G8B8A8Unorm,
+        vk::Format::eR8G8B8Srgb,
+        vk::Format::eR8G8B8Unorm,
+        vk::Format::eB8G8R8A8Srgb,
+        vk::Format::eB8G8R8A8Unorm
     };
 
     vk::SurfaceFormatKHR SelectSwapchainFormat(const std::vector<vk::SurfaceFormatKHR> &formats) {
@@ -169,7 +174,14 @@ namespace Engine::RenderSystemState {
     SwapchainPresentProvider::SwapchainPresentProvider() : pimpl(std::make_unique<impl>()) {
     }
 
-    SwapchainPresentProvider::~SwapchainPresentProvider() = default;
+    SwapchainPresentProvider::~SwapchainPresentProvider() {
+        // impl's destructor destroys the swapchain. A present operation on it
+        // may still be pending in the WSI: drain the device first, otherwise
+        // the swapchain is torn down while the driver still references it.
+        if (pimpl->m_device_interface != nullptr && pimpl->m_swapchain) {
+            pimpl->m_device_interface->GetDevice().waitIdle();
+        }
+    }
 
     void SwapchainPresentProvider::Initialize(
         const Rhi::DeviceInterface &device_interface, vk::Extent2D expected_extent
@@ -223,6 +235,11 @@ namespace Engine::RenderSystemState {
         }
 
         auto device = di.GetDevice();
+        // The old swapchain (if any) is destroyed when the new handle below is
+        // assigned. Its images/present operations must have completed first.
+        if (pimpl->m_swapchain) {
+            device.waitIdle();
+        }
         pimpl->m_swapchain = device.createSwapchainKHRUnique(info);
         pimpl->m_images = device.getSwapchainImagesKHR(pimpl->m_swapchain.get());
         pimpl->m_image_format = format;

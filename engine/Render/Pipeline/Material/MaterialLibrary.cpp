@@ -4,7 +4,9 @@
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
+#include "Rhi/Resource/DescriptorArena.h"
 
 #include <SDL3/SDL.h>
 #include <cassert>
@@ -13,15 +15,6 @@
 
 namespace Engine {
     struct MaterialLibrary::impl {
-        static constexpr size_t MAX_MATERIAL_DESCRIPTORS_PER_POOL = 128;
-        static constexpr std::array DEFAULT_MATERIAL_DESCRIPTOR_POOL_SIZE{
-            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBufferDynamic, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBufferDynamic, 128},
-            vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 128}
-        };
-
         struct PipelineAssetItem {
             AssetRef material_template_asset{};
         };
@@ -32,10 +25,8 @@ namespace Engine {
             /// Reflected pipeline info.
             Rhi::SPLayout reflected{};
 
-            /// Descriptor pool for material descriptors (could be null if no material descriptor is found).
-            vk::UniqueDescriptorPool descriptor_pool{};
             /// Descriptor set layout for material descriptors (could be null if no material descriptor is found).
-            vk::DescriptorSetLayout descriptor_set_layout{};
+            Rhi::DescriptorSetLayoutRef descriptor_set_layout{};
             /// Material pipeline layout.
             vk::PipelineLayout pipeline_layout{};
 
@@ -89,7 +80,7 @@ namespace Engine {
          */
         void GenerateDescriptorSetAndPipelineLayout(
             PipelineBundle &b,
-            Rhi::ImmutableResourceCache &irc,
+            RenderSystem &system,
             vk::Device d,
             vk::DescriptorSetLayout scene_descriptors,
             vk::DescriptorSetLayout camera_descriptors,
@@ -110,26 +101,20 @@ namespace Engine {
                     );
                 }
 
+                // Resolved once, through the arena: this handle is what the
+                // pipeline layout is built over and what every set for this
+                // material is allocated against.
                 vk::DescriptorSetLayoutCreateInfo dslci{{}, desc_bindings};
-                b.descriptor_set_layout = irc.GetDescriptorSetLayout(dslci);
+                b.descriptor_set_layout = system.GetDeviceContext().GetDescriptorArena().ResolveLayout(dslci, nullptr);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
                     RenderSystemState::RendererManager::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
-                    scene_descriptors, camera_descriptors, b.descriptor_set_layout
+                    scene_descriptors, camera_descriptors, b.descriptor_set_layout.handle
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                b.pipeline_layout = irc.GetPipelineLayout(plci);
-
-                // Also create a descriptor pool
-                auto dpci = vk::DescriptorPoolCreateInfo{
-                    vk::DescriptorPoolCreateFlags{},
-                    MAX_MATERIAL_DESCRIPTORS_PER_POOL,
-                    DEFAULT_MATERIAL_DESCRIPTOR_POOL_SIZE
-                };
-                b.descriptor_pool = d.createDescriptorPoolUnique(dpci);
-                DEBUG_SET_NAME_TEMPLATE(d, b.descriptor_pool.get(), std::format("Descriptor Pool - Material {}", name));
+                b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plci);
             } else {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material %s pipeline has no material descriptors.", name.c_str());
 
@@ -138,7 +123,7 @@ namespace Engine {
                 };
                 std::array<vk::DescriptorSetLayout, 2> set_layouts{scene_descriptors, camera_descriptors};
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                b.pipeline_layout = irc.GetPipelineLayout(plci);
+                b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plci);
             }
         }
 
@@ -157,7 +142,7 @@ namespace Engine {
                 CompileShaderModules(pipeline_table[tag], system.GetDevice(), asset->properties.shaders.shaders);
                 GenerateDescriptorSetAndPipelineLayout(
                     pipeline_table[tag],
-                    system.GetIRCache(),
+                    system,
                     system.GetDevice(),
                     system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                     system.GetCameraManager().GetDescriptorSetLayout(),
@@ -173,22 +158,16 @@ namespace Engine {
                 std::back_inserter(shader_modules),
                 [](const vk::UniqueShaderModule &usm) { return usm.get(); }
             );
-            if (b.descriptor_pool) {
-                pipeline_table[tag].materials[pri] = std::make_unique<MaterialTemplate>(
-                    system,
-                    asset->properties,
-                    shader_modules,
-                    b.pipeline_layout,
-                    b.descriptor_pool.get(),
-                    b.reflected,
-                    pri,
-                    asset->name
-                );
-            } else {
-                pipeline_table[tag].materials[pri] = std::make_unique<MaterialTemplate>(
-                    system, asset->properties, shader_modules, b.pipeline_layout, nullptr, b.reflected, pri, asset->name
-                );
-            }
+            pipeline_table[tag].materials[pri] = std::make_unique<MaterialTemplate>(
+                system,
+                asset->properties,
+                shader_modules,
+                b.pipeline_layout,
+                b.descriptor_set_layout,
+                b.reflected,
+                pri,
+                asset->name
+            );
 
             SDL_LogInfo(
                 SDL_LOG_CATEGORY_RENDER,

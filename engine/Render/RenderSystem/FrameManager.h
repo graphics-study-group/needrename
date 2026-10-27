@@ -54,6 +54,21 @@ namespace Engine {
              */
             void Create(IPresentProvider &present_provider);
 
+            /**
+             * @brief Rebuild the per-image present semaphores after the
+             * presentation target was recreated.
+             *
+             * A swapchain image is re-acquired only after its previous present
+             * operation completed, so one binary semaphore per image is safe to
+             * reuse. When the image count changes (swapchain recreation), the
+             * old semaphores must be replaced: the ones waited on by present
+             * operations of the old swapchain must not be signaled again.
+             *
+             * @warning The device must be idle (no pending present operation on
+             * the old swapchain); this is drained here for safety.
+             */
+            void OnPresentTargetRecreated();
+
             /// @brief Get the current frame-in-flight count.
             uint32_t GetFrameInFlight() const noexcept;
             /// @brief Get the current frame count.

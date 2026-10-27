@@ -1,0 +1,105 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+
+// fixed_entries.comp — Fixed-joint entry-list construction (once per substep,
+// before the radix sort).
+//
+// Dispatched over the fixed-joint entry capacity (4 slots per joint = 2 bodies
+// x 2 scalar constraints: the rotation constraint and the position constraint),
+// one invocation per joint.
+//
+// CONTRACT: every slot in [0, capacity) is written on every dispatch, and this
+// shader never returns before writing.  A slot's key encodes *ownership* only:
+// the index of the body the slot belongs to, or `body_count` when the joint does
+// not exist this substep or an owner index is out of range.  `body_count` is
+// larger than every real key, so unowned slots sort after every owned one (the
+// entry count stays a prefix of the sorted order) and SumByKey drops them,
+// because the solver passes `body_count` as its `max_key_value`.  No body or
+// joint state (alive / kinematic / mass) is read here — whether a body actually
+// receives a contribution is decided by accumulate_fixed_position.comp, and an
+// unwritten slot stays inert because the value buffer is cleared before every
+// iteration.
+//
+// CONTRACT: the payload array carries each slot's own id, and it must be written
+// on **every** dispatch, not only when the entry list changes.  The radix sort
+// permutes the payload array in place, so a substep that skipped rewriting it
+// would gather values for the previous substep's permutation.  That is the one
+// mistake in this adaptation that would fail silently.
+//
+// Channel/slot conventions: common/xpbd_entry_layout.glsl.
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "../common/xpbd_entry_layout.glsl"
+
+// ---- Joint definition buffer (PhysicsScene-owned, read-only) ----
+struct FixedJointComDescriptor {
+    uint obj1_index;
+    uint obj2_index;
+    float compliance;
+    float _pad;
+    vec4 initial_rel_pos_local;
+    vec4 initial_rel_rotation;
+};
+
+layout(set = 0, binding = 0) readonly buffer FixedJoints { FixedJointComDescriptor v[]; } fixed_joints;
+
+// ---- Output: the entry key array and its payload (slot id) array ----
+layout(set = 0, binding = 1) buffer EntryKeys    { uint v[]; } entry_keys;
+layout(set = 0, binding = 2) buffer EntryPayload { uint v[]; } entry_payload;
+
+// ---- Output: the group's entry count, read by the radix sort ----
+// The host knows this count, but the sort's count guard reads it from a buffer at
+// execution time, so the pass that owns the list publishes it.  It is
+// `kJointSlotBase * joint_count`, clamped to the capacity.
+layout(set = 0, binding = 3) buffer EntryCount { uint count; } entry_count;
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+// The body count travels as a value: under the capacity contract a buffer's
+// length is its allocation size, not a logical bound.
+layout(push_constant) uniform JointCountPush {
+    uint joint_count;
+    uint entry_capacity;   // number of fixed entry slots (== 4 * fixed joint capacity)
+    uint body_count;       // live rigid body slot count (the invalid-slot key)
+} params;
+
+void main() {
+    uint j = gl_GlobalInvocationID.x;
+
+    // One invocation publishes the group's entry count for the whole dispatch.
+    if (j == 0u) {
+        entry_count.count = min(kJointSlotBase * params.joint_count, params.entry_capacity);
+    }
+
+    const uint slot1_rot = joint_slot(j, 0u, kJointAxisSlot);
+    const uint slot1_pos = joint_slot(j, 0u, kJointAnchorSlot);
+    const uint slot2_rot = joint_slot(j, 1u, kJointAxisSlot);
+    const uint slot2_pos = joint_slot(j, 1u, kJointAnchorSlot);
+    // The dispatch rounds up to whole workgroups, so the last workgroup can run
+    // past the end of the entry list.  Threads past the capacity own no slots.
+    if (slot2_pos >= params.entry_capacity) return;
+
+    // The invalid-slot key is the body count: the largest key this substep can
+    // produce, and the value SumByKey is told to drop.
+    const uint body_count = params.body_count;
+    uint key1 = body_count;
+    uint key2 = body_count;
+
+    if (j < params.joint_count) {
+        FixedJointComDescriptor constraint = fixed_joints.v[j];
+        if (constraint.obj1_index < body_count) key1 = constraint.obj1_index;
+        if (constraint.obj2_index < body_count) key2 = constraint.obj2_index;
+    }
+
+    // A constraint only ever contributes to a body when that body is movable,
+    // so both constraints of a body share its key.
+    entry_keys.v[slot1_rot] = key1;
+    entry_keys.v[slot1_pos] = key1;
+    entry_keys.v[slot2_rot] = key2;
+    entry_keys.v[slot2_pos] = key2;
+    // The payload is the slot's own id, and it is rewritten every dispatch
+    // because the sort permutes it in place.
+    entry_payload.v[slot1_rot] = slot1_rot;
+    entry_payload.v[slot1_pos] = slot1_pos;
+    entry_payload.v[slot2_rot] = slot2_rot;
+    entry_payload.v[slot2_pos] = slot2_pos;
+}

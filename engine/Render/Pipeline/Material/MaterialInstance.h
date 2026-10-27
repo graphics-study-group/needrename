@@ -6,6 +6,7 @@
 #include "Render/Resource/RenderResourceHandle.h"
 #include "Render/render_export.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Resource/DescriptorArena.h"
 
 #include <any>
 #include <fwd.hpp>
@@ -65,42 +66,22 @@ namespace Engine {
          * @brief Upload current state of this instance to GPU:
          * Performs descriptor writes and UBO buffer writes.
          *
-         * May perform lazy buffer or descriptor allocations.
+         * May perform lazy buffer allocations, and acquires the descriptor set
+         * from the device descriptor arena on every call so that the arena's
+         * recorded epoch stays an upper bound on the epochs that reference it.
          *
          * No action will be performed if the template has no per-material data.
          *
-         * @return A vector containing all dynamic uniform buffer offsets.
-         * Guaranteed to be sorted by binding numbers.
-         * A zero-sized vector will be returned if the template has no
-         * per-material data.
+         * @return The material descriptor set together with all dynamic uniform
+         * buffer offsets, sorted by binding numbers. A null set is returned if
+         * the template has no per-material data.
          */
-        std::vector<uint32_t> UpdateGPUInfo(MaterialTemplate &tpl, uint32_t backbuffer);
+        Rhi::DescriptorSetBinding UpdateGPUInfo(MaterialTemplate &tpl, uint32_t backbuffer);
 
-        /// @overload std::vector<uint32_t> MaterialInstance::UpdateGPUInfo(MaterialTemplate &tpl, uint32_t backbuffer);
-        std::vector<uint32_t> UpdateGPUInfo(
+        /// @overload Rhi::DescriptorSetBinding MaterialInstance::UpdateGPUInfo(MaterialTemplate &tpl, uint32_t backbuffer);
+        Rhi::DescriptorSetBinding UpdateGPUInfo(
             const std::string &tag, const PipelineRuntimeInfo &pri, uint32_t backbuffer
         );
-
-        /**
-         * @brief Get the descriptor set for a specific pass
-         *
-         * This method returns the
-         * descriptor set associated with the given pass index.
-         * The descriptor set contains the bindings for
-         * various resources such as textures and uniform buffers.
-         *
-         * @return A handle to the Descriptor Set object.
-         * If the descriptor is not yet allocated, a null descriptor will be
-         * returned.
-         * If the material template has no per-material data, a null descriptor
-         * will be returned.
-         */
-        vk::DescriptorSet GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept;
-
-        /// @overload vk::DescriptorSet MaterialInstance::GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept
-        vk::DescriptorSet GetDescriptor(
-            const std::string &tag, const PipelineRuntimeInfo &pri, uint32_t backbuffer
-        ) const noexcept;
 
         /**
          * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.

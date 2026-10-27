@@ -83,8 +83,6 @@ namespace Engine {
             const Rhi::ComputeBuffer *shape_world_position{};
             const Rhi::ComputeBuffer *shape_world_rotation{};
 
-            const Rhi::ComputeBuffer *model_matrices{};
-
             const Rhi::ComputeBuffer *shape_filter_data{};
 
             const Rhi::ComputeBuffer *gpu_fixed_joints{};
@@ -165,8 +163,6 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_local_rotation{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_position{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_rotation{};
-
-        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_model_matrices{};
 
         std::vector<FixedJointComDescriptor> m_fixed_joints{};
         std::vector<uint32_t> m_fixed_joint_alive{};

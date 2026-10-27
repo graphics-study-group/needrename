@@ -10,11 +10,13 @@
 #include "Framework/MainClass.h"
 #include "Render/Asset/Material/MaterialTemplateAsset.h"
 #include "Render/Asset/Mesh/PlaneMeshAsset.h"
+#include "Render/Asset/Shader/ShaderKernel.h"
 #include "Render/Asset/Texture/Image2DTextureAsset.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Pipeline/Renderer/StaticHomogeneousMesh.h"
 #include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/UserInterface/GUISystem.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "cmake_config.h"
@@ -94,8 +96,7 @@ auto BuildRenderGraph(
     MaterialInstance *material,
     IVertexBasedRenderer *mesh,
     RenderTargetTexture *blurred = nullptr,
-    Rhi::ComputeStage *kernel = nullptr,
-    Rhi::ComputeResourceBinding *kbinding = nullptr
+    Rhi::ComputeKernel *kernel = nullptr
 ) {
     using IAT = Engine::Rhi::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
@@ -154,10 +155,11 @@ auto BuildRenderGraph(
                 .UseImage(c, IAT::ShaderRandomRead)
                 .UseImage(gb, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
-                .SetPassFunction([blurred, kernel, kbinding](CommandBuffer &cb, const RenderGraph &) {
-                    cb.BindComputeStage(*kernel);
-                    cb.BindComputeResource(*kbinding);
-                    cb.DispatchCompute(
+                .SetPassFunction([blurred, kernel, color](CommandBuffer &cb, const RenderGraph &) {
+                    kernel->Dispatch(
+                        cb.GetCommandBuffer(),
+                        {{"inputImage", Rhi::ComputeKernelResource::Image(*color)},
+                         {"outputImage", Rhi::ComputeKernelResource::Image(*blurred)}},
                         blurred->GetTextureDescription().width / 16 + 1,
                         blurred->GetTextureDescription().height / 16 + 1,
                         1
@@ -258,12 +260,8 @@ int main(int argc, char **argv) {
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto cs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/gaussian_blur.comp.asset"});
-    Rhi::ComputeStage cstage{rsys->GetDeviceContext()};
-    cstage.Instantiate(cs_ref.as<ShaderAsset>()->binary, cs_ref.as<ShaderAsset>()->m_name);
-
-    auto &kbinding = cstage.AllocateResourceBinding(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
-    kbinding.GetShaderResourceBinding().BindTexture("inputImage", *color);
-    kbinding.GetShaderResourceBinding().BindTexture("outputImage", *postproc);
+    Rhi::ComputeKernel &gaussian_blur_kernel =
+        RequestComputeKernel(rsys->GetDeviceContext(), *cs_ref.as<ShaderAsset>());
 
     auto nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
     auto blur{BuildRenderGraph(
@@ -273,8 +271,7 @@ int main(int argc, char **argv) {
         test_material_instance.get(),
         &test_mesh,
         postproc.get(),
-        &cstage,
-        &kbinding
+        &gaussian_blur_kernel
     )};
 
     bool quited = false;

@@ -4,6 +4,7 @@
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/MemoryTypes.h"
 #include "Rhi/Device/Structs.h"
+#include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Submission/SubmissionHelper.h"
 
 #include <SDL3/SDL.h>
@@ -11,6 +12,7 @@
 #include <functional>
 #include <iostream>
 #include <vector>
+#include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
 using namespace Engine;
@@ -36,6 +38,14 @@ static bool ExpectRuntimeError(std::function<void()> fn) {
     return false;
 }
 
+/// @brief Number of live VMA allocations, used to observe that staging was
+/// actually freed rather than parked in the retirement facility.
+static uint32_t LiveAllocationCount(Rhi::AllocatorState &allocator) {
+    VmaTotalStatistics stats{};
+    vmaCalculateStatistics(allocator.GetAllocator(), &stats);
+    return stats.total.statistics.allocationCount;
+}
+
 int main() {
     // Requires the SDL video subsystem for SDL_Vulkan_LoadLibrary(nullptr).
     SDL_Init(SDL_INIT_VIDEO);
@@ -49,6 +59,12 @@ int main() {
     };
     Rhi::DeviceInterface gpu_device{cfg};
     Rhi::AllocatorState allocator_state{gpu_device};
+    // The retirement facility is standalone-constructible from the same
+    // facilities the allocator is built from, and is installed through the
+    // allocator's setter. Declared last so that it is destroyed first.
+    Rhi::EpochTracker epoch_tracker{gpu_device.GetDevice()};
+    allocator_state.SetRetireSink(&epoch_tracker);
+
     const auto device = gpu_device.GetDevice();
     const auto &allocator = allocator_state;
     CHECK(device && "Rhi must create a Vulkan device headlessly.");
@@ -64,7 +80,7 @@ int main() {
     sci.pNext = &stci;
     auto timeline = device.createSemaphoreUnique(sci);
 
-    Rhi::SubmissionHelper helper{gpu_device, allocator_state};
+    Rhi::SubmissionHelper helper{gpu_device, allocator_state, epoch_tracker};
     auto target = Rhi::DeviceBuffer::CreateUnique(allocator, {Rhi::BufferTypeBits::CopyTo}, 64, "Target buffer");
     std::vector<std::byte> data(64, std::byte{0xAB});
 
@@ -118,7 +134,7 @@ int main() {
     // Case 8: destruction with a pending deferred batch does not crash
     // (the destructor waits on the batch fence).
     {
-        Rhi::SubmissionHelper destructing_helper{gpu_device, allocator_state};
+        Rhi::SubmissionHelper destructing_helper{gpu_device, allocator_state, epoch_tracker};
         auto destructing_target =
             Rhi::DeviceBuffer::CreateUnique(allocator, {Rhi::BufferTypeBits::CopyTo}, 64, "Destructing target");
         std::vector<std::byte> destructing_data(64, std::byte{0xCD});
@@ -160,7 +176,41 @@ int main() {
         CHECK(ok);
     }
 
+    // Case 10: a blocking submission leaves no parked resources behind — its
+    // staging is released in the same cycle, not retained for a later epoch.
+    {
+        const uint32_t baseline = LiveAllocationCount(allocator_state);
+        helper.EnqueueBufferSubmission(*target, data);
+        CHECK(LiveAllocationCount(allocator_state) == baseline + 1u && "staging must be alive before submission");
+        helper.ExecuteSubmissionImmediately();
+        CHECK(epoch_tracker.GetParkedResourceCount() == 0u && "a blocking submission must leave nothing parked");
+        CHECK(
+            LiveAllocationCount(allocator_state) == baseline
+            && "the blocking submission's staging must be freed, not parked"
+        );
+    }
+
+    // Case 11: a deferred batch's staging is retained until its fence is waited,
+    // then released at that reap rather than parked for the completed prefix.
+    {
+        const uint32_t baseline = LiveAllocationCount(allocator_state);
+        helper.EnqueueBufferSubmission(*target, data);
+        helper.ExecuteSubmission({timeline.get(), 10});
+        CHECK(LiveAllocationCount(allocator_state) == baseline + 1u && "staging must survive until the reap");
+        helper.OnBatchComplete();
+        CHECK(epoch_tracker.GetParkedResourceCount() == 0u && "reaping must not park the batch's staging");
+        CHECK(
+            LiveAllocationCount(allocator_state) == baseline && "the reaped batch's staging must be freed, not parked"
+        );
+    }
+
+    // The helper reported exactly the epochs it opened, and none of them are
+    // left outstanding.
+    CHECK(epoch_tracker.GetOutstandingEpochCount() == 0u && "every epoch the helper opened must be reported");
+
     device.waitIdle();
+    epoch_tracker.ReleaseAllParked();
+    CHECK(epoch_tracker.GetParkedResourceCount() == 0u);
     if (!g_pass) {
         std::cerr << "Rhi::SubmissionHelper standalone test FAILED." << std::endl;
         return 1;

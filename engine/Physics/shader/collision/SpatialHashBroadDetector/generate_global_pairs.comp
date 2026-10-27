@@ -6,6 +6,11 @@
 // compact global_list[].  Threads within a row iterate over all alive shapes
 // and emit pairs that pass the collision filter.
 //
+// A candidate pair `(a, b)` is written as the single **packed key**
+// `a * shape_count + b`, exactly as generate_broad_pairs.comp writes it, so both
+// generators feed the same dedup record (`unpack_pairs.comp` restores the
+// canonical `uvec2` pair after the compaction).
+//
 // Dispatch: (ceil(shape_count / 64), global_count, 1)
 // Local:    (64, 1, 1)
 
@@ -22,10 +27,10 @@ layout(set = 0, binding = 3)  readonly buffer ShapeAlive       { uint v[]; } sha
 // --- Config (push constant, recorded by the detector) ---
 
 layout(push_constant) uniform ShapeCountPush {
-    uint shape_slot_count;
+    uint shape_slot_count;   // == shape_count; the pair is `a * shape_count + b`
 } params;
 
-layout(set = 0, binding = 4)  writeonly buffer CollisionPairs  { uvec2 v[]; } collision_pairs;
+layout(set = 0, binding = 4)  writeonly buffer CollisionKeys   { uint v[]; } collision_keys;
 layout(set = 0, binding = 5)  buffer PairCount                 { uint v[]; } pair_count;
 
 // Collision filter: fixed-stride array, shape i at [i*MAX_FILTER_ENTRIES .. i*MAX_FILTER_ENTRIES+MAX_FILTER_ENTRIES).
@@ -81,5 +86,5 @@ void main() {
     if (is_filtered(a, b)) return;
 
     uint slot = atomicAdd(pair_count.v[0], 1u);
-    collision_pairs.v[slot] = uvec2(a, b);
+    collision_keys.v[slot] = a * params.shape_slot_count + b;
 }

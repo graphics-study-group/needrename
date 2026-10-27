@@ -1,84 +1,102 @@
 #include "RadixSort.h"
 
-#include <cmake_config.h>
-
 #include <vulkan/vulkan.hpp>
 
-#include <Rhi/Device/DeviceContext.h>
-#include <Rhi/Pipeline/ComputeHelpers.h>
-
-#include <Rhi/Buffer/ComputeBuffer.h>
-#include <Rhi/Pipeline/ComputeResourceBinding.h>
-#include <Rhi/Pipeline/ComputeStage.h>
-#include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include "ParallelScan.h"
+#include "Physics/PhysicsDispatch.h"
+#include "Physics/PhysicsSpirvLoader.h"
+#include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 
 #include <cassert>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
-#include <vector>
+#include <utility>
 
 namespace {
-    std::vector<uint32_t> LoadPhysicsSpirvBytes(const char *relative_path) {
-        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
-        std::ifstream file(full, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
+    /// @brief Number of bits needed to represent @p value; zero for zero.
+    uint32_t BitWidth(uint32_t value) noexcept {
+        uint32_t bits = 0u;
+        while (value != 0u) {
+            ++bits;
+            value >>= 1u;
         }
-        const auto size = static_cast<size_t>(file.tellg());
-        if (size == 0u || size % sizeof(uint32_t) != 0u) {
-            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
-        }
-        std::vector<uint32_t> words(size / sizeof(uint32_t));
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
-        return words;
+        return bits;
     }
 
-    const vk::MemoryBarrier2 kComputeBarrier{
-        vk::PipelineStageFlagBits2::eComputeShader,
-        vk::AccessFlagBits2::eShaderStorageWrite,
-        vk::PipelineStageFlagBits2::eComputeShader,
-        vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite
-    };
+    /// @brief `ceil(bit_width(max_key_value) / 8)`, with the zero-pass shortcut.
+    ///
+    /// A key bound of zero is rejected by `Record`, so this only distinguishes
+    /// the "no byte carries information" case: a bound of one means every key the
+    /// caller may write is zero (the contract is "every key is below
+    /// `2^(8 * num_passes)`"), so the input is already sorted and no pass is
+    /// recorded.
+    uint32_t NumRadixPasses(uint32_t max_key_value) noexcept {
+        if (max_key_value <= 1u) {
+            return 0u;
+        }
+        return (BitWidth(max_key_value) + 7u) / 8u;
+    }
+
+    /// @brief Reject a call whose geometry outgrows one of the buffers bound for it.
+    void RequireSize(
+        const Engine::Rhi::ComputeBuffer &buffer, size_t required_bytes, uint32_t elem_capacity, const char *what
+    ) {
+        if (buffer.GetSize() >= required_bytes) {
+            return;
+        }
+        throw std::runtime_error(
+            "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity) + " needs "
+            + std::to_string(required_bytes) + " bytes for " + what + ", which exceeds the buffer bound for this call"
+        );
+    }
 } // namespace
 
 namespace Engine {
 
-    // Push-constant layout, matching the RadixParamsPush block in
+    // Push-constant layouts, matching the blocks in
     // engine/Physics/shader/algorithm/ (std430).
-    struct RadixParamsPush {
-        uint32_t byte_shift;  // 0, 8, 16, or 24
-        uint32_t word_select; // 0 = pair.y (secondary), 1 = pair.x (primary)
+    struct RadixHistogramPush {
+        uint32_t byte_shift;
+        uint32_t num_blocks;
     };
-    static_assert(sizeof(RadixParamsPush) == 8, "RadixParamsPush must be 8 bytes");
+    static_assert(sizeof(RadixHistogramPush) == 8, "RadixHistogramPush must be 8 bytes");
+
+    struct RadixScatterPush {
+        uint32_t byte_shift;
+        uint32_t num_blocks;
+        uint32_t has_payload;
+    };
+    static_assert(sizeof(RadixScatterPush) == 12, "RadixScatterPush must be 12 bytes");
+
+    // Match radix_copy_back.comp's push block.
+    struct RadixCopyBackPush {
+        uint32_t elem_count;
+        uint32_t has_payload;
+    };
+    static_assert(sizeof(RadixCopyBackPush) == 8, "RadixCopyBackPush must be 8 bytes");
 
     struct RadixSort::Impl {
         Rhi::DeviceContext &device_context;
-        uint32_t max_elem_count = 1u;
         bool initialized = false;
 
-        std::unique_ptr<Rhi::ComputeStage> histogram_stage{};
-        std::vector<uint32_t> histogram_spirv{};
+        Rhi::ComputeKernel *histogram_kernel = nullptr;
+        Rhi::ComputeKernel *scatter_kernel = nullptr;
+        Rhi::ComputeKernel *copy_back_kernel = nullptr;
 
-        std::unique_ptr<Rhi::ComputeStage> prefix_sum_stage{};
-        std::vector<uint32_t> prefix_sum_spirv{};
+        // The prefix-sum step is an implementation detail: the class owns the
+        // instance, which owns its own block-sums storage.
+        std::unique_ptr<ParallelScan> scan{};
 
-        std::unique_ptr<Rhi::ComputeStage> scatter_stage{};
-        std::vector<uint32_t> scatter_spirv{};
+        // Working storage, grown geometrically and reused across calls: the
+        // transposed per-block digit histogram, and the ping-pong partner arrays
+        // the caller's records are sorted into and out of.  The partner arrays
+        // never hold a result a caller depends on — an odd pass count is copied
+        // back into the caller's arrays — so sharing them across calls is safe.
+        std::unique_ptr<Rhi::ComputeBuffer> histogram{};
+        std::unique_ptr<Rhi::ComputeBuffer> keys_tmp{};
+        std::unique_ptr<Rhi::ComputeBuffer> payload_tmp{};
 
-        std::unique_ptr<Rhi::ComputeStage> memset_stage{};
-        std::vector<uint32_t> memset_spirv{};
-
-        Rhi::ComputeResourceBinding *histogram_binding = nullptr;
-        Rhi::ComputeResourceBinding *prefix_sum_binding = nullptr;
-        Rhi::ComputeResourceBinding *scatter_binding = nullptr;
-        Rhi::ComputeResourceBinding *memset_binding = nullptr;
-
-        explicit Impl(Rhi::DeviceContext &ctx, uint32_t mec) : device_context(ctx), max_elem_count(mec) {
-            if (max_elem_count == 0u) {
-                throw std::invalid_argument("RadixSort: max_elem_count must be > 0");
-            }
+        explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
 
         Impl(const Impl &) = delete;
@@ -90,125 +108,26 @@ namespace Engine {
             if (initialized) return;
             initialized = true;
 
-            const char *histogram_path = "algorithm/radix_histogram.comp.spv";
-            histogram_spirv = LoadPhysicsSpirvBytes(histogram_path);
-            histogram_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            histogram_stage->Instantiate(histogram_spirv, "RadixHistogram");
-            histogram_binding = &histogram_stage->AllocateResourceBinding();
-
-            const char *prefix_sum_path = "algorithm/radix_prefix_sum_256.comp.spv";
-            prefix_sum_spirv = LoadPhysicsSpirvBytes(prefix_sum_path);
-            prefix_sum_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            prefix_sum_stage->Instantiate(prefix_sum_spirv, "RadixPrefixSum256");
-            prefix_sum_binding = &prefix_sum_stage->AllocateResourceBinding();
-
-            const char *scatter_path = "algorithm/radix_scatter.comp.spv";
-            scatter_spirv = LoadPhysicsSpirvBytes(scatter_path);
-            scatter_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            scatter_stage->Instantiate(scatter_spirv, "RadixScatter");
-            scatter_binding = &scatter_stage->AllocateResourceBinding();
-
-            const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
-            memset_spirv = LoadPhysicsSpirvBytes(memset_path);
-            memset_stage = std::make_unique<Rhi::ComputeStage>(device_context);
-            memset_stage->Instantiate(memset_spirv, "RadixMemset");
-            memset_binding = &memset_stage->AllocateResourceBinding();
+            histogram_kernel =
+                &LoadPhysicsKernel(device_context, "algorithm/radix_block_histogram.comp.spv", "RadixBlockHistogram");
+            scatter_kernel = &LoadPhysicsKernel(device_context, "algorithm/radix_scatter.comp.spv", "RadixScatter");
+            copy_back_kernel =
+                &LoadPhysicsKernel(device_context, "algorithm/radix_copy_back.comp.spv", "RadixCopyBack");
+            scan = std::make_unique<ParallelScan>(device_context);
         }
 
-        void RecordClearPass(vk::CommandBuffer cb, Rhi::ComputeBuffer &scratch_buf) {
-            auto &srb = memset_binding->GetShaderResourceBinding();
-            srb.BindBuffer("Target", scratch_buf);
-
-            Rhi::PushConstants(cb, *memset_stage, RadixSort::kNumBins);
-            Rhi::BindComputeStage(cb, *memset_stage);
-            Rhi::BindComputeResource(cb, *memset_stage, *memset_binding);
-            Rhi::DispatchCompute(cb, 4, 1, 1); // 4 WGs for 256 elements
-        }
-
-        void RecordHistogramPass(
-            vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &pairs_buf,
-            Rhi::ComputeBuffer &scratch_buf,
-            Rhi::ComputeBuffer &pair_count_buf,
-            uint32_t byte_shift,
-            uint32_t word_select,
-            uint32_t elem_capacity
-        ) {
-            auto &srb = histogram_binding->GetShaderResourceBinding();
-            srb.BindBuffer("PairsIn", pairs_buf);
-            srb.BindBuffer("Histogram", scratch_buf);
-            srb.BindBuffer("PairCount", pair_count_buf);
-
-            uint32_t wg = (elem_capacity + 63u) / 64u;
-
-            const RadixParamsPush params{byte_shift, word_select};
-            Rhi::PushConstants(cb, *histogram_stage, params);
-            Rhi::BindComputeStage(cb, *histogram_stage);
-            Rhi::BindComputeResource(cb, *histogram_stage, *histogram_binding);
-            Rhi::DispatchCompute(cb, wg, 1, 1);
-        }
-
-        void RecordPrefixSumPass(vk::CommandBuffer cb, Rhi::ComputeBuffer &scratch_buf) {
-            auto &srb = prefix_sum_binding->GetShaderResourceBinding();
-            srb.BindBuffer("Histogram", scratch_buf);
-
-            Rhi::BindComputeStage(cb, *prefix_sum_stage);
-            Rhi::BindComputeResource(cb, *prefix_sum_stage, *prefix_sum_binding);
-            Rhi::DispatchCompute(cb, 1, 1, 1);
-        }
-
-        void RecordScatterPass(
-            vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &pairs_in_buf,
-            Rhi::ComputeBuffer &pairs_out_buf,
-            Rhi::ComputeBuffer &scratch_buf,
-            Rhi::ComputeBuffer &pair_count_buf,
-            uint32_t byte_shift,
-            uint32_t word_select,
-            uint32_t elem_capacity
-        ) {
-            auto &srb = scatter_binding->GetShaderResourceBinding();
-            srb.BindBuffer("PairsIn", pairs_in_buf);
-            srb.BindBuffer("PairsOut", pairs_out_buf);
-            srb.BindBuffer("Histogram", scratch_buf);
-            srb.BindBuffer("PairCount", pair_count_buf);
-
-            uint32_t wg = (elem_capacity + 63u) / 64u;
-
-            const RadixParamsPush params{byte_shift, word_select};
-            Rhi::PushConstants(cb, *scatter_stage, params);
-            Rhi::BindComputeStage(cb, *scatter_stage);
-            Rhi::BindComputeResource(cb, *scatter_stage, *scatter_binding);
-            Rhi::DispatchCompute(cb, wg, 1, 1);
-        }
-
-        void RecordRadixPass(
-            vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &pairs_in_buf,
-            Rhi::ComputeBuffer &pairs_out_buf,
-            Rhi::ComputeBuffer &scratch_buf,
-            Rhi::ComputeBuffer &pair_count_buf,
-            uint32_t byte_shift,
-            uint32_t word_select,
-            uint32_t elem_capacity
-        ) {
-            RecordClearPass(cb, scratch_buf);
-            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
-
-            RecordHistogramPass(cb, pairs_in_buf, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity);
-            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
-
-            RecordPrefixSumPass(cb, scratch_buf);
-            cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
-
-            RecordScatterPass(
-                cb, pairs_in_buf, pairs_out_buf, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity
-            );
+        /// @brief Grow the working storage to hold a call of this geometry.
+        void EnsureWorkingStorage(size_t key_bytes, size_t histogram_bytes, bool has_payload) {
+            const Rhi::AllocatorState &allocator = device_context.GetAllocatorState();
+            Rhi::EnsureComputeBuffer(histogram, allocator, histogram_bytes, false, "RadixSort Histogram");
+            Rhi::EnsureComputeBuffer(keys_tmp, allocator, key_bytes, false, "RadixSort KeysTemp");
+            if (has_payload) {
+                Rhi::EnsureComputeBuffer(payload_tmp, allocator, key_bytes, false, "RadixSort PayloadTemp");
+            }
         }
     };
 
-    RadixSort::RadixSort(Rhi::DeviceContext &device_context, uint32_t max_elem_count) :
-        m_impl(std::make_unique<Impl>(device_context, max_elem_count)) {
+    RadixSort::RadixSort(Rhi::DeviceContext &device_context) : m_impl(std::make_unique<Impl>(device_context)) {
     }
 
     RadixSort::~RadixSort() = default;
@@ -217,55 +136,111 @@ namespace Engine {
         return m_impl->initialized;
     }
 
-    uint32_t RadixSort::GetMaxElemCount() const noexcept {
-        return m_impl->max_elem_count;
-    }
-
     void RadixSort::Record(
-        vk::CommandBuffer cb,
-        Rhi::ComputeBuffer &pairs_buf_a,
-        Rhi::ComputeBuffer &pairs_buf_b,
-        Rhi::ComputeBuffer &scratch_buf,
-        uint32_t elem_capacity,
-        Rhi::ComputeBuffer &pair_count_buf,
-        uint32_t max_shape_count
+        vk::CommandBuffer cb, const RadixSortBuffers &buffers, uint32_t elem_capacity, uint32_t max_key_value
     ) {
+        if (max_key_value == 0u) {
+            throw std::invalid_argument("RadixSort::Record: max_key_value must be > 0");
+        }
+        if (buffers.keys == nullptr || buffers.count == nullptr) {
+            throw std::runtime_error("RadixSort::Record: the key array and the count buffer are both required");
+        }
+
+        // A zero capacity is a no-op, and so is a key bound whose domain holds a
+        // single value: the caller's key array already holds the result.
         if (elem_capacity == 0u) {
             return;
         }
-        if (elem_capacity > m_impl->max_elem_count) {
-            throw std::runtime_error(
-                "RadixSort::Record: elem_capacity " + std::to_string(elem_capacity) + " exceeds max_elem_count "
-                + std::to_string(m_impl->max_elem_count)
-            );
+        const uint32_t num_passes = NumRadixPasses(max_key_value);
+        if (num_passes == 0u) {
+            return;
         }
-        if (max_shape_count > kMaxShapeCount) {
-            throw std::runtime_error(
-                "RadixSort::Record: max_shape_count " + std::to_string(max_shape_count) + " exceeds kMaxShapeCount "
-                + std::to_string(kMaxShapeCount)
-            );
+
+        // Geometry is per call, so the out-of-range guard is a per-call check
+        // against the buffers actually bound for this call.
+        const bool has_payload = buffers.payload != nullptr;
+        const size_t key_bytes = static_cast<size_t>(elem_capacity) * sizeof(uint32_t);
+        RequireSize(*buffers.keys, key_bytes, elem_capacity, "the key array");
+        if (has_payload) {
+            RequireSize(*buffers.payload, key_bytes, elem_capacity, "the payload array");
         }
+        RequireSize(*buffers.count, sizeof(uint32_t), elem_capacity, "the count buffer");
 
         m_impl->EnsureInitialized();
 
-        for (uint32_t pass = 0; pass < kNumPasses; ++pass) {
-            uint32_t byte_shift = (pass % 4u) * 8u;
-            uint32_t word_select = pass / 4u;
-            bool to_b = (pass % 2u) == 0u;
+        // One block of 256 elements per workgroup; the histogram covers
+        // kNumBins cells per block, and its flat exclusive scan is the whole
+        // prefix-sum step.
+        const uint32_t num_blocks = (elem_capacity + kBlockSize - 1u) / kBlockSize;
+        const uint32_t scan_elem_count = kNumBins * num_blocks;
+        m_impl->EnsureWorkingStorage(key_bytes, static_cast<size_t>(scan_elem_count) * sizeof(uint32_t), has_payload);
 
-            if (to_b) {
-                m_impl->RecordRadixPass(
-                    cb, pairs_buf_a, pairs_buf_b, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity
-                );
-            } else {
-                m_impl->RecordRadixPass(
-                    cb, pairs_buf_b, pairs_buf_a, scratch_buf, pair_count_buf, byte_shift, word_select, elem_capacity
-                );
+        // Pass `p` reads the array the previous pass wrote and writes the other
+        // one, so the ping-pong parity decides which array holds the result.
+        Rhi::ComputeBuffer *keys_in = buffers.keys;
+        Rhi::ComputeBuffer *keys_out = m_impl->keys_tmp.get();
+        // Without a payload the shader never dereferences these bindings, so the
+        // key arrays serve as placeholders.
+        Rhi::ComputeBuffer *payload_in = has_payload ? buffers.payload : buffers.keys;
+        Rhi::ComputeBuffer *payload_out = has_payload ? m_impl->payload_tmp.get() : m_impl->keys_tmp.get();
+
+        for (uint32_t pass = 0u; pass < num_passes; ++pass) {
+            if (pass > 0u) {
+                DispatchBarrier(cb);
             }
 
-            if (pass + 1 < kNumPasses) {
-                cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
-            }
+            const uint32_t byte_shift = pass * 8u;
+
+            // 1. Per-block histogram, written transposed and in full: no clear
+            //    pass precedes it, and none is needed.
+            m_impl->histogram_kernel->Dispatch(
+                cb,
+                {{"KeysIn", *keys_in}, {"Histogram", *m_impl->histogram}, {"ElemCount", *buffers.count}},
+                num_blocks,
+                1,
+                1,
+                RadixHistogramPush{byte_shift, num_blocks}
+            );
+            DispatchBarrier(cb);
+
+            // 2. One flat exclusive scan over the transposed histogram.
+            m_impl->scan->Record(cb, *m_impl->histogram, *m_impl->histogram, scan_elem_count);
+            DispatchBarrier(cb);
+
+            // 3. Stable scatter into the other array.
+            m_impl->scatter_kernel->Dispatch(
+                cb,
+                {{"KeysIn", *keys_in},
+                 {"KeysOut", *keys_out},
+                 {"PayloadIn", *payload_in},
+                 {"PayloadOut", *payload_out},
+                 {"Histogram", *m_impl->histogram},
+                 {"ElemCount", *buffers.count}},
+                num_blocks,
+                1,
+                1,
+                RadixScatterPush{byte_shift, num_blocks, has_payload ? 1u : 0u}
+            );
+
+            std::swap(keys_in, keys_out);
+            std::swap(payload_in, payload_out);
+        }
+
+        // Copy the ping-pong if the number of passes is odd.
+        if (num_passes % 2u == 1u) {
+            DispatchBarrier(cb);
+            m_impl->copy_back_kernel->Dispatch(
+                cb,
+                {{"SrcKeys", *keys_in},
+                 {"DstKeys", *buffers.keys},
+                 {"SrcPayload", *payload_in},
+                 {"DstPayload", has_payload ? *buffers.payload : *buffers.keys},
+                 {"ValidCount", Rhi::ComputeKernelResource::Buffer(*buffers.count, 0u, sizeof(uint32_t))}},
+                (elem_capacity + 63u) / 64u,
+                1,
+                1,
+                RadixCopyBackPush{elem_capacity, has_payload ? 1u : 0u}
+            );
         }
     }
 } // namespace Engine

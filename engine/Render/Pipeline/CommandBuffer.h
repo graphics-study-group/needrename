@@ -14,8 +14,6 @@
 
 namespace Engine {
     namespace Rhi {
-        class ComputeResourceBinding;
-        class ComputeStage;
         class DeviceBuffer;
         class Texture;
     } // namespace Rhi
@@ -356,53 +354,14 @@ namespace Engine {
             const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
         );
 
-        // ── Compute ──────────────────────────────────────────────────────
-
-        /**
-         * @brief Bind a compute shader pipeline for subsequent dispatch.
-         *
-         * Records the pipeline binding and stores the Rhi::ComputeStage reference
-         * so that BindComputeResource and DispatchCompute can use it.
-         *
-         * @param stage Rhi::ComputeStage owning the compute pipeline, pipeline
-         *              layout, and descriptor set layout.
-         */
-        void BindComputeStage(Rhi::ComputeStage &stage);
-
-        /**
-         * @brief Bind the descriptor set and upload UBO data for the
-         * currently bound compute stage.
-         *
-         * Must be called after BindComputeStage. Calls
-         * Rhi::ComputeResourceBinding::UpdateGPUInfo to write UBO data, then binds
-         * descriptor set 0 with dynamic offsets.
-         *
-         * @param binding Rhi::ComputeResourceBinding owning the UBO data, texture
-         *                bindings, and descriptor set.
-         */
-        void BindComputeResource(Rhi::ComputeResourceBinding &binding);
-
-        /**
-         * @brief Dispatch workgroups for the currently bound compute pipeline.
-         *
-         * Issues vkCmdDispatch. Must be called after BindComputeStage and
-         * BindComputeResource.
-         *
-         * @param groupCountX Number of local workgroups in X.
-         * @param groupCountY Number of local workgroups in Y.
-         * @param groupCountZ Number of local workgroups in Z.
-         */
-        void DispatchCompute(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
-
         // ── Reset ────────────────────────────────────────────────────────
 
         /**
          * @brief Reset the Vulkan command buffer and clear all tracked
-         * pipeline and stage state.
+         * pipeline state.
          *
          * Calls vkResetCommandBuffer, then resets the cached bound material
-         * pipeline (m_bound_material_pipeline) and compute stage
-         * (m_bound_compute_stage) so the next BindMaterial/BindComputeStage
+         * pipeline (m_bound_material_pipeline) so the next BindMaterial
          * will re-bind unconditionally. Called by FrameManager at the start
          * of each frame.
          */
@@ -415,9 +374,6 @@ namespace Engine {
 
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>>
             m_bound_material_pipeline{}; ///< Cached bound material pipeline + layout to skip redundant binds.
-        std::optional<std::reference_wrapper<Rhi::ComputeStage>> m_bound_compute_stage{
-            std::nullopt
-        }; ///< Currently bound compute stage for BindComputeResource / DispatchCompute.
 
         PipelineRuntimeInfoPerRendering m_pripr{}; ///< Current render pass attachment formats for pipeline lookup.
     };

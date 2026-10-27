@@ -2,6 +2,7 @@
 #include <cassert>
 #include <chrono>
 #include <fstream>
+#include <numbers>
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
@@ -222,23 +223,23 @@ int main(int argc, char **argv) {
                     break;
                 case SDLK_DOWN:
                     // Back
-                    euler_angle_rotation = glm::vec3{0.0f, 0.0f, M_PI};
+                    euler_angle_rotation = glm::vec3{0.0f, 0.0f, std::numbers::pi_v<float>};
                     break;
                 case SDLK_LEFT:
                     // Left
-                    euler_angle_rotation.z += M_PI_4;
+                    euler_angle_rotation.z += std::numbers::pi_v<float> / 4.0f;
                     break;
                 case SDLK_RIGHT:
                     // Right
-                    euler_angle_rotation.z -= M_PI_4;
+                    euler_angle_rotation.z -= std::numbers::pi_v<float> / 4.0f;
                     break;
                 case SDLK_PAGEUP:
                     // Up
-                    euler_angle_rotation.x += M_PI_4;
+                    euler_angle_rotation.x += std::numbers::pi_v<float> / 4.0f;
                     break;
                 case SDLK_PAGEDOWN:
                     // Down
-                    euler_angle_rotation.x -= M_PI_4;
+                    euler_angle_rotation.x -= std::numbers::pi_v<float> / 4.0f;
                     break;
                 }
             }

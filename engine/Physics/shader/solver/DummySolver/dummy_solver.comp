@@ -1,11 +1,13 @@
 #version 450 core
 
 // dummy_solver.comp — Displaces all rigid bodies along -Z by a configurable
-// step size and writes model matrices from the updated pose.
+// step size.
 //
 // This is a minimal solver for validating the separate physics render graph
 // architecture.  It does NOT implement XPBD — it simply translates every
-// alive rigid body downward and outputs TRS model matrices.
+// alive rigid body downward.  Model matrices are produced separately, by the
+// shared model matrix shader, so that the pose-to-matrix mapping exists in
+// exactly one place.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -29,28 +31,6 @@ layout(push_constant) uniform DummyPush {
     vec4 gravity_dt; // xyz = gravity, w = time_step
 } params;
 
-// ---- Output buffer (scene-owned) ----
-
-layout(set = 0, binding = 3) writeonly buffer ModelMatrices {
-    mat4 v[];
-} model_matrices;
-
-// ---- Quaternion to mat4 helper (same as model_matrix.comp) ----
-
-mat4 quaternion_to_mat4(vec4 q) {
-    float x = q.x, y = q.y, z = q.z, w = q.w;
-    float xx = x * x, yy = y * y, zz = z * z;
-    float xy = x * y, xz = x * z, yz = y * z;
-    float wx = w * x, wy = w * y, wz = w * z;
-
-    return mat4(
-        vec4(1.0 - 2.0 * (yy + zz), 2.0 * (xy + wz),       2.0 * (xz - wy),       0.0),
-        vec4(2.0 * (xy - wz),       1.0 - 2.0 * (xx + zz), 2.0 * (yz + wx),       0.0),
-        vec4(2.0 * (xz + wy),       2.0 * (yz - wx),       1.0 - 2.0 * (xx + yy), 0.0),
-        vec4(0.0, 0.0, 0.0, 1.0)
-    );
-}
-
 void main() {
     uint idx = gl_GlobalInvocationID.x;
     if (idx >= rigid_body_alive.v.length()) {
@@ -62,19 +42,9 @@ void main() {
 
     // Read current pose
     vec4 pos = rigid_body_center_position.v[idx];
-    vec4 quat = rigid_body_center_rotation.v[idx];
 
     // Displace along Z: pos.z += gravity.z * dt
     //   gravity.z is typically negative (-9.81), so bodies move downward.
     pos.z += params.gravity_dt.z * params.gravity_dt.w;
     rigid_body_center_position.v[idx] = pos;
-
-    // Write model matrix from updated pose
-    mat4 rot = quaternion_to_mat4(quat);
-    model_matrices.v[idx] = mat4(
-        rot[0],
-        rot[1],
-        rot[2],
-        vec4(pos.xyz, 1.0)
-    );
 }

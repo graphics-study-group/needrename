@@ -23,7 +23,17 @@ The engine SHALL provide a `Rhi` shared library (`engine/Rhi/`) that compiles in
 
 ### Requirement: Rhi hosts the generic GPU infrastructure types
 
-`Rhi` SHALL contain the following types, moved from `engine/Render/` without semantic changes: `DeviceInterface`, `AllocatorState`, `MemoryTypes` / `MemoryAllocation`, `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer`, `Texture`, `ImageTexture`, `TextureSubresourceView`, `ImageUtils`, `ImmutableResourceCache`, `SubmissionHelper`, `ComputeStage`, `ComputeResourceBinding`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface`, `MemoryAccessTypes`, `PipelineEnums`.
+`Rhi` SHALL contain the following types, moved from `engine/Render/` without semantic changes: `DeviceInterface`, `AllocatorState`, `MemoryTypes` / `MemoryAllocation`, `DeviceBuffer`, `ComputeBuffer`, `StructuredBuffer`, `StructuredBufferPlacer`, `Texture`, `ImageTexture`, `TextureSubresourceView`, `ImageUtils`, `ImmutableResourceCache`, `SubmissionHelper`, `ShaderResourceBinding`, `ShaderParameterLayout`, `ShaderInterface`, `MemoryAccessTypes`, `PipelineEnums`.
+
+`Rhi` SHALL additionally own the device-scoped GPU resource retirement facility and its supporting types: the submission epoch tracker — which is itself the sole recipient of retired buffer allocations. It resides in `Rhi` because it depends on the device and allocator only, and both `Render` and `Physics` use it equally.
+
+`Rhi` SHALL NOT provide a shared-ownership (reference-counted) buffer factory. A buffer whose lifetime must outlive the component that created it is uniquely owned by whoever owns that lifetime, and is referenced elsewhere through a raw pointer.
+
+`Rhi` SHALL additionally own the device-scoped descriptor arena: the single owner of descriptor pools, which hands out descriptor sets through a pool layer for sets whose descriptors the caller writes and a content-keyed cache layer that keeps sets resident and reusable across submission epochs, reclaiming them only under a soft resident budget and only among entries the completed prefix has passed. The arena resides in `Rhi` because both `Render` (materials, scene data, cameras) and compute consumers use it equally, and neither may own a pool.
+
+`Rhi` SHALL additionally own the compute kernel facility and its dispatch surface. It resides in `Rhi` because it depends on the device, the allocator and the arena only, and both `Render` and `Physics` use it equally.
+
+The types `ComputeStage`, `ComputeResourceBinding` and the `ComputeHelpers` free functions SHALL NOT exist in `Rhi`: the kernel facility supersedes them.
 
 #### Scenario: Buffer types available from Rhi
 
@@ -37,13 +47,34 @@ The engine SHALL provide a `Rhi` shared library (`engine/Rhi/`) that compiles in
 
 #### Scenario: Compute pipeline facilities available from Rhi
 
-- **WHEN** a client includes `Rhi/ComputeStage.h`
-- **THEN** `Engine::Rhi::ComputeStage` / `Engine::Rhi::ComputeResourceBinding` are available, and a compute pipeline can be created from SPIR-V binary without any Asset dependency
+- **WHEN** a client includes the compute kernel facility's header
+- **THEN** a compute pipeline can be requested for a SPIR-V binary and dispatched with a resource dictionary, without any Asset dependency
+- **AND** `Engine::Rhi::ComputeStage` and `Engine::Rhi::ComputeResourceBinding` are not part of the module
 
 #### Scenario: RenderTargetTexture inherits from Rhi Texture
 
 - **WHEN** `RenderTargetTexture` (in Render) is used
 - **THEN** it derives from `Engine::Rhi::Texture` and the dependency direction is Render → Rhi
+
+#### Scenario: Retirement facility available from Rhi
+
+- **WHEN** a client includes the retirement facility's header
+- **THEN** `Engine::Rhi::EpochTracker` is available under `Engine::Rhi`
+- **AND** the epoch tracker is the only recipient of retired buffer allocations: the allocator and `BufferAllocation` name it directly, with no interface in between
+- **AND** the facility does not depend on headers from `engine/Render/`
+
+#### Scenario: Shared-ownership buffer factory available from Rhi
+
+- **WHEN** a client needs a buffer whose lifetime must outlive the component that created it
+- **THEN** no reference-counted buffer factory is available from `Rhi`
+- **AND** the buffer is uniquely owned and referenced through a raw pointer, and the owner's lifetime is what keeps it alive
+
+#### Scenario: Descriptor arena available from Rhi
+
+- **WHEN** a client includes the descriptor arena's header
+- **THEN** the arena is available under `Engine::Rhi`, keeping acquired descriptor sets resident and reusable across submission epochs
+- **AND** its cache layer reclaims a resident set only once the completed prefix has passed the epoch recorded for it
+- **AND** the arena does not depend on headers from `engine/Render/`
 
 ### Requirement: Unified Engine::Rhi namespace
 
@@ -74,20 +105,6 @@ All types residing in `Rhi` SHALL use the namespace `Engine::Rhi`. The former na
 - **WHEN** `AllocateBuffer()` is called
 - **THEN** it calls `m_device_interface.GetDevice()` to set the debug name on the created buffer
 
-### Requirement: ComputeStage has no Asset dependency
-
-`ComputeStage` SHALL be constructible from Rhi facilities only and SHALL NOT depend on the Asset module. It SHALL provide `Instantiate(const std::vector<uint32_t>& code, std::string_view name)`; the `Instantiate(ShaderAsset&)` overload and the `IInstantiatedFromAsset` inheritance SHALL be removed.
-
-#### Scenario: ComputeStage constructed from Rhi facilities
-
-- **WHEN** `ComputeStage` is constructed with `(const DeviceInterface&, const AllocatorState&)` and instantiated from SPIR-V binary
-- **THEN** a compute pipeline, pipeline layout, descriptor set layout, and descriptor pool are created on the device
-
-#### Scenario: Asset-path caller adapted
-
-- **WHEN** `ComplexRenderGraphBuilder` creates its bloom compute stage
-- **THEN** it passes the shader's SPIR-V binary and name directly, with no `ShaderAsset` overload used
-
 ### Requirement: Rhi exports symbols via RHI_API macro
 
 `Rhi` SHALL use a `RHI_API` export macro pattern matching `Core`'s `CORE_API`.
@@ -114,3 +131,15 @@ A program SHALL be able to create the Rhi device facilities without any `RenderS
 - **THEN** the Vulkan device is created successfully with a graphics queue
 - **AND** `AllocatorState::AllocateBuffer` works for allocating GPU buffers
 - **AND** a compute shader can be dispatched and results read back
+
+#### Scenario: Standalone construction without a DeviceContext
+
+- **WHEN** a standalone program creates a `DeviceInterface` and an `AllocatorState` directly, as the standalone Rhi tests do
+- **THEN** the retirement facility can be constructed from those same facilities and installed on the allocator
+- **AND** when it is not installed, buffer destruction behaves exactly as before (immediate free), so existing standalone setups keep their semantics
+
+#### Scenario: Headless retirement without a frame loop
+
+- **WHEN** a headless test installs the retirement facility, then resizes and destroys buffers between blocking submissions, with no presentation frame loop and no `FrameManager`
+- **THEN** no allocation is freed while its submission is outstanding
+- **AND** all retired allocations are released once the device reports idle

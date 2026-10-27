@@ -1,5 +1,7 @@
 #include "SDLWindow.h"
 
+#include <stdexcept>
+
 namespace Engine {
     SDLWindow::SDLWindow(const char *title, int width, int height, Uint32 flags) {
         m_window = SDL_CreateWindow(title, width, height, flags);

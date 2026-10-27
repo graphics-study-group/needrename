@@ -316,7 +316,8 @@ namespace Engine {
         if (!m_submission_helper) {
             m_submission_helper = std::make_unique<Rhi::SubmissionHelper>(
                 render_system.GetDeviceContext().GetDeviceInterface(),
-                render_system.GetDeviceContext().GetAllocatorState()
+                render_system.GetDeviceContext().GetAllocatorState(),
+                render_system.GetDeviceContext().GetEpochTracker()
             );
         }
         m_physics_scene.SyncGpuBuffers(render_system.GetDeviceContext(), *m_submission_helper);

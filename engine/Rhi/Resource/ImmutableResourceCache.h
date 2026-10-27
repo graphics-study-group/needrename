@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
 #define ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
 
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/rhi_export.h"
 
 #include <vulkan/vulkan.hpp>
@@ -44,12 +45,35 @@ namespace Engine::Rhi {
         vk::Sampler GetSampler(const vk::SamplerCreateInfo &);
 
         /**
+         * @brief Request a sampler together with the identity it was issued at
+         * creation.
+         *
+         * The identity is the sampler's binding identity: its handle value is
+         * irrelevant to comparison. Repeated requests of one description yield
+         * one sampler and one identity.
+         */
+        SamplerRef GetSamplerRef(const Rhi::SamplerDesc &);
+        /// @overload SamplerRef GetSamplerRef(const Rhi::SamplerDesc &)
+        SamplerRef GetSamplerRef(const vk::SamplerCreateInfo &);
+
+        /**
          * @brief Request a descriptor set layout.
          *
          * Immutable samplers will be hashed directly. This should be fine
          * so long as all samplers are managed by this cache.
          */
         vk::DescriptorSetLayout GetDescriptorSetLayout(
+            const vk::DescriptorSetLayoutCreateInfo &, const char *name = nullptr
+        );
+
+        /**
+         * @brief Request a descriptor set layout together with the identity it
+         * was issued at creation.
+         *
+         * Repeated requests of one description yield one layout and one
+         * identity; the identity is what a descriptor set is keyed on.
+         */
+        DescriptorSetLayoutRef GetDescriptorSetLayoutRef(
             const vk::DescriptorSetLayoutCreateInfo &, const char *name = nullptr
         );
 

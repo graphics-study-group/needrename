@@ -3,6 +3,7 @@
 
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/rhi_export.h"
 
 #include <memory>
@@ -25,7 +26,7 @@ namespace Engine::Rhi {
      */
     class RHI_API DeviceBuffer {
     protected:
-        DeviceBuffer(BufferAllocation &&alloc, size_t size);
+        DeviceBuffer(BufferAllocation &&alloc, size_t size, const std::string &name = "");
 
     public:
         virtual ~DeviceBuffer() = default;
@@ -55,7 +56,25 @@ namespace Engine::Rhi {
         /// @brief Get the underlying Vulkan buffer object.
         vk::Buffer GetBuffer() const;
 
-        /// @brief Get the actual size of the buffer.
+        /**
+         * @brief Get this buffer's binding reference: its handle plus its
+         * never-reused identity.
+         *
+         * Anything that keys, caches or compares bound resources must use this
+         * instead of `GetBuffer()`: a handle value is recycled by the driver
+         * after the buffer is destroyed, an identity never is. Replacing the
+         * storage in place yields a reference with a new identity.
+         */
+        BufferRef GetBufferRef() const;
+
+        /**
+         * @brief Get the buffer's allocated capacity in bytes.
+         *
+         * The result is a capacity, not a logical element count: it may exceed
+         * the amount of data the buffer currently holds. A caller that needs a
+         * logical bound must supply it explicitly, and must never derive a
+         * dispatch geometry or a valid-input bound from this value.
+         */
         size_t GetSize() const;
 
         /**
@@ -99,8 +118,28 @@ namespace Engine::Rhi {
         BufferType GetType() const noexcept;
 
     protected:
+        /**
+         * @brief Replace the buffer's storage in place, keeping the buffer object
+         * at the same address.
+         *
+         * The replacement is allocated before the previous storage is released,
+         * and the released allocation takes the allocator's usual retirement
+         * path: with a retirement facility installed it is parked under the
+         * submission epoch instead of being freed; without one it is destroyed
+         * immediately.
+         *
+         * The buffer's contents are discarded and `GetBuffer()` /
+         * `GetVMAddress()` obtained before the call are invalidated. Any
+         * reference to the buffer object itself survives.
+         *
+         * @param allocator The allocator the replacement storage is allocated from.
+         * @param bytes Size of the replacement storage.
+         */
+        void ReallocateStorage(const Rhi::AllocatorState &allocator, size_t bytes);
+
         size_t m_size{0ULL};
         BufferAllocation allocation;
+        std::string m_name = "";
     };
 } // namespace Engine::Rhi
 

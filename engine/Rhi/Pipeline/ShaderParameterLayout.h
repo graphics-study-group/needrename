@@ -8,15 +8,15 @@
 #include <unordered_map>
 
 namespace vk {
-    class DescriptorSetLayoutBinding;
-    class DescriptorImageInfo;
-    class DescriptorBufferInfo;
+    struct DescriptorSetLayoutBinding;
+    struct DescriptorImageInfo;
+    struct DescriptorBufferInfo;
 
     enum class DescriptorType;
 } // namespace vk
 
 namespace Engine::Rhi {
-    struct StructuredBuffer;
+    class StructuredBuffer;
 
     /**
      * @brief Reflected information of shaders.
@@ -28,6 +28,13 @@ namespace Engine::Rhi {
         // Interfaces are guaranteed to be sorted by set and binding numbers
         std::vector<std::unique_ptr<SPInterface>> interfaces;
         std::unordered_map<std::string, const SPInterface *> interface_name_mapping;
+
+        // Owns unique_ptrs, so it is move-only by design.
+        SPLayout() = default;
+        SPLayout(const SPLayout &) = delete;
+        SPLayout &operator=(const SPLayout &) = delete;
+        SPLayout(SPLayout &&) noexcept = default;
+        SPLayout &operator=(SPLayout &&) noexcept = default;
 
         /**
          * @brief Size in bytes of the shader's push constant block.

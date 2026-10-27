@@ -49,6 +49,10 @@ namespace Engine {
             }
             ~IRenderResourceManager() = default;
 
+            IRenderResourceManager(const IRenderResourceManager &) = delete;
+            IRenderResourceManager &operator=(const IRenderResourceManager &) = delete;
+            IRenderResourceManager(IRenderResourceManager &&) noexcept = default;
+
             /**
              * @brief Create a managed render resource from an existing payload instance.
              *
@@ -164,6 +168,12 @@ namespace Engine {
 
                 /// Owned payload instance.
                 std::unique_ptr<ResourceType> payload{};
+
+                ResourceRecord() = default;
+                ResourceRecord(const ResourceRecord &) = delete;
+                ResourceRecord &operator=(const ResourceRecord &) = delete;
+                ResourceRecord(ResourceRecord &&) noexcept = default;
+                ResourceRecord &operator=(ResourceRecord &&) noexcept = default;
             };
 
             /// Dense slot storage for payload records.

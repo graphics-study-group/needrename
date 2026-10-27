@@ -1,7 +1,7 @@
 # physics-main-loop-integration Specification
 
 ## Purpose
-Defines how `MainClass` integrates the physics GPU pipeline into the main loop: automatic solver registration on project load, per-frame `PreGPUStep` → `GPUStep` → `PostGPUStep` execution on the shared main command buffer, and the assembly-layer forward of the physics model matrices buffer into the render system.
+Defines how `MainClass` integrates the physics GPU pipeline into the main loop: automatic solver registration on project load, per-frame `PreGPUStep` → `GPUStep` → `PostGPUStep` execution on the shared main command buffer, and the per-frame production of model matrices into the render system's buffer.
 
 ## Requirements
 ### Requirement: Default solver auto-registration
@@ -28,8 +28,7 @@ After `ProcessEvents` and before `UpdateRendererData` in the main loop, the engi
 
 - **WHEN** `RigidBodyComponent::Init` enqueues rigid body initialization during `ProcessEvents`
 - **THEN** `InitializePendingRigidBodies` is called before `UpdateRendererData` in the same frame
-- **AND** the SSBO model matrices GPU buffer is created and populated with initial transform data
-- **AND** `SceneDataManager` is notified of the new model matrices buffer
+- **AND** the physics scene's rigid body GPU buffers are created and populated with initial transform data
 
 #### Scenario: No pending initializations
 
@@ -38,21 +37,46 @@ After `ProcessEvents` and before `UpdateRendererData` in the main loop, the engi
 
 ### Requirement: Physics pipeline in RunOneFrame
 
-`MainClass::RunOneFrame` SHALL execute the full physics pipeline in order: `PreGPUStep`, `GPUStep`, `PostGPUStep`. Physics compute and render graph passes SHALL share the same command buffer.
+`MainClass::RunOneFrame` SHALL execute the physics step through a single call to `PhysicsSystem::GPUStep(cb)` recorded into the frame's main command buffer. It SHALL NOT call any physics preparation or post-processing phase outside command-buffer recording. Physics compute, model matrix production and render graph passes SHALL share the same command buffer.
 
-### Requirement: MainClass forwards model matrices buffer to SceneDataManager
+Model matrices SHALL be produced after the physics step and before the render graph's passes are recorded, in every rendered frame, independent of play, pause and simulation state, by the caller invoking `PhysicsSystem::GPUCalcModelMatrices` with the render system's buffer. The producing call SHALL be skipped only when the main scene has no physics scene.
 
-`MainClass::RunOneFrame` SHALL forward the physics model matrices buffer to the render system's `SceneDataManager` via `SetModelMatricesBuffer`, using the main scene's physics scene `GetGpuBuffers().model_matrices`. The forward SHALL happen after the physics flush/step and before render-graph recording in the same frame, and SHALL tolerate a null physics scene (skip the forward).
+#### Scenario: Physics step is a single recorded call
 
-#### Scenario: Forward after physics step
+- **WHEN** `RunOneFrame` executes with a registered solver
+- **THEN** `physics->GPUStep(cb)` is called exactly once for the frame
+- **AND** no physics preparation call is made before the command buffer is recording
+- **AND** no physics post-processing call is made after it is submitted
 
-- **WHEN** `RunOneFrame` executes with a registered physics scene containing GPU buffers
-- **THEN** `SceneDataManager::SetModelMatricesBuffer` is called with the physics model matrices buffer pointer before render passes are recorded
+#### Scenario: Geometry changes are absorbed without a separate phase
 
-#### Scenario: No physics scene skips forward
+- **WHEN** the number of rigid bodies, shapes or joints changes between two frames
+- **THEN** the physics step still consists of the one `GPUStep(cb)` call
+- **AND** the buffers the new geometry needs are sized within that call
 
-- **WHEN** `RunOneFrame` executes and the main scene has no physics scene (or physics disabled)
-- **THEN** no call to `SetModelMatricesBuffer` is made and rendering proceeds with no model matrices buffer
+#### Scenario: Physics compute shares the frame command buffer
+
+- **WHEN** `RunOneFrame` records a frame with a registered solver
+- **THEN** physics compute passes and render graph passes are recorded on the same command buffer
+- **AND** no physics compute is recorded on a separate command buffer
+
+#### Scenario: Model matrices are produced before render passes
+
+- **WHEN** `RunOneFrame` records a frame and the main scene has a physics scene
+- **THEN** the physics side is asked to write model matrices into the render system's buffer after the physics step
+- **AND** the render graph's passes are recorded afterwards, on the same command buffer
+
+#### Scenario: A frame with no physics scene records no production
+
+- **WHEN** `RunOneFrame` records a frame and the main scene has no physics scene (or physics disabled)
+- **THEN** no model matrix production is recorded
+- **AND** rendering proceeds against the render-owned buffer's initial contents
+
+#### Scenario: Model matrices are produced while simulation is disabled
+
+- **WHEN** the physics scene's simulation is disabled for the frame
+- **THEN** model matrices are still produced from the current poses
+- **AND** the render graph's passes observe up-to-date matrices
 
 ### Requirement: Physics GPUStep records into raw command buffer
 
@@ -61,8 +85,7 @@ After `ProcessEvents` and before `UpdateRendererData` in the main loop, the engi
 #### Scenario: Physics step executes within shared command buffer
 
 - **WHEN** `RunOneFrame` is called and a solver is registered
-- **THEN** `PreGPUStep` is called before `cb.begin()`
-- **AND** `GPUStep(cb)` is called between `cb.begin()` and `cb.end()`
-- **AND** `PostGPUStep` is called after `cb.end()` and submit
+- **THEN** `GPUStep(cb)` is called between `cb.begin()` and `cb.end()`
 - **AND** `render_graph->RecordAllPasses(cb)` is called after `GPUStep(cb)` on the same command buffer
+- **AND** no physics-related call is made outside that `begin()` / `end()` pair
 

@@ -5,6 +5,8 @@ __*
 __generated__
 
 CMakeCache.txt
+CMakeUserPresets.json
+.venv/
 
 .cache/
 

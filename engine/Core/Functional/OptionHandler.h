@@ -2,8 +2,7 @@
 #define OPTIONHANDLER_H_INCLUDED
 
 #include "../core_export.h"
-#include <cstdlib>
-#include <getopt.h>
+#include <memory>
 #include <string>
 
 struct StartupOptions {
@@ -20,21 +19,18 @@ struct StartupOptions {
     bool instantQuit{false};
 };
 
-namespace OptionDeclaration {
-
-    extern const char help_text[];
-    enum extra_options {
-        OPT_SETTITLE = 257,
-        OPT_SETFONT,
-        OPT_SETSIZE,
-        OPT_STARTUP,
-        OPT_HEADLESS,
-    };
-    extern const char *short_options;
-    extern const option long_options[];
-} // namespace OptionDeclaration
-
-/// @note atoi() is used
-CORE_API StartupOptions *ParseOptions(int argc, char **argv);
+/**
+ * @brief Parses command-line options into a StartupOptions object.
+ *
+ * Supports the long options --help, --resolutionX, --resolutionY, --verbose,
+ * --title, --fontFile, --fontSize, --startup, and --headless (in both
+ * --opt=value and --opt value forms), plus the short options -x, -y, -v,
+ * and -?. Unknown options and --help / -? show help and set instantQuit.
+ *
+ * @param argc Argument count from main
+ * @param argv Argument vector from main
+ * @return Parsed options; never null
+ */
+CORE_API std::unique_ptr<StartupOptions> ParseOptions(int argc, char **argv);
 
 #endif // OPTIONHANDLER_H_INCLUDED

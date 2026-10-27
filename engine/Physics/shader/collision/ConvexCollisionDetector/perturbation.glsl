@@ -159,7 +159,7 @@ struct PerturbResult {
 //
 // Parameters:
 //   shape_a, shape_b  — shape indices
-//   contact_normal    — world-space normal from MPR (pointing B→A)
+//   contact_normal    — world-space normal from MPR (pointing A→B)
 //   contact_center    — midpoint between MPR contact points
 //   penetration       — MPR penetration depth (fallback for MPR point)
 //   contact_margin    — configurable tolerance; points with raw_depth > -margin
@@ -277,7 +277,7 @@ PerturbResult perturb_manifold(
             contact_normal, fitted_normal_b, centroid_b
         );
 
-        // Per-point raw depth: contact_normal points B→A, so
+        // Per-point raw depth: contact_normal points A→B, so
         // dot(pt_b - pt_a, contact_normal) is negative when shapes overlap.
         float raw_depth = -dot(pt_b - pt_a, contact_normal);
 

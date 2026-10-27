@@ -6,4 +6,12 @@
 #define ENGINE_TESTS_DIR "@TESTS_DIR@"
 #define ENGINE_THIRD_PARTY_DIR "@THIRD_PARTY_DIR@"
 #define ENGINE_PROJECTS_DIR "@PROJECTS_DIR@"
+// Physics SPIR-V is compiled per configuration (Debug keeps glslangValidator's
+// -gVS debug info), so the artefacts live in a configuration subdirectory.
+// ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR is defined per configuration by
+// engine/Physics/CMakeLists.txt.
+#if defined(ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR)
+#define ENGINE_PHYSICS_SPIRV_DIR "@PHYSICS_SPIRV_ROOT@/" ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR
+#else
 #define ENGINE_PHYSICS_SPIRV_DIR "@PHYSICS_SPIRV_ROOT@"
+#endif

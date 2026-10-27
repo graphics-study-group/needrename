@@ -1,0 +1,42 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+
+// sum_by_key.comp — Segmented reduction with a GPU-produced entry count.
+//
+// The buffer-count form of SumByKey: the entry count is produced on the GPU by
+// an earlier pass in the same frame and is read from the `EntryCount` binding at
+// execution time, at every level.
+//
+// The reduction body, its bindings, its bound and its dispatch geometry are
+// documented in sum_by_key_body.glsl.
+//
+// Dispatch: ceil(input_count / 256) workgroups of 256 invocations, 1, 1.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+// How many leading entries carry real data, written by an upstream pass in the
+// same frame and read at execution time.  The level's bound is
+// `min(entry_count, input_count)`.
+layout(set = 0, binding = 6) readonly  buffer EntryCount  { uint count; } entry_count;
+
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+layout(push_constant) uniform SumByKeyPush {
+    uint input_count;     // R_i = number of records this level
+    uint num_channels;    // N in [1,8]
+    uint max_key_value;   // keys >= max_key are ignored (never written to out)
+    uint record_stride;   // next region's per-channel count (=2*num_blocks); used when writing records
+    uint gather_payload;  // 1 = level 0: gather by payload index, 0 = record arrays
+} params;
+
+#include "sum_by_key_body.glsl"
+
+void main() {
+    SumByKeyRun(
+        params.input_count,
+        params.num_channels,
+        params.max_key_value,
+        params.record_stride,
+        params.gather_payload,
+        entry_count.count
+    );
+}

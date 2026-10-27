@@ -5,9 +5,18 @@
 #include <SDL3/SDL.h>
 #include <any>
 #include <cassert>
+#include <cstring>
 #include <unordered_map>
 
-#ifndef NDEBUG
+// <cxxabi.h> demangling is Itanium-ABI (GCC/Clang) only; MSVC typeid().name()
+// is already human-readable, so the plain passthrough below applies there.
+#if defined(_MSC_VER) || defined(NDEBUG)
+namespace {
+    std::string DemangleTypeName(const char *p) {
+        return std::string{p};
+    }
+} // namespace
+#else
 #include <cxxabi.h>
 namespace {
     std::string DemangleTypeName(const char *p) {
@@ -15,12 +24,6 @@ namespace {
         std::string name{demangled_name_buf};
         free(demangled_name_buf);
         return name;
-    }
-} // namespace
-#else
-namespace {
-    std::string DemangleTypeName(const char *p) {
-        return std::string{p};
     }
 } // namespace
 #endif
@@ -46,6 +49,10 @@ namespace Engine::Rhi {
             size_t max_size{0};
         };
         mutable SizeStatistic size;
+
+        // Total block size in the target layout, including trailing padding.
+        // 0 means no block size was declared via SetBlockSize.
+        size_t declared_block_size{0};
     };
 
     StructuredBufferPlacer::StructuredBufferPlacer() noexcept : pimpl(std::make_unique<impl>()) {
@@ -70,7 +77,7 @@ namespace Engine::Rhi {
             impl::TypeInfo{.info = &typeid(StructuredBuffer), .offset = offset, .size = 0, .subbuffer = &buffer};
     }
 
-    size_t StructuredBufferPlacer::CalculateMaxSize() const noexcept {
+    size_t StructuredBufferPlacer::GetRequiredSize() const noexcept {
         if (!pimpl->size.max_size_dirty) return pimpl->size.max_size;
 
         size_t max_size{0};
@@ -78,7 +85,7 @@ namespace Engine::Rhi {
             size_t element_size{0};
             if (v.info != nullptr && *v.info == typeid(StructuredBuffer)) {
                 assert(v.subbuffer);
-                element_size = v.subbuffer->CalculateMaxSize();
+                element_size = v.subbuffer->GetRequiredSize();
             } else {
                 element_size = v.size;
             }
@@ -87,6 +94,21 @@ namespace Engine::Rhi {
         pimpl->size.max_size_dirty = false;
         pimpl->size.max_size = max_size;
         return max_size;
+    }
+
+    void StructuredBufferPlacer::SetBlockSize(size_t block_size) noexcept {
+        pimpl->declared_block_size = block_size;
+    }
+
+    size_t StructuredBufferPlacer::GetBlockSize() const noexcept {
+        const size_t required = GetRequiredSize();
+        if (pimpl->declared_block_size == 0) return required;
+
+        assert(
+            pimpl->declared_block_size >= required
+            && "The declared block size must be at least as large as the required size."
+        );
+        return pimpl->declared_block_size;
     }
 
     void StructuredBufferPlacer::WriteBuffer(const StructuredBuffer &data, std::byte *buffer) const noexcept {
@@ -125,7 +147,7 @@ namespace Engine::Rhi {
         }
     }
     void StructuredBufferPlacer::WriteBuffer(const StructuredBuffer &data, std::vector<std::byte> &buffer) const {
-        buffer.resize(CalculateMaxSize());
+        buffer.resize(GetRequiredSize());
         WriteBuffer(data, buffer.data());
     }
 } // namespace Engine::Rhi

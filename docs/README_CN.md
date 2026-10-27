@@ -6,115 +6,12 @@
 
 ## 构建引擎
 
-我们建议使用 **MSYS2 CLANG64** 子系统构建项目并管理依赖包。
+引擎支持两个平台：
 
-### 依赖项
+- **Windows** — 使用 Visual Studio（VS2026，最低 VS2022）的 **MSVC** 工具链（多配置生成器，构建目录 `build/msvc`）。完整安装与构建说明：[`windows_msvc.md`](./build_instructions/windows_msvc.md)
+- **Linux (WSL2)** — Clang + Ninja，需手动安装 LunarG Vulkan SDK 与 SDL3。完整安装与构建说明：[`linux.md`](./build_instructions/linux.md)
 
-| 依赖 | MSYS2 软件包 |
-|---|---|
-| Clang 22（工具链） | `mingw-w64-clang-x86_64-toolchain` |
-| CMake | `mingw-w64-clang-x86_64-cmake` |
-| Ninja | （随 CMake 附带） |
-| Python 3 | `mingw-w64-clang-x86_64-python` |
-| Vulkan 加载器 + 头文件 | `mingw-w64-clang-x86_64-vulkan-loader` `mingw-w64-clang-x86_64-vulkan-headers` |
-| Vulkan 验证层 | `mingw-w64-clang-x86_64-vulkan-validation-layers` |
-| glslang（着色器编译器） | `mingw-w64-clang-x86_64-glslang` |
-| SDL3 | `mingw-w64-clang-x86_64-sdl3` |
-| LLDB（调试器） | `mingw-w64-clang-x86_64-lldb` `mingw-w64-clang-x86_64-lldb-mi` |
-| Doxygen（可选） | `mingw-w64-clang-x86_64-doxygen` |
-
-其他第三方依赖（glm、SPIRV-Cross、imgui 等）位于 `third_party` 目录，由 CMake 自动构建。
-
-#### 一键安装
-
-```sh
-pacman -S \
-  mingw-w64-clang-x86_64-toolchain \
-  mingw-w64-clang-x86_64-cmake \
-  mingw-w64-clang-x86_64-python \
-  mingw-w64-clang-x86_64-vulkan-loader \
-  mingw-w64-clang-x86_64-vulkan-headers \
-  mingw-w64-clang-x86_64-vulkan-validation-layers \
-  mingw-w64-clang-x86_64-glslang \
-  mingw-w64-clang-x86_64-sdl3 \
-  mingw-w64-clang-x86_64-lldb \
-  mingw-w64-clang-x86_64-lldb-mi
-```
-
-### 构建步骤
-
-1. 克隆仓库（含子模块）：
-
-```sh
-git clone --recursive <仓库地址>
-```
-
-2. 使用 CMake 配置。确保 Shell 已激活 CLANG64 环境（`MSYSTEM=CLANG64`，且 `clang64/bin`、`usr/bin` 在 `PATH` 中）：
-
-```sh
-cmake --preset debug
-```
-
-3. 构建：
-
-```sh
-cmake --build --preset debug
-```
-
-也提供了 `release` preset，详见 `CMakePresets.json`。
-
-### 运行时环境
-
-运行本项目构建的任何可执行文件前，需要设置以下环境变量：
-
-| 变量 | 值 | 用途 |
-|---|---|---|
-| `PATH` | 前置 `<msys2>/clang64/bin` 和 `<msys2>/usr/bin` | 查找运行时 DLL（SDL3、Vulkan 加载器、libc++ 等） |
-| `VK_LAYER_PATH` | `<msys2>/clang64/bin` | 查找 Vulkan 验证层（Debug 构建） |
-
-其中 `<msys2>` 是你的 MSYS2 安装根目录（例如 `C:\msys2`）。
-
-在 PowerShell 中：
-
-```powershell
-$env:Path = "C:\msys2\clang64\bin;C:\msys2\usr\bin;$env:Path"
-$env:VK_LAYER_PATH = "C:\msys2\clang64\bin"
-./build/debug/bin/project_loading_test.exe
-```
-
-### VS Code 配置
-
-推荐安装以下 VS Code 扩展：
-
-- **CMake Tools** (`ms-vscode.cmake-tools`)
-- **C/C++** (`ms-vscode.cpptools`)
-- **CodeLLDB** (`vadimcn.vscode-lldb`) — 用于 LLDB 调试
-
-在 `.vscode/settings.json` 中创建以下内容，将路径替换为你的 MSYS2 实际安装路径：
-
-```jsonc
-{
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-    "cmake.environment": {
-        "MSYSTEM": "CLANG64",
-        "PATH": "<msys2>\\clang64\\bin;<msys2>\\usr\\bin;${env:Path}",
-        "VK_LAYER_PATH": "<msys2>\\clang64\\bin"
-    },
-    "cmake.generator": "Ninja",
-    "C_Cpp.default.compilerPath": "<msys2>\\clang64\\bin\\clang++.exe",
-    "cmake.debugConfig": {
-        "type": "lldb",
-        "program": "${command:cmake.launchTargetPath}",
-        "cwd": "${workspaceFolder}",
-        "env": {
-            "PATH": "<msys2>\\clang64\\bin;<msys2>\\usr\\bin;${env:Path}",
-            "VK_LAYER_PATH": "<msys2>\\clang64\\bin"
-        }
-    }
-}
-```
-
-将 `<msys2>` 替换为你的 MSYS2 实际路径（例如 `C:\msys2`）。
+公共 CMake presets（`debug` / `release`）定义在 `CMakePresets.json`：Windows 增加 `msvc` + `msvc-debug` / `msvc-release`，Linux 增加 `linux-debug` / `linux-release`。平台相关的依赖安装、环境变量、Python 解释器配置见各平台文档。
 
 ## 项目结构
 

@@ -5,6 +5,8 @@
 #include "Render/render_export.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 
+#include <memory>
+
 namespace Engine {
     namespace Rhi {
         class DeviceBuffer;

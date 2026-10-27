@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_GPU_ALGORITHM_RADIXSORT_INCLUDED
 #define ENGINE_PHYSICS_GPU_ALGORITHM_RADIXSORT_INCLUDED
 
+#include "../physics_export.h"
+
 #include <cstdint>
 #include <memory>
 
@@ -16,50 +18,98 @@ namespace Engine {
     }
 
     /**
-     * @brief GPU 8-bit LSD radix sort for uvec2 pairs.
+     * @brief The caller's buffers for one radix sort call.
      *
-     * RadixSort encapsulates the compute shaders and per-pass parameter
-     * management for sorting uvec2(a, b) pairs by (primary, secondary) key.
-     * It owns only the compute pipelines and small per-dispatch parameter
-     * buffers; all working data buffers are caller-provided.
+     * The record is a struct-of-arrays: a `uint` **key** array plus an
+     * **optional** `uint` payload array of the same capacity.  There is no packed
+     * pair and no mode selector: the key array is the ordering key, and the
+     * payload array is opaque data that is permuted together with its key.
      *
-     * Algorithm: 8-pass 8-bit LSD radix sort.
-     *   Passes 0-3 sort by .y (secondary key, word_select=0).
-     *   Passes 4-7 sort by .x (primary key,   word_select=1).
+     * The key array is both the input and the output: `Record` sorts it in place,
+     * permuting the payload array alongside it.  The sort's ping-pong partner
+     * arrays are its own, so a caller allocates no temporary storage and does not
+     * have to know which array the result ended up in.
      *
-     * Each radix pass consists of three sub-steps:
-     *   1. Histogram: count elements per digit (0-255)
-     *   2. Prefix sum: exclusive scan over 256 histogram entries (single WG)
-     *   3. Scatter:   reorder elements using histogram as atomic counters
-     *
-     * A clear (memset) precedes each histogram pass.  Data ping-pongs between
-     * two pair buffers; after 8 passes the final sorted result lands in the
-     * original pairs_buf_a.
-     *
-     * Max shape count is 2^20 (1,048,576).  Exceeding this limit throws.
-     *
-     * Caller-provided resources:
-     *   - Input/output pair buffer A (ping)
-     *   - Temp pair buffer B (pong, same size as A)
-     *   - Scratch buffer (256 uints, 1 KB)
-     *   - elem_capacity (buffer size in pairs, for dispatch sizing)
-     *   - pair_count buffer (GPU-side uint, actual pair count at execution time)
-     *   - max_shape_count (for validation)
+     * Callers that bind no payload set `payload` to `nullptr`.  A caller whose
+     * record *is* its key (for example a pair identity packed into a single
+     * `uint`) has nothing to permute.
      */
-    class RadixSort {
+    struct RadixSortBuffers {
+        Rhi::ComputeBuffer *keys{nullptr};
+        Rhi::ComputeBuffer *payload{nullptr};
+        Rhi::ComputeBuffer *count{nullptr};
+    };
+
+    /**
+     * @brief GPU 8-bit LSD radix sort over a `uint` key array and an optional
+     * `uint` payload array.
+     *
+     * **Result.** The sort returns the caller's keys in **stable ascending**
+     * order: for any two elements `i < j` with equal keys, the element at `i`
+     * appears before the element at `j` in the output.  Stability holds for every
+     * pass count, because LSD radix sort is only correct when each pass preserves
+     * the relative order the previous one established.  One `Record` call sorts
+     * one array; the payload array, when present, is permuted by the same
+     * permutation the keys receive.  The result is always in the caller's arrays,
+     * whatever the pass count: when the pass count is odd the last pass leaves it
+     * in the instance's own array, and `Record` copies it back.  A later call on
+     * the same instance therefore cannot destroy an earlier call's result.
+     * **Only `[0, count)` is sorted or written.**
+     *
+     * **Pass count.** The number of passes is derived from the caller's key
+     * bound, not fixed:
+     *
+     * ```
+     * num_passes = ceil(bit_width(max_key_value) / 8)
+     * ```
+     *
+     * so a bound that fits in one byte costs one pass instead of eight.  A bound
+     * of one or zero costs no passes at all, and the call leaves the caller's
+     * buffers untouched.  Each pass consists of exactly three sub-steps, with no
+     * clear pass:
+     *
+     *   1. **Per-block histogram** (`radix_block_histogram.comp`): each block of
+     *      256 elements counts its own digits and writes the block's 256 counts
+     *      **transposed** into the scratch buffer, so
+     *      `hist[digit * num_blocks + block]` is the count of that digit in that
+     *      block.  Every cell is written by exactly one invocation on every call,
+     *      which is why no clear pass is needed.
+     *
+     *   2. **Prefix sum** (the internal `ParallelScan`): one flat in-place
+     *      exclusive scan over the whole `256 * num_blocks`-element transposed
+     *      histogram.  Because the digit is the outer dimension and the block the
+     *      inner one, the scanned value at `digit * num_blocks + block` is exactly
+     *      that digit's global base offset plus its counts in all earlier blocks.
+     *
+     *   3. **Stable scatter** (`radix_scatter.comp`): each element's destination
+     *      is the scanned offset for its `(digit, block)` pair plus its
+     *      deterministic in-block rank.  No atomic operation decides any
+     *      element's order.
+     *
+     * The instance holds no geometry: every `Record` call supplies its own
+     * capacity and key bound, so one instance serves any number of them within a
+     * single frame and never needs rebuilding when the caller's geometry changes.
+     * The working storage is shared by every call, so two `Record` calls on one
+     * instance in the same command buffer have an execution-order dependency
+     * through it and the caller must record a barrier between them.
+     */
+    class PHYSICS_API RadixSort {
     public:
-        static constexpr uint32_t kNumBins = 256;
-        static constexpr uint32_t kMaxShapeCount = 1u << 20; // 1,048,576
-        static constexpr uint32_t kNumPasses = 8;            // 4 for b + 4 for a
+        static constexpr uint32_t kNumBins = 256u;
+        /// Elements per histogram/scatter workgroup: one block of the transposed
+        /// histogram.
+        static constexpr uint32_t kBlockSize = 256u;
 
         /**
          * @brief Construct the radix sort executor.
          *
-         * @param render_system   Render system for pipeline creation.
-         * @param max_elem_count  Maximum number of uvec2 pairs this instance
-         *                        will ever sort.  Used for dispatch bounds.
+         * Allocates no GPU resources and stores no element geometry; shader
+         * loading, kernel acquisition and working-storage allocation are deferred
+         * until the first `Record` call.
+         *
+         * @param device_context  Device context for pipeline creation.
          */
-        explicit RadixSort(Rhi::DeviceContext &device_context, uint32_t max_elem_count);
+        explicit RadixSort(Rhi::DeviceContext &device_context);
 
         ~RadixSort();
 
@@ -69,60 +119,41 @@ namespace Engine {
         RadixSort &operator=(RadixSort &&) = delete;
 
         /**
-         * @brief Required scratch buffer size in bytes (256-element histogram).
+         * @brief Record the radix sort's dispatches to the command buffer.
          *
-         * @return Always 1024 bytes (256 × sizeof(uint32_t)).
-         */
-        static constexpr size_t GetRequiredScratchBytes() noexcept {
-            return kNumBins * sizeof(uint32_t);
-        }
-
-        /**
-         * @brief Required temp pairs buffer size in bytes.
+         * Sorts the `buffers.count` leading elements of `buffers.keys` into
+         * ascending stable key order, in place, permuting `buffers.payload` in
+         * lockstep when one is supplied, and writes nothing at or beyond that
+         * count.  Inserts the compute barriers its sub-steps, passes and result
+         * copy need.
          *
-         * The temp buffer must be at least as large as the input pair buffer
-         * to support ping-pong between passes.
+         * A capacity of zero, or a key bound that implies no passes, records
+         * nothing: the caller's key array is already the sorted result.
          *
-         * @param max_elem_count  Maximum number of uvec2 pairs to sort.
-         * @return Minimum buffer size in bytes.
-         */
-        static constexpr size_t GetRequiredTempPairsBytes(uint32_t max_elem_count) noexcept {
-            return static_cast<size_t>(max_elem_count) * 2u * sizeof(uint32_t);
-        }
-
-        /**
-         * @brief Record 8-pass radix sort dispatches to the command buffer.
+         * @param cb              Command buffer in recording state.
+         * @param buffers         The caller's key array, optional payload array
+         *                        and element-count buffer.
+         * @param elem_capacity   Element capacity the buffers are sized for.
+         *                        Dispatch geometry comes from this value, never
+         *                        from the GPU-side count, which decides how many
+         *                        leading elements are sorted and written.
+         * @param max_key_value   A value at or above every key the call will
+         *                        write, used to derive the pass count.
          *
-         * Sorts uvec2 pairs by (.x, .y) ascending.  After execution the sorted
-         * result is in @p pairs_buf_a.
+         * @pre The key array is at least `elem_capacity * sizeof(uint32_t)`
+         *      bytes, the payload array (when supplied) is at least that large,
+         *      and the count buffer holds one `uint`.
+         * @pre Every key the caller writes is below `2^(8 * num_passes)`.
          *
-         * Inserts barriers between internal passes.
-         *
-         * @param cb               Command buffer in recording state.
-         * @param pairs_buf_a      Ping pairs buffer (input, becomes output).
-         * @param pairs_buf_b      Pong pairs buffer (temp, same size).
-         * @param scratch_buf      Histogram scratch buffer (>= 1 KB).
-         * @param elem_capacity    Buffer capacity in pairs (for dispatch sizing).
-         * @param pair_count_buf   Pair count buffer (1 uint, read at GPU execution time).
-         * @param max_shape_count  Max shape index, for validation (must <= 2^20).
-         *
-         * @pre elem_capacity <= max_elem_count
-         * @throws std::runtime_error if max_shape_count > kMaxShapeCount
+         * @throws std::invalid_argument if `max_key_value` is zero.
+         * @throws std::runtime_error if a required buffer is null or smaller than
+         *         the size this call's geometry implies.
          */
         void Record(
-            vk::CommandBuffer cb,
-            Rhi::ComputeBuffer &pairs_buf_a,
-            Rhi::ComputeBuffer &pairs_buf_b,
-            Rhi::ComputeBuffer &scratch_buf,
-            uint32_t elem_capacity,
-            Rhi::ComputeBuffer &pair_count_buf,
-            uint32_t max_shape_count
+            vk::CommandBuffer cb, const RadixSortBuffers &buffers, uint32_t elem_capacity, uint32_t max_key_value
         );
 
         bool IsInitialized() const noexcept;
-
-        /// Get the maximum element count this instance was configured for.
-        uint32_t GetMaxElemCount() const noexcept;
 
     private:
         struct Impl;

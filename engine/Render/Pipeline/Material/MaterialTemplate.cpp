@@ -10,7 +10,6 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Rhi/Device/DebugUtils.h"
-#include "Rhi/Pipeline/PipelineInfo.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Texture/ImageUtilsFunc.h"
 
@@ -26,9 +25,13 @@ namespace Engine {
             vk::DynamicState::eViewport, vk::DynamicState::eScissor
         };
 
-        vk::DescriptorPool desc_pool{};
         vk::PipelineLayout pipeline_layout{};
+        /// @brief Layout of the per-material set, the object the arena resolved.
+        Rhi::DescriptorSetLayoutRef desc_set_layout{};
         const Rhi::SPLayout *m_layout{};
+        /// @brief Whether the reflected layout has material data set. Computed once at
+        /// construction, because `GenerateLayoutBindings` allocates.
+        bool m_has_material_data{false};
 
         vk::UniquePipeline pipeline{};
         std::string m_name{};
@@ -154,21 +157,22 @@ namespace Engine {
         MaterialTemplateSinglePassProperties &properties,
         const std::vector<vk::ShaderModule> &shaders,
         vk::PipelineLayout layout,
-        vk::DescriptorPool pool,
+        Rhi::DescriptorSetLayoutRef desc_set_layout,
         const Rhi::SPLayout &reflected,
         const PipelineRuntimeInfo &pri,
         const std::string &name
     ) : MaterialTemplate(system) {
         pimpl->m_name = name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipelines for material %s.", pimpl->m_name.c_str());
-        if (!pimpl->desc_pool) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "This material has no per-material data");
-        }
-
-        pimpl->desc_pool = pool;
 
         pimpl->pipeline_layout = layout;
+        pimpl->desc_set_layout = desc_set_layout;
         pimpl->m_layout = &reflected;
+        // "Has per-material data" is "the reflected layout declares set 2".
+        pimpl->m_has_material_data = !reflected.GenerateLayoutBindings(2, true, false).empty();
+        if (!pimpl->m_has_material_data) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "This material has no per-material data");
+        }
 
         // Create pipelines
         pimpl->CreatePipeline(system, shaders, properties, pri);
@@ -183,14 +187,18 @@ namespace Engine {
         return pimpl->pipeline_layout;
     }
 
-    vk::DescriptorPool MaterialTemplate::GetDescriptorPool() const noexcept {
-        return pimpl->desc_pool;
+    vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const noexcept {
+        return pimpl->desc_set_layout.handle;
+    }
+
+    Rhi::DescriptorSetLayoutRef MaterialTemplate::GetDescriptorSetLayoutRef() const noexcept {
+        return pimpl->desc_set_layout;
     }
 
     const Rhi::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {
         return *(pimpl->m_layout);
     }
     bool MaterialTemplate::HasMaterialData() const noexcept {
-        return pimpl->desc_pool;
+        return pimpl->m_has_material_data;
     }
 } // namespace Engine

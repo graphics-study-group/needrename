@@ -9,7 +9,7 @@
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
-        class ComputeStage;
+        class ComputeKernel;
     } // namespace Rhi
     class RenderGraph;
     class RenderSystem;
@@ -34,15 +34,15 @@ namespace Editor {
             GameWidget *game_widget,
             Engine::RGTextureHandle &scene_widget_color_id,
             Engine::RGTextureHandle &game_widget_color_id,
-            Engine::RGTextureHandle &final_color_target_id,
-            const Engine::Rhi::ComputeBuffer *model_matrices_buffer = nullptr
+            Engine::RGTextureHandle &final_color_target_id
         );
 
     protected:
         Engine::RenderSystem &m_system;
         Engine::AssetRef m_bloom_shader{};
-        std::shared_ptr<Engine::Rhi::ComputeStage> m_game_bloom_compute_stage{};
-        std::shared_ptr<Engine::Rhi::ComputeStage> m_scene_bloom_compute_stage{};
+        /// @brief The shared bloom kernel, owned by the device context. The scene
+        /// and game widget passes both dispatch it.
+        Engine::Rhi::ComputeKernel *m_bloom_kernel{};
     };
 } // namespace Editor
 

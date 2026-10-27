@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
 #define ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
 
+#include "../physics_export.h"
+
 #include <memory>
 
 namespace vk {
@@ -11,6 +13,7 @@ namespace Engine {
         class ComputeBuffer;
     }
     class PhysicsScene;
+    class SpatialHashBroadDetector;
     namespace Rhi {
         class DeviceContext;
     }
@@ -27,34 +30,39 @@ namespace Engine {
         const Rhi::ComputeBuffer *contact_point_a{};
         const Rhi::ComputeBuffer *contact_point_b{};
         const Rhi::ComputeBuffer *collision_count{};
-        uint32_t max_output_collision_pairs{0};
+        /// Contact-point capacity the detector was bound with.  The result buffers
+        /// hold at least this many entries, and `collision_count` never exceeds it.
+        uint32_t contact_capacity{0};
     };
 
     /**
      * @brief GPU narrow-phase convex collision detection using MPR algorithm.
      *
      * ConvexCollisionDetector owns the MPR collision detection compute pipeline
-     * (detect_collisions.comp).  Collision pairs to test are provided by the
-     * broad-phase detector -- pair buffer references are cached during Configure().
+     * (detect_collisions.comp).  Collision pairs to test come from the broad-phase
+     * detector, whose live output is read at preparation time.
      *
      * Lifecycle:
      *   1. Construct with Rhi::DeviceContext& only (no GPU allocation).
-     *   2. Configure(scene, max_pairs, margin, pair_buf, count_buf) -- CPU prep,
-     *      buffer allocation, shader loading, binding creation.
-     *   3. Record(cb) -- dispatch compute passes directly to cb, return void.
+     *   2. BindToScene(scene, broad_detector, contact_capacity, contact_margin)
+     *      -- caches CPU values and the broad-phase source only, no allocation.
+     *   3. Record(cb) -- prepares itself for the observed pair capacity and
+     *      dispatches compute passes directly to cb. Preparation is a no-op when
+     *      nothing changed.
      *
      * Collision results are stored in separate SoA GPU buffers:
      *   - collision_ids:       uvec2 (shape_a, shape_b)
      *   - collision_normals:   vec4  (xyz = normal, w = penetration depth)
      *   - contact_point_a:     vec4  (contact point on A, shape-local space)
      *   - contact_point_b:     vec4  (contact point on B, shape-local space)
-     *   - collision_count:     uint  (total contact points, each atomicAdd'd)
+     *   - collision_count:     uint  (contact points written this substep)
      *
      * Each collision pair may produce up to 5 contact entries (4 perturbation
-     * + optionally 1 MPR fallback).  All result buffers are sized to
-     * max_collision_pairs * 5.
+     * + optionally 1 MPR fallback).  All result buffers are sized to the contact
+     * capacity the caller owns, which is the same number the caller's per-contact
+     * multiplier buffers are sized to.
      */
-    class ConvexCollisionDetector {
+    class PHYSICS_API ConvexCollisionDetector {
     public:
         explicit ConvexCollisionDetector(Rhi::DeviceContext &device_context);
         ~ConvexCollisionDetector();
@@ -65,42 +73,36 @@ namespace Engine {
         ConvexCollisionDetector &operator=(ConvexCollisionDetector &&) = delete;
 
         /**
-         * @brief CPU-side preparation: cache references, size buffers, upload config,
-         *        load shaders, allocate resource bindings.
+         * @brief Bind the detector to its scene and to the broad-phase source it reads.
          *
-         * Safe to call every frame -- no-op when nothing changed.
-         *
-         * @param scene                    Physics scene for GPU buffer access.
-         * @param max_input_collision_pairs  Maximum number of candidate pairs to test.
-         * @param max_output_collision_pairs Maximum number of output collision pairs.
-         * @param contact_margin           Contact margin for penetration validation.
-         * @param pair_buffer              Broad-phase output: uvec2 pair buffer.
-         * @param pair_count_buffer        Broad-phase output: uint pair count buffer.
+         * @param scene             Scene whose shape buffers are read.
+         * @param broad_detector    Broad-phase detector whose pair buffers are read.
+         * @param contact_capacity  Contact-point capacity, owned by the caller.  The
+         *                          result buffers are sized to it and it is the write
+         *                          budget the shader enforces.
+         * @param contact_margin    Contact margin for penetration validation.
          */
-        void Configure(
+        void BindToScene(
             PhysicsScene &scene,
-            uint32_t max_input_collision_pairs,
-            uint32_t max_output_collision_pairs,
-            float contact_margin,
-            const Rhi::ComputeBuffer &pair_buffer,
-            const Rhi::ComputeBuffer &pair_count_buffer
+            const SpatialHashBroadDetector &broad_detector,
+            uint32_t contact_capacity,
+            float contact_margin
         );
 
         /**
-         * @brief GPU-side: record compute dispatches directly to the command buffer.
+         * @brief GPU-side: prepare for the observed pair capacity, then record dispatches.
          *
-         * Must be called after Configure().  Inserts a MemoryBarrier2 at the start.
-         * All passes dispatch via BindComputeStage / DispatchCompute directly
-         * (no RenderGraph).
+         * Takes the broad detector's current pair buffers, sizes its result buffers
+         * and acquires its kernels before the first dispatch, and only when the
+         * observed pair capacity or shape count changed. Inserts a MemoryBarrier2
+         * at the start.
          */
         void Record(vk::CommandBuffer cb);
-
-        bool IsInitialized() const noexcept;
 
         /**
          * @brief Get read-only pointers to result buffers.
          *
-         * Valid after first Configure() (which calls EnsureBuffers).
+         * Valid after the first Record() (which sizes them).
          * Pointers are stable for the detector's lifetime.
          */
         CollisionResultBuffers GetResultBuffers() const noexcept;

@@ -1,5 +1,6 @@
 import os
 import pickle
+import shlex
 import clang.cindex as CX
 from pathlib import Path
 from mako.template import Template
@@ -230,7 +231,7 @@ def clang_parse(file, config, verbose):
         + CX.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES \
         + CX.TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
     try:
-        tu = index.parse(file, args=config["args"].split(), options=flag)
+        tu = index.parse(file, args=shlex.split(config["args"], posix=False), options=flag)
     except CX.TranslationUnitLoadError as e:
         print(f"[parser] When parsing {file} , error occurs:")
         print(e)

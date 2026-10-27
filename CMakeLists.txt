@@ -9,7 +9,6 @@ set(ENGINE_EDITOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/app/editor)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 set(BUILTIN_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/builtin_assets)
-set(ANROREFL_PARSER_ENV_DIR "${CMAKE_SOURCE_DIR}/build/parser_env" CACHE STRING "Path to AnnoRefl parser Python virtualenv")
 set(EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/example)
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
@@ -22,6 +21,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+# On Linux, executables in bin/ must find sibling .so files (the $ORIGIN RPATH)
+# the same way Windows finds DLLs in the executable directory.
+set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
+
 include(CTest)
 
 find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
@@ -31,18 +34,26 @@ message(STATUS "Vulkan version: ${Vulkan_VERSION}")
 add_subdirectory(third_party)
 
 # Debug options
-add_compile_options($<$<CONFIG:Debug>:-g>)
-add_compile_options($<$<CONFIG:Debug>:-O0>)
-add_compile_options($<$<CONFIG:Debug>:-Wall>)
-add_compile_options($<$<CONFIG:Debug>:-Wextra>)
-add_compile_options($<$<CONFIG:Debug>:-Wpedantic>)
-add_compile_options($<$<CONFIG:Debug>:-Weffc++>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:-g>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:-O0>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:-Wall>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:-Wextra>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:-Wpedantic>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:-Weffc++>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Zi>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/Od>)
+add_compile_options($<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/W4>)
 # add_compile_options($<$<CONFIG:Debug>:-pg>)
 # add_link_options($<$<CONFIG:Debug>:-pg>)
 
 # Release options
-add_compile_options($<$<CONFIG:Release>:-O3>)
+add_compile_options($<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:-O3>)
+add_compile_options($<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:/O2>)
 add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
+
+# MSVC: /Zc:__cplusplus so __cplusplus reflects the -std=c++20 standard level
+# instead of defaulting to 199711L.
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 
 add_subdirectory(engine)
 add_subdirectory(app)

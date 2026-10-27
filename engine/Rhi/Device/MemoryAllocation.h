@@ -7,9 +7,9 @@
 #include <cassert>
 #include <memory>
 
-class VmaAllocation_T;
-class VmaAllocator_T;
-class VmaAllocationInfo;
+struct VmaAllocation_T;
+struct VmaAllocator_T;
+struct VmaAllocationInfo;
 typedef VmaAllocation_T *VmaAllocation;
 typedef VmaAllocator_T *VmaAllocator;
 
@@ -19,6 +19,9 @@ namespace vk {
 } // namespace vk
 
 namespace Engine::Rhi {
+    class EpochTracker;
+    class VulkanIdentity;
+
     /**
      * @brief A piece of memory allocated by Vulkan via Vulkan Memory Allocator.
      *
@@ -112,6 +115,14 @@ namespace Engine::Rhi {
         vk::Image GetImage() const noexcept;
         /// @brief Query the memory type specified on creation.
         ImageMemoryType GetMemoryType() const noexcept;
+
+        /**
+         * @brief Get this allocation's never-reused identity.
+         *
+         * The identity is issued when the allocation is created and never
+         * issued again: a replacement allocation bears a new one.
+         */
+        VulkanIdentity GetIdentity() const noexcept;
     };
 
     /**
@@ -126,6 +137,10 @@ namespace Engine::Rhi {
      *
      * @invariant This class, once created, is guaranteed to hold a vaild buffer
      * allocation until moved or destructed.
+     *
+     * @note When an epoch tracker is installed on the allocator that created
+     * this allocation, destruction hands the allocation to that tracker instead
+     * of freeing device memory. See `Engine::Rhi::EpochTracker`.
      */
     class RHI_API BufferAllocation : private VmaMemoryAllocation {
         struct impl;
@@ -135,8 +150,20 @@ namespace Engine::Rhi {
         void Destroy() noexcept;
 
     public:
-        /// @brief Create a buffer allocation, called from `Engine::Rhi::AllocatorState`.
-        BufferAllocation(vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator, BufferType type);
+        /**
+         * @brief Create a buffer allocation, called from `Engine::Rhi::AllocatorState`.
+         *
+         * @param retire_sink Optional tracker that takes ownership on
+         * destruction. When null, the allocation frees its device memory on
+         * destruction.
+         */
+        BufferAllocation(
+            vk::Buffer buffer,
+            VmaAllocation allocation,
+            VmaAllocator allocator,
+            BufferType type,
+            EpochTracker *retire_sink = nullptr
+        );
         ~BufferAllocation();
 
         BufferAllocation(const BufferAllocation &) = delete;
@@ -160,6 +187,25 @@ namespace Engine::Rhi {
 
         /// @brief Get the underlying Vulkan buffer object.
         vk::Buffer GetBuffer() const noexcept;
+
+        /**
+         * @brief Get this allocation's never-reused identity.
+         *
+         * The identity is issued when the allocation is created and never
+         * issued again: replacing a buffer's storage creates a new allocation
+         * with a new identity, which is what distinguishes the buffer from its
+         * own predecessor.
+         */
+        VulkanIdentity GetIdentity() const noexcept;
+
+        /**
+         * @brief Detach the retire sink, so that destruction frees device memory.
+         *
+         * The tracker takes ownership by moving the allocation into its own
+         * storage and MUST call this first. Otherwise destroying the allocation
+         * would hand it straight back to the same tracker, forever.
+         */
+        void ClearRetireSink() noexcept;
 
         /**
          * @brief Get the memory address on the host virtual memory

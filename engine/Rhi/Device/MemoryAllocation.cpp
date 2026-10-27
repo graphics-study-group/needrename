@@ -1,5 +1,8 @@
 #include "Rhi/Device/MemoryAllocation.h"
 
+#include "Rhi/Device/BindingRef.h"
+#include "Rhi/Submission/EpochTracker.h"
+
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
@@ -7,6 +10,8 @@ namespace Engine::Rhi {
     struct ImageAllocation::impl {
         vk::Image image;
         ImageMemoryType type;
+        /// @brief Issued once, when this image is created.
+        VulkanIdentity identity{MintVulkanIdentity()};
     };
 
     void ImageAllocation::Destory() noexcept {
@@ -48,26 +53,43 @@ namespace Engine::Rhi {
         assert(pimpl);
         return pimpl->type;
     }
+    VulkanIdentity ImageAllocation::GetIdentity() const noexcept {
+        assert(pimpl);
+        return pimpl->identity;
+    }
 
     struct BufferAllocation::impl {
         vk::Buffer buffer;
         BufferType type;
         std::byte *mapped_ptr;
+        /// @brief Optional tracker that takes ownership on destruction. Cleared
+        /// before the hand-off so the tracker can destroy the allocation itself.
+        EpochTracker *retire_sink;
+        /// @brief Issued once, when this buffer is created. A replacement
+        /// allocation issues a new one.
+        VulkanIdentity identity{MintVulkanIdentity()};
     };
     void BufferAllocation::Destroy() noexcept {
         if (pimpl && pimpl->buffer) {
-            if (pimpl->buffer) {
-                if (pimpl->mapped_ptr) {
-                    vmaUnmapMemory(GetAllocator(), GetAllocation());
-                }
-                vmaDestroyBuffer(GetAllocator(), pimpl->buffer, GetAllocation());
+            if (pimpl->retire_sink) {
+                // Hand the allocation over instead of freeing it. The tracker is
+                // cleared first so that the allocation it now owns destroys
+                // itself for real (and cannot re-enter the tracker).
+                EpochTracker *tracker = pimpl->retire_sink;
+                pimpl->retire_sink = nullptr;
+                tracker->Retire(std::move(*this));
+                return;
             }
+            if (pimpl->mapped_ptr) {
+                vmaUnmapMemory(GetAllocator(), GetAllocation());
+            }
+            vmaDestroyBuffer(GetAllocator(), pimpl->buffer, GetAllocation());
             pimpl.reset();
         }
     }
     BufferAllocation::BufferAllocation(
-        vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator, BufferType type
-    ) : VmaMemoryAllocation(allocation, allocator), pimpl(std::make_unique<impl>(buffer, type, nullptr)) {
+        vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator, BufferType type, EpochTracker *sink
+    ) : VmaMemoryAllocation(allocation, allocator), pimpl(std::make_unique<impl>(buffer, type, nullptr, sink)) {
     }
     BufferAllocation::~BufferAllocation() {
         Destroy();
@@ -87,6 +109,13 @@ namespace Engine::Rhi {
     vk::Buffer BufferAllocation::GetBuffer() const noexcept {
         assert(pimpl);
         return pimpl->buffer;
+    }
+    VulkanIdentity BufferAllocation::GetIdentity() const noexcept {
+        assert(pimpl);
+        return pimpl->identity;
+    }
+    void BufferAllocation::ClearRetireSink() noexcept {
+        if (pimpl) pimpl->retire_sink = nullptr;
     }
     std::byte *BufferAllocation::GetVMAddress() {
         assert(pimpl);

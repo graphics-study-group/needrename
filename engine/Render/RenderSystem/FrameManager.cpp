@@ -6,8 +6,10 @@
 #include "Render/Resource/MemoryAccessHelper.hpp"
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/Structs.h"
+#include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Submission/SubmissionHelper.h"
 #include "Rhi/Texture/ImageUtilsFunc.h"
 
@@ -33,10 +35,18 @@ namespace Engine::RenderSystemState {
 
         std::array<vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores{};
 
-        // Frame completion credential: a binary semaphore per frame-in-flight,
-        // signaled by the frame-completion batch and waited on by `Present`.
-        // (Binary, because vkQueuePresentKHR accepts only binary semaphores.)
-        std::array<vk::UniqueSemaphore, FRAMES_IN_FLIGHT> frame_completed_semaphores{};
+        // Frame completion credential: one binary semaphore *per swapchain
+        // image*, signaled by the frame-completion batch and waited on by
+        // `Present` (binary, because vkQueuePresentKHR accepts only binary
+        // semaphores).
+        //
+        // Per image, not per frame-in-flight: a binary present semaphore may be
+        // reused only after the presentation operation that waited on it has
+        // completed. That is exactly what re-acquiring the image guarantees,
+        // but a frame-in-flight slot would be reused with a *different* image
+        // whose present may still be pending — a signal-while-signaled
+        // violation (VUID-vkQueueSubmit2-semaphore-03868).
+        std::vector<vk::UniqueSemaphore> frame_completed_semaphores{};
 
         std::array<vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences{};
 
@@ -88,6 +98,11 @@ namespace Engine::RenderSystemState {
 
         uint64_t total_frame_count{0};
 
+        // The frame epoch opened for each in-flight slot, reported when that
+        // slot's command-executed fence is next waited on. INVALID means the
+        // slot has no open epoch (nothing submitted yet, or a skipped frame).
+        std::array<Rhi::EpochWatermark, FRAMES_IN_FLIGHT> frame_epochs{};
+
         // Last frame-completion fence, captured at submit time (before
         // CompleteFrame advances the FIF counter). Null until the first submit.
         vk::Fence m_last_submitted_fence = nullptr;
@@ -103,6 +118,9 @@ namespace Engine::RenderSystemState {
                 throw std::runtime_error("This method must be called between StartFrame and CompleteFrame");
             }
         }
+
+        /// @brief (Re)create one present semaphore per presentation image.
+        void CreateFrameCompletedSemaphores(uint32_t image_count);
 
         /// @brief Progress the frame state machine.
         void CompleteFrame();
@@ -131,11 +149,6 @@ namespace Engine::RenderSystemState {
             image_acquired_semaphores[i] = device.createSemaphoreUnique(scinfo);
             DEBUG_SET_NAME_TEMPLATE(
                 device, image_acquired_semaphores[i].get(), std::format("Semaphore - image acquired {}", i)
-            );
-
-            frame_completed_semaphores[i] = device.createSemaphoreUnique(scinfo);
-            DEBUG_SET_NAME_TEMPLATE(
-                device, frame_completed_semaphores[i].get(), std::format("Semaphore - frame completed {}", i)
             );
 
             command_executed_fences[i] = device.createFenceUnique(finfo);
@@ -167,8 +180,40 @@ namespace Engine::RenderSystemState {
         }
 
         current_frame_in_flight = 0;
-        m_submission_helper =
-            std::make_unique<Rhi::SubmissionHelper>(m_system.GetDeviceInterface(), m_system.GetAllocatorState());
+        CreateFrameCompletedSemaphores(present_provider.GetImageCount());
+        m_submission_helper = std::make_unique<Rhi::SubmissionHelper>(
+            m_system.GetDeviceInterface(), m_system.GetAllocatorState(), m_system.GetDeviceContext().GetEpochTracker()
+        );
+    }
+
+    void FrameManager::impl::CreateFrameCompletedSemaphores(uint32_t image_count) {
+        // Each of these is waited on by exactly one present operation of its
+        // image, and re-acquiring that image proves that wait executed, so the
+        // semaphore is unsignaled when it is signaled again.
+        frame_completed_semaphores.clear();
+        if (!m_present_provider->NeedsPresentSemaphore()) {
+            // Nothing would consume them (headless): an unconsumed binary
+            // semaphore stays signaled and could never be signaled again.
+            return;
+        }
+
+        auto device = m_system.GetDevice();
+        vk::SemaphoreCreateInfo scinfo{};
+        frame_completed_semaphores.reserve(image_count);
+        for (uint32_t i = 0; i < image_count; i++) {
+            frame_completed_semaphores.push_back(device.createSemaphoreUnique(scinfo));
+            DEBUG_SET_NAME_TEMPLATE(
+                device, frame_completed_semaphores.back().get(), std::format("Semaphore - frame completed image {}", i)
+            );
+        }
+    }
+
+    void FrameManager::OnPresentTargetRecreated() {
+        // A semaphore waited on by a present of the old swapchain must not be
+        // signaled again before that wait executed. Draining the device bounds
+        // the wait: no submission of ours is pending any more.
+        pimpl->m_system.GetDevice().waitIdle();
+        pimpl->CreateFrameCompletedSemaphores(pimpl->m_present_provider->GetImageCount());
     }
 
     void FrameManager::Create(IPresentProvider &present_provider) {
@@ -214,6 +259,15 @@ namespace Engine::RenderSystemState {
             throw std::runtime_error(vk::to_string(wait_result) + " happened when waiting for frame fences.");
         }
 
+        // The fence of the frame that last used this slot has been observed, so
+        // that frame's epoch can be reported. This is the frame epoch's only
+        // reporting point, and it is why the completed prefix lags by roughly
+        // the in-flight depth.
+        if (pimpl->frame_epochs[fif] != Rhi::INVALID_EPOCH_WATERMARK) {
+            pimpl->m_system.GetDeviceContext().GetEpochTracker().ReportComplete(pimpl->frame_epochs[fif]);
+            pimpl->frame_epochs[fif] = Rhi::INVALID_EPOCH_WATERMARK;
+        }
+
         // Acquire (async, never blocks). On failure the frame state is left
         // untouched: `current_framebuffer` keeps its previous value, the fence
         // is NOT reset and the FIF is NOT advanced, so the caller can safely
@@ -241,6 +295,13 @@ namespace Engine::RenderSystemState {
             device.signalSemaphore(pimpl->timeline_semaphores[fif].GetSignalInfo(1));
         }
 
+        // The frame is committed: acquisition succeeded and the command buffer
+        // is reset, so open the frame's epoch here. Opening it before acquisition
+        // would create an epoch whose submission never happens when the frame is
+        // skipped, stranding everything parked under it (and everything above it,
+        // since the completed prefix cannot jump the gap).
+        pimpl->frame_epochs[fif] = pimpl->m_system.GetDeviceContext().GetEpochTracker().BeginEpoch();
+
         return pimpl->current_framebuffer;
     }
 
@@ -267,8 +328,9 @@ namespace Engine::RenderSystemState {
         pimpl->m_submission_helper->ExecuteSubmission(this_timeline_semaphore.GetSignalInfo(2));
 
         // Record the copy CB (headless → nullptr; the batch then carries no copy).
+        const uint32_t image_index = GetFramebuffer();
         auto copy_cb = pimpl->m_present_provider->PrepareCopy(
-            pimpl->m_system.GetDevice(), present_texture, GetFramebuffer(), last_access
+            pimpl->m_system.GetDevice(), present_texture, image_index, last_access
         );
 
         // ── One frame-completion batch: {main render CB, copy CB} ──
@@ -307,10 +369,17 @@ namespace Engine::RenderSystemState {
             // Signal after all commands (render + copy) are finished.
             vk::PipelineStageFlagBits2::eAllCommands
         );
-        // Frame completion credential (binary) — waited on by Present.
-        signal_infos[1] = vk::SemaphoreSubmitInfo{
-            pimpl->frame_completed_semaphores[fif].get(), 0, vk::PipelineStageFlagBits2::eAllCommands
-        };
+        // Frame completion credential (binary) — waited on by Present. Indexed
+        // by the acquired image, so the semaphore is only reused together with
+        // its image, i.e. after the present that waited on it has completed.
+        uint32_t signal_count = 1;
+        if (pimpl->m_present_provider->NeedsPresentSemaphore()) {
+            assert(image_index < pimpl->frame_completed_semaphores.size());
+            signal_infos[1] = vk::SemaphoreSubmitInfo{
+                pimpl->frame_completed_semaphores[image_index].get(), 0, vk::PipelineStageFlagBits2::eAllCommands
+            };
+            signal_count = 2;
+        }
 
         vk::CommandBufferSubmitInfo cbs[]{{pimpl->command_buffers[fif].get()}, {copy_cb}};
         const uint32_t cb_count = copy_cb ? 2u : 1u;
@@ -319,7 +388,7 @@ namespace Engine::RenderSystemState {
         sinfo.pWaitSemaphoreInfos = wait_infos.data();
         sinfo.commandBufferInfoCount = cb_count;
         sinfo.pCommandBufferInfos = cbs;
-        sinfo.signalSemaphoreInfoCount = static_cast<uint32_t>(signal_infos.size());
+        sinfo.signalSemaphoreInfoCount = signal_count;
         sinfo.pSignalSemaphoreInfos = signal_infos.data();
         pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
             sinfo, pimpl->command_executed_fences[fif].get()
@@ -331,9 +400,11 @@ namespace Engine::RenderSystemState {
         pimpl->m_has_submitted = true;
 
         // Present (waits on the frame completion credential).
-        bool needs_recreating = pimpl->m_present_provider->Present(
-            pimpl->m_system.GetDevice(), GetFramebuffer(), pimpl->frame_completed_semaphores[fif].get()
-        );
+        const vk::Semaphore frame_done_semaphore = pimpl->m_present_provider->NeedsPresentSemaphore()
+                                                       ? pimpl->frame_completed_semaphores[image_index].get()
+                                                       : nullptr;
+        bool needs_recreating =
+            pimpl->m_present_provider->Present(pimpl->m_system.GetDevice(), image_index, frame_done_semaphore);
 
         pimpl->CompleteFrame();
         return needs_recreating;

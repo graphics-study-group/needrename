@@ -16,8 +16,6 @@
 #include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/DebugUtils.h"
-#include "Rhi/Pipeline/ComputeResourceBinding.h"
-#include "Rhi/Pipeline/ComputeStage.h"
 #include "Rhi/Texture/Texture.h"
 
 #include <SDL3/SDL.h>
@@ -271,11 +269,16 @@ namespace Engine {
 
         if (!tpl.HasMaterialData()) return;
 
-        auto dynamic_offsets = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
-        auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
-        if (material_descriptor_set) {
+        // Refresh the set on every bind, so the epoch the arena records for it
+        // stays an upper bound on the epochs whose command buffers use it.
+        auto material_binding = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
+        if (material_binding.set) {
             cb.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics, pipeline_layout, 2, {material_descriptor_set}, dynamic_offsets
+                vk::PipelineBindPoint::eGraphics,
+                pipeline_layout,
+                2,
+                {material_binding.set},
+                material_binding.dynamic_offsets
             );
         }
     }
@@ -375,37 +378,11 @@ namespace Engine {
         }
     }
 
-    // ── Compute ─────────────────────────────────────────────────────────────
-
-    void CommandBuffer::BindComputeStage(Rhi::ComputeStage &stage) {
-        m_bound_compute_stage = stage;
-        this->cb.bindPipeline(vk::PipelineBindPoint::eCompute, stage.GetPipeline());
-    }
-
-    void CommandBuffer::BindComputeResource(Rhi::ComputeResourceBinding &binding) {
-        assert(m_bound_compute_stage.has_value() && "Compute pipeline is not bound.");
-
-        auto offsets = binding.UpdateGPUInfo(m_inflight_frame_index);
-        this->cb.bindDescriptorSets(
-            vk::PipelineBindPoint::eCompute,
-            m_bound_compute_stage.value().get().GetPipelineLayout(),
-            0,
-            {binding.GetDescriptorSet(m_inflight_frame_index)},
-            offsets
-        );
-    }
-
-    void CommandBuffer::DispatchCompute(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) {
-        assert(m_bound_compute_stage.has_value() && "Compute pipeline is not bound.");
-        this->cb.dispatch(groupCountX, groupCountY, groupCountZ);
-    }
-
     // ── Reset ───────────────────────────────────────────────────────────────
 
     void CommandBuffer::Reset() noexcept {
         cb.reset();
         m_bound_material_pipeline.reset();
-        m_bound_compute_stage.reset();
     }
 
 } // namespace Engine

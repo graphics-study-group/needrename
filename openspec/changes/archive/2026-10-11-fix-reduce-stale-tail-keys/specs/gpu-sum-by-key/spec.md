@@ -1,0 +1,233 @@
+## MODIFIED Requirements
+
+### Requirement: Record dispatches the recursive level chain
+
+`Record` SHALL accept the sorted key array, the payload-index array, the packed value buffer, the output buffer, and an **entry-count source**, and SHALL dispatch exactly `k` compute passes (one per level) with a full compute barrier between consecutive levels:
+
+- Level 0 SHALL read the caller's sorted key array and payload-index array, take each entry's key from `keys_in[e]`, gather each of its `num_channels` values from `values[c * capacity + payload_in[e]]`, and SHALL write boundary records into record region 1.
+- Levels `1 .. k-2` SHALL read record region `i` and SHALL write record region `i+1`. At these levels the key of record `e` SHALL be `keys_in[e]` and channel `c` SHALL be `values_in[c * R_i + e]`.
+- Level `k-1` (a single workgroup covering `R_{k-1} <= 256` records) SHALL write all remaining per-key sums directly to the output buffer.
+
+**One bound decides what a level may read.** A level's **bound** SHALL be `min(entry count, level element count)`, and it SHALL be the only length that says whether an element's input exists.
+
+The **level element count** is the element count of the array a level reads: the call's `capacity` at level 0 (`R_0 = capacity`), and `R_i` at level `i >= 1`. It alone SHALL determine:
+
+- the per-level workgroup count — level 0 SHALL always dispatch `ceil(capacity / 256)` workgroups so that every record slot of region 1 is rewritten on every call;
+- the per-block real extent used for run classification, and therefore which boundary records a block emits;
+- the record-region partition (`R_{i+1} = 2 * ceil(R_i / 256)` records, one pair of slots per block);
+- the level-0 channel stride of the value buffer.
+
+The **entry count** is the number of leading elements that carry real input data, and the bound SHALL be applied element by element, at every level and in every input mode:
+
+- An element at or beyond the bound SHALL NOT have its key read, SHALL NOT have its payload index read and SHALL NOT have any value read. It SHALL carry the out-of-range pad key and SHALL contribute `0.0` to every channel.
+- An element below the bound whose payload index is at or beyond the bound SHALL contribute `0.0` to every channel and SHALL NOT be read from the value buffer. Its key SHALL be used unchanged, because rewriting it would violate the ascending-order requirement below and could split a real key's run, losing one of its partial sums.
+- An element below the bound whose payload index is inside the bound SHALL have its key and each of its `num_channels` values read.
+
+An entry count above the level element count SHALL be clamped by the bound and SHALL behave exactly like an entry count equal to it.
+
+The bound SHALL NOT change the geometry the level element count defines: the per-level workgroup count, the per-block real extent, the record-region partition and the channel strides SHALL all remain functions of the level element count alone, so every record slot of every region is written on every call. A call whose entry count is at or above its capacity therefore behaves exactly as if a bound were absent.
+
+Because the bound is applied to the key array as well, a caller may leave anything at all at or beyond its entry count — including keys and payload indices that name live keys, which is what a full-capacity entry pass leaves there — and the result SHALL be that of a reduction over the elements below the bound alone. Nothing between the entry passes and the reduction SHALL need to guarantee the content of the caller's tail, and no element at or beyond the bound SHALL be able to affect an output slot.
+
+**The entry count SHALL be supplied through a count source, which is either a CPU-known value or a GPU-produced value.** A GPU-produced count SHALL be read from the caller's entry-count buffer inside the shader at execution time, because the producing pass runs on the GPU and the host does not know the value at record time. A CPU-known count SHALL travel in the push-constant block. The source SHALL select the shader variant used for the call, and a variant SHALL declare only the descriptor bindings it actually binds: the buffer-count variant binds the entry-count buffer at every level, and the value-count variant binds no such buffer.
+
+A workgroup whose first element is at or beyond the bound SHALL leave without reading its input, and SHALL do so before any barrier. A workgroup of a level that writes records SHALL still write both of that workgroup's record slots before leaving — the pad key with a zero value — because the next level reads its region over the full level element count, and a slot left unwritten would be read as a record from an earlier call.
+
+Because the level element count and not the entry count sizes level 0, every block of level 0 always writes its portion of region 1, and the record chain stays dense: each of the `2 * ceil(capacity / 256)` slots of region 1 is written on every call. Sizing level 0's workgroup count by the entry count would leave record slots from an earlier call in place, which the next level reads as phantom partials.
+
+`num_channels` SHALL be in `[1, 8]` and `capacity` SHALL be greater than zero; a call violating either, or a `max_key_value` of zero, SHALL throw `std::invalid_argument`. `Record` SHALL additionally reject a capacity whose implied buffer sizes exceed the buffers bound for that call.
+
+The input mode SHALL travel in the push-constant block as a `gather_payload` flag that `Record` sets for level 0 and clears for every deeper level. In gather mode the level's input SHALL always be the caller's key array plus its payload-index array, and the bound SHALL apply to both. In non-gather mode the level's input SHALL always be the `KeysIn` / `ValuesIn` key and value arrays, and the same bound SHALL apply to them.
+
+All other per-level parameters (region offsets, level element count, workgroup count, channel count, key bound) SHALL also travel via the shader's push-constant block. The caller SHALL insert the outer barriers around the whole `Record`.
+
+**The record regions SHALL be laid out at the device's storage-buffer offset alignment.** A region's key array and its value array are separate descriptor bindings, so each SHALL begin at a byte offset that is a multiple of the device's `minStorageBufferOffsetAlignment`, which `Record` SHALL take from its own device context rather than assume. The padding that achieves this SHALL sit between a region's key array and its value array and between consecutive regions, and never inside a value array: a region's channel stride SHALL remain exactly its own record count `R_i`, which is the value the shader's `record_stride` field carries. The instance SHALL size its own storage to at least the partition the call derives, so no caller-supplied size can disagree with the layout.
+
+This is required because the compact layout is only 4-byte aligned: a region's value array starts at `key_offset + R_i * 4`, and a region's stride is `R_i * (1 + num_channels) * 4`. With `R_i = 2 * ceil(R_{i-1} / 256)` neither is a multiple of the alignment in general — for `capacity = 70000` and `num_channels = 3` the second region's value array would sit at byte 8792, which is not a multiple of 16 — and a descriptor bound at such an offset is invalid (`VUID-VkWriteDescriptorSet-descriptorType-00328`).
+
+The shader's storage-buffer bindings SHALL be `KeysIn`, `PayloadIn`, `ValuesIn`, `RecKeys`, `RecValues`, `OutValues` — six buffers — plus the entry-count buffer in the buffer-count variant only. There SHALL be no `uvec2` pair binding: level 0's key and payload index come from the same two scalar arrays every other level uses.
+
+#### Scenario: Full recursion for a large array
+
+- **WHEN** `Record` is called with `capacity = 200000` (`k = 3`) and an entry count equal to the capacity
+- **THEN** three compute dispatches are recorded (782, 7, and 1 workgroups respectively)
+- **AND** a barrier is recorded between consecutive dispatches
+- **AND** only the first dispatch reads `PayloadIn` (`gather_payload = 1`)
+
+#### Scenario: Level 0 dispatch is sized by the capacity, not by the entry count
+
+- **WHEN** `Record` is called with a `capacity` far larger than its entry count
+- **THEN** level 0 still dispatches `ceil(capacity / 256)` workgroups
+- **AND** every record slot of region 1 is rewritten by that call
+- **AND** the deeper levels dispatch for their own `R_i`, which are derived from the capacity
+
+#### Scenario: Single level for a small array
+
+- **WHEN** `Record` is called with a capacity at or below 256
+- **THEN** exactly one compute dispatch is recorded
+- **AND** every run is complete within that single block, so no record is carried to another level
+
+#### Scenario: An entry count below the capacity ignores everything above it
+
+- **WHEN** `Record` is called with an entry count well below the capacity
+- **AND** the key array, the payload-index array and the value buffer above the entry count hold garbage, including entries whose keys are valid and whose payload indices are valid
+- **THEN** the per-key sums equal those of a reduction over the first `entry count` entries only
+- **AND** no key, payload index or value at or beyond the entry count is read
+
+#### Scenario: Stale keys left in the caller's tail cannot reach an output slot
+
+- **WHEN** a call's key array holds, at or beyond its entry count, the keys a previous full-capacity entry pass left there — keys that name live output slots — and its payload-index array holds slot indices that are likewise valid
+- **THEN** every live key's sum is the sum of its entries below the entry count
+- **AND** no output slot is written, and no output slot is overwritten with zero, by an element at or beyond the bound
+
+#### Scenario: A block entirely beyond the bound rewrites its record slots
+
+- **WHEN** a call's entry count covers fewer blocks than its capacity covers
+- **THEN** the blocks at or beyond the bound write their two record slots as pad records with a zero value
+- **AND** the next level reads a fully rewritten region, so no record of an earlier call survives
+
+#### Scenario: An entry count equal to the capacity is the identity
+
+- **WHEN** `Record` is called with an entry count equal to the capacity
+- **THEN** the result is identical to the result of the same call with the bound absent
+
+#### Scenario: An entry count above the capacity is clamped
+
+- **WHEN** `Record` is called with an entry count greater than its capacity
+- **THEN** the result is identical to the same call with an entry count equal to the capacity
+- **AND** no element beyond the capacity is read
+
+#### Scenario: A zero entry count produces no output
+
+- **WHEN** `Record` is called with an entry count of zero
+- **THEN** level 0 is still dispatched over `ceil(capacity / 256)` workgroups
+- **AND** no key, no payload index and no value is read
+- **AND** no output slot is written
+
+#### Scenario: Level 0 gathers values by payload index
+
+- **WHEN** `Record` is called with sorted keys `[0, 0, 5]` and payload indices `[3, 1, 0]`, and an entry count of 3
+- **AND** the value buffer holds `1.0`, `2.0` and `4.0` at payload slots 3, 1 and 0 respectively
+- **THEN** `out[0]` equals `1.0 + 2.0` (in either order)
+- **AND** `out[5]` equals `4.0`
+- **AND** the result does not depend on the order the entries appear in
+
+#### Scenario: Invalid arguments are rejected per call
+
+- **WHEN** `Record` is called with `num_channels` outside `[1, 8]`, with a zero capacity, or with a zero `max_key_value`
+- **THEN** a `std::invalid_argument` exception is thrown
+
+#### Scenario: Every record-region offset is aligned
+
+- **WHEN** `Record` is called for a geometry whose compact layout would place a region offset off the alignment (for example `capacity = 70000` and `num_channels = 3`, whose second region's value array would otherwise sit at byte 8792)
+- **THEN** every `RecKeys` and `RecValues` binding the call records carries an offset that is a multiple of the device's storage-buffer offset alignment
+- **AND** the padding does not change any region's channel stride, which stays equal to that region's record count
+- **AND** the call passes the binding-validation check
+
+#### Scenario: The record layout is derived from the instance's own device
+
+The scenario name is retained from the contract in which a caller sized the record buffer; there is no caller-supplied record buffer any more, and the defect it guarded against is unrepresentable.
+
+- **WHEN** a call records its record regions
+- **THEN** every `RecKeys` and `RecValues` binding carries an offset that is a multiple of the alignment the instance's own device context reports
+- **AND** the instance's storage is grown to at least the partition the call derives
+- **AND** no caller-provided size is consulted
+
+#### Scenario: A CPU-known count needs no count buffer
+
+- **WHEN** `Record` is called with a count source that is a CPU-known value
+- **THEN** the count travels in a push-constant block
+- **AND** no entry-count buffer is bound for that call
+- **AND** the variant's declared bindings are exactly the buffers it binds
+
+#### Scenario: A CPU-known count equal to the capacity matches the unbound case
+
+- **WHEN** `Record` is called with a count source that is a CPU-known value equal to the capacity
+- **THEN** the result equals the same call made with the buffer-count source
+- **AND** neither call's result differs from the bound being absent
+
+### Requirement: Recursive segmented reduction correctness
+
+The reduction SHALL produce, for every key `b < max_key_value` present within the elements below the bound, `out[b] = sum of the values of all entries with key b`, in exact per-channel order. Entries whose key is greater than or equal to `max_key_value` (including the `0xFFFFF` INVALID sentinel) SHALL be ignored and SHALL NOT write to the output. Keys absent from those entries SHALL leave their output slots untouched.
+
+The algorithm SHALL require the keys of the elements below the bound to be sorted in ascending order. Relative order of entries within the same key SHALL not affect the per-key result set (sums of the same value set; floating-point rounding may vary with order).
+
+Each block SHALL process 256 entries: load them into shared memory, merge same-key runs with a segmented pairwise doubling, write per-key sums for segments fully contained in the block directly to the output, and emit at most two boundary records per block (first segment partial, last segment partial; the second record SHALL be an all-zero record when the whole block belongs to one segment).
+
+The block-internal merge SHALL complete in at most `log2(256) = 8` rounds, independent of run length, and every invocation of the block SHALL take part in every round that is executed. In the round for spacing `d` (`d = 1, 2, 4, ... 128`) an invocation SHALL add the value of the element `d` positions to its left to its own value if and only if those two elements carry the same key; no other bookkeeping SHALL be required, because the ascending-key order makes equal keys at the ends of the window imply that the entire window lies within one run. A dead/alive marking scheme SHALL NOT be required. The number of rounds SHALL NOT grow with the length of a run, and no invocation SHALL sum a run element by element.
+
+After the last executed round, every invocation's value SHALL equal the sum of the elements of its own run that lie in the block, up to and including itself, so the run's last element holds its run's in-block sum. The number of executed rounds SHALL be the same for all invocations of a block and SHALL be permitted to be fewer than 8 when the block's runs are resolved earlier: a block SHALL execute further rounds only while at least one invocation whose element is the last of its run still needed a merge in the round just completed, and the decision to stop SHALL be observed uniformly by every invocation of the block.
+
+Elements SHALL be classified against the block's extent from the block's keys alone, without enumerating a run: whether a run reaches the block's first element, and whether it reaches the block's last real element, SHALL each be decided by a comparison of keys.
+
+A level's run structure — which block emits which record, and whether a record's run is complete — SHALL be derived from the level element count, never from the entry count. Elements at or beyond the bound SHALL carry the out-of-range pad key and contribute `0.0`, so a level's tail is a single trailing run. The pad key SHALL compare at or after every key a caller can produce, and no `max_key_value` SHALL be able to exceed it, so a pad element can never write to the output: the tail keeps the ascending order the run structure relies on and has no effect on any other run's sum, whether the caller's own tail key names a live key or not.
+
+#### Scenario: Out-of-range payload slot contributes nothing
+
+- **WHEN** the sorted pair array contains the entry `(7, 999)` while the capacity is 256
+- **THEN** no value is read at slot 999
+- **AND** that entry adds 0.0 to every channel of key 7
+- **AND** every other key's sums are unaffected
+
+#### Scenario: A stale tail key cannot zero a live key's sum
+
+- **WHEN** the elements below the bound end in a run of key `k`, and the elements at or beyond the bound carry keys equal to `k` — the residue of an earlier call whose entry count reached them
+- **THEN** `out[k]` equals that run's sum
+- **AND** `out[k]` is not overwritten by any write the tail produces
+
+#### Scenario: Single key spanning many blocks
+
+- **WHEN** the sorted input contains 10000 entries all with key 5 and values all 1.0, with an entry count of 10000
+- **THEN** `out[5]` equals 10000.0 after `Record` completes
+
+#### Scenario: Many keys within one block
+
+- **WHEN** the sorted input contains 100 entries with keys 0..99 each appearing once with value 2.0, with an entry count of 100
+- **THEN** `out[b]` equals 2.0 for every `b` in 0..99
+
+#### Scenario: A single run occupying a whole block
+
+- **WHEN** one block's 256 entries all carry the same key with value 1.0, with an entry count covering that block
+- **THEN** that key receives 256.0 from that block
+- **AND** the result is identical whether or not the run continues into a neighbouring block
+
+#### Scenario: Run lengths at and around the merge window boundaries
+
+- **WHEN** a block holds runs whose lengths include 1, 2, 3, 7, 8, 9, and a further run filling the remainder of the block
+- **THEN** every key's sum equals the sum of the values of its own elements
+- **AND** no element is counted in another run's sum
+
+#### Scenario: One block holding an odd trailing run
+
+- **WHEN** a block's entries end in a run whose last element is not the block's last entry
+- **THEN** that run's sum is written to the output exactly once
+- **AND** the run that follows it is unaffected
+
+#### Scenario: INVALID sentinel entries are ignored
+
+- **WHEN** the entries below the bound contain valid entries plus a trailing run of entries with key `0xFFFFF` (greater than `max_key_value`)
+- **THEN** no output slot outside `[0, max_key_value)` is written
+- **AND** all valid per-key sums are unaffected
+
+#### Scenario: Absent keys keep their output untouched
+
+- **WHEN** no entry below the bound has key 3
+- **THEN** `out[3]` retains whatever value it held before `Record`
+
+#### Scenario: An entry count below the capacity leaves a long inert tail
+
+- **WHEN** a call's entry count covers fewer than two blocks while its capacity covers many
+- **AND** every entry at or beyond the entry count carries the `0xFFFFF` key with an arbitrary value
+- **THEN** the per-key sums equal those of a reduction over the entries below the entry count
+- **AND** the tail's records and partial sums never reach the output
+
+#### Scenario: A smaller entry count after a larger one leaves no residue
+
+- **WHEN** a call with a small entry count follows a call that used a larger entry count on the same buffers
+- **THEN** the final per-key sums are unaffected by the earlier call's records
+
+#### Scenario: Every channel count produces the same result
+
+- **WHEN** the same sorted input is reduced with `num_channels` of 1, 4, 7 and 8
+- **THEN** each channel's per-key sums match a per-channel serial sum of the same values
+- **AND** the number of dispatches is independent of the channel count

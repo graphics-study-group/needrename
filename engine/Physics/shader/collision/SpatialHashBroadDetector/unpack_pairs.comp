@@ -1,0 +1,60 @@
+#version 450 core
+
+// unpack_pairs.comp — Restore canonical `uvec2` pairs from compacted packed
+// keys, and publish the pair count.
+//
+// The broad phase carries each candidate pair through the dedup's sort and
+// compaction as the single **packed key** `a * shape_count + b` — injective over
+// `a, b < shape_count` and order-preserving — so the sort needs no payload array.
+// This pass restores the canonical `uvec2(a, b)` pair that the narrow phase and
+// the fallback path consume, and publishes the unique count as `pair_count` in
+// the same dispatch, which is why the detector no longer needs a separate
+// count-copy dispatch.
+//
+// A key below the unique count always decodes to `pair.x < pair.y`, because the
+// pair generators write `a = min`, `b = max` before packing.
+//
+// Dispatch: ceil(max_output_pair_count / 64), 1, 1
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// The compacted unique packed keys, in the dedup key array.
+layout(set = 0, binding = 0) readonly buffer CompactedKeys {
+    uint v[];
+} compacted_keys;
+
+// The detector's canonical pair output.
+layout(set = 0, binding = 1) writeonly buffer CollisionPairs {
+    uvec2 v[];
+} collision_pairs;
+
+// The compacted unique count, written by the compaction.
+layout(set = 0, binding = 2) readonly buffer UniqueCount {
+    uint count;
+} unique_count;
+
+// The detector's live pair count, read by the narrow phase.
+layout(set = 0, binding = 3) writeonly buffer PairCount {
+    uint v[];
+} pair_count;
+
+// ---- Per-dispatch constants (push constant, recorded by the detector) ----
+
+layout(push_constant) uniform UnpackPush {
+    uint shape_count; // the same value the pair generators packed with
+} params;
+
+void main() {
+    const uint idx = gl_GlobalInvocationID.x;
+
+    // One invocation publishes the pair count for the whole dispatch (the
+    // dispatch always has at least one invocation).
+    if (idx == 0u) {
+        pair_count.v[0] = unique_count.count;
+    }
+
+    if (idx >= unique_count.count) return;
+
+    const uint key = compacted_keys.v[idx];
+    collision_pairs.v[idx] = uvec2(key / params.shape_count, key % params.shape_count);
+}

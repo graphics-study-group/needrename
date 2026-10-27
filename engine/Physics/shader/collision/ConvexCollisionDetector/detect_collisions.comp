@@ -63,14 +63,19 @@ layout(set = 0, binding = 9) writeonly buffer ContactPointB {
 } contact_point_b;
 
 layout(set = 0, binding = 10) buffer CollisionCount {
-    uint v[]; // single-element array, atomically incremented
+    uint v[]; // v[0] = contact points published this substep, never above the budget
 } collision_count;
+
+layout(set = 0, binding = 12) buffer ContactCursor {
+    uint v[]; // single-element array, atomically incremented
+} contact_cursor;
 
 // ---- Per-dispatch constants (push constant, recorded by the detector) ----
 
 layout(push_constant) uniform DetectPush {
     float contact_margin;
-    uint  shape_slot_count;
+    uint  shape_slot_count;  // live collision shape slot count (not a buffer length)
+    uint  contact_budget;    // configured contact-point write budget
 } params;
 
 // ---- Shared GLSL headers ----
@@ -79,13 +84,16 @@ layout(push_constant) uniform DetectPush {
 #include "mpr.glsl"
 #include "perturbation.glsl"
 
-// ---------------------------------------------------------------------------
-// Debug printf helper
-// ---------------------------------------------------------------------------
+uint reserve_contact_slots(uint count, uint budget) {
+    const uint base = atomicAdd(contact_cursor.v[0], count);
+    const uint admissible = (base >= budget) ? 0u : min(count, budget - base);
 
-// ---------------------------------------------------------------------------
-// Main entry point
-// ---------------------------------------------------------------------------
+    if (admissible > 0u) {
+        atomicMax(collision_count.v[0], base + admissible);
+    }
+
+    return base;
+}
 
 void main() {
     uint pair_index = gl_GlobalInvocationID.x;
@@ -100,9 +108,10 @@ void main() {
     uint shape_a = pair.x;
     uint shape_b = pair.y;
 
-    // Skip if either shape is dead.
-    if (shape_a >= shape_alive.v.length() || shape_alive.v[shape_a] == 0u) return;
-    if (shape_b >= shape_alive.v.length() || shape_alive.v[shape_b] == 0u) return;
+    // Skip if either shape is dead.  The live slot count travels as a value: under
+    // the capacity contract a buffer's length is its allocation size.
+    if (shape_a >= params.shape_slot_count || shape_alive.v[shape_a] == 0u) return;
+    if (shape_b >= params.shape_slot_count || shape_alive.v[shape_b] == 0u) return;
 
     // Skip self-collision (should not happen with upper-triangle pairs, but
     // guard against corrupted input).
@@ -149,14 +158,15 @@ void main() {
         depths[0] = base_result.penetration;
     }
 
-    // Write each manifold point as a separate result entry.
+    // Write each manifold point as a separate result entry, reserving only the
+    // points that fit the configured contact budget
     // Convert world-space contact points to shape-local space.
-    uint write_idx_start = atomicAdd(collision_count.v[0], num_points);
+    const uint write_idx_start = reserve_contact_slots(num_points, params.contact_budget);
     for (uint pi = 0u; pi < num_points; pi++) {
-        uint write_idx = write_idx_start + pi;
+        const uint write_idx = write_idx_start + pi;
 
-        // Guard against buffer overflow.
-        if (write_idx >= collision_ids.v.length()) {
+        // The reservation's published extent stops at the budget
+        if (write_idx >= params.contact_budget) {
             break;
         }
 

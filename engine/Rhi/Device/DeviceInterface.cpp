@@ -14,12 +14,8 @@ namespace Engine::Rhi {
     struct DeviceInterface::impl {
 
         static constexpr const char *VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
-        static constexpr std::array<const char *, 4> DEVICE_EXTENSION_NAMES{
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
-            VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME
-        };
+
+        static constexpr std::array<const char *, 1> DEVICE_EXTENSION_NAMES{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
         bool m_headless = false;
 
@@ -290,12 +286,33 @@ namespace Engine::Rhi {
 
             auto props = pd.getProperties();
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "\tInspecting %s.", props.deviceName.data());
+
+            // The engine calls core Vulkan 1.3 entry points directly (vkCmdPipelineBarrier2,
+            // dynamic rendering, timeline semaphores) instead of their KHR aliases, so a
+            // device reporting an older apiVersion is unusable even when it exposes the
+            // matching extensions. Checking this explicitly keeps the failure mode honest:
+            // without it the first symptom is a null dispatch pointer at draw time.
+            if (props.apiVersion < VK_API_VERSION_1_3) {
+                SDL_LogInfo(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "\tSkipped: reports Vulkan %u.%u, the engine requires 1.3.",
+                    static_cast<unsigned>(VK_API_VERSION_MAJOR(props.apiVersion)),
+                    static_cast<unsigned>(VK_API_VERSION_MINOR(props.apiVersion))
+                );
+                return -1;
+            }
+
             switch (props.deviceType) {
             case vk::PhysicalDeviceType::eDiscreteGpu:
                 score += 10;
                 break;
             case vk::PhysicalDeviceType::eIntegratedGpu:
                 score += 5;
+                break;
+            case vk::PhysicalDeviceType::eCpu:
+                // Usable, but only as a last resort: the selection below keeps the highest
+                // score, so any usable hardware device outranks a software rasterizer.
+                score += 1;
                 break;
             default:
                 break;
@@ -317,14 +334,9 @@ namespace Engine::Rhi {
             }
 
             // Check features
-            auto device_features = pd.getFeatures2<
-                vk::PhysicalDeviceFeatures2,
-                vk::PhysicalDeviceVulkan13Features,
-                vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
+            auto device_features = pd.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features>();
             auto features13 = device_features.get<vk::PhysicalDeviceVulkan13Features>();
-            auto atomicFloatFeatures = device_features.get<vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT>();
-            if (!(features13.dynamicRendering && features13.synchronization2
-                  && atomicFloatFeatures.shaderBufferFloat32AtomicAdd)) {
+            if (!(features13.dynamicRendering && features13.synchronization2)) {
                 SDL_LogInfo(
                     SDL_LOG_CATEGORY_RENDER, "This physical device does not support needed Vulkan 1.3 features."
                 );
@@ -365,11 +377,16 @@ namespace Engine::Rhi {
             auto devices = instance->enumeratePhysicalDevices();
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Found %llu Vulkan devices.", devices.size());
 
+            // Pick the highest-scoring usable device rather than the first one: enumeration
+            // order is driver dependent, so "first positive score" would only prefer the
+            // discrete GPU by luck of the loader's sorting.
             vk::PhysicalDevice selected_device;
+            int best_score = 0;
             for (const auto &device : devices) {
-                if (GetPhysicalDeviceSuitabilityScore(device) > 0) {
+                const int score = GetPhysicalDeviceSuitabilityScore(device);
+                if (score > best_score) {
+                    best_score = score;
                     selected_device = device;
-                    break;
                 }
             }
 
@@ -391,6 +408,13 @@ namespace Engine::Rhi {
             SDL_LogInfo(
                 SDL_LOG_CATEGORY_RENDER, "Device %s selected.", selected_device.getProperties().deviceName.data()
             );
+            if (selected_device.getProperties().deviceType == vk::PhysicalDeviceType::eCpu) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "No hardware device met the requirements; falling back to a software rasterizer. "
+                    "Expect severely reduced performance."
+                );
+            }
 
             physical_device = selected_device;
             physical_device_memory_properties = physical_device.getMemoryProperties();
@@ -445,11 +469,7 @@ namespace Engine::Rhi {
             vk::PhysicalDeviceVulkan12Features features12{};
             features12.timelineSemaphore = true;
 
-            vk::PhysicalDeviceShaderAtomicFloatFeaturesEXT atomicFloatFeatures{};
-            atomicFloatFeatures.shaderBufferFloat32AtomicAdd = VK_TRUE;
-
             features13.pNext = &features12;
-            features12.pNext = &atomicFloatFeatures;
             pdf.pNext = &features13;
             dci.pNext = &pdf;
 
@@ -542,7 +562,11 @@ namespace Engine::Rhi {
         case AsynchronousTransfer:
             return pimpl->queue_families.async_transfer;
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
         return std::nullopt;
     }
     uint32_t DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger limit) const {
@@ -563,7 +587,11 @@ namespace Engine::Rhi {
         case AsyncTransferImageGranularityDepth:
             return std::get<2>(pimpl->queue_families.async_transfer_granularity);
         }
+#if defined(_MSC_VER)
+        __assume(false);
+#else
         __builtin_unreachable();
+#endif
         return 0;
     }
     float DeviceInterface::QueryLimit(PhysicalDeviceLimitFloat limit) const {

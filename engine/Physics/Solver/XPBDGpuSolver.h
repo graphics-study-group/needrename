@@ -10,7 +10,6 @@
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
-        class ComputeStage;
         class DeviceContext;
     } // namespace Rhi
     class ConvexCollisionDetector;
@@ -47,8 +46,9 @@ namespace Engine {
      * Lifecycle:
      *   1. Construct with Rhi::DeviceContext&.
      *   2. OnBindToScene(scene) -- called by PhysicsSystem during registration.
-     *   3. PreGPUStep() -- shader loading, buffer sizing, CPU uploads, detector Configure.
-     *   4. GPUStep(cb) -- record compute dispatches with manual barriers.
+     *   3. GPUStep(cb) -- prepare for the observed geometry (shader loading,
+     *      buffer sizing, push-constant values, detector binding) and record the
+     *      step. No other call is needed.
      */
     class PHYSICS_API XpbdGpuSolver : public ISolver {
     public:
@@ -60,14 +60,23 @@ namespace Engine {
         XpbdGpuSolver(XpbdGpuSolver &&) = delete;
         XpbdGpuSolver &operator=(XpbdGpuSolver &&) = delete;
 
-        void PreGPUStep() override;
         void GPUStep(vk::CommandBuffer cb) override;
+        void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) override;
         bool IsInitialized() const noexcept override;
 
         void SetConfig(const XpbdConfig &config) noexcept;
         const XpbdConfig &GetConfig() const noexcept;
 
     private:
+        /**
+         * @brief Acquire kernels, size buffers and bind the detectors for the
+         * scene's current geometry, then publish the step geometry.
+         * Called at the top of GPUStep.
+         * @return False when the bound scene has nothing to step, in which case
+         * no kernel was acquired and no buffer was sized.
+         */
+        bool PrepareStep();
+
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };

@@ -1,7 +1,9 @@
 # physics-constraint-serialization Specification
 
 ## Purpose
-TBD - created by archiving change urdf-robot-importer. Update Purpose after archive.
+
+Defines how `PhysicsConstraintComponent` persists its joints: because the reflection system cannot serialize `std::variant`, the component manually saves and loads `m_joints` with a per-entry type tag, so a full scene save and load restores its fixed and hinge joints intact.
+
 ## Requirements
 ### Requirement: PhysicsConstraintComponent serializes m_joints
 

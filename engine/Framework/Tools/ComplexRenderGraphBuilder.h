@@ -10,7 +10,7 @@
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
-        class ComputeStage;
+        class ComputeKernel;
     } // namespace Rhi
     class RenderGraph;
     class RenderSystem;
@@ -35,19 +35,15 @@ namespace Engine {
          * present provider extent, so resizing does not require rebuilding the graph.
          *
          * @param final_color_target_id     Output handle for the final (post-bloom) color target.
-         * @param model_matrices_buffer     Optional physics-owned model matrices buffer.
-         *                                  When non-null, shadow map and lit passes read
-         *                                  model matrices from this buffer.
          * @return Compiled RenderGraph.
          */
-        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            RGTextureHandle &final_color_target_id, const Rhi::ComputeBuffer *model_matrices_buffer = nullptr
-        );
+        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(RGTextureHandle &final_color_target_id);
 
     protected:
         RenderSystem &m_system;
         AssetRef m_bloom_shader{};
-        std::shared_ptr<Rhi::ComputeStage> m_bloom_compute_stage{};
+        /// @brief The bloom kernel, owned by the device context.
+        Rhi::ComputeKernel *m_bloom_kernel{};
     };
 } // namespace Engine
 

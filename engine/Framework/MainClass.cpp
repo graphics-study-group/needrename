@@ -15,6 +15,7 @@
 #include <Render/Asset/Material/MaterialAsset.h>
 #include <Render/Asset/Shader/ShaderCompiler.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/Renderer/Camera.h>
 #include <Render/RenderRuntime.h>
 #include <Render/RenderSystem/IPresentProvider.h>
@@ -54,9 +55,33 @@ namespace Engine {
         return sptr;
     }
 
+    MainClass::MainClass() = default;
+
     MainClass::~MainClass() {
         SetRenderRuntime({});
         SetAssetRuntime({});
+
+        // Teardown order is load-bearing: the swapchain's present operations
+        // reference the platform window, and SDL_Quit() destroys every window.
+        // Destroying a swapchain after its window is gone makes the driver's
+        // WSI tear down a dead window (observed as a libxcb "buffer overflow
+        // detected" abort at process exit), so: drain the GPU, destroy the
+        // renderer (swapchain) and the GUI backend while the window is still
+        // alive, and only then destroy the window and quit SDL.
+        if (renderer) {
+            renderer->WaitForIdle();
+        }
+
+        // The render graph owns RRTTHandles, which reference the
+        // ResizableRTTManager inside the renderer. It must be released while
+        // the renderer is still alive; left to member destruction it would
+        // release handles through a dangling reference after renderer.reset().
+        render_graph.reset();
+
+        gui.reset();
+        renderer.reset();
+        input.reset();
+        window.reset();
         SDL_Quit();
     }
 
@@ -255,10 +280,12 @@ namespace Engine {
         this->world->GetMainSceneRef().FlushPhysics(*this->renderer);
         this->world->UpdateRendererData(*this->renderer);
 
-        // Physics → render bridge: forward the physics model matrices buffer
-        // to the scene data manager (physics itself no longer touches Render).
-        if (auto *phys_scene = this->world->GetMainSceneRef().GetPhysicsScene()) {
-            this->renderer->GetSceneDataManager().SetModelMatricesBuffer(phys_scene->GetGpuBuffers().model_matrices);
+        // Model matrices are render-owned. Size the buffer to the main scene's rigid body slot count here
+        PhysicsScene *phys_scene = this->world->GetMainSceneRef().GetPhysicsScene();
+        if (phys_scene != nullptr) {
+            this->renderer->GetSceneDataManager().EnsureModelMatricesCapacity(
+                phys_scene->GetGpuBuffers().rigid_body_slot_count
+            );
         }
 
         // Keep the active camera's aspect ratio aligned with the present extent,
@@ -284,11 +311,16 @@ namespace Engine {
             // resumes cleanly.
             return;
         }
-        // Phase 1: CPU-side physics prep (no CB needed).
-        this->physics->PreGPUStep();
-        // Phase 2: GPU recording — physics + rendering share one CB.
+        // Physics prepares itself inside GPUStep, then records its compute passes;
+        // physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
         this->physics->GPUStep(cb.GetCommandBuffer()); // physics solvers record their compute passes
+        // Calculate model matrices for main scene
+        if (phys_scene != nullptr) {
+            this->physics->GPUCalcModelMatrices(
+                *phys_scene, cb.GetCommandBuffer(), this->renderer->GetSceneDataManager().GetModelMatricesBuffer()
+            );
+        }
         if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
             this->render_graph->RecordAllPasses(cb.GetCommandBuffer());
         }
@@ -299,8 +331,5 @@ namespace Engine {
             *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),
             Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite
         );
-
-        // Phase 4: Physics readback / post-processing (batch already submitted).
-        this->physics->PostGPUStep();
     }
 } // namespace Engine

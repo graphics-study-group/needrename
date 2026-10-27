@@ -39,7 +39,7 @@ namespace Engine {
         [[nodiscard]]
         static std::shared_ptr<MainClass> GetInstance();
 
-        MainClass() = default;
+        MainClass();
         virtual ~MainClass();
 
         void Initialize(

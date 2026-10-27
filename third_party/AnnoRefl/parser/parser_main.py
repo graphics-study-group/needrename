@@ -1,9 +1,3 @@
-import sys
-if sys.prefix[-10:] != 'parser_env':  
-    raise RuntimeWarning(  
-        f"This script is running in {sys.prefix} instead of a designated virtual environment, and might have unexpected behaviour."  
-    )  
-
 import os
 import json
 import argparse

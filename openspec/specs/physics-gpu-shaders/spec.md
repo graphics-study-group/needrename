@@ -8,7 +8,9 @@ Govern the physics shader source layout, the CMake-driven GLSL→SPIR-V build pi
 
 ### Requirement: Physics shader source layout
 
-Physics GLSL source files SHALL live under `engine/Physics/shader/<group>/<solver>/<name>.<stage>`, where `<group>` is a category bucket (e.g. `solver`), `<solver>` is the algorithm-specific subdirectory (e.g. `XPBDSolver`), and `<stage>` is the shader stage extension recognised by glslang (`.comp`, `.vert`, `.frag`, `.tesc`, `.tese`, `.geom`).
+Physics GLSL source files SHALL live under `engine/Physics/shader/<group>/<solver>/<name>.<stage>`, where `<group>` is a category bucket (e.g. `solver`), `<solver>` is the algorithm-specific subdirectory (e.g. `XPBDSolver`) or `common` for a shader shared by more than one solver, and `<stage>` is the shader stage extension recognised by glslang (`.comp`, `.vert`, `.frag`, `.tesc`, `.tese`, `.geom`).
+
+A shader whose inputs and outputs are not specific to one algorithm SHALL live under the group's `common` subdirectory rather than being duplicated into each solver's directory.
 
 Physics GLSL source code MUST NOT be embedded as string literals inside C++ source files.
 
@@ -18,8 +20,8 @@ Physics GLSL source code MUST NOT be embedded as string literals inside C++ sour
 - **AND** no `.cpp` file in `engine/Physics/` contains the body of that shader as a string literal
 
 #### Scenario: XPBD model matrix shader has a dedicated file
-- **WHEN** the XPBD model-matrix compute shader is needed
-- **THEN** its GLSL source exists at `engine/Physics/shader/solver/XPBDSolver/model_matrix.comp`
+- **WHEN** a solver needs the model-matrix compute shader that turns a body pose into a model matrix
+- **THEN** its GLSL source exists at `engine/Physics/shader/solver/common/model_matrix.comp`
 - **AND** no `.cpp` file in `engine/Physics/` contains the body of that shader as a string literal
 
 #### Scenario: Adding a new solver follows the same pattern
@@ -79,13 +81,16 @@ Runtime physics code requiring a precompiled physics shader SHALL resolve its fi
 
 ### Requirement: XPBDGpuSolver loads precompiled SPIR-V
 
-`engine/Physics/XPBDGpuSolver.cpp` SHALL load all XPBD compute shaders by reading precompiled `.spv` files from disk and SHALL NOT invoke `ShaderCompiler::CompileGLSLtoSPV` for these shaders. The loaded `std::vector<uint32_t>` SHALL be passed to `ComputeStage::Instantiate` unchanged.
+`engine/Physics/XPBDGpuSolver.cpp` SHALL load all XPBD compute shaders by reading precompiled `.spv` files from disk and SHALL NOT invoke `ShaderCompiler::CompileGLSLtoSPV` for these shaders. The loaded `std::vector<uint32_t>` SHALL be passed to the compute pipeline creation path unchanged.
 
-Loading SHALL occur lazily on first call to `Step()` (preserving the existing `EnsureInitialized()` behaviour). On loading failure (file missing, empty, or size not a multiple of 4 bytes), the loader SHALL throw `std::runtime_error` whose message includes the absolute path attempted.
+Loading SHALL occur lazily on the first record of a step, at the point in `GPUStep` where the corresponding pass is first recorded. On loading failure (file missing, empty, or size not a multiple of 4 bytes), the loader SHALL throw `std::runtime_error` whose message includes the absolute path attempted.
 
 The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/integrate_forces.comp.spv`
 - `solver/XPBDSolver/update_shape_world_pose.comp.spv`
+- `solver/XPBDSolver/entries/contact_entries.comp.spv`
+- `solver/XPBDSolver/entries/hinge_entries.comp.spv`
+- `solver/XPBDSolver/entries/fixed_entries.comp.spv`
 - `solver/XPBDSolver/accumulate_contact_position.comp.spv`
 - `solver/XPBDSolver/apply_body_position_deltas.comp.spv`
 - `solver/XPBDSolver/update_velocities_from_pose.comp.spv`
@@ -93,44 +98,116 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/apply_body_velocity_deltas.comp.spv`
 - `solver/XPBDSolver/snapshot_position.comp.spv`
 - `solver/XPBDSolver/clear_int_buffer.comp.spv`
-- `solver/XPBDSolver/model_matrix.comp.spv`
-t- `solver/XPBDSolver/accumulate_hinge_position.comp.spv`
-	- `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
-	- `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
-	- `solver/XPBDSolver/clear_fixed_lagrange.comp.spv`
+- `solver/XPBDSolver/clear_entry_values.comp.spv` (entry count from a bound buffer)
+- `solver/XPBDSolver/clear_entry_values_push.comp.spv` (entry count from the push-constant block)
+- `solver/common/model_matrix.comp.spv`
+- `solver/XPBDSolver/accumulate_hinge_position.comp.spv`
+- `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
+- `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
+- `solver/XPBDSolver/clear_fixed_lagrange.comp.spv`
+
+There is no permutation-inversion shader: the sorted `(key, slot)` pair array produced by the radix sort is the segmented reduction's level-0 input, so `invert_permutation.comp.spv` SHALL NOT be loaded and SHALL NOT exist.
 
 The `step.comp` placeholder SHALL be a no-op.
 
+The `SumByKey` reduce shaders (`algorithm/sum_by_key.comp.spv` and its count-source variant `algorithm/sum_by_key_push.comp.spv`) SHALL be loaded by the `SumByKey` algorithm class rather than directly by the solver, matching how `RadixSort` loads its own shaders. The count source selects the variant: the buffer-count form reads a GPU-produced count from a bound buffer, and the value-count form takes a CPU-known count from its push-constant block.
+
+The counted entry-value clear SHALL be a separate shader from `clear_int_buffer.comp` rather than a mode of it: it clears `num_channels` channel planes with a stride taken from a push-constant capacity, whereas `clear_int_buffer.comp` clears a flat range whose length is a push constant. Following the solver's existing convention, the two jobs SHALL NOT be selected by a mode flag.
+
+The counted clear SHALL exist in one form per count source, following the convention `copy_uint.comp` / `copy_uint_push.comp` already establish. Only the **contact** group's count is produced on the GPU in the same substep, so only that group's clear reads it from a bound buffer at execution time; its dispatch geometry follows the entry capacity and the count bounds how many elements are written, for the same reason as the segmented reduction's level 0. The **hinge** and **fixed** groups' counts are CPU-known, so their clear takes the count from its push-constant block and its dispatch geometry follows the count itself, and it SHALL declare no count binding. The header comment of the buffer-count form SHALL state the GPU-produced case rather than claiming that the count can never be a push constant.
+
 #### Scenario: First Step call loads SPIR-V from disk
-- **WHEN** `XPBDGpuSolver::Step` is called for the first time on a populated `PhysicsScene`
-- **THEN** the solver reads all XPBD shader SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/XPBDSolver/`
-- **AND** instantiates `ComputeStage` instances from those words
+
+- **WHEN** the solver records its first `GPUStep` on a populated `PhysicsScene`
+- **THEN** the solver reads its shader SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>`, the model matrix shader from `solver/common/` and the rest from `solver/XPBDSolver/`
+- **AND** creates its compute pipelines from those words
 
 #### Scenario: No GLSL compilation occurs at runtime for XPBD shaders
+
 - **WHEN** the engine runs an XPBD physics example end-to-end
 - **THEN** `ShaderCompiler::CompileGLSLtoSPV` is not invoked from `XPBDGpuSolver` code paths
 
 #### Scenario: Missing SPIR-V file produces a diagnostic error
+
 - **WHEN** any XPBD solver SPIR-V file does not exist at runtime
-- **AND** `XPBDGpuSolver::Step` is called
+- **AND** the solver records a step
 - **THEN** a `std::runtime_error` is thrown
 - **AND** its `what()` includes the absolute path of the missing file
-n	#### Scenario: Joint shader SPIR-V files are loaded alongside contact shaders
-	- **WHEN** `EnsureInitialized()` runs
-	- **THEN** all four joint shader SPIR-V files are loaded from the same directory as contact shaders
-	- **AND** `ComputeStage` instances are created for each
+
+#### Scenario: Joint shader SPIR-V files are loaded alongside contact shaders
+
+- **WHEN** the solver initializes its pipelines
+- **THEN** all four joint shader SPIR-V files are loaded from the same directory as contact shaders
+- **AND** a compute pipeline is created for each
+
+#### Scenario: No permutation inversion shader is loaded
+
+- **WHEN** the solver initializes its pipelines
+- **THEN** `invert_permutation.comp.spv` is not loaded and no pipeline is created for it
+- **AND** the accumulated value scratch is indexed by entry slot, not by sorted position
+
+#### Scenario: Entry-pass shaders are loaded alongside the accumulate shaders
+
+- **WHEN** the solver initializes its pipelines
+- **THEN** `entries/contact_entries.comp.spv`, `entries/hinge_entries.comp.spv` and `entries/fixed_entries.comp.spv` are loaded from `solver/XPBDSolver/entries/`
+- **AND** a compute pipeline is created for each
+
+#### Scenario: Counted clear shader is loaded alongside the flat clear shader
+
+- **WHEN** the solver initializes its pipelines
+- **THEN** `clear_entry_values.comp.spv` and `clear_entry_values_push.comp.spv` are loaded from `solver/XPBDSolver/`
+- **AND** a compute pipeline is created for each
+- **AND** `clear_int_buffer.comp.spv` is still loaded separately for the flat clears
+
+#### Scenario: Model matrix shader is loaded from the shared directory
+
+- **WHEN** the solver needs the model matrix shader
+- **THEN** it loads `solver/common/model_matrix.comp.spv` from `<ENGINE_PHYSICS_SPIRV_DIR>`
+- **AND** no `solver/XPBDSolver/model_matrix.comp.spv` is loaded or produced
 
 ### Requirement: XPBD solver loads and dispatches multiple compute shaders
 
-XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, contact position delta accumulation, body position delta application, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.
+XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, collision detection (broad and narrow phase via the detector classes), entry-list construction (one pass per constraint type), radix sorting, accumulator clearing, contact position delta accumulation (scatter), per-body segmented reduction via `SumByKey`, body position delta application, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.
 
-Each shader SHALL be a separate `.comp` file under `engine/Physics/shader/solver/XPBDSolver/` following the existing source layout convention.
+Each solver pass SHALL be a separate `.comp` file under `engine/Physics/shader/solver/XPBDSolver/` following the existing source layout convention. Algorithm shaders owned by `gpu_algorithm` classes (radix sort, `SumByKey`) SHALL live under `engine/Physics/shader/algorithm/`.
 
 #### Scenario: All XPBD shaders are loaded on first Step call
 
 - **WHEN** `XPBDGpuSolver::Step` is called for the first time
-- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, accumulate/apply position deltas, update velocities, accumulate/apply velocity deltas, snapshot copy, and clear int buffer
-- **AND** instantiates a `ComputeStage` for each
+- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, entry-list construction, accumulate/apply position deltas, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and the `SumByKey`/`RadixSort` algorithm modules
+- **AND** a compute kernel exists for each
+
+#### Scenario: Algorithm shaders load through their owning classes
+
+- **WHEN** a reduction is recorded through the `SumByKey` class
+- **THEN** the solver does not load `sum_by_key.comp.spv` itself
+- **AND** the `SumByKey` class requests the kernel for its own module
+
+### Requirement: Physics SPIR-V loading is centralized in one helper
+
+`engine/Physics/` SHALL provide a single shared helper that reads a physics `.spv` file given its source-relative path, resolving it against `ENGINE_PHYSICS_SPIRV_DIR`. Every physics component that needs a precompiled shader — solver, detectors and `gpu_algorithm` classes alike — SHALL use that helper.
+
+Component-local copies of the loading helper SHALL NOT exist, and the helper SHALL be the only place that performs the file read and the size validation.
+
+The same module path SHALL be the shader's compute kernel identity, and the helper SHALL resolve a path to its kernel by consulting the device's kernel cache before reading the file: a module a component already requested SHALL be returned without a second read of the file.
+
+#### Scenario: One loader serves every component
+
+- **WHEN** `engine/Physics/` is searched for functions that read a `.spv` file from `ENGINE_PHYSICS_SPIRV_DIR`
+- **THEN** exactly one such helper exists
+- **AND** the solver, both detectors and all `gpu_algorithm` classes call it
+
+#### Scenario: A module two components share is read once
+
+- **WHEN** two physics components request the kernel for the same module path
+- **THEN** both resolve to the same kernel
+- **AND** the file is read only for the request that created the kernel
+
+#### Scenario: Failure diagnosis is uniform
+
+- **WHEN** any physics component requests a missing or malformed `.spv` file
+- **THEN** the same helper throws `std::runtime_error`
+- **AND** its `what()` includes the absolute path attempted
 
 ### Requirement: Shape world pose update shader
 
@@ -138,9 +215,37 @@ The system SHALL provide `update_shape_world_pose.comp` under `engine/Physics/sh
 
 The shader SHALL read `ShapeAlive`, `ShapeBoundRigidBody`, `ShapeLocalPosition`, `ShapeLocalRotation`, `RigidBodyCenterPosition`, and `RigidBodyCenterRotation`. It SHALL write `ShapeWorldPosition` and `ShapeWorldRotation`. Dead shapes SHALL be skipped. Unbound shapes SHALL copy local pose to world directly.
 
+#### Scenario: Bound shape is posed by its owning rigid body
+
+- **WHEN** a shape is alive and its bound rigid body index is valid
+- **THEN** `ShapeWorldPosition` is written as the body's center position plus the shape's local position rotated by the body's orientation
+- **AND** `ShapeWorldRotation` is written as the body's orientation multiplied by the shape's local rotation
+
+#### Scenario: Dead shapes are skipped
+
+- **WHEN** `ShapeAlive` is zero for a shape index
+- **THEN** the shader returns without writing `ShapeWorldPosition` or `ShapeWorldRotation` for that index
+
+#### Scenario: Unbound shapes copy their local pose to world
+
+- **WHEN** a shape is alive but its bound rigid body index is the invalid sentinel or out of range
+- **THEN** its `ShapeLocalPosition` and `ShapeLocalRotation` are copied directly to `ShapeWorldPosition` and `ShapeWorldRotation`
+
 ### Requirement: Quaternion multiplication helper
 
 The shared GLSL header `xpbd_math.glsl` SHALL provide a `quat_mul(vec4 a, vec4 b)` function for quaternion multiplication, used by `update_shape_world_pose.comp`. The header SHALL NOT provide redundant wrappers for built-in GLSL functions (`dot`, `cross`).
+
+#### Scenario: quat_mul is available to solver shaders
+
+- **WHEN** `update_shape_world_pose.comp` includes `common/xpbd_math.glsl`
+- **THEN** `quat_mul` resolves from that shared header
+- **AND** the shader composes the body and local orientations through it
+
+#### Scenario: No redundant built-in wrappers
+
+- **WHEN** `xpbd_math.glsl` is inspected
+- **THEN** it declares no wrapper function for `dot` or `cross`
+- **AND** it calls the GLSL built-ins directly
 
 ### Requirement: Collision detectors owned and managed by solver
 
@@ -165,7 +270,7 @@ The `XPBDGpuSolver::Impl` SHALL own both a `SpatialHashBroadDetector` instance a
 
 ### Requirement: SpatialHashBroadDetector shader source layout
 
-Broad-phase detector GLSL source files SHALL live under `engine/Physics/shader/solver/SpatialHashBroadDetector/`. The following shaders SHALL exist:
+Broad-phase detector GLSL source files SHALL live under `engine/Physics/shader/collision/SpatialHashBroadDetector/`. The following shaders SHALL exist:
 
 - `compute_aabbs.comp` — per-shape AABB computation and global-shape marking with compact global list appending
 - `count_cells.comp` — first pass of two-pass cell assignment
@@ -175,22 +280,30 @@ Broad-phase detector GLSL source files SHALL live under `engine/Physics/shader/s
 - `generate_broad_pairs.comp` — within-cell upper-triangle pair generation with AABB overlap pruning and collision filter checking
 - `generate_global_pairs.comp` — global-shape × all-shapes pair generation via 2D dispatch with AABB overlap pruning
 - `generate_all_pairs_fallback.comp` — all-pairs fallback for small N with AABB overlap pruning
-- `memset_uint.comp` — clears a uint buffer to zero (reused across passes)
-- `copy_uint.comp` — copies a uint buffer (used for initializing atomic counters)
+- `memset_uint.comp` — clears a uint buffer to zero, with the element count in its push-constant block (reused across passes)
+- `copy_uint.comp` — copies a uint buffer reading its element count from a bound buffer, for GPU-written counts
+- `copy_uint_push.comp` — copies a uint buffer reading its element count from its push-constant block, for CPU-known counts
 
-The three pair-generation shaders (`generate_broad_pairs.comp`, `generate_global_pairs.comp`, `generate_all_pairs_fallback.comp`) SHALL each bind `AabbMin` and `AabbMax` as `readonly buffer` (appended at the next free binding indices after their existing bindings) and SHALL perform a 3-axis separating-axis AABB overlap test before emitting any candidate pair. The `compute_aabbs.comp` shader (which produces these buffers) is unchanged.
+The three pair-generation shaders (`generate_broad_pairs.comp`, `generate_global_pairs.comp`, `generate_all_pairs_fallback.comp`) SHALL each bind `AabbMin` and `AabbMax` as `readonly buffer` and SHALL perform a 3-axis separating-axis AABB overlap test before emitting any candidate pair. The `compute_aabbs.comp` shader (which produces these buffers) is unchanged.
 
 #### Scenario: Broad-phase shaders compiled to SPIR-V
 
 - **WHEN** the engine build completes
-- **THEN** all 10 broad-phase shader SPIR-V files exist under `<ENGINE_PHYSICS_SPIRV_DIR>/solver/SpatialHashBroadDetector/`
+- **THEN** all 11 broad-phase shader SPIR-V files exist under `<ENGINE_PHYSICS_SPIRV_DIR>/collision/SpatialHashBroadDetector/`
 - **AND** each was compiled from its corresponding `.comp` source
 
 #### Scenario: Pair-generation shaders bind AABB buffers
 
 - **WHEN** `generate_broad_pairs.comp`, `generate_global_pairs.comp`, or `generate_all_pairs_fallback.comp` is dispatched
 - **THEN** each shader has `AabbMin` and `AabbMax` bound as `readonly buffer` at descriptor set 0
-- **AND** the matching C++ pass declares `UseBuffer(aabb_min_h, RR)` and `UseBuffer(aabb_max_h, RR)` so the render graph inserts the read-after-write barrier from `compute_aabbs`
+- **AND** the matching C++ pass declares both buffers as read so the required barrier is inserted before the dispatch
+
+#### Scenario: Copy variant matches the count source
+
+- **WHEN** a caller copies a uint buffer whose element count it knows on the CPU
+- **THEN** it records `copy_uint_push.comp` and pushes the count
+- **WHEN** a caller copies a uint buffer whose element count was produced by an earlier GPU pass
+- **THEN** it records `copy_uint.comp` and binds the count buffer
 
 ### Requirement: Parallel scan shader location
 
@@ -220,3 +333,38 @@ The physics SPIR-V output directory `${CMAKE_BINARY_DIR}/engine/Physics/spirv/` 
 - **WHEN** inspecting the source tree at `engine/Physics/`
 - **THEN** there is no `spirv/` subdirectory tracked by git
 - **AND** all `.spv` artefacts live under `${CMAKE_BINARY_DIR}/...`
+
+### Requirement: Algorithm shader source comments
+
+Every GLSL source file under `engine/Physics/shader/algorithm/` SHALL open with a header comment stating, in the present tense, what the file does: the contract it implements, the invariants it keeps, its dispatch geometry, and the layout of the buffers it binds.
+
+The header SHALL describe the shader only as it is. It SHALL NOT contain the rationale for a design decision or for a rejected alternative, the file's own history (what it used to do, what it replaced, what it was changed from), or worked examples and arithmetic derivations. A statement whose purpose is to justify the current shape of the code rather than to describe it SHALL be left out.
+
+Detail that explains one non-obvious step SHALL sit at the declaration or the statement it explains, rather than lengthening the header.
+
+Every parameter of a shader's top-level entry function SHALL be documented, in the header or at the declaration, with what the parameter means, where its value comes from — a push constant, a bound buffer, or a value the shader derives — and the range it is valid over where one exists.
+
+#### Scenario: The reduction body's header states the current contract
+
+- **WHEN** `sum_by_key_body.glsl` is inspected
+- **THEN** its header states the bound a level applies, the level geometry it derives, and the rule by which a run is settled or carried to the next level
+- **AND** it is written in the present tense
+
+#### Scenario: Algorithm shader headers carry no rationale, history or worked examples
+
+- **WHEN** the headers of `sum_by_key_body.glsl`, `sum_by_key.comp`, `sum_by_key_push.comp`, `radix_block_histogram.comp`, `radix_scatter.comp` and `radix_copy_back.comp` are inspected
+- **THEN** none of them argues for a design decision or against an alternative one
+- **AND** none of them narrates what the file used to do, what it replaced, or what it was changed from
+- **AND** none of them contains a worked example or an arithmetic derivation
+
+#### Scenario: SumByKeyRun's parameters are documented
+
+- **WHEN** the `SumByKeyRun` declaration is inspected
+- **THEN** `input_count`, `num_channels`, `max_key_value`, `record_stride`, `gather_payload` and `entry_count` each carry a description of what it means, where its value comes from and, where one exists, its valid range
+- **AND** the descriptions agree with the push block the two including shaders pass it from
+
+#### Scenario: The radix shaders' headers state what each file does
+
+- **WHEN** the radix sort shaders are inspected
+- **THEN** each header states the pass it performs, the arrays it reads and writes, and the invariant that keeps the pass stable or the histogram complete
+- **AND** the copy-back's header states that it copies only the elements below the call's element count

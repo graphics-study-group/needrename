@@ -16,6 +16,7 @@
 #include "core_export.h"
 #include <array>
 #include <cstdint>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 

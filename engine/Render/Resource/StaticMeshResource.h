@@ -33,9 +33,21 @@ namespace Engine {
 
                 std::vector<uint32_t> attribute_offsets{};
                 std::unique_ptr<Rhi::DeviceBuffer> vi_buffer{};
+
+                PerSubmeshData() = default;
+                PerSubmeshData(const PerSubmeshData &) = delete;
+                PerSubmeshData &operator=(const PerSubmeshData &) = delete;
+                PerSubmeshData(PerSubmeshData &&) noexcept = default;
+                PerSubmeshData &operator=(PerSubmeshData &&) noexcept = default;
             };
 
             std::vector<PerSubmeshData> submeshes{};
+
+            StaticHMeshSharedDataBlock() = default;
+            StaticHMeshSharedDataBlock(const StaticHMeshSharedDataBlock &) = delete;
+            StaticHMeshSharedDataBlock &operator=(const StaticHMeshSharedDataBlock &) = delete;
+            StaticHMeshSharedDataBlock(StaticHMeshSharedDataBlock &&) noexcept = default;
+            StaticHMeshSharedDataBlock &operator=(StaticHMeshSharedDataBlock &&) noexcept = default;
         };
 
     private:

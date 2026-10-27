@@ -1,7 +1,7 @@
 add_subdirectory(AnnoRefl)
 
 # disable warning for third party
-add_compile_options(-w)
+add_compile_options($<$<CXX_COMPILER_ID:GNU,Clang>:-w>$<$<CXX_COMPILER_ID:MSVC>:/w>)
 
 add_subdirectory(glm EXCLUDE_FROM_ALL SYSTEM)
 set_target_properties(glm PROPERTIES FOLDER third_party)
@@ -29,6 +29,7 @@ set(FASTGLTF_ENABLE_DOCS OFF CACHE BOOL "Disable fastgltf docs" FORCE)
 set(FASTGLTF_ENABLE_INSTALL OFF CACHE BOOL "Disable fastgltf install targets" FORCE)
 add_subdirectory(fastgltf EXCLUDE_FROM_ALL SYSTEM)
 set_target_properties(fastgltf PROPERTIES FOLDER third_party)
+set_target_properties(fastgltf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # For some reasons the SPIRV-Cross in Vulkan SDK cannot be found by CMake...
 set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
@@ -36,7 +37,9 @@ set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)
 set(SPIRV_CROSS_ENABLE_HLSL OFF CACHE BOOL "Enable HLSL target support." FORCE)
 set(SPIRV_CROSS_ENABLE_MSL OFF CACHE BOOL "Enable MSL target support." FORCE)
 set(SPIRV_CROSS_ENABLE_C_API OFF CACHE BOOL "Enable C API wrapper support in static library." FORCE)
+set(SPIRV_CROSS_FORCE_PIC ON CACHE BOOL "Force position-independent code for all targets." FORCE)
 add_subdirectory(SPIRV-Cross EXCLUDE_FROM_ALL SYSTEM)
+
 set_target_properties(spirv-cross-core PROPERTIES FOLDER third_party)
 set_target_properties(spirv-cross-cpp PROPERTIES FOLDER third_party)
 set_target_properties(spirv-cross-glsl PROPERTIES FOLDER third_party)
@@ -52,6 +55,11 @@ file(GLOB IMGUI_SOURCE
 message(DEBUG "Found ImGUI files: ${IMGUI_SOURCE}")
 add_library(imgui SHARED EXCLUDE_FROM_ALL ${IMGUI_SOURCE})
 set_target_properties(imgui PROPERTIES FOLDER third_party)
+# imgui has no dllexport annotations, so on Windows it must be made to export
+# its symbols explicitly (Linux .so exports by default).
+if(MSVC)
+    set_target_properties(imgui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 target_include_directories(
     imgui 

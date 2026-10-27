@@ -37,7 +37,7 @@ CsoVertex cso_support(uint shape_a, uint shape_b, vec3 dir) {
 
 struct MprResult {
     bool hit;              // true if the shapes overlap
-    vec3 contact_normal;   // world-space normal pointing from B toward A
+    vec3 contact_normal;   // world-space normal pointing from A toward B
     float penetration;     // penetration depth (positive when overlapping)
     vec3 contact_point_a;  // contact point on A (world space)
     vec3 contact_point_b;  // contact point on B (world space)

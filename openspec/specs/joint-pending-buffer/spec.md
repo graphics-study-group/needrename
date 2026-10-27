@@ -1,7 +1,9 @@
 # joint-pending-buffer Specification
 
 ## Purpose
-TBD - created by archiving change fix-joint-index-collision. Update Purpose after archive.
+
+Defines how the physics scene accumulates joint creation requests: the joint pending buffer preserves every submission regardless of joint type, so submissions that share a numeric index are all flushed to the physics scene rather than overwriting one another.
+
 ## Requirements
 ### Requirement: Joint pending buffer preserves all submissions
 

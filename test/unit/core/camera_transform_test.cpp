@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstdio>
+#include <memory>
 
 #include <Core/Math/Transform.h>
 #include <Render/Pipeline/Renderer/Camera.h>

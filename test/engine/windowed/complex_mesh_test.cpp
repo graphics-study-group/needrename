@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <numbers>
 #include <stb_image.h>
 
 #include "Core/Functional/SDLWindow.h"
@@ -86,7 +87,7 @@ public:
 struct {
     float zenith, azimuth;
     float r, g, b, coef;
-} g_SceneData{M_PI_2, M_PI_2 * 2, 0.5f, 0.5f, 0.5f, 4.0f};
+} g_SceneData{std::numbers::pi_v<float> / 2.0f, std::numbers::pi_v<float> / 2.0f * 2, 0.5f, 0.5f, 0.5f, 4.0f};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;

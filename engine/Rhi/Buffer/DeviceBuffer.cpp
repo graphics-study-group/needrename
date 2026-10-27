@@ -3,7 +3,8 @@
 #include "Rhi/Device/AllocatorState.h"
 
 namespace Engine::Rhi {
-    DeviceBuffer::DeviceBuffer(BufferAllocation &&alloc, size_t size) : m_size(size), allocation(std::move(alloc)) {
+    DeviceBuffer::DeviceBuffer(BufferAllocation &&alloc, size_t size, const std::string &name) :
+        m_size(size), allocation(std::move(alloc)), m_name(name) {
     }
 
     DeviceBuffer DeviceBuffer::Create(
@@ -20,6 +21,10 @@ namespace Engine::Rhi {
 
     vk::Buffer DeviceBuffer::GetBuffer() const {
         return allocation.GetBuffer();
+    }
+
+    BufferRef DeviceBuffer::GetBufferRef() const {
+        return BufferRef{allocation.GetBuffer(), allocation.GetIdentity()};
     }
 
     size_t DeviceBuffer::GetSize() const {
@@ -39,5 +44,12 @@ namespace Engine::Rhi {
     }
     BufferType DeviceBuffer::GetType() const noexcept {
         return allocation.GetMemoryType();
+    }
+
+    void DeviceBuffer::ReallocateStorage(const Rhi::AllocatorState &allocator, size_t bytes) {
+        // The right operand is evaluated before the assignment destroys the previous allocation,
+        // so the replacement exists before the old storage is released.
+        allocation = allocator.AllocateBuffer(allocation.GetMemoryType(), bytes, m_name);
+        m_size = bytes;
     }
 } // namespace Engine::Rhi

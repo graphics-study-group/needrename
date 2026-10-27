@@ -6,6 +6,7 @@
 #include "Core/Functional/SDLWindow.h"
 #include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/RenderSystem/IPresentProvider.h"
 #include "Render/UserInterface/GUISystem.h"
 
 using namespace Engine;
@@ -85,7 +86,7 @@ int main(int argc, char **argv) {
             // Swapchain out of date after retry — skip this frame.
             continue;
         }
-        assert(index < 3);
+        assert(index < rsys->GetPresentProvider().GetImageCount());
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
         auto color = rg->GetInternalTextureResource(c);

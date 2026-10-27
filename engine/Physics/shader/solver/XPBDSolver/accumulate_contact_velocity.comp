@@ -1,13 +1,26 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_shader_atomic_float : enable
 
 // accumulate_contact_velocity.comp — Per-contact velocity-level XPBD:
-// restitution (normal) + dynamic friction (tangent), Jacobi accumulate.
-
+// restitution (normal) + kinetic friction (tangent), Jacobi accumulate.
+//
+// Velocity shares the SAME contact topology as the position solve: the contact
+// entry list was built and sorted once for this substep, and velocity
+// iterations reuse that sorted (key, slot) list.  Each contribution is
+// scattered into the shared contact value buffer at its own slot index; the
+// value buffer is cleared before every velocity iteration, so a contact that
+// does not contribute writes nothing.
+//
+// The normal and the tangential part are two SEPARATE constraint directions:
+// w(d) varies with direction through |r x d|^2 = |r|^2 - (r . d)^2, so each is
+// converted from its velocity target with its own inverse effective mass.  The
+// Coulomb cap is expressed in impulse space and applied to the total this
+// contact has been given so far this substep (ContactTangentImpulse), which is
+// a vector and is kept inside the cone by projection.
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #include "common/xpbd_math.glsl"
+#include "common/xpbd_entry_layout.glsl"
 
 // ---- Collision buffers ----
 layout(set = 0, binding = 0)  readonly buffer CollisionIds       { uvec2 v[]; } collision_ids;
@@ -25,7 +38,7 @@ layout(set = 0, binding = 9)  buffer      RigidBodyAngularVelocity     { vec4 v[
 layout(set = 0, binding = 10) readonly buffer RigidBodyMass             { float v[]; } rigid_body_mass;
 layout(set = 0, binding = 11) readonly buffer RigidBodyInverseInertia   { mat4 v[];  } rigid_body_inverse_inertia;
 layout(set = 0, binding = 12) readonly buffer RigidBodyDynamicFriction  { float v[]; } rigid_body_dynamic_friction;
-layout(set = 0, binding = 13) readonly buffer RigidBodyRestitution      { float v[]; } rigid_body_restitution;
+layout(set = 0, binding = 13) readonly buffer RigidBodyRestitution       { float v[]; } rigid_body_restitution;
 layout(set = 0, binding = 14) readonly buffer RigidBodyIsKinematic      { uint v[];  } rigid_body_is_kinematic;
 
 // ---- Pre-contact snapshots ----
@@ -36,20 +49,63 @@ layout(set = 0, binding = 16) readonly buffer PreContactAngularVelocity { vec4 v
 layout(set = 0, binding = 17) readonly buffer ShapeLocalPosition    { vec4 v[]; } shape_local_position;
 layout(set = 0, binding = 18) readonly buffer ShapeLocalRotation    { vec4 v[]; } shape_local_rotation;
 
-// ---- Velocity delta accumulators ----
-layout(set = 0, binding = 19) buffer LinearVelocityDelta  { float v[]; } lin_vel_delta;
-layout(set = 0, binding = 20) buffer AngularVelocityDelta { float v[]; } ang_vel_delta;
-layout(set = 0, binding = 21) buffer VelocityDeltaCount    { float v[]; } vel_delta_count;
-
 // ---- Lagrange (readonly) ----
-layout(set = 0, binding = 22) readonly buffer ContactLagrange { float v[]; } lagrange;
+layout(set = 0, binding = 19) readonly buffer ContactLagrange { float v[]; } lagrange;
+// One vec4 per contact point; .xyz is the substep's total kinetic friction
+// impulse (kg*m/s), projected into the Coulomb cone.
+layout(set = 0, binding = 20) buffer ContactTangentImpulse { vec4 v[]; } tangent_impulse;
+
+// Channel-major value buffer: the real per-entry contribution values,
+// indexed by entry slot. Used in "xpbd_scatter.glsl"
+layout(set = 0, binding = 21) buffer Values { float v[]; } values;
+
+#include "common/xpbd_scatter.glsl"
 
 // ---- Per-dispatch constants (push constant, recorded by the solver) ----
-layout(push_constant) uniform XpbdPush { vec4 gravity_dt; } params;  // w = substep_dt
+layout(push_constant) uniform XpbdPush {
+    vec4 gravity_dt;       // w = substep_dt
+    uint entry_capacity;   // number of contact entry slots (== 2 * max_contact_point)
+} params;
+
+// Inverse effective mass w(d) of the contact along the unit direction `d`:
+//   inv_mass_a + inv_mass_b
+//     + dot(I_inv_a * (r_a x d), r_a x d)
+//     + dot(I_inv_b * (r_b x d), r_b x d)
+// A kinematic body is immovable: its inverse mass is zero and its inverse
+// inertia contributes nothing, whatever it was authored with.
+float inv_effective_mass(
+    vec3 d,
+    float inv_mass_a,
+    float inv_mass_b,
+    mat4 inv_inertia_a,
+    mat4 inv_inertia_b,
+    vec4 ori_a,
+    vec4 ori_b,
+    vec3 r_a,
+    vec3 r_b,
+    bool kinematic_a,
+    bool kinematic_b
+) {
+    float w = inv_mass_a + inv_mass_b;
+
+    if (!kinematic_a) {
+        vec3 r_a_d = cross(r_a, d);
+        w += dot(apply_world_inv_inertia(inv_inertia_a, ori_a, r_a_d), r_a_d);
+    }
+    if (!kinematic_b) {
+        vec3 r_b_d = cross(r_b, d);
+        w += dot(apply_world_inv_inertia(inv_inertia_b, ori_b, r_b_d), r_b_d);
+    }
+
+    return w;
+}
 
 void main() {
     uint cidx = gl_GlobalInvocationID.x;
     if (cidx >= collision_count.count) return;
+    // The per-contact multiplier buffers are sized to the contact-point
+    // capacity (entry_capacity / 2, two entry slots per contact point).
+    if (cidx >= params.entry_capacity / 2u) return;
 
     uvec2 pair = collision_ids.v[cidx];
     uint shape_a = pair.x, shape_b = pair.y;
@@ -61,13 +117,16 @@ void main() {
     if (body_a >= body_count || body_b >= body_count) return;
     if (rigid_body_alive.v[body_a] == 0u || rigid_body_alive.v[body_b] == 0u) return;
 
-    float inv_mass_a = (rigid_body_mass.v[body_a] > 1e-12) ? (1.0 / rigid_body_mass.v[body_a]) : 0.0;
-    float inv_mass_b = (rigid_body_mass.v[body_b] > 1e-12) ? (1.0 / rigid_body_mass.v[body_b]) : 0.0;
-    if (inv_mass_a <= 0.0 && inv_mass_b <= 0.0) return;
+    const uint slot_a = contact_slot(cidx, 0u);
+    const uint slot_b = contact_slot(cidx, 1u);
 
     bool kinematic_a = (rigid_body_is_kinematic.v[body_a] != 0u);
     bool kinematic_b = (rigid_body_is_kinematic.v[body_b] != 0u);
     if (kinematic_a && kinematic_b) return;
+
+    float inv_mass_a = (!kinematic_a && rigid_body_mass.v[body_a] > 1e-12) ? (1.0 / rigid_body_mass.v[body_a]) : 0.0;
+    float inv_mass_b = (!kinematic_b && rigid_body_mass.v[body_b] > 1e-12) ? (1.0 / rigid_body_mass.v[body_b]) : 0.0;
+    if (inv_mass_a <= 0.0 && inv_mass_b <= 0.0) return;
 
     vec3 n = collision_normals.v[cidx].xyz;
     float nlen = length(n);
@@ -118,69 +177,73 @@ void main() {
     float vn      = dot(n, rel_vel);
     float vn_prev = dot(n, pre_rel_vel);
 
-    // Restitution.
-    float restitution = rigid_body_restitution.v[body_a] * rigid_body_restitution.v[body_b];
-    float normal_delta_v = -vn + min(-restitution * vn_prev, 0.0);
-    vec3 velocity_correction = n * normal_delta_v;
+    mat4 inv_inertia_a = rigid_body_inverse_inertia.v[body_a];
+    mat4 inv_inertia_b = rigid_body_inverse_inertia.v[body_b];
 
-    // Dynamic friction (tangent).
+    // The position phase's accumulated normal multiplier: positive exactly for
+    // the contacts it actually solved.
+    float normal_lagrange = lagrange.v[cidx];
+    vec3 impulse = vec3(0.0);
+
+    // ---- Normal part: restitution, converted with its own effective mass ----
+    // Applied only where the position phase solved the contact.
+    if (normal_lagrange > 0.0) {
+        float w_n = inv_effective_mass(
+            n, inv_mass_a, inv_mass_b, inv_inertia_a, inv_inertia_b, ori_a, ori_b, r_a, r_b, kinematic_a, kinematic_b
+        );
+        if (w_n <= 1e-8) return;
+
+        float restitution = rigid_body_restitution.v[body_a] * rigid_body_restitution.v[body_b];
+        float normal_delta_v = -vn + min(-restitution * vn_prev, 0.0);
+        impulse = (normal_delta_v / w_n) * n;
+    }
+
+    // ---- Tangential (kinetic friction) part ----
+    // Applied unconditionally for every contact the position phase solved: for a
+    // sticking contact the wanted total below equals what the contact already
+    // holds, so the correction is zero; for a sliding contact it delivers up to
+    // the full kinetic bound.
     vec3 tangent_vel = rel_vel - vn * n;
     float tangent_speed = length(tangent_vel);
     float dt = params.gravity_dt.w;
     if (tangent_speed > 1e-8 && dt > 1e-8) {
-        float friction_coef = 0.5 * (rigid_body_dynamic_friction.v[body_a]
-                                     + rigid_body_dynamic_friction.v[body_b]);
-        float normal_lagrange = abs(lagrange.v[cidx]);
-        float normal_impulse_mag = normal_lagrange / dt;
-        float friction_cap = normal_impulse_mag * friction_coef;
-        float tangent_correction = min(tangent_speed, friction_cap);
-        velocity_correction += -(tangent_vel / tangent_speed) * tangent_correction;
+        vec3 t = tangent_vel / tangent_speed;
+        float w_t = inv_effective_mass(
+            t, inv_mass_a, inv_mass_b, inv_inertia_a, inv_inertia_b, ori_a, ori_b, r_a, r_b, kinematic_a, kinematic_b
+        );
+        if (w_t > 1e-8) {
+            float friction_coef = 0.5 * (
+                rigid_body_dynamic_friction.v[body_a] + rigid_body_dynamic_friction.v[body_b]
+            );
+            // lambda_n / dt is an impulse; the Coulomb bound bounds an impulse.
+            float normal_impulse_mag = abs(normal_lagrange) / dt;
+            float friction_cap = normal_impulse_mag * friction_coef;
+            vec3 friction_used = tangent_impulse.v[cidx].xyz;
+            vec3 friction_ideal = friction_used - (tangent_speed / w_t) * t;
+            float ideal_len = length(friction_ideal);
+            vec3 friction_new =
+                (ideal_len > friction_cap) ? friction_ideal * (friction_cap / ideal_len) : friction_ideal;
+            vec3 friction_delta = friction_new - friction_used;
+            if (length(friction_delta) > 1e-8) {
+                impulse += friction_delta;
+                tangent_impulse.v[cidx].xyz = friction_new;
+            }
+        }
     }
 
-    float correction_norm = length(velocity_correction);
-    if (correction_norm <= 1e-8) return;
+    if (length(impulse) <= 1e-8) return;
 
-    vec3 correction_dir = velocity_correction / correction_norm;
-    vec3 r_a_dir = cross(r_a, correction_dir);
-    vec3 r_b_dir = cross(r_b, correction_dir);
-
-    vec3 w_inv_i_a = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, r_a_dir);
-    vec3 w_inv_i_b = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, r_b_dir);
-
-    float w1 = inv_mass_a + dot(w_inv_i_a, r_a_dir);
-    float w2 = inv_mass_b + dot(w_inv_i_b, r_b_dir);
-    float denom = w1 + w2;
-    if (denom <= 1e-8) return;
-
-    float dl = correction_norm / denom;
-    vec3 impulse = dl * correction_dir;
-
-    // Atomic accumulate for body A.
+    // Scatter for body A.
     if (!kinematic_a && inv_mass_a > 0.0) {
         vec3 ld = inv_mass_a * impulse;
-        atomicAdd(lin_vel_delta.v[body_a * 3u + 0u], ld.x);
-        atomicAdd(lin_vel_delta.v[body_a * 3u + 1u], ld.y);
-        atomicAdd(lin_vel_delta.v[body_a * 3u + 2u], ld.z);
-
-        vec3 ad = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, cross(r_a, impulse));
-        atomicAdd(ang_vel_delta.v[body_a * 3u + 0u], ad.x);
-        atomicAdd(ang_vel_delta.v[body_a * 3u + 1u], ad.y);
-        atomicAdd(ang_vel_delta.v[body_a * 3u + 2u], ad.z);
-
-        atomicAdd(vel_delta_count.v[body_a], 1.0);
+        vec3 ad = apply_world_inv_inertia(inv_inertia_a, ori_a, cross(r_a, impulse));
+        scatter_slot(slot_a, params.entry_capacity, ld, ad);
     }
 
+    // Scatter for body B.
     if (!kinematic_b && inv_mass_b > 0.0) {
         vec3 ld = -inv_mass_b * impulse;
-        atomicAdd(lin_vel_delta.v[body_b * 3u + 0u], ld.x);
-        atomicAdd(lin_vel_delta.v[body_b * 3u + 1u], ld.y);
-        atomicAdd(lin_vel_delta.v[body_b * 3u + 2u], ld.z);
-
-        vec3 ad = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, cross(r_b, impulse));
-        atomicAdd(ang_vel_delta.v[body_b * 3u + 0u], -ad.x);
-        atomicAdd(ang_vel_delta.v[body_b * 3u + 1u], -ad.y);
-        atomicAdd(ang_vel_delta.v[body_b * 3u + 2u], -ad.z);
-
-        atomicAdd(vel_delta_count.v[body_b], 1.0);
+        vec3 ad = apply_world_inv_inertia(inv_inertia_b, ori_b, cross(r_b, impulse));
+        scatter_slot(slot_b, params.entry_capacity, ld, -ad);
     }
 }

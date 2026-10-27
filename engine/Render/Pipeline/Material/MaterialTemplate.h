@@ -7,20 +7,20 @@
 #include <variant>
 
 #include "Render/Pipeline/Renderer/VertexAttribute.h"
+#include "Rhi/Device/BindingRef.h"
 
 namespace vk {
     class Pipeline;
     class PipelineLayout;
     class DescriptorSetLayout;
     class DescriptorSet;
-    class DescriptorPool;
     class DescriptorImageInfo;
     class ShaderModule;
 } // namespace vk
 
 namespace Engine {
     namespace Rhi {
-        class SPLayout;
+        struct SPLayout;
     }
     class MaterialInstance;
     class Pipeline;
@@ -32,7 +32,6 @@ namespace Engine {
 
     namespace PipelineInfo {
         class MaterialPassInfo;
-        struct MaterialPoolInfo;
     } // namespace PipelineInfo
 
     namespace ShdrRfl {
@@ -99,9 +98,6 @@ namespace Engine {
      * are currently supported. Arrays are not supported either.
      */
     class RENDER_API MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
-    public:
-        using PoolInfo = PipelineInfo::MaterialPoolInfo;
-
     protected:
         RenderSystem &m_system;
 
@@ -113,13 +109,18 @@ namespace Engine {
     public:
         /**
          * @brief Construct a new Material Template object.
+         *
+         * The template owns no descriptor pool: its descriptor sets come from
+         * the device descriptor arena, allocated against the descriptor-set
+         * layout the caller resolved through that arena — the same object the
+         * pipeline layout is built over.
          */
         MaterialTemplate(
             RenderSystem &system,
             MaterialTemplateSinglePassProperties &properties,
             const std::vector<vk::ShaderModule> &shaders,
             vk::PipelineLayout layout,
-            vk::DescriptorPool pool,
+            Rhi::DescriptorSetLayoutRef desc_set_layout,
             const Rhi::SPLayout &reflected,
             const PipelineRuntimeInfo &attribute,
             const std::string &name = ""
@@ -144,11 +145,20 @@ namespace Engine {
         vk::PipelineLayout GetPipelineLayout() const noexcept;
 
         /**
-         * @brief Get the descriptor pool for this material.
+         * @brief Get the layout of the per-material descriptor set.
          *
-         * @return vk::DescriptorPool can be null if no material descriptor presents.
+         * @return The layout the arena resolved, or null when the reflected
+         * layout declares no per-material set.
          */
-        vk::DescriptorPool GetDescriptorPool() const noexcept;
+        vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
+
+        /**
+         * @brief Get the layout of the per-material descriptor set, with its
+         * never-reused identity.
+         *
+         * This is what a descriptor acquisition hands the arena.
+         */
+        Rhi::DescriptorSetLayoutRef GetDescriptorSetLayoutRef() const noexcept;
 
         /**
          * @brief Get all reflected shader info.

@@ -56,6 +56,22 @@ namespace Engine {
         virtual uint32_t GetImageCount() const = 0;
 
         /**
+         * @brief Whether `Present` consumes the frame completion binary semaphore.
+         *
+         * A binary semaphore must be signaled only while it is unsignaled. A
+         * provider that never waits on it (headless) must report `false`, so
+         * FrameManager does not signal it at all: an unconsumed binary
+         * semaphore stays signaled, and signaling it again on a later frame is
+         * a validation error (VUID-vkQueueSubmit2-semaphore-03868).
+         *
+         * @return `true` when `Present` waits on the semaphore (windowed
+         * swapchain); `false` when it is ignored (headless).
+         */
+        virtual bool NeedsPresentSemaphore() const noexcept {
+            return true;
+        }
+
+        /**
          * @brief Acquire the next presentation target index.
          *
          * Async contract: when the returned image becomes available for

@@ -1,6 +1,10 @@
 # Asset Core Module Spec
 
-## ADDED Requirements
+## Purpose
+
+Defines the standalone `EngineAssetCore` shared library: the `Asset` base class, `AssetRef`, `AssetManager`, the `AssetDatabase` abstraction with its filesystem implementation, GUID-based asset identity, and the per-DLL reflection registration that lets the rest of the engine resolve assets without depending on engine modules.
+
+## Requirements
 
 ### Requirement: EngineAssetCore is a standalone shared library
 The asset core infrastructure SHALL be built as a shared library target named `EngineAssetCore` (producing `EngineAssetCore.dll`), containing the `Asset` base class, `AssetRef`, `AssetManager`, `AssetDatabase` interface, `FileSystemDatabase`, and `InstantiatedFromAsset`.

@@ -13,7 +13,6 @@ namespace vk {
 namespace Engine {
     namespace Rhi {
         class ComputeBuffer;
-        class ComputeStage;
     } // namespace Rhi
     namespace Rhi {
         class DeviceContext;
@@ -22,12 +21,12 @@ namespace Engine {
     struct XpbdConfig;
 
     /**
-     * @brief Minimal GPU solver that displaces bodies by gravity and writes
-     * model matrices.
+     * @brief Minimal GPU solver that displaces bodies by gravity.
      *
      * DummySolver displaces all rigid bodies by
      *   delta_z = gravity.z * time_step
-     * each frame and writes model matrices from the updated pose.
+     * each frame. Model matrices are produced on request, through the shared
+     * model matrix shader, so a step never writes them.
      *
      * Compute dispatch is recorded directly to the command buffer in GPUStep
      * (no RenderGraph).
@@ -45,8 +44,8 @@ namespace Engine {
         DummySolver(DummySolver &&) = delete;
         DummySolver &operator=(DummySolver &&) = delete;
 
-        void PreGPUStep() override;
         void GPUStep(vk::CommandBuffer cb) override;
+        void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) override;
 
         [[nodiscard]]
         bool IsInitialized() const noexcept override;

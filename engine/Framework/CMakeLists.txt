@@ -47,7 +47,7 @@ add_dependencies(EngineFramework meta_framework)
 target_link_libraries(EngineFramework PRIVATE meta_framework)
 
 # Copy third-party DLLs that are not natively built into the bin directory.
-# SDL3 is an imported target from MSYS2; libktx overrides LIBRARY_OUTPUT_DIRECTORY.
+# SDL3 is an imported target (SDL3_ROOT dev package); libktx overrides LIBRARY_OUTPUT_DIRECTORY.
 add_custom_command(TARGET EngineFramework POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3-shared>
