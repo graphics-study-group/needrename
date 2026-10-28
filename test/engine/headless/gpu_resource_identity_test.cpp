@@ -215,9 +215,7 @@ int main() try {
             arena.GetMintedSetCount() == minted_before + 1u,
             "every new texture mints its own set: a destroyed texture's entry is never reused"
         );
-        Check(
-            !have_previous_set || !Same(set, previous_set), "each round's set is distinct from the previous round's"
-        );
+        Check(!have_previous_set || !Same(set, previous_set), "each round's set is distinct from the previous round's");
         previous_set = set;
         have_previous_set = true;
 
@@ -242,8 +240,8 @@ int main() try {
         }
     }
 
-    std::cout << "observed recycled buffer handles: " << recycled_buffer_handles << ", view handles: "
-              << recycled_view_handles << std::endl;
+    std::cout << "observed recycled buffer handles: " << recycled_buffer_handles
+              << ", view handles: " << recycled_view_handles << std::endl;
 
     rsys->WaitForIdle();
     if (g_failures == 0) {

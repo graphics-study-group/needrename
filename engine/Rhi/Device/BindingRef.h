@@ -84,7 +84,8 @@ namespace Engine::Rhi {
         }
 
     private:
-        constexpr BindingRef(Handle object_handle, VulkanIdentity object_id) noexcept : handle(object_handle), id(object_id) {
+        constexpr BindingRef(Handle object_handle, VulkanIdentity object_id) noexcept :
+            handle(object_handle), id(object_id) {
         }
 
         friend class DeviceBuffer;

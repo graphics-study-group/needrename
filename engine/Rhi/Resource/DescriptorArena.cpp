@@ -345,9 +345,7 @@ namespace Engine::Rhi {
 
             for (const auto &binding : content) {
                 if (IsImageDescriptor(binding.type)) {
-                    image_infos.emplace_back(
-                        binding.sampler.handle, binding.image_view.handle, binding.image_layout
-                    );
+                    image_infos.emplace_back(binding.sampler.handle, binding.image_view.handle, binding.image_layout);
                 } else {
                     buffer_infos.emplace_back(binding.buffer.handle, binding.offset, binding.range);
                 }

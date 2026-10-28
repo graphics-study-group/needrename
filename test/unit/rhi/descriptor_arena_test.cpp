@@ -121,7 +121,9 @@ namespace {
             buffers.reserve(buffer_count);
             for (size_t i = 0; i < buffer_count; i++) {
                 buffers.push_back(
-                    DeviceBuffer::Create(context.GetAllocatorState(), {BufferTypeBits::CopyTo}, 256, "Arena test buffer")
+                    DeviceBuffer::Create(
+                        context.GetAllocatorState(), {BufferTypeBits::CopyTo}, 256, "Arena test buffer"
+                    )
                 );
             }
         }
@@ -483,8 +485,7 @@ int main() {
         const VulkanIdentity before_reallocation = growing->GetBufferRef().id;
         growing->EnsureCapacity(allocator, 4096);
         CHECK(
-            growing->GetBufferRef().id != before_reallocation
-            && "replacing a buffer's storage issues a new identity"
+            growing->GetBufferRef().id != before_reallocation && "replacing a buffer's storage issues a new identity"
         );
 
         // Every created view is its own object; one range yields one identity.

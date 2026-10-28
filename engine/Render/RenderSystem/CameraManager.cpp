@@ -62,8 +62,7 @@ namespace Engine::RenderSystemState {
         {
             assert(m_system.GetSceneDataManager().GetLightDescriptorSetLayout());
             std::array pipeline_layout_descriptor_sets{
-                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
-                pimpl->camera_descriptor_set_layout.handle
+                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(), pimpl->camera_descriptor_set_layout.handle
             };
             std::array pipeline_layout_pcr{RendererManager::GetPushConstantRange()};
             vk::PipelineLayoutCreateInfo plci{
