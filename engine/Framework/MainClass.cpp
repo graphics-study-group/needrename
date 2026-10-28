@@ -105,11 +105,6 @@ namespace Engine {
         GUID default_level_guid(project_config["default_level"].get<std::string>());
         auto level_asset = dynamic_cast<LevelAsset *>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         level_asset->LoadToWorld();
-        // Loading a level has to leave the world in its loaded state. The level's
-        // objects and components are queued by `LoadToWorld()`, and the render
-        // graph sizes the shadow map storage from the shadow casting lights that
-        // exist when it is built, which hosts do right after loading a project.
-        world->GetMainSceneRef().FlushCmdQueue();
 
         auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene();
         auto solver = std::make_unique<XpbdGpuSolver>(*this->m_device_context);

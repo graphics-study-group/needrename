@@ -11,6 +11,13 @@
  *     light has exactly the cascades it was configured with;
  *   - translating the light's GameObject leaves the uploaded cascade matrices
  *     unchanged (the cascades follow the camera, not the light);
+ *   - the render-owned shadow storage exists for every budgeted slot and is
+ *     never replaced;
+ *   - handing the shadow-caster role to another light at runtime starts or stops
+ *     shadows on the next frame with no render-graph rebuild, and a role holder
+ *     that is removed is taken over by the remaining flagged light;
+ *   - destroying and rebuilding the render graph mid-run keeps rendering shadows
+ *     from the same storage;
  *   - no Vulkan validation error is reported during the run.
  *
  * Remaining acceptance is visual; see the change's acceptance checklist.
@@ -79,6 +86,18 @@ namespace {
     /// is frozen so that only the light's position differs between them.
     constexpr int64_t LIGHT_INVARIANCE_FIRST_FRAME = 100;
     constexpr int64_t LIGHT_INVARIANCE_SECOND_FRAME = 101;
+
+    /// The automatic mode hands the shadow-caster role to the standby lights
+    /// around these frames, so adding and removing lights at runtime is
+    /// exercised while frames keep rendering.
+    constexpr int64_t RUNTIME_TAKEOVER_FRAME = 40;
+    constexpr int64_t RUNTIME_SECOND_FLAG_FRAME = 41;
+    constexpr int64_t RUNTIME_REMOVE_HOLDER_FRAME = 42;
+    constexpr int64_t RUNTIME_RESTORE_FRAME = 44;
+
+    /// The graph is destroyed and rebuilt here, mid-run, to prove that the shadow
+    /// storage survives a rebuild untouched.
+    constexpr int64_t GRAPH_REBUILD_FRAME = 60;
 
     /// Validation layer errors reported during the run.
     std::atomic<uint32_t> g_validation_errors{0};
@@ -658,6 +677,27 @@ int main(int argc, char **argv) {
     light_comp.m_shadow_distance = 100.0f;
     light_comp.m_cascade_count = RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES;
 
+    // Standby lights the runtime role tests hand the role to. They are created
+    // after the animated light (so the animated one wins the role by creation
+    // order whenever both are flagged) and start unflagged; only the tests below
+    // ever set the flag. Their pose is fixed so a hand-over produces a valid fit.
+    auto create_standby_light = [&](const char *name) -> LightComponent & {
+        auto &go = scene.CreateGameObject();
+        go.m_name = name;
+        go.GetTransformRef()
+            .SetRotation(glm::angleAxis(glm::radians(-55.0f), glm::vec3{1.0f, 0.0f, 0.0f}))
+            .SetPosition({0.0f, 0.0f, 25.0f});
+        auto &comp = scene.CreateComponent<LightComponent>(go);
+        comp.m_type = LightType::Directional;
+        comp.m_cast_shadow = false;
+        comp.m_intensity = 1.0f;
+        comp.m_shadow_distance = 100.0f;
+        comp.m_cascade_count = RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES;
+        return comp;
+    };
+    auto &standby_light_a = create_standby_light("Standby shadow light A");
+    auto &standby_light_b = create_standby_light("Standby shadow light B");
+
     // Camera: orbits the scene and looks at its centre.
     auto &camera_go = scene.CreateGameObject();
     camera_go.m_name = "Orbiting camera";
@@ -669,14 +709,25 @@ int main(int argc, char **argv) {
     rsys->GetCameraManager().SetActiveCameraIndex(camera_comp.m_camera->m_display_id);
 
     // Let the scene create and register everything. Renderers register themselves
-    // in Awake, so this must run before the shadow map storage is sized and
-    // before the frame loop starts.
+    // in Awake, so this must run before the frame loop starts.
     scene.FlushCmdQueue();
     scene.ProcessEvents();
 
-    // One shadow map per shadow-casting light present; the shared helper queries
-    // the world, so the light has to exist by now.
-    assert(world->GetShadowCastingLightCount() == 1);
+    // The shadow storage is allocated with the render system, so it exists no
+    // matter which lights the scene has; the scene just has one role holder.
+    assert(world->GetShadowCastingLight() == &light_comp && "The only flagged light holds the shadow-caster role.");
+    // Every budgeted slot has its own storage from the moment the render system
+    // exists, at the resolution and layer count the shaders expect.
+    for (uint32_t slot = 0; slot < RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS; slot++) {
+        const auto &storage = rsys->GetSceneDataManager().GetShadowMapTexture(slot).GetTextureDescription();
+        assert(storage.format == Rhi::ImageFormat::D32SFLOAT);
+        assert(storage.width == RenderSystemState::SceneDataManager::SHADOWMAP_SIZE);
+        assert(storage.height == RenderSystemState::SceneDataManager::SHADOWMAP_SIZE);
+        assert(storage.array_layers == RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES);
+    }
+    // The storage object is never replaced, which is what lets graphs import it
+    // once and what the runtime hand-over and rebuild checks below rely on.
+    auto *const shadow_texture = &rsys->GetSceneDataManager().GetShadowMapTexture(0);
 
     // The shadow pass draws only renderers that opted in. Everything except the
     // two blue primitives casts, and the ones created without touching the flag
@@ -706,13 +757,14 @@ int main(int argc, char **argv) {
         world->UpdateRendererData(*rsys);
         assert(scene_data.GetLightCascadeCount(0) == RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES);
 
-        // The budget accepts exactly the maximum, and an out-of-range light index
-        // is rejected instead of writing past the light arrays.
+        // The light budget accepts exactly the maximum, and an out-of-range light
+        // index is rejected instead of writing past the light arrays.
         constexpr uint32_t MAX_LIGHTS = RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS;
+        const uint32_t holder_cascades = scene_data.GetLightCascadeCount(0);
         scene_data.SetLightCount(MAX_LIGHTS + 1);
         assert(scene_data.GetNumShadowCastingLights() == MAX_LIGHTS);
         scene_data.SetLightDirectional(MAX_LIGHTS, glm::vec3{0.0f, 0.0f, 1.0f}, glm::vec3{1.0f});
-        assert(scene_data.GetLightCascadeCount(MAX_LIGHTS - 1) == 0 && "The rejected index must not be written.");
+        assert(scene_data.GetLightCascadeCount(0) == holder_cascades && "The rejected index must not be written.");
         scene_data.SetLightCount(1);
     }
 
@@ -724,13 +776,6 @@ int main(int argc, char **argv) {
         gui_system = cmc->GetGUISystem().get();
         gui_system->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Rhi::ImageFormat::R8G8B8A8UNorm));
     }
-
-    RenderGraphBuilder rgb{*rsys};
-
-    const RGBufferHandle mm_handle = rgb.ImportExternalResource(
-        rsys->GetSceneDataManager().GetModelMatricesBuffer(),
-        Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite)
-    );
 
     RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
@@ -750,73 +795,90 @@ int main(int argc, char **argv) {
     // so the interactive run owns the color texture and imports it instead: the
     // pass order of an external resource is kept as it is declared.
     std::unique_ptr<RenderTargetTexture> interactive_color{};
-    RGTextureHandle c{};
     if (interactive) {
         interactive_color = RenderTargetTexture::CreateUnique(rsys->GetDeviceContext(), desc, {}, "Lit Color");
-        c = rgb.ImportExternalResource(*interactive_color);
-    } else {
-        c = rgb.RequestRenderTargetTexture(desc, {});
     }
 
-    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto d = rgb.RequestRenderTargetTexture(desc, {});
+    // Building the graph is a function of the render system alone: the shadow
+    // storage is render-owned, so the run can rebuild the graph mid-flight and
+    // must keep rendering shadows with no re-registration step.
+    RGTextureHandle color_handle{};
+    auto build_render_graph = [&]() -> std::unique_ptr<RenderGraph> {
+        RenderGraphBuilder rgb{*rsys};
 
-    // Shared with the application render graphs: one array texture per
-    // shadow-casting light, and one pass rendering all of its cascades.
-    const std::vector<RGTextureHandle> shadow_ids = AddShadowCascadePasses(rgb, *rsys, mm_handle);
-
-    using IAT = Rhi::MemoryAccessTypeImageBits;
-
-    {
-        auto lit_builder = RenderGraphPassBuilder{*rsys}.SetName("Lit Pass");
-        for (auto shadow_id : shadow_ids) {
-            lit_builder.UseImage(shadow_id, IAT::ShaderSampledRead);
-        }
-        lit_builder
-            .AppendColorAttachment(
-                {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
-            )
-            .SetDepthStencilAttachment(
-                {d,
-                 {},
-                 AttachmentUtils::LoadOperation::Clear,
-                 AttachmentUtils::StoreOperation::DontCare,
-                 AttachmentUtils::DepthClearValue{1.0f, 0U}}
-            )
-            .SetPassFunction([rsys, world](CommandBuffer &cb, const RenderGraph &) {
-                auto active_camera = world->GetActiveCamera();
-                if (!active_camera) return;
-                rsys->GetCameraManager().SetActiveCameraIndex(active_camera->m_display_id);
-                cb.DrawRenderers(
-                    "Lit",
-                    rsys->GetRendererManager().FilterAndSortRenderers({}),
-                    active_camera->m_display_id,
-                    rsys->GetPresentProvider().GetExtent()
-                );
-            })
-            .WrapRenderPass();
-        rgb.AddPass(lit_builder.Get());
-    }
-
-    if (interactive) {
-        // Composite the control window over the lit image. `Load` keeps the lit
-        // pass' contents; the GUI draws on top of them.
-        rgb.AddPass(
-            RenderGraphPassBuilder{*rsys}
-                .SetName("GUI Pass")
-                .AppendColorAttachment(
-                    {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
-                )
-                .SetPassFunction([gui_system](CommandBuffer &cb, const RenderGraph &) {
-                    gui_system->DrawGUI(cb.GetCommandBuffer());
-                })
-                .WrapRenderPass()
-                .Get()
+        const RGBufferHandle mm_handle = rgb.ImportExternalResource(
+            rsys->GetSceneDataManager().GetModelMatricesBuffer(),
+            Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite)
         );
-    }
 
-    auto rg{rgb.BuildRenderGraph()};
-    RegisterShadowCascadeMaps(*rg, *rsys, shadow_ids);
+        auto rtt_desc = desc;
+        if (interactive) {
+            color_handle = rgb.ImportExternalResource(*interactive_color);
+        } else {
+            color_handle = rgb.RequestRenderTargetTexture(rtt_desc, {});
+        }
+
+        rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+        auto d = rgb.RequestRenderTargetTexture(rtt_desc, {});
+
+        // Shared with the application render graphs: every budgeted slot is
+        // borrowed, and one pass renders all of its light's cascades.
+        const std::vector<RGTextureHandle> shadow_ids = AddShadowCascadePasses(rgb, *rsys, mm_handle);
+
+        using IAT = Rhi::MemoryAccessTypeImageBits;
+
+        {
+            auto lit_builder = RenderGraphPassBuilder{*rsys}.SetName("Lit Pass");
+            for (auto shadow_id : shadow_ids) {
+                lit_builder.UseImage(shadow_id, IAT::ShaderSampledRead);
+            }
+            lit_builder
+                .AppendColorAttachment(
+                    {color_handle, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                )
+                .SetDepthStencilAttachment(
+                    {d,
+                     {},
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::DontCare,
+                     AttachmentUtils::DepthClearValue{1.0f, 0U}}
+                )
+                .SetPassFunction([rsys, world](CommandBuffer &cb, const RenderGraph &) {
+                    auto active_camera = world->GetActiveCamera();
+                    if (!active_camera) return;
+                    rsys->GetCameraManager().SetActiveCameraIndex(active_camera->m_display_id);
+                    cb.DrawRenderers(
+                        "Lit",
+                        rsys->GetRendererManager().FilterAndSortRenderers({}),
+                        active_camera->m_display_id,
+                        rsys->GetPresentProvider().GetExtent()
+                    );
+                })
+                .WrapRenderPass();
+            rgb.AddPass(lit_builder.Get());
+        }
+
+        if (interactive) {
+            // Composite the control window over the lit image. `Load` keeps the lit
+            // pass' contents; the GUI draws on top of them.
+            rgb.AddPass(
+                RenderGraphPassBuilder{*rsys}
+                    .SetName("GUI Pass")
+                    .AppendColorAttachment(
+                        {color_handle, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
+                    )
+                    .SetPassFunction([gui_system](CommandBuffer &cb, const RenderGraph &) {
+                        gui_system->DrawGUI(cb.GetCommandBuffer());
+                    })
+                    .WrapRenderPass()
+                    .Get()
+            );
+        }
+
+        return rgb.BuildRenderGraph();
+    };
+
+    std::unique_ptr<RenderGraph> rg = build_render_graph();
 
     // Frame loop.
     bool quited = false;
@@ -881,8 +943,70 @@ int main(int argc, char **argv) {
             camera_comp.Tick();
         }
 
+        if (!interactive) {
+            // Runtime role changes and one mid-run graph rebuild. The shadow storage
+            // is render-owned, so none of these may (re)allocate or re-register it.
+            switch (frame_count) {
+            case RUNTIME_TAKEOVER_FRAME:
+                light_comp.m_cast_shadow = false;
+                standby_light_a.m_cast_shadow = true;
+                break;
+            case RUNTIME_SECOND_FLAG_FRAME:
+                standby_light_b.m_cast_shadow = true;
+                break;
+            case RUNTIME_REMOVE_HOLDER_FRAME:
+                scene.RemoveGameObject(standby_light_a.GetParentGameObject()->GetHandle());
+                scene.FlushCmdQueue();
+                break;
+            case RUNTIME_RESTORE_FRAME:
+                scene.RemoveGameObject(standby_light_b.GetParentGameObject()->GetHandle());
+                scene.FlushCmdQueue();
+                light_comp.m_cast_shadow = true;
+                break;
+            case GRAPH_REBUILD_FRAME:
+                rsys->WaitForIdle();
+                rg = build_render_graph();
+                break;
+            default:
+                break;
+            }
+        }
+
         world->UpdateRendererData(*rsys);
         CheckCascadeMatrices(rsys->GetSceneDataManager(), frame_count, !interactive);
+
+        if (!interactive) {
+            auto &scene_data = rsys->GetSceneDataManager();
+            constexpr uint32_t ALL_CASCADES = RenderSystemState::SceneDataManager::MAX_SHADOW_CASCADES;
+            if (frame_count == RUNTIME_TAKEOVER_FRAME) {
+                assert(world->GetShadowCastingLight() == &standby_light_a);
+                assert(scene_data.GetNumShadowCastingLights() == 1);
+                assert(
+                    scene_data.GetLightCascadeCount(0) == ALL_CASCADES
+                    && "A light that gains the role is fitted from that frame on, without a graph rebuild."
+                );
+            } else if (frame_count == RUNTIME_SECOND_FLAG_FRAME) {
+                // Creation order decides: the later light never takes the role over.
+                assert(world->GetShadowCastingLight() == &standby_light_a);
+                assert(scene_data.GetNumShadowCastingLights() == 1);
+            } else if (frame_count == RUNTIME_REMOVE_HOLDER_FRAME) {
+                assert(
+                    world->GetShadowCastingLight() == &standby_light_b
+                    && "The remaining flagged light takes the role over."
+                );
+                assert(scene_data.GetNumShadowCastingLights() == 1);
+                assert(scene_data.GetLightCascadeCount(0) == ALL_CASCADES);
+            } else if (frame_count == RUNTIME_RESTORE_FRAME) {
+                assert(world->GetShadowCastingLight() == &light_comp);
+                assert(scene_data.GetNumShadowCastingLights() == 1);
+            }
+            if (frame_count == GRAPH_REBUILD_FRAME) {
+                assert(
+                    &scene_data.GetShadowMapTexture(0) == shadow_texture
+                    && "Rebuilding the graph must not replace the shadow storage."
+                );
+            }
+        }
 
         if (interactive) {
             gui_system->PrepareGUI();
@@ -918,7 +1042,7 @@ int main(int argc, char **argv) {
 
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);
-        auto color = interactive ? interactive_color.get() : rg->GetInternalTextureResource(c);
+        auto color = interactive ? interactive_color.get() : rg->GetInternalTextureResource(color_handle);
         rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
 
         SDL_Delay(10);

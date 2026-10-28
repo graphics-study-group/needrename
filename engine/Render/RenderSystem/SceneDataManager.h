@@ -29,14 +29,17 @@ namespace Engine {
         class RENDER_API SceneDataManager {
         public:
             /**
-             * @brief Maximal shadow casting lights available to the shader.
+             * @brief Number of shadow-casting light slots.
              *
-             * Affects uniform buffer size and shadow map slots.
+             * One directional light casts shadows at any time, so this is both
+             * the number of shadow map array textures the manager allocates and
+             * the number of shadow map slots the shader can sample. A scene that
+             * flags several directional lights keeps the earliest created one.
              *
              * `builtin_assets/shaders/include/engine/interface.glsl` should
              * be modified accordingly if this constant is changed.
              */
-            static constexpr uint32_t MAX_SHADOW_CASTING_LIGHTS = 4;
+            static constexpr uint32_t MAX_SHADOW_CASTING_LIGHTS = 1;
 
             /**
              * @brief Maximal cascades stored for one shadow-casting light.
@@ -53,8 +56,8 @@ namespace Engine {
              * @brief Edge length in texels of one cascade's shadow map.
              *
              * The cascade fit snaps its orthographic extents to this texel
-             * grid, and the render graphs allocate their shadow map layers at
-             * this resolution.
+             * grid, and the manager allocates every shadow map layer at this
+             * resolution.
              *
              * `builtin_assets/shaders/include/engine/shadow.glsl` should be
              * modified accordingly if this constant is changed; the shadow
@@ -95,7 +98,8 @@ namespace Engine {
 
             /**
              * @brief Create the manager by allocating uniform buffers,
-             * descriptor set layouts and pipeline layouts.
+             * descriptor set layouts, pipeline layouts and the fixed shadow map
+             * storage.
              */
             void Create();
 
@@ -187,31 +191,24 @@ namespace Engine {
             void SetLightPointNonShadowCasting(uint32_t index, glm::vec3 position, glm::vec3 intensity) noexcept;
 
             /**
-             * @brief Set the shadow map of a shadow-casting light
+             * @brief Get the shadow map storage of a shadow-casting light slot.
              *
-             * This manager does not obtain the ownership of the texture.
+             * The manager allocates one D32SFLOAT array texture for every slot
+             * the budget allows when it is created, and keeps it for its own
+             * lifetime; there is no setter. A render graph borrows the storage
+             * through `RenderGraphBuilder::ImportExternalResource`, so building
+             * or rebuilding a graph never allocates, invalidates or
+             * re-registers a shadow map.
              *
-             * The manager assumes that the shadowmap assigned is sychronized correctly,
-             * and takes the layout `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL` before
-             * sampling from it. You should use `UseImage(*shadow, ShaderRead)`
-             * or similar to synchronize its access.
+             * The texture holds one array layer per cascade and is sampled as a
+             * 2D array shadow sampler, so its layer count matches
+             * `MAX_SHADOW_CASCADES` to agree with the fallback map.
              *
-             * The shadow map holds one array layer per cascade and is sampled
-             * as a 2D array shadow sampler, so its array layer count should
-             * match `MAX_SHADOW_CASCADES` to agree with the fallback map.
-             *
-             * The sampler attached to this RTT is ignored, and an immutable
-             * sampler is used instead.
+             * @param index Slot of the shadow-casting light.
+             * @return The slot's shadow map, writable so that a render graph can
+             *         import it.
              */
-            void SetLightShadowMap(uint32_t index, const RenderTargetTexture &shadowmap) noexcept;
-
-            /**
-             * @brief Remove a shadow map from the manager.
-             *
-             * As this manager does not track the ownership of the texture,
-             * you should *always* call this method after destroying the shadow map.
-             */
-            void RemoveLightShadowMap(uint32_t index) noexcept;
+            RenderTargetTexture &GetShadowMapTexture(uint32_t index) noexcept;
 
             /**
              * @brief Set a shadow-casting light to be bound to a light component.

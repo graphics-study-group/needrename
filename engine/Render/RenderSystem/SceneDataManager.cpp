@@ -16,6 +16,7 @@
 #include <fstream>
 #include <glm.hpp>
 #include <span>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
@@ -63,14 +64,14 @@ namespace Engine::RenderSystemState {
             // The uniform block is consumed as std140 in `interface.glsl`, so the
             // host-side layout must agree with it exactly.
             static_assert(
-                sizeof(ShadowCastingLightUniformBuffer) == 1280,
+                sizeof(ShadowCastingLightUniformBuffer) == 320,
                 "ShadowCastingLightUniformBuffer must match the std140 layout of LightAttributeStruct"
             );
             static_assert(
-                offsetof(ShadowCastingLightUniformBuffer, light_color) == 64
-                    && offsetof(ShadowCastingLightUniformBuffer, light_matrices) == 128
-                    && offsetof(ShadowCastingLightUniformBuffer, cascade_splits) == 1152
-                    && offsetof(ShadowCastingLightUniformBuffer, light_cascade_count) == 1216,
+                offsetof(ShadowCastingLightUniformBuffer, light_color) == 16
+                    && offsetof(ShadowCastingLightUniformBuffer, light_matrices) == 32
+                    && offsetof(ShadowCastingLightUniformBuffer, cascade_splits) == 288
+                    && offsetof(ShadowCastingLightUniformBuffer, light_cascade_count) == 304,
                 "ShadowCastingLightUniformBuffer member offsets must match std140"
             );
 
@@ -92,8 +93,8 @@ namespace Engine::RenderSystemState {
             };
 
             static_assert(
-                sizeof(LightUniformBuffer) == 1808 && offsetof(LightUniformBuffer, shadow_casting) == 16
-                    && offsetof(LightUniformBuffer, non_shadow_casting) == 1296,
+                sizeof(LightUniformBuffer) == 848 && offsetof(LightUniformBuffer, shadow_casting) == 16
+                    && offsetof(LightUniformBuffer, non_shadow_casting) == 336,
                 "LightUniformBuffer must match the std140 layout of PerSceneUniform"
             );
 
@@ -120,7 +121,9 @@ namespace Engine::RenderSystemState {
             std::unique_ptr<Rhi::IndexedBuffer> light_back_buffer{};
             std::array<std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS>
                 bound_light_components{};
-            std::array<const RenderTargetTexture *, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps{};
+            /// One shadow map array texture per budgeted slot, allocated once and
+            /// never replaced. Render graphs only borrow these.
+            std::array<std::unique_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> shadow_maps{};
             std::shared_ptr<RenderTargetTexture> default_light_map;
 
             // Scene data
@@ -239,6 +242,30 @@ namespace Engine::RenderSystemState {
                     "Default shadowmap"
                 );
                 system.GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*default_light_map, 1.0f);
+
+                // Allocate the shadow map storage up front: every slot the budget
+                // allows gets its array texture now, so that whether a shadow map
+                // exists depends only on the compile-time budget and never on the
+                // scene's lights, the command queue, or when a graph is built.
+                for (uint32_t slot = 0; slot < shadow_maps.size(); slot++) {
+                    shadow_maps[slot] = RenderTargetTexture::CreateUnique(
+                        system.GetDeviceContext(),
+                        RenderTargetTexture::RenderTargetTextureDesc{
+                            .dimensions = 2,
+                            .width = SHADOWMAP_SIZE,
+                            .height = SHADOWMAP_SIZE,
+                            .depth = 1,
+                            .mipmap_levels = 1,
+                            .array_layers = MAX_SHADOW_CASCADES,
+                            .format = RenderTargetTexture::RTTFormat::D32SFLOAT,
+                            .multisample = 1,
+                            .is_cube_map = false
+                        },
+                        Rhi::Texture::SamplerDesc{},
+                        "Shadow Map " + std::to_string(slot)
+                    );
+                    assert(shadow_maps[slot] && "Shadow map storage must exist for every budgeted slot.");
+                }
 
                 // Write out descriptors
                 std::vector<vk::DescriptorBufferInfo> buffers(
@@ -407,40 +434,11 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
     }
 
-    void SceneDataManager::SetLightShadowMap(uint32_t index, const RenderTargetTexture &shadowmap) noexcept {
-        if (index >= MAX_SHADOW_CASTING_LIGHTS) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "Shadow map index %u is out of range (%u supported); the shadow map is ignored.",
-                index,
-                MAX_SHADOW_CASTING_LIGHTS
-            );
-            return;
-        }
-#ifndef NDEBUG
-        {
-            auto desc = shadowmap.GetTextureDescription();
-            assert(desc.array_layers >= 1 && desc.mipmap_levels == 1);
-            assert(desc.dimensions == 2 && desc.depth == 1 && desc.height > 1 && desc.width > 1);
-            assert(desc.is_cube_map == false);
-            assert(desc.memory_type.Test(Rhi::ImageMemoryTypeBits::DepthStencilAttachment));
-            assert(desc.format == Rhi::ImageFormat::D32SFLOAT);
-        }
-#endif
-        pimpl->scene.bound_shadow_maps[index] = &shadowmap;
-    }
-
-    void SceneDataManager::RemoveLightShadowMap(uint32_t index) noexcept {
-        if (index >= MAX_SHADOW_CASTING_LIGHTS) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "Shadow map index %u is out of range (%u supported); nothing was removed.",
-                index,
-                MAX_SHADOW_CASTING_LIGHTS
-            );
-            return;
-        }
-        pimpl->scene.bound_shadow_maps[index] = nullptr;
+    RenderTargetTexture &SceneDataManager::GetShadowMapTexture(uint32_t index) noexcept {
+        assert(index < MAX_SHADOW_CASTING_LIGHTS && "Only budgeted shadow map slots have storage.");
+        auto &shadow_map = pimpl->scene.shadow_maps[index];
+        assert(shadow_map && "Shadow map storage is allocated when the manager is created.");
+        return *shadow_map;
     }
 
     void SceneDataManager::SetLight(uint32_t index, std::shared_ptr<void> light) noexcept {
@@ -509,30 +507,14 @@ namespace Engine::RenderSystemState {
 
         const auto shadow_casting_light_count = pimpl->scene.light_front_buffer.shadow_casting_light_count;
         for (size_t i = 0; i < MAX_SHADOW_CASTING_LIGHTS; i++) {
-            bool use_default_map = true;
-            if (i < shadow_casting_light_count) {
-                if (pimpl->scene.bound_shadow_maps[i] != nullptr) {
-                    use_default_map = false;
-                    shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
-                        nullptr, pimpl->scene.bound_shadow_maps[i]->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
-                    };
-                } else {
-                    // No storage was allocated for this light when the render
-                    // graph was built; the light keeps lighting the scene, but
-                    // without dynamic shadows.
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Shadow casting light %u has no shadow map storage; it is rendered without dynamic shadows.",
-                        static_cast<uint32_t>(i)
-                    );
-                }
-            }
-
-            if (use_default_map) {
-                shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
-                    nullptr, pimpl->scene.default_light_map->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
-                };
-            }
+            // The manager owns every slot, so a used slot always has storage. The
+            // remaining slots keep sampling the fallback map; the shaders never
+            // read a slot past the reported light count.
+            const vk::ImageView image_view = i < shadow_casting_light_count
+                                                 ? pimpl->scene.shadow_maps[i]->GetImageView()
+                                                 : pimpl->scene.default_light_map->GetImageView();
+            shadowmap_image_descriptor_writes[i] =
+                vk::DescriptorImageInfo{nullptr, image_view, vk::ImageLayout::eReadOnlyOptimal};
         }
 
         descriptor_writes.push_back(

@@ -1,6 +1,7 @@
 #include "InspectorRegistrations.h"
 #include "Inspector/AssetInspector.h"
 #include "Inspector/HandleInspectors.h"
+#include "Inspector/LightComponentInspector.h"
 #include "Inspector/PhysicsConstraintComponentInspector.h"
 #include <Editor/Inspector/ComponentInspectorRegistry.h>
 #include <Editor/Inspector/VarInspectorRegistry.h>
@@ -16,5 +17,6 @@ namespace Editor {
         registry.Register(
             "Engine::PhysicsConstraintComponent", std::make_unique<PhysicsConstraintComponentInspector>()
         );
+        registry.Register("Engine::LightComponent", std::make_unique<LightComponentInspector>());
     }
 } // namespace Editor

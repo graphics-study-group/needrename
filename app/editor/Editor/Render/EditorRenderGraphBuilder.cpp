@@ -86,9 +86,9 @@ namespace Editor {
             m_system.GetSceneDataManager().GetModelMatricesBuffer(), Rhi::MemoryAccessTypeBuffer(IBT::ShaderRandomWrite)
         );
 
-        // Shadow map storage and cascade passes. One array texture (one layer per
-        // cascade) is allocated per shadow-casting light present, and every pass
-        // renders all of its light's cascades. Shared with the default graph
+        // Shadow map cascade passes. The storage is render-owned and every
+        // budgeted slot is imported into the graph, so lights can come and go at
+        // runtime without this graph being rebuilt. Shared with the default graph
         // builder so both applications stay in step.
         const std::vector<RGTextureHandle> shadow_ids = AddShadowCascadePasses(rgb, m_system, mm_handle);
 
@@ -276,11 +276,6 @@ namespace Editor {
                 .Get()
         );
 
-        auto rg = rgb.BuildRenderGraph();
-
-        // Post-build: register shadow maps with scene data manager
-        RegisterShadowCascadeMaps(*rg, system, shadow_ids);
-
-        return rg;
+        return rgb.BuildRenderGraph();
     }
 } // namespace Editor

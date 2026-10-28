@@ -5,10 +5,7 @@ schema: spec-driven
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
 # Example:
 context: |
-  This project is a C++ game engine with:
-  - **Vulkan-based rendering** with multi-tier descriptor set architecture
-  - **Python-powered reflection/serialization** via libclang parsing at compile time
-  - **Component-based game framework** with World → Scene → GameObject/Component hierarchy
+  Write openspec artifacts with English.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

@@ -18,7 +18,9 @@
 #include <Asset/AssetRef.h>
 #include <Framework/Scene/LevelAsset.h>
 
-#include <algorithm>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 namespace Engine {
     WorldSystem::WorldSystem() {
@@ -30,27 +32,42 @@ namespace Engine {
     WorldSystem::~WorldSystem() {
     }
 
-    namespace {
-        /// Radiance a light contributes, used to rank shadow-casting lights.
-        float LightBrightness(const LightComponent &light) {
-            const glm::vec3 radiance = light.m_color * light.m_intensity;
-            return std::max(radiance.r, std::max(radiance.g, radiance.b));
+    LightComponent *WorldSystem::GetShadowCastingLight() const noexcept {
+        // The first flagged directional light in the scene's component order holds
+        // the role. Components are appended when the command queue is flushed and
+        // removal keeps the remaining order, so the list is creation order: this
+        // is the earliest created light without inspecting handles or any light
+        // parameter. `UpdateLightData` applies the same rule during its own scan.
+        for (auto &comp : m_main_scene->GetComponents()) {
+            auto *light = dynamic_cast<LightComponent *>(comp.get());
+            if (light != nullptr && light->m_cast_shadow && light->m_type == LightType::Directional) {
+                return light;
+            }
         }
-    } // namespace
+        return nullptr;
+    }
 
     void WorldSystem::UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager) {
         std::vector<LightComponent *> casting_light;
         std::vector<LightComponent *> non_casting_light;
+        std::vector<LightComponent *> demoted_lights;
         for (auto &comp : m_main_scene->GetComponents()) {
             auto ptr = dynamic_cast<LightComponent *>(comp.get());
             if (ptr) {
                 if (ptr->m_cast_shadow) {
-                    if (ptr->m_type == LightType::Directional) {
-                        casting_light.push_back(ptr);
-                    } else {
+                    if (ptr->m_type != LightType::Directional) {
                         SDL_LogWarn(
                             SDL_LOG_CATEGORY_APPLICATION, "Shadow casting point light and spot light are not supported."
                         );
+                    } else if (casting_light.empty()) {
+                        // The first one found is the scene's only shadow caster;
+                        // every later flagged light is demoted below.
+                        casting_light.push_back(ptr);
+                    } else {
+                        // Another light already holds the role: this one keeps
+                        // lighting the scene, but without dynamic shadows.
+                        demoted_lights.push_back(ptr);
+                        non_casting_light.push_back(ptr);
                     }
                 } else {
                     if (ptr->m_type != LightType::Spot) {
@@ -61,27 +78,25 @@ namespace Engine {
                 }
             }
         }
+        const LightComponent *holder = casting_light.empty() ? nullptr : casting_light.front();
 
-        // Only a bounded number of directional lights can hold a shadow map
-        // slot. Keep the brightest ones and let the rest light the scene
-        // without dynamic shadows.
-        std::stable_sort(
-            casting_light.begin(), casting_light.end(), [](const LightComponent *lhs, const LightComponent *rhs) {
-                return LightBrightness(*lhs) > LightBrightness(*rhs);
-            }
-        );
-        constexpr size_t MAX_CASTING = RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS;
-        for (size_t i = MAX_CASTING; i < casting_light.size(); i++) {
+        // Report each demotion once rather than every frame: a hand-edited scene
+        // keeps the same set of losing lights until it is edited again.
+        std::unordered_set<uint32_t> demoted_ids;
+        demoted_ids.reserve(demoted_lights.size());
+        for (auto *demoted : demoted_lights) {
+            const uint32_t id = demoted->GetHandle().GetID();
+            demoted_ids.insert(id);
+            if (m_demoted_shadow_lights.count(id) != 0) continue;
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_APPLICATION,
-                "Shadow casting directional light '%s' is dropped: at most %zu shadow casting directional lights are "
-                "supported. It keeps lighting the scene without shadows.",
-                casting_light[i]->GetParentGameObject()->m_name.c_str(),
-                MAX_CASTING
+                "Shadow casting directional light '%s' is dropped: only one directional light holds the "
+                "shadow-caster role, and that is '%s'. It keeps lighting the scene without dynamic shadows.",
+                demoted->GetParentGameObject()->m_name.c_str(),
+                holder != nullptr ? holder->GetParentGameObject()->m_name.c_str() : ""
             );
-            non_casting_light.push_back(casting_light[i]);
         }
-        if (casting_light.size() > MAX_CASTING) casting_light.resize(MAX_CASTING);
+        m_demoted_shadow_lights = std::move(demoted_ids);
 
         constexpr size_t MAX_NON_CASTING = RenderSystemState::SceneDataManager::MAX_NON_SHADOW_CASTING_LIGHTS;
         if (non_casting_light.size() > MAX_NON_CASTING) {
@@ -163,16 +178,6 @@ namespace Engine {
         return nullptr;
     }
 
-    uint32_t WorldSystem::GetShadowCastingLightCount() const noexcept {
-        uint32_t count = 0;
-        for (auto &comp : m_main_scene->GetComponents()) {
-            auto *light = dynamic_cast<LightComponent *>(comp.get());
-            if (light == nullptr) continue;
-            if (!light->m_cast_shadow || light->m_type != LightType::Directional) continue;
-            count++;
-        }
-        return std::min<uint32_t>(count, RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS);
-    }
     void WorldSystem::SetActiveCamera(
         ComponentHandle camera_comp, RenderSystemState::CameraManager *registrar
     ) noexcept {
