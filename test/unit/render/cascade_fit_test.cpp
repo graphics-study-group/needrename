@@ -8,7 +8,7 @@
 #include <ext/matrix_transform.hpp>
 #include <glm.hpp>
 
-#include "Render/RenderSystem/ShadowCascadeFit.h"
+#include "Render/Shadow/ShadowCascadeFit.h"
 
 using namespace Engine::RenderSystemState;
 

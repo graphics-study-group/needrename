@@ -1,5 +1,5 @@
-#ifndef RENDERSYSTEM_SHADOWCASCADEFIT_INCLUDED
-#define RENDERSYSTEM_SHADOWCASCADEFIT_INCLUDED
+#ifndef RENDER_SHADOW_SHADOWCASCADEFIT_INCLUDED
+#define RENDER_SHADOW_SHADOWCASCADEFIT_INCLUDED
 
 #include "Render/RenderSystem/SceneDataManager.h"
 #include "Render/render_export.h"
@@ -63,4 +63,4 @@ namespace Engine::RenderSystemState {
     RENDER_API ShadowCascadeFit FitShadowCascades(const ShadowCascadeFitParams &params) noexcept;
 } // namespace Engine::RenderSystemState
 
-#endif // RENDERSYSTEM_SHADOWCASCADEFIT_INCLUDED
+#endif // RENDER_SHADOW_SHADOWCASCADEFIT_INCLUDED

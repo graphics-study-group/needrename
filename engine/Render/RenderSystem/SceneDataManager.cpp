@@ -1,8 +1,8 @@
 #include "SceneDataManager.h"
 
-#include "Render/RenderSystem/ShadowCascadeFit.h"
 #include "Render/Resource/MaterialInstanceManager.h"
 #include "Render/Resource/RenderResourceHandle.h"
+#include "Render/Shadow/ShadowCascadeFit.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
