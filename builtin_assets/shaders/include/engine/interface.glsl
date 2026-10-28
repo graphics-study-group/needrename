@@ -3,17 +3,8 @@
 
 #define MAX_SHADOW_CASTING_LIGHTS 4
 #define MAX_SHADOW_CASCADES 4
-#define MAX_NON_CASTING_LIGHTS 16
+#define MAX_NON_SHADOW_CASTING_LIGHTS 16
 #define MAX_CAMERAS 16
-
-/**
- * Edge length of one cascade's shadow map in texels.
- *
- * Kept in sync with `SceneDataManager::SHADOWMAP_SIZE`; the shadow sampling
- * derives a cascade's world space texel size from its orthographic matrix and
- * this value.
- */
-#define SHADOWMAP_SIZE 2048.0
 
 struct LightAttributeStruct {
     vec4 light_source[MAX_SHADOW_CASTING_LIGHTS];
@@ -34,8 +25,8 @@ struct LightAttributeStruct {
 };
 
 struct NonCastingLightAttributeStruct {
-    vec4 light_source[MAX_NON_CASTING_LIGHTS];
-    vec4 light_color[MAX_NON_CASTING_LIGHTS];
+    vec4 light_source[MAX_NON_SHADOW_CASTING_LIGHTS];
+    vec4 light_color[MAX_NON_SHADOW_CASTING_LIGHTS];
 };
 
 layout(std140, set = 0, binding = 0) uniform PerSceneUniform {
