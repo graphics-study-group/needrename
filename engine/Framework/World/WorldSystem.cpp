@@ -163,6 +163,15 @@ namespace Engine {
     void WorldSystem::UpdateRendererData(RenderSystem &render_system) {
         auto &scene = GetMainSceneRef();
 
+        // Camera matrices are frame data: the view matrix is derived from the
+        // parent's world transform, and `CameraComponent::Tick` only runs while the
+        // scene is stepped. A host that renders without stepping it (the editor
+        // before the game is started) still needs the current pose, both for the
+        // view it draws and for the shadow cascades fitted to it below.
+        if (auto *camera_component = scene.GetComponent<CameraComponent>(m_active_camera)) {
+            camera_component->UpdateViewMatrix();
+        }
+
         for (auto &comp : scene.GetComponents()) {
             if (auto *renderer_comp = dynamic_cast<RendererComponent *>(comp.get())) {
                 renderer_comp->PreRenderUpdate();
