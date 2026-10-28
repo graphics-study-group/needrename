@@ -10,6 +10,7 @@
 namespace vk {
     class DescriptorSet;
     class DescriptorSetLayout;
+    class PipelineLayout;
     struct Extent2D;
 } // namespace vk
 
@@ -19,6 +20,7 @@ namespace Engine {
     }
     class RenderSystem;
     class CommandBuffer;
+    class RenderTargetTexture;
 
     namespace RenderSystemState {
         /**
@@ -53,6 +55,11 @@ namespace Engine {
              * The cascade fit snaps its orthographic extents to this texel
              * grid, and the render graphs allocate their shadow map layers at
              * this resolution.
+             *
+             * `builtin_assets/shaders/include/engine/shadow.glsl` should be
+             * modified accordingly if this constant is changed; the shadow
+             * sampling converts its PCF radius and normal offset from texels with
+             * it, so a mismatch only softens shadows instead of failing.
              */
             static constexpr uint32_t SHADOWMAP_SIZE = 2048;
 
@@ -100,7 +107,7 @@ namespace Engine {
              * light keeps lighting the scene through its last cascade fit.
              *
              * @param index     Slot of the shadow-casting light.
-             * @param direction Unit vector pointing from the scene towards the light.
+             * @param direction Unit vector the light travels along, pointing from the light towards the scene.
              * @param intensity Linear RGB colour multiplied by the light's strength.
              */
             void SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept;
@@ -120,7 +127,7 @@ namespace Engine {
              * leaves the light's previous cascades untouched.
              *
              * @param index             Slot of the shadow-casting light.
-             * @param direction         Unit vector pointing from the scene towards the light.
+             * @param direction         Unit vector the light travels along, pointing from the light towards the scene.
              * @param intensity         Linear RGB colour multiplied by the light's strength.
              * @param camera_view       View matrix of the camera the shadows are fitted to.
              * @param camera_projection Projection matrix of that camera.
