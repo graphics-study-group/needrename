@@ -106,7 +106,7 @@
                 "%type": "Engine::StaticMeshComponent",
                 "Component::m_handle": 5,
                 "Component::m_parentGameObject": 1,
-                "RendererComponent::m_cast_shadow": false,
+                "RendererComponent::m_cast_shadow": true,
                 "RendererComponent::m_is_eagerly_loaded": false,
                 "RendererComponent::m_layer": 4294967295,
                 "RendererComponent::m_material_assets": [

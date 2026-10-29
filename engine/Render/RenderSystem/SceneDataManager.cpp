@@ -2,6 +2,7 @@
 
 #include "Render/Resource/MaterialInstanceManager.h"
 #include "Render/Resource/RenderResourceHandle.h"
+#include "Render/Shadow/ShadowCascadeFit.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
@@ -10,18 +11,32 @@
 
 #include <SDL3/SDL.h>
 #include <algorithm>
-#include <ext/matrix_clip_space.hpp>
-#include <ext/matrix_transform.hpp>
+#include <cmath>
+#include <cstddef>
 #include <fstream>
+#include <glm.hpp>
 #include <span>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+
+namespace {
+    /// Smallest shadow distance accepted from a light component.
+    constexpr float MIN_SHADOW_DISTANCE = 1e-3f;
+} // namespace
 
 namespace Engine::RenderSystemState {
     struct SceneDataManager::impl {
         vk::Device device{};
 
         struct Scene {
+            /// One light's cascade count, padded to the std140 array stride of a
+            /// scalar array so that it matches `interface.glsl`.
+            struct alignas(16) CascadeCountSlot {
+                uint32_t count{0};
+                uint32_t padding[3]{0};
+            };
+
             struct ShadowCastingLightUniformBuffer {
                 /// Light source in world coordinate, could be position or direction.
                 /// The last component is unused.
@@ -32,9 +47,33 @@ namespace Engine::RenderSystemState {
                 alignas(16) glm::vec4 light_color[MAX_SHADOW_CASTING_LIGHTS];
 
                 /// Light matrices used in shadow mapping.
-                /// Precaculated projection * view matrices.
-                alignas(16) glm::mat4 light_matrices[MAX_SHADOW_CASTING_LIGHTS];
+                /// Precaculated projection * view matrices, flattened so that the
+                /// cascade `c` of light `l` lives at `l * MAX_SHADOW_CASCADES + c`.
+                alignas(16) glm::mat4 light_matrices[MAX_SHADOW_CASTING_LIGHTS * MAX_SHADOW_CASCADES];
+
+                /// Cascade end distances along the camera's view axis. The
+                /// component at `c + 1` holds the end of cascade `c`, so the last
+                /// used component is the light's effective shadow distance.
+                alignas(16) glm::vec4 cascade_splits[MAX_SHADOW_CASTING_LIGHTS];
+
+                /// Number of valid cascades of each light; 0 means the light has no
+                /// fitted cascades and is rendered without dynamic shadows.
+                alignas(16) CascadeCountSlot light_cascade_count[MAX_SHADOW_CASTING_LIGHTS];
             };
+
+            // The uniform block is consumed as std140 in `interface.glsl`, so the
+            // host-side layout must agree with it exactly.
+            static_assert(
+                sizeof(ShadowCastingLightUniformBuffer) == 320,
+                "ShadowCastingLightUniformBuffer must match the std140 layout of LightAttributeStruct"
+            );
+            static_assert(
+                offsetof(ShadowCastingLightUniformBuffer, light_color) == 16
+                    && offsetof(ShadowCastingLightUniformBuffer, light_matrices) == 32
+                    && offsetof(ShadowCastingLightUniformBuffer, cascade_splits) == 288
+                    && offsetof(ShadowCastingLightUniformBuffer, light_cascade_count) == 304,
+                "ShadowCastingLightUniformBuffer member offsets must match std140"
+            );
 
             struct NonShadowCastingLightUniformBuffer {
                 /// Light source in world coordinate, could be position or direction.
@@ -52,6 +91,12 @@ namespace Engine::RenderSystemState {
                 ShadowCastingLightUniformBuffer shadow_casting;
                 NonShadowCastingLightUniformBuffer non_shadow_casting;
             };
+
+            static_assert(
+                sizeof(LightUniformBuffer) == 848 && offsetof(LightUniformBuffer, shadow_casting) == 16
+                    && offsetof(LightUniformBuffer, non_shadow_casting) == 336,
+                "LightUniformBuffer must match the std140 layout of PerSceneUniform"
+            );
 
             static constexpr std::array DESCRIPTOR_BINDINGS{
                 // Uniform buffer for lights
@@ -76,7 +121,9 @@ namespace Engine::RenderSystemState {
             std::unique_ptr<Rhi::IndexedBuffer> light_back_buffer{};
             std::array<std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS>
                 bound_light_components{};
-            std::array<const RenderTargetTexture *, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps{};
+            /// One shadow map array texture per budgeted slot, allocated once and
+            /// never replaced. Render graphs only borrow these.
+            std::array<std::unique_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> shadow_maps{};
             std::shared_ptr<RenderTargetTexture> default_light_map;
 
             // Scene data
@@ -176,13 +223,15 @@ namespace Engine::RenderSystemState {
                     submission_helper.ExecuteSubmissionImmediately();
                 }
 
-                // Prepare default depth map
+                // Prepare default depth map. It is an array texture with the same
+                // layer count and format as a real shadow map, so that every view
+                // bound to the shadow map binding has the same type.
                 default_light_map = RenderTargetTexture::CreateUnique(
                     system.GetDeviceContext(),
                     RenderTargetTexture::RenderTargetTextureDesc{
                         .dimensions = 2,
                         .width = 16, .height = 16, .depth = 1,
-                        .mipmap_levels = 1, .array_layers = 1,
+                        .mipmap_levels = 1, .array_layers = MAX_SHADOW_CASCADES,
                         .format = RenderTargetTexture::RTTFormat::D32SFLOAT,
                         .multisample = 1,
                         .is_cube_map = false
@@ -193,6 +242,30 @@ namespace Engine::RenderSystemState {
                     "Default shadowmap"
                 );
                 system.GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*default_light_map, 1.0f);
+
+                // Allocate the shadow map storage up front: every slot the budget
+                // allows gets its array texture now, so that whether a shadow map
+                // exists depends only on the compile-time budget and never on the
+                // scene's lights, the command queue, or when a graph is built.
+                for (uint32_t slot = 0; slot < shadow_maps.size(); slot++) {
+                    shadow_maps[slot] = RenderTargetTexture::CreateUnique(
+                        system.GetDeviceContext(),
+                        RenderTargetTexture::RenderTargetTextureDesc{
+                            .dimensions = 2,
+                            .width = SHADOWMAP_SIZE,
+                            .height = SHADOWMAP_SIZE,
+                            .depth = 1,
+                            .mipmap_levels = 1,
+                            .array_layers = MAX_SHADOW_CASCADES,
+                            .format = RenderTargetTexture::RTTFormat::D32SFLOAT,
+                            .multisample = 1,
+                            .is_cube_map = false
+                        },
+                        Rhi::Texture::SamplerDesc{},
+                        "Shadow Map " + std::to_string(slot)
+                    );
+                    assert(shadow_maps[slot] && "Shadow map storage must exist for every budgeted slot.");
+                }
 
                 // Write out descriptors
                 std::vector<vk::DescriptorBufferInfo> buffers(
@@ -253,17 +326,86 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept {
-        assert(index < MAX_SHADOW_CASTING_LIGHTS);
+        if (index >= MAX_SHADOW_CASTING_LIGHTS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Shadow casting light index %u is out of range (%u supported); the light is ignored.",
+                index,
+                MAX_SHADOW_CASTING_LIGHTS
+            );
+            return;
+        }
         pimpl->scene.light_front_buffer.shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
         pimpl->scene.light_front_buffer.shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
-        // TODO: determine clip planes and light eye position from the scene
-        auto proj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.001f, 100.0f);
-        proj[1][1] *= -1.0f;
-        float distance = 30.0f;
-        auto view = glm::lookAtRH(
-            -glm::normalize(direction) * distance, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f}
+    }
+
+    void SceneDataManager::SetLightDirectional(
+        uint32_t index,
+        glm::vec3 direction,
+        glm::vec3 intensity,
+        const glm::mat4 &camera_view,
+        const glm::mat4 &camera_projection,
+        float camera_near,
+        float camera_far,
+        float shadow_distance,
+        uint32_t cascade_count
+    ) noexcept {
+        if (index >= MAX_SHADOW_CASTING_LIGHTS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Shadow casting light index %u is out of range (%u supported); the light is ignored.",
+                index,
+                MAX_SHADOW_CASTING_LIGHTS
+            );
+            return;
+        }
+        SetLightDirectional(index, direction, intensity);
+
+        // Clamp the configuration before it reaches the fit, so that a
+        // hand-edited or stale serialized value cannot produce degenerate cascades.
+        const float distance = (std::isfinite(shadow_distance) && shadow_distance > MIN_SHADOW_DISTANCE)
+                                   ? shadow_distance
+                                   : MIN_SHADOW_DISTANCE;
+        const uint32_t cascades = std::clamp(cascade_count, 1u, MAX_SHADOW_CASCADES);
+
+        const ShadowCascadeFit fitted = FitShadowCascades(
+            ShadowCascadeFitParams{
+                .direction = direction,
+                .camera_view = camera_view,
+                .camera_projection = camera_projection,
+                .camera_near = camera_near,
+                .camera_far = camera_far,
+                .shadow_distance = distance,
+                .cascade_count = cascades,
+            }
         );
-        pimpl->scene.light_front_buffer.shadow_casting.light_matrices[index] = proj * view;
+        if (!fitted.valid) {
+            // Degenerate direction or slice: keep the previous frame's cascades
+            // rather than uploading matrices that could not be inverted.
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Shadow cascade fit for light %u was rejected; the previous frame's cascades are kept.",
+                index
+            );
+            return;
+        }
+
+        auto &light = pimpl->scene.light_front_buffer.shadow_casting;
+        for (uint32_t cascade = 0; cascade < MAX_SHADOW_CASCADES; cascade++) {
+            light.light_matrices[index * MAX_SHADOW_CASCADES + cascade] = fitted.matrices[cascade];
+        }
+        light.cascade_splits[index] = fitted.splits;
+        light.light_cascade_count[index].count = fitted.count;
+    }
+
+    uint32_t SceneDataManager::GetLightCascadeCount(uint32_t index) const noexcept {
+        if (index >= MAX_SHADOW_CASTING_LIGHTS) return 0;
+        return pimpl->scene.light_front_buffer.shadow_casting.light_cascade_count[index].count;
+    }
+
+    glm::mat4 SceneDataManager::GetLightCascadeMatrix(uint32_t index, uint32_t cascade) const noexcept {
+        if (index >= MAX_SHADOW_CASTING_LIGHTS || cascade >= MAX_SHADOW_CASCADES) return glm::mat4{1.0f};
+        return pimpl->scene.light_front_buffer.shadow_casting.light_matrices[index * MAX_SHADOW_CASCADES + cascade];
     }
 
     void SceneDataManager::SetLightPoint(uint32_t, glm::vec3, glm::vec3, float) noexcept {
@@ -292,28 +434,23 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
     }
 
-    void SceneDataManager::SetLightShadowMap(uint32_t index, const RenderTargetTexture &shadowmap) noexcept {
-        assert(index < MAX_SHADOW_CASTING_LIGHTS);
-#ifndef NDEBUG
-        {
-            auto desc = shadowmap.GetTextureDescription();
-            assert(desc.array_layers == 1 && desc.mipmap_levels == 1);
-            assert(desc.dimensions == 2 && desc.depth == 1 && desc.height > 1 && desc.width > 1);
-            assert(desc.is_cube_map == false);
-            assert(desc.memory_type.Test(Rhi::ImageMemoryTypeBits::DepthStencilAttachment));
-            assert(desc.format == Rhi::ImageFormat::D32SFLOAT);
-        }
-#endif
-        pimpl->scene.bound_shadow_maps[index] = &shadowmap;
-    }
-
-    void SceneDataManager::RemoveLightShadowMap(uint32_t index) noexcept {
-        assert(index < MAX_SHADOW_CASTING_LIGHTS);
-        pimpl->scene.bound_shadow_maps[index] = nullptr;
+    RenderTargetTexture &SceneDataManager::GetShadowMapTexture(uint32_t index) noexcept {
+        assert(index < MAX_SHADOW_CASTING_LIGHTS && "Only budgeted shadow map slots have storage.");
+        auto &shadow_map = pimpl->scene.shadow_maps[index];
+        assert(shadow_map && "Shadow map storage is allocated when the manager is created.");
+        return *shadow_map;
     }
 
     void SceneDataManager::SetLight(uint32_t index, std::shared_ptr<void> light) noexcept {
-        assert(index < MAX_SHADOW_CASTING_LIGHTS);
+        if (index >= MAX_SHADOW_CASTING_LIGHTS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Shadow casting light index %u is out of range (%u supported); the binding is ignored.",
+                index,
+                MAX_SHADOW_CASTING_LIGHTS
+            );
+            return;
+        }
         pimpl->scene.bound_light_components[index] = light;
     }
 
@@ -323,7 +460,15 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::SetLightCount(uint32_t count) noexcept {
-        assert(count < MAX_SHADOW_CASTING_LIGHTS);
+        if (count > MAX_SHADOW_CASTING_LIGHTS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "%u shadow casting lights were reported, but only %u are supported; the extra ones are ignored.",
+                count,
+                MAX_SHADOW_CASTING_LIGHTS
+            );
+            count = MAX_SHADOW_CASTING_LIGHTS;
+        }
         pimpl->scene.light_front_buffer.shadow_casting_light_count = count;
     }
 
@@ -332,7 +477,8 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::SetLightCountNonShadowCasting(uint32_t count) noexcept {
-        assert(count < MAX_NON_SHADOW_CASTING_LIGHTS);
+        // Exactly the maximum is valid: the last light still has a slot.
+        assert(count <= MAX_NON_SHADOW_CASTING_LIGHTS);
         pimpl->scene.light_front_buffer.non_shadow_casting_light_count = count;
     }
 
@@ -361,23 +507,14 @@ namespace Engine::RenderSystemState {
 
         const auto shadow_casting_light_count = pimpl->scene.light_front_buffer.shadow_casting_light_count;
         for (size_t i = 0; i < MAX_SHADOW_CASTING_LIGHTS; i++) {
-            bool use_default_map = true;
-            if (i < shadow_casting_light_count) {
-                if (pimpl->scene.bound_shadow_maps[i] != nullptr) {
-                    use_default_map = false;
-                    shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
-                        nullptr, pimpl->scene.bound_shadow_maps[i]->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
-                    };
-                } else {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Shadowmap %llu is not assigned, and is defaulted.", i);
-                }
-            }
-
-            if (use_default_map) {
-                shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
-                    nullptr, pimpl->scene.default_light_map->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
-                };
-            }
+            // The manager owns every slot, so a used slot always has storage. The
+            // remaining slots keep sampling the fallback map; the shaders never
+            // read a slot past the reported light count.
+            const vk::ImageView image_view = i < shadow_casting_light_count
+                                                 ? pimpl->scene.shadow_maps[i]->GetImageView()
+                                                 : pimpl->scene.default_light_map->GetImageView();
+            shadowmap_image_descriptor_writes[i] =
+                vk::DescriptorImageInfo{nullptr, image_view, vk::ImageLayout::eReadOnlyOptimal};
         }
 
         descriptor_writes.push_back(

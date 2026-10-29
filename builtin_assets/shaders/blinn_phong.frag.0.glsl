@@ -1,9 +1,9 @@
 #version 450
 #extension GL_ARB_shading_language_include : require
 #include <engine/interface.glsl>
+#include <engine/shadow.glsl>
 
 layout(constant_id = 0) const int SPECULAR_SHADING_MODE = 2;
-layout(constant_id = 1) const float SHADOW_BIAS = 0.005;
 
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_uv;
@@ -18,20 +18,6 @@ layout(set = 2, binding = 0) uniform Material {
     vec4 ambient_color;
 } material;
 
-// Calculate shadow factor for a given light with PCF anti-aliasing
-float calculateShadow(int lightIndex)
-{
-    // Determine fragment position in light space
-    vec4 frag_position_ls = scene.casting_lights.light_vp_matrix[lightIndex] * vec4(frag_position, 1.0);
-    frag_position_ls.xyz /= frag_position_ls.w;
-    // mapping [-1, 1] to [0, 1] for sampling
-    frag_position_ls.xy *= 0.5;
-    frag_position_ls.xy += 0.5;
-    
-    float shadow = texture(light_shadowmaps[lightIndex], vec3(frag_position_ls.xy, frag_position_ls.z - SHADOW_BIAS));
-    return shadow;
-}
-
 void main() {
     vec3 frag_position_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz;
     // Get normalized normal vector in view space
@@ -40,6 +26,12 @@ void main() {
     vec3 view_position_vs = vec3(0.0, 0.0, 0.0);
     // Get view vector
     vec3 view_vs = normalize(view_position_vs - frag_position_vs);
+
+    // Cascade selection works on the view space depth; the normal offset uses the
+    // geometric normal.
+    const float view_depth = -frag_position_vs.z;
+    const vec3 geometric_normal = normalize(frag_normal);
+    const float shadow_rotation = interleavedGradientNoise(gl_FragCoord.xy) * TWO_PI;
 
     // Sample base color
     const vec3 base_color = texture(base_tex, frag_uv).rgb * frag_color;
@@ -98,8 +90,8 @@ void main() {
             specular_coef = pow(max(0.0, dot(normal_vs, halfway)), shininess);
         }
 
-        // Calculate shadow factor with PCF anti-aliasing
-        float shadow_coef = calculateShadow(i);
+        // Calculate the shadow factor with cascade selection and PCF
+        float shadow_coef = calculateShadow(i, frag_position, geometric_normal, view_depth, shadow_rotation);
 
         // Calculate light color
         vec3 light_color = scene.casting_lights.light_color[i].rgb;

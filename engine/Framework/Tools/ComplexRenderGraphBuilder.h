@@ -20,9 +20,6 @@ namespace Engine {
      * TODO: Need better way to manage the render graph.
      */
     class FRAMEWORK_API ComplexRenderGraphBuilder {
-        static const uint32_t SHADOWMAP_WIDTH = 2048;
-        static const uint32_t SHADOWMAP_HEIGHT = 2048;
-
     public:
         ComplexRenderGraphBuilder(RenderSystem &system);
         ~ComplexRenderGraphBuilder() = default;

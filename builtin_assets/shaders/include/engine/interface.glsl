@@ -1,28 +1,41 @@
 #ifndef INTERFACE_GLSL_INCLUDED
 #define INTERFACE_GLSL_INCLUDED
 
-#define MAX_SHADOW_CASTING_LIGHTS 8
-#define MAX_NON_CASTING_LIGHTS 16
+#define MAX_SHADOW_CASTING_LIGHTS 1
+#define MAX_SHADOW_CASCADES 4
+#define MAX_NON_SHADOW_CASTING_LIGHTS 16
 #define MAX_CAMERAS 16
 
 struct LightAttributeStruct {
     vec4 light_source[MAX_SHADOW_CASTING_LIGHTS];
     vec4 light_color[MAX_SHADOW_CASTING_LIGHTS];
-    mat4 light_vp_matrix[MAX_SHADOW_CASTING_LIGHTS];
+    /**
+     * Projection * view matrix of every cascade of every light, indexed
+     * `light * MAX_SHADOW_CASCADES + cascade`.
+     */
+    mat4 light_vp_matrix[MAX_SHADOW_CASTING_LIGHTS * MAX_SHADOW_CASCADES];
+    /**
+     * Cascade end distances measured from the camera along its view axis. The
+     * component at `c + 1` ends cascade `c`, so the light's effective shadow
+     * distance is the last component the light's cascade count covers.
+     */
+    vec4 cascade_splits[MAX_SHADOW_CASTING_LIGHTS];
+    /// Number of fitted cascades per light; 0 means the light casts no shadow.
+    uint light_cascade_count[MAX_SHADOW_CASTING_LIGHTS];
 };
 
 struct NonCastingLightAttributeStruct {
-    vec4 light_source[MAX_NON_CASTING_LIGHTS];
-    vec4 light_color[MAX_NON_CASTING_LIGHTS];
+    vec4 light_source[MAX_NON_SHADOW_CASTING_LIGHTS];
+    vec4 light_color[MAX_NON_SHADOW_CASTING_LIGHTS];
 };
 
-layout(set = 0, binding = 0) uniform PerSceneUniform {
+layout(std140, set = 0, binding = 0) uniform PerSceneUniform {
     uint casting_light_count;
     uint noncasting_light_count;
     LightAttributeStruct casting_lights;
     NonCastingLightAttributeStruct noncasting_lights;
 } scene;
-layout(set = 0, binding = 1) uniform sampler2DShadow light_shadowmaps[MAX_SHADOW_CASTING_LIGHTS];
+layout(set = 0, binding = 1) uniform sampler2DArrayShadow light_shadowmaps[MAX_SHADOW_CASTING_LIGHTS];
 
 layout(set = 0, binding = 2) readonly buffer ModelMatrices {
     mat4 m[];

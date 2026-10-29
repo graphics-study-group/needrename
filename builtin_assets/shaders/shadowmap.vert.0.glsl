@@ -11,5 +11,8 @@ out gl_PerVertex
  
 void main()
 {
+    // The shadow pass hands the cascade slot (light * MAX_SHADOW_CASCADES +
+    // cascade) through the push constant that other passes use for a camera
+    // index, so this body is shared by every cascade of every light.
     gl_Position = scene.casting_lights.light_vp_matrix[pc.camera_id] * get_model_matrix() * vec4(vertex_position.xyz, 1.0);
 }

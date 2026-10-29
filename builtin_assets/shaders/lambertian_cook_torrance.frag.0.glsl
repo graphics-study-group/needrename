@@ -5,11 +5,10 @@
 #version 450 core
 #extension GL_ARB_shading_language_include : require
 #include <engine/interface.glsl>
+#include <engine/shadow.glsl>
 
 #define M_PI 3.1415926538
 #define M_EPS (1e-5)
-
-layout(constant_id = 0) const float SHADOW_BIAS = 0.005;
 
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_uv;
@@ -72,20 +71,6 @@ vec3 fresnelSchlick(vec3 F0, float cosTheta)
     return F0 + (vec3(1.0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-// Calculate shadow factor for a given light with PCF anti-aliasing
-float calculateShadow(int lightIndex)
-{
-    // Determine fragment position in light space
-    vec4 frag_position_ls = scene.casting_lights.light_vp_matrix[lightIndex] * vec4(frag_position, 1.0);
-    frag_position_ls.xyz /= frag_position_ls.w;
-    // mapping [-1, 1] to [0, 1] for sampling
-    frag_position_ls.xy *= 0.5;
-    frag_position_ls.xy += 0.5;
-    
-    float shadow = texture(light_shadowmaps[lightIndex], vec3(frag_position_ls.xy, frag_position_ls.z - SHADOW_BIAS));
-    return shadow;
-}
-
 void main()
 {
     vec3 albedo = texture(albedoSampler, frag_uv).rgb * material.albedoFactor.rgb;
@@ -99,6 +84,12 @@ void main()
     vec3 Lo = normalize((- camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz);
     vec3 N = normalize((camera.cameras[pc.camera_id].view * vec4(sampleWorldNormal(), 0.0)).xyz);
     float cosLo = max(0.0, dot(N, Lo));
+
+    // Cascade selection works on the view space depth; the normal offset uses the
+    // geometric normal, not the normal map's.
+    const float view_depth = -(camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).z;
+    const vec3 geometric_normal = normalize(frag_normal);
+    const float shadow_rotation = interleavedGradientNoise(gl_FragCoord.xy) * 2.0 * M_PI;
         
     // Specular reflection vector.
     vec3 Lr = 2.0 * cosLo * N - Lo;
@@ -166,8 +157,8 @@ void main()
         // Cook-Torrance specular microfacet BRDF.
         vec3 specularBRDF = (F * D * G) / max(M_EPS, 4.0 * cosLi * cosLo);
         
-        // Calculate shadow factor with PCF anti-aliasing
-        float shadowCoef = calculateShadow(i);
+        // Calculate the shadow factor with cascade selection and PCF
+        float shadowCoef = calculateShadow(i, frag_position, geometric_normal, view_depth, shadow_rotation);
 
         // Total contribution for this light with shadow
         directLighting += shadowCoef * (diffuseBRDF + specularBRDF) * Lradiance * cosLi;

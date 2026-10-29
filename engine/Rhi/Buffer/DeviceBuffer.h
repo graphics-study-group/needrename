@@ -1,9 +1,9 @@
 #ifndef ENGINE_RHI_DEVICEBUFFER_INCLUDED
 #define ENGINE_RHI_DEVICEBUFFER_INCLUDED
 
+#include "Rhi/Device/BindingRef.h"
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Device/MemoryTypes.h"
-#include "Rhi/Device/BindingRef.h"
 #include "Rhi/rhi_export.h"
 
 #include <memory>

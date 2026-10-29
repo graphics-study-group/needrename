@@ -100,18 +100,22 @@ namespace Editor {
                     go.m_name = "New GameObject";
                 }
                 if (ImGui::BeginMenu("Create Light")) {
-                    if (ImGui::MenuItem("Directional Light")) {
+                    // Two presets that make the shadow-caster role explicit: the
+                    // sun asks for the scene's single role (the inspector warns if
+                    // another sun already holds it), the fill light only lights the
+                    // scene. Neither preset edits any other light.
+                    if (ImGui::MenuItem("Add Shadow Sun")) {
                         auto &go = scene.CreateGameObject();
-                        go.m_name = "Directional Light";
+                        go.m_name = "Shadow Sun";
                         auto &comp = go.AddComponent<Engine::LightComponent>();
                         comp.m_type = Engine::LightType::Directional;
                         comp.m_cast_shadow = true;
                     }
-                    if (ImGui::MenuItem("Point Light")) {
+                    if (ImGui::MenuItem("Add Fill Light")) {
                         auto &go = scene.CreateGameObject();
-                        go.m_name = "Point Light";
+                        go.m_name = "Fill Light";
                         auto &comp = go.AddComponent<Engine::LightComponent>();
-                        comp.m_type = Engine::LightType::Point;
+                        comp.m_type = Engine::LightType::Directional;
                         comp.m_cast_shadow = false;
                     }
                     ImGui::EndMenu();

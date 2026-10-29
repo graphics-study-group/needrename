@@ -20,9 +20,6 @@ namespace Editor {
     class GameWidget;
 
     class EditorRenderGraphBuilder {
-        static const uint32_t SHADOWMAP_WIDTH = 2048;
-        static const uint32_t SHADOWMAP_HEIGHT = 2048;
-
     public:
         EditorRenderGraphBuilder(Engine::RenderSystem &system);
         ~EditorRenderGraphBuilder() = default;

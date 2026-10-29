@@ -10,6 +10,7 @@
 namespace vk {
     class DescriptorSet;
     class DescriptorSetLayout;
+    class PipelineLayout;
     struct Extent2D;
 } // namespace vk
 
@@ -19,6 +20,7 @@ namespace Engine {
     }
     class RenderSystem;
     class CommandBuffer;
+    class RenderTargetTexture;
 
     namespace RenderSystemState {
         /**
@@ -27,14 +29,42 @@ namespace Engine {
         class RENDER_API SceneDataManager {
         public:
             /**
-             * @brief Maximal shadow casting lights available to the shader.
+             * @brief Number of shadow-casting light slots.
              *
-             * Affects uniform buffer size and shadow map slots.
+             * One directional light casts shadows at any time, so this is both
+             * the number of shadow map array textures the manager allocates and
+             * the number of shadow map slots the shader can sample. A scene that
+             * flags several directional lights keeps the earliest created one.
              *
              * `builtin_assets/shaders/include/engine/interface.glsl` should
              * be modified accordingly if this constant is changed.
              */
-            static constexpr uint32_t MAX_SHADOW_CASTING_LIGHTS = 8;
+            static constexpr uint32_t MAX_SHADOW_CASTING_LIGHTS = 1;
+
+            /**
+             * @brief Maximal cascades stored for one shadow-casting light.
+             *
+             * Affects the uniform buffer size, the array layer count of every
+             * shadow map and the shader's cascade selection.
+             *
+             * `builtin_assets/shaders/include/engine/interface.glsl` should
+             * be modified accordingly if this constant is changed.
+             */
+            static constexpr uint32_t MAX_SHADOW_CASCADES = 4;
+
+            /**
+             * @brief Edge length in texels of one cascade's shadow map.
+             *
+             * The cascade fit snaps its orthographic extents to this texel
+             * grid, and the manager allocates every shadow map layer at this
+             * resolution.
+             *
+             * `builtin_assets/shaders/include/engine/shadow.glsl` should be
+             * modified accordingly if this constant is changed; the shadow
+             * sampling converts its PCF radius and normal offset from texels with
+             * it, so a mismatch only softens shadows instead of failing.
+             */
+            static constexpr uint32_t SHADOWMAP_SIZE = 2048;
 
             /**
              * @brief Maximal non-casting lights available to the shader.
@@ -68,14 +98,79 @@ namespace Engine {
 
             /**
              * @brief Create the manager by allocating uniform buffers,
-             * descriptor set layouts and pipeline layouts.
+             * descriptor set layouts, pipeline layouts and the fixed shadow map
+             * storage.
              */
             void Create();
 
             /**
-             * @brief Set the shadow-casting light tracked by the index to be a directional light.
+             * @brief Set the shadow-casting light tracked by the index to be a
+             * directional light, keeping its previously fitted shadow cascades.
+             *
+             * Use this when no camera data is available for the frame; the
+             * light keeps lighting the scene through its last cascade fit.
+             *
+             * @param index     Slot of the shadow-casting light.
+             * @param direction Unit vector the light travels along, pointing from the light towards the scene.
+             * @param intensity Linear RGB colour multiplied by the light's strength.
              */
             void SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept;
+
+            /**
+             * @brief Set a shadow-casting directional light and refit its shadow cascades.
+             *
+             * The cascades are fitted to slices of the given camera frustum, so
+             * the light's own world position takes no part in the fit: the
+             * shadow coverage follows the camera. Each cascade gets a tight
+             * orthographic frustum around its slice, its near plane is pushed
+             * towards the light by the cascade box's width, and the lateral
+             * extents are grown and snapped to whole shadow texels.
+             *
+             * `shadow_distance` and `cascade_count` are clamped to their
+             * supported ranges, and a fit that cannot produce finite matrices
+             * leaves the light's previous cascades untouched.
+             *
+             * @param index             Slot of the shadow-casting light.
+             * @param direction         Unit vector the light travels along, pointing from the light towards the scene.
+             * @param intensity         Linear RGB colour multiplied by the light's strength.
+             * @param camera_view       View matrix of the camera the shadows are fitted to.
+             * @param camera_projection Projection matrix of that camera.
+             * @param camera_near       Near clipping distance of that camera.
+             * @param camera_far        Far clipping distance of that camera.
+             * @param shadow_distance   Distance from the camera that shadows reach, in world units.
+             * @param cascade_count     Number of cascades to fit (clamped to 1..MAX_SHADOW_CASCADES).
+             */
+            void SetLightDirectional(
+                uint32_t index,
+                glm::vec3 direction,
+                glm::vec3 intensity,
+                const glm::mat4 &camera_view,
+                const glm::mat4 &camera_projection,
+                float camera_near,
+                float camera_far,
+                float shadow_distance,
+                uint32_t cascade_count
+            ) noexcept;
+
+            /**
+             * @brief Get the number of cascades a shadow-casting light currently has fitted.
+             *
+             * @param index Slot of the shadow-casting light.
+             * @return The cascade count, or 0 when the light has no fitted cascades yet.
+             */
+            uint32_t GetLightCascadeCount(uint32_t index) const noexcept;
+
+            /**
+             * @brief Get the projection * view matrix of one cascade of a shadow-casting light.
+             *
+             * This is the matrix the shadow map of that cascade was rendered with,
+             * i.e. what the shader reads back as `light_vp_matrix[index * MAX_SHADOW_CASCADES + cascade]`.
+             *
+             * @param index   Slot of the shadow-casting light.
+             * @param cascade Cascade of that light.
+             * @return The cascade's matrix, or the identity when the slot is unused.
+             */
+            glm::mat4 GetLightCascadeMatrix(uint32_t index, uint32_t cascade) const noexcept;
 
             /// @todo unimplemented
             void SetLightPoint(uint32_t index, glm::vec3 direction, glm::vec3 intensity, float radius) noexcept;
@@ -96,27 +191,24 @@ namespace Engine {
             void SetLightPointNonShadowCasting(uint32_t index, glm::vec3 position, glm::vec3 intensity) noexcept;
 
             /**
-             * @brief Set the shadow map of a shadow-casting light
+             * @brief Get the shadow map storage of a shadow-casting light slot.
              *
-             * This manager does not obtain the ownership of the texture.
+             * The manager allocates one D32SFLOAT array texture for every slot
+             * the budget allows when it is created, and keeps it for its own
+             * lifetime; there is no setter. A render graph borrows the storage
+             * through `RenderGraphBuilder::ImportExternalResource`, so building
+             * or rebuilding a graph never allocates, invalidates or
+             * re-registers a shadow map.
              *
-             * The manager assumes that the shadowmap assigned is sychronized correctly,
-             * and takes the layout `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL` before
-             * sampling from it. You should use `UseImage(*shadow, ShaderRead)`
-             * or similar to synchronize its access.
+             * The texture holds one array layer per cascade and is sampled as a
+             * 2D array shadow sampler, so its layer count matches
+             * `MAX_SHADOW_CASCADES` to agree with the fallback map.
              *
-             * The sampler attached to this RTT is ignored, and an immutable
-             * sampler is used instead.
+             * @param index Slot of the shadow-casting light.
+             * @return The slot's shadow map, writable so that a render graph can
+             *         import it.
              */
-            void SetLightShadowMap(uint32_t index, const RenderTargetTexture &shadowmap) noexcept;
-
-            /**
-             * @brief Remove a shadow map from the manager.
-             *
-             * As this manager does not track the ownership of the texture,
-             * you should *always* call this method after destroying the shadow map.
-             */
-            void RemoveLightShadowMap(uint32_t index) noexcept;
+            RenderTargetTexture &GetShadowMapTexture(uint32_t index) noexcept;
 
             /**
              * @brief Set a shadow-casting light to be bound to a light component.
@@ -141,6 +233,9 @@ namespace Engine {
              *
              * This only affects the drawing process (i.e. how many lights are processed
              * by the shaders), and will not affect any data on the host side.
+             *
+             * A count above `MAX_SHADOW_CASTING_LIGHTS` is clamped to the
+             * maximum instead of being rejected.
              */
             void SetLightCount(uint32_t count) noexcept;
 

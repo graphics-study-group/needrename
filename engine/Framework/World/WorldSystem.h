@@ -7,11 +7,13 @@
 #include <memory>
 #include <random>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Engine {
     class Camera;
     class Scene;
     class LevelAsset;
+    class LightComponent;
     class RenderSystem;
     namespace RenderSystemState {
         class CameraManager;
@@ -39,6 +41,20 @@ namespace Engine {
          * TODO: 'Camera' is not good. Needs futher discussion.
          */
         std::shared_ptr<Camera> GetActiveCamera() const noexcept;
+
+        /**
+         * @brief Get the directional light that holds the scene's shadow-caster role.
+         *
+         * Only one directional light casts shadows at a time. The role belongs
+         * to the first directional light whose `m_cast_shadow` flag is set in the
+         * scene's component order, which is creation order, so it never depends on
+         * colour, intensity, handles or hierarchy order. `UpdateLightData` applies
+         * the same rule while it walks the components.
+         *
+         * @return The role holder, or nullptr when no directional light in the
+         *         main scene has the flag set.
+         */
+        LightComponent *GetShadowCastingLight() const noexcept;
 
         /**
          * @brief Set the active camera, and try registering it to the render system.
@@ -105,6 +121,11 @@ namespace Engine {
         /// @brief Filter light components and update the light data.
         /// TODO: need futher discussion. Did not use the light manager in scene data manager for now.
         void UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager);
+
+        /// Component IDs of the flagged lights already warned about being
+        /// demoted to unshadowed lighting. Kept so a hand-edited scene with
+        /// several flagged lights warns once instead of once per frame.
+        std::unordered_set<uint32_t> m_demoted_shadow_lights{};
     };
 } // namespace Engine
 #endif // FRAMEWORK_WORLD_WORLDSYSTEM_INCLUDED

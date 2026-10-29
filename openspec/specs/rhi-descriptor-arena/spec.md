@@ -36,6 +36,8 @@ When the pool a request would be served from cannot satisfy it, the arena SHALL 
 
 The arena SHALL keep acquired sets in a store keyed by the descriptor-set layout it resolved through the device's immutable resource cache, the dynamic-offset flags, and the resolved binding content, and SHALL return the same set for a repeated request of that key, **including across epoch boundaries**. Re-acquiring a set SHALL refresh the epoch recorded for it; it MUST NOT cause a new set to be created.
 
+Binding content is identified by the **object identity** of every bound resource together with its binding window (offset and range), never by a raw handle value. Two requests whose resources hold different identities SHALL NOT share an entry even when the driver has issued their handles equal values at different times, and a request whose resource was destroyed and replaced SHALL NOT match an entry written for the destroyed object.
+
 The arena itself SHALL resolve the bound resources into descriptor writes and write them when it creates an entry. It MUST NOT rewrite a resident entry's descriptors, because the entry's identity is its content.
 
 #### Scenario: Steady-state reuse mints nothing
@@ -58,6 +60,18 @@ The arena itself SHALL resolve the bound resources into descriptor writes and wr
 
 - **WHEN** a caller requests a set whose content differs from that of a resident entry
 - **THEN** the arena creates a distinct entry rather than rewriting the resident one
+
+#### Scenario: Recycled handle values do not alias distinct resources
+
+- **WHEN** a resource bound in a resident entry is destroyed, a later resource is created and the driver issues its handle the value of the destroyed one, and the later resource is bound at the same window
+- **THEN** the request does not hit the resident entry
+- **AND** the arena mints a distinct entry whose descriptors name the new object
+
+#### Scenario: A replaced buffer is distinct from its predecessor
+
+- **WHEN** a buffer's storage is replaced in place and the same binding is acquired afterwards
+- **THEN** the acquisition is a miss against the entry written for the old storage
+- **AND** the new entry's descriptors name the replacement allocation
 
 ### Requirement: A set is re-acquired in every epoch that uses it
 
@@ -212,3 +226,18 @@ The arena SHALL operate with no presentation frame loop. A device-idle wait SHAL
 
 - **WHEN** a set is acquired after a device-idle wait and its epoch is not yet reported
 - **THEN** the idle wait does not make that set eligible
+
+### Requirement: Distinct contents are never conflated
+
+Two distinct binding contents that produce the same content hash SHALL remain distinct resident entries. A request SHALL be answered only with a set whose stored content is exactly the requested content; a hash collision MUST NOT cause a request to receive a set written for different content, and MUST NOT discard either content's resident entry.
+
+#### Scenario: A hash collision keeps both contents
+
+- **WHEN** two distinct binding contents hash to the same content hash
+- **THEN** both remain resident as distinct entries
+- **AND** each request receives the set written for its exact content
+
+#### Scenario: A colliding request is never answered with the other content
+
+- **WHEN** a request's content hash matches a resident entry whose content differs
+- **THEN** no set written for the differing content is ever returned for that request

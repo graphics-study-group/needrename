@@ -35,10 +35,15 @@ namespace Engine {
         /// @brief Is this renderer eagerly loaded onto the GPU instead of loaded on use?
         REFL_SER_ENABLE bool m_is_eagerly_loaded{false};
         /// @brief Do this renderer cast shadow (viz. rendered onto shadowmaps)?
-        REFL_SER_ENABLE bool m_cast_shadow{false};
+        REFL_SER_ENABLE bool m_cast_shadow{true};
         /// @brief Bits of the layers of the renderer (eg. opaque, transparent or HUD).
+        ///
+        /// Filtering honours this mask, but the engine never filters by a layer
+        /// other than the default "all layers", so the field stays inert.
         REFL_SER_ENABLE uint32_t m_layer{0xFFFFFFFF};
-        /// @brief Currently unused.
+        /// @brief Currently unused: renderers are never sorted by priority.
+        ///
+        /// The field takes no part in filtering or draw order.
         REFL_SER_ENABLE uint32_t m_priority{0};
     };
 } // namespace Engine
