@@ -128,3 +128,43 @@ ctest --preset linux-debug
 ```
 
 A `linux-release` preset is also available.
+
+## Install and SDK
+
+`cmake --install` produces a self-contained prefix (`bin/` with every shared
+library, `share/needrename/` data root, `include/`, `lib/cmake/needrename`).
+Installed executables and libraries carry an `$ORIGIN`-relative RPATH, so they
+run without `LD_LIBRARY_PATH`.
+
+```sh
+cmake --build --preset linux-release
+cmake --install build/release --prefix ~/needrename
+
+# Run an installed example from an unrelated directory
+cd /tmp
+~/needrename/bin/external_resource_loading_example 120
+```
+
+See [distribution.md](distribution.md) for the layout, install components,
+`ENGINE_SHADER_MODE`, the `NEEDRENAME_DATA_ROOT` override, ZIP packaging and SDK
+usage.
+
+The reflection parser resolves `libclang` automatically from the LLVM install
+(`/usr/lib/llvm-*/lib/libclang-*.so*`). If your libclang lives elsewhere, point
+the parser at it before configuring:
+
+```sh
+export LIBCLANG_LIBRARY_FILE=/usr/lib/llvm-22/lib/libclang-22.so.1
+```
+
+> **Shared checkout between platforms**: the reflection generator writes
+> generated code into the source tree with absolute paths. Building the same
+> checkout on Windows and Linux alternately requires deleting the generated
+> `__generated__` directories (and re-running CMake) before switching platforms;
+> otherwise the stale generator output points at the other platform's paths.
+
+> **WSL display/GPU**: windowed tests need a Vulkan device that supports the
+> engine's formats. WSLg's `dzn` (D3D12) driver does not support
+> `BlitDst` for `B10G11R11UfloatPack32`, so windowed tests and examples abort
+> there even though configuration, building, installation and headless tests
+> succeed. Use a native Linux GPU driver for the windowed suite.

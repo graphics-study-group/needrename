@@ -5,6 +5,14 @@ import filecmp
 import shutil
 from pathlib import Path
 
+# The pip `clang` bindings do not bundle libclang and only look it up through the
+# loader's search path, which rarely contains LLVM's versioned library. Let the
+# build point the bindings at an explicit file (CMake does this on Linux).
+if os.environ.get("LIBCLANG_LIBRARY_FILE"):
+    from clang.cindex import Config
+
+    Config.set_library_file(os.environ["LIBCLANG_LIBRARY_FILE"])
+
 from processor import process
 
 def main():

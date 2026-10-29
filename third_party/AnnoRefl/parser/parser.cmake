@@ -97,11 +97,38 @@ function(anrorefl_libclang_extra_args)
 
         # Define FLT_MAX and FLT_MIN to work around float.h inclusion
         set(EXTRA_ARGS "${EXTRA_ARGS} -DFLT_MAX -DFLT_MIN")
+
+        # The pip `clang` bindings ship no libclang and only find the loader's
+        # default search path, which rarely contains LLVM's versioned library.
+        # Prefer an explicit override, then discover it (the C API library is
+        # `libclang-<version>.so*`; `libclang-cpp` is the C++ API and must not
+        # be picked).
+        if(NOT DEFINED ENV{LIBCLANG_LIBRARY_FILE})
+            file(GLOB _libclang_candidates
+                "/usr/lib/llvm-*/lib/libclang.so*"
+                "/usr/lib/llvm-*/lib/libclang-[0-9]*.so*"
+                "/usr/lib/x86_64-linux-gnu/libclang.so*"
+                "/usr/lib/x86_64-linux-gnu/libclang-[0-9]*.so*"
+                "/usr/local/lib/libclang.so*")
+            list(SORT _libclang_candidates)
+            if(_libclang_candidates)
+                list(GET _libclang_candidates -1 _libclang_file)
+                set(ENV{LIBCLANG_LIBRARY_FILE} "${_libclang_file}")
+                message(STATUS "Reflection parser libclang: ${_libclang_file}")
+            endif()
+        endif()
     endif()
     set(ANROREFL_EXTRA_ARGS ${EXTRA_ARGS} PARENT_SCOPE)
 
+    set(_anrorefl_parser_env_vars)
     if(DEFINED ENV{LIBCLANG_LIBRARY_PATH})
-        set(ANROREFL_PARSER_ENV_CMD ${CMAKE_COMMAND} -E env "LIBCLANG_LIBRARY_PATH=$ENV{LIBCLANG_LIBRARY_PATH}" PARENT_SCOPE)
+        list(APPEND _anrorefl_parser_env_vars "LIBCLANG_LIBRARY_PATH=$ENV{LIBCLANG_LIBRARY_PATH}")
+    endif()
+    if(DEFINED ENV{LIBCLANG_LIBRARY_FILE})
+        list(APPEND _anrorefl_parser_env_vars "LIBCLANG_LIBRARY_FILE=$ENV{LIBCLANG_LIBRARY_FILE}")
+    endif()
+    if(_anrorefl_parser_env_vars)
+        set(ANROREFL_PARSER_ENV_CMD ${CMAKE_COMMAND} -E env ${_anrorefl_parser_env_vars} PARENT_SCOPE)
     else()
         set(ANROREFL_PARSER_ENV_CMD PARENT_SCOPE)
     endif()
@@ -287,24 +314,33 @@ function(add_reflection_parser)
     add_dependencies(${target_name} ${target_name}_generation)
 endfunction()
 
-# Get all the include directories from the engine and its dependencies
+# Get all the include directories from the engine and its dependencies.
+# Export-aware interfaces wrap paths in $<BUILD_INTERFACE:...>; only the build
+# side is added (the install side may not exist yet, and is not part of this
+# checkout).
 function(get_include_directories_for_target target include_dirs)
+    set(_anrorefl_collected_dirs)
     get_target_property(dirs ${target} INCLUDE_DIRECTORIES)
-    get_target_property(interface_dirs ${target} INTERFACE_INCLUDE_DIRECTORIES)
     if (dirs)
-        foreach(dir ${dirs})
-            if (EXISTS ${dir})
-                list(APPEND ${include_dirs} ${dir})
-            endif()
-        endforeach()
+        list(APPEND _anrorefl_collected_dirs ${dirs})
     endif()
+    get_target_property(interface_dirs ${target} INTERFACE_INCLUDE_DIRECTORIES)
     if (interface_dirs)
-        foreach(dir ${interface_dirs})
-            if (EXISTS ${dir})
-                list(APPEND ${include_dirs} ${dir})
-            endif()
-        endforeach()
+        list(APPEND _anrorefl_collected_dirs ${interface_dirs})
     endif()
+
+    foreach(dir ${_anrorefl_collected_dirs})
+        if (dir MATCHES "\\$<INSTALL_INTERFACE:")
+            continue()
+        endif()
+        if (dir MATCHES "\\$<BUILD_INTERFACE:")
+            string(REGEX REPLACE "\\$<BUILD_INTERFACE:([^>]*)>" "\\1" dir "${dir}")
+        endif()
+        if (EXISTS "${dir}")
+            list(APPEND ${include_dirs} "${dir}")
+        endif()
+    endforeach()
+
     # Both link scopes are followed: consumers routinely link the engine
     # PRIVATE, and PRIVATE links of an executable are not part of its
     # INTERFACE_LINK_LIBRARIES.

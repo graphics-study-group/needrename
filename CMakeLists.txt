@@ -111,8 +111,10 @@ endif()
 
 # Data-root staging area of the configuration being built. It holds the
 # configuration's built-in assets in the form that will be installed, and is what
-# the shader-form tests read.
-set(ENGINE_DATA_STAGE_DIR "${CMAKE_BINARY_DIR}/share/needrename/$<CONFIG>")
+# the shader-form tests read. It deliberately does not live at the installed
+# layout's executable-relative location (`<build>/bin/../share/needrename`),
+# which would make build-tree executables resolve it as if it were installed.
+set(ENGINE_DATA_STAGE_DIR "${CMAKE_BINARY_DIR}/stage/$<CONFIG>")
 
 if (ENGINE_BUILD_TOOLS)
     add_subdirectory(tools)

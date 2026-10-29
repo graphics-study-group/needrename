@@ -28,7 +28,7 @@
 
 - [x] 5.1 Add `install(TARGETS ...)` for the engine modules, reflection library, editor library, imgui and ktx plus runtime dependency shipping (SDL3 runtime, engine DLLs) into `bin/`, and verify an installed example launches from an arbitrary working directory on Windows
 - [x] 5.2 Add data install rules for the `runtime`, `apps-data`, `examples-data`, and `test-data` components, exclude `assets/img/`, and verify a runtime-only install runs engine binaries with no `img` content anywhere in the prefix
-- [ ] 5.3 Set installed-library RPATH on Linux (`$ORIGIN`-relative) and verify an installed executable runs without `LD_LIBRARY_PATH`
+- [x] 5.3 Set installed-library RPATH on Linux (`$ORIGIN`-relative) and verify an installed executable runs without `LD_LIBRARY_PATH`
 - [x] 5.4 With `ENGINE_INSTALL_TESTS=ON`, install test executables and `share/needrename/test_data/` and verify an installed test runs; with it OFF, verify no test executable or test data is installed
 - [x] 5.5 Add optional CPack ZIP packaging over the components and verify the `package` target produces `needrename-<version>-<platform>.zip` unpacking to the install layout
 
@@ -41,5 +41,5 @@
 
 ## 7. Docs and end-to-end validation
 
-- [ ] 7.1 Extend `docs/build_instructions/*` with install steps, the install layout, `NEEDRENAME_DATA_ROOT`, `ENGINE_SHADER_MODE`, and SDK usage, and verify every documented command works as written
-- [ ] 7.2 Run the end-to-end acceptance on both platforms: default build + `ctest` green in the build tree, install, and installed examples/apps run from an unrelated working directory; verify `openspec validate installable-distribution` passes
+- [x] 7.1 Extend `docs/build_instructions/*` with install steps, the install layout, `NEEDRENAME_DATA_ROOT`, `ENGINE_SHADER_MODE`, and SDK usage, and verify every documented command works as written
+- [x] 7.2 Run the end-to-end acceptance on both platforms: default build + `ctest` green in the build tree, install, and installed examples/apps run from an unrelated working directory; verify `openspec validate installable-distribution` passes
