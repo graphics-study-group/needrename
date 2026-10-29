@@ -16,5 +16,8 @@ target_link_libraries(AnnoRefl
 
 set(ANROREFL_PARSER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/parser" CACHE STRING "Path to AnnoRefl parser directory")
 
-enable_testing()
-add_subdirectory(tests)
+# The vendored test subproject obeys the same test policy as first-party tests.
+if (ENGINE_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

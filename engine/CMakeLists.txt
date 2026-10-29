@@ -78,11 +78,13 @@ target_link_libraries(Engine
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
 ###########################################
-# Documentation                           #
+# Documentation (gated by ENGINE_BUILD_DOCS) #
 ###########################################
 
-find_package(Doxygen)
-if(Doxygen_FOUND)
+if (ENGINE_BUILD_DOCS)
+    find_package(Doxygen)
+endif()
+if(ENGINE_BUILD_DOCS AND Doxygen_FOUND)
     set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
     # Only *.h files contain public interfaces
     set(DOXYGEN_FILE_PATTERNS *.h)

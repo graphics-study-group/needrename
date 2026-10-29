@@ -1,7 +1,23 @@
-cmake_minimum_required(VERSION 3.16)
+# 3.21 is the floor for install(TARGETS ... RUNTIME_DEPENDENCIES), which the
+# install rules use to bundle the required shared libraries next to the
+# executables.
+cmake_minimum_required(VERSION 3.21)
 
+# TODO: rename - the project name is one of the rename points (the placeholder
+# package identity is `needrename`; see the external-project-consumption spec).
 project(hello_sdl3)
 set(CMAKE_CXX_STANDARD 20)
+
+# --- Build feature options ------------------------------------------------
+# Each option gates a subsystem at configure time. Every default except
+# ENGINE_INSTALL_TESTS is ON, so an unmodified configure builds the same
+# targets as before the options existed.
+option(ENGINE_BUILD_TESTS "Build first-party tests and vendored third-party tests" ON)
+option(ENGINE_BUILD_EXAMPLES "Build the example executables" ON)
+option(ENGINE_BUILD_APPS "Build the editor and physics applications" ON)
+option(ENGINE_BUILD_TOOLS "Build build-time helper executables (e.g. shader_baker)" ON)
+option(ENGINE_BUILD_DOCS "Generate the doxygen documentation" ON)
+option(ENGINE_INSTALL_TESTS "Install test executables and their data" OFF)
 
 set(ENGINE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ENGINE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
@@ -56,8 +72,20 @@ add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 
 add_subdirectory(engine)
-add_subdirectory(app)
-add_subdirectory(example)
-add_subdirectory(shader)
 
-add_subdirectory(test)
+if (ENGINE_BUILD_TOOLS)
+    add_subdirectory(tools)
+endif()
+if (ENGINE_BUILD_APPS)
+    add_subdirectory(app)
+endif()
+if (ENGINE_BUILD_EXAMPLES)
+    add_subdirectory(example)
+endif()
+if (ENGINE_BUILD_TESTS)
+    add_subdirectory(test)
+endif()
+
+# TODO: rename - the legacy top-level shader pipeline is removed by the
+# shader-distribution work; kept configured until then.
+add_subdirectory(shader)
