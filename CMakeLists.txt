@@ -19,6 +19,16 @@ option(ENGINE_BUILD_TOOLS "Build build-time helper executables (e.g. shader_bake
 option(ENGINE_BUILD_DOCS "Generate the doxygen documentation" ON)
 option(ENGINE_INSTALL_TESTS "Install test executables and their data" OFF)
 
+# Built-in shader storage form:
+#   auto - glsl for Debug builds, spv for every other configuration
+#   glsl - ship the GLSL sources plus the shader include tree, compiled at runtime
+#   spv  - ship the shader archives with embedded SPIR-V
+set(ENGINE_SHADER_MODE "auto" CACHE STRING "Built-in shader storage form (auto|glsl|spv)")
+set_property(CACHE ENGINE_SHADER_MODE PROPERTY STRINGS auto glsl spv)
+if (NOT ENGINE_SHADER_MODE MATCHES "^(auto|glsl|spv)$")
+    message(FATAL_ERROR "ENGINE_SHADER_MODE must be one of auto, glsl, spv (got '${ENGINE_SHADER_MODE}').")
+endif()
+
 set(ENGINE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ENGINE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
 set(ENGINE_EDITOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/app/editor)
@@ -73,9 +83,80 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 
 add_subdirectory(engine)
 
+# Resolve the effective built-in shader form for the configuration being built.
+# Baking needs the shader_baker helper, so disabling the tools falls back to GLSL.
+if (ENGINE_SHADER_MODE STREQUAL "auto")
+    set(ENGINE_SHADER_EFFECTIVE_MODE "$<IF:$<CONFIG:Debug>,glsl,spv>")
+else()
+    set(ENGINE_SHADER_EFFECTIVE_MODE "${ENGINE_SHADER_MODE}")
+endif()
+if (NOT ENGINE_BUILD_TOOLS)
+    if (ENGINE_SHADER_MODE STREQUAL "spv")
+        message(FATAL_ERROR
+            "ENGINE_SHADER_MODE=spv requires ENGINE_BUILD_TOOLS=ON: shader_baker performs the baking.")
+    elseif (ENGINE_SHADER_MODE STREQUAL "auto")
+        message(WARNING "ENGINE_BUILD_TOOLS=OFF: shipping built-in shaders in GLSL form.")
+        set(ENGINE_SHADER_EFFECTIVE_MODE "glsl")
+    endif()
+endif()
+
+# Data-root staging area of the configuration being built. It holds the
+# configuration's built-in assets in the form that will be installed, and is what
+# the shader-form tests read.
+set(ENGINE_DATA_STAGE_DIR "${CMAKE_BINARY_DIR}/share/needrename/$<CONFIG>")
+
 if (ENGINE_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
+
+# --- Built-in asset staging ------------------------------------------------
+# Defined before apps/examples/tests so their tests can depend on the staged
+# content of the configuration being built.
+file(GLOB_RECURSE ENGINE_BUILTIN_ASSET_FILES
+    CONFIGURE_DEPENDS
+    LIST_DIRECTORIES false
+    "${BUILTIN_ASSETS_DIR}/*"
+)
+list(FILTER ENGINE_BUILTIN_ASSET_FILES EXCLUDE REGEX "\\.spv$")
+
+if (TARGET shader_baker)
+    set(ENGINE_SHADER_BAKER_ARGUMENT "-DSHADER_BAKER=$<TARGET_FILE:shader_baker>")
+    set(ENGINE_SHADER_BAKER_DEPENDENCY shader_baker)
+else()
+    set(ENGINE_SHADER_BAKER_ARGUMENT)
+    set(ENGINE_SHADER_BAKER_DEPENDENCY)
+endif()
+
+set(ENGINE_STAGED_BUILTIN_ASSETS_STAMP "${ENGINE_DATA_STAGE_DIR}/builtin_assets/.staged")
+add_custom_command(
+    OUTPUT "${ENGINE_STAGED_BUILTIN_ASSETS_STAMP}"
+    COMMAND ${CMAKE_COMMAND}
+        "-DSTAGE_ROOT=${ENGINE_DATA_STAGE_DIR}"
+        "-DSOURCE_BUILTIN_ASSETS=${BUILTIN_ASSETS_DIR}"
+        "-DSHADER_MODE=${ENGINE_SHADER_EFFECTIVE_MODE}"
+        "${ENGINE_SHADER_BAKER_ARGUMENT}"
+        "-DDEBUG_INFO=$<IF:$<CONFIG:Debug>,ON,OFF>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/stage_builtin_assets.cmake"
+    DEPENDS
+        ${ENGINE_BUILTIN_ASSET_FILES}
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/stage_builtin_assets.cmake"
+        ${ENGINE_SHADER_BAKER_DEPENDENCY}
+    COMMENT "Staging built-in assets (shader mode: ${ENGINE_SHADER_EFFECTIVE_MODE})"
+    VERBATIM
+)
+
+add_custom_target(builtin_assets_stage ALL DEPENDS "${ENGINE_STAGED_BUILTIN_ASSETS_STAMP}")
+set_target_properties(builtin_assets_stage PROPERTIES FOLDER build)
+
+# The installed built-in assets are the staged content of the installed
+# configuration: embedded-SPIR-V archives in spv mode, GLSL sources plus the
+# include tree in glsl mode.
+install(
+    DIRECTORY "${ENGINE_DATA_STAGE_DIR}/builtin_assets/"
+    DESTINATION share/needrename/builtin_assets
+    COMPONENT runtime
+)
+
 if (ENGINE_BUILD_APPS)
     add_subdirectory(app)
 endif()
@@ -85,7 +166,3 @@ endif()
 if (ENGINE_BUILD_TESTS)
     add_subdirectory(test)
 endif()
-
-# TODO: rename - the legacy top-level shader pipeline is removed by the
-# shader-distribution work; kept configured until then.
-add_subdirectory(shader)

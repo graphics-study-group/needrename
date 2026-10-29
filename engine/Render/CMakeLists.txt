@@ -43,4 +43,3 @@ add_reflection_parser(
 )
 add_dependencies(EngineRender meta_render)
 target_link_libraries(EngineRender PRIVATE meta_render)
-add_dependencies(EngineRender shader)

@@ -14,10 +14,10 @@
 
 ## 3. Shader distribution
 
-- [ ] 3.1 Implement `tools/shader_baker` (linking the engine's shader compiler and includer) that rewrites built-in `.asset` archives from GLSL to embedded-SPIR-V form preserving each GUID, and verify baked archives load and render correctly in a windowed test
-- [ ] 3.2 Add `ENGINE_SHADER_MODE=auto|glsl|spv` with build-tree staging of baked assets, and verify the mode matrix: `auto` bakes in Release and keeps GLSL in Debug; explicit `spv`/`glsl` override the configuration
-- [ ] 3.3 Remove the legacy top-level shader pipeline and the `builtin_assets` `.spv` gitignore residue, and verify a full build leaves no generated shader artifacts in the source tree
-- [ ] 3.4 Wire shader content to the install per mode (spv: baked archives only; glsl: sources plus include tree) and verify the installed `builtin_assets/shaders/` content matches the selected mode
+- [x] 3.1 Implement `tools/shader_baker` (linking the engine's shader compiler and includer) that rewrites built-in `.asset` archives from GLSL to embedded-SPIR-V form preserving each GUID, and verify baked archives load and render correctly in a windowed test
+- [x] 3.2 Add `ENGINE_SHADER_MODE=auto|glsl|spv` with build-tree staging of baked assets, and verify the mode matrix: `auto` bakes in Release and keeps GLSL in Debug; explicit `spv`/`glsl` override the configuration
+- [x] 3.3 Remove the legacy top-level shader pipeline and the `builtin_assets` `.spv` gitignore residue, and verify a full build leaves no generated shader artifacts in the source tree
+- [x] 3.4 Wire shader content to the install per mode (spv: baked archives only; glsl: sources plus include tree) and verify the installed `builtin_assets/shaders/` content matches the selected mode
 
 ## 4. Physics SPIR-V relocation
 
