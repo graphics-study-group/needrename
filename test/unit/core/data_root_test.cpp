@@ -14,7 +14,7 @@ namespace {
     // The install layout the locator resolves against (see the install-layout
     // spec). Spelled out here so the test exercises the documented names rather
     // than the internal layout macros.
-    constexpr const char *k_layout_subdirs[] = {"builtin_assets", "projects", "assets", "spv", "test_data"};
+    constexpr const char *k_layout_subdirs[] = {"builtin_assets", "projects", "assets", "spirv", "test_data"};
 
     int g_failures = 0;
 

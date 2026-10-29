@@ -9,7 +9,7 @@ Defines the portable install prefix layout, install components, and the contract
 `cmake --install` SHALL produce a self-contained prefix:
 
 - `bin/` — all executables and all shared libraries they need (engine modules, reflection library, imgui, ktx, SDL3)
-- `share/needrename/` — the runtime data root, containing `builtin_assets/`, `projects/` (project templates), `spv/` (physics SPIR-V), `reflection/` (reflection type lists), and `test_data/` (only with `ENGINE_INSTALL_TESTS=ON`)
+- `share/needrename/` — the runtime data root, containing `builtin_assets/`, `projects/` (project templates), `spirv/` (physics SPIR-V), `reflection/` (reflection type lists), and `test_data/` (only with `ENGINE_INSTALL_TESTS=ON`)
 
 No installed file SHALL require a path outside the prefix to run. The layout SHALL be identical for single-config (Ninja) and multi-config (MSVC) installs; a multi-config install SHALL install the artifacts of the selected configuration.
 

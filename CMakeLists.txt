@@ -3,9 +3,10 @@
 # executables.
 cmake_minimum_required(VERSION 3.21)
 
-# TODO: rename - the project name is one of the rename points (the placeholder
-# package identity is `needrename`; see the external-project-consumption spec).
-project(hello_sdl3)
+# TODO: rename - the project name, the CMake package/config name and the
+# `needrename::` namespace prefix are the rename points. The placeholder
+# identity is `needrename` (see the external-project-consumption spec).
+project(needrename VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 20)
 
 # --- Build feature options ------------------------------------------------
@@ -50,6 +51,12 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # On Linux, executables in bin/ must find sibling .so files (the $ORIGIN RPATH)
 # the same way Windows finds DLLs in the executable directory.
 set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
+# Installed libraries and executables live side by side in bin/, so an
+# $ORIGIN-relative install RPATH resolves them without LD_LIBRARY_PATH.
+if (UNIX)
+    set(CMAKE_INSTALL_RPATH "\$ORIGIN")
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
+endif()
 
 include(CTest)
 
@@ -155,6 +162,7 @@ install(
     DIRECTORY "${ENGINE_DATA_STAGE_DIR}/builtin_assets/"
     DESTINATION share/needrename/builtin_assets
     COMPONENT runtime
+    PATTERN ".staged" EXCLUDE
 )
 
 if (ENGINE_BUILD_APPS)
@@ -166,3 +174,5 @@ endif()
 if (ENGINE_BUILD_TESTS)
     add_subdirectory(test)
 endif()
+
+include(cmake/install_rules.cmake)

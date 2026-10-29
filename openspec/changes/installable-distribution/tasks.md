@@ -21,16 +21,16 @@
 
 ## 4. Physics SPIR-V relocation
 
-- [ ] 4.1 Add an install rule copying the active configuration's physics SPIR-V to `share/needrename/spirv/` at source-relative paths (no config subdirectory) and verify the installed layout
-- [ ] 4.2 Point the central physics shader loader at the locator's physics root (keeping the macro as developer fallback) and verify physics tests pass in the build tree and the installed physics app finds its shaders at runtime
+- [x] 4.1 Add an install rule copying the active configuration's physics SPIR-V to `share/needrename/spirv/` at source-relative paths (no config subdirectory) and verify the installed layout
+- [x] 4.2 Point the central physics shader loader at the locator's physics root (keeping the macro as developer fallback) and verify physics tests pass in the build tree and the installed physics app finds its shaders at runtime
 
 ## 5. Install layout and components
 
-- [ ] 5.1 Add `install(TARGETS ...)` for the engine modules, reflection library, editor library, imgui and ktx plus runtime dependency shipping (SDL3 runtime, engine DLLs) into `bin/`, and verify an installed example launches from an arbitrary working directory on Windows
-- [ ] 5.2 Add data install rules for the `runtime`, `apps-data`, `examples-data`, and `test-data` components, exclude `assets/img/`, and verify a runtime-only install runs engine binaries with no `img` content anywhere in the prefix
+- [x] 5.1 Add `install(TARGETS ...)` for the engine modules, reflection library, editor library, imgui and ktx plus runtime dependency shipping (SDL3 runtime, engine DLLs) into `bin/`, and verify an installed example launches from an arbitrary working directory on Windows
+- [x] 5.2 Add data install rules for the `runtime`, `apps-data`, `examples-data`, and `test-data` components, exclude `assets/img/`, and verify a runtime-only install runs engine binaries with no `img` content anywhere in the prefix
 - [ ] 5.3 Set installed-library RPATH on Linux (`$ORIGIN`-relative) and verify an installed executable runs without `LD_LIBRARY_PATH`
-- [ ] 5.4 With `ENGINE_INSTALL_TESTS=ON`, install test executables and `share/needrename/test_data/` and verify an installed test runs; with it OFF, verify no test executable or test data is installed
-- [ ] 5.5 Add optional CPack ZIP packaging over the components and verify the `package` target produces `needrename-<version>-<platform>.zip` unpacking to the install layout
+- [x] 5.4 With `ENGINE_INSTALL_TESTS=ON`, install test executables and `share/needrename/test_data/` and verify an installed test runs; with it OFF, verify no test executable or test data is installed
+- [x] 5.5 Add optional CPack ZIP packaging over the components and verify the `package` target produces `needrename-<version>-<platform>.zip` unpacking to the install layout
 
 ## 6. External consumption SDK
 

@@ -13,7 +13,7 @@
 
 namespace Engine {
     std::filesystem::path PhysicsSpirvDir() {
-        return ResolveDataDir(ENGINE_DATA_SUBDIR_SPV, ENGINE_PHYSICS_SPIRV_DIR);
+        return ResolveDataDir(ENGINE_DATA_SUBDIR_PHYSICS_SPIRV, ENGINE_PHYSICS_SPIRV_DIR);
     }
 
     std::vector<uint32_t> LoadPhysicsSpirv(std::string_view relative_path) {

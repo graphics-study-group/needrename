@@ -10,7 +10,7 @@
 #define ENGINE_DATA_SUBDIR_BUILTIN_ASSETS "builtin_assets"
 #define ENGINE_DATA_SUBDIR_PROJECTS "projects"
 #define ENGINE_DATA_SUBDIR_ASSETS "assets"
-#define ENGINE_DATA_SUBDIR_SPV "spv"
+#define ENGINE_DATA_SUBDIR_PHYSICS_SPIRV "spirv"
 #define ENGINE_DATA_SUBDIR_TEST_DATA "test_data"
 
 // --- Developer fallback: this machine's build/checkout tree -----------------

@@ -27,6 +27,8 @@ function(anro_add_test target)
 
     add_executable(${target} ${TEST_SOURCES})
     target_link_libraries(${target} PRIVATE ${TEST_LINK})
+    # The install rules collect these when ENGINE_INSTALL_TESTS is ON.
+    set_property(GLOBAL APPEND PROPERTY ENGINE_TEST_TARGETS ${target})
 
     set(test_args ${TEST_ARGS})
     if(TEST_FRAMES)

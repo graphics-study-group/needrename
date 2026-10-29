@@ -119,7 +119,20 @@ void Stop() {
     }
 }
 
+int RunExample(int argc, char **argv);
+
 int main(int argc, char **argv) {
+    try {
+        return RunExample(argc, argv);
+    } catch (const std::exception &error) {
+        // Installed executables must fail with a diagnostic, not a crash: the
+        // data locator names the missing data directory and the resolution step.
+        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "%s", error.what());
+        return 1;
+    }
+}
+
+int RunExample(int argc, char **argv) {
     const ExampleOptions options = ParseArguments(argc, argv);
 
     std::filesystem::path project_template_path(ProjectsDir());
