@@ -31,6 +31,14 @@ endif()
 add_library(EngineDepImgui INTERFACE)
 target_link_libraries(EngineDepImgui INTERFACE imgui)
 
+# The generated configuration header is a private, in-tree header: it carries
+# the developer fallback paths of this machine, so it is generated into the
+# build tree and never installed or exported to the SDK. Modules that include
+# <cmake_config.h> link this target privately.
+set(ENGINE_GENERATED_INCLUDE_DIR "${CMAKE_BINARY_DIR}/include")
+add_library(EngineConfigHeader INTERFACE)
+target_include_directories(EngineConfigHeader INTERFACE ${ENGINE_GENERATED_INCLUDE_DIR})
+
 ###########################################
 # Module DLLs (in dependency order)       #
 ###########################################
@@ -74,8 +82,12 @@ target_link_libraries(Engine
 # Build-tree configuration                #
 ###########################################
 
-# TODO: Use relative paths when install.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
+# Generated into the build tree: the source tree holds no generated header, and
+# installed or exported consumers never see this machine's fallback paths.
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in
+    ${ENGINE_GENERATED_INCLUDE_DIR}/cmake_config.h
+)
 
 ###########################################
 # Documentation (gated by ENGINE_BUILD_DOCS) #

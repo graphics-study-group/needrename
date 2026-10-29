@@ -20,6 +20,7 @@ target_link_libraries(EngineCore
     EngineDepGlm
     EngineDepSdl
     PRIVATE
+    EngineConfigHeader
     ${UUID_LIBRARIES}
 )
 

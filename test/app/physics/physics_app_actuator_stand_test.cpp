@@ -1,7 +1,7 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <PhysicsApp.h>
 
 #include <SDL3/SDL.h>
-#include <cmake_config.h>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
     });
 
     // A1 robot just above the ground, in its default (zero-pose) configuration.
-    const std::filesystem::path urdf = std::filesystem::path(ENGINE_ASSETS_DIR) / "a1_description/urdf/a1.urdf";
+    const std::filesystem::path urdf = Engine::AssetsDir() / "a1_description/urdf/a1.urdf";
     UrdfImportConfig cfg;
     cfg.urdf_path = urdf;
     cfg.position = {0.0f, 0.0f, 0.85f};

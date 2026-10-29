@@ -1,4 +1,5 @@
 anro_add_test(asset_path_test FOLDER tests/unit/core)
+anro_add_test(data_root_test FOLDER tests/unit/core)
 anro_add_test(transform_test FOLDER tests/unit/core)
 anro_add_test(camera_transform_test FOLDER tests/unit/core)
 anro_add_test(delegate_test FOLDER tests/unit/core)

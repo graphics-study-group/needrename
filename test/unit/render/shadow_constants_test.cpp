@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -5,7 +6,6 @@
 #include <iostream>
 #include <string>
 
-#include <cmake_config.h>
 
 #include "Render/RenderSystem/SceneDataManager.h"
 
@@ -83,8 +83,7 @@ namespace {
 } // namespace
 
 int main() {
-    const std::filesystem::path include_directory =
-        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / "include" / "engine";
+    const std::filesystem::path include_directory = Engine::BuiltinAssetsDir() / "shaders" / "include" / "engine";
     const std::filesystem::path interface_header = include_directory / "interface.glsl";
     const std::filesystem::path shadow_header = include_directory / "shadow.glsl";
 

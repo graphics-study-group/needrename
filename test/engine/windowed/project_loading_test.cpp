@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <fstream>
@@ -11,7 +12,6 @@
 #include <Framework/Tools/ComplexRenderGraphBuilder.h>
 #include <Framework/World/WorldSystem.h>
 #include <Render/FullRenderSystem.h>
-#include <cmake_config.h>
 
 using namespace Engine;
 
@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
         if (max_frame_count == 0) return -1;
     }
 
-    std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
+    std::filesystem::path project_path(ProjectsDir());
     project_path = project_path / "test_project";
 
     SDL_Init(SDL_INIT_VIDEO);
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);

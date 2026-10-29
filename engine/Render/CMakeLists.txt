@@ -12,6 +12,7 @@ target_link_libraries(EngineRender
     EngineAssetCore
     EngineRhi
     EngineCore
+    EngineConfigHeader
     EngineDepVulkan
     EngineDepSdl
     EngineDepImgui

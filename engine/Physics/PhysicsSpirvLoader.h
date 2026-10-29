@@ -4,6 +4,7 @@
 #include "physics_export.h"
 
 #include <cstdint>
+#include <filesystem>
 #include <string_view>
 #include <vector>
 
@@ -13,6 +14,18 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 namespace Engine {
+    /**
+     * @brief Get the physics SPIR-V root of the resolved runtime data root.
+     *
+     * An installed data root keeps the modules in `spv/` with no configuration
+     * split; the developer build tree keeps the per-configuration build output
+     * directory named by `ENGINE_PHYSICS_SPIRV_DIR`.
+     *
+     * @return The directory holding the physics compute SPIR-V modules.
+     * @exception std::runtime_error The directory does not exist.
+     */
+    PHYSICS_API std::filesystem::path PhysicsSpirvDir();
+
     /**
      * @brief Read a precompiled physics shader from the physics SPIR-V tree.
      *

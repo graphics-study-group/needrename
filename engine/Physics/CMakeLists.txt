@@ -9,6 +9,8 @@ target_link_libraries(EnginePhysics
     EngineDepGlm
     PRIVATE
     EngineRhi
+    EngineCore
+    EngineConfigHeader
     EngineDepVulkan
     EngineDepSdl
 )

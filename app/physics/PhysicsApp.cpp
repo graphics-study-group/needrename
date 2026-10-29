@@ -1,4 +1,5 @@
 #include "PhysicsApp.h"
+#include <Core/FileSystem/DataRoot.h>
 
 #include "CameraControllerComponent.h"
 #include "SceneBuilder.h"
@@ -34,7 +35,6 @@
 #include <Rhi/Device/Structs.h>
 #include <Rhi/Submission/EpochTracker.h>
 #include <SDL3/SDL.h>
-#include <cmake_config.h>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 #include <vulkan/vulkan.hpp>
@@ -416,8 +416,8 @@ namespace AppPhysics {
         opt.title = info.window_title;
         opt.headless = (impl.mode != AppMode::Windowed);
         cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_INFO);
-        cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-        cmc->LoadProject(std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_with_sky");
+        cmc->LoadBuiltinAssets(BuiltinAssetsDir());
+        cmc->LoadProject(ProjectsDir() / "empty_with_sky");
 
         impl.main_class = cmc;
         impl.world = cmc->GetWorldSystem().get();

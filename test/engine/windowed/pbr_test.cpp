@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <chrono>
@@ -203,7 +204,7 @@ int main(int argc, char **argv) {
 
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
 
     auto rsys = cmc->GetRenderSystem();
     auto pbr_material_assets = ConstructMaterial();
@@ -267,7 +268,7 @@ int main(int argc, char **argv) {
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
-    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
+    std::filesystem::path mesh_path{AssetsDir().string() + "/meshes/sphere.obj"};
     auto &go = scene.CreateGameObject();
     auto tmc = &scene.CreateComponent<PBRMeshComponent>(go);
     tmc->LoadData(mesh_path, pbr_material_asset_ref, red_texture, MRAO_texture, normal_texture, emissive_texture);

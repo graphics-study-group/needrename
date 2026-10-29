@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <iostream>
 
@@ -9,7 +10,6 @@
 #include "Render/FullRenderSystem.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
-#include <cmake_config.h>
 
 using namespace Engine;
 
@@ -80,12 +80,10 @@ int main(int argc, char *argv[]) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto asys = cmc->GetAssetManager();
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
 
     auto cs = std::make_shared<ShaderAsset>();
-    cs->LoadFromFile(
-        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.glsl", ShaderAsset::ShaderType::Compute
-    );
+    cs->LoadFromFile(BuiltinAssetsDir() / "shaders/fluid.comp.0.glsl", ShaderAsset::ShaderType::Compute);
 
     auto rsys = cmc->GetRenderSystem();
 

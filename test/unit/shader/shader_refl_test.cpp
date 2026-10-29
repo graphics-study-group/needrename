@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <filesystem>
@@ -9,7 +10,6 @@
 #include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Rhi/Pipeline/ShaderInterface.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
-#include <cmake_config.h>
 
 inline std::vector<uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, EShLanguage shaderType) {
     std::ifstream file(p, std::ios::binary | std::ios::ate);
@@ -88,8 +88,8 @@ inline void PrintDescriptorSetLayoutBindings(
 int main(int argc, char *argv[]) {
     glslang::InitializeProcess();
 
-    auto p = argc == 1 ? std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/pbr_base.vert.0.glsl"
-                       : std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / argv[1];
+    auto p = argc == 1 ? Engine::BuiltinAssetsDir() / "shaders/pbr_base.vert.0.glsl"
+                       : Engine::BuiltinAssetsDir() / "shaders" / argv[1];
 
     // Get SDL logging working.
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
@@ -100,8 +100,7 @@ int main(int argc, char *argv[]) {
     PrintLayout(layout1);
 
     binary = GetSpirvBinaryFromGLSL(
-        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.0.glsl",
-        EShLangFragment
+        Engine::BuiltinAssetsDir() / "shaders/lambertian_cook_torrance.frag.0.glsl", EShLangFragment
     );
     auto layout = Engine::Rhi::SPLayout::Reflect(binary, true);
     std::cout << " - Fragment Shader: " << std::endl;
@@ -112,9 +111,7 @@ int main(int argc, char *argv[]) {
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 
-    binary = GetSpirvBinaryFromGLSL(
-        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.glsl", EShLangCompute
-    );
+    binary = GetSpirvBinaryFromGLSL(Engine::BuiltinAssetsDir() / "shaders/fluid.comp.0.glsl", EShLangCompute);
     layout = Engine::Rhi::SPLayout::Reflect(binary, false);
     std::cout << " - Compute Shader: " << std::endl;
     PrintLayout(layout);
