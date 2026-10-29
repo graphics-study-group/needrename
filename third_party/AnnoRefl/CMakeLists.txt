@@ -4,7 +4,8 @@ add_library(AnnoRefl SHARED ${ANROREFL_SOURCE})
 target_compile_definitions(AnnoRefl PRIVATE ANROREFL_DLL_EXPORTS)
 target_include_directories(AnnoRefl
     PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/needrename>"
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/AnnoRefl
 )

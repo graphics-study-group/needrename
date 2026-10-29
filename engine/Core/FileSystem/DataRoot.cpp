@@ -13,6 +13,8 @@
 
 namespace Engine {
     namespace {
+        // TODO: rename - the data-root override environment variable carries the
+        // placeholder package name.
         constexpr const char *k_data_root_env_var = "NEEDRENAME_DATA_ROOT";
         constexpr const char *k_installed_data_subdir = "share/needrename";
 

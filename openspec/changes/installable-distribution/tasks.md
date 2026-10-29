@@ -34,10 +34,10 @@
 
 ## 6. External consumption SDK
 
-- [ ] 6.1 Define the export set and `needrename-config.cmake` (namespace `needrename::`, `find_dependency(SDL3)`/`find_dependency(Vulkan)`, vendored public headers and transitive link artifacts installed), and verify a scratch external project can `find_package(needrename CONFIG REQUIRED)` and build a minimal `needrename::Engine` executable
-- [ ] 6.2 Install the reflection parser scripts/templates and per-module type lists under `share/needrename/reflection/`, implement `needrename_add_reflection()` with explicit type-list paths, and verify an external custom component using the reflection macros builds and serializes to the engine archive format (mirroring `editor_run_game_example`)
-- [ ] 6.3 Mark the rename points (project name, package/config name, namespace prefix) with `TODO: rename` comments and verify they are all discoverable by a single text search
-- [ ] 6.4 Verify the external scratch project builds with the engine source tree unavailable (e.g. renamed directory), proving the SDK is self-contained
+- [x] 6.1 Define the export set and `needrename-config.cmake` (namespace `needrename::`, `find_dependency(SDL3)`/`find_dependency(Vulkan)`, vendored public headers and transitive link artifacts installed), and verify a scratch external project can `find_package(needrename CONFIG REQUIRED)` and build a minimal `needrename::Engine` executable
+- [x] 6.2 Install the reflection parser scripts/templates and per-module type lists under `share/needrename/reflection/`, implement `needrename_add_reflection()` with explicit type-list paths, and verify an external custom component using the reflection macros builds and serializes to the engine archive format (mirroring `editor_run_game_example`)
+- [x] 6.3 Mark the rename points (project name, package/config name, namespace prefix) with `TODO: rename` comments and verify they are all discoverable by a single text search
+- [x] 6.4 Verify the external scratch project builds with the engine source tree unavailable (e.g. renamed directory), proving the SDK is self-contained
 
 ## 7. Docs and end-to-end validation
 

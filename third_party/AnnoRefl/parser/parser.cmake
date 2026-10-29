@@ -152,10 +152,34 @@ function(generate_pkl_file_list parent_projects)
     set(PARENT_PROJECT_CACHE "${pkl_file_list}" PARENT_SCOPE)
 endfunction()
 
+# Same as generate_pkl_file_list, but for explicit type-list files instead of
+# build targets. An installed SDK has no target properties to read, so callers
+# pass the shipped cache files by path.
+function(generate_pkl_file_list_from_paths pkl_paths)
+    set(pkl_file_list "")
+    foreach(pkl_path ${pkl_paths})
+        if (NOT EXISTS "${pkl_path}")
+            message(FATAL_ERROR "Reflection type list does not exist: ${pkl_path}")
+        endif()
+        set(pkl_file_list "${pkl_file_list}\"${pkl_path}\",")
+    endforeach()
+    if (pkl_file_list)
+        string(LENGTH "${pkl_file_list}" str_length)
+        math(EXPR new_length "${str_length} - 1") # strip the last comma
+        string(SUBSTRING "${pkl_file_list}" 0 ${new_length} pkl_file_list)
+    endif()
+    set(PARENT_PROJECT_CACHE "${pkl_file_list}" PARENT_SCOPE)
+endfunction()
+
 function(add_reflection_parser)
     set(optionArgs)
     set(oneValueArgs target_name generated_code_dir)
-    set(multiValueArgs reflection_search_files reflection_search_include_dirs parent_projects)
+    set(multiValueArgs
+        reflection_search_files
+        reflection_search_include_dirs
+        parent_projects
+        parent_type_lists
+    )
 
     cmake_parse_arguments(
         PARSER_ARGS
@@ -173,6 +197,7 @@ function(add_reflection_parser)
     else()
         set(parent_projects ${PARSER_ARGS_parent_projects})
     endif()
+    set(parent_type_lists ${PARSER_ARGS_parent_type_lists})
 
     # Resolve the libclang parse arguments first (sets LIBCLANG_LIBRARY_PATH on
     # Windows), then verify the Python interpreter can import the requirements.
@@ -199,7 +224,9 @@ function(add_reflection_parser)
     # set up task stamped file, which is used to check if the parser needs to run
     set(TASK_STAMPED_FILE "${CONFIG_GENERATED_CODE_DIR}/task_stamped")
 
-    if (parent_projects)
+    if (parent_type_lists)
+        generate_pkl_file_list_from_paths("${parent_type_lists}")
+    elseif (parent_projects)
         generate_pkl_file_list(${parent_projects})
     endif()
 
@@ -251,7 +278,12 @@ function(add_reflection_parser)
 
     add_library(${target_name} INTERFACE)
     target_include_directories(${target_name} INTERFACE ${generated_code_dir})
-    target_link_libraries(${target_name} INTERFACE json)
+    # In-tree the generated code links the vendored `json` target; an installed
+    # SDK overrides this with the exported `needrename::json` target.
+    if (NOT DEFINED ANROREFL_REFLECTION_LINK_TARGETS)
+        set(ANROREFL_REFLECTION_LINK_TARGETS json)
+    endif()
+    target_link_libraries(${target_name} INTERFACE ${ANROREFL_REFLECTION_LINK_TARGETS})
     add_dependencies(${target_name} ${target_name}_generation)
 endfunction()
 
@@ -273,7 +305,18 @@ function(get_include_directories_for_target target include_dirs)
             endif()
         endforeach()
     endif()
+    # Both link scopes are followed: consumers routinely link the engine
+    # PRIVATE, and PRIVATE links of an executable are not part of its
+    # INTERFACE_LINK_LIBRARIES.
     get_target_property(deps ${target} INTERFACE_LINK_LIBRARIES)
+    get_target_property(private_deps ${target} LINK_LIBRARIES)
+    if (private_deps)
+        if (deps)
+            list(APPEND deps ${private_deps})
+        else()
+            set(deps ${private_deps})
+        endif()
+    endif()
     if (deps)
         foreach(dep ${deps})
             if (TARGET ${dep})

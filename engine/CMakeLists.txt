@@ -3,9 +3,13 @@
 ###########################################
 
 # Header files are shared across all engine modules; expose the engine source
-# root as a single INTERFACE so every module can include its peers.
+# root as a single INTERFACE so every module can include its peers. Installed
+# consumers get the same header layout beneath <prefix>/include/needrename.
 add_library(EngineLibHeaderInterface INTERFACE)
-target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
+target_include_directories(EngineLibHeaderInterface INTERFACE
+    "$<BUILD_INTERFACE:${ENGINE_SOURCE_DIR}>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/needrename>"
+)
 
 # Granular external dependency targets - each DLL links only what it needs.
 add_library(EngineDepGlm INTERFACE)

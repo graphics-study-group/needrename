@@ -59,6 +59,8 @@ if (UNIX)
 endif()
 
 include(CTest)
+# Supplies CMAKE_INSTALL_INCLUDEDIR/LIBDIR, used by the SDK layout.
+include(GNUInstallDirs)
 
 find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
