@@ -3,9 +3,13 @@
 ###########################################
 
 # Header files are shared across all engine modules; expose the engine source
-# root as a single INTERFACE so every module can include its peers.
+# root as a single INTERFACE so every module can include its peers. Installed
+# consumers get the same header layout beneath <prefix>/include/needrename.
 add_library(EngineLibHeaderInterface INTERFACE)
-target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
+target_include_directories(EngineLibHeaderInterface INTERFACE
+    "$<BUILD_INTERFACE:${ENGINE_SOURCE_DIR}>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/needrename>"
+)
 
 # Granular external dependency targets - each DLL links only what it needs.
 add_library(EngineDepGlm INTERFACE)
@@ -30,6 +34,14 @@ endif()
 
 add_library(EngineDepImgui INTERFACE)
 target_link_libraries(EngineDepImgui INTERFACE imgui)
+
+# The generated configuration header is a private, in-tree header: it carries
+# the developer fallback paths of this machine, so it is generated into the
+# build tree and never installed or exported to the SDK. Modules that include
+# <cmake_config.h> link this target privately.
+set(ENGINE_GENERATED_INCLUDE_DIR "${CMAKE_BINARY_DIR}/include")
+add_library(EngineConfigHeader INTERFACE)
+target_include_directories(EngineConfigHeader INTERFACE ${ENGINE_GENERATED_INCLUDE_DIR})
 
 ###########################################
 # Module DLLs (in dependency order)       #
@@ -74,15 +86,21 @@ target_link_libraries(Engine
 # Build-tree configuration                #
 ###########################################
 
-# TODO: Use relative paths when install.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
+# Generated into the build tree: the source tree holds no generated header, and
+# installed or exported consumers never see this machine's fallback paths.
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in
+    ${ENGINE_GENERATED_INCLUDE_DIR}/cmake_config.h
+)
 
 ###########################################
-# Documentation                           #
+# Documentation (gated by ENGINE_BUILD_DOCS) #
 ###########################################
 
-find_package(Doxygen)
-if(Doxygen_FOUND)
+if (ENGINE_BUILD_DOCS)
+    find_package(Doxygen)
+endif()
+if(ENGINE_BUILD_DOCS AND Doxygen_FOUND)
     set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
     # Only *.h files contain public interfaces
     set(DOXYGEN_FILE_PATTERNS *.h)

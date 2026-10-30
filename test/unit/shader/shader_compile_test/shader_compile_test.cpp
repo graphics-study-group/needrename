@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -7,7 +8,6 @@
 #include <vector>
 
 #include <Render/Asset/Shader/ShaderCompiler.h>
-#include <cmake_config.h>
 
 Engine::ShaderCompiler compiler;
 
@@ -30,9 +30,12 @@ bool Compile(std::filesystem::path path) {
 
 int main() {
     bool flag = true;
-    flag &= Compile(ENGINE_TESTS_DIR "/unit/shader/shader_compile_test/blinn_phong_test_shader.frag");
-    flag &= Compile(ENGINE_TESTS_DIR "/unit/shader/shader_compile_test/folder/local_include_test.frag");
-    flag &= Compile(ENGINE_TESTS_DIR "/unit/shader/shader_compile_test/folder/multi_level_include_test.frag");
+    flag &= Compile((Engine::TestDataDir() / "unit/shader/shader_compile_test/blinn_phong_test_shader.frag").string());
+    flag &=
+        Compile((Engine::TestDataDir() / "unit/shader/shader_compile_test/folder/local_include_test.frag").string());
+    flag &= Compile(
+        (Engine::TestDataDir() / "unit/shader/shader_compile_test/folder/multi_level_include_test.frag").string()
+    );
 
     if (!flag) {
         std::cerr << "One or more shader compilations failed.\n";

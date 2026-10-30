@@ -4,7 +4,8 @@ add_library(AnnoRefl SHARED ${ANROREFL_SOURCE})
 target_compile_definitions(AnnoRefl PRIVATE ANROREFL_DLL_EXPORTS)
 target_include_directories(AnnoRefl
     PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/needrename>"
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/AnnoRefl
 )
@@ -16,5 +17,8 @@ target_link_libraries(AnnoRefl
 
 set(ANROREFL_PARSER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/parser" CACHE STRING "Path to AnnoRefl parser directory")
 
-enable_testing()
-add_subdirectory(tests)
+# The vendored test subproject obeys the same test policy as first-party tests.
+if (ENGINE_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

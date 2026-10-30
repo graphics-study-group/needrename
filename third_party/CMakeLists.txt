@@ -88,3 +88,29 @@ endif()
 
 set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
 add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)
+
+# --- SDK install interfaces ------------------------------------------------
+# The targets below are exported with the engine package, so their include
+# directories must not point into this checkout. Headers are installed beneath
+# <prefix>/include/needrename and the install interface names that location.
+set(ANRO_SDK_INCLUDE_DIR "${CMAKE_INSTALL_INCLUDEDIR}/needrename")
+
+set_target_properties(glm PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES
+        "$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/glm>;$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/glm>"
+)
+set_target_properties(json PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES
+        "$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/json>;$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/json>"
+)
+set_target_properties(vma PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES
+        "$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/vma>;$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/vma>"
+)
+set_target_properties(imgui PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES
+        "$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/imgui>;$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/imgui/backends>;\
+$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/imgui>;$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/imgui/backends>"
+)
+# Drop the SYSTEM copies: they duplicate the source-tree paths above.
+set_target_properties(glm json vma imgui PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")

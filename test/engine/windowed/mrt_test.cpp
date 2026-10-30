@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <chrono>
@@ -226,7 +227,7 @@ int main(int argc, char **argv) {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
 
     auto rsys = cmc->GetRenderSystem();
     auto amg = cmc->GetAssetManager();

@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <charconv>
@@ -26,7 +27,6 @@
 #include <Render/FullRenderSystem.h>
 #include <Render/UserInterface/GUISystem.h>
 #include <SDL3/SDL.h>
-#include <cmake_config.h>
 
 #include <Editor/EditorMainClass.h>
 #include <Editor/Render/EditorRenderGraphBuilder.h>
@@ -119,14 +119,28 @@ void Stop() {
     }
 }
 
+int RunExample(int argc, char **argv);
+
 int main(int argc, char **argv) {
+    try {
+        return RunExample(argc, argv);
+    } catch (const std::exception &error) {
+        // Installed executables must fail with a diagnostic, not a crash: the
+        // data locator names the missing data directory and the resolution step.
+        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "%s", error.what());
+        return 1;
+    }
+}
+
+int RunExample(int argc, char **argv) {
     const ExampleOptions options = ParseArguments(argc, argv);
 
-    std::filesystem::path project_template_path(ENGINE_PROJECTS_DIR);
+    std::filesystem::path project_template_path(ProjectsDir());
     project_template_path = project_template_path / "test_project";
 
-    std::filesystem::path project_path(ENGINE_EXAMPLES_DIR);
-    project_path = project_path / "editor_run_game_example" / "temp_project";
+    // Runtime scratch: materialise the working project in the current working
+    // directory, never in the source tree or the (read-only) data root.
+    const std::filesystem::path project_path = std::filesystem::path("temp_project");
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -149,7 +163,7 @@ int main(int argc, char **argv) {
 
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     RegisterAllTypes();
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
     auto rsys = cmc->GetRenderSystem();
     auto asys = cmc->GetAssetManager();
     auto world = cmc->GetWorldSystem();

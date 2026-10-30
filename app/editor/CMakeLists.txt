@@ -11,7 +11,10 @@ if(MSVC)
     # Windows so an import library is produced (Linux .so exports by default).
     set_target_properties(EngineEditor PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
-target_include_directories(EngineEditor PUBLIC ${ENGINE_EDITOR_DIR})
+target_include_directories(EngineEditor PUBLIC
+    "$<BUILD_INTERFACE:${ENGINE_EDITOR_DIR}>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/needrename>"
+)
 target_link_libraries(EngineEditor PUBLIC Engine)
 
 include(${ANROREFL_PARSER_DIR}/parser.cmake)

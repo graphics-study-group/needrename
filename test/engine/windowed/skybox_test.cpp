@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <chrono>
@@ -38,12 +39,12 @@ namespace sch = std::chrono;
  * - Dow face (Z-): rotated for 180 degrees;
  */
 const std::array<std::filesystem::path, 6> CUBEMAP_FACES = {
-    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_R_tonemapped.png",
-    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_L_tonemapped.png",
-    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_F_tonemapped.png",
-    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_B_tonemapped.png",
-    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_U_tonemapped.png",
-    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_D_tonemapped.png"
+    AssetsDir() / "skybox" / "skybox_R_tonemapped.png",
+    AssetsDir() / "skybox" / "skybox_L_tonemapped.png",
+    AssetsDir() / "skybox" / "skybox_F_tonemapped.png",
+    AssetsDir() / "skybox" / "skybox_B_tonemapped.png",
+    AssetsDir() / "skybox" / "skybox_U_tonemapped.png",
+    AssetsDir() / "skybox" / "skybox_D_tonemapped.png"
 };
 
 std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
@@ -89,7 +90,7 @@ int main(int argc, char **argv) {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
     auto rsys = cmc->GetRenderSystem();
     auto *mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
@@ -135,13 +136,13 @@ int main(int argc, char **argv) {
         // Load skybox cubemap
         auto cubemap = MainClass::GetInstance()->GetAssetManager()->CreateAsset<ImageCubemapAsset>();
         Engine::detail::texture_import::LoadImageCubemapAssetFromEquirectangularFile(
-            *cubemap, std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", width, height
+            *cubemap, AssetsDir() / "skybox" / "sky_cloudy.png", width, height
         );
 
         // Engine::Serialization::Archive archive;
         // archive.prepare_save();
         // cubemap->save_asset_to_archive(archive);
-        // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox");
+        // archive.save_to_file(AssetsDir().string() + "/skybox");
 
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *skybox_texture, std::span{cubemap->GetPixelData(), cubemap->GetPixelDataSize()}

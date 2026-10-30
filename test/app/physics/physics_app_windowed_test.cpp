@@ -1,7 +1,7 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <PhysicsApp.h>
 
 #include <cassert>
-#include <cmake_config.h>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
@@ -69,7 +69,7 @@ namespace {
 
     // ── URDF robot scene (A1) ────────────────────────────────────────
     void AddUrdfRobotScene(PhysicsApp &app, glm::vec3 global_position, glm::quat global_rotation) {
-        const std::filesystem::path urdf = std::filesystem::path(ENGINE_ASSETS_DIR) / "a1_description/urdf/a1.urdf";
+        const std::filesystem::path urdf = Engine::AssetsDir() / "a1_description/urdf/a1.urdf";
 
         UrdfImportConfig cfg;
         cfg.urdf_path = urdf;

@@ -9,6 +9,8 @@ target_link_libraries(EnginePhysics
     EngineDepGlm
     PRIVATE
     EngineRhi
+    EngineCore
+    EngineConfigHeader
     EngineDepVulkan
     EngineDepSdl
 )
@@ -64,10 +66,20 @@ set_target_properties(physics_shader PROPERTIES
 )
 add_dependencies(EnginePhysics physics_shader)
 
-# The C++ side loads SPIR-V through ENGINE_PHYSICS_SPIRV_DIR; feed it the same
-# per-config subdirectory the artefacts above are written to.
+# The C++ side loads SPIR-V through the runtime data locator's physics root;
+# ENGINE_PHYSICS_SPIRV_DIR is its developer fallback and must select the same
+# per-configuration subdirectory the artefacts above are written to.
 target_compile_definitions(EnginePhysics PRIVATE
     ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR="${PHYSICS_SPIRV_CONFIG_SUBDIR}"
+)
+
+# Install the configuration's artefacts into the runtime data root at
+# source-relative paths. An installation carries one configuration, so the
+# per-configuration build-tree split is flattened away.
+install(
+    DIRECTORY "${PHYSICS_SPIRV_ROOT}/${PHYSICS_SPIRV_CONFIG_SUBDIR}/"
+    DESTINATION share/needrename/spirv
+    COMPONENT runtime
 )
 
 # --- Reflection: per-DLL registration for Physics types ---

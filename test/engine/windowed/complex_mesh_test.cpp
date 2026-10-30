@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <chrono>
@@ -138,7 +139,7 @@ int main(int argc, char **argv) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto asys = cmc->GetAssetManager();
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
 
     auto rsys = cmc->GetRenderSystem();
 
@@ -201,7 +202,7 @@ int main(int argc, char **argv) {
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
-    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/red_brick_sphere/red_brick_sphere.obj"};
+    std::filesystem::path mesh_path{(AssetsDir() / "red_brick_sphere" / "red_brick_sphere.obj").string()};
     auto &go = scene.CreateGameObject();
     auto &tmc = scene.CreateComponent<MeshComponentFromFile>(go);
     tmc.LoadFile(mesh_path);

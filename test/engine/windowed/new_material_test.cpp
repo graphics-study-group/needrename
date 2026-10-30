@@ -1,3 +1,4 @@
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <chrono>
@@ -184,14 +185,14 @@ int main(int argc, char **argv) {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
 
     auto rsys = cmc->GetRenderSystem();
     auto am = cmc->GetAssetManager();
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     Engine::detail::texture_import::LoadImage2DTextureAssetFromFile(
-        *test_texture_asset, std::string(ENGINE_ASSETS_DIR) + "/skybox/sky_cloudy.png", Rhi::ImageFormat::R8G8B8A8SRGB
+        *test_texture_asset, (AssetsDir() / "skybox" / "sky_cloudy.png").string(), Rhi::ImageFormat::R8G8B8A8SRGB
     );
     std::shared_ptr allocated_image_texture = test_texture_asset->CreateImageTexture(rsys->GetDeviceContext());
 
@@ -202,13 +203,13 @@ int main(int argc, char **argv) {
     // Engine::Serialization::Archive archive;
     // archive.prepare_save();
     // test_asset.first->save_asset_to_archive(archive);
-    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mla.asset");
-    // SDL_Log("Saved MaterialLibraryAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mla.asset").c_str());
+    // archive.save_to_file(AssetsDir().string() + "/mla.asset");
+    // SDL_Log("Saved MaterialLibraryAsset to %s", (AssetsDir().string() + "/mla.asset").c_str());
     // archive.clear();
     // archive.prepare_save();
     // test_asset.second->save_asset_to_archive(archive);
-    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mta.asset");
-    // SDL_Log("Saved MaterialTemplateAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mta.asset").c_str());
+    // archive.save_to_file(AssetsDir().string() + "/mta.asset");
+    // SDL_Log("Saved MaterialTemplateAsset to %s", (AssetsDir().string() + "/mta.asset").c_str());
 
     auto *ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>();
 

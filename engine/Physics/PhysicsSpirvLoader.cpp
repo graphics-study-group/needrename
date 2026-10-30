@@ -2,6 +2,7 @@
 
 #include <cmake_config.h>
 
+#include <Core/FileSystem/DataRoot.h>
 #include <Rhi/Device/DeviceContext.h>
 #include <Rhi/Pipeline/ComputeKernel.h>
 
@@ -11,9 +12,12 @@
 #include <string>
 
 namespace Engine {
+    std::filesystem::path PhysicsSpirvDir() {
+        return ResolveDataDir(ENGINE_DATA_SUBDIR_PHYSICS_SPIRV, ENGINE_PHYSICS_SPIRV_DIR);
+    }
+
     std::vector<uint32_t> LoadPhysicsSpirv(std::string_view relative_path) {
-        const std::filesystem::path full =
-            std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / std::filesystem::path(std::string(relative_path));
+        const std::filesystem::path full = PhysicsSpirvDir() / std::filesystem::path(std::string(relative_path));
 
         std::ifstream file(full, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {

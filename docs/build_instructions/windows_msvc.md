@@ -85,3 +85,22 @@ cmake --build --preset msvc-release
 ```
 
 Equivalent direct commands: `cmake --build build/msvc --config Debug`, `ctest -C Debug`.
+
+## Install and SDK
+
+`cmake --install` produces a self-contained prefix (`bin/` with every DLL,
+`share/needrename/` data root, `include/`, `lib/cmake/needrename`); the same
+prefix is a CMake package other projects can link against.
+
+```powershell
+cmake --build --preset msvc-release
+cmake --install build/msvc --config Release --prefix D:\needrename
+
+# Run an installed example from an unrelated directory
+cd $env:TEMP
+& D:\needrename\bin\external_resource_loading_example.exe 120
+```
+
+See [distribution.md](distribution.md) for the layout, install components,
+`ENGINE_SHADER_MODE`, the `NEEDRENAME_DATA_ROOT` override, ZIP packaging and SDK
+usage.

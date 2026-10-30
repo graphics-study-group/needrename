@@ -1,15 +1,29 @@
-#define ENGINE_ROOT_DIR "@ENGINE_ROOT_DIR@"
-#define ENGINE_SOURCE_DIR "@ENGINE_SOURCE_DIR@"
-#define ENGINE_ASSETS_DIR "@ASSETS_DIR@"
-#define ENGINE_BUILTIN_ASSETS_DIR "@BUILTIN_ASSETS_DIR@"
-#define ENGINE_EXAMPLES_DIR "@EXAMPLES_DIR@"
-#define ENGINE_TESTS_DIR "@TESTS_DIR@"
-#define ENGINE_THIRD_PARTY_DIR "@THIRD_PARTY_DIR@"
-#define ENGINE_PROJECTS_DIR "@PROJECTS_DIR@"
+// Generated configuration header. Never edit the generated copy: change
+// engine/cmake_config.h.in and reconfigure.
+//
+// This header carries no runtime data location that works by itself: it defines
+// the data-root layout constants and the developer fallback the runtime data
+// locator (Core/FileSystem/DataRoot.h) uses when neither NEEDRENAME_DATA_ROOT
+// nor the installed layout resolves.
+
+// --- Layout constants: subdirectory names beneath the runtime data root -----
+#define ENGINE_DATA_SUBDIR_BUILTIN_ASSETS "builtin_assets"
+#define ENGINE_DATA_SUBDIR_PROJECTS "projects"
+#define ENGINE_DATA_SUBDIR_ASSETS "assets"
+#define ENGINE_DATA_SUBDIR_PHYSICS_SPIRV "spirv"
+#define ENGINE_DATA_SUBDIR_TEST_DATA "test_data"
+
+// --- Developer fallback: this machine's build/checkout tree -----------------
+#define ENGINE_DEV_DATA_ROOT_DIR "@ENGINE_ROOT_DIR@"
+#define ENGINE_DEV_BUILTIN_ASSETS_DIR "@BUILTIN_ASSETS_DIR@"
+#define ENGINE_DEV_PROJECTS_DIR "@PROJECTS_DIR@"
+#define ENGINE_DEV_ASSETS_DIR "@ASSETS_DIR@"
+#define ENGINE_DEV_TESTS_DIR "@TESTS_DIR@"
+
 // Physics SPIR-V is compiled per configuration (Debug keeps glslangValidator's
-// -gVS debug info), so the artefacts live in a configuration subdirectory.
+// -gVS debug info), so the build tree splits the artefacts by configuration.
 // ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR is defined per configuration by
-// engine/Physics/CMakeLists.txt.
+// engine/Physics/CMakeLists.txt; an installed data root has no split.
 #if defined(ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR)
 #define ENGINE_PHYSICS_SPIRV_DIR "@PHYSICS_SPIRV_ROOT@/" ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR
 #else

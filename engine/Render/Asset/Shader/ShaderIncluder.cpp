@@ -1,12 +1,12 @@
 #include "ShaderIncluder.h"
 
-#include <cmake_config.h>
+#include <Core/FileSystem/DataRoot.h>
 #include <filesystem>
 
 namespace Engine {
     DirStackFileIncluder::DirStackFileIncluder() {
-        // Add engine built-in asset directory to system paths
-        addSystemPath(ENGINE_BUILTIN_ASSETS_DIR "/shaders/include");
+        // The built-in shader include tree lives in the runtime data root.
+        addSystemPath(BuiltinAssetsDir() / "shaders" / "include");
     }
 
     glslang::TShader::Includer::IncludeResult *DirStackFileIncluder::includeLocal(

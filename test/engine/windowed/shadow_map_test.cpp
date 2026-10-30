@@ -29,6 +29,7 @@
  * cascade fit and the camera placement, and the same per frame checks keep
  * running so the window cannot hide a regression.
  */
+#include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <atomic>
 #include <cassert>
@@ -531,7 +532,7 @@ int main(int argc, char **argv) {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(BuiltinAssetsDir());
 
     auto rsys = cmc->GetRenderSystem();
     auto am = cmc->GetAssetManager();
@@ -625,7 +626,7 @@ int main(int argc, char **argv) {
         go.m_name = name;
         go.GetTransformRef().SetScale(glm::vec3{PRIMITIVE_SCALE}).SetPosition(position);
         auto &mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(go);
-        mesh_comp.LoadData(std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/" + mesh_file});
+        mesh_comp.LoadData(std::filesystem::path{(AssetsDir() / "meshes" / mesh_file).string()});
         mesh_comp.m_material_assets.resize(1);
         mesh_comp.m_material_assets[0] = cast_shadow ? cube_mat_asset_ref : non_casting_mat_asset_ref;
         // Read when the renderer registers itself, so it has to be set before the

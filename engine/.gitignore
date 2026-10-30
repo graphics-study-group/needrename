@@ -1,1 +1,1 @@
-cmake_config.h
+# The generated configuration header now lives in the build tree (see engine/CMakeLists.txt).
