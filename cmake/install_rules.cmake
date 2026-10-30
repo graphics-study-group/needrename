@@ -271,11 +271,14 @@ install(EXPORT needrenameTargets
 # TODO: rename - data-root directory name (also the NEEDRENAME_DATA_ROOT env var
 # in Core/FileSystem/DataRoot.cpp).
 set(NEEDRENAME_DATA_ROOT_REL "share/needrename")
+# The relative name is substituted, not resolved, so the package stays
+# relocatable: the config computes its prefix from its own location (see
+# needrename-config.cmake.in). A PATH_VARS entry here would bake the
+# configure-time CMAKE_INSTALL_PREFIX into the installed package.
 configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/needrename-config.cmake.in"
     "${PROJECT_BINARY_DIR}/needrename-config.cmake"
     INSTALL_DESTINATION "${ENGINE_SDK_CMAKE_DIR}"
-    PATH_VARS NEEDRENAME_DATA_ROOT_REL
 )
 write_basic_package_version_file(
     "${PROJECT_BINARY_DIR}/needrename-config-version.cmake"

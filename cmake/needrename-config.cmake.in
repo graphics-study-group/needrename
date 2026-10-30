@@ -19,7 +19,11 @@ find_dependency(Threads)
 include("${CMAKE_CURRENT_LIST_DIR}/needrenameTargets.cmake")
 
 # Layout of this installation (see the runtime-data-resolution spec).
-set(NEEDRENAME_DATA_ROOT "@PACKAGE_NEEDRENAME_DATA_ROOT_REL@")
+#
+# @PACKAGE_INIT@ above derives PACKAGE_PREFIX_DIR from this file's own location,
+# so the package works for any install prefix, including one passed only to
+# `cmake --install --prefix` (which never reaches CMAKE_INSTALL_PREFIX).
+set(NEEDRENAME_DATA_ROOT "${PACKAGE_PREFIX_DIR}/@NEEDRENAME_DATA_ROOT_REL@")
 set(NEEDRENAME_REFLECTION_PARSER_DIR "${NEEDRENAME_DATA_ROOT}/reflection/parser")
 set(NEEDRENAME_REFLECTION_TYPE_LISTS_DIR "${NEEDRENAME_DATA_ROOT}/reflection/type_lists")
 
