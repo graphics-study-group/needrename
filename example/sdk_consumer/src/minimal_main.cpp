@@ -30,7 +30,7 @@ namespace {
         // The archive key is qualified (`"ShaderAsset::storeType"`), so only the
         // suffix is matched. A SPIR-V archive also drops its sibling `.glsl`.
         return content.find("storeType\": \"SPIRV\"") != std::string::npos
-            || content.find("storeType\":\"SPIRV\"") != std::string::npos;
+               || content.find("storeType\":\"SPIRV\"") != std::string::npos;
     }
 
     /// @brief Count the shader archives and the storage form they carry.

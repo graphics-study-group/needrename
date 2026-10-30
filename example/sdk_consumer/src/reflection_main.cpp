@@ -2,9 +2,9 @@
 
 #include <meta_sdk_consumer_reflection/reflection_init.inc>
 
+#include <AnnoRefl/Type.h>
 #include <AnnoRefl/reflection.h>
 #include <AnnoRefl/serialization.h>
-#include <AnnoRefl/Type.h>
 
 #include <cmath>
 #include <cstdio>
@@ -69,11 +69,9 @@ int main() {
     ExternalSpinner loaded;
     AnnoRefl::deserialize(loaded, archive);
 
-    const bool ok = engine_type != AnnoRefl::Type::s_name_index_map.end()
-                 && std::fabs(loaded.m_speed - 42.5f) < 1e-6f
-                 && loaded.m_samples.size() == 3
-                 && loaded.m_samples[2] == 6.0f
-                 && std::fabs(loaded.GetPosition().z - 3.0f) < 1e-6f;
+    const bool ok = engine_type != AnnoRefl::Type::s_name_index_map.end() && std::fabs(loaded.m_speed - 42.5f) < 1e-6f
+                    && loaded.m_samples.size() == 3 && loaded.m_samples[2] == 6.0f
+                    && std::fabs(loaded.GetPosition().z - 3.0f) < 1e-6f;
     std::printf(
         "round trip         : speed=%.1f samples=%zu z=%.1f -> %s\n",
         loaded.m_speed,

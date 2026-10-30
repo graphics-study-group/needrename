@@ -6,7 +6,6 @@
 #include <iostream>
 #include <string>
 
-
 #include "Render/RenderSystem/SceneDataManager.h"
 
 using Engine::RenderSystemState::SceneDataManager;
