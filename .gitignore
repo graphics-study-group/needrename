@@ -16,3 +16,4 @@ CMakeUserPresets.json
 .agents
 
 imgui.ini
+install/
