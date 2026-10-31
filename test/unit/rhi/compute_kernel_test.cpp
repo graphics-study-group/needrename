@@ -73,10 +73,10 @@ static bool g_pass = true;
     } while (0)
 
 namespace {
-    /// @brief Handles carry no `operator==` under typesafe conversion.
+    /// @brief Compare two portable handles by the identity they name.
     template <typename T>
     bool Same(T lhs, T rhs) {
-        return static_cast<typename T::CType>(lhs) == static_cast<typename T::CType>(rhs);
+        return lhs.GetValue() == rhs.GetValue();
     }
 
     /// @brief Storage buffers at non-contiguous binding numbers within set 0.
@@ -665,6 +665,7 @@ int main(int argc, char **argv) {
     std::cout << "Compute kernel test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

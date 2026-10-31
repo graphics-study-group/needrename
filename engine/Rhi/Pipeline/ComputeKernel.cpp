@@ -191,16 +191,16 @@ namespace Engine::Rhi {
         return pimpl->push_constant_size;
     }
 
-    vk::Pipeline ComputeKernel::GetPipeline() const noexcept {
-        return pimpl->pass_info.pipeline.get();
+    PipelineHandle ComputeKernel::GetPipeline() const noexcept {
+        return FromVulkan(pimpl->pass_info.pipeline.get());
     }
 
-    vk::PipelineLayout ComputeKernel::GetPipelineLayout() const noexcept {
-        return pimpl->pass_info.pipeline_layout.get();
+    PipelineLayoutHandle ComputeKernel::GetPipelineLayout() const noexcept {
+        return FromVulkan(pimpl->pass_info.pipeline_layout.get());
     }
 
-    vk::DescriptorSetLayout ComputeKernel::GetDescriptorSetLayout() const noexcept {
-        return ToVulkanDescriptorSetLayout(pimpl->pass_info.desc_layout.handle);
+    DescriptorSetLayoutHandle ComputeKernel::GetDescriptorSetLayout() const noexcept {
+        return pimpl->pass_info.desc_layout.handle;
     }
 
     void ComputeKernel::Dispatch(
@@ -381,6 +381,8 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
+
 
 
 

@@ -126,11 +126,11 @@ namespace Engine::Rhi {
         /// @brief Get the reflected size in bytes of the push-constant block (0 if none).
         uint32_t GetPushConstantSize() const noexcept;
         /// @brief Get the compute pipeline.
-        vk::Pipeline GetPipeline() const noexcept;
+        PipelineHandle GetPipeline() const noexcept;
         /// @brief Get the pipeline layout.
-        vk::PipelineLayout GetPipelineLayout() const noexcept;
+        PipelineLayoutHandle GetPipelineLayout() const noexcept;
         /// @brief Get the descriptor set layout the arena resolved for this kernel.
-        vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
+        DescriptorSetLayoutHandle GetDescriptorSetLayout() const noexcept;
 
         /**
          * @brief Dispatch this kernel with no push-constant value.
@@ -244,6 +244,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMPUTEKERNEL_INCLUDED
+
 
 
 
