@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace Engine::Rhi {
     /**
@@ -195,8 +196,12 @@ namespace Engine::Rhi {
     enum class DescriptorType : uint8_t {
         /// A uniform buffer, read-only in the shader.
         UniformBuffer,
+        /// A uniform buffer whose binding also takes a dynamic byte offset.
+        UniformBufferDynamic,
         /// A storage buffer, readable and writable in the shader.
         StorageBuffer,
+        /// A storage buffer whose binding also takes a dynamic byte offset.
+        StorageBufferDynamic,
         /// A texture with its sampler folded in.
         CombinedImageSampler,
         /// A texture sampled through a separate sampler.
@@ -232,6 +237,27 @@ namespace Engine::Rhi {
         PresentSource
     };
 
+    /**
+     * @brief One entry of a descriptor-set layout.
+     *
+     * A layout is a list of these: what each binding slot accepts and how many
+     * of them it holds. It is the portable description a backend turns into its
+     * own layout object, and the only place the engine states a set's shape.
+     */
+    struct DescriptorBinding {
+        /// @brief Binding number within the set.
+        uint32_t binding{0};
+        /// @brief What the binding accepts.
+        DescriptorType type{DescriptorType::UniformBuffer};
+        /// @brief How many descriptors the binding holds.
+        uint32_t count{1};
+
+        bool operator==(const DescriptorBinding &) const = default;
+    };
+
+    /// @brief The portable description of a descriptor-set layout.
+    using DescriptorSetLayout = std::vector<DescriptorBinding>;
+
     /// @brief Which parts of an image a barrier or a copy covers.
     enum class ImageAspect : uint8_t {
         Color = 1 << 0,
@@ -256,4 +282,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 

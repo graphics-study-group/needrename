@@ -91,8 +91,8 @@ namespace Engine {
             if (!desc_bindings.empty()) {
                 unsigned ubo_count{0};
                 for (auto &db : desc_bindings) {
-                    if (db.descriptorType == vk::DescriptorType::eUniformBuffer
-                        || db.descriptorType == vk::DescriptorType::eUniformBufferDynamic) {
+                    if (db.type == Rhi::DescriptorType::UniformBuffer
+                        || db.type == Rhi::DescriptorType::UniformBufferDynamic) {
                         ubo_count++;
                     }
                 }
@@ -105,7 +105,8 @@ namespace Engine {
                 // Resolved once, through the arena: this handle is what the
                 // pipeline layout is built over and what every set for this
                 // material is allocated against.
-                vk::DescriptorSetLayoutCreateInfo dslci{{}, desc_bindings};
+                const auto vk_bindings = Rhi::ToVulkanBindings(desc_bindings);
+                vk::DescriptorSetLayoutCreateInfo dslci{{}, vk_bindings};
                 b.descriptor_set_layout = system.GetDeviceContext().GetDescriptorArena().ResolveLayout(dslci, nullptr);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
@@ -219,6 +220,7 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
 
 
 

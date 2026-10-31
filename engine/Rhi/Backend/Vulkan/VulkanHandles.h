@@ -3,6 +3,7 @@
 
 #include "Rhi/RhiTypes.h"
 
+#include <vector>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
@@ -161,9 +162,54 @@ namespace Engine::Rhi {
         return vk::Fence(ToVulkan<VkFence>(handle));
     }
 
+    /// @brief Convert a portable descriptor kind to its Vulkan descriptor type.
+    inline vk::DescriptorType ToVulkanDescriptorType(DescriptorType type) noexcept {
+        switch (type) {
+        case DescriptorType::StorageBuffer:
+            return vk::DescriptorType::eStorageBuffer;
+        case DescriptorType::StorageBufferDynamic:
+            return vk::DescriptorType::eStorageBufferDynamic;
+        case DescriptorType::UniformBufferDynamic:
+            return vk::DescriptorType::eUniformBufferDynamic;
+        case DescriptorType::CombinedImageSampler:
+            return vk::DescriptorType::eCombinedImageSampler;
+        case DescriptorType::SampledImage:
+            return vk::DescriptorType::eSampledImage;
+        case DescriptorType::Sampler:
+            return vk::DescriptorType::eSampler;
+        case DescriptorType::StorageImage:
+            return vk::DescriptorType::eStorageImage;
+        case DescriptorType::UniformBuffer:
+        default:
+            return vk::DescriptorType::eUniformBuffer;
+        }
+    }
+
+    /**
+     * @brief Translate a portable descriptor-set layout into Vulkan bindings.
+     *
+     * The engine states a set's shape once, in portable terms; this is the one
+     * place that turns it into the structure a Vulkan layout is created from.
+     */
+    inline std::vector<vk::DescriptorSetLayoutBinding> ToVulkanBindings(const DescriptorSetLayout &layout) {
+        std::vector<vk::DescriptorSetLayoutBinding> bindings;
+        bindings.reserve(layout.size());
+        for (const DescriptorBinding &binding : layout) {
+            bindings.emplace_back(
+                binding.binding,
+                ToVulkanDescriptorType(binding.type),
+                binding.count,
+                vk::ShaderStageFlagBits::eAll,
+                nullptr
+            );
+        }
+        return bindings;
+    }
+
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANHANDLES_INCLUDED
+
 
 
 

@@ -2,6 +2,7 @@
 #define ENGINE_RHI_SHADERPARAMETERLAYOUT_INCLUDED
 
 #include "Rhi/Pipeline/ShaderInterface.h"
+#include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
 #include <memory>
@@ -65,14 +66,14 @@ namespace Engine::Rhi {
          * @return an unordered map from descriptor set index to its
          * corresponding binding.
          */
-        std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> GenerateAllLayoutBindings() const;
+        std::unordered_map<uint32_t, DescriptorSetLayout> GenerateAllLayoutBindings() const;
 
         /**
          * @brief Generate descriptor set layout binding for a given set.
          *
          * These bindings are sorted by binding numbers.
          */
-        std::vector<vk::DescriptorSetLayoutBinding> GenerateLayoutBindings(
+        DescriptorSetLayout GenerateLayoutBindings(
             uint32_t set, bool enforce_dynamic_uniform_buffer = false, bool enforce_dynamic_storage_buffer = false
         ) const;
 
@@ -96,4 +97,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_SHADERPARAMETERLAYOUT_INCLUDED
+
 

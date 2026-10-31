@@ -73,13 +73,13 @@ inline void PrintLayout(const Engine::Rhi::SPLayout &layout) {
 }
 
 inline void PrintDescriptorSetLayoutBindings(
-    const std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> &sets
+        const std::unordered_map<uint32_t, Engine::Rhi::DescriptorSetLayout> &sets
 ) {
     for (const auto &kv : sets) {
         std::cout << "Set: " << kv.first << std::endl;
         for (const auto &bd : kv.second) {
             std::cout << std::format(
-                "\tBinding {}: {} {}(s)", bd.binding, bd.descriptorCount, to_string(bd.descriptorType)
+                    "\tBinding {}: {} {}(s)", bd.binding, bd.count, static_cast<uint32_t>(bd.type)
             ) << std::endl;
         }
     }
@@ -209,3 +209,4 @@ void main() { out_buf.v[0] = 1u; }
     glslang::FinalizeProcess();
     return 0;
 }
+

@@ -12,27 +12,48 @@
 // leaves entries resident at teardown.
 
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryAllocation.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Resource/DescriptorArena.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Submission/EpochTracker.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Texture/ImageTexture.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <memory>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <string>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 using namespace Engine::Rhi;
@@ -415,7 +436,8 @@ int main() {
         // The material-shaped set uses set 2, and its layout is resolved through
         // the same arena, exactly as MaterialLibrary does for a real material.
         const auto image_bindings = image_layout.GenerateLayoutBindings(2, true, false);
-        const auto image_set_layout = arena.ResolveLayout(vk::DescriptorSetLayoutCreateInfo{{}, image_bindings});
+        const auto image_vk_bindings = Engine::Rhi::ToVulkanBindings(image_bindings);
+        const auto image_set_layout = arena.ResolveLayout(vk::DescriptorSetLayoutCreateInfo{{}, image_vk_bindings});
 
         const size_t baseline = arena.GetResidentEntryCount();
         const size_t minted_before = arena.GetMintedSetCount();
@@ -522,7 +544,8 @@ int main() {
         reflected.interfaces.push_back(std::move(buffer_interface));
 
         const auto bindings = reflected.GenerateLayoutBindings(2, false, false);
-        const auto set_layout = arena.ResolveLayout(vk::DescriptorSetLayoutCreateInfo{{}, bindings});
+        const auto vk_bindings = Engine::Rhi::ToVulkanBindings(bindings);
+        const auto set_layout = arena.ResolveLayout(vk::DescriptorSetLayoutCreateInfo{{}, vk_bindings});
 
         auto buffer = ComputeBuffer::CreateUnique(allocator, 64, false, false, false, false, "Binding growth");
         ShaderResourceBinding srb{arena};
@@ -567,4 +590,5 @@ int main() {
     std::cout << "Rhi::DescriptorArena test PASSED." << std::endl;
     return 0;
 }
+
 

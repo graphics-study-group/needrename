@@ -84,7 +84,8 @@ namespace Engine::Rhi {
             // offsets.
             auto layout = Rhi::SPLayout::Reflect(spirv_code, false);
             auto desc_bindings = layout.GenerateLayoutBindings(0, false, false);
-            vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, desc_bindings};
+            const auto vk_bindings = ToVulkanBindings(desc_bindings);
+            vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, vk_bindings};
             pass_info.desc_layout = context.GetDescriptorArena().ResolveLayout(
                 dslci, std::format("Descriptor Set Layout - Compute Kernel {}", DisplayName()).c_str()
             );
@@ -381,6 +382,7 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
 
 
 
