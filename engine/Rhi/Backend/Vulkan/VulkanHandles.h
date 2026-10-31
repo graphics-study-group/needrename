@@ -134,8 +134,18 @@ namespace Engine::Rhi {
     inline vk::SurfaceKHR ToVulkanSurface(SurfaceHandle handle) noexcept {
         return vk::SurfaceKHR(ToVulkan<VkSurfaceKHR>(handle));
     }
+    /// @brief Convert a Vulkan command buffer to its portable handle.
+    inline CommandBufferHandle FromVulkan(vk::CommandBuffer command_buffer) noexcept {
+        return FromVulkan<CommandBufferHandle>(static_cast<VkCommandBuffer>(command_buffer));
+    }
+    /// @brief Convert a portable command buffer handle to its Vulkan object.
+    inline vk::CommandBuffer ToVulkanCommandBuffer(CommandBufferHandle handle) noexcept {
+        return vk::CommandBuffer(ToVulkan<VkCommandBuffer>(handle));
+    }
+
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANHANDLES_INCLUDED
+
 
 

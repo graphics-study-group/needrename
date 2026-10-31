@@ -166,3 +166,25 @@ cheaper than starting the seam and coming back.
 - **Group 3 has started:** `Rhi/Pipeline/PipelineEnums.h` no longer includes a
   backend header, and the WebGPU build now fails on `Rhi/Device/BindingRef.h`
   instead — the compiler is walking the list in dependency order.
+### Progress after the third pass
+
+- **3.4 (interface half):** `Rhi/Command/CommandEncoder.h` exists, with the
+  Vulkan implementation recording exactly the compute-to-compute memory barrier
+  the physics step's hand-written `DispatchBarrier` recorded, so the encoder's
+  first backend reproduces today's command stream byte for byte. The encoder is
+  not yet *used*: `ComputeKernel::Dispatch` and the solvers still take a raw
+  command buffer, which is task 4.1.
+- **3.2 done for four headers:** `BindingRef`, `AllocatorState`,
+  `DeviceInterface` (with `DeviceContext`), and `PipelineEnums` carry no backend
+  type. The conversions live in `Rhi/Backend/Vulkan/VulkanHandles.h` and
+  `ImageUtilsFunc.h`. `DeviceConfiguration::dynamic_dispatcher` was deleted: every
+  caller passed nullptr and it was the last Vulkan-Hpp type in a portable header.
+- **Remaining in 3.2/3.3:** `Structs.h` (`QueueInfo` owns Vulkan queues and
+  command pools, `SwapchainSupport` owns Vulkan structures), `MemoryAllocation.h`
+  (VMA handles and `vk::Image`/`vk::Buffer`), `DebugUtils.h`,
+  `ImmutableResourceCache.h`, `ShaderResourceBinding.h`, `InterfaceBindingResolver.h`,
+  `ShaderParameterLayout.h`, `ComputeKernel.h`, `Texture.h`, `EpochTracker.h`,
+  `SubmissionHelper.h`. `QueueInfo` is the one that does not have a mechanical
+  answer: its members are backend objects, and they stop being reachable from
+  consumers when 4.1/5.1 route recording through the encoder, so the encoder
+  migration should come before the queue/pool accessors are redesigned.
