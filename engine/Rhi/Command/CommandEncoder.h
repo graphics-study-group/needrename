@@ -4,7 +4,9 @@
 #include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
+#include <cstdint>
 #include <memory>
+#include <span>
 
 namespace Engine::Rhi {
     /**
@@ -55,6 +57,48 @@ namespace Engine::Rhi {
          */
         void Barrier();
 
+        /**
+         * @brief Bind a compute pipeline and the layout its constants are read from.
+         *
+         * @param pipeline The compute pipeline to record with.
+         * @param layout The pipeline layout, which is what a backend needs to
+         * place the constant block the pipeline reads.
+         */
+        void BindComputePipeline(PipelineHandle pipeline, PipelineLayoutHandle layout);
+
+        /**
+         * @brief Bind one descriptor set for compute work.
+         *
+         * @param set_index Index of the set in the pipeline layout.
+         * @param set The descriptor set to bind.
+         */
+        void BindDescriptorSet(uint32_t set_index, DescriptorSetHandle set);
+
+        /**
+         * @brief Record the constant block of the currently bound compute pipeline.
+         *
+         * The semantics are kernel parameters — the values one dispatch of this
+         * kernel runs with — not a resource: they are consumed by the next
+         * dispatch and have no identity a later dispatch could refer to.
+         *
+         * Vulkan records them as push constants while the block fits the device
+         * limit. A backend without push constants writes them into a per-dispatch
+         * window and binds that window, which is why the size contract comes from
+         * the shader's reflection rather than from the caller.
+         *
+         * @param params The bytes to record, at most the reflected block size.
+         */
+        void SetKernelParams(std::span<const std::byte> params);
+
+        /**
+         * @brief Record one compute dispatch of the currently bound pipeline.
+         *
+         * @param group_count_x Workgroups in x.
+         * @param group_count_y Workgroups in y.
+         * @param group_count_z Workgroups in z.
+         */
+        void DispatchCompute(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
+
         /// @brief Get the command buffer this encoder records into.
         CommandBufferHandle GetHandle() const noexcept;
 
@@ -65,3 +109,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMMANDENCODER_INCLUDED
+

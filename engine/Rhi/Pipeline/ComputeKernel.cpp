@@ -331,19 +331,16 @@ namespace Engine::Rhi {
 
         // The kernel records no barrier: synchronization between dispatches is
         // the caller's responsibility.
-        const vk::CommandBuffer cb = ToVulkanCommandBuffer(encoder.GetHandle());
-        cb.bindPipeline(vk::PipelineBindPoint::eCompute, pimpl->pass_info.pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pimpl->pass_info.pipeline_layout.get(), 0, set, {});
+        encoder.BindComputePipeline(
+            FromVulkan(pimpl->pass_info.pipeline.get()), FromVulkan(pimpl->pass_info.pipeline_layout.get())
+        );
+        encoder.BindDescriptorSet(0, FromVulkan(set));
         if (push != nullptr && push_size > 0) {
-            cb.pushConstants(
-                pimpl->pass_info.pipeline_layout.get(),
-                vk::ShaderStageFlagBits::eCompute,
-                0,
-                static_cast<uint32_t>(push_size),
-                push
+            encoder.SetKernelParams(
+                std::span<const std::byte>(static_cast<const std::byte *>(push), push_size)
             );
         }
-        cb.dispatch(group_count_x, group_count_y, group_count_z);
+        encoder.DispatchCompute(group_count_x, group_count_y, group_count_z);
     }
 
     struct ComputeKernelCache::impl {
@@ -384,6 +381,7 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
 
 
 

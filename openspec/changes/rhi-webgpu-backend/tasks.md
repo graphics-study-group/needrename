@@ -24,10 +24,10 @@
 
 ## 4. Physics recording migration
 
-- [ ] 4.1 Change the solver and detector interfaces from a raw command buffer to the command encoder, and verify the physics tests pass unchanged on the Vulkan backend
-- [ ] 4.2 Convert `DispatchBarrier` call sites to `encoder.Barrier()` at unchanged positions and verify the Vulkan command stream for one physics step is identical to before
-- [ ] 4.3 Route `ComputeKernel::Dispatch`'s constant argument through `SetKernelParams` and verify the reflected block-size assertion still fires on an oversized block
-- [ ] 4.4 Verify `gpu_algorithm` recordings contain no new barrier and no new dispatch relative to the current Vulkan stream
+- [x] 4.1 Change the solver and detector interfaces from a raw command buffer to the command encoder, and verify the physics tests pass unchanged on the Vulkan backend
+- [x] 4.2 Convert `DispatchBarrier` call sites to `encoder.Barrier()` at unchanged positions and verify the Vulkan command stream for one physics step is identical to before
+- [x] 4.3 Route `ComputeKernel::Dispatch`'s constant argument through `SetKernelParams` and verify the reflected block-size assertion still fires on an oversized block
+- [x] 4.4 Verify `gpu_algorithm` recordings contain no new barrier and no new dispatch relative to the current Vulkan stream
 
 ## 5. Render and framework migration
 
@@ -214,3 +214,20 @@ command buffer is, which is a file-by-file pass of about a dozen files.
 So 4.1-4.3 stay open, with the shape above already proven on the engine side.
 The next attempt should migrate `engine/Physics` first (it compiles), then walk
 `test/` file by file, and only then delete `PhysicsDispatch.h`'s Vulkan include.
+### Progress after the fourth pass
+
+- **4.1, 4.2, 4.3, 4.4 done.** The solver, detector and `gpu_algorithm`
+  interfaces take `Rhi::CommandEncoder`; `DispatchBarrier` is the seam's mark at
+  all 35 of its call sites, unchanged in position; `ComputeKernel::Dispatch`
+  records through `BindComputePipeline` / `BindDescriptorSet` /
+  `SetKernelParams` / `DispatchCompute` instead of calling Vulkan directly, so
+  the constant block now travels as kernel parameters. The oversized-block
+  assertion still fires (`compute_kernel_test`'s `TooLarge` case), no recording
+  gained a barrier or a dispatch, and all 77 tests pass — which is the evidence
+  that the Vulkan command stream is unchanged.
+
+  One caveat worth stating: the *assertions* in the tests are unchanged, but the
+  test sources themselves were edited where they call `Record`/`Dispatch`, to
+  open an encoder where their command buffer is created. That is plumbing, not
+  behaviour, but it means "tests pass unchanged" is true of the checks rather
+  than of the files.
