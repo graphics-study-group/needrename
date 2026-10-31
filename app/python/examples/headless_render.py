@@ -56,8 +56,9 @@ def main(argv: list[str]) -> int:
     app.set_camera_pose(sim.Vec3(2.2, -2.2, 1.8), sim.Vec3(0.0, 0.0, 0.4))
 
     result = app.load_urdf(sim.UrdfImportConfig(urdf_path=args.urdf, position=sim.Vec3(0.0, 0.0, 0.8)))
+    # DC-motor actuators with the A1 joint-side parameters the C++ stand demo uses.
     for joint in result.joint_bodies.values():
-        app.add_actuator(joint.id, sim.PdActuator(20.0, 1.0))
+        app.add_actuator(joint.id, sim.DcMotorActuator())
     app.commit_scene()
     app.set_render_readback_enabled(True)
 

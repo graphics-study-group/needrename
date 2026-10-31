@@ -29,6 +29,7 @@ nanobind_add_module(_physicsapp NB_STATIC
     physics_app_bindings.cpp
 )
 target_link_libraries(_physicsapp PRIVATE PhysicsApp)
+set_target_properties(_physicsapp PROPERTIES FOLDER engine_apps)
 
 # Installation: a wheel build (scikit-build-core sets SKBUILD) installs the
 # extension straight into the package directory (`wheel.install-dir`), beside the
@@ -40,37 +41,11 @@ else()
     install(TARGETS _physicsapp LIBRARY DESTINATION share/needrename/python COMPONENT runtime)
 endif()
 
-# Dev-run package tree: the built `.pyd` lives next to the Python sources of the
-# package, so `PYTHONPATH=<build>/python` makes `import needrename_sim` work
-# against a build tree. The wheel stage (task 8.1) installs from the same layout.
-set(NEEDRENAME_PYTHON_DEV_DIR "${CMAKE_BINARY_DIR}/python")
-set(NEEDRENAME_PYTHON_DEV_PACKAGE "${NEEDRENAME_PYTHON_DEV_DIR}/needrename_sim")
+# No output-directory override: the extension lands in the project's normal
+# per-configuration output directory (`<build>/bin/<Config>`), next to the engine
+# DLLs it links, so Debug and Release never overwrite each other and a config can
+# never mix with the other configuration's DLLs. A development run imports the
+# package sources straight from `app/python/src` (`PYTHONPATH`); the package's
+# `__init__.py` then picks the extension up from beside the engine DLLs. Nothing
+# is staged or copied next to the sources. See README.md.
 
-set_target_properties(_physicsapp PROPERTIES
-    FOLDER engine_apps
-    LIBRARY_OUTPUT_DIRECTORY "${NEEDRENAME_PYTHON_DEV_PACKAGE}"
-    RUNTIME_OUTPUT_DIRECTORY "${NEEDRENAME_PYTHON_DEV_PACKAGE}"
-)
-# Multi-config generators append the configuration name unless a per-config
-# output directory is set; the package tree is configuration-independent.
-foreach(CONFIG_NAME Debug Release RelWithDebInfo MinSizeRel)
-    string(TOUPPER "${CONFIG_NAME}" CONFIG_NAME_UPPER)
-    set_target_properties(_physicsapp PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY_${CONFIG_NAME_UPPER} "${NEEDRENAME_PYTHON_DEV_PACKAGE}"
-        RUNTIME_OUTPUT_DIRECTORY_${CONFIG_NAME_UPPER} "${NEEDRENAME_PYTHON_DEV_PACKAGE}"
-    )
-endforeach()
-
-file(GLOB NEEDRENAME_PYTHON_SOURCES CONFIGURE_DEPENDS
-    "${ENGINE_ROOT_DIR}/app/python/src/needrename_sim/*.py"
-)
-if (NEEDRENAME_PYTHON_SOURCES)
-    add_custom_target(python_package_stage ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${NEEDRENAME_PYTHON_DEV_PACKAGE}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${NEEDRENAME_PYTHON_SOURCES} "${NEEDRENAME_PYTHON_DEV_PACKAGE}"
-        DEPENDS ${NEEDRENAME_PYTHON_SOURCES}
-        COMMENT "Staging the needrename_sim Python package for dev runs"
-        VERBATIM
-    )
-    add_dependencies(_physicsapp python_package_stage)
-endif()

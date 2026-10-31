@@ -267,13 +267,15 @@ namespace AppPhysics {
      * measured from the previous step and write equal-and-opposite torques about
      * the joint axis to the child/parent bodies' ExternalTorque each step, so the
      * torque channel is owned by the actuators — user SetBodyValue(ExternalTorque)
-     * writes on an actuated joint's bodies are overwritten. Joints without an
-     * actuator can instead be driven externally with SetJointTorque, which writes
-     * the same per-body ExternalTorque fields (caller-managed) and therefore
-     * shares their last-write-wins semantics. Joint limits recorded from a URDF
-     * are data only and are never enforced. Actuators on joints whose two bodies
-     * are both kinematic compute torques but they have no effect (the solver
-     * skips such joints).
+     * writes on an actuated joint's bodies are overwritten. Actuators are shared
+     * with the caller: the app keeps them alive while they are registered and
+     * `RemoveActuator` clears the channel so manual control (SetJointTorque) can
+     * take over again. Joints without an actuator can instead be driven externally
+     * with SetJointTorque, which writes the same per-body ExternalTorque fields
+     * (caller-managed) and therefore shares their last-write-wins semantics. Joint
+     * limits recorded from a URDF are data only and are never enforced. Actuators
+     * on joints whose two bodies are both kinematic compute torques but they have
+     * no effect (the solver skips such joints).
      *
      * Wrong-phase usage throws `std::logic_error`. Exceptions may cross the
      * DLL boundary; a future C API must convert them to error codes.
@@ -358,20 +360,46 @@ namespace AppPhysics {
         JointId AddHingeJoint(BodyId obj1, BodyId obj2, const HingeJointParams &params);
 
         /**
-         * @brief Register an actuator on a joint (Building phase only).
+         * @brief Register an actuator on a joint (legal in both phases).
          *
          * At most one actuator SHALL exist per joint; the torque channel is owned
          * by the actuator, which overwrites the joint bodies' external torque
-         * every `Step`. New actuator types need no `PhysicsApp` API change.
+         * every `Step`. Ownership is shared: the app keeps the actuator alive
+         * while it is registered, and the caller may keep and keep using the same
+         * instance. An actuator added after `CommitScene` drives its joint from
+         * the next `Step`. New actuator types need no `PhysicsApp` API change.
          *
          * @param joint    Joint to drive.
-         * @param actuator Actuator to take ownership of.
-         * @throws std::logic_error after CommitScene.
+         * @param actuator Actuator to share ownership of.
          * @throws std::out_of_range when `joint` is invalid.
          * @throws std::invalid_argument when `actuator` is null or `joint`
          *         already has an actuator.
          */
-        void AddActuator(JointId joint, std::unique_ptr<Actuator> actuator);
+        void AddActuator(JointId joint, std::shared_ptr<Actuator> actuator);
+
+        /**
+         * @brief Get the actuator registered on a joint (legal in both phases).
+         *
+         * @param joint Joint to query.
+         * @return The registered instance, or an empty pointer when the joint has
+         *         no actuator.
+         * @throws std::out_of_range when `joint` is invalid.
+         */
+        std::shared_ptr<Actuator> GetActuator(JointId joint) const;
+
+        /**
+         * @brief Detach a joint's actuator (legal in both phases).
+         *
+         * The actuator stops running from the next `Step`; the caller's share
+         * keeps it alive. The joint's external-torque channel is cleared so the
+         * last applied actuator torque stops applying and `SetJointTorque`
+         * becomes legal again for that joint.
+         *
+         * @param joint Joint whose actuator to detach.
+         * @throws std::out_of_range when `joint` is invalid.
+         * @throws std::logic_error when `joint` has no actuator.
+         */
+        void RemoveActuator(JointId joint);
 
         /**
          * @brief Set an actuator's target joint angle (both phases legal).

@@ -9,6 +9,11 @@
  * - Readback arrays are zero-copy numpy views over the engine's CPU readback
  *   memory. Each view holds the producing app object, so a live view keeps its
  *   backing memory alive; `step_id` makes staleness detectable.
+ * - Actuators are registered by `shared_ptr`, so a Python subclass instance is
+ *   registered directly (no adapter, no shadow state) and `get_actuator` returns
+ *   the same Python object. Because `step` releases the GIL around
+ *   `PhysicsApp::Step`, every `Actuator` virtual the trampoline overrides must
+ *   acquire the GIL itself (see `PyActuator`).
  * - Exceptions are translated by `bindings.cpp`.
  */
 
@@ -19,6 +24,7 @@
 
 #include <nanobind/ndarray.h>
 #include <nanobind/stl/optional.h>
+#include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/unique_ptr.h>
 #include <nanobind/trampoline.h>
@@ -72,52 +78,26 @@ namespace NeedrenameBindings {
             return nb::ndarray<nb::numpy, const T, nb::ndim<2>>(const_cast<T *>(data), {rows, columns}, owner);
         }
 
-        /// @brief Trampoline so Python classes can implement `Actuator`.
+        /**
+         * @brief Trampoline so Python classes can implement `Actuator`.
+         *
+         * Rule for every future `Actuator` virtual: the override here MUST
+         * acquire the GIL before calling into Python. `PhysicsApp::Step` runs
+         * with the GIL released (the `step` binding releases it), so the
+         * callback may run on a thread that does not hold it.
+         */
         struct PyActuator : Actuator {
             NB_TRAMPOLINE(Actuator);
 
-            float ComputeTorque(float angle, float angular_velocity) const override {
-                NB_OVERRIDE_PURE(ComputeTorque, angle, angular_velocity);
-            }
-        };
-
-        /**
-         * @brief Adapts a Python-owned actuator object to the C++ `Actuator`
-         * interface that `PhysicsApp` stores.
-         *
-         * The app takes ownership of its actuators with `std::unique_ptr`, and
-         * nanobind cannot transfer ownership of a Python-owned instance (a
-         * Python subclass lives inside its own Python object). This adapter
-         * owns a reference to the Python object instead and forwards the torque
-         * computation to it, acquiring the GIL explicitly because `Step` runs
-         * with the GIL released.
-         *
-         * `Actuator::SetTargetAngle` is non-virtual, so a target set through
-         * `PhysicsApp.set_target_angle` lands on this adapter. It is mirrored
-         * onto the Python object (only when it changed) so `get_target_angle()`
-         * inside the Python override observes app-level writes while a target
-         * the Python object set itself is left alone.
-         */
-        class PythonActuator final : public Actuator {
-        public:
-            explicit PythonActuator(nb::object python_object) : m_python(std::move(python_object)) {
-            }
-
-            float ComputeTorque(float angle, float angular_velocity) const override {
+            float ComputeTorque(float angle, float angular_velocity) override {
                 nb::gil_scoped_acquire acquire;
-                if (m_target_angle != m_synced_target) {
-                    m_python.attr("set_target_angle")(m_target_angle);
-                    m_synced_target = m_target_angle;
-                }
-                return nb::cast<float>(m_python.attr("compute_torque")(angle, angular_velocity));
+                NB_OVERRIDE_PURE_NAME("compute_torque", ComputeTorque, angle, angular_velocity);
             }
 
-        private:
-            nb::object m_python;
-            /// Last target mirrored onto the Python object; starts at the
-            /// adapter's own default (0), so a target the Python object set for
-            /// itself is not overwritten by the initial state.
-            mutable float m_synced_target{0.0f};
+            void Reset() override {
+                nb::gil_scoped_acquire acquire;
+                NB_OVERRIDE_NAME("reset", Reset);
+            }
         };
     } // namespace
 
@@ -127,7 +107,8 @@ namespace NeedrenameBindings {
             "Actuator",
             "Base class for a scalar joint control law.\n\n"
             "Derive from it in Python and override `compute_torque` to register a\n"
-            "custom actuator with `PhysicsApp.add_actuator`."
+            "custom actuator with `PhysicsApp.add_actuator`. A stateful law also\n"
+            "overrides `reset` to clear its internal state."
         )
             .def(nb::init<>())
             .def(
@@ -137,6 +118,7 @@ namespace NeedrenameBindings {
                 "angular_velocity"_a,
                 "Return the joint torque [N*m] for the measured joint state."
             )
+            .def("reset", &Actuator::Reset, "Return the actuator to its freshly constructed control state.")
             .def("set_target_angle", &Actuator::SetTargetAngle, "target"_a, "Set the target joint angle [rad].")
             .def("get_target_angle", &Actuator::GetTargetAngle, "Return the target joint angle [rad].");
 
@@ -144,7 +126,9 @@ namespace NeedrenameBindings {
             m, "PdActuator", "Standard PD joint actuator: tau = kp * wrap(target - angle) - kd * omega."
         )
             .def(nb::init<float, float>(), "kp"_a = 25.0f, "kd"_a = 0.5f)
-            .def("compute_torque", &PdActuator::ComputeTorque, "angle"_a, "angular_velocity"_a);
+            .def("compute_torque", &PdActuator::ComputeTorque, "angle"_a, "angular_velocity"_a)
+            .def_prop_rw("kp", &PdActuator::GetKp, &PdActuator::SetKp, "Proportional gain.")
+            .def_prop_rw("kd", &PdActuator::GetKd, &PdActuator::SetKd, "Derivative gain.");
 
         nb::class_<DcMotorActuator, Actuator>(
             m, "DcMotorActuator", "PD core clipped by a DC-motor torque-speed envelope."
@@ -158,7 +142,28 @@ namespace NeedrenameBindings {
                 "cont_torque"_a = 13.4f,
                 "gear_ratio"_a = 1.0f
             )
-            .def("compute_torque", &DcMotorActuator::ComputeTorque, "angle"_a, "angular_velocity"_a);
+            .def("compute_torque", &DcMotorActuator::ComputeTorque, "angle"_a, "angular_velocity"_a)
+            .def_prop_rw("kp", &DcMotorActuator::GetKp, &DcMotorActuator::SetKp, "Proportional gain.")
+            .def_prop_rw("kd", &DcMotorActuator::GetKd, &DcMotorActuator::SetKd, "Derivative gain.")
+            .def_prop_rw(
+                "stall_torque",
+                &DcMotorActuator::GetStallTorque,
+                &DcMotorActuator::SetStallTorque,
+                "Stall torque [N*m] (motor side)."
+            )
+            .def_prop_rw(
+                "no_load_speed",
+                &DcMotorActuator::GetNoLoadSpeed,
+                &DcMotorActuator::SetNoLoadSpeed,
+                "No-load speed [rad/s] (motor side)."
+            )
+            .def_prop_rw(
+                "cont_torque",
+                &DcMotorActuator::GetContTorque,
+                &DcMotorActuator::SetContTorque,
+                "Continuous torque limit [N*m]."
+            )
+            .def_prop_rw("gear_ratio", &DcMotorActuator::GetGearRatio, &DcMotorActuator::SetGearRatio, "Gear ratio.");
 
         // The ndarray properties return a fresh handle each access. Property
         // getters default to `reference_internal`, which an array that already
@@ -297,17 +302,28 @@ namespace NeedrenameBindings {
             )
             .def(
                 "add_actuator",
-                [](PhysicsApp &app, JointId joint, nb::object actuator) {
-                    if (!nb::isinstance<Actuator>(actuator)) {
-                        throw std::invalid_argument(
-                            "add_actuator: actuator must be an Actuator instance (or a Python subclass of it)"
-                        );
-                    }
-                    app.AddActuator(joint, std::make_unique<PythonActuator>(std::move(actuator)));
+                [](PhysicsApp &app, JointId joint, std::shared_ptr<Actuator> actuator) {
+                    app.AddActuator(joint, std::move(actuator));
                 },
                 "joint"_a,
                 "actuator"_a,
-                "Register an actuator on a joint (one per joint; the actuator owns the torque channel)."
+                "Register an actuator on a joint (one per joint; the actuator owns the torque channel).\n\n"
+                "Ownership is shared with the app: the object passed in is the object the app\n"
+                "runs (`get_actuator(joint)` returns the same instance) and it stays alive while\n"
+                "registered even if the caller drops its reference. Legal in both phases."
+            )
+            .def(
+                "get_actuator",
+                &PhysicsApp::GetActuator,
+                "joint"_a,
+                "Return the actuator registered on a joint, or None when it has none."
+            )
+            .def(
+                "remove_actuator",
+                &PhysicsApp::RemoveActuator,
+                "joint"_a,
+                "Detach a joint's actuator and clear its torque channel (handing the joint back to\n"
+                "manual `set_joint_torque` control)."
             )
             .def(
                 "set_target_angle",

@@ -21,8 +21,9 @@ def main():
     joint2 = result.joint_bodies["joint2"].id
     link2 = result.link_bodies["link2"]
 
-    # joint1 is actuated; joint2 stays on the manual torque channel.
-    app.add_actuator(joint1, s.PdActuator(15.0, 1.0))
+    # joint1 is actuated with the A1 joint-side DC-motor law the C++ stand demo
+    # uses; joint2 stays on the manual torque channel.
+    app.add_actuator(joint1, s.DcMotorActuator())
     robot = s.Robot(app, result)
     robot.set_target_angles({{"joint1": 0.2}})
     app.commit_scene()

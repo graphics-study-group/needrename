@@ -11,7 +11,13 @@
 //   * a once-set torque keeps applying on every step until overwritten,
 //   * the actuator torque path still drives its joint and is not affected,
 //   * a later `SetBodyValue(ExternalTorque)` on one body wins over the joint
-//     torque for that body while the other body keeps its component.
+//     torque for that body while the other body keeps its component,
+//   * `GetActuator` returns the registered instance and an empty pointer for a
+//     joint without one,
+//   * `RemoveActuator` clears the joint's torque channel (the stale actuator
+//     torque stops applying) and hands the joint back to `SetJointTorque`,
+//   * registration, tuning, and removal are legal in the Drive phase and an
+//     actuator added after `CommitScene` drives from the next `Step`.
 
 #include <PhysicsApp.h>
 
@@ -38,6 +44,21 @@ namespace {
     constexpr float kTorque = 2.0f;
     constexpr float kHalf = 0.2f;
     constexpr float kMass = 1.0f;
+
+    /// @brief Control law with no feedback: applies a constant torque, which
+    /// makes a removed-actuator torque easy to observe.
+    class ConstantTorqueActuator final : public Actuator {
+    public:
+        explicit ConstantTorqueActuator(float torque) : m_torque(torque) {
+        }
+
+        float ComputeTorque(float, float) override {
+            return m_torque;
+        }
+
+    private:
+        float m_torque;
+    };
 
     /// Hinge assembly: two identical boxes stacked along Z, 4 cm apart, joined at
     /// the upper (child) box's center by a Z-axis hinge. `parent_kinematic` pins
@@ -81,10 +102,88 @@ int main() {
     // away so the two never interact.
     const Assembly manual = AddHingeAssembly(*app, glm::vec3(0.0f, 0.0f, 0.0f), false);
     const Assembly actuated = AddHingeAssembly(*app, glm::vec3(20.0f, 0.0f, 0.0f), true);
-    app->AddActuator(actuated.joint, std::make_unique<PdActuator>(20.0f, 1.0f));
+    auto actuated_actuator = std::make_shared<PdActuator>(20.0f, 1.0f);
+    app->AddActuator(actuated.joint, actuated_actuator);
     app->SetTargetAngle(actuated.joint, 0.5f);
 
+    // Removal scenario: a constant-torque actuator on a free pair, so the stale
+    // torque is observable as continued angular acceleration.
+    const Assembly removable = AddHingeAssembly(*app, glm::vec3(40.0f, 0.0f, 0.0f), false);
+    auto constant_actuator = std::make_shared<ConstantTorqueActuator>(kTorque);
+    app->AddActuator(removable.joint, constant_actuator);
+
+    // Drive-phase scenario: registered only after CommitScene.
+    const Assembly drive_phase = AddHingeAssembly(*app, glm::vec3(60.0f, 0.0f, 0.0f), true);
+    auto drive_phase_actuator = std::make_shared<PdActuator>(20.0f, 1.0f);
+    drive_phase_actuator->SetTargetAngle(0.5f);
+
     Check(manual.joint != INVALID_JOINT_ID && actuated.joint != INVALID_JOINT_ID, "joints created");
+
+    // ── Registration errors (Building phase) ───────────────────────────
+    {
+        bool threw = false;
+        try {
+            app->AddActuator(manual.joint, nullptr);
+        } catch (const std::invalid_argument &) {
+            threw = true;
+        } catch (...) {
+        }
+        Check(threw, "AddActuator with a null actuator throws std::invalid_argument");
+    }
+    {
+        bool threw = false;
+        try {
+            app->AddActuator(actuated.joint, std::make_shared<PdActuator>());
+        } catch (const std::invalid_argument &) {
+            threw = true;
+        } catch (...) {
+        }
+        Check(threw, "AddActuator on an occupied joint throws std::invalid_argument");
+    }
+    {
+        bool threw = false;
+        try {
+            app->AddActuator(12345u, std::make_shared<PdActuator>());
+        } catch (const std::out_of_range &) {
+            threw = true;
+        } catch (...) {
+        }
+        Check(threw, "AddActuator with an invalid JointId throws std::out_of_range");
+    }
+
+    // ── Registered instance is retrievable ─────────────────────────────
+    Check(app->GetActuator(actuated.joint) == actuated_actuator, "GetActuator returns the registered instance");
+    Check(app->GetActuator(manual.joint) == nullptr, "GetActuator returns an empty pointer when there is none");
+    {
+        bool threw = false;
+        try {
+            (void)app->GetActuator(12345u);
+        } catch (const std::out_of_range &) {
+            threw = true;
+        } catch (...) {
+        }
+        Check(threw, "GetActuator with an invalid JointId throws std::out_of_range");
+    }
+    {
+        bool threw = false;
+        try {
+            app->RemoveActuator(manual.joint);
+        } catch (const std::logic_error &) {
+            threw = true;
+        } catch (...) {
+        }
+        Check(threw, "RemoveActuator on a joint without an actuator throws std::logic_error");
+    }
+    {
+        bool threw = false;
+        try {
+            app->RemoveActuator(12345u);
+        } catch (const std::out_of_range &) {
+            threw = true;
+        } catch (...) {
+        }
+        Check(threw, "RemoveActuator with an invalid JointId throws std::out_of_range");
+    }
 
     // ── Phase guard: before CommitScene ─────────────────────────────────
     {
@@ -131,6 +230,37 @@ int main() {
         }
         Check(threw, "SetJointTorque on an actuated joint throws std::logic_error");
     }
+
+    // ── Removal clears the torque channel ───────────────────────────────
+    // The constant-torque actuator has been driving its joint; after removal the
+    // joint keeps its angular velocity but stops accelerating.
+    for (int i = 0; i < 3; ++i) {
+        app->Step();
+    }
+    const float removable_omega_before = app->GetJointState(removable.joint).angular_velocity;
+    Check(removable_omega_before > 0.0f, "the removable joint is driven by its actuator");
+
+    app->RemoveActuator(removable.joint);
+    Check(app->GetActuator(removable.joint) == nullptr, "RemoveActuator detaches the actuator");
+    {
+        bool threw = false;
+        try {
+            app->SetJointTorque(removable.joint, 0.0f);
+        } catch (...) {
+            threw = true;
+        }
+        Check(!threw, "SetJointTorque is legal again after RemoveActuator");
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        app->Step();
+    }
+    const float removable_omega_after = app->GetJointState(removable.joint).angular_velocity;
+    Check(
+        std::fabs(removable_omega_after - removable_omega_before)
+            < 0.05f * std::max(std::fabs(removable_omega_before), 1e-6f),
+        "the removed actuator's stale torque stops applying"
+    );
 
     // ── Actuator path unchanged ─────────────────────────────────────────
     // The actuated joint reaches its target while the untouched manual joint
@@ -195,6 +325,62 @@ int main() {
         "the later SetBodyValue write zeroes the child's component of the joint torque"
     );
     Check(parent_after < parent_before, "the parent keeps its component of the joint torque");
+
+    // ── Drive-phase registration, tuning, and removal ───────────────────
+    {
+        bool threw = false;
+        try {
+            app->AddActuator(drive_phase.joint, drive_phase_actuator);
+        } catch (...) {
+            threw = true;
+        }
+        Check(!threw, "AddActuator is legal in the Drive phase");
+    }
+    Check(
+        app->GetActuator(drive_phase.joint) == drive_phase_actuator,
+        "a Drive-phase actuator is retrievable as the registered instance"
+    );
+
+    for (int i = 0; i < 60; ++i) {
+        app->Step();
+    }
+    Check(
+        app->GetJointState(drive_phase.joint).angle > 0.1f,
+        "an actuator added after CommitScene drives its joint from the next Step"
+    );
+
+    drive_phase_actuator->SetKp(40.0f);
+    Check(drive_phase_actuator->GetKp() == 40.0f, "the caller can tune the live instance");
+    app->SetTargetAngle(drive_phase.joint, -0.3f);
+    for (int i = 0; i < 80; ++i) {
+        app->Step();
+    }
+    Check(
+        std::fabs(app->GetJointState(drive_phase.joint).angle + 0.3f) < 0.05f,
+        "the tuned Drive-phase actuator tracks its new target"
+    );
+
+    app->RemoveActuator(drive_phase.joint);
+    Check(app->GetActuator(drive_phase.joint) == nullptr, "a Drive-phase actuator can be removed");
+    {
+        bool threw = false;
+        try {
+            app->SetJointTorque(drive_phase.joint, 0.0f);
+        } catch (...) {
+            threw = true;
+        }
+        Check(!threw, "removal in the Drive phase hands the joint back to SetJointTorque");
+    }
+    {
+        bool threw = false;
+        try {
+            app->SetTargetAngle(drive_phase.joint, 0.0f);
+        } catch (const std::logic_error &) {
+            threw = true;
+        } catch (...) {
+        }
+        Check(threw, "SetTargetAngle throws once the actuator is removed");
+    }
 
     if (g_failures == 0) {
         std::cout << "physics_app_joint_torque_test PASSED." << std::endl;

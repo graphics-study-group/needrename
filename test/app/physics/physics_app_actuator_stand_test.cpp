@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
         }
         const JointId jid = it->second.id;
         app->AddActuator(
-            jid, std::make_unique<DcMotorActuator>(kKp, kKd, kStallTorque, kNoLoadSpeed, kContTorque, kGearRatio)
+            jid, std::make_shared<DcMotorActuator>(kKp, kKd, kStallTorque, kNoLoadSpeed, kContTorque, kGearRatio)
         );
         app->SetTargetAngle(jid, target);
     }

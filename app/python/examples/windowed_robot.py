@@ -38,10 +38,17 @@ def build_scene(app: sim.PhysicsApp, urdf: Path) -> sim.Robot:
     app.set_camera_pose(sim.Vec3(2.2, -2.2, 1.8), sim.Vec3(0.0, 0.0, 0.4))
     result = app.load_urdf(sim.UrdfImportConfig(urdf_path=urdf, position=sim.Vec3(0.0, 0.0, 0.8)))
 
-    # One PD actuator per joint, holding the imported pose.
+    # One DC-motor actuator per joint, holding the imported pose: the same A1
+    # joint-side parameters the C++ actuator stand demo uses (its constructor
+    # defaults). Registration shares ownership with the app, so this dict stays
+    # usable for live tuning while the actuator is registered
+    # (`app.get_actuator(id)` returns the same object).
+    actuators: dict[int, sim.DcMotorActuator] = {}
     for joint_id in result.joint_bodies.values():
-        app.add_actuator(joint_id.id, sim.PdActuator(20.0, 1.0))
+        actuator = sim.DcMotorActuator()
+        app.add_actuator(joint_id.id, actuator)
         app.set_target_angle(joint_id.id, 0.0)
+        actuators[joint_id.id] = actuator
 
     robot = sim.Robot(app, result)
     print(f"loaded {urdf.name}: {len(robot.link_names)} links, {len(robot.joint_names)} joints")

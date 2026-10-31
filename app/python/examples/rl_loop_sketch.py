@@ -38,8 +38,11 @@ def main(argv: list[str]) -> int:
 
     app = sim.PhysicsApp.create(sim.CreateInfo(mode=sim.AppMode.physics_only))
     result = app.load_urdf(sim.UrdfImportConfig(urdf_path=args.urdf, position=sim.Vec3(0.0, 0.0, 1.0)))
+    # Registration shares ownership: the same instances stay reachable (and
+    # tunable) through `app.get_actuator(joint)`, including after `commit_scene`.
+    # DC-motor actuators with the A1 joint-side parameters the C++ stand demo uses.
     for joint in result.joint_bodies.values():
-        app.add_actuator(joint.id, sim.PdActuator(20.0, 1.0))
+        app.add_actuator(joint.id, sim.DcMotorActuator())
 
     robot = sim.Robot(app, result)
     robot.set_target_angles({name: 0.0 for name in robot.joint_names})

@@ -1,4 +1,9 @@
-"""Blocking calls release the GIL: another Python thread runs during `step`."""
+"""Blocking calls release the GIL: another Python thread runs during `step`.
+
+The scene also carries a Python-defined actuator, so the test covers both sides
+of the GIL contract: `step` releases it, and the actuator trampoline re-acquires
+it around the Python callback.
+"""
 
 from __future__ import annotations
 
@@ -10,11 +15,27 @@ import sys
 import threading
 import needrename_sim as s
 
+class Counter(s.Actuator):
+    calls = 0
+
+    def compute_torque(self, angle, angular_velocity):
+        Counter.calls += 1
+        return -5.0 * angle - 0.5 * angular_velocity
+
 def main():
     app = s.PhysicsApp.create(s.CreateInfo(mode=s.AppMode.physics_only))
-    app.add_box(
-        s.BoxDesc(position=s.Vec3(0.0, 0.0, 5.0), half_extents=s.Vec3(0.5, 0.5, 0.5))
+    parent = app.add_box(
+        s.BoxDesc(position=s.Vec3(0.0, 0.0, -0.25), half_extents=s.Vec3(0.5, 0.5, 0.5),
+                  mass=0.0, kinematic=True)
     )
+    child = app.add_box(
+        s.BoxDesc(position=s.Vec3(0.0, 0.0, 0.25), half_extents=s.Vec3(0.5, 0.5, 0.5))
+    )
+    joint = app.add_hinge_joint(
+        parent, child,
+        s.HingeJointParams(axis_obj1=s.Vec3(0.0, 0.0, 1.0), anchor_obj1=s.Vec3(0.0, 0.0, 0.5))
+    )
+    app.add_actuator(joint, Counter())
     app.commit_scene()
 
     # A long switch interval removes the interpreter's periodic thread switch,
@@ -51,6 +72,7 @@ def main():
                 "steps_with_progress": sum(1 for gain in gains if gain > 0),
                 "steps": len(gains),
                 "step_id": app.step_id,
+                "actuator_calls": Counter.calls,
             }
         )
     )
@@ -69,3 +91,5 @@ def test_thread_progresses_while_stepping() -> None:
     # The worker can only run inside `step` when the GIL is released there; the
     # occasional miss is scheduler noise, a systemic failure would be 0.
     assert observed["steps_with_progress"] >= 7, observed
+    # The Python actuator callback ran on every step despite the released GIL.
+    assert observed["actuator_calls"] == observed["steps"], observed

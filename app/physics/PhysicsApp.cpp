@@ -161,7 +161,7 @@ namespace AppPhysics {
             std::optional<JointLimits> limits{};
         };
         std::vector<JointRecord> m_joints{};                  // JointId -> record (index).
-        std::vector<std::unique_ptr<Actuator>> m_actuators{}; // JointId -> actuator (null = none).
+        std::vector<std::shared_ptr<Actuator>> m_actuators{}; // JointId -> actuator (null = none).
 
         // ── Render readback ─────────────────────────────────────────────
         bool render_readback_enabled{false};
@@ -630,11 +630,8 @@ namespace AppPhysics {
         return result;
     }
 
-    void PhysicsApp::AddActuator(JointId joint, std::unique_ptr<Actuator> actuator) {
+    void PhysicsApp::AddActuator(JointId joint, std::shared_ptr<Actuator> actuator) {
         auto &impl = *m_impl;
-        if (impl.phase != Impl::Phase::Building) {
-            throw std::logic_error("PhysicsApp: AddActuator called after CommitScene");
-        }
         if (joint >= impl.m_actuators.size()) {
             throw std::out_of_range("PhysicsApp: AddActuator invalid JointId");
         }
@@ -645,6 +642,36 @@ namespace AppPhysics {
             throw std::invalid_argument("PhysicsApp: AddActuator joint already has an actuator");
         }
         impl.m_actuators[joint] = std::move(actuator);
+    }
+
+    std::shared_ptr<Actuator> PhysicsApp::GetActuator(JointId joint) const {
+        const auto &impl = *m_impl;
+        if (joint >= impl.m_actuators.size()) {
+            throw std::out_of_range("PhysicsApp: GetActuator invalid JointId");
+        }
+        return impl.m_actuators[joint];
+    }
+
+    void PhysicsApp::RemoveActuator(JointId joint) {
+        auto &impl = *m_impl;
+        if (joint >= impl.m_actuators.size()) {
+            throw std::out_of_range("PhysicsApp: RemoveActuator invalid JointId");
+        }
+        if (!impl.m_actuators[joint]) {
+            throw std::logic_error("PhysicsApp: RemoveActuator joint has no actuator");
+        }
+        impl.m_actuators[joint].reset();
+
+        // The external-torque channel is persistent: without clearing, the torque
+        // the actuator applied last would keep acting forever and would fight a
+        // subsequent manual `SetJointTorque`. Before CommitScene nothing has been
+        // applied yet, so there is no channel to clear.
+        if (impl.phase == Impl::Phase::Committed) {
+            const auto &rec = impl.m_joints[joint];
+            const glm::vec4 zero(0.0f, 0.0f, 0.0f, 0.0f);
+            SetBodyValue(rec.child, BodyField::ExternalTorque, zero);
+            SetBodyValue(rec.parent, BodyField::ExternalTorque, zero);
+        }
     }
 
     void PhysicsApp::SetTargetAngle(JointId joint, float target) {
