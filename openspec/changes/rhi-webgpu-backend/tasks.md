@@ -48,7 +48,7 @@
 - [ ] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact loads on both runtimes from one asset set
 - [ ] 7.2 Implement bake-time layout validation between the produced WGSL and the description, and verify a deliberately mismatching layout fails the bake naming the shader
 - [ ] 7.3 Implement the constant-block rewrite fallback and verify a push-constant shader bakes to usable WGSL
-- [x] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
+- [ ] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
 - [ ] 7.5 Verify the Vulkan runtime's loading and reflection behavior is unchanged with and without the WGSL variant present
 
 ## 8. WebGPU adapter
@@ -141,3 +141,19 @@ are the largest unknown left, and `tools/shader_baker/spirv_edit.*` and
 uniform buffer and emit the interface description, so continuing there is
 cheaper than starting the seam and coming back.
 
+### Progress after the second pass
+
+- **7.4 (first half):** `shader_baker --spirv-dir` now bakes the *whole* physics
+  corpus — 42 of 42 kernels produce a WGSL variant and an interface description
+  that pass the converter's validator — and `physics_shader_wgsl` wires that into
+  a WebGPU build. The second half of the task (a physics kernel created with no
+  reflection library linked) still needs the WebGPU backend, so the task stays
+  open.
+- **7.3 (constant block):** implemented and exercised on every physics kernel
+  that declares one; the reserved set is derived from the reflected sets, so a
+  compute shader's block lands at `set 1, binding 0` and a material shader's at
+  `set 3, binding 0`.
+- **New finding F9 (spike notes):** a WebGPU build cannot compile the `Rhi`
+  module at all yet, because `PipelineEnums.h` includes `<vulkan/vulkan.hpp>` for
+  one conversion function. Group 3 is therefore the gate on every group after it,
+  not just a tidy-up.
