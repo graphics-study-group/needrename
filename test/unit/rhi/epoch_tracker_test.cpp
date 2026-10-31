@@ -85,14 +85,14 @@ static int RunDeathScenario(const char *name) {
 
     const std::string scenario{name};
     if (scenario == "--death-second-tracker") {
-        EpochTracker first{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
+        EpochTracker first{gpu_device.GetDevice()};
         // A device must have exactly one tracker; this must assert.
-        EpochTracker second{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
+        EpochTracker second{gpu_device.GetDevice()};
         std::cerr << "UNREACHABLE: a second tracker for the same device was accepted." << std::endl;
         return 0;
     }
     if (scenario == "--death-outstanding-epochs") {
-        EpochTracker tracker{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
+        EpochTracker tracker{gpu_device.GetDevice()};
         // Open epochs and never terminate them: the completed prefix can never
         // advance past them, so the debug bound must fire.
         for (size_t i = 0; i <= EpochTracker::MAX_OUTSTANDING_EPOCHS; ++i) {
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
     // The tracked allocator: its retire sink is the tracker, so every buffer
     // allocated through it becomes retire-safe without opt-in.
     AllocatorState allocator{gpu_device};
-    EpochTracker tracker{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
+    EpochTracker tracker{gpu_device.GetDevice()};
     allocator.SetRetireSink(&tracker);
     // An allocator with no tracker: allocations destroy immediately.
     AllocatorState plain_allocator{gpu_device};
@@ -442,6 +442,7 @@ int main(int argc, char **argv) {
     std::cout << "Rhi::EpochTracker test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

@@ -2,6 +2,7 @@
 #define ENGINE_RHI_EPOCHTRACKER_INCLUDED
 
 #include "Rhi/Device/MemoryAllocation.h"
+#include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
 #include <cstddef>
@@ -89,7 +90,7 @@ namespace Engine::Rhi {
             bool exact;
         };
 
-        vk::Device m_device{nullptr};
+        DeviceHandle m_device{};
 
         EpochWatermark m_newest_watermark{INVALID_EPOCH_WATERMARK};
         EpochWatermark m_completed_prefix{INVALID_EPOCH_WATERMARK};
@@ -117,7 +118,7 @@ namespace Engine::Rhi {
          * @param device The device the tracker is scoped to. Only used to assert
          * that a device has a single live tracker.
          */
-        explicit EpochTracker(vk::Device device);
+        explicit EpochTracker(DeviceHandle device);
         ~EpochTracker();
 
         EpochTracker(const EpochTracker &) = delete;
@@ -214,3 +215,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_EPOCHTRACKER_INCLUDED
+

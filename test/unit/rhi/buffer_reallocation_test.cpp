@@ -93,7 +93,7 @@ int main() {
     // The tracked allocator (retire sink installed) and a plain one (no
     // retirement facility at all).
     AllocatorState allocator{gpu_device};
-    EpochTracker tracker{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
+    EpochTracker tracker{gpu_device.GetDevice()};
     allocator.SetRetireSink(&tracker);
     AllocatorState plain_allocator{gpu_device};
 
@@ -269,6 +269,7 @@ int main() {
     std::cout << "Rhi::BufferReallocation test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

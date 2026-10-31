@@ -18,7 +18,7 @@ namespace Engine::Rhi {
 
         m_immutable_resource_cache = std::make_unique<ImmutableResourceCache>(ToVulkanDevice(m_device_interface->GetDevice()));
         m_allocator_state = std::make_unique<AllocatorState>(*m_device_interface);
-        m_epoch_tracker = std::make_unique<EpochTracker>(ToVulkanDevice(m_device_interface->GetDevice()));
+        m_epoch_tracker = std::make_unique<EpochTracker>(m_device_interface->GetDevice());
         // The arena reads the tracker, so the tracker must exist first.
         m_descriptor_arena = std::make_unique<DescriptorArena>(*this);
         m_compute_kernel_cache = std::make_unique<ComputeKernelCache>(*this);
@@ -100,6 +100,7 @@ namespace Engine::Rhi {
         m_descriptor_arena->OnDeviceIdle();
     }
 } // namespace Engine::Rhi
+
 
 
 

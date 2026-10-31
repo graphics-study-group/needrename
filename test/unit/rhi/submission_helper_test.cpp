@@ -60,7 +60,7 @@ int main() {
     // The retirement facility is standalone-constructible from the same
     // facilities the allocator is built from, and is installed through the
     // allocator's setter. Declared last so that it is destroyed first.
-    Rhi::EpochTracker epoch_tracker{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
+    Rhi::EpochTracker epoch_tracker{gpu_device.GetDevice()};
     allocator_state.SetRetireSink(&epoch_tracker);
 
     const auto device = Rhi::ToVulkanDevice(gpu_device.GetDevice());
@@ -216,6 +216,7 @@ int main() {
     std::cout << "Rhi::SubmissionHelper standalone test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

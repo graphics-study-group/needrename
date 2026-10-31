@@ -20,9 +20,9 @@ namespace Engine::Rhi {
     } // namespace
 #endif
 
-    EpochTracker::EpochTracker(vk::Device device) : m_device(device) {
+    EpochTracker::EpochTracker(DeviceHandle device) : m_device(device) {
 #if !defined(NDEBUG)
-        const VkDevice handle = static_cast<VkDevice>(device);
+        const VkDevice handle = ToVulkanDevice(device);
         const auto [it, inserted] = g_live_tracker_devices.insert(handle);
         (void)it;
         assert(inserted && "A device already has a live EpochTracker. A device must have exactly one.");
@@ -36,7 +36,7 @@ namespace Engine::Rhi {
         m_parked.shrink_to_fit();
 
 #if !defined(NDEBUG)
-        g_live_tracker_devices.erase(static_cast<VkDevice>(m_device));
+        g_live_tracker_devices.erase(ToVulkanDevice(m_device));
 #endif
     }
 
@@ -168,4 +168,5 @@ namespace Engine::Rhi {
         return m_outstanding.contains(epoch);
     }
 } // namespace Engine::Rhi
+
 

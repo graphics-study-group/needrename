@@ -46,8 +46,14 @@ namespace Engine::Rhi {
         ImageFlags flags{};
     };
 
+    /**
+     * @brief A storage image interface.
+     *
+     * It carries nothing beyond the shared descriptor fields: the format a
+     * storage image is declared with is a property of the texture the caller
+     * binds, not of the interface, so there is nothing to record here.
+     */
     struct SPInterfaceOpaqueStorageImage : SPInterfaceOpaque {
-        // vk::Format format;
     };
 
     /// @brief Other opaque interfaces such as samplers.
@@ -79,5 +85,6 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_SHADERINTERFACE_INCLUDED
+
 
 
