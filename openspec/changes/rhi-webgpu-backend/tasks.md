@@ -454,3 +454,37 @@ What the next attempt should do, in order, without stopping in between:
 
 Steps 1–4 are mechanical *except* step 3, which is the only part that needs eyes
 on it.
+
+### The arena/cache conversion: the exact remaining edit list
+
+The pass got the resolver, the arena header and the cache header converted and
+compiled; it then failed on `std::construct_at` while building one of the arena's
+containers, and was reverted rather than left half-converted.
+
+For the next attempt, the edits that the compiler had already accepted, in order,
+so they can be replayed without rediscovery:
+
+1. `VulkanHandles.h`: `ToVulkanImageLayout(ResourceState)`. Done and correct.
+2. `InterfaceBindingResolver.h`: `InterfaceBinding{DescriptorType type,
+   ResourceState image_layout}`; drop the Vulkan include; the `.cpp` needs only
+   the type-name substitutions (all of them are enumeration members, no
+   structural change).
+3. `DescriptorArena.h`: same two enumerations on `ResolvedBinding`,
+   `DescriptorSetHandle set` on `DescriptorSetBinding`, handle returns on
+   `AcquireRawSet`/`Acquire`, and `ResolveLayout` takes `const DescriptorSetLayout &`.
+4. `ImmutableResourceCache.h/.cpp`: the two descriptor-set-layout functions take
+   `const DescriptorSetLayout &` and build the `vk::DescriptorSetLayoutCreateInfo`
+   internally from `ToVulkanBindings(layout)` — the hasher keeps working because
+   it is handed that structure.
+5. `DescriptorArena.cpp`: `RequirementsOf(const DescriptorSetLayout &)` iterates the
+   portable bindings and sums with `ToVulkanDescriptorType`; `IsImageDescriptor`
+   takes the portable enumeration; the three `return <vk set>` sites become
+   `FromVulkan(...)`, and `NameSet` keeps taking the Vulkan handle.
+
+The failure that ended the attempt came *after* all of the above: a
+`std::construct_at` error inside a standard container, most likely the arena's
+`std::unordered_map<uint32_t, DescriptorRequirements>` or the resident chain,
+which means one of the conversions produced a non-assignable element type. The
+next attempt should build after step 4 — before touching `DescriptorArena.cpp` —
+so the compiler points at the exact container rather than at the end of a
+six-file cascade.
