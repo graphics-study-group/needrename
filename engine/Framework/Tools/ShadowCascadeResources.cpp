@@ -59,10 +59,10 @@ namespace Engine {
                                      ) {
                         const auto &scene_data = system.GetSceneDataManager();
                         auto *shadow_map_target = rg.GetInternalTextureResource(shadow_id);
-                        const vk::Extent2D shadow_map_extent{
+                        const Rhi::Extent2D shadow_map_extent{
                             SceneDataManager::SHADOWMAP_SIZE, SceneDataManager::SHADOWMAP_SIZE
                         };
-                        vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
+                        const Rhi::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
 
                         if (light >= scene_data.GetNumShadowCastingLights()) return;
                         // A light is still missing its cascades on the very first
@@ -104,7 +104,11 @@ namespace Engine {
                                 shadow_map_extent,
                                 "Shadowmap Pass"
                             );
-                            cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+                            cb.SetupViewport(
+                                static_cast<float>(shadow_map_extent.width),
+                                static_cast<float>(shadow_map_extent.height),
+                                shadow_map_scissor
+                            );
                             cb.DrawRenderers(
                                 "Shadowmap",
                                 renderers,
@@ -123,3 +127,4 @@ namespace Engine {
         return shadow_ids;
     }
 } // namespace Engine
+

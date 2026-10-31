@@ -78,7 +78,7 @@ namespace Engine {
     }
 
     void GUISystem::DrawGUI(
-        const AttachmentUtils::AttachmentDescription &att, vk::Extent2D extent, CommandBuffer &cb
+        const AttachmentUtils::AttachmentDescription &att, Rhi::Extent2D extent, CommandBuffer &cb
     ) const {
         cb.BeginRendering(att, {}, extent, "GUI rendering pass");
         ImGui::Render();
@@ -174,6 +174,7 @@ namespace Engine {
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }
 } // namespace Engine
+
 
 
 

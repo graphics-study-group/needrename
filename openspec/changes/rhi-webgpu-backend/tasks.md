@@ -300,3 +300,15 @@ should take.
 Done per call site, as the rollback note predicted: thirty-odd edits, each one
 either "this argument is portable" or "this argument builds a Vulkan structure",
 and the compiler named every one. All 77 tests pass.
+### 5.2, second step: the render recording surface speaks portable extents
+
+`CommandBuffer::BeginRendering` (both overloads), `DrawRenderers` (both),
+`SetupViewport` and `GUISystem::DrawGUI` now take `Rhi::Extent2D` and
+`Rhi::Rect2D`. The seam-to-Vulkan conversions happen inside the recording
+implementation, where the `vk::RenderingInfo` and `setScissor` calls build their
+own structures from the portable values.
+
+This is the pattern the previous note described, applied at the boundary the
+other way round: the interfaces are portable, so every call site that used to
+construct a Vulkan extent into a portable parameter now passes the portable one
+straight through, and only the implementation converts. All 77 tests pass.

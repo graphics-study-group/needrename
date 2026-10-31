@@ -148,12 +148,12 @@ namespace Editor {
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
                 .SetPassFunction([&system, scene_widget](CommandBuffer &cb, const RenderGraph &) {
-                    vk::Extent2D extent{
+                    const Rhi::Extent2D extent{
                         static_cast<uint32_t>(scene_widget->m_viewport_size.x),
                         static_cast<uint32_t>(scene_widget->m_viewport_size.y)
                     };
-                    vk::Rect2D scissor{{0, 0}, extent};
-                    cb.SetupViewport(extent.width, extent.height, scissor);
+                    const Rhi::Rect2D scissor{{0, 0}, extent};
+                    cb.SetupViewport(static_cast<float>(extent.width), static_cast<float>(extent.height), scissor);
                     system.GetCameraManager().SetActiveCameraIndex(scene_widget->GetCameraIndex());
                     cb.DrawRenderers(
                         "Lit",
@@ -225,12 +225,12 @@ namespace Editor {
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
                 .SetPassFunction([&system, game_widget, world_system](CommandBuffer &cb, const RenderGraph &) {
-                    vk::Extent2D extent{
+                    const Rhi::Extent2D extent{
                         static_cast<uint32_t>(game_widget->m_viewport_size.x),
                         static_cast<uint32_t>(game_widget->m_viewport_size.y)
                     };
-                    vk::Rect2D scissor{{0, 0}, extent};
-                    cb.SetupViewport(extent.width, extent.height, scissor);
+                    const Rhi::Rect2D scissor{{0, 0}, extent};
+                    cb.SetupViewport(static_cast<float>(extent.width), static_cast<float>(extent.height), scissor);
                     auto camera = world_system->GetActiveCamera();
                     if (camera == nullptr) {
                         return;
@@ -306,6 +306,7 @@ namespace Editor {
         return rgb.BuildRenderGraph();
     }
 } // namespace Editor
+
 
 
 

@@ -128,11 +128,10 @@ namespace Engine {
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
                 .SetPassFunction([&system, world_system](CommandBuffer &cb, const RenderGraph &) {
-                    const Rhi::Extent2D portable = system.GetPresentProvider().GetExtent();
-                    const vk::Extent2D extent{portable.width, portable.height};
-                    if (extent.width <= 0 || extent.height <= 0) return;
-                    vk::Rect2D scissor{{0, 0}, extent};
-                    cb.SetupViewport(extent.width, extent.height, scissor);
+                    const Rhi::Extent2D extent = system.GetPresentProvider().GetExtent();
+                    if (extent.width == 0 || extent.height == 0) return;
+                    const Rhi::Rect2D scissor{{0, 0}, extent};
+                    cb.SetupViewport(static_cast<float>(extent.width), static_cast<float>(extent.height), scissor);
                     auto active_camera = world_system->GetActiveCamera();
                     if (active_camera == nullptr) {
                         // No active camera, skip rendering.
@@ -149,7 +148,7 @@ namespace Engine {
                         cb,
                         system.GetFrameManager().GetFrameInFlight(),
                         system.GetCameraManager().GetPVMatForSkybox(),
-                        Rhi::Extent2D{extent.width, extent.height}
+                        extent
                     );
                 })
                 .WrapRenderPass();
@@ -187,6 +186,7 @@ namespace Engine {
         return rgb.BuildRenderGraph();
     }
 } // namespace Engine
+
 
 
 

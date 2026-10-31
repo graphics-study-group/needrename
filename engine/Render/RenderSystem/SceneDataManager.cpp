@@ -567,7 +567,7 @@ namespace Engine::RenderSystemState {
             m_system.GetRenderResourceManager<MaterialInstanceManager>()->Resolve(pimpl->skybox.skybox_material);
         if (!material) return;
 
-        const vk::Rect2D scissor{{0, 0}, {extent.width, extent.height}};
+        const Rhi::Rect2D scissor{{0, 0}, {extent.width, extent.height}};
         cb.SetupViewport(static_cast<float>(extent.width), static_cast<float>(extent.height), scissor);
 
         auto tpl = material->GetLibrary().FindMaterialTemplate("SKYBOX", {{0}, cb.GetRenderingInfo()});
@@ -616,6 +616,7 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
                         AttachmentUtils::LoadOperation::Clear,
                         AttachmentUtils::StoreOperation::Store,
                     },
-                    vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
+                    Rhi::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
                     cb
                 );
             })
@@ -101,3 +101,5 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+

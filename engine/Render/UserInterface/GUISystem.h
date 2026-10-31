@@ -71,7 +71,7 @@ namespace Engine {
          * attachment is used again, synchronization barriers must be set up correctly.
          */
         void DrawGUI(
-            const AttachmentUtils::AttachmentDescription &attachment, vk::Extent2D extent, CommandBuffer &cb
+            const AttachmentUtils::AttachmentDescription &attachment, Rhi::Extent2D extent, CommandBuffer &cb
         ) const;
 
         /**
@@ -120,3 +120,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDER_USERINTERFACE_GUISYSTEM_INCLUDED
+

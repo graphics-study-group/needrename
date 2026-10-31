@@ -852,7 +852,7 @@ int main(int argc, char **argv) {
                         "Lit",
                         rsys->GetRendererManager().FilterAndSortRenderers({}),
                         active_camera->m_display_id,
-                        vk::Extent2D{rsys->GetPresentProvider().GetExtent().width, rsys->GetPresentProvider().GetExtent().height}
+                        rsys->GetPresentProvider().GetExtent()
                     );
                 })
                 .WrapRenderPass();
@@ -1060,4 +1060,5 @@ int main(int argc, char **argv) {
     }
     return 0;
 }
+
 

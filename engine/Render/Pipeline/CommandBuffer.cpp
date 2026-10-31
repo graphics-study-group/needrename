@@ -152,7 +152,7 @@ namespace Engine {
     void CommandBuffer::BeginRendering(
         const AttachmentUtils::AttachmentDescription &color,
         const AttachmentUtils::AttachmentDescription &depth,
-        vk::Extent2D extent,
+        Rhi::Extent2D extent,
         const std::string &name
     ) {
         std::vector<vk::RenderingAttachmentInfo> color_attachment;
@@ -177,7 +177,7 @@ namespace Engine {
 
         vk::RenderingInfo info{
             vk::RenderingFlags{0},
-            vk::Rect2D{{0, 0}, extent},
+            vk::Rect2D{{0, 0}, {extent.width, extent.height}},
             1,
             0,
             color_attachment,
@@ -191,7 +191,7 @@ namespace Engine {
     void CommandBuffer::BeginRendering(
         const std::vector<AttachmentUtils::AttachmentDescription> &colors,
         const AttachmentUtils::AttachmentDescription depth,
-        vk::Extent2D extent,
+        Rhi::Extent2D extent,
         const std::string &name
     ) {
         std::vector<vk::RenderingAttachmentInfo> color_attachment_info(colors.size(), vk::RenderingAttachmentInfo{});
@@ -214,7 +214,7 @@ namespace Engine {
 
         vk::RenderingInfo info{
             vk::RenderingFlags{0},
-            vk::Rect2D{{0, 0}, extent},
+            vk::Rect2D{{0, 0}, {extent.width, extent.height}},
             1,
             0,
             color_attachment_info,
@@ -288,14 +288,15 @@ namespace Engine {
 
     // ── Viewport ────────────────────────────────────────────────────────────
 
-    void CommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
+    void CommandBuffer::SetupViewport(float vpWidth, float vpHeight, Rhi::Rect2D scissor) {
         vk::Viewport vp;
         vp.setWidth(vpWidth).setHeight(vpHeight);
         vp.setX(0.0f).setY(0.0f);
         vp.setMaxDepth(1.0f).setMinDepth(0.0f);
 
         cb.setViewport(0, 1, &vp);
-        cb.setScissor(0, 1, &scissor);
+        const vk::Rect2D vk_scissor{{scissor.offset.x, scissor.offset.y}, {scissor.extent.width, scissor.extent.height}};
+        cb.setScissor(0, 1, &vk_scissor);
     }
 
     // ── Drawing ─────────────────────────────────────────────────────────────
@@ -342,14 +343,14 @@ namespace Engine {
     }
 
     void CommandBuffer::DrawRenderers(const std::string &tag, const RendererList &renderers) {
-        const Rhi::Extent2D extent = m_system.GetPresentProvider().GetExtent();
         this->DrawRenderers(
-            tag, renderers, m_system.GetCameraManager().GetActiveCameraIndex(), vk::Extent2D{extent.width, extent.height}
+            tag, renderers, m_system.GetCameraManager().GetActiveCameraIndex(),
+            m_system.GetPresentProvider().GetExtent()
         );
     }
 
     void CommandBuffer::DrawRenderers(
-        const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
+        const std::string &tag, const RendererList &renderers, int32_t camera_index, Rhi::Extent2D extent
     ) {
         auto &renderer_manager = m_system.GetRendererManager();
         auto *material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
@@ -357,7 +358,7 @@ namespace Engine {
         BindSceneResources(m_system.GetSceneDataManager());
         BindCameraResources(m_system.GetCameraManager());
 
-        vk::Rect2D scissor{{0, 0}, extent};
+        Rhi::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
             auto material_handle = renderer_manager.GetMaterialResourceHandle(rid);
@@ -387,6 +388,9 @@ namespace Engine {
     }
 
 } // namespace Engine
+
+
+
 
 
 

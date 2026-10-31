@@ -173,7 +173,7 @@ namespace Engine {
         void BeginRendering(
             const AttachmentUtils::AttachmentDescription &color,
             const AttachmentUtils::AttachmentDescription &depth,
-            vk::Extent2D extent,
+            Rhi::Extent2D extent,
             const std::string &name = ""
         );
 
@@ -192,7 +192,7 @@ namespace Engine {
         void BeginRendering(
             const std::vector<AttachmentUtils::AttachmentDescription> &colors,
             const AttachmentUtils::AttachmentDescription depth,
-            vk::Extent2D extent,
+            Rhi::Extent2D extent,
             const std::string &name = ""
         );
 
@@ -288,7 +288,7 @@ namespace Engine {
          * @param vpHeight Viewport height in pixels.
          * @param scissor  Scissor rectangle (origin and extent).
          */
-        void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
+        void SetupViewport(float vpWidth, float vpHeight, Rhi::Rect2D scissor);
 
         // ── Drawing ──────────────────────────────────────────────────────
 
@@ -363,7 +363,7 @@ namespace Engine {
          * @param extent       Render area extent for viewport and scissor.
          */
         void DrawRenderers(
-            const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
+            const std::string &tag, const RendererList &renderers, int32_t camera_index, Rhi::Extent2D extent
         );
 
         // ── Reset ────────────────────────────────────────────────────────
@@ -394,4 +394,5 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_COMMANDBUFFER_INCLUDED
+
 
