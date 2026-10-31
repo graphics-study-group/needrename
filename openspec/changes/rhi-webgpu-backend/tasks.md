@@ -265,3 +265,25 @@ recording call sites.
 The raw `GetCommandBuffer()` accessor is still there: the transfer and rendering
 methods inside `CommandBuffer` itself are Vulkan-shaped and have not been
 migrated, so 5.2 (attachment and presentation types) is what removes it.
+
+### Attempt at 5.2, and why it was rolled back
+
+Changing `BeginRendering`/`SetupViewport`/`DrawRenderers` from `vk::Extent2D`
+and `vk::Rect2D` to `Rhi::Extent2D` and `Rhi::Rect2D` is the right move and the
+four signatures convert cleanly. What does not convert cleanly is the call
+surface: `Extent2D` and `Rect2D` are names that *both* the seam and Vulkan
+declare, and the same translation units use both. Inside `CommandBuffer.cpp` the
+portable extent feeds a `vk::RenderingInfo{...}` and a
+`vk::CommandBuffer::setScissor`, which need the Vulkan `Rect2D`; a token-level
+replacement across the tree rewrote those too and broke the file in a way that
+looks like a type error but is really a scope error.
+
+So 5.2 needs per-call-site edits with an explicit conversion at each boundary
+(`vk::Rect2D{{0, 0}, {extent.width, extent.height}}` where a Vulkan structure is
+built, and `Rhi::Extent2D{...}` where the portable one is passed), not a sweep.
+The signatures themselves are known-good: they were the first thing that
+compiled before the call surface was touched.
+
+This also reprioritises the round: the same `Extent2D`/`Format` collision exists
+in `IPresentProvider` and `AttachmentUtilsFunc`, so 5.2 should land provider by
+provider, starting with the presentation interface where the types are fewest.
