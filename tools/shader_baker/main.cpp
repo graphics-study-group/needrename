@@ -1,5 +1,7 @@
 #include <Render/Asset/Shader/ShaderCompiler.h>
 
+#include "wgsl_bake.h"
+
 #include <AnnoRefl/Archive.h>
 #include <SDL3/SDL.h>
 
@@ -21,15 +23,23 @@ namespace {
 
     struct Options {
         std::filesystem::path shaders_directory{};
+        /// @brief Directory of SPIR-V modules to bake the WGSL variant for.
+        std::filesystem::path spirv_directory{};
         bool emit_debug_info = false;
+        /// @brief Converter invoked per module; the WGSL bake is skipped when empty.
+        std::string converter_executable{};
     };
 
     [[noreturn]] void ThrowUsage(const std::string &message) {
         throw std::runtime_error(
             message
             + "\nUsage: shader_baker <shaders-directory> [--debug-info]\n"
-              "  Rewrites every built-in ShaderAsset archive in <shaders-directory> from\n"
-              "  GLSL form to embedded-SPIR-V form, preserving each asset's GUID."
+              "       shader_baker --spirv-dir <directory> [--converter <path>]\n"
+              "  With a shader directory: rewrites every built-in ShaderAsset archive from\n"
+              "  GLSL form to embedded-SPIR-V form, preserving each asset's GUID.\n"
+              "  With --spirv-dir: writes the WGSL variant and the interface description\n"
+              "  next to every SPIR-V module in the tree, which is what the WebGPU backend\n"
+              "  loads instead of reflecting."
         );
     }
 
@@ -39,6 +49,16 @@ namespace {
             const std::string_view argument(argv[index]);
             if (argument == "--debug-info") {
                 options.emit_debug_info = true;
+            } else if (argument == "--spirv-dir") {
+                if (index + 1 >= argc) {
+                    ThrowUsage("--spirv-dir needs a directory argument.");
+                }
+                options.spirv_directory = std::filesystem::path(argv[++index]);
+            } else if (argument == "--converter") {
+                if (index + 1 >= argc) {
+                    ThrowUsage("--converter needs an executable path.");
+                }
+                options.converter_executable = argv[++index];
             } else if (argument.starts_with("--")) {
                 ThrowUsage("Unknown option: " + std::string(argument));
             } else if (options.shaders_directory.empty()) {
@@ -47,8 +67,8 @@ namespace {
                 ThrowUsage("Unexpected argument: " + std::string(argument));
             }
         }
-        if (options.shaders_directory.empty()) {
-            ThrowUsage("Missing shader directory argument.");
+        if (options.shaders_directory.empty() && options.spirv_directory.empty()) {
+            ThrowUsage("Missing shader or SPIR-V directory argument.");
         }
         return options;
     }
@@ -182,11 +202,26 @@ namespace {
 int main(int argc, char **argv) {
     try {
         const Options options = ParseArguments(argc, argv);
+        SDL_SetLogPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_WARN);
+
+        // WGSL bake: the WebGPU runtime's artifacts, next to the modules they
+        // were derived from. Kept separate from the archive bake below because
+        // the physics shader tree is a plain SPIR-V tree with no archives.
+        if (!options.spirv_directory.empty()) {
+            Engine::ShaderBake::WgslBakeOptions wgsl_options{};
+            wgsl_options.spirv_directory = options.spirv_directory;
+            wgsl_options.converter_executable =
+                options.converter_executable.empty() ? Engine::ShaderBake::DefaultConverterExecutable()
+                                                     : options.converter_executable;
+            std::cout << "Baking WGSL variants in " << options.spirv_directory.string() << " with "
+                      << wgsl_options.converter_executable << '\n';
+            return Engine::ShaderBake::BakeWgslTree(wgsl_options);
+        }
+
         if (!std::filesystem::is_directory(options.shaders_directory)) {
             throw std::runtime_error("Not a directory: " + options.shaders_directory.string());
         }
 
-        SDL_SetLogPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_WARN);
         Engine::ShaderCompiler compiler;
 
         std::cout << "Baking built-in shaders in " << options.shaders_directory.string() << '\n';

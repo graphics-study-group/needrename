@@ -321,3 +321,46 @@ ordering inside a scope, and the specification explicitly leaves it undefined.
 The per-dispatch-scope design does not depend on it either way; the number is
 recorded so that a future "coalesce unordered dispatches into one scope"
 optimisation knows what it would be relying on.
+
+### F8. Write-only storage buffers are rejected by the converter
+
+Several physics kernels declare a buffer the shader only writes, and the
+converter rejects the module outright:
+
+```
+Global variable [4] 'model_matrices' is invalid:
+    Storage address space doesn't support write-only access
+```
+
+The first full pass over the physics tree baked **25 of 42** modules to WGSL; the
+17 failures split between this finding and the `std140` array one (F4). The bake
+reports every failure by module name, so what remains is a list, not a mystery.
+
+**Resolution taken:** WGSL storage buffers are `read` or `read_write`, with no
+write-only form, so the WGSL variant rewrites `writeonly` to `read_write`. A
+shader that only writes is unaffected by the widened access: the qualifier is a
+promise to the driver, not a behaviour of the shader.
+
+## Status of the two spikes
+
+- **Spike (a), converter fidelity:** complete. The converter was measured against
+  the real corpus and fails on eight distinct issues, all recorded above with
+  what the bake does about each. The bake's rewrite pipeline exists and produces
+  a WGSL variant plus an interface description for 25 of the 42 physics modules
+  today; the rest need the remaining rewrites (F1 to F4, F8).
+- **Spike (b), `webgpu.h` on Emscripten:** **blocked, not done.** The desktop
+  half runs and is recorded in 1.3 and 1.5; the browser half needs an Emscripten
+  toolchain, and this machine's throughput to the download hosts measured at
+  about 9 KB/s, which puts the ~1 GB toolchain (plus the SDL3 port it fetches)
+  many hours out. The `emsdk` install and the Dawn clone were both abandoned
+  after repeated stalls and one truncated clone.
+
+  The Emscripten toolchain file, the `emscripten` preset, the SDL3 port module
+  and the browser branch of the spike harness are written and in place. What is
+  missing is the verified run, and it is the first thing to do on a machine with
+  usable bandwidth. Until then the browser is validated by construction only, so
+  task 1.4 and everything that depends on the web build (group 11) stays open.
+- **Tint as an alternative converter:** also blocked by the same limit (the Dawn
+  source clone failed twice; the prebuilt Dawn release is a 113 MB download that
+  had not finished after 40 minutes). Every measurement above is naga's, and
+  decision D6 is recorded for naga.
