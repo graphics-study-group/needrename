@@ -96,6 +96,42 @@ namespace Engine::Rhi {
         }
     }
 
+    /// @brief Convert the portable image type to its Vulkan equivalent.
+    constexpr vk::ImageType GetVkImageType(ImageType type) {
+        switch (type) {
+        case ImageType::D1:
+            return vk::ImageType::e1D;
+        case ImageType::D3:
+            return vk::ImageType::e3D;
+        case ImageType::D2:
+        default:
+            return vk::ImageType::e2D;
+        }
+    }
+
+    /// @brief Convert the portable extent to its Vulkan equivalent.
+    constexpr vk::Extent3D GetVkExtent3D(Extent3D extent) {
+        return vk::Extent3D{extent.width, extent.height, extent.depth};
+    }
+
+    /// @brief Convert the portable sample count to its Vulkan equivalent.
+    constexpr vk::SampleCountFlagBits GetVkSampleCount(SampleCountBits samples) {
+        return static_cast<vk::SampleCountFlagBits>(static_cast<uint32_t>(samples));
+    }
+
+    /// @brief Convert a capability query to the Vulkan feature bit it means.
+    constexpr vk::FormatFeatureFlagBits GetVkFormatFeature(FormatFeature feature) {
+        switch (feature) {
+        case FormatFeature::VertexBuffer:
+            return vk::FormatFeatureFlagBits::eVertexBuffer;
+        case FormatFeature::StorageImageAtomic:
+            return vk::FormatFeatureFlagBits::eStorageImageAtomic;
+        case FormatFeature::StorageImage:
+        default:
+            return vk::FormatFeatureFlagBits::eStorageImage;
+        }
+    }
+
     constexpr uint16_t GetPixelSize(ImageFormat format) {
         switch (format) {
         case ImageFormat::R8G8B8A8SNorm:
@@ -233,3 +269,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMAGEUTILSFUNC_INCLUDED
+

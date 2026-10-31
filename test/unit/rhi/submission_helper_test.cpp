@@ -41,9 +41,7 @@ static bool ExpectRuntimeError(std::function<void()> fn) {
 /// @brief Number of live VMA allocations, used to observe that staging was
 /// actually freed rather than parked in the retirement facility.
 static uint32_t LiveAllocationCount(Rhi::AllocatorState &allocator) {
-    VmaTotalStatistics stats{};
-    vmaCalculateStatistics(allocator.GetAllocator(), &stats);
-    return stats.total.statistics.allocationCount;
+    return allocator.GetLiveAllocationCount();
 }
 
 int main() {
@@ -218,3 +216,4 @@ int main() {
     std::cout << "Rhi::SubmissionHelper standalone test PASSED." << std::endl;
     return 0;
 }
+

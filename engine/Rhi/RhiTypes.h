@@ -232,6 +232,21 @@ namespace Engine::Rhi {
         Depth = 1 << 1,
         Stencil = 1 << 2
     };
+
+    /**
+     * @brief A capability a format may or may not have on the current device.
+     *
+     * The set is what the engine asks about: whether a format can back a vertex
+     * buffer, and whether it can be a storage image with or without atomics.
+     */
+    enum class FormatFeature : uint8_t {
+        /// The format can be read as vertex attribute data.
+        VertexBuffer,
+        /// The format can be a shader storage image.
+        StorageImage,
+        /// The format can be a shader storage image with atomic operations.
+        StorageImageAtomic
+    };
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED

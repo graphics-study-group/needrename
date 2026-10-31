@@ -3,6 +3,7 @@
 
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Texture/ImageUtilsFunc.h"
 
 #include <SDL3/SDL.h>
 #include <vk_mem_alloc.h>
@@ -102,9 +103,9 @@ namespace {
             );
             return false;
         }
-        if (!(desc.samples & ifp.imageFormatProperties.sampleCounts)) {
+        if (!(GetVkSampleCount(desc.samples) & ifp.imageFormatProperties.sampleCounts)) {
             SDL_LogError(
-                SDL_LOG_CATEGORY_RENDER, "Requested multisample not supported: %s", to_string(desc.samples).c_str()
+                SDL_LOG_CATEGORY_RENDER, "Requested multisample not supported: %u", static_cast<uint32_t>(desc.samples)
             );
             return false;
         }
@@ -255,8 +256,17 @@ namespace Engine::Rhi {
     }
     AllocatorState::AllocatorState(AllocatorState &&) noexcept = default;
 
-    VmaAllocator AllocatorState::GetAllocator() const {
-        return pimpl->m_allocator;
+
+    size_t AllocatorState::GetLiveAllocationCount() const noexcept {
+        VmaTotalStatistics stats{};
+        vmaCalculateStatistics(pimpl->m_allocator, &stats);
+        return stats.total.statistics.allocationCount;
+    }
+
+    size_t AllocatorState::GetLiveAllocationBytes() const noexcept {
+        VmaTotalStatistics stats{};
+        vmaCalculateStatistics(pimpl->m_allocator, &stats);
+        return stats.total.statistics.allocationBytes;
     }
 
     void AllocatorState::SetRetireSink(EpochTracker *sink) noexcept {
@@ -310,23 +320,26 @@ namespace Engine::Rhi {
         return nullptr;
     }
 
-    bool AllocatorState::QueryFormatFeatures(vk::Format format, vk::FormatFeatureFlagBits feature) const noexcept {
-        auto ret = pimpl->UpdateFormatSupportInfo(m_device_interface->GetPhysicalDevice(), format);
-        return static_cast<bool>(vk::FormatFeatureFlags{ret.formatProperties.optimalTilingFeatures & feature});
+    bool AllocatorState::QueryFormatFeatures(ImageFormat format, FormatFeature feature) const noexcept {
+        auto ret = pimpl->UpdateFormatSupportInfo(m_device_interface->GetPhysicalDevice(), GetVkFormat(format));
+        return static_cast<bool>(
+            vk::FormatFeatureFlags{ret.formatProperties.optimalTilingFeatures & GetVkFormatFeature(feature)}
+        );
     }
 
     ImageAllocation AllocatorState::AllocateImage(
         const ImageAllocationDescription &desc, const std::string &name
     ) const {
         const auto [iusage, musage] = GetImageFlags(desc.type);
-        auto fsupport = pimpl->QueryFormatSupport(m_device_interface->GetPhysicalDevice(), desc.format, desc.type);
+        auto fsupport =
+            pimpl->QueryFormatSupport(m_device_interface->GetPhysicalDevice(), GetVkFormat(desc.format), desc.type);
         if (fsupport.first <= 0) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
                 "%s",
                 std::format(
                     "Format {} does not support requested features. We requested: {} but only {} are supported.",
-                    to_string(desc.format),
+                    static_cast<uint32_t>(desc.format),
                     to_string(GetFormatFeatures(desc.type)),
                     to_string(fsupport.second)
                 )
@@ -336,7 +349,11 @@ namespace Engine::Rhi {
         }
 
         auto ifsupport = pimpl->UpdateImageFormatSupportInfo(
-            m_device_interface->GetPhysicalDevice(), desc.format, desc.dimension, vk::ImageTiling::eOptimal, iusage
+            m_device_interface->GetPhysicalDevice(),
+            GetVkFormat(desc.format),
+            GetVkImageType(desc.dimension),
+            vk::ImageTiling::eOptimal,
+            iusage
         );
         if (!CheckImageFormatSupport(desc, ifsupport))
             throw std::invalid_argument("Requested size or multisample count unsupported.");
@@ -345,12 +362,12 @@ namespace Engine::Rhi {
         if (desc.is_cube_map) icf |= vk::ImageCreateFlagBits::eCubeCompatible;
         vk::ImageCreateInfo iinfo{
             icf,
-            desc.dimension,
-            desc.format,
-            desc.extent,
+            GetVkImageType(desc.dimension),
+            GetVkFormat(desc.format),
+            GetVkExtent3D(desc.extent),
             desc.miplevel,
             desc.array_layers,
-            desc.samples,
+            GetVkSampleCount(desc.samples),
             vk::ImageTiling::eOptimal,
             iusage,
             vk::SharingMode::eExclusive,
@@ -371,4 +388,14 @@ namespace Engine::Rhi {
         return ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, desc.type);
     }
 } // namespace Engine::Rhi
+
+
+
+
+
+
+
+
+
+
 

@@ -172,18 +172,19 @@ namespace Engine::Rhi {
         assert(arrayLayers >= 1);
         assert(!texture.is_cube_map || arrayLayers == 6);
 
-        auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
+        const Rhi::ImageType dim =
+            dimension == 1 ? Rhi::ImageType::D1 : (dimension == 2 ? Rhi::ImageType::D2 : Rhi::ImageType::D3);
         pimpl->device = device_context.GetDevice();
         pimpl->m_image = allocator.AllocateImageUnique(
             Rhi::AllocatorState::ImageAllocationDescription{
                 texture.memory_type,
                 dim,
-                vk::Extent3D{width, height, depth},
-                Rhi::GetVkFormat(texture.format),
+                Rhi::Extent3D{width, height, depth},
+                texture.format,
                 mipLevels,
                 arrayLayers,
                 texture.is_cube_map,
-                vk::SampleCountFlagBits::e1
+                Rhi::SampleCountBits::C1
             },
             name
         );
@@ -266,6 +267,8 @@ namespace Engine::Rhi {
         return false;
     }
 } // namespace Engine::Rhi
+
+
 
 
 

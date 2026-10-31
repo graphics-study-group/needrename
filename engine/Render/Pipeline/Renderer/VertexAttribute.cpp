@@ -88,7 +88,7 @@ namespace Engine {
 
             if (allocator) {
                 assert(
-                    allocator->QueryFormatFeatures(format, vk::FormatFeatureFlagBits::eVertexBuffer)
+                    allocator->QueryFormatFeatures(Rhi::FromVkFormat(format), Rhi::FormatFeature::VertexBuffer)
                     && "Format not supported as vertex attribute buffer."
                 );
             }
@@ -135,3 +135,4 @@ namespace Engine {
         return ret;
     }
 } // namespace Engine
+

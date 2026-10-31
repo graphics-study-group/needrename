@@ -3,13 +3,13 @@
 
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/RhiTypes.h"
+#include "Rhi/Texture/ImageUtils.h"
 #include "Rhi/rhi_export.h"
-#include <memory>
-#include <vulkan/vulkan.hpp>
 
-class VkExtent3D;
-struct VmaAllocator_T;
-typedef VmaAllocator_T *VmaAllocator;
+#include <cstddef>
+#include <memory>
+#include <string>
 
 namespace Engine::Rhi {
     class DeviceInterface;
@@ -45,8 +45,6 @@ namespace Engine::Rhi {
         AllocatorState(AllocatorState &&) noexcept;
 
         ~AllocatorState();
-        /// @brief Get the underlying allocator state.
-        VmaAllocator GetAllocator() const;
 
         /**
          * @brief Install the epoch tracker that receives retired buffer allocations.
@@ -87,14 +85,14 @@ namespace Engine::Rhi {
          * @brief Description of image allocation request.
          */
         struct ImageAllocationDescription {
-            ImageMemoryType type;            ///< Supported memory access pattern of the image.
-            vk::ImageType dimension;         ///< Dimension of the image. 1D, 2D or 3D are supported.
-            vk::Extent3D extent;             ///< Extent of the image. Must be non-zero integers.
-            vk::Format format;               ///< Format of the image.
-            uint32_t miplevel;               ///< Mipmap levels of the image.
-            uint32_t array_layers;           ///< Array layers of the image. 3D arrays are not supported.
-            bool is_cube_map;                ///< Whether the array allocation should be compatible to cubemaps.
-            vk::SampleCountFlagBits samples; ///< Multisample counts of the image.
+            ImageMemoryType type;      ///< Supported memory access pattern of the image.
+            ImageType dimension;       ///< Dimension of the image. 1D, 2D or 3D are supported.
+            Extent3D extent;           ///< Extent of the image. Must be non-zero integers.
+            ImageFormat format;        ///< Format of the image.
+            uint32_t miplevel;         ///< Mipmap levels of the image.
+            uint32_t array_layers;     ///< Array layers of the image. 3D arrays are not supported.
+            bool is_cube_map;          ///< Whether the array allocation should be compatible to cubemaps.
+            SampleCountBits samples;   ///< Multisample counts of the image.
         };
 
         /**
@@ -117,8 +115,23 @@ namespace Engine::Rhi {
         /**
          * @brief Query whether a given format supports intended usage feature.
          */
-        bool QueryFormatFeatures(vk::Format format, vk::FormatFeatureFlagBits feature) const noexcept;
+        bool QueryFormatFeatures(ImageFormat format, FormatFeature feature) const noexcept;
+
+        /**
+         * @brief Get how many allocations the allocator currently owns.
+         *
+         * A diagnostic: retirement and reallocation tests assert that a buffer
+         * really was freed rather than merely unbound, and this is the count
+         * that makes that observable without naming the allocator library.
+         */
+        size_t GetLiveAllocationCount() const noexcept;
+
+        /// @brief Get how many bytes the allocator's live allocations hold.
+        size_t GetLiveAllocationBytes() const noexcept;
     };
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_ALLOCATORSTATE_INCLUDED
+
+
+

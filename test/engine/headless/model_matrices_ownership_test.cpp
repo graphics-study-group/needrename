@@ -65,9 +65,7 @@ namespace {
 
     /// @brief Number of live VMA allocations, used to observe buffer lifetimes.
     uint32_t LiveAllocationCount(const Rhi::AllocatorState &allocator) {
-        VmaTotalStatistics stats{};
-        vmaCalculateStatistics(allocator.GetAllocator(), &stats);
-        return stats.total.statistics.allocationCount;
+        return static_cast<uint32_t>(allocator.GetLiveAllocationCount());
     }
 
     using BufferAccess = Rhi::MemoryAccessTypeBuffer;
@@ -291,3 +289,5 @@ int main() {
     std::cout << "Model matrices ownership test PASSED." << std::endl;
     return 0;
 }
+
+

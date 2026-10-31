@@ -46,9 +46,7 @@ static bool g_pass = true;
 /// @brief Number of live VMA allocations, used to observe that device memory was
 /// actually freed (or deliberately not freed).
 static uint32_t LiveAllocationCount(AllocatorState &allocator) {
-    VmaTotalStatistics stats{};
-    vmaCalculateStatistics(allocator.GetAllocator(), &stats);
-    return stats.total.statistics.allocationCount;
+    return allocator.GetLiveAllocationCount();
 }
 
 // ── Assertion (death) scenarios, run in a child process ─────────────────────
@@ -429,3 +427,4 @@ int main(int argc, char **argv) {
     std::cout << "Rhi::EpochTracker test PASSED." << std::endl;
     return 0;
 }
+

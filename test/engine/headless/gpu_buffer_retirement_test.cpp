@@ -53,15 +53,11 @@ namespace {
     }
 
     uint32_t LiveAllocationCount(const Rhi::AllocatorState &allocator) {
-        VmaTotalStatistics stats{};
-        vmaCalculateStatistics(allocator.GetAllocator(), &stats);
-        return stats.total.statistics.allocationCount;
+        return static_cast<uint32_t>(allocator.GetLiveAllocationCount());
     }
 
     VkDeviceSize LiveAllocationBytes(const Rhi::AllocatorState &allocator) {
-        VmaTotalStatistics stats{};
-        vmaCalculateStatistics(allocator.GetAllocator(), &stats);
-        return stats.total.statistics.allocationBytes;
+        return static_cast<VkDeviceSize>(allocator.GetLiveAllocationBytes());
     }
 
     /**
@@ -350,3 +346,6 @@ int main() {
     std::cout << "Gpu buffer retirement test PASSED." << std::endl;
     return 0;
 }
+
+
+

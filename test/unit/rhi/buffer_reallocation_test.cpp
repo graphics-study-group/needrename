@@ -43,9 +43,7 @@ static bool g_pass = true;
 /// @brief Number of live VMA allocations, used to observe that device memory was
 /// actually freed (or deliberately retained).
 static uint32_t LiveAllocationCount(AllocatorState &allocator) {
-    VmaTotalStatistics stats{};
-    vmaCalculateStatistics(allocator.GetAllocator(), &stats);
-    return stats.total.statistics.allocationCount;
+    return allocator.GetLiveAllocationCount();
 }
 
 namespace {
@@ -260,3 +258,4 @@ int main() {
     std::cout << "Rhi::BufferReallocation test PASSED." << std::endl;
     return 0;
 }
+

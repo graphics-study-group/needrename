@@ -36,11 +36,11 @@ namespace Engine {
         );
 
         ret.support_random_access = device_context.GetAllocatorState().QueryFormatFeatures(
-            Rhi::GetVkFormat(ret.GetTextureDescription().format), vk::FormatFeatureFlagBits::eStorageImage
+            ret.GetTextureDescription().format, Rhi::FormatFeature::StorageImage
         );
 
         ret.support_atomic_access = device_context.GetAllocatorState().QueryFormatFeatures(
-            Rhi::GetVkFormat(ret.GetTextureDescription().format), vk::FormatFeatureFlagBits::eStorageImageAtomic
+            ret.GetTextureDescription().format, Rhi::FormatFeature::StorageImageAtomic
         );
 
         return ret;
@@ -71,11 +71,11 @@ namespace Engine {
             name
         ));
         ret->support_random_access = device_context.GetAllocatorState().QueryFormatFeatures(
-            Rhi::GetVkFormat(ret->GetTextureDescription().format), vk::FormatFeatureFlagBits::eStorageImage
+            ret->GetTextureDescription().format, Rhi::FormatFeature::StorageImage
         );
 
         ret->support_atomic_access = device_context.GetAllocatorState().QueryFormatFeatures(
-            Rhi::GetVkFormat(ret->GetTextureDescription().format), vk::FormatFeatureFlagBits::eStorageImageAtomic
+            ret->GetTextureDescription().format, Rhi::FormatFeature::StorageImageAtomic
         );
         return ret;
     }
@@ -86,3 +86,5 @@ namespace Engine {
         return support_atomic_access;
     }
 } // namespace Engine
+
+
