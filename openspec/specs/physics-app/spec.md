@@ -25,7 +25,7 @@ The change SHALL add a `PhysicsApp` shared library in a new `app/physics/` direc
 - **THEN** a unique-ownership `PhysicsApp` instance is returned
 
 ### Requirement: Create performs full initialization
-`PhysicsApp::Create(CreateInfo)` SHALL perform full initialization internally: `MainClass::Initialize`, `LoadBuiltinAssets`, and `LoadProject` (project `empty_with_sky`). Asset and project paths SHALL be read from `cmake_config.h` macros (`ENGINE_BUILTIN_ASSETS_DIR`, `ENGINE_PROJECTS_DIR`) for this iteration. `CreateInfo` SHALL carry window resolution and window title only. Initialization failure SHALL throw.
+`PhysicsApp::Create(CreateInfo)` SHALL perform full initialization internally: `MainClass::Initialize`, `LoadBuiltinAssets`, and `LoadProject` (the built-in default project, which ships without skybox texture data). Asset and project paths SHALL be read from `cmake_config.h` macros (`ENGINE_BUILTIN_ASSETS_DIR`, `ENGINE_PROJECTS_DIR`) for this iteration. `CreateInfo` SHALL carry execution mode, window resolution, window title, and a background clear color. Initialization failure SHALL throw.
 
 #### Scenario: Consumer does not touch MainClass
 - **WHEN** a consumer calls `PhysicsApp::Create`
@@ -178,3 +178,27 @@ The app SHALL be built exclusively on existing public interfaces (MainClass gett
 #### Scenario: Example main is thin
 - **WHEN** the rewritten example is inspected
 - **THEN** it contains no render graph construction, no camera construction, and no MainClass initialization calls
+
+### Requirement: Background clear color instead of skybox
+`CreateInfo` SHALL carry a background color (linear rgb, default black). The
+rendered frame background SHALL be that solid color: no skybox material or
+cubemap texture SHALL be drawn, and the built-in default project SHALL contain
+no skybox material reference or cubemap texture data. Lighting of scene objects
+SHALL remain driven by the directional light API and shadows, unaffected by the
+background.
+
+#### Scenario: Default background is black
+- **WHEN** an app is created without setting the background color and an
+  offscreen frame of an empty scene is read back
+- **THEN** pixels not covered by geometry are black
+
+#### Scenario: Configured background color renders
+- **WHEN** an app is created with a non-black background color and an offscreen
+  frame is read back
+- **THEN** pixels not covered by geometry match the configured color (within
+  tonemapping tolerance)
+
+#### Scenario: Default project ships no skybox data
+- **WHEN** the shipped default project directory is inspected
+- **THEN** it contains no cubemap texture files and its level asset references
+  no skybox material
