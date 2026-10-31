@@ -327,3 +327,17 @@ Both providers, `FrameManager` (the acquire, copy-batch and present sites) and
 the test's controllable provider convert at their own edge; the frame-completion
 batch still submits through Vulkan because submission itself is 6.x, not 5.2.
 All 77 tests pass.
+
+### 5.3 done
+
+Every host write into GPU memory now closes its mapped window before the
+submission that consumes it. The physics side already did — its three
+`Flush(offset, bytes)` calls were in place — and the render side did not: the
+material per-frame uniform upload and the camera and scene-light uploads wrote
+through `GetSlicePtr` and never called `FlushSlice`. Those three now do.
+
+The behaviour is unchanged on Vulkan because these allocations are host-coherent,
+so the flush is the no-op it always effectively was; what changes is that the
+write is now expressed as the seam's contract rather than as a bare memcpy into a
+mapped pointer, which is what a backend without persistent mapping needs in order
+to make it work at all.

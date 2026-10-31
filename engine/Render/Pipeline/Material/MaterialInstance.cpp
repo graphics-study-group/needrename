@@ -206,6 +206,9 @@ namespace Engine {
                 splayout.PlaceBufferVariable(pimpl->m_buffer, *pbuf, *pimpl->p_buffer);
 
                 std::memcpy(v->GetSlicePtr(backbuffer), this->pimpl->m_buffer.data(), this->pimpl->m_buffer.size());
+        // Close the mapped window: the write is published to the device before
+        // the frame that binds this slice is submitted.
+        v->FlushSlice(backbuffer);
             }
 
             pass_info._is_ubo_dirty[backbuffer] = false;
@@ -310,3 +313,4 @@ namespace Engine {
         return *m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>()->Resolve(m_library);
     }
 } // namespace Engine
+
