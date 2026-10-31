@@ -3,7 +3,7 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"
-#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 
 namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetPassFunction(
@@ -111,3 +111,4 @@ namespace Engine {
         return *this;
     }
 } // namespace Engine
+

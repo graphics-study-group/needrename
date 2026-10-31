@@ -2,7 +2,7 @@
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Rhi/Buffer/DeviceBuffer.h"
-#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Pipeline/InterfaceBindingResolver.h"
@@ -381,6 +381,7 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
 
 
 

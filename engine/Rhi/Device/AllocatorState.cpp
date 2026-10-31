@@ -1,7 +1,7 @@
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
-#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
@@ -386,6 +386,7 @@ namespace Engine::Rhi {
         return ImageAllocation(FromVulkan(vk::Image(image)), allocation, pimpl->m_allocator, desc.type);
     }
 } // namespace Engine::Rhi
+
 
 
 

@@ -3,7 +3,7 @@
 
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/AllocatorState.h"
-#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
@@ -552,6 +552,7 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+
 
 
 

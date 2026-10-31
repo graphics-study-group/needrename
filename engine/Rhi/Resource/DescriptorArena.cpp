@@ -1,7 +1,7 @@
 #include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
-#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/Hasher.hpp"
@@ -500,6 +500,7 @@ namespace Engine::Rhi {
         return resident > pimpl->resident_budget ? resident - pimpl->resident_budget : 0;
     }
 } // namespace Engine::Rhi
+
 
 
 

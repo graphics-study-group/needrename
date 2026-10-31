@@ -1,6 +1,6 @@
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
 
 #include <SDL3/SDL.h>
@@ -588,6 +588,7 @@ namespace Engine::Rhi {
         return 0.0f;
     }
 } // namespace Engine::Rhi
+
 
 
 

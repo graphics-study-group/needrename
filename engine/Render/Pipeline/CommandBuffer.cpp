@@ -15,7 +15,7 @@
 #include "Render/Resource/MemoryAccessHelper.hpp"
 #include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
-#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Texture/Texture.h"
 
 #include <SDL3/SDL.h>
@@ -384,3 +384,4 @@ namespace Engine {
     }
 
 } // namespace Engine
+

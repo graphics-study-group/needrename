@@ -1,7 +1,7 @@
 #include "Rhi/Resource/ImmutableResourceCache.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
-#include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Pipeline/PipelineEnums.h"
 #include "Rhi/Backend/Vulkan/VulkanPipelineEnums.h"
@@ -206,6 +206,7 @@ namespace Engine::Rhi {
         return itr->second.get();
     }
 } // namespace Engine::Rhi
+
 
 
 
