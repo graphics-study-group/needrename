@@ -73,6 +73,8 @@ The bake keeps the SPIR-V artifact and adds `.wgsl` plus an interface descriptio
 - *Alternative: reflect at runtime from WGSL.* Rejected: reintroduces a reflection dependency in the web build and duplicates layout derivation.
 - Converter is an external host-side tool invoked by `shader_baker` (naga first). If push-constant blocks do not convert faithfully, the bake rewrites the SPIR-V constant block into a uniform buffer before conversion.
 
+  *Measured (see `spike-notes.md`):* the fallback is not optional. naga cannot read glslang's combined-image loads at all, cannot express a `std140` scalar-array stride, rejects the `OpSpecConstantOp` a specialization-constant comparison produces, and has no push-constant output. The bake therefore runs a rewrite pipeline before conversion — specialization constants demoted in the source, the constant block moved to a uniform buffer, opaque arrays flattened, write-only buffers widened. The interface description carries what the rewrites changed, so the runtime binds against the baked truth rather than a re-derivation.
+
 ### D7. Bind groups are built from the description and cached by content
 
 Combined samplers expand to a texture entry and a sampler entry; constants bind at the reserved location; each window resolves to one bind group. The cache key is the bound resource identity plus each entry's window offset and size — the same content key the descriptor arena already uses — so repeated identical requests reuse one bind group.
