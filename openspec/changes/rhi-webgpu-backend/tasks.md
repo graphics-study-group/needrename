@@ -427,3 +427,30 @@ The lesson is the same one this session keeps relearning: this function is four
 `emplace_back` calls with ternaries, and it wants to be **typed out** — five
 minutes with an editor — not transformed. Nothing here is hard; the sweep is
 what makes it hard.
+
+### Step 0: the exact shape, for whoever picks it up
+
+The hand edit did work: `GenerateLayoutBindings` was rewritten by hand into the
+portable form and compiled. It broke one step later, on its *sibling*
+`GenerateAllLayoutBindings`, which has the same body shape and had not been
+converted yet — so the round was reverted whole rather than half-converted.
+
+What the next attempt should do, in order, without stopping in between:
+
+1. `RhiTypes.h`: add `DescriptorType::{UniformBufferDynamic, StorageBufferDynamic}`,
+   `struct DescriptorBinding{binding, type, count}` and
+   `using DescriptorSetLayout = std::vector<DescriptorBinding>`.
+2. `ShaderParameterLayout.h`: both `GenerateLayoutBindings` and
+   `GenerateAllLayoutBindings` return the portable types.
+3. `ShaderParameterLayout.cpp`: rewrite **both** function bodies by hand. They are
+   the same shape — five `emplace_back(vk::DescriptorSetLayoutBinding{...})`
+   calls each — and both want typing out, not substituting.
+4. `VulkanHandles.h`: `ToVulkanDescriptorType` plus
+   `ToVulkanBindings(const DescriptorSetLayout &)` returning the vector of Vulkan
+   bindings, which is the single translation point.
+5. Callers pass the result through `ToVulkanBindings(...)`, **assigned to a named
+   local** — a temporary in a braced initialiser does not bind to
+   `vk::ArrayProxy`, which is a trap this session hit three times.
+
+Steps 1–4 are mechanical *except* step 3, which is the only part that needs eyes
+on it.
