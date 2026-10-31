@@ -617,3 +617,31 @@ Option 1 is the one the design wants, and it is small: one field, one pass-throu
 in `ToVulkanBindings`, and `SceneDataManager` builds
 `DESCRIPTOR_BINDINGS` as an `Rhi::DescriptorSetLayout` with the sampler filled in
 instead of patching a Vulkan binding afterwards.
+
+### `DeviceBuffer::GetBuffer`: the one remaining mechanical item, and how not to do it
+
+The change is one line in the header and one in the source; the call surface is
+about sixty sites across Render, Physics, the apps and the tests. Attempting it
+with a tree-wide `(\w+->GetBuffer\(\))` sweep failed the same way every sweep in
+this session has failed: the negative lookbehind does not stop the pattern from
+matching *inside* an already-wrapped expression, so
+`ToVulkanBuffer(pbuf->GetBuffer())` became
+`pEngine::Rhi::ToVulkanBuffer(buf->GetBuffer())`.
+
+The reliable shape for this one is per file, in this order, building after each:
+
+1. `engine/Rhi/Buffer/DeviceBuffer.h` — the getter returns `BufferHandle`.
+2. `engine/Rhi/Buffer/DeviceBuffer.cpp` — return `allocation.GetBuffer()`.
+3. `engine/Rhi/Submission/SubmissionHelper.cpp` — the `copyBuffer` and
+   `copyBufferToImage` sites wrap their buffer arguments.
+4. `engine/Render/**` — `CommandBuffer`, `FrameManager`, `CameraManager`,
+   `SceneDataManager`, both present providers.
+5. `app/physics/PhysicsApp.cpp`, then the eight tests.
+
+Each of those files has five or fewer sites, so each step is a couple of edits
+and one build. The whole item is perhaps twenty minutes done that way, and the
+sweep that "saves" it has now cost three rounds.
+
+Also worth knowing: `engine/Rhi/Device/DeviceBuffer.h` does not exist — the
+header lives under `engine/Rhi/Buffer/`. A wrong path in a script creates the
+file silently and the error only surfaces two steps later.
