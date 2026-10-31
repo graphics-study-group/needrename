@@ -191,16 +191,24 @@ namespace Engine::Rhi {
      * The engine states a set's shape once, in portable terms; this is the one
      * place that turns it into the structure a Vulkan layout is created from.
      */
-    inline std::vector<vk::DescriptorSetLayoutBinding> ToVulkanBindings(const DescriptorSetLayout &layout) {
+    inline std::vector<vk::DescriptorSetLayoutBinding> ToVulkanBindings(
+        const DescriptorSetLayout &layout, std::vector<vk::Sampler> *immutable_sampler_storage = nullptr
+    ) {
         std::vector<vk::DescriptorSetLayoutBinding> bindings;
         bindings.reserve(layout.size());
+        if (immutable_sampler_storage != nullptr) {
+            // Reserved up front: the create-info points into this storage, so it
+            // must not reallocate while the bindings are being built.
+            immutable_sampler_storage->reserve(layout.size());
+        }
         for (const DescriptorBinding &binding : layout) {
+            const vk::Sampler *samplers = nullptr;
+            if (immutable_sampler_storage != nullptr && binding.immutable_sampler.IsValid()) {
+                immutable_sampler_storage->push_back(ToVulkanSampler(binding.immutable_sampler));
+                samplers = &immutable_sampler_storage->back();
+            }
             bindings.emplace_back(
-                binding.binding,
-                ToVulkanDescriptorType(binding.type),
-                binding.count,
-                vk::ShaderStageFlagBits::eAll,
-                nullptr
+                binding.binding, ToVulkanDescriptorType(binding.type), binding.count, vk::ShaderStageFlagBits::eAll, samplers
             );
         }
         return bindings;
@@ -209,6 +217,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANHANDLES_INCLUDED
+
 
 
 

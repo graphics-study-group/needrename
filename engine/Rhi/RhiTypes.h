@@ -251,6 +251,13 @@ namespace Engine::Rhi {
         DescriptorType type{DescriptorType::UniformBuffer};
         /// @brief How many descriptors the binding holds.
         uint32_t count{1};
+        /// @brief Sampler fixed into the layout, when the binding carries one.
+        ///
+        /// An immutable sampler belongs to the layout rather than to a bound
+        /// resource: every set created from the layout sees this sampler, and no
+        /// caller can substitute another. Both backends express it, so it is part
+        /// of the portable description and not a Vulkan detail.
+        SamplerHandle immutable_sampler{};
 
         bool operator==(const DescriptorBinding &) const = default;
     };
@@ -282,5 +289,6 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
