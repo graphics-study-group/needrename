@@ -231,3 +231,23 @@ The next attempt should migrate `engine/Physics` first (it compiles), then walk
   open an encoder where their command buffer is created. That is plumbing, not
   behaviour, but it means "tests pass unchanged" is true of the checks rather
   than of the files.
+
+### Progress after the fifth pass
+
+`engine/Rhi` public headers that still carry a backend type, and what each needs:
+
+| Header | What is left |
+| --- | --- |
+| `ImmutableResourceCache.h` | `vk::Device` ctor, `vk::Sampler`/`vk::DescriptorSetLayout`/`vk::PipelineLayout` returns, and `vk::*CreateInfo` parameters |
+| `DescriptorArena.h` | `vk::DescriptorType`, `vk::ImageLayout`, `vk::DescriptorSet` returns and `vk::DescriptorSetLayoutCreateInfo` |
+| `Texture.h` | `vk::Image`/`vk::Sampler`/`vk::ImageView` getters (callers are Render and Physics) |
+| `ComputeKernel.h` | `GetPipeline`/`GetPipelineLayout`/`GetDescriptorSetLayout` returns |
+| `EpochTracker.h`, `SubmissionHelper.h`, `TextureSubresourceView.h`, `InterfaceBindingResolver.h`, `ShaderParameterLayout.h`, `DeviceBuffer.h`, `ShaderResourceBinding.h`, `ShaderInterface.h` | one to two `vk::` each |
+
+Four headers left the portable set this pass by moving into `Rhi/Backend/Vulkan`:
+`VulkanImageUtils.h`, `VulkanStructs.h`, `VulkanDebugUtils.h`, plus the
+`MemoryAllocation.h` rewrite.
+
+The remainder is no longer a mechanical sweep: each entry is a *return type*
+whose callers are in Render or Physics, so it belongs with 5.1/5.2 rather than
+before them. Converting those getters earlier means converting Render twice.
