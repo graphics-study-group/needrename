@@ -355,3 +355,36 @@ are in Render (`Texture`'s image/sampler/view getters, `DeviceBuffer::GetBuffer`
 `ImmutableResourceCache`'s sampler and layout returns, `DescriptorArena`'s set and
 type enums), plus three headers that only need their Vulkan include removed
 (`InterfaceBindingResolver`, `ShaderParameterLayout`, `ShaderInterface`).
+
+### Where the backend-type removal stands
+
+Nine headers still name a Vulkan type. They are not independent: they are the
+descriptor layer, and it has to move as one piece because a resolved binding, a
+descriptor-set layout and a descriptor-type enumeration are the same vocabulary
+seen from three sides.
+
+| Header | Sites | What it needs |
+| --- | --- | --- |
+| `ImmutableResourceCache.h` | 9 | `vk::Sampler` and layout returns, plus `vk::*CreateInfo` parameters |
+| `DescriptorArena.h` | 7 | `vk::DescriptorType`, `vk::ImageLayout`, `vk::DescriptorSet` returns |
+| `InterfaceBindingResolver.h` | 2 | the same two enumerations, from the other side |
+| `ShaderParameterLayout.h` | 2 | `GenerateLayoutBindings` returns Vulkan bindings |
+| `EpochTracker.h`, `SubmissionHelper.h` | 2 each | a device handle and a fence, mechanical |
+| `DeviceBuffer.h` | 1 | `GetBuffer` |
+| `ShaderInterface.h` | 1 | a comment |
+
+The order that avoids doing it twice:
+
+1. `RhiTypes.h` already has `DescriptorType`, `ResourceState` and
+   `SampleCountBits`; map `vk::DescriptorType` and `vk::ImageLayout` onto them in
+   `VulkanHandles.h` (two functions).
+2. Switch `InterfaceBindingResolver` and `DescriptorArena` together, since the
+   arena is the only consumer of a resolved binding.
+3. Then `ImmutableResourceCache` and `ShaderParameterLayout`, whose create-info
+   parameters are what `DescriptorArena` and `MaterialLibrary` build.
+4. `DeviceBuffer::GetBuffer` last: it has the widest call surface (~60 sites) and
+   is mechanical once the rest is portable.
+
+That is one coherent pass, not four. Starting it halfway — which is what
+attempting `InterfaceBindingResolver` alone would be — leaves the descriptor
+layer expressing itself in both vocabularies at once.
