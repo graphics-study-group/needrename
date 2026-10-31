@@ -561,3 +561,25 @@ becomes a `std::array<Rhi::DescriptorBinding, 1>`),
 `SceneDataManager` and `CommandBuffer::BindMaterial` (whose `if (descriptor_set)`
 becomes `.IsValid()` and whose `bindDescriptorSets` needs
 `ToVulkanDescriptorSet`). Those four files are the whole remainder.
+
+### Descriptor pass: three of the four Render files are done
+
+The whole cascade compiles up to the Render layer, and three of its four files
+were converted and compiled in the last attempt:
+
+- `MaterialLibrary`: `ResolveLayout(desc_bindings, nullptr)` — the create-info it
+  used to build is gone.
+- `CameraManager`: `CAMERA_DESCRIPTOR_BINDINGS` becomes
+  `inline static const Rhi::DescriptorSetLayout` (the `inline` matters: a static
+  data member with an in-class initialiser of non-integral type needs it), and
+  `descriptors[i]` takes `Rhi::ToVulkanDescriptorSet(arena.AcquireRawSet(...))`.
+- `CommandBuffer::BindMaterial`: `if (material_binding.set.IsValid())`, and the
+  set is converted into a named local before `bindDescriptorSets` — a conversion
+  inside the braced list does not bind to the array proxy.
+
+`SceneDataManager` is the only file left, and it has exactly three sites:
+`ResolveLayout(descriptor_bindings, ...)`, the
+`scene_descriptor_sets[i] = ToVulkanDescriptorSet(AcquireRawSet(...))` assignment,
+and the skybox `bindDescriptorSets` call. An index-based edit there shifted lines
+and broke an unrelated declaration, which is why the round was reverted: those
+three sites want the `edit` tool with the exact text, not line arithmetic.
