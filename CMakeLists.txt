@@ -192,6 +192,29 @@ if (ENGINE_BUILD_TOOLS OR ENGINE_BUILD_WEBGPU_SPIKE)
     add_subdirectory(tools)
 endif()
 
+# --- Physics shader WGSL side artifacts ------------------------------------
+# The WebGPU backend loads a WGSL variant plus a baked interface description
+# instead of reflecting SPIR-V at runtime, so a WebGPU build bakes them next to
+# the SPIR-V tree. This lives at the top level because it needs both the physics
+# shader target (defined under engine/) and the baker (defined under tools/).
+# A cross build cannot run a baker it just built for the target, so the bake is
+# skipped under Emscripten: the artifacts then come from a native configure of
+# the same tree.
+if (ENGINE_RHI_BACKEND_WEBGPU AND NOT EMSCRIPTEN AND TARGET shader_baker AND TARGET physics_shader)
+    set(PHYSICS_SPIRV_DIR "${CMAKE_BINARY_DIR}/engine/Physics/spirv/$<IF:$<CONFIG:Debug>,debug,release>")
+    set(PHYSICS_WGSL_STAMP "${PHYSICS_SPIRV_DIR}/.wgsl_stamp")
+    add_custom_command(
+        OUTPUT "${PHYSICS_WGSL_STAMP}"
+        COMMAND "$<TARGET_FILE:shader_baker>" --spirv-dir "${PHYSICS_SPIRV_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E touch "${PHYSICS_WGSL_STAMP}"
+        DEPENDS physics_shader shader_baker
+        COMMENT "Baking WGSL variants for the physics shaders"
+        VERBATIM
+    )
+    add_custom_target(physics_shader_wgsl ALL DEPENDS "${PHYSICS_WGSL_STAMP}")
+    set_target_properties(physics_shader_wgsl PROPERTIES FOLDER build)
+endif()
+
 # --- Built-in asset staging ------------------------------------------------
 # Defined before apps/examples/tests so their tests can depend on the staged
 # content of the configuration being built.

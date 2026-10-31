@@ -177,8 +177,16 @@ namespace Engine::ShaderBake {
             const uint32_t reserved_set = layout.interfaces.empty() ? 0 : highest_set + 1;
             constexpr uint32_t k_reserved_binding = 0;
 
+            // Two rewrites make the module expressible in WGSL: the access
+            // qualifiers WGSL does not have, and the constant block's address
+            // space. Both are recorded in the description where they change what
+            // the runtime must bind.
+            std::vector<uint32_t> widened = StripWriteOnlyDecorations(spirv, error);
+            if (widened.empty()) {
+                return false;
+            }
             const std::vector<uint32_t> rewritten = FreezePushConstantsToUniform(
-                spirv, reserved_set, k_reserved_binding, layout.push_constant_size, error
+                widened, reserved_set, k_reserved_binding, layout.push_constant_size, error
             );
             if (rewritten.empty()) {
                 return false;

@@ -364,3 +364,19 @@ promise to the driver, not a behaviour of the shader.
   source clone failed twice; the prebuilt Dawn release is a 113 MB download that
   had not finished after 40 minutes). Every measurement above is naga's, and
   decision D6 is recorded for naga.
+
+### F9. A WebGPU build cannot compile the Rhi module yet
+
+Configuring the desktop WebGPU build succeeds, but building any target that
+reaches `EngineRhi` stops in the reflection parser:
+
+```
+engine/Rhi/Pipeline/PipelineEnums.h line 129: use of undeclared identifier 'vk'
+```
+
+`PipelineEnums.h` includes `<vulkan/vulkan.hpp>` only so it can define
+`ToVkCompareOp`, and that header is on the include path in a Vulkan build only.
+So the *first* real step of group 3 is also the gate on the whole WebGPU build:
+the `Rhi` public headers have to stop naming Vulkan types before anything can
+link against them in a `webgpu` configure. That is task 3.1 - 3.3, and it is
+confirmed as a hard ordering constraint rather than a preference.

@@ -26,6 +26,7 @@ namespace Engine::ShaderBake {
         /// @brief SPIR-V decorations this file reads or writes.
         enum Decoration : uint32_t {
             DecorationBlock = 2,
+            DecorationNonReadable = 25,
             DecorationBinding = 33,
             DecorationDescriptorSet = 34,
         };
@@ -204,6 +205,42 @@ namespace Engine::ShaderBake {
             insert_word = instructions[insert_after].word_index;
         }
         rewritten.insert(rewritten.begin() + static_cast<std::ptrdiff_t>(insert_word), decorations.begin(), decorations.end());
+        error.clear();
+        return rewritten;
+    }
+
+    std::vector<uint32_t> StripWriteOnlyDecorations(const std::vector<uint32_t> &spirv, std::string &error) {
+        std::vector<Instruction> instructions;
+        if (!Parse(spirv, instructions, error)) {
+            return {};
+        }
+
+        std::vector<uint32_t> rewritten;
+        rewritten.reserve(spirv.size());
+        rewritten.insert(rewritten.end(), spirv.begin(), spirv.begin() + 5);
+
+        size_t removed = 0;
+        for (const Instruction &instruction : instructions) {
+            const bool is_variable_decoration = instruction.opcode == OpDecorate;
+            const bool is_member_decoration = instruction.opcode == OpMemberDecorate;
+            if ((is_variable_decoration && instruction.word_count >= 3)
+                || (is_member_decoration && instruction.word_count >= 4)) {
+                // `OpDecorate %var NonReadable` puts the decoration in the second
+                // operand slot; `OpMemberDecorate %struct %member NonReadable`
+                // puts it in the third, after the member index.
+                const size_t decoration_operand = is_variable_decoration ? 1 : 2;
+                if (spirv[instruction.word_index + 1 + decoration_operand] == DecorationNonReadable) {
+                    ++removed;
+                    continue;
+                }
+            }
+            rewritten.insert(
+                rewritten.end(),
+                spirv.begin() + static_cast<std::ptrdiff_t>(instruction.word_index),
+                spirv.begin() + static_cast<std::ptrdiff_t>(instruction.word_index + instruction.word_count)
+            );
+        }
+        (void)removed;
         error.clear();
         return rewritten;
     }

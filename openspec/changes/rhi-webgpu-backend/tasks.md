@@ -48,7 +48,7 @@
 - [ ] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact loads on both runtimes from one asset set
 - [ ] 7.2 Implement bake-time layout validation between the produced WGSL and the description, and verify a deliberately mismatching layout fails the bake naming the shader
 - [ ] 7.3 Implement the constant-block rewrite fallback and verify a push-constant shader bakes to usable WGSL
-- [ ] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
+- [x] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
 - [ ] 7.5 Verify the Vulkan runtime's loading and reflection behavior is unchanged with and without the WGSL variant present
 
 ## 8. WebGPU adapter
@@ -140,3 +140,4 @@ are the largest unknown left, and `tools/shader_baker/spirv_edit.*` and
 `wgsl_bake.*` already reflect a module, rewrite its constant block into a
 uniform buffer and emit the interface description, so continuing there is
 cheaper than starting the seam and coming back.
+

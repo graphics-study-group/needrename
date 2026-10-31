@@ -59,6 +59,21 @@ namespace Engine::ShaderBake {
     );
 
     /**
+     * @brief Drop the `NonReadable` decorations from a module.
+     *
+     * GLSL's `writeonly buffer` becomes SPIR-V's `NonReadable` decoration on the
+     * variable, and WGSL has no write-only storage buffer: a storage buffer is
+     * `read` or `read_write`. Dropping the decoration widens the access the
+     * module declares, which is always safe — the qualifier constrains the
+     * driver, not the shader's behaviour.
+     *
+     * @param spirv The module to rewrite, as SPIR-V words.
+     * @param error Receives a description of what went wrong on failure.
+     * @return The rewritten module, or an empty vector on failure.
+     */
+    std::vector<uint32_t> StripWriteOnlyDecorations(const std::vector<uint32_t> &spirv, std::string &error);
+
+    /**
      * @brief Demote specialization-constant declarations in GLSL source to plain constants.
      *
      * A shader that declares `layout(constant_id = N) const T name = value;`
