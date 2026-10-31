@@ -526,3 +526,38 @@ element type mentions `ResolvedBinding`, `DescriptorSetBinding` or
 Neither the exact container nor the exact reason is known. That is the state to
 pick up, and one `cmake --build` on `DescriptorArena.cpp` alone with the six-file
 change applied reproduces it in seconds.
+
+### The `construct_at` mystery: solved
+
+The failure that ended three attempts at the descriptor arena is identified. It
+was **not** a container in the arena's own bookkeeping at all:
+
+```
+writes.emplace_back(set, binding.binding, 0u, 1u, binding.type);
+```
+
+`writes` is `std::vector<vk::WriteDescriptorSet>`, and `binding.type` had become
+the portable `DescriptorType`, so `construct_at` had no way to build the element.
+The compiler reports it at `xmemory(730)` because the failed construction is
+inside `vector::emplace_back`, which is why it looked like a container of an
+unassignable type rather than a wrong argument.
+
+Two more of the same shape were found at the same site and are part of the fix:
+
+- `image_infos.emplace_back(..., binding.image_layout)` needs
+  `ToVulkanImageLayout(binding.image_layout)`;
+- the `IsImageDescriptor(binding.type)` calls compile once the helper takes the
+  portable enumeration.
+
+So the complete recipe now is the six-file list already recorded **plus** the
+three conversions at that one `WriteDescriptors` site, and the sequence that
+worked up to the point of revert was: resolver → kernel's `Interface` fields →
+arena header → `IsImageDescriptor` → `RequirementsOf` → the write site → cache →
+`ShaderResourceBinding` → then the Render callers.
+
+The Render callers are where the attempt stopped: `MaterialLibrary`,
+`CameraManager` (including its `CAMERA_DESCRIPTOR_BINDINGS` constant, which
+becomes a `std::array<Rhi::DescriptorBinding, 1>`),
+`SceneDataManager` and `CommandBuffer::BindMaterial` (whose `if (descriptor_set)`
+becomes `.IsValid()` and whose `bindDescriptorSets` needs
+`ToVulkanDescriptorSet`). Those four files are the whole remainder.
