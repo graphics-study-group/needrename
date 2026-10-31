@@ -104,7 +104,7 @@ int main() {
             .UseBuffer(cbi2, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction([&ckernel, &compbuf1, &compbuf2](CommandBuffer &cb, const RenderGraph &) -> void {
-                Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
+                Rhi::CommandEncoder &encoder = cb.GetEncoder();
                 ckernel.Dispatch(
 
                     encoder,
@@ -139,7 +139,7 @@ int main() {
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction(
                 [&ckernel_push, &compbuf1, &compbuf3, PUSH_OFFSET](CommandBuffer &cb, const RenderGraph &) -> void {
-                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
+                    Rhi::CommandEncoder &encoder = cb.GetEncoder();
                     ckernel_push.Dispatch(
 
                         encoder,
@@ -206,4 +206,5 @@ int main() {
     std::cout << "Headless compute test PASSED." << std::endl;
     return 0;
 }
+
 

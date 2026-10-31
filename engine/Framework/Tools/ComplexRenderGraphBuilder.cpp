@@ -168,7 +168,7 @@ namespace Engine {
                                   hdr_color_id,
                                   final_color_target_id](CommandBuffer &cb, const RenderGraph &rg) {
                     const auto &hdr_desc = rg.GetInternalTextureResource(hdr_color_id)->GetTextureDescription();
-                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
+                    Rhi::CommandEncoder &encoder = cb.GetEncoder();
                     bloom_kernel.Dispatch(
                         encoder,
                         {{"inputImage",
@@ -186,4 +186,5 @@ namespace Engine {
         return rgb.BuildRenderGraph();
     }
 } // namespace Engine
+
 

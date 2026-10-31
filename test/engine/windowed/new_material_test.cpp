@@ -178,7 +178,7 @@ auto BuildRenderGraph(
                 .UseImage(gb, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
                 .SetPassFunction([blurred, kernel, color](CommandBuffer &cb, const RenderGraph &) {
-                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};                    kernel->Dispatch(
+                    Rhi::CommandEncoder &encoder = cb.GetEncoder();                    kernel->Dispatch(
                         encoder,
                         {{"inputImage", Rhi::ComputeKernelResource::Image(*color)},
                          {"outputImage", Rhi::ComputeKernelResource::Image(*blurred)}},
@@ -344,4 +344,5 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
 

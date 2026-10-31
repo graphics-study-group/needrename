@@ -48,7 +48,7 @@ auto BuildRenderGraph(
             .SetPassFunction(
                 [&compute, &ubo, &color_in, &color_out, &color_present](CommandBuffer &cb, const RenderGraph &)
                     -> void {
-                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
+                    Rhi::CommandEncoder &encoder = cb.GetEncoder();
                     compute.Dispatch(
 
                         encoder,
@@ -163,4 +163,5 @@ int main(int argc, char *argv[]) {
     rsys->WaitForIdle();
     return 0;
 }
+
 

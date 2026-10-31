@@ -186,7 +186,7 @@ namespace Editor {
                                   texture_height,
                                   scene_hdr_color_id,
                                   scene_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
-                    Rhi::CommandEncoder bloom_encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
+                    Rhi::CommandEncoder &bloom_encoder = cb.GetEncoder();
                     bloom_kernel.Dispatch(
                         bloom_encoder,
                         {{"inputImage",
@@ -267,7 +267,7 @@ namespace Editor {
                                   texture_height,
                                   game_hdr_color_id,
                                   game_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
-                    Rhi::CommandEncoder bloom_encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
+                    Rhi::CommandEncoder &bloom_encoder = cb.GetEncoder();
                     bloom_kernel.Dispatch(
                         bloom_encoder,
                         {{"inputImage",
@@ -306,4 +306,5 @@ namespace Editor {
         return rgb.BuildRenderGraph();
     }
 } // namespace Editor
+
 

@@ -1,5 +1,7 @@
 #include "CommandBuffer.h"
 
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
@@ -25,7 +27,10 @@
 namespace Engine {
 
     CommandBuffer::CommandBuffer(RenderSystem &system, vk::CommandBuffer _cb, uint32_t frame_in_flight) :
-        m_system(system), cb(_cb), m_inflight_frame_index(frame_in_flight) {
+        m_system(system),
+        cb(_cb),
+        m_encoder(Rhi::FromVulkan(_cb)),
+        m_inflight_frame_index(frame_in_flight) {
     }
 
     // ── Transfer ────────────────────────────────────────────────────────────
@@ -384,4 +389,6 @@ namespace Engine {
     }
 
 } // namespace Engine
+
+
 

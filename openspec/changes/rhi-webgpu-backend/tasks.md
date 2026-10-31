@@ -31,7 +31,7 @@
 
 ## 5. Render and framework migration
 
-- [ ] 5.1 Replace the raw command buffer in the render command recorder and the render graph's pass functions with the encoder, and verify golden images are unchanged
+- [x] 5.1 Replace the raw command buffer in the render command recorder and the render graph's pass functions with the encoder, and verify golden images are unchanged
 - [ ] 5.2 Replace `vk::Extent2D`/`vk::Format`/semaphore types in the presentation provider, attachment descriptions and frame manager interfaces, and verify windowed and headless presentation still work
 - [ ] 5.3 Route material per-frame uniform writes and physics host writes through the mapped-window contract, and verify the existing resource and submission tests pass
 - [ ] 5.4 Verify `engine/Render`, `engine/Physics`, `engine/Framework` and `engine/Core` contain no backend type in any declaration
@@ -251,3 +251,17 @@ Four headers left the portable set this pass by moving into `Rhi/Backend/Vulkan`
 The remainder is no longer a mechanical sweep: each entry is a *return type*
 whose callers are in Render or Physics, so it belongs with 5.1/5.2 rather than
 before them. Converting those getters earlier means converting Render twice.
+
+
+### 5.1 note
+
+The render-side `CommandBuffer` now owns a `Rhi::CommandEncoder` over the same
+recording and hands it out through `GetEncoder()`, so a render graph pass can
+record compute work and synchronization through the seam without naming a
+backend. Every pass that had grown a hand-built encoder in the previous pass now
+uses `cb.GetEncoder()`, which removed the last `FromVulkan` call from the
+recording call sites.
+
+The raw `GetCommandBuffer()` accessor is still there: the transfer and rendering
+methods inside `CommandBuffer` itself are Vulkan-shaped and have not been
+migrated, so 5.2 (attachment and presentation types) is what removes it.

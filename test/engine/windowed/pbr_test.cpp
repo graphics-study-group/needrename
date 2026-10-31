@@ -362,7 +362,7 @@ int main(int argc, char **argv) {
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction(
                 [&bloom_kernel, hc, c, screenWidth, screenHeight](CommandBuffer &cb, const RenderGraph &rg) {
-                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};                    bloom_kernel.Dispatch(
+                    Rhi::CommandEncoder &encoder = cb.GetEncoder();                    bloom_kernel.Dispatch(
                         encoder,
                         {{"inputImage", Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(hc))},
                          {"outputImage", Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(c))}},
@@ -447,4 +447,5 @@ int main(int argc, char **argv) {
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;
 }
+
 

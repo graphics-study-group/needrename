@@ -4,6 +4,7 @@
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/render_export.h"
+#include "Rhi/Command/CommandEncoder.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 #include <optional>
@@ -82,6 +83,17 @@ namespace Engine {
          */
         vk::CommandBuffer GetCommandBuffer() const noexcept {
             return cb;
+        }
+
+        /**
+         * @brief Get the seam's encoder over this recording.
+         *
+         * Recording that has moved to the backend-neutral contract takes this
+         * instead of the raw handle: a pass function can record compute work and
+         * synchronization marks through it without naming a backend.
+         */
+        Rhi::CommandEncoder &GetEncoder() noexcept {
+            return m_encoder;
         }
 
         // ── Transfer operations ──────────────────────────────────────────
@@ -370,6 +382,8 @@ namespace Engine {
     private:
         RenderSystem &m_system;          ///< Service locator for all rendering subsystems.
         vk::CommandBuffer cb;            ///< Raw Vulkan command buffer handle (non-owning).
+        /// @brief Encoder over `cb`, for recording that uses the seam.
+        Rhi::CommandEncoder m_encoder;
         uint32_t m_inflight_frame_index; ///< Current frame-in-flight index for per-frame descriptor set selection.
 
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>>
@@ -380,3 +394,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_COMMANDBUFFER_INCLUDED
+

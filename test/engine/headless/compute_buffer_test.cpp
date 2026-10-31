@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
             .UseBuffer(cbi2, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction([&kernel, &compbuf1, &compbuf2](CommandBuffer &cb, const RenderGraph &) -> void {
-                Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
+                Rhi::CommandEncoder &encoder = cb.GetEncoder();
                 kernel.Dispatch(
                     encoder,
                     {{"Input", Rhi::ComputeKernelResource::Buffer(compbuf1->GetComputeBuffer())},
@@ -117,4 +117,5 @@ int main(int argc, char *argv[]) {
     }
     std::cout << std::endl;
 }
+
 
