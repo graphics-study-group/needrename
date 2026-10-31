@@ -91,7 +91,9 @@ namespace Engine {
          * @return The acquired image index, or `~0u` when the swapchain is
          * out of date and must be recreated before retrying.
          */
-        virtual uint32_t AcquireNextImage(vk::Device device, vk::Semaphore image_ready_semaphore, uint64_t timeout) = 0;
+        virtual uint32_t AcquireNextImage(
+            Rhi::DeviceHandle device, Rhi::SemaphoreHandle image_ready_semaphore, uint64_t timeout
+        ) = 0;
 
         /**
          * @brief Record the blit (final RTT → presentation target) into the
@@ -113,8 +115,8 @@ namespace Engine {
          * @return The recorded command buffer, or `nullptr` when no copy is
          * needed (headless).
          */
-        virtual vk::CommandBuffer PrepareCopy(
-            vk::Device device,
+        virtual Rhi::CommandBufferHandle PrepareCopy(
+            Rhi::DeviceHandle device,
             const RenderTargetTexture &final_rtt,
             uint32_t image_index,
             Rhi::MemoryAccessTypeImageBits last_access
@@ -136,7 +138,9 @@ namespace Engine {
          * @return `true` if the swapchain needs recreation (`OUT_OF_DATE` /
          * `SUBOPTIMAL`). Headless always returns `false`.
          */
-        virtual bool Present(vk::Device device, uint32_t image_index, vk::Semaphore frame_done_semaphore) = 0;
+        virtual bool Present(
+            Rhi::DeviceHandle device, uint32_t image_index, Rhi::SemaphoreHandle frame_done_semaphore
+        ) = 0;
 
         /**
          * @brief Recreate the presentation target with a new extent.
@@ -153,4 +157,5 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDER_RENDERSYSTEM_IPRESENTPROVIDER_INCLUDED
+
 

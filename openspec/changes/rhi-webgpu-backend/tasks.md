@@ -32,7 +32,7 @@
 ## 5. Render and framework migration
 
 - [x] 5.1 Replace the raw command buffer in the render command recorder and the render graph's pass functions with the encoder, and verify golden images are unchanged
-- [ ] 5.2 Replace `vk::Extent2D`/`vk::Format`/semaphore types in the presentation provider, attachment descriptions and frame manager interfaces, and verify windowed and headless presentation still work
+- [x] 5.2 Replace `vk::Extent2D`/`vk::Format`/semaphore types in the presentation provider, attachment descriptions and frame manager interfaces, and verify windowed and headless presentation still work
 - [ ] 5.3 Route material per-frame uniform writes and physics host writes through the mapped-window contract, and verify the existing resource and submission tests pass
 - [ ] 5.4 Verify `engine/Render`, `engine/Physics`, `engine/Framework` and `engine/Core` contain no backend type in any declaration
 
@@ -312,3 +312,18 @@ This is the pattern the previous note described, applied at the boundary the
 other way round: the interfaces are portable, so every call site that used to
 construct a Vulkan extent into a portable parameter now passes the portable one
 straight through, and only the implementation converts. All 77 tests pass.
+
+
+### 5.2 complete
+
+`IPresentProvider` now speaks the seam end to end: `GetExtent`/`Recreate` take
+`Rhi::Extent2D`, `GetColorFormat` returns `Rhi::ImageFormat`, `AcquireNextImage`
+takes a `DeviceHandle` and a `SemaphoreHandle`, `PrepareCopy` takes a
+`DeviceHandle` and returns a `CommandBufferHandle`, and `Present` takes both
+handles. `RhiTypes.h` gained `SemaphoreHandle` and `FenceHandle` with their
+Vulkan conversions for that.
+
+Both providers, `FrameManager` (the acquire, copy-batch and present sites) and
+the test's controllable provider convert at their own edge; the frame-completion
+batch still submits through Vulkan because submission itself is 6.x, not 5.2.
+All 77 tests pass.

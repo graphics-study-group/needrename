@@ -82,6 +82,8 @@ namespace Engine::Rhi {
     struct PipelineHandleTag;
     struct PipelineLayoutHandleTag;
     struct CommandBufferHandleTag;
+    struct SemaphoreHandleTag;
+    struct FenceHandleTag;
     struct InstanceHandleTag;
     struct DeviceHandleTag;
     struct PhysicalDeviceHandleTag;
@@ -105,6 +107,10 @@ namespace Engine::Rhi {
     using PipelineLayoutHandle = ObjectHandle<PipelineLayoutHandleTag>;
     /// @brief A command buffer.
     using CommandBufferHandle = ObjectHandle<CommandBufferHandleTag>;
+    /// @brief A timeline or binary semaphore.
+    using SemaphoreHandle = ObjectHandle<SemaphoreHandleTag>;
+    /// @brief A fence.
+    using FenceHandle = ObjectHandle<FenceHandleTag>;
     /// @brief The graphics instance.
     using InstanceHandle = ObjectHandle<InstanceHandleTag>;
     /// @brief The logical device.
@@ -250,3 +256,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+

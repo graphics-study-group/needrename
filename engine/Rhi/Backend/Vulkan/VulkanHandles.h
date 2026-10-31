@@ -143,9 +143,28 @@ namespace Engine::Rhi {
         return vk::CommandBuffer(ToVulkan<VkCommandBuffer>(handle));
     }
 
+    /// @brief Convert a Vulkan semaphore to its portable handle.
+    inline SemaphoreHandle FromVulkan(vk::Semaphore semaphore) noexcept {
+        return FromVulkan<SemaphoreHandle>(static_cast<VkSemaphore>(semaphore));
+    }
+    /// @brief Convert a portable semaphore handle to its Vulkan object.
+    inline vk::Semaphore ToVulkanSemaphore(SemaphoreHandle handle) noexcept {
+        return vk::Semaphore(ToVulkan<VkSemaphore>(handle));
+    }
+
+    /// @brief Convert a Vulkan fence to its portable handle.
+    inline FenceHandle FromVulkan(vk::Fence fence) noexcept {
+        return FromVulkan<FenceHandle>(static_cast<VkFence>(fence));
+    }
+    /// @brief Convert a portable fence handle to its Vulkan object.
+    inline vk::Fence ToVulkanFence(FenceHandle handle) noexcept {
+        return vk::Fence(ToVulkan<VkFence>(handle));
+    }
+
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANHANDLES_INCLUDED
+
 
 
 

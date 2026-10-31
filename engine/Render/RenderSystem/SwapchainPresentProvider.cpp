@@ -269,17 +269,19 @@ namespace Engine::RenderSystemState {
     }
 
     uint32_t SwapchainPresentProvider::AcquireNextImage(
-        vk::Device device, vk::Semaphore image_ready_semaphore, uint64_t timeout
+        Rhi::DeviceHandle device, Rhi::SemaphoreHandle image_ready_semaphore, uint64_t timeout
     ) {
-        auto result = device.acquireNextImageKHR(pimpl->m_swapchain.get(), timeout, image_ready_semaphore, nullptr);
+        auto result = Rhi::ToVulkanDevice(device).acquireNextImageKHR(
+            pimpl->m_swapchain.get(), timeout, Rhi::ToVulkanSemaphore(image_ready_semaphore), nullptr
+        );
         if (result.result == vk::Result::eErrorOutOfDateKHR) {
             return ~0u;
         }
         return result.value;
     }
 
-    vk::CommandBuffer SwapchainPresentProvider::PrepareCopy(
-        vk::Device device,
+    Rhi::CommandBufferHandle SwapchainPresentProvider::PrepareCopy(
+        Rhi::DeviceHandle device,
         const RenderTargetTexture &final_rtt,
         uint32_t image_index,
         Rhi::MemoryAccessTypeImageBits last_access
@@ -295,17 +297,17 @@ namespace Engine::RenderSystemState {
         cb.begin(begin_info);
         RecordCopyCommand(cb, final_rtt, pimpl->m_images, pimpl->m_extent, image_index, last_access);
         cb.end();
-        return cb;
+        return Rhi::FromVulkan(cb);
     }
 
     bool SwapchainPresentProvider::Present(
-        vk::Device device, uint32_t image_index, vk::Semaphore frame_done_semaphore
+        Rhi::DeviceHandle device, uint32_t image_index, Rhi::SemaphoreHandle frame_done_semaphore
     ) {
         const auto &present_queue = pimpl->m_device_interface->GetQueueInfo().presentQueue;
 
         std::array<vk::SwapchainKHR, 1> swapchains{pimpl->m_swapchain.get()};
         std::array<uint32_t, 1> frame_indices{image_index};
-        std::array<vk::Semaphore, 1> wait_semaphores{frame_done_semaphore};
+        std::array<vk::Semaphore, 1> wait_semaphores{Rhi::ToVulkanSemaphore(frame_done_semaphore)};
         vk::PresentInfoKHR present_info{wait_semaphores, swapchains, frame_indices};
 
         bool needs_recreating = false;
@@ -320,6 +322,10 @@ namespace Engine::RenderSystemState {
         return needs_recreating;
     }
 } // namespace Engine::RenderSystemState
+
+
+
+
 
 
 

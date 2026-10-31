@@ -276,7 +276,7 @@ namespace Engine::RenderSystemState {
         // deadlocking — the fence stays signaled and no wait depends on this
         // frame's submit.
         auto result = pimpl->m_present_provider->AcquireNextImage(
-            pimpl->m_system.GetDevice(), pimpl->image_acquired_semaphores[fif].get(), timeout
+            Rhi::FromVulkan(pimpl->m_system.GetDevice()), Rhi::FromVulkan(pimpl->image_acquired_semaphores[fif].get()), timeout
         );
         if (result == std::numeric_limits<uint32_t>::max()) {
             return std::numeric_limits<uint32_t>::max();
@@ -330,8 +330,8 @@ namespace Engine::RenderSystemState {
 
         // Record the copy CB (headless → nullptr; the batch then carries no copy).
         const uint32_t image_index = GetFramebuffer();
-        auto copy_cb = pimpl->m_present_provider->PrepareCopy(
-            pimpl->m_system.GetDevice(), present_texture, image_index, last_access
+        const Rhi::CommandBufferHandle copy_cb = pimpl->m_present_provider->PrepareCopy(
+            Rhi::FromVulkan(pimpl->m_system.GetDevice()), present_texture, image_index, last_access
         );
 
         // ── One frame-completion batch: {main render CB, copy CB} ──
@@ -382,8 +382,10 @@ namespace Engine::RenderSystemState {
             signal_count = 2;
         }
 
-        vk::CommandBufferSubmitInfo cbs[]{{pimpl->command_buffers[fif].get()}, {copy_cb}};
-        const uint32_t cb_count = copy_cb ? 2u : 1u;
+        vk::CommandBufferSubmitInfo cbs[]{
+            {pimpl->command_buffers[fif].get()}, {Rhi::ToVulkanCommandBuffer(copy_cb)}
+        };
+        const uint32_t cb_count = copy_cb.IsValid() ? 2u : 1u;
         vk::SubmitInfo2 sinfo{};
         sinfo.waitSemaphoreInfoCount = static_cast<uint32_t>(wait_infos.size());
         sinfo.pWaitSemaphoreInfos = wait_infos.data();
@@ -404,8 +406,9 @@ namespace Engine::RenderSystemState {
         const vk::Semaphore frame_done_semaphore = pimpl->m_present_provider->NeedsPresentSemaphore()
                                                        ? pimpl->frame_completed_semaphores[image_index].get()
                                                        : nullptr;
-        bool needs_recreating =
-            pimpl->m_present_provider->Present(pimpl->m_system.GetDevice(), image_index, frame_done_semaphore);
+        bool needs_recreating = pimpl->m_present_provider->Present(
+            Rhi::FromVulkan(pimpl->m_system.GetDevice()), image_index, Rhi::FromVulkan(frame_done_semaphore)
+        );
 
         pimpl->CompleteFrame();
         return needs_recreating;
@@ -498,6 +501,8 @@ namespace Engine::RenderSystemState {
         return true;
     }
 } // namespace Engine::RenderSystemState
+
+
 
 
 

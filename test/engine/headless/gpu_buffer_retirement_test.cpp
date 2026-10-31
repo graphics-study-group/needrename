@@ -15,30 +15,54 @@
 //     memory does not grow without bound (4.2).
 
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsScene.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/Solver/XPBDGpuSolver.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphPass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/IPresentProvider.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Resource/RenderTargetTexture.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Submission/EpochTracker.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Submission/SubmissionHelper.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <algorithm>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <limits>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <memory>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vk_mem_alloc.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 
@@ -90,13 +114,15 @@ namespace {
             return m_image_count;
         }
 
-        uint32_t AcquireNextImage(vk::Device, vk::Semaphore image_ready_semaphore, uint64_t) override {
+        uint32_t AcquireNextImage(Rhi::DeviceHandle, Rhi::SemaphoreHandle image_ready_semaphore, uint64_t) override {
             if (fail_next_acquire) {
                 fail_next_acquire = false;
                 return std::numeric_limits<uint32_t>::max();
             }
             // Fulfil the acquire contract: signal image_ready via an empty submit.
-            vk::SemaphoreSubmitInfo signal_info{image_ready_semaphore, 0, vk::PipelineStageFlagBits2::eAllCommands};
+            vk::SemaphoreSubmitInfo signal_info{
+                Rhi::ToVulkanSemaphore(image_ready_semaphore), 0, vk::PipelineStageFlagBits2::eAllCommands
+            };
             vk::SubmitInfo2 sinfo{};
             sinfo.signalSemaphoreInfoCount = 1;
             sinfo.pSignalSemaphoreInfos = &signal_info;
@@ -104,13 +130,13 @@ namespace {
             return (m_frame_counter++) % m_image_count;
         }
 
-        vk::CommandBuffer PrepareCopy(
-            vk::Device, const RenderTargetTexture &, uint32_t, Rhi::MemoryAccessTypeImageBits
+        Rhi::CommandBufferHandle PrepareCopy(
+            Rhi::DeviceHandle, const RenderTargetTexture &, uint32_t, Rhi::MemoryAccessTypeImageBits
         ) override {
-            return nullptr;
+            return {};
         }
 
-        bool Present(vk::Device, uint32_t, vk::Semaphore) override {
+        bool Present(Rhi::DeviceHandle, uint32_t, Rhi::SemaphoreHandle) override {
             return false;
         }
 
@@ -346,6 +372,7 @@ int main() {
     std::cout << "Gpu buffer retirement test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

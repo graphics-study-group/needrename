@@ -1,20 +1,36 @@
 #include "OffscreenPresentProvider.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Render/Resource/MemoryAccessHelper.hpp"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Resource/RenderTargetTexture.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Engine::RenderSystemState {
 
@@ -144,12 +160,15 @@ namespace Engine::RenderSystemState {
         return pimpl->m_image_count;
     }
 
-    uint32_t OffscreenPresentProvider::AcquireNextImage(vk::Device, vk::Semaphore image_ready_semaphore, uint64_t) {
+    uint32_t OffscreenPresentProvider::AcquireNextImage(
+        Rhi::DeviceHandle, Rhi::SemaphoreHandle image_ready_semaphore, uint64_t
+    ) {
         auto image_index = (pimpl->m_frame_counter++) % pimpl->m_image_count;
-
         // Fulfill the acquire contract: the image is "available" immediately,
         // so signal image_ready via an empty submit (no command buffer).
-        vk::SemaphoreSubmitInfo signal_info{image_ready_semaphore, 0, vk::PipelineStageFlagBits2::eAllCommands};
+        vk::SemaphoreSubmitInfo signal_info{
+            Rhi::ToVulkanSemaphore(image_ready_semaphore), 0, vk::PipelineStageFlagBits2::eAllCommands
+        };
         vk::SubmitInfo2 sinfo{};
         sinfo.signalSemaphoreInfoCount = 1;
         sinfo.pSignalSemaphoreInfos = &signal_info;
@@ -157,8 +176,8 @@ namespace Engine::RenderSystemState {
         return image_index;
     }
 
-    vk::CommandBuffer OffscreenPresentProvider::PrepareCopy(
-        vk::Device device,
+    Rhi::CommandBufferHandle OffscreenPresentProvider::PrepareCopy(
+        Rhi::DeviceHandle device,
         const RenderTargetTexture &final_rtt,
         uint32_t image_index,
         Rhi::MemoryAccessTypeImageBits last_access
@@ -166,7 +185,7 @@ namespace Engine::RenderSystemState {
         // Lazy allocation: pure-physics headless loops that never render
         // allocate nothing.
         if (!pimpl->IsAllocated()) {
-            pimpl->AllocateTargets(device);
+            pimpl->AllocateTargets(Rhi::ToVulkanDevice(device));
         }
 
         auto cb = pimpl->m_copy_command_buffers[image_index].get();
@@ -176,10 +195,10 @@ namespace Engine::RenderSystemState {
         cb.begin(begin_info);
         RecordCopyImageToBuffer(cb, final_rtt, *pimpl->m_targets[image_index], last_access);
         cb.end();
-        return cb;
+        return Rhi::FromVulkan(cb);
     }
 
-    bool OffscreenPresentProvider::Present(vk::Device, uint32_t, vk::Semaphore) {
+    bool OffscreenPresentProvider::Present(Rhi::DeviceHandle, uint32_t, Rhi::SemaphoreHandle) {
         // No Vulkan presentation: the frame-completion batch already carries a
         // real copy; waiting here is delegated to FrameManager's batch.
         return false;
@@ -189,4 +208,9 @@ namespace Engine::RenderSystemState {
         pimpl->m_extent = vk::Extent2D{new_extent.width, new_extent.height};
     }
 } // namespace Engine::RenderSystemState
+
+
+
+
+
 

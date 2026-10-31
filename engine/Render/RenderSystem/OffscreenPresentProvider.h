@@ -48,17 +48,17 @@ namespace Engine {
             }
 
             uint32_t AcquireNextImage(
-                vk::Device device, vk::Semaphore image_ready_semaphore, uint64_t timeout
+                Rhi::DeviceHandle device, Rhi::SemaphoreHandle image_ready_semaphore, uint64_t timeout
             ) override;
 
-            vk::CommandBuffer PrepareCopy(
-                vk::Device device,
+            Rhi::CommandBufferHandle PrepareCopy(
+                Rhi::DeviceHandle device,
                 const RenderTargetTexture &final_rtt,
                 uint32_t image_index,
                 Rhi::MemoryAccessTypeImageBits last_access
             ) override;
 
-            bool Present(vk::Device device, uint32_t image_index, vk::Semaphore frame_done_semaphore) override;
+            bool Present(Rhi::DeviceHandle device, uint32_t image_index, Rhi::SemaphoreHandle frame_done_semaphore) override;
 
             void Recreate(Rhi::Extent2D new_extent) override;
         };
@@ -66,4 +66,6 @@ namespace Engine {
 } // namespace Engine
 
 #endif
+
+
 
