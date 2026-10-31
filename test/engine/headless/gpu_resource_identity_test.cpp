@@ -20,6 +20,7 @@
 #include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/PhysicsSpirvLoader.h>
 #include <Physics/gpu_algorithm/CompactUnique.h>
@@ -205,7 +206,7 @@ int main() try {
         }};
 
         const auto view_value =
-            static_cast<uint64_t>(reinterpret_cast<uintptr_t>(static_cast<VkImageView>(content[0].image_view.handle)));
+            static_cast<uint64_t>(reinterpret_cast<uintptr_t>(static_cast<VkImageView>(Engine::Rhi::ToVulkanImageView(content[0].image_view.handle))));
         if (!seen_view_handles.insert(view_value).second) recycled_view_handles++;
 
         const size_t minted_before = arena.GetMintedSetCount();
@@ -257,3 +258,5 @@ int main() try {
     std::cerr << "gpu_resource_identity_test ABORTED: unknown exception" << std::endl;
     return 1;
 }
+
+

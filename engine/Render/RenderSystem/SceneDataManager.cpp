@@ -4,6 +4,7 @@
 #include "Render/Resource/RenderResourceHandle.h"
 #include "Render/Shadow/ShadowCascadeFit.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Resource/DescriptorArena.h"
@@ -171,9 +172,9 @@ namespace Engine::RenderSystemState {
                 // Create common pipeline layout
                 {
                     std::array pcr{RendererManager::GetPushConstantRange()};
-                    vk::PipelineLayoutCreateInfo plci{
-                        vk::PipelineLayoutCreateFlags{}, {scene_descriptor_set_layout.handle}, pcr
-                    };
+                    const vk::DescriptorSetLayout scene_layout =
+                        Engine::Rhi::ToVulkanDescriptorSetLayout(scene_descriptor_set_layout.handle);
+                    vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {scene_layout}, pcr};
                     scene_common_pipeline_layout =
                         system.GetIRCache().GetPipelineLayout(plci, "Scene Common Pipeline Layout");
                 }
@@ -600,7 +601,7 @@ namespace Engine::RenderSystemState {
     }
 
     vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
-        return pimpl->scene.scene_descriptor_set_layout.handle;
+        return Engine::Rhi::ToVulkanDescriptorSetLayout(pimpl->scene.scene_descriptor_set_layout.handle);
     }
     vk::PipelineLayout SceneDataManager::GetCommonPipelineLayout() const noexcept {
         return pimpl->scene.scene_common_pipeline_layout;
@@ -615,3 +616,6 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
+
+

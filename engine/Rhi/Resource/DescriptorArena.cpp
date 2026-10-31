@@ -1,4 +1,5 @@
 #include "Rhi/Resource/DescriptorArena.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
@@ -242,8 +243,9 @@ namespace Engine::Rhi {
             const auto &requirements = RequirementsFor(layout);
 
             auto allocate_from = [this, layout](Pool *pool) {
+                const vk::DescriptorSetLayout set_layout = ToVulkanDescriptorSetLayout(layout.handle);
                 auto set = Device().allocateDescriptorSets(
-                    vk::DescriptorSetAllocateInfo{pool->handle.get(), {layout.handle}}
+                    vk::DescriptorSetAllocateInfo{pool->handle.get(), {set_layout}}
                 )[0];
                 pool->sets_used++;
                 return Allocation{pool, set};
@@ -345,9 +347,9 @@ namespace Engine::Rhi {
 
             for (const auto &binding : content) {
                 if (IsImageDescriptor(binding.type)) {
-                    image_infos.emplace_back(binding.sampler.handle, binding.image_view.handle, binding.image_layout);
+                    image_infos.emplace_back(ToVulkanSampler(binding.sampler.handle), ToVulkanImageView(binding.image_view.handle), binding.image_layout);
                 } else {
-                    buffer_infos.emplace_back(binding.buffer.handle, binding.offset, binding.range);
+                    buffer_infos.emplace_back(ToVulkanBuffer(binding.buffer.handle), binding.offset, binding.range);
                 }
                 writes.emplace_back(set, binding.binding, 0u, 1u, binding.type);
             }
@@ -498,3 +500,8 @@ namespace Engine::Rhi {
         return resident > pimpl->resident_budget ? resident - pimpl->resident_budget : 0;
     }
 } // namespace Engine::Rhi
+
+
+
+
+

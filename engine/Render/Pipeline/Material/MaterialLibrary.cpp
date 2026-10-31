@@ -4,6 +4,7 @@
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Resource/DescriptorArena.h"
@@ -111,7 +112,7 @@ namespace Engine {
                     RenderSystemState::RendererManager::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
-                    scene_descriptors, camera_descriptors, b.descriptor_set_layout.handle
+                    scene_descriptors, camera_descriptors, Engine::Rhi::ToVulkanDescriptorSetLayout(b.descriptor_set_layout.handle)
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
                 b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plci);
@@ -218,3 +219,5 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+

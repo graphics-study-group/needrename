@@ -4,6 +4,7 @@
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/SceneDataManager.h"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Resource/DescriptorArena.h"
@@ -62,7 +63,7 @@ namespace Engine::RenderSystemState {
         {
             assert(m_system.GetSceneDataManager().GetLightDescriptorSetLayout());
             std::array pipeline_layout_descriptor_sets{
-                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(), pimpl->camera_descriptor_set_layout.handle
+                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(), Engine::Rhi::ToVulkanDescriptorSetLayout(pimpl->camera_descriptor_set_layout.handle)
             };
             std::array pipeline_layout_pcr{RendererManager::GetPushConstantRange()};
             vk::PipelineLayoutCreateInfo plci{
@@ -152,8 +153,8 @@ namespace Engine::RenderSystemState {
         return pimpl->descriptors[frame_in_flight];
     }
     vk::DescriptorSetLayout CameraManager::GetDescriptorSetLayout() const noexcept {
-        assert(pimpl->camera_descriptor_set_layout.handle);
-        return pimpl->camera_descriptor_set_layout.handle;
+        assert(pimpl->camera_descriptor_set_layout.handle.IsValid());
+        return Engine::Rhi::ToVulkanDescriptorSetLayout(pimpl->camera_descriptor_set_layout.handle);
     }
     vk::PipelineLayout CameraManager::GetCommonPipelineLayout() const noexcept {
         return pimpl->camera_common_pipeline_layout;
@@ -190,3 +191,8 @@ namespace Engine::RenderSystemState {
         return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
+
+
+
+
+

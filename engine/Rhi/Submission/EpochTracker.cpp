@@ -1,4 +1,5 @@
 #include "Rhi/Submission/EpochTracker.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <cassert>
 #include <utility>
@@ -167,3 +168,4 @@ namespace Engine::Rhi {
         return m_outstanding.contains(epoch);
     }
 } // namespace Engine::Rhi
+

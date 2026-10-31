@@ -1,5 +1,6 @@
 #include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryTypes.h"
@@ -61,7 +62,9 @@ int main() {
     const vk::DescriptorSetLayoutCreateInfo dslci{{}, {dslb}};
     auto &arena = context.GetDescriptorArena();
     auto descriptor_set_layout = arena.ResolveLayout(dslci, "Standalone Descriptor Set Layout");
-    auto pipeline_layout = device.createPipelineLayoutUnique({{}, {descriptor_set_layout.handle}});
+    const vk::DescriptorSetLayout standalone_layout =
+        Engine::Rhi::ToVulkanDescriptorSetLayout(descriptor_set_layout.handle);
+    auto pipeline_layout = device.createPipelineLayoutUnique({{}, {standalone_layout}});
 
     vk::PipelineShaderStageCreateInfo stage{{}, vk::ShaderStageFlagBits::eCompute, shader_module.get(), "main"};
     vk::ComputePipelineCreateInfo pipeline_info{{}, stage, pipeline_layout.get()};
@@ -116,3 +119,5 @@ int main() {
     std::cout << "Rhi standalone test PASSED." << std::endl;
     return 0;
 }
+
+

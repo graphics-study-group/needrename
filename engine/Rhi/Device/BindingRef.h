@@ -1,10 +1,10 @@
 #ifndef ENGINE_RHI_BINDINGREF_INCLUDED
 #define ENGINE_RHI_BINDINGREF_INCLUDED
 
+#include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
 #include <cstdint>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
     class DeviceBuffer;
@@ -94,13 +94,14 @@ namespace Engine::Rhi {
     };
 
     /// @brief A buffer allocation's reference.
-    using BufferRef = BindingRef<vk::Buffer>;
+    using BufferRef = BindingRef<BufferHandle>;
     /// @brief An image view's reference.
-    using ViewRef = BindingRef<vk::ImageView>;
+    using ViewRef = BindingRef<ImageViewHandle>;
     /// @brief A sampler's reference.
-    using SamplerRef = BindingRef<vk::Sampler>;
+    using SamplerRef = BindingRef<SamplerHandle>;
     /// @brief A descriptor-set layout's reference.
-    using DescriptorSetLayoutRef = BindingRef<vk::DescriptorSetLayout>;
+    using DescriptorSetLayoutRef = BindingRef<DescriptorSetLayoutHandle>;
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_BINDINGREF_INCLUDED
+

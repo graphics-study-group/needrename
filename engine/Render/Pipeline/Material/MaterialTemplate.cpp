@@ -10,6 +10,7 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Rhi/Device/DebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Texture/ImageUtilsFunc.h"
 
@@ -188,7 +189,7 @@ namespace Engine {
     }
 
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const noexcept {
-        return pimpl->desc_set_layout.handle;
+        return Engine::Rhi::ToVulkanDescriptorSetLayout(pimpl->desc_set_layout.handle);
     }
 
     Rhi::DescriptorSetLayoutRef MaterialTemplate::GetDescriptorSetLayoutRef() const noexcept {
@@ -202,3 +203,5 @@ namespace Engine {
         return pimpl->m_has_material_data;
     }
 } // namespace Engine
+
+

@@ -1,4 +1,5 @@
 #include "Rhi/Resource/ImmutableResourceCache.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/Hasher.hpp"
@@ -117,7 +118,7 @@ namespace Engine::Rhi {
     ImmutableResourceCache::~ImmutableResourceCache() noexcept = default;
 
     vk::Sampler ImmutableResourceCache::GetSampler(const Rhi::SamplerDesc &desc) {
-        return GetSamplerRef(desc).handle;
+        return Engine::Rhi::ToVulkanSampler(GetSamplerRef(desc).handle);
     }
     SamplerRef ImmutableResourceCache::GetSamplerRef(const Rhi::SamplerDesc &desc) {
         vk::SamplerCreateInfo sci{
@@ -151,7 +152,7 @@ namespace Engine::Rhi {
         return GetSamplerRef(sci);
     }
     vk::Sampler ImmutableResourceCache::GetSampler(const vk::SamplerCreateInfo &sci) {
-        return GetSamplerRef(sci).handle;
+        return Engine::Rhi::ToVulkanSampler(GetSamplerRef(sci).handle);
     }
     SamplerRef ImmutableResourceCache::GetSamplerRef(const vk::SamplerCreateInfo &sci) {
         auto itr = pimpl->sampler_cache.find(sci);
@@ -162,12 +163,12 @@ namespace Engine::Rhi {
             entry.id = MintVulkanIdentity();
             itr = pimpl->sampler_cache.emplace(sci, std::move(entry)).first;
         }
-        return SamplerRef{itr->second.handle.get(), itr->second.id};
+        return SamplerRef{FromVulkan(itr->second.handle.get()), itr->second.id};
     }
     vk::DescriptorSetLayout ImmutableResourceCache::GetDescriptorSetLayout(
         const vk::DescriptorSetLayoutCreateInfo &dlci, const char *name
     ) {
-        return GetDescriptorSetLayoutRef(dlci, name).handle;
+        return Engine::Rhi::ToVulkanDescriptorSetLayout(GetDescriptorSetLayoutRef(dlci, name).handle);
     }
     DescriptorSetLayoutRef ImmutableResourceCache::GetDescriptorSetLayoutRef(
         const vk::DescriptorSetLayoutCreateInfo &dlci, const char *name
@@ -185,7 +186,7 @@ namespace Engine::Rhi {
             }
             itr = pimpl->descriptor_set_layout_cache.emplace(h, std::move(entry)).first;
         }
-        return DescriptorSetLayoutRef{itr->second.handle.get(), itr->second.id};
+        return DescriptorSetLayoutRef{FromVulkan(itr->second.handle.get()), itr->second.id};
     }
     vk::PipelineLayout ImmutableResourceCache::GetPipelineLayout(
         const vk::PipelineLayoutCreateInfo &plci, const char *name
@@ -205,4 +206,13 @@ namespace Engine::Rhi {
         return itr->second.get();
     }
 } // namespace Engine::Rhi
+
+
+
+
+
+
+
+
+
 

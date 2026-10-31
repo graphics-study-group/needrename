@@ -1,4 +1,5 @@
 #include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Rhi/Device/AllocatorState.h"
 
@@ -24,7 +25,7 @@ namespace Engine::Rhi {
     }
 
     BufferRef DeviceBuffer::GetBufferRef() const {
-        return BufferRef{allocation.GetBuffer(), allocation.GetIdentity()};
+        return BufferRef{FromVulkan(allocation.GetBuffer()), allocation.GetIdentity()};
     }
 
     size_t DeviceBuffer::GetSize() const {
@@ -53,3 +54,5 @@ namespace Engine::Rhi {
         m_size = bytes;
     }
 } // namespace Engine::Rhi
+
+

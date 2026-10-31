@@ -1,4 +1,5 @@
 #include "Rhi/Pipeline/InterfaceBindingResolver.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Rhi/Pipeline/ShaderInterface.h"
 
@@ -46,3 +47,4 @@ namespace Engine::Rhi {
         return std::nullopt;
     }
 } // namespace Engine::Rhi
+

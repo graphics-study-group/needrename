@@ -1,4 +1,5 @@
 #include "Rhi/Texture/Texture.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DeviceContext.h"
@@ -217,7 +218,7 @@ namespace Engine::Rhi {
     }
 
     vk::ImageView Texture::GetImageView(const TextureSubresourceRange &tsv) const {
-        return GetViewRef(tsv).handle;
+        return ToVulkanImageView(GetViewRef(tsv).handle);
     }
 
     ViewRef Texture::GetViewRef(const TextureSubresourceRange &tsv) const {
@@ -242,11 +243,11 @@ namespace Engine::Rhi {
             entry.id = MintVulkanIdentity();
             itr = pimpl->m_views.emplace(tsv, std::move(entry)).first;
         }
-        return ViewRef{itr->second.view.get(), itr->second.id};
+        return ViewRef{FromVulkan(itr->second.view.get()), itr->second.id};
     }
 
     vk::Sampler Texture::GetSampler() const noexcept {
-        return pimpl->m_sampler_ref.handle;
+        return ToVulkanSampler(pimpl->m_sampler_ref.handle);
     }
 
     SamplerRef Texture::GetSamplerRef() const noexcept {
@@ -265,3 +266,7 @@ namespace Engine::Rhi {
         return false;
     }
 } // namespace Engine::Rhi
+
+
+
+

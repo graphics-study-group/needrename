@@ -1,4 +1,5 @@
 #include "Rhi/Submission/SubmissionHelper.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/AllocatorState.h"
@@ -549,3 +550,4 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+

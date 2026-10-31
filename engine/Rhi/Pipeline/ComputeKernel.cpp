@@ -1,4 +1,5 @@
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/DebugUtils.h"
@@ -93,9 +94,8 @@ namespace Engine::Rhi {
             if (push_constant_size > 0) {
                 pc_ranges.emplace_back(vk::ShaderStageFlagBits::eCompute, 0, push_constant_size);
             }
-            vk::PipelineLayoutCreateInfo plci{
-                vk::PipelineLayoutCreateFlags{}, {pass_info.desc_layout.handle}, pc_ranges
-            };
+            const vk::DescriptorSetLayout descriptor_set_layout = ToVulkanDescriptorSetLayout(pass_info.desc_layout.handle);
+            vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {descriptor_set_layout}, pc_ranges};
             pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
             DEBUG_SET_NAME_TEMPLATE(
                 device,
@@ -200,7 +200,7 @@ namespace Engine::Rhi {
     }
 
     vk::DescriptorSetLayout ComputeKernel::GetDescriptorSetLayout() const noexcept {
-        return pimpl->pass_info.desc_layout.handle;
+        return ToVulkanDescriptorSetLayout(pimpl->pass_info.desc_layout.handle);
     }
 
     void ComputeKernel::Dispatch(
@@ -383,3 +383,7 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
+
+
+
