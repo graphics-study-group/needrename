@@ -97,7 +97,7 @@ namespace Engine::Rhi {
          * through the arena and built its pipeline layout over.
          * @param s The reflected layout the set is built against.
          */
-        vk::DescriptorSet GetDescriptorSet(
+        DescriptorSetHandle GetDescriptorSet(
             uint32_t set_id,
             DescriptorSetLayoutRef layout,
             const Rhi::SPLayout &s,
@@ -108,3 +108,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_SHADERRESOURCEBINDING_INCLUDED
+

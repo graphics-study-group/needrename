@@ -134,7 +134,7 @@ namespace Engine::RenderSystemState {
 
             // The layout description, kept alive so the arena can allocate the
             // per-in-flight sets against the same cached layout object.
-            std::vector<vk::DescriptorSetLayoutBinding> descriptor_bindings{};
+            Rhi::DescriptorSetLayout descriptor_bindings{};
             std::array<vk::Sampler, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers{};
 
             // Model matrices storage buffer (owned here; for physics-driven objects)
@@ -147,7 +147,7 @@ namespace Engine::RenderSystemState {
 
                 // Create decriptor set layout
                 {
-                    descriptor_bindings.assign(DESCRIPTOR_BINDINGS.begin(), DESCRIPTOR_BINDINGS.end());
+
                     // Set up immutable samplers for shadow maps
                     std::fill(
                         immutable_samplers.begin(),
@@ -164,10 +164,18 @@ namespace Engine::RenderSystemState {
                             }
                         )
                     );
-                    descriptor_bindings[1].setImmutableSamplers(immutable_samplers);
+                    descriptor_bindings = Rhi::DescriptorSetLayout{
+                        Rhi::DescriptorBinding{0, Rhi::DescriptorType::UniformBuffer, 1},
+                        Rhi::DescriptorBinding{
+                            1,
+                            Rhi::DescriptorType::CombinedImageSampler,
+                            MAX_SHADOW_CASTING_LIGHTS,
+                            Rhi::FromVulkan(immutable_samplers[0])
+                        },
+                        Rhi::DescriptorBinding{2, Rhi::DescriptorType::StorageBuffer, 1}
+                    };
                 }
-                vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, descriptor_bindings};
-                scene_descriptor_set_layout = arena.ResolveLayout(dslci, "Scene Descriptor Set Layout");
+                scene_descriptor_set_layout = arena.ResolveLayout(descriptor_bindings, "Scene Descriptor Set Layout");
 
                 // Create common pipeline layout
                 {
@@ -186,8 +194,9 @@ namespace Engine::RenderSystemState {
                 // FrameManager waits before resetting a slot's command buffer
                 // already establishes.
                 for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
-                    scene_descriptor_sets[i] =
-                        arena.AcquireRawSet(scene_descriptor_set_layout, std::format("Desc Set - Scene FIF {}", i));
+                    scene_descriptor_sets[i] = Rhi::ToVulkanDescriptorSet(
+                        arena.AcquireRawSet(scene_descriptor_set_layout, std::format("Desc Set - Scene FIF {}", i))
+                    );
                 }
                 // Allocate the back buffer for lights.
                 light_back_buffer = Rhi::IndexedBuffer::CreateUnique(
@@ -574,13 +583,14 @@ namespace Engine::RenderSystemState {
         if (!tpl) return;
         auto material_binding = material->UpdateGPUInfo(*tpl, frame_in_flight);
 
+        const vk::DescriptorSet skybox_set = Rhi::ToVulkanDescriptorSet(material_binding.set);
         auto rcb = cb.GetCommandBuffer();
         rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
         rcb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             tpl->GetPipelineLayout(),
             2,
-            {material_binding.set},
+            {skybox_set},
             material_binding.dynamic_offsets
         );
         // camera PV matrix is pushed directly.
@@ -616,6 +626,7 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

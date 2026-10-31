@@ -40,6 +40,10 @@ namespace Engine::Rhi {
         constexpr bool IsValid() const noexcept {
             return m_value != 0;
         }
+        /// @brief Whether this handle names an object, for boolean contexts.
+        constexpr explicit operator bool() const noexcept {
+            return m_value != 0;
+        }
         /**
          * @brief Get the flattened value, for hashing and backend conversion.
          *
@@ -289,6 +293,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
 

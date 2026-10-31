@@ -77,7 +77,7 @@ namespace {
 
     template <typename T>
     bool Same(const T &lhs, const T &rhs) {
-        return static_cast<typename T::CType>(lhs) == static_cast<typename T::CType>(rhs);
+        return lhs.GetValue() == rhs.GetValue();
     }
 
     // ── Buffer churn: a real CompactUnique pass over freshly created buffers ─
@@ -172,15 +172,12 @@ int main() try {
     // and destroys it straight after, so the next round's texture is the kind of
     // resource that can inherit a recycled view handle.
     constexpr int TEXTURE_ROUNDS = 24;
-    const vk::DescriptorSetLayoutBinding IMAGE_BINDING{
-        0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eCompute
-    };
-    const auto image_layout =
-        arena.ResolveLayout(vk::DescriptorSetLayoutCreateInfo{{}, {IMAGE_BINDING}}, "Churn image layout");
+    const Rhi::DescriptorBinding IMAGE_BINDING{0, Rhi::DescriptorType::CombinedImageSampler, 1};
+    const auto image_layout = arena.ResolveLayout(Rhi::DescriptorSetLayout{IMAGE_BINDING}, "Churn image layout");
 
     std::unordered_set<uint64_t> seen_view_handles{};
     size_t recycled_view_handles = 0u;
-    vk::DescriptorSet previous_set{};
+    Rhi::DescriptorSetHandle previous_set{};
     bool have_previous_set = false;
     for (int round = 0; round < TEXTURE_ROUNDS; round++) {
         auto texture = ImageTexture::CreateUnique(
@@ -201,10 +198,10 @@ int main() try {
 
         const std::array<ResolvedBinding, 1> content{ResolvedBinding{
             .binding = 0,
-            .type = vk::DescriptorType::eCombinedImageSampler,
+            .type = Rhi::DescriptorType::CombinedImageSampler,
             .image_view = texture->GetViewRef(TextureSubresourceRange::GetFullRange()),
             .sampler = texture->GetSamplerRef(),
-            .image_layout = vk::ImageLayout::eReadOnlyOptimal
+            .image_layout = Rhi::ResourceState::ShaderReadOnly
         }};
 
         const auto view_value =
@@ -260,5 +257,7 @@ int main() try {
     std::cerr << "gpu_resource_identity_test ABORTED: unknown exception" << std::endl;
     return 1;
 }
+
+
 
 

@@ -49,9 +49,9 @@ namespace Engine::Rhi {
             std::string name{};
             uint32_t binding{0};
             /// @brief Descriptor type the interface is declared with.
-            vk::DescriptorType type{vk::DescriptorType::eUniformBuffer};
+            Rhi::DescriptorType type{Rhi::DescriptorType::UniformBuffer};
             /// @brief Layout an image interface is bound in.
-            vk::ImageLayout image_layout{vk::ImageLayout::eReadOnlyOptimal};
+            Rhi::ResourceState image_layout{Rhi::ResourceState::ShaderReadOnly};
             /// @brief Whether the interface is an image rather than a buffer.
             bool is_image{false};
         };
@@ -84,10 +84,8 @@ namespace Engine::Rhi {
             // offsets.
             auto layout = Rhi::SPLayout::Reflect(spirv_code, false);
             auto desc_bindings = layout.GenerateLayoutBindings(0, false, false);
-            const auto vk_bindings = ToVulkanBindings(desc_bindings);
-            vk::DescriptorSetLayoutCreateInfo dslci{vk::DescriptorSetLayoutCreateFlags{}, vk_bindings};
             pass_info.desc_layout = context.GetDescriptorArena().ResolveLayout(
-                dslci, std::format("Descriptor Set Layout - Compute Kernel {}", DisplayName()).c_str()
+                desc_bindings, std::format("Descriptor Set Layout - Compute Kernel {}", DisplayName()).c_str()
             );
 
             push_constant_size = layout.push_constant_size;
@@ -335,7 +333,7 @@ namespace Engine::Rhi {
         encoder.BindComputePipeline(
             FromVulkan(pimpl->pass_info.pipeline.get()), FromVulkan(pimpl->pass_info.pipeline_layout.get())
         );
-        encoder.BindDescriptorSet(0, FromVulkan(set));
+        encoder.BindDescriptorSet(0, set);
         if (push != nullptr && push_size > 0) {
             encoder.SetKernelParams(
                 std::span<const std::byte>(static_cast<const std::byte *>(push), push_size)
@@ -382,6 +380,7 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
 
 
 

@@ -4,7 +4,7 @@
 #include "Rhi/rhi_export.h"
 
 #include <optional>
-#include <vulkan/vulkan.hpp>
+#include "Rhi/RhiTypes.h"
 
 namespace Engine::Rhi {
     struct SPInterface;
@@ -14,9 +14,9 @@ namespace Engine::Rhi {
      */
     struct RHI_API InterfaceBinding {
         /// @brief Descriptor type the interface is declared with.
-        vk::DescriptorType type{vk::DescriptorType::eUniformBuffer};
+        DescriptorType type{DescriptorType::UniformBuffer};
         /// @brief Layout an image interface is bound in; meaningless for buffers.
-        vk::ImageLayout image_layout{vk::ImageLayout::eReadOnlyOptimal};
+        ResourceState image_layout{ResourceState::ShaderReadOnly};
         /// @brief Whether the interface is an image rather than a buffer.
         bool is_image{false};
     };
@@ -44,3 +44,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_INTERFACEBINDINGRESOLVER_INCLUDED
+

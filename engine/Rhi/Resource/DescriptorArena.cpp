@@ -26,11 +26,10 @@ namespace Engine::Rhi {
         /// @brief Descriptors of each type one set of a layout consumes.
         using DescriptorRequirements = std::map<vk::DescriptorType, uint32_t>;
 
-        DescriptorRequirements RequirementsOf(const vk::DescriptorSetLayoutCreateInfo &layout) {
-            DescriptorRequirements requirements;
-            for (uint32_t i = 0; i < layout.bindingCount; i++) {
-                const auto &binding = layout.pBindings[i];
-                requirements[binding.descriptorType] += binding.descriptorCount;
+        DescriptorRequirements RequirementsOf(const DescriptorSetLayout &layout) {
+            DescriptorRequirements requirements{};
+            for (const DescriptorBinding &binding : layout) {
+                requirements[ToVulkanDescriptorType(binding.type)] += binding.count;
             }
             return requirements;
         }
@@ -51,9 +50,9 @@ namespace Engine::Rhi {
             return requirements;
         }
 
-        bool IsImageDescriptor(vk::DescriptorType type) noexcept {
-            return type == vk::DescriptorType::eCombinedImageSampler || type == vk::DescriptorType::eStorageImage
-                   || type == vk::DescriptorType::eSampledImage || type == vk::DescriptorType::eSampler;
+        bool IsImageDescriptor(DescriptorType type) noexcept {
+            return type == DescriptorType::CombinedImageSampler || type == DescriptorType::StorageImage
+                   || type == DescriptorType::SampledImage || type == DescriptorType::Sampler;
         }
 
         /// @brief Map key of a layout: its never-reused identity.
@@ -347,11 +346,11 @@ namespace Engine::Rhi {
 
             for (const auto &binding : content) {
                 if (IsImageDescriptor(binding.type)) {
-                    image_infos.emplace_back(ToVulkanSampler(binding.sampler.handle), ToVulkanImageView(binding.image_view.handle), binding.image_layout);
+                    image_infos.emplace_back(ToVulkanSampler(binding.sampler.handle), ToVulkanImageView(binding.image_view.handle), ToVulkanImageLayout(binding.image_layout));
                 } else {
                     buffer_infos.emplace_back(ToVulkanBuffer(binding.buffer.handle), binding.offset, binding.range);
                 }
-                writes.emplace_back(set, binding.binding, 0u, 1u, binding.type);
+                writes.emplace_back(set, binding.binding, 0u, 1u, ToVulkanDescriptorType(binding.type));
             }
 
             // `updateDescriptorSets` consumes the infos synchronously, so the
@@ -376,7 +375,7 @@ namespace Engine::Rhi {
     DescriptorArena::~DescriptorArena() = default;
 
     DescriptorSetLayoutRef DescriptorArena::ResolveLayout(
-        const vk::DescriptorSetLayoutCreateInfo &layout, const char *name
+        const DescriptorSetLayout &layout, const char *name
     ) {
         // Remember what one set of this layout consumes: a pool must declare its
         // per-type capacity up front, and a resolved handle cannot be asked for
@@ -386,16 +385,16 @@ namespace Engine::Rhi {
         return resolved;
     }
 
-    vk::DescriptorSet DescriptorArena::AcquireRawSet(DescriptorSetLayoutRef layout, std::string_view name) {
+    DescriptorSetHandle DescriptorArena::AcquireRawSet(DescriptorSetLayoutRef layout, std::string_view name) {
         const std::string debug_name = name.empty() ? std::string{"Arena Raw Set"} : std::string{name};
 
         auto set = pimpl->AllocateSet(layout, debug_name).set;
         pimpl->raw_set_count++;
         impl::NameSet(pimpl->Device(), set, debug_name);
-        return set;
+        return FromVulkan(set);
     }
 
-    vk::DescriptorSet DescriptorArena::Acquire(
+    DescriptorSetHandle DescriptorArena::Acquire(
         DescriptorSetLayoutRef layout,
         uint32_t set_id,
         bool enforce_dynamic_uniform,
@@ -429,7 +428,7 @@ namespace Engine::Rhi {
                 entry.acquisition_order = ++pimpl->acquisition_clock;
                 const vk::DescriptorSet hit_set = entry.set;
                 pimpl->EvictDownTo(pimpl->resident_budget, entry.acquisition_order);
-                return hit_set;
+                return FromVulkan(hit_set);
             }
         }
 
@@ -454,7 +453,7 @@ namespace Engine::Rhi {
         auto &chain = pimpl->resident[key];
         chain.push_back(std::move(entry));
         impl::NameSet(pimpl->Device(), chain.back().set, std::format("Arena Cache Set (set {})", set_id));
-        return chain.back().set;
+        return FromVulkan(chain.back().set);
     }
 
     void DescriptorArena::OnDeviceIdle() noexcept {
@@ -500,6 +499,7 @@ namespace Engine::Rhi {
         return resident > pimpl->resident_budget ? resident - pimpl->resident_budget : 0;
     }
 } // namespace Engine::Rhi
+
 
 
 

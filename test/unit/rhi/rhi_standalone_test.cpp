@@ -57,10 +57,11 @@ int main() {
     // ── Minimal compute pipeline (raw Vulkan, no Render helpers) ──
     // The descriptor set comes from the device descriptor arena's pool layer,
     // with no render system involved; this test writes the descriptors itself.
-    vk::DescriptorSetLayoutBinding dslb{0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute};
-    const vk::DescriptorSetLayoutCreateInfo dslci{{}, {dslb}};
     auto &arena = context.GetDescriptorArena();
-    auto descriptor_set_layout = arena.ResolveLayout(dslci, "Standalone Descriptor Set Layout");
+    const auto descriptor_set_layout = arena.ResolveLayout(
+        Rhi::DescriptorSetLayout{Rhi::DescriptorBinding{0, Rhi::DescriptorType::StorageBuffer, 1}},
+        "Standalone Descriptor Set Layout"
+    );
     const vk::DescriptorSetLayout standalone_layout =
         Engine::Rhi::ToVulkanDescriptorSetLayout(descriptor_set_layout.handle);
     auto pipeline_layout = device.createPipelineLayoutUnique({{}, {standalone_layout}});
@@ -81,7 +82,13 @@ int main() {
 
     vk::DescriptorBufferInfo descriptor_buffer_info{Engine::Rhi::ToVulkanBuffer(buffer.GetBuffer()), 0, buffer_size};
     vk::WriteDescriptorSet write_descriptor{
-        descriptor_set, 0, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &descriptor_buffer_info
+        Engine::Rhi::ToVulkanDescriptorSet(descriptor_set),
+        0,
+        0,
+        1,
+        vk::DescriptorType::eStorageBuffer,
+        nullptr,
+        &descriptor_buffer_info
     };
     device.updateDescriptorSets({write_descriptor}, {});
 
@@ -91,7 +98,13 @@ int main() {
     )[0];
     cb.begin(vk::CommandBufferBeginInfo{});
     cb.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.value.get());
-    cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline_layout.get(), 0, {descriptor_set}, {});
+    cb.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute,
+        pipeline_layout.get(),
+        0,
+        {Engine::Rhi::ToVulkanDescriptorSet(descriptor_set)},
+        {}
+    );
     cb.dispatch(ELEMENT_COUNT / 32, 1, 1);
     cb.end();
 
@@ -118,6 +131,7 @@ int main() {
     std::cout << "Rhi standalone test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

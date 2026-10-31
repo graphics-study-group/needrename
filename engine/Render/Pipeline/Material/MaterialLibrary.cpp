@@ -105,9 +105,8 @@ namespace Engine {
                 // Resolved once, through the arena: this handle is what the
                 // pipeline layout is built over and what every set for this
                 // material is allocated against.
-                const auto vk_bindings = Rhi::ToVulkanBindings(desc_bindings);
-                vk::DescriptorSetLayoutCreateInfo dslci{{}, vk_bindings};
-                b.descriptor_set_layout = system.GetDeviceContext().GetDescriptorArena().ResolveLayout(dslci, nullptr);
+                b.descriptor_set_layout =
+                    system.GetDeviceContext().GetDescriptorArena().ResolveLayout(desc_bindings, nullptr);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
                     RenderSystemState::RendererManager::GetPushConstantRange()
@@ -220,6 +219,7 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
 
 
 

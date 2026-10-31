@@ -275,12 +275,13 @@ namespace Engine {
         // Refresh the set on every bind, so the epoch the arena records for it
         // stays an upper bound on the epochs whose command buffers use it.
         auto material_binding = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
-        if (material_binding.set) {
+        const vk::DescriptorSet material_set = Rhi::ToVulkanDescriptorSet(material_binding.set);
+        if (material_binding.set.IsValid()) {
             cb.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics,
                 pipeline_layout,
                 2,
-                {material_binding.set},
+                {material_set},
                 material_binding.dynamic_offsets
             );
         }
@@ -388,6 +389,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 

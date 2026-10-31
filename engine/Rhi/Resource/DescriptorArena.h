@@ -29,13 +29,13 @@ namespace Engine::Rhi {
         /// @brief Binding number within the descriptor set.
         uint32_t binding{0};
         /// @brief Descriptor type the binding is declared with.
-        vk::DescriptorType type{vk::DescriptorType::eUniformBuffer};
+        DescriptorType type{DescriptorType::UniformBuffer};
         /// @brief Image view, for image bindings.
         ViewRef image_view{};
         /// @brief Sampler, for combined-image-sampler bindings.
         SamplerRef sampler{};
         /// @brief Layout the sampled image is in.
-        vk::ImageLayout image_layout{vk::ImageLayout::eReadOnlyOptimal};
+        ResourceState image_layout{ResourceState::ShaderReadOnly};
         /// @brief Buffer, for buffer bindings.
         BufferRef buffer{};
         /// @brief Byte offset into the buffer.
@@ -62,7 +62,7 @@ namespace Engine::Rhi {
      * for a later epoch.
      */
     struct RHI_API DescriptorSetBinding {
-        vk::DescriptorSet set{};
+        DescriptorSetHandle set{};
         /// @brief Dynamic offsets, in the order of the set's dynamic bindings.
         std::vector<uint32_t> dynamic_offsets{};
     };
@@ -140,7 +140,7 @@ namespace Engine::Rhi {
          * @param name Debug name applied to the layout.
          */
         DescriptorSetLayoutRef ResolveLayout(
-            const vk::DescriptorSetLayoutCreateInfo &layout, const char *name = nullptr
+            const DescriptorSetLayout &layout, const char *name = nullptr
         );
 
         /**
@@ -154,7 +154,7 @@ namespace Engine::Rhi {
          * @param layout A layout this arena resolved through `ResolveLayout`.
          * @param name Debug name applied to the set.
          */
-        vk::DescriptorSet AcquireRawSet(DescriptorSetLayoutRef layout, std::string_view name = {});
+        DescriptorSetHandle AcquireRawSet(DescriptorSetLayoutRef layout, std::string_view name = {});
 
         /**
          * @brief Cache layer: return the set for a content, writing it on a miss.
@@ -171,7 +171,7 @@ namespace Engine::Rhi {
          * @param layout A layout this arena resolved through `ResolveLayout`.
          * @param content The resolved bindings the arena writes on a miss.
          */
-        vk::DescriptorSet Acquire(
+        DescriptorSetHandle Acquire(
             DescriptorSetLayoutRef layout,
             uint32_t set_id,
             bool enforce_dynamic_uniform,
@@ -215,3 +215,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DESCRIPTORARENA_INCLUDED
+

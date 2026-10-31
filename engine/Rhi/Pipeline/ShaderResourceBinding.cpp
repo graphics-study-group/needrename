@@ -54,7 +54,7 @@ namespace Engine::Rhi {
         pimpl->interfaces[name] = std::make_tuple(&texture, range);
     }
 
-    vk::DescriptorSet ShaderResourceBinding::GetDescriptorSet(
+    DescriptorSetHandle ShaderResourceBinding::GetDescriptorSet(
         uint32_t set_id,
         DescriptorSetLayoutRef layout,
         const Rhi::SPLayout &s,
@@ -121,3 +121,4 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+

@@ -11,15 +11,15 @@ namespace Engine::Rhi {
     ) {
         if (dynamic_cast<const SPInterfaceOpaqueImage *>(&interface)) {
             return InterfaceBinding{
-                .type = vk::DescriptorType::eCombinedImageSampler,
-                .image_layout = vk::ImageLayout::eReadOnlyOptimal,
+                .type = DescriptorType::CombinedImageSampler,
+                .image_layout = ResourceState::ShaderReadOnly,
                 .is_image = true
             };
         }
 
         if (dynamic_cast<const SPInterfaceOpaqueStorageImage *>(&interface)) {
             return InterfaceBinding{
-                .type = vk::DescriptorType::eStorageImage, .image_layout = vk::ImageLayout::eGeneral, .is_image = true
+                .type = DescriptorType::StorageImage, .image_layout = ResourceState::General, .is_image = true
             };
         }
 
@@ -27,16 +27,16 @@ namespace Engine::Rhi {
             switch (buffer->type) {
             case SPInterfaceBuffer::Type::UniformBuffer:
                 return InterfaceBinding{
-                    .type = enforce_dynamic_uniform ? vk::DescriptorType::eUniformBufferDynamic
-                                                    : vk::DescriptorType::eUniformBuffer,
-                    .image_layout = vk::ImageLayout::eReadOnlyOptimal,
+                    .type = enforce_dynamic_uniform ? DescriptorType::UniformBufferDynamic
+                                                    : DescriptorType::UniformBuffer,
+                    .image_layout = ResourceState::ShaderReadOnly,
                     .is_image = false
                 };
             case SPInterfaceBuffer::Type::StorageBuffer:
                 return InterfaceBinding{
-                    .type = enforce_dynamic_storage ? vk::DescriptorType::eStorageBufferDynamic
-                                                    : vk::DescriptorType::eStorageBuffer,
-                    .image_layout = vk::ImageLayout::eReadOnlyOptimal,
+                    .type = enforce_dynamic_storage ? DescriptorType::StorageBufferDynamic
+                                                    : DescriptorType::StorageBuffer,
+                    .image_layout = ResourceState::ShaderReadOnly,
                     .is_image = false
                 };
             default:
@@ -47,4 +47,5 @@ namespace Engine::Rhi {
         return std::nullopt;
     }
 } // namespace Engine::Rhi
+
 

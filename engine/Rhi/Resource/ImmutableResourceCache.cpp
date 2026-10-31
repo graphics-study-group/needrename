@@ -165,14 +165,17 @@ namespace Engine::Rhi {
         }
         return SamplerRef{FromVulkan(itr->second.handle.get()), itr->second.id};
     }
-    vk::DescriptorSetLayout ImmutableResourceCache::GetDescriptorSetLayout(
-        const vk::DescriptorSetLayoutCreateInfo &dlci, const char *name
+    DescriptorSetLayoutHandle ImmutableResourceCache::GetDescriptorSetLayout(
+        const DescriptorSetLayout &layout, const char *name
     ) {
-        return Engine::Rhi::ToVulkanDescriptorSetLayout(GetDescriptorSetLayoutRef(dlci, name).handle);
+        return GetDescriptorSetLayoutRef(layout, name).handle;
     }
     DescriptorSetLayoutRef ImmutableResourceCache::GetDescriptorSetLayoutRef(
-        const vk::DescriptorSetLayoutCreateInfo &dlci, const char *name
+        const DescriptorSetLayout &layout, const char *name
     ) {
+        std::vector<vk::Sampler> immutable_samplers;
+        const auto bindings = ToVulkanBindings(layout, &immutable_samplers);
+        vk::DescriptorSetLayoutCreateInfo dlci{vk::DescriptorSetLayoutCreateFlags{}, bindings};
         auto h = descriptor_set_layout_hasher{}(dlci);
         auto itr = pimpl->descriptor_set_layout_cache.find(h);
 
@@ -206,6 +209,7 @@ namespace Engine::Rhi {
         return itr->second.get();
     }
 } // namespace Engine::Rhi
+
 
 
 

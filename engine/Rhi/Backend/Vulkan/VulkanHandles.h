@@ -214,9 +214,56 @@ namespace Engine::Rhi {
         return bindings;
     }
 
+    /// @brief Convert a Vulkan descriptor type to its portable kind.
+    inline DescriptorType FromVulkanDescriptorType(vk::DescriptorType type) noexcept {
+        switch (type) {
+        case vk::DescriptorType::eStorageBuffer:
+            return DescriptorType::StorageBuffer;
+        case vk::DescriptorType::eStorageBufferDynamic:
+            return DescriptorType::StorageBufferDynamic;
+        case vk::DescriptorType::eUniformBufferDynamic:
+            return DescriptorType::UniformBufferDynamic;
+        case vk::DescriptorType::eCombinedImageSampler:
+            return DescriptorType::CombinedImageSampler;
+        case vk::DescriptorType::eSampledImage:
+            return DescriptorType::SampledImage;
+        case vk::DescriptorType::eSampler:
+            return DescriptorType::Sampler;
+        case vk::DescriptorType::eStorageImage:
+            return DescriptorType::StorageImage;
+        default:
+            return DescriptorType::UniformBuffer;
+        }
+    }
+
+    /// @brief Convert a portable resource state to the Vulkan image layout it means.
+    inline vk::ImageLayout ToVulkanImageLayout(ResourceState state) noexcept {
+        switch (state) {
+        case ResourceState::General:
+            return vk::ImageLayout::eGeneral;
+        case ResourceState::ColorAttachment:
+            return vk::ImageLayout::eColorAttachmentOptimal;
+        case ResourceState::DepthStencilAttachment:
+            return vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        case ResourceState::TransferSource:
+            return vk::ImageLayout::eTransferSrcOptimal;
+        case ResourceState::TransferDestination:
+            return vk::ImageLayout::eTransferDstOptimal;
+        case ResourceState::PresentSource:
+            return vk::ImageLayout::ePresentSrcKHR;
+        case ResourceState::ShaderReadOnly:
+            return vk::ImageLayout::eReadOnlyOptimal;
+        case ResourceState::Undefined:
+        default:
+            return vk::ImageLayout::eUndefined;
+        }
+    }
+
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANHANDLES_INCLUDED
+
+
 
 
 

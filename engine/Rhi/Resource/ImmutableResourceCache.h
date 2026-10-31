@@ -62,8 +62,8 @@ namespace Engine::Rhi {
          * Immutable samplers will be hashed directly. This should be fine
          * so long as all samplers are managed by this cache.
          */
-        vk::DescriptorSetLayout GetDescriptorSetLayout(
-            const vk::DescriptorSetLayoutCreateInfo &, const char *name = nullptr
+        DescriptorSetLayoutHandle GetDescriptorSetLayout(
+            const DescriptorSetLayout &, const char *name = nullptr
         );
 
         /**
@@ -74,7 +74,7 @@ namespace Engine::Rhi {
          * identity; the identity is what a descriptor set is keyed on.
          */
         DescriptorSetLayoutRef GetDescriptorSetLayoutRef(
-            const vk::DescriptorSetLayoutCreateInfo &, const char *name = nullptr
+            const DescriptorSetLayout &, const char *name = nullptr
         );
 
         /**
@@ -89,3 +89,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
+

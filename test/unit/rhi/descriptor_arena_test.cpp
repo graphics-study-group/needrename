@@ -71,22 +71,21 @@ namespace {
     /// @brief Handles carry no `operator==` under typesafe conversion.
     template <typename T>
     bool Same(T lhs, T rhs) {
-        return static_cast<typename T::CType>(lhs) == static_cast<typename T::CType>(rhs);
+        return lhs.GetValue() == rhs.GetValue();
     }
 
     /// @brief One dynamic uniform buffer binding, the shape a compute binding uses.
-    const vk::DescriptorSetLayoutBinding DYNAMIC_UBO_BINDING{
-        0, vk::DescriptorType::eUniformBufferDynamic, 1, vk::ShaderStageFlagBits::eAll
+    const Rhi::DescriptorBinding DYNAMIC_UBO_BINDING{
+        0, Rhi::DescriptorType::UniformBufferDynamic, 1
     };
-
-    vk::DescriptorSetLayoutCreateInfo DynamicUboLayout() {
-        return vk::DescriptorSetLayoutCreateInfo{vk::DescriptorSetLayoutCreateFlags{}, {DYNAMIC_UBO_BINDING}};
+    Rhi::DescriptorSetLayout DynamicUboLayout() {
+        return Rhi::DescriptorSetLayout{DYNAMIC_UBO_BINDING};
     }
 
     std::vector<ResolvedBinding> One(BufferRef buffer, size_t offset = 0) {
         return {ResolvedBinding{
             .binding = 0,
-            .type = vk::DescriptorType::eUniformBufferDynamic,
+            .type = Rhi::DescriptorType::UniformBufferDynamic,
             .buffer = buffer,
             .offset = offset,
             .range = 256
@@ -159,7 +158,7 @@ namespace {
         }
 
         /// @brief Resolve a layout description through this device's arena.
-        DescriptorSetLayoutRef Resolve(const vk::DescriptorSetLayoutCreateInfo &layout) {
+        DescriptorSetLayoutRef Resolve(const Rhi::DescriptorSetLayout &layout) {
             return Arena().ResolveLayout(layout);
         }
     };
@@ -180,13 +179,13 @@ int main() {
 
         const auto first = arena.AcquireRawSet(layout, "Raw A");
         const auto second = arena.AcquireRawSet(layout, "Raw B");
-        CHECK(first && second && "the pool layer must hand out sets");
+        CHECK(first.IsValid() && second.IsValid() && "the pool layer must hand out sets");
         CHECK(!Same(first, second) && "raw sets are never interned: the same layout yields distinct sets");
 
         const size_t pools_before = arena.GetLivePoolCount();
         size_t raw_count = 2;
         for (size_t i = 0; i < 100; i++) {
-            CHECK(arena.AcquireRawSet(layout, "Raw growth") && "a request past one pool's capacity must succeed");
+            CHECK(arena.AcquireRawSet(layout, "Raw growth").IsValid() && "a request past one pool's capacity must succeed");
             raw_count++;
         }
         CHECK(
@@ -209,7 +208,7 @@ int main() {
             && "raw sets are never reclaimed, however much pressure is applied"
         );
         CHECK(arena.GetResidentEntryCount() <= 1u && "cache entries are reclaimed down to the budget");
-        CHECK(first && second && "the first raw sets remain valid until the arena is destroyed");
+        CHECK(first.IsValid() && second.IsValid() && "the first raw sets remain valid until the arena is destroyed");
     }
 
     // ── Task 1.2 and 5.1: interning, distinct content, cross-epoch reuse ────
@@ -325,7 +324,7 @@ int main() {
         const auto first = round(0);
         const auto second = round(1);
 
-        CHECK(first && second && "each recorded round obtains its set");
+        CHECK(first.IsValid() && second && "each recorded round obtains its set");
         CHECK(Same(first, round(0)) && "a repeated round reuses its set");
         CHECK(!Same(first, second) && "the rounds' sets stay distinct");
         CHECK(arena.GetBudgetExcess() == 0u && "nothing is released while the arena is within budget");
@@ -436,8 +435,7 @@ int main() {
         // The material-shaped set uses set 2, and its layout is resolved through
         // the same arena, exactly as MaterialLibrary does for a real material.
         const auto image_bindings = image_layout.GenerateLayoutBindings(2, true, false);
-        const auto image_vk_bindings = Engine::Rhi::ToVulkanBindings(image_bindings);
-        const auto image_set_layout = arena.ResolveLayout(vk::DescriptorSetLayoutCreateInfo{{}, image_vk_bindings});
+        const auto image_set_layout = arena.ResolveLayout(image_bindings);
 
         const size_t baseline = arena.GetResidentEntryCount();
         const size_t minted_before = arena.GetMintedSetCount();
@@ -544,8 +542,8 @@ int main() {
         reflected.interfaces.push_back(std::move(buffer_interface));
 
         const auto bindings = reflected.GenerateLayoutBindings(2, false, false);
-        const auto vk_bindings = Engine::Rhi::ToVulkanBindings(bindings);
-        const auto set_layout = arena.ResolveLayout(vk::DescriptorSetLayoutCreateInfo{{}, vk_bindings});
+
+        const auto set_layout = arena.ResolveLayout(bindings);
 
         auto buffer = ComputeBuffer::CreateUnique(allocator, 64, false, false, false, false, "Binding growth");
         ShaderResourceBinding srb{arena};
@@ -590,5 +588,9 @@ int main() {
     std::cout << "Rhi::DescriptorArena test PASSED." << std::endl;
     return 0;
 }
+
+
+
+
 
 

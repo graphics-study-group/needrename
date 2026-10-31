@@ -20,10 +20,8 @@ namespace Engine::RenderSystemState {
             glm::mat4 proj_matrix;
         };
 
-        static constexpr std::array<vk::DescriptorSetLayoutBinding, 1> CAMERA_DESCRIPTOR_BINDINGS{
-            vk::DescriptorSetLayoutBinding{
-                0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
-            }
+        inline static const Rhi::DescriptorSetLayout CAMERA_DESCRIPTOR_BINDINGS{
+            Rhi::DescriptorBinding{0, Rhi::DescriptorType::UniformBuffer, 1}
         };
 
         // Camera descriptor set layout, currently containing only one UBO.
@@ -54,10 +52,8 @@ namespace Engine::RenderSystemState {
         auto device = m_system.GetDevice();
         auto &arena = m_system.GetDeviceContext().GetDescriptorArena();
 
-        const vk::DescriptorSetLayoutCreateInfo dslci{
-            vk::DescriptorSetLayoutCreateFlags{}, impl::CAMERA_DESCRIPTOR_BINDINGS
-        };
-        pimpl->camera_descriptor_set_layout = arena.ResolveLayout(dslci, "Camera Descriptor Set Layout");
+        pimpl->camera_descriptor_set_layout =
+            arena.ResolveLayout(impl::CAMERA_DESCRIPTOR_BINDINGS, "Camera Descriptor Set Layout");
 
         // Create common pipeline layout
         {
@@ -77,8 +73,9 @@ namespace Engine::RenderSystemState {
         // caller must not rewrite one while a command buffer that binds it may
         // still be executing.
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
-            pimpl->descriptors[i] =
-                arena.AcquireRawSet(pimpl->camera_descriptor_set_layout, std::format("Desc Set - Camera FIF {}", i));
+            pimpl->descriptors[i] = Rhi::ToVulkanDescriptorSet(
+                arena.AcquireRawSet(pimpl->camera_descriptor_set_layout, std::format("Desc Set - Camera FIF {}", i))
+            );
         }
 
         // Allocate the back buffer.
@@ -191,6 +188,7 @@ namespace Engine::RenderSystemState {
         return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
+
 
 
 
