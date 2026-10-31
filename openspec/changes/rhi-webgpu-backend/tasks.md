@@ -157,3 +157,12 @@ cheaper than starting the seam and coming back.
   module at all yet, because `PipelineEnums.h` includes `<vulkan/vulkan.hpp>` for
   one conversion function. Group 3 is therefore the gate on every group after it,
   not just a tidy-up.
+- **7.1 / 7.2 (converter half):** Tint is the bake's default converter, and 40 of
+  the 42 physics kernels bake to WGSL plus a description. The two remaining
+  failures are one source-level defect (F11, a workgroup barrier under non-uniform
+  control flow), not a bake defect. The binding-table half of 7.2 is written
+  (the description is generated from the same reflection the Vulkan path uses);
+  the deliberate-mismatch test it asks for is not.
+- **Group 3 has started:** `Rhi/Pipeline/PipelineEnums.h` no longer includes a
+  backend header, and the WebGPU build now fails on `Rhi/Device/BindingRef.h`
+  instead — the compiler is walking the list in dependency order.

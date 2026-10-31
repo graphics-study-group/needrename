@@ -288,10 +288,16 @@ namespace Engine::ShaderBake {
     } // namespace
 
     std::string DefaultConverterExecutable() {
-        if (const char *naga = std::getenv("NAGA"); naga != nullptr && *naga != '\0') {
-            return naga;
+        if (const char *converter = std::getenv("SHADER_WGSL_CONVERTER");
+            converter != nullptr && *converter != '\0') {
+            return converter;
         }
-        return "naga";
+        if (const char *tint = std::getenv("TINT"); tint != nullptr && *tint != '\0') {
+            return tint;
+        }
+        // The reference compiler is the default: it is the one that expresses
+        // the layouts this corpus uses.
+        return "tint";
     }
 
     int BakeWgslTree(const WgslBakeOptions &options) {
@@ -323,6 +329,7 @@ namespace Engine::ShaderBake {
         return static_cast<int>(failures);
     }
 } // namespace Engine::ShaderBake
+
 
 
 

@@ -202,10 +202,15 @@ endif()
 # the same tree.
 if (ENGINE_RHI_BACKEND_WEBGPU AND NOT EMSCRIPTEN AND TARGET shader_baker AND TARGET physics_shader)
     set(PHYSICS_SPIRV_DIR "${CMAKE_BINARY_DIR}/engine/Physics/spirv/$<IF:$<CONFIG:Debug>,debug,release>")
+    # The converter is a host tool; its path is a cache variable so a machine can
+    # point at its own Tint or naga without touching the build files.
+    set(SHADER_WGSL_CONVERTER "" CACHE FILEPATH "SPIR-V to WGSL converter (tint or naga)")
     set(PHYSICS_WGSL_STAMP "${PHYSICS_SPIRV_DIR}/.wgsl_stamp")
+    set(PHYSICS_WGSL_CONVERTER_ARGUMENT)
     add_custom_command(
         OUTPUT "${PHYSICS_WGSL_STAMP}"
         COMMAND "$<TARGET_FILE:shader_baker>" --spirv-dir "${PHYSICS_SPIRV_DIR}"
+                $<$<BOOL:${SHADER_WGSL_CONVERTER}>:--converter$<SEMICOLON>${SHADER_WGSL_CONVERTER}>
         COMMAND ${CMAKE_COMMAND} -E touch "${PHYSICS_WGSL_STAMP}"
         DEPENDS physics_shader shader_baker
         COMMENT "Baking WGSL variants for the physics shaders"
@@ -275,3 +280,4 @@ if (ENGINE_BUILD_TESTS)
 endif()
 
 include(cmake/install_rules.cmake)
+
