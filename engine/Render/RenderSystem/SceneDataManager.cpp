@@ -135,7 +135,7 @@ namespace Engine::RenderSystemState {
             // The layout description, kept alive so the arena can allocate the
             // per-in-flight sets against the same cached layout object.
             Rhi::DescriptorSetLayout descriptor_bindings{};
-            std::array<vk::Sampler, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers{};
+            std::array<Rhi::SamplerHandle, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers{};
 
             // Model matrices storage buffer (owned here; for physics-driven objects)
             std::unique_ptr<Rhi::ComputeBuffer> model_matrices_buffer{};
@@ -170,7 +170,7 @@ namespace Engine::RenderSystemState {
                             1,
                             Rhi::DescriptorType::CombinedImageSampler,
                             MAX_SHADOW_CASTING_LIGHTS,
-                            Rhi::FromVulkan(immutable_samplers[0])
+                            immutable_samplers[0]
                         },
                         Rhi::DescriptorBinding{2, Rhi::DescriptorType::StorageBuffer, 1}
                     };
@@ -626,6 +626,7 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

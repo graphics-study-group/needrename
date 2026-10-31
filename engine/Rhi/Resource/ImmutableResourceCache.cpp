@@ -117,8 +117,8 @@ namespace Engine::Rhi {
 
     ImmutableResourceCache::~ImmutableResourceCache() noexcept = default;
 
-    vk::Sampler ImmutableResourceCache::GetSampler(const Rhi::SamplerDesc &desc) {
-        return Engine::Rhi::ToVulkanSampler(GetSamplerRef(desc).handle);
+    SamplerHandle ImmutableResourceCache::GetSampler(const Rhi::SamplerDesc &desc) {
+        return GetSamplerRef(desc).handle;
     }
     SamplerRef ImmutableResourceCache::GetSamplerRef(const Rhi::SamplerDesc &desc) {
         vk::SamplerCreateInfo sci{
@@ -209,6 +209,7 @@ namespace Engine::Rhi {
         return itr->second.get();
     }
 } // namespace Engine::Rhi
+
 
 
 

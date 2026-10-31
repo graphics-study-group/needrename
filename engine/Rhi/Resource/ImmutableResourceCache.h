@@ -40,8 +40,8 @@ namespace Engine::Rhi {
          * If multiple border colors are specified in the descriptor,
          * the first one will be used.
          */
-        vk::Sampler GetSampler(const Rhi::SamplerDesc &);
-        /// @overload vk::Sampler GetSampler(const Rhi::SamplerDesc &)
+        SamplerHandle GetSampler(const Rhi::SamplerDesc &);
+        /// @overload SamplerHandle GetSampler(const Rhi::SamplerDesc &)
         vk::Sampler GetSampler(const vk::SamplerCreateInfo &);
 
         /**
@@ -89,4 +89,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
+
 
