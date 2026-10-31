@@ -412,3 +412,18 @@ Nothing was committed from the attempt: the value-type half of the change (the
 `DescriptorType`/`ResourceState` enumerations and the handle-typed set) is easy
 but useless on its own, and leaving the arena expressing itself in both
 vocabularies is the outcome the previous note set out to avoid.
+
+### Step 0, attempted twice: it needs a hand edit, not a sweep
+
+The portable layout description itself was easy to define — a
+`DescriptorBinding{binding, DescriptorType, count}` and a
+`DescriptorSetLayout` as its vector. Translating `GenerateLayoutBindings` was not:
+its body builds a `vk::DescriptorSetLayoutBinding` per interface with a braced
+initialiser whose *type* argument is a two-line ternary, so both a text
+substitution and a line-based rewrite produced malformed code, and both were
+reverted rather than committed.
+
+The lesson is the same one this session keeps relearning: this function is four
+`emplace_back` calls with ternaries, and it wants to be **typed out** — five
+minutes with an editor — not transformed. Nothing here is hard; the sweep is
+what makes it hard.
