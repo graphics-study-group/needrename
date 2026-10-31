@@ -43,7 +43,7 @@ namespace {
             m_name(std::move(name)), m_call_log(call_log) {
         }
 
-        void GPUStep(vk::CommandBuffer) override {
+        void GPUStep(Rhi::CommandEncoder &) override {
         }
 
         [[nodiscard]]
@@ -51,9 +51,9 @@ namespace {
             return true;
         }
 
-        void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) override {
+        void GPUCalcModelMatrices(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target) override {
             m_calls++;
-            m_last_command_buffer = cb;
+            m_last_command_buffer = encoder.GetHandle();
             m_last_target = &target;
             m_call_log->push_back(m_name);
         }
@@ -69,7 +69,7 @@ namespace {
         std::string m_name;
         std::vector<std::string> *m_call_log;
         int m_calls{0};
-        vk::CommandBuffer m_last_command_buffer{};
+        Rhi::CommandBufferHandle m_last_command_buffer{};
         Rhi::ComputeBuffer *m_last_target{nullptr};
     };
 } // namespace
@@ -149,4 +149,6 @@ int main() {
     std::cout << "PhysicsSystem model matrices test PASSED." << std::endl;
     return 0;
 }
+
+
 

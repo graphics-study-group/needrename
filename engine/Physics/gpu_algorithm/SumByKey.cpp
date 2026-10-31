@@ -1,18 +1,30 @@
 #include "SumByKey.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Physics/PhysicsDispatch.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsSpirvLoader.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <algorithm>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cassert>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <string>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Engine {
 
@@ -151,7 +163,7 @@ namespace Engine {
     }
 
     void SumByKey::Record(
-        vk::CommandBuffer cb,
+        Rhi::CommandEncoder &encoder,
         Rhi::ComputeBuffer &keys_in_buf,
         Rhi::ComputeBuffer &payload_in_buf,
         Rhi::ComputeBuffer &values_in_buf,
@@ -299,8 +311,7 @@ namespace Engine {
             const uint32_t gather_payload = (level == 0u) ? 1u : 0u;
             if (entry_count_buf != nullptr) {
                 const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_payload};
-                m_impl->reduce_kernel->Dispatch(
-                    cb,
+                m_impl->reduce_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"KeysIn", keys_in},
                      {"ValuesIn", values_in},
                      {"PayloadIn", payload_in},
@@ -317,8 +328,7 @@ namespace Engine {
                 const SumByKeyValuePush params{
                     input_count, num_channels, max_key_value, record_stride, gather_payload, *entry_count_value
                 };
-                m_impl->reduce_push_kernel->Dispatch(
-                    cb,
+                m_impl->reduce_push_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"KeysIn", keys_in},
                      {"ValuesIn", values_in},
                      {"PayloadIn", payload_in},
@@ -334,8 +344,10 @@ namespace Engine {
 
             // The next level reads what this one just wrote.
             if (level + 1u < k) {
-                DispatchBarrier(cb);
+                DispatchBarrier(encoder);
             }
         }
     }
 } // namespace Engine
+
+

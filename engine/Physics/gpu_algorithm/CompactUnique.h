@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_GPU_ALGORITHM_COMPACTUNIQUE_INCLUDED
 #define ENGINE_PHYSICS_GPU_ALGORITHM_COMPACTUNIQUE_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "../physics_export.h"
 
 #include <cstdint>
@@ -95,7 +97,7 @@ namespace Engine {
          *                         Zero records nothing.
          */
         void Record(
-            vk::CommandBuffer cb,
+            Rhi::CommandEncoder &encoder,
             Rhi::ComputeBuffer &keys_buf,
             Rhi::ComputeBuffer &count_buf,
             Rhi::ComputeBuffer &elem_count_buf,
@@ -111,3 +113,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_GPU_ALGORITHM_COMPACTUNIQUE_INCLUDED
+

@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
 #define ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "../physics_export.h"
 
 #include <memory>
@@ -97,7 +99,7 @@ namespace Engine {
          * observed pair capacity or shape count changed. Inserts a MemoryBarrier2
          * at the start.
          */
-        void Record(vk::CommandBuffer cb);
+        void Record(Rhi::CommandEncoder &encoder);
 
         /**
          * @brief Get read-only pointers to result buffers.
@@ -114,3 +116,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
+

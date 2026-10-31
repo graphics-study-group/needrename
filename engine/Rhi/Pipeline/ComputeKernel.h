@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_COMPUTEKERNEL_INCLUDED
 #define ENGINE_RHI_COMPUTEKERNEL_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
 #include "Rhi/Device/BindingRef.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
 #include "Rhi/rhi_export.h"
@@ -243,3 +244,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMPUTEKERNEL_INCLUDED
+
+
+
+

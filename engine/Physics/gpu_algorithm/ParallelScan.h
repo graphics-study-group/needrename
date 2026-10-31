@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_GPU_ALGORITHM_PARALLELSCAN_INCLUDED
 #define ENGINE_PHYSICS_GPU_ALGORITHM_PARALLELSCAN_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "../physics_export.h"
 
 #include <cstdint>
@@ -78,7 +80,7 @@ namespace Engine {
          *                     nothing.
          */
         void Record(
-            vk::CommandBuffer cb, Rhi::ComputeBuffer &input_buf, Rhi::ComputeBuffer &output_buf, uint32_t elem_count
+            Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &input_buf, Rhi::ComputeBuffer &output_buf, uint32_t elem_count
         );
 
     private:
@@ -88,3 +90,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_GPU_ALGORITHM_PARALLELSCAN_INCLUDED
+

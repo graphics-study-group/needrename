@@ -1,14 +1,22 @@
 #include "ParallelScan.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Physics/PhysicsDispatch.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsSpirvLoader.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <cassert>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Engine {
 
@@ -89,15 +97,14 @@ namespace Engine {
         /// one runs is the only difference between passes; `mode` selects the
         /// behaviour within the scan shader.
         void RecordPass(
-            vk::CommandBuffer cb,
+            Rhi::CommandEncoder &encoder,
             Rhi::ComputeKernel &kernel,
             Rhi::ComputeBuffer &data_input_buf,
             Rhi::ComputeBuffer &data_output_buf,
             const ScanParamsPush &params,
             uint32_t num_workgroups
         ) {
-            kernel.Dispatch(
-                cb,
+            kernel.Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                 {{"InputData", data_input_buf}, {"OutputData", data_output_buf}, {"BlockSums", *block_sums}},
                 num_workgroups,
                 1,
@@ -107,7 +114,7 @@ namespace Engine {
         }
 
         void RecordScanInternal(
-            vk::CommandBuffer cb,
+            Rhi::CommandEncoder &encoder,
             Rhi::ComputeBuffer &data_input_buf,
             Rhi::ComputeBuffer &data_output_buf,
             uint32_t elem_count,
@@ -118,7 +125,7 @@ namespace Engine {
 
             if (elem_count <= kMaxSingleLevel) {
                 RecordPass(
-                    cb,
+                    encoder,
                     *scan_kernel,
                     data_input_buf,
                     data_output_buf,
@@ -132,7 +139,7 @@ namespace Engine {
 
             // --- Pass 1: scan blocks, write per-block sums ---
             RecordPass(
-                cb,
+                encoder,
                 *scan_kernel,
                 data_input_buf,
                 data_output_buf,
@@ -140,7 +147,7 @@ namespace Engine {
                 num_blocks
             );
 
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // --- Pass 2: recursively scan the block sums ---
             // The recursion reads and writes the block-sums region itself, as both
@@ -148,17 +155,17 @@ namespace Engine {
             // relative to that region, so the region is addressed from element 0.
             if (num_blocks <= kMaxSingleLevel) {
                 RecordPass(
-                    cb, *scan_kernel, *block_sums, *block_sums, ScanParamsPush{0u, block_offset, num_blocks, 0u}, 1u
+                    encoder, *scan_kernel, *block_sums, *block_sums, ScanParamsPush{0u, block_offset, num_blocks, 0u}, 1u
                 );
             } else {
-                RecordScanInternal(cb, *block_sums, *block_sums, num_blocks, block_offset, block_offset + num_blocks);
+                RecordScanInternal(encoder, *block_sums, *block_sums, num_blocks, block_offset, block_offset + num_blocks);
             }
 
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // --- Pass 3: add prefix-summed block offsets back to data ---
             RecordPass(
-                cb,
+                encoder,
                 *offset_kernel,
                 data_output_buf,
                 data_output_buf,
@@ -174,7 +181,7 @@ namespace Engine {
     ParallelScan::~ParallelScan() = default;
 
     void ParallelScan::Record(
-        vk::CommandBuffer cb, Rhi::ComputeBuffer &input_buf, Rhi::ComputeBuffer &output_buf, uint32_t elem_count
+        Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &input_buf, Rhi::ComputeBuffer &output_buf, uint32_t elem_count
     ) {
         if (elem_count == 0u) {
             return;
@@ -182,6 +189,8 @@ namespace Engine {
 
         m_impl->EnsureInitialized();
         m_impl->EnsureBlockSums(elem_count);
-        m_impl->RecordScanInternal(cb, input_buf, output_buf, elem_count, 0u, 0u);
+        m_impl->RecordScanInternal(encoder, input_buf, output_buf, elem_count, 0u, 0u);
     }
 } // namespace Engine
+
+

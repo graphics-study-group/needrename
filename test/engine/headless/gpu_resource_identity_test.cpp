@@ -70,6 +70,7 @@ namespace {
         auto cb = rsys.GetDevice().allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
+        Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
         cb.begin(vk::CommandBufferBeginInfo{});
         return cb;
     }
@@ -105,7 +106,8 @@ namespace {
         CompactUnique compact{rsys.GetDeviceContext()};
 
         auto cb = BeginCommandBuffer(rsys);
-        compact.Record(cb, *keys_buf, *count_buf, *elem_count_buf, capacity);
+        Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
+        compact.Record(record_encoder, *keys_buf, *count_buf, *elem_count_buf, capacity);
         cb.end();
         Submit(rsys, cb);
 

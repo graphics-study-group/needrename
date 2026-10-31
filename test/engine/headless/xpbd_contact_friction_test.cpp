@@ -12,24 +12,40 @@
 // measurement.
 
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/Collision/ConvexCollisionDetector.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/Collision/SpatialHashBroadDetector.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsScene.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsSystem.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/Solver/XPBDGpuSolver.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Rhi/Buffer/ComputeBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/DeviceBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Submission/SubmissionHelper.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cmath>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <memory>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 
@@ -200,6 +216,7 @@ namespace {
             auto cb = rsys.GetDevice().allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
+            Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
             cb.begin(vk::CommandBufferBeginInfo{});
             RecordReadback(cb);
             cb.end();
@@ -233,6 +250,7 @@ namespace {
                 auto cb = rsys.GetDevice().allocateCommandBuffers(
                     vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
                 )[0];
+                Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
                 cb.begin(vk::CommandBufferBeginInfo{});
                 physics.GPUStep(cb);
                 RecordReadback(cb);
@@ -381,6 +399,7 @@ int main() {
             auto cb = rsys->GetDevice().allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
+            Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
             cb.begin(vk::CommandBufferBeginInfo{});
             physics.GPUStep(cb);
             light.RecordReadback(cb);
@@ -431,6 +450,7 @@ int main() {
             auto cb = rsys->GetDevice().allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
+            Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
             cb.begin(vk::CommandBufferBeginInfo{});
             physics.GPUStep(cb);
             few.RecordReadback(cb);
@@ -481,6 +501,7 @@ int main() {
             auto cb = rsys->GetDevice().allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
+            Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
             cb.begin(vk::CommandBufferBeginInfo{});
             physics.GPUStep(cb);
             slide_x.RecordReadback(cb);
@@ -658,9 +679,10 @@ int main() {
             auto detect_cb = rsys->GetDevice().allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
+            Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(detect_cb)};
             detect_cb.begin(vk::CommandBufferBeginInfo{});
-            broad.Record(detect_cb);
-            narrow.Record(detect_cb);
+            broad.Record(record_encoder);
+            narrow.Record(record_encoder);
             detect_cb.end();
             queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {detect_cb}, {}});
             rsys->WaitForIdle();

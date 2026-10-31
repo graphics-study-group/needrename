@@ -1,26 +1,45 @@
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/PhysicsSpirvLoader.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/gpu_algorithm/CompactUnique.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/gpu_algorithm/RadixSort.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Rhi/Buffer/ComputeBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/DeviceBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Device/DeviceContext.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <algorithm>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstring>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <glm.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <random>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <stdexcept>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 using namespace Engine::Rhi;
@@ -112,7 +131,8 @@ namespace {
         CompactUnique compact{rsys.GetDeviceContext()};
 
         auto cb = BeginCommandBuffer(rsys);
-        compact.Record(cb, *keys_buf, *count_buf, *elem_count_buf, kCapacity);
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
+        compact.Record(encoder, *keys_buf, *count_buf, *elem_count_buf, kCapacity);
         cb.end();
         Submit(rsys, cb);
 
@@ -194,10 +214,11 @@ namespace {
         };
 
         auto cb = BeginCommandBuffer(rsys);
-        radix_sort.Record(cb, sort_buffers, kCapacity, kShapeCount * kShapeCount - 1u);
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
+        radix_sort.Record(encoder, sort_buffers, kCapacity, kShapeCount * kShapeCount - 1u);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
-        compact.Record(cb, *keys_a, *unique_count_buf, *pair_count_buf, kCapacity);
+        compact.Record(encoder, *keys_a, *unique_count_buf, *pair_count_buf, kCapacity);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         unpack_kernel.Dispatch(
@@ -368,3 +389,5 @@ int main() try {
     std::cerr << "gpu_compact_unique_test ABORTED: unknown exception" << std::endl;
     return 1;
 }
+
+

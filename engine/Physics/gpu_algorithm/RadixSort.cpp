@@ -1,16 +1,26 @@
 #include "RadixSort.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "ParallelScan.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsDispatch.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsSpirvLoader.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <cassert>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <utility>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace {
     /// @brief Number of bits needed to represent @p value; zero for zero.
@@ -137,7 +147,7 @@ namespace Engine {
     }
 
     void RadixSort::Record(
-        vk::CommandBuffer cb, const RadixSortBuffers &buffers, uint32_t elem_capacity, uint32_t max_key_value
+        Rhi::CommandEncoder &encoder, const RadixSortBuffers &buffers, uint32_t elem_capacity, uint32_t max_key_value
     ) {
         if (max_key_value == 0u) {
             throw std::invalid_argument("RadixSort::Record: max_key_value must be > 0");
@@ -186,30 +196,28 @@ namespace Engine {
 
         for (uint32_t pass = 0u; pass < num_passes; ++pass) {
             if (pass > 0u) {
-                DispatchBarrier(cb);
+                DispatchBarrier(encoder);
             }
 
             const uint32_t byte_shift = pass * 8u;
 
             // 1. Per-block histogram, written transposed and in full: no clear
             //    pass precedes it, and none is needed.
-            m_impl->histogram_kernel->Dispatch(
-                cb,
+            m_impl->histogram_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                 {{"KeysIn", *keys_in}, {"Histogram", *m_impl->histogram}, {"ElemCount", *buffers.count}},
                 num_blocks,
                 1,
                 1,
                 RadixHistogramPush{byte_shift, num_blocks}
             );
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // 2. One flat exclusive scan over the transposed histogram.
-            m_impl->scan->Record(cb, *m_impl->histogram, *m_impl->histogram, scan_elem_count);
-            DispatchBarrier(cb);
+            m_impl->scan->Record(encoder, *m_impl->histogram, *m_impl->histogram, scan_elem_count);
+            DispatchBarrier(encoder);
 
             // 3. Stable scatter into the other array.
-            m_impl->scatter_kernel->Dispatch(
-                cb,
+            m_impl->scatter_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                 {{"KeysIn", *keys_in},
                  {"KeysOut", *keys_out},
                  {"PayloadIn", *payload_in},
@@ -228,9 +236,8 @@ namespace Engine {
 
         // Copy the ping-pong if the number of passes is odd.
         if (num_passes % 2u == 1u) {
-            DispatchBarrier(cb);
-            m_impl->copy_back_kernel->Dispatch(
-                cb,
+            DispatchBarrier(encoder);
+            m_impl->copy_back_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                 {{"SrcKeys", *keys_in},
                  {"DstKeys", *buffers.keys},
                  {"SrcPayload", *payload_in},
@@ -244,3 +251,5 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+

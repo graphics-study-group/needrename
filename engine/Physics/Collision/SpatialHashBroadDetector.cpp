@@ -1,23 +1,37 @@
 #include "SpatialHashBroadDetector.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/gpu_algorithm/CompactUnique.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/gpu_algorithm/ParallelScan.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/gpu_algorithm/RadixSort.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/PhysicsDispatch.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/PhysicsSpirvLoader.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/PhysicsScene.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/ComputeBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/DeviceBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Device/DeviceContext.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Pipeline/ComputeKernel.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <cassert>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Engine {
 
@@ -199,28 +213,27 @@ namespace Engine {
         // Dispatch helpers
         // -----------------------------------------------------------------
 
-        void DispatchClear(vk::CommandBuffer cb, Rhi::ComputeBuffer &target, uint32_t elem_count) {
+        void DispatchClear(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target, uint32_t elem_count) {
             uint32_t wg = (elem_count + 63u) / 64u;
             if (wg == 0) wg = 1;
-            memset_kernel->Dispatch(cb, {{"Target", target}}, wg, 1, 1, elem_count);
+            memset_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", target}}, wg, 1, 1, elem_count);
         }
 
-        void DispatchCopy(vk::CommandBuffer cb, Rhi::ComputeBuffer &src, Rhi::ComputeBuffer &dst, uint32_t elem_count) {
+        void DispatchCopy(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &src, Rhi::ComputeBuffer &dst, uint32_t elem_count) {
             uint32_t wg = (elem_count + 63u) / 64u;
             if (wg == 0) wg = 1;
-            copy_kernel->Dispatch(cb, {{"SrcBuffer", src}, {"DstBuffer", dst}}, wg, 1, 1, elem_count);
+            copy_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"SrcBuffer", src}, {"DstBuffer", dst}}, wg, 1, 1, elem_count);
         }
 
         // -----------------------------------------------------------------
         // Recording paths
         // -----------------------------------------------------------------
 
-        void RecordAABBPass(vk::CommandBuffer cb) {
+        void RecordAABBPass(Rhi::CommandEncoder &encoder) {
             const auto gpu = scene->GetGpuBuffers();
 
             uint32_t wg = (shape_count + 63u) / 64u;
-            aabb_kernel->Dispatch(
-                cb,
+            aabb_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                 {{"ShapeAlive", *gpu.shape_alive},
                  {"ShapeType", *gpu.shape_type},
                  {"ShapeFeature", *gpu.shape_feature},
@@ -238,16 +251,15 @@ namespace Engine {
             );
         }
 
-        void RecordFallbackPath(vk::CommandBuffer cb) {
+        void RecordFallbackPath(Rhi::CommandEncoder &encoder) {
             const auto gpu = scene->GetGpuBuffers();
 
-            DispatchClear(cb, *gpu_pair_count, 1u);
-            DispatchBarrier(cb);
+            DispatchClear(encoder, *gpu_pair_count, 1u);
+            DispatchBarrier(encoder);
 
             uint32_t total_pairs = (shape_count * (shape_count - 1u)) / 2u;
             uint32_t wg = (total_pairs + 63u) / 64u;
-            fallback_pairs_kernel->Dispatch(
-                cb,
+            fallback_pairs_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                 {{"ShapeAlive", *gpu.shape_alive},
                  {"CollisionPairs", *gpu_collision_pairs},
                  {"PairCount", *gpu_pair_count},
@@ -261,17 +273,16 @@ namespace Engine {
             );
         }
 
-        void RecordSpatialHashPath(vk::CommandBuffer cb) {
+        void RecordSpatialHashPath(Rhi::CommandEncoder &encoder) {
             const auto gpu = scene->GetGpuBuffers();
 
-            DispatchClear(cb, *gpu_total_assignments, 1u);
-            DispatchBarrier(cb);
+            DispatchClear(encoder, *gpu_total_assignments, 1u);
+            DispatchBarrier(encoder);
 
             // Count cells
             {
                 uint32_t wg = (shape_count + 63u) / 64u;
-                count_cells_kernel->Dispatch(
-                    cb,
+                count_cells_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"AabbMin", *gpu_aabb_min},
                      {"AabbMax", *gpu_aabb_max},
                      {"GlobalFlags", *gpu_global_flags},
@@ -283,17 +294,16 @@ namespace Engine {
                     grid_push
                 );
             }
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // Prefix sum: shape_cell_count -> shape_cell_offset
-            scan->Record(cb, *gpu_shape_cell_count, *gpu_shape_cell_offset, shape_count);
-            DispatchBarrier(cb);
+            scan->Record(encoder, *gpu_shape_cell_count, *gpu_shape_cell_offset, shape_count);
+            DispatchBarrier(encoder);
 
             // Fill cells
             {
                 uint32_t wg = (shape_count + 63u) / 64u;
-                fill_cells_kernel->Dispatch(
-                    cb,
+                fill_cells_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"AabbMin", *gpu_aabb_min},
                      {"AabbMax", *gpu_aabb_max},
                      {"GlobalFlags", *gpu_global_flags},
@@ -305,17 +315,16 @@ namespace Engine {
                     grid_push
                 );
             }
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // Clear histogram
-            DispatchClear(cb, *gpu_cell_histogram, grid_total_cells + 1u);
-            DispatchBarrier(cb);
+            DispatchClear(encoder, *gpu_cell_histogram, grid_total_cells + 1u);
+            DispatchBarrier(encoder);
 
             // Histogram
             {
                 uint32_t wg = (max_cell_shape_pair_count + 63u) / 64u;
-                histogram_kernel->Dispatch(
-                    cb,
+                histogram_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"CellShapePairs", *gpu_cell_shape_pairs},
                      {"CellHistogram", *gpu_cell_histogram},
                      {"TotalAssignments", *gpu_total_assignments}},
@@ -324,21 +333,20 @@ namespace Engine {
                     1
                 );
             }
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // Prefix sum: cell_histogram -> cell_histogram (in-place)
-            scan->Record(cb, *gpu_cell_histogram, *gpu_cell_histogram, grid_total_cells + 1u);
-            DispatchBarrier(cb);
+            scan->Record(encoder, *gpu_cell_histogram, *gpu_cell_histogram, grid_total_cells + 1u);
+            DispatchBarrier(encoder);
 
             // Copy cell_offsets -> cell_scratch
-            DispatchCopy(cb, *gpu_cell_histogram, *gpu_cell_scratch, grid_total_cells + 1u);
-            DispatchBarrier(cb);
+            DispatchCopy(encoder, *gpu_cell_histogram, *gpu_cell_scratch, grid_total_cells + 1u);
+            DispatchBarrier(encoder);
 
             // Scatter sort
             {
                 uint32_t wg = (max_cell_shape_pair_count + 63u) / 64u;
-                scatter_sort_kernel->Dispatch(
-                    cb,
+                scatter_sort_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"CellShapePairs", *gpu_cell_shape_pairs},
                      {"SortedPairs", *gpu_cell_shape_pairs_sorted},
                      {"CellScratch", *gpu_cell_scratch},
@@ -348,17 +356,16 @@ namespace Engine {
                     1
                 );
             }
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // Clear pair count
-            DispatchClear(cb, *gpu_pair_count, 1u);
-            DispatchBarrier(cb);
+            DispatchClear(encoder, *gpu_pair_count, 1u);
+            DispatchBarrier(encoder);
 
             // Generate pairs
             {
                 uint32_t wg = (grid_total_cells + 63u) / 64u;
-                generate_pairs_kernel->Dispatch(
-                    cb,
+                generate_pairs_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"SortedPairs", *gpu_cell_shape_pairs_sorted},
                      {"CellOffsets", *gpu_cell_histogram},
                      {"GlobalFlags", *gpu_global_flags},
@@ -375,13 +382,12 @@ namespace Engine {
                     BroadPairsPush{grid_total_cells, shape_count}
                 );
             }
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // Generate global pairs
             {
                 uint32_t n_wg = (shape_count + 63u) / 64u;
-                global_pairs_kernel->Dispatch(
-                    cb,
+                global_pairs_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"GlobalList", *gpu_global_list},
                      {"GlobalCount", *gpu_global_count},
                      {"GlobalFlags", *gpu_global_flags},
@@ -397,7 +403,7 @@ namespace Engine {
                     shape_count
                 );
             }
-            DispatchBarrier(cb);
+            DispatchBarrier(encoder);
 
             // Dedup: sort the packed keys, compact the duplicates away
             {
@@ -406,16 +412,15 @@ namespace Engine {
                     .payload = nullptr,
                     .count = gpu_pair_count.get(),
                 };
-                radix_sort->Record(cb, sort_buffers, max_output_pair_count, shape_count * shape_count - 1u);
-                DispatchBarrier(cb);
+                radix_sort->Record(encoder, sort_buffers, max_output_pair_count, shape_count * shape_count - 1u);
+                DispatchBarrier(encoder);
 
                 // CompactUnique compacts the sorted keys in place.
-                compact_unique->Record(cb, *gpu_pair_keys, *gpu_unique_count, *gpu_pair_count, max_output_pair_count);
-                DispatchBarrier(cb);
+                compact_unique->Record(encoder, *gpu_pair_keys, *gpu_unique_count, *gpu_pair_count, max_output_pair_count);
+                DispatchBarrier(encoder);
 
                 uint32_t wg = (max_output_pair_count + 63u) / 64u;
-                unpack_pairs_kernel->Dispatch(
-                    cb,
+                unpack_pairs_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
                     {{"CompactedKeys", *gpu_pair_keys},
                      {"CollisionPairs", *gpu_collision_pairs},
                      {"UniqueCount", *gpu_unique_count},
@@ -473,7 +478,7 @@ namespace Engine {
         }
     }
 
-    void SpatialHashBroadDetector::Record(vk::CommandBuffer cb) {
+    void SpatialHashBroadDetector::Record(Rhi::CommandEncoder &encoder) {
         assert(m_impl->scene != nullptr && "BindToScene must be called before Record");
 
         // Prepare for the geometry the bound scene currently reports. Everything
@@ -544,16 +549,19 @@ namespace Engine {
         // Both paths start the same way: publish the global-shape list, then compute
         // every shape's AABB (and its global flag). The path then continues with
         // either the all-pairs fallback or the spatial hash.
-        DispatchBarrier(cb);
-        m_impl->DispatchClear(cb, *m_impl->gpu_global_count, 1u);
-        DispatchBarrier(cb);
-        m_impl->RecordAABBPass(cb);
-        DispatchBarrier(cb);
+        DispatchBarrier(encoder);
+        m_impl->DispatchClear(encoder, *m_impl->gpu_global_count, 1u);
+        DispatchBarrier(encoder);
+        m_impl->RecordAABBPass(encoder);
+        DispatchBarrier(encoder);
 
         if (m_impl->shape_count <= m_impl->fallback_threshold) {
-            m_impl->RecordFallbackPath(cb);
+            m_impl->RecordFallbackPath(encoder);
         } else {
-            m_impl->RecordSpatialHashPath(cb);
+            m_impl->RecordSpatialHashPath(encoder);
         }
     }
 } // namespace Engine
+
+
+

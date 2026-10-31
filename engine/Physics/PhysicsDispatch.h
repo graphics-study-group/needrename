@@ -1,7 +1,7 @@
 #ifndef ENGINE_PHYSICS_PHYSICSDISPATCH_INCLUDED
 #define ENGINE_PHYSICS_PHYSICSDISPATCH_INCLUDED
 
-#include <vulkan/vulkan.hpp>
+#include "Rhi/Command/CommandEncoder.h"
 
 namespace Engine {
     /**
@@ -11,17 +11,18 @@ namespace Engine {
      * is the boundary each step records. Compute is the only stage involved: no
      * physics pass writes an attachment or a transfer.
      *
-     * @param cb Command buffer in recording state.
+     * The barrier is the seam's synchronization mark rather than a Vulkan
+     * barrier: a backend that orders work at coarser boundaries carries the
+     * ordering there and records nothing here. Keeping the mark at every call
+     * site's current position is what keeps the Vulkan command stream identical
+     * to what it was before the seam existed.
+     *
+     * @param encoder Encoder in recording state.
      */
-    inline void DispatchBarrier(vk::CommandBuffer cb) {
-        const vk::MemoryBarrier2 barrier{
-            vk::PipelineStageFlagBits2::eComputeShader,
-            vk::AccessFlagBits2::eShaderStorageWrite,
-            vk::PipelineStageFlagBits2::eComputeShader,
-            vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite
-        };
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {barrier}, {}, {}});
+    inline void DispatchBarrier(Rhi::CommandEncoder &encoder) {
+        encoder.Barrier();
     }
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_PHYSICSDISPATCH_INCLUDED
+

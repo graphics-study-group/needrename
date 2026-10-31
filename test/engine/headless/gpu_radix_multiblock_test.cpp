@@ -1,16 +1,27 @@
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/gpu_algorithm/RadixSort.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <algorithm>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstring>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <numeric>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <random>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 using namespace Engine::Rhi;
@@ -107,8 +118,9 @@ namespace {
         auto cb = rsys.GetDevice().allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
+        Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
         cb.begin(vk::CommandBufferBeginInfo{});
-        sorter.Record(cb, buffers, capacity, max_key_value);
+        sorter.Record(record_encoder, buffers, capacity, max_key_value);
         cb.end();
         Submit(rsys, cb);
 
@@ -336,10 +348,11 @@ int main() {
         auto cb = rsys->GetDevice().allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
+        Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
         bool threw = false;
         cb.begin(vk::CommandBufferBeginInfo{});
         try {
-            sorter.Record(cb, buffers, 0u, 4096u);
+            sorter.Record(record_encoder, buffers, 0u, 4096u);
         } catch (...) {
             threw = true;
         }
@@ -371,12 +384,13 @@ int main() {
         auto cb = rsys->GetDevice().allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
+        Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
         cb.begin(vk::CommandBufferBeginInfo{});
 
         bool zero_bound_threw = false;
         try {
             const RadixSortBuffers buffers{.keys = keys.get(), .count = count_buf.get()};
-            sorter.Record(cb, buffers, kCapacity, 0u);
+            sorter.Record(record_encoder, buffers, kCapacity, 0u);
         } catch (const std::invalid_argument &) {
             zero_bound_threw = true;
         } catch (...) {
@@ -386,7 +400,7 @@ int main() {
         bool oversize_threw = false;
         try {
             const RadixSortBuffers buffers{.keys = keys.get(), .count = count_buf.get()};
-            sorter.Record(cb, buffers, kCapacity * 2u, 4096u);
+            sorter.Record(record_encoder, buffers, kCapacity * 2u, 4096u);
         } catch (const std::runtime_error &) {
             oversize_threw = true;
         } catch (...) {
@@ -401,7 +415,7 @@ int main() {
                 .payload = payload.get(),
                 .count = count_buf.get(),
             };
-            sorter.Record(cb, buffers, kCapacity, 4096u);
+            sorter.Record(record_encoder, buffers, kCapacity, 4096u);
         } catch (const std::runtime_error &) {
             short_payload_threw = true;
         } catch (...) {

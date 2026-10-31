@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_GPU_ALGORITHM_SUMBYKEY_INCLUDED
 #define ENGINE_PHYSICS_GPU_ALGORITHM_SUMBYKEY_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "../physics_export.h"
 
 #include <cstdint>
@@ -163,7 +165,7 @@ namespace Engine {
          *         the call's geometry implies.
          */
         void Record(
-            vk::CommandBuffer cb,
+            Rhi::CommandEncoder &encoder,
             Rhi::ComputeBuffer &keys_in_buf,
             Rhi::ComputeBuffer &payload_in_buf,
             Rhi::ComputeBuffer &values_in_buf,
@@ -183,3 +185,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_GPU_ALGORITHM_SUMBYKEY_INCLUDED
+

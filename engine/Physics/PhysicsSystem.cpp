@@ -1,5 +1,7 @@
 #include "PhysicsSystem.h"
 
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
@@ -61,13 +63,14 @@ namespace Engine {
     }
 
     void PhysicsSystem::GPUStep(vk::CommandBuffer cb) {
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
         for (auto &[scene_id, scene] : m_scene_map) {
             auto iter = m_solvers_per_scene.find(scene_id);
             if (iter == m_solvers_per_scene.end()) {
                 continue;
             }
             for (auto &solver : iter->second) {
-                solver->GPUStep(cb);
+                solver->GPUStep(encoder);
             }
         }
     }
@@ -77,9 +80,11 @@ namespace Engine {
         if (iter == m_solvers_per_scene.end()) {
             return;
         }
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
         for (auto &solver : iter->second) {
-            solver->GPUCalcModelMatrices(cb, target);
+            solver->GPUCalcModelMatrices(encoder, target);
         }
     }
 
 } // namespace Engine
+

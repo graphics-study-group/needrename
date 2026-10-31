@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_SPATIALHASHBROADDETECTOR_INCLUDED
 #define ENGINE_PHYSICS_SPATIALHASHBROADDETECTOR_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "../physics_export.h"
 
 #include <glm.hpp>
@@ -92,7 +94,7 @@ namespace Engine {
          * start. The path (fallback vs spatial-hash) is selected by the threshold
          * cached by BindToScene().
          */
-        void Record(vk::CommandBuffer cb);
+        void Record(Rhi::CommandEncoder &encoder);
 
         BroadDetectorOutputBuffers GetResultBuffers() const noexcept;
 
@@ -103,3 +105,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_SPATIALHASHBROADDETECTOR_INCLUDED
+

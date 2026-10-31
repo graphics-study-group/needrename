@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_SOLVER_DUMMYSOLVER_INCLUDED
 #define ENGINE_PHYSICS_SOLVER_DUMMYSOLVER_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "ISolver.h"
 
 #include <memory>
@@ -44,8 +46,8 @@ namespace Engine {
         DummySolver(DummySolver &&) = delete;
         DummySolver &operator=(DummySolver &&) = delete;
 
-        void GPUStep(vk::CommandBuffer cb) override;
-        void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) override;
+        void GPUStep(Rhi::CommandEncoder &encoder) override;
+        void GPUCalcModelMatrices(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target) override;
 
         [[nodiscard]]
         bool IsInitialized() const noexcept override;
@@ -56,3 +58,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_SOLVER_DUMMYSOLVER_INCLUDED
+

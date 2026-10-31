@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_GPU_ALGORITHM_RADIXSORT_INCLUDED
 #define ENGINE_PHYSICS_GPU_ALGORITHM_RADIXSORT_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "../physics_export.h"
 
 #include <cstdint>
@@ -150,7 +152,7 @@ namespace Engine {
          *         the size this call's geometry implies.
          */
         void Record(
-            vk::CommandBuffer cb, const RadixSortBuffers &buffers, uint32_t elem_capacity, uint32_t max_key_value
+            Rhi::CommandEncoder &encoder, const RadixSortBuffers &buffers, uint32_t elem_capacity, uint32_t max_key_value
         );
 
         bool IsInitialized() const noexcept;
@@ -162,3 +164,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_GPU_ALGORITHM_RADIXSORT_INCLUDED
+

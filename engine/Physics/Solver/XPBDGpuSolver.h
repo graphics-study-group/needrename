@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED
 #define ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "../physics_export.h"
 #include "ISolver.h"
 
@@ -60,8 +62,8 @@ namespace Engine {
         XpbdGpuSolver(XpbdGpuSolver &&) = delete;
         XpbdGpuSolver &operator=(XpbdGpuSolver &&) = delete;
 
-        void GPUStep(vk::CommandBuffer cb) override;
-        void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) override;
+        void GPUStep(Rhi::CommandEncoder &encoder) override;
+        void GPUCalcModelMatrices(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target) override;
         bool IsInitialized() const noexcept override;
 
         void SetConfig(const XpbdConfig &config) noexcept;
@@ -83,3 +85,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED
+

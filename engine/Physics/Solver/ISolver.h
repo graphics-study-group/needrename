@@ -1,6 +1,8 @@
 #ifndef ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 #define ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
 
+#include "Rhi/Command/CommandEncoder.h"
+
 #include "../physics_export.h"
 
 namespace vk {
@@ -61,7 +63,7 @@ namespace Engine {
          *
          * @param cb Raw command buffer in Recording state (after begin, before end).
          */
-        virtual void GPUStep(vk::CommandBuffer cb) = 0;
+        virtual void GPUStep(Rhi::CommandEncoder &encoder) = 0;
 
         /**
          * @brief Produce model matrices for the bound scene into a caller-provided buffer.
@@ -76,7 +78,7 @@ namespace Engine {
          * @param cb Raw command buffer in Recording state (after begin, before end).
          * @param target Compute buffer receiving one `mat4` per rigid body slot.
          */
-        virtual void GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) = 0;
+        virtual void GPUCalcModelMatrices(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target) = 0;
 
         /**
          * @brief Check whether the solver has been fully initialized.
@@ -91,3 +93,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_SOLVER_ISOLVER_INCLUDED
+

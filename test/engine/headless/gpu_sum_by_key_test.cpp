@@ -1,16 +1,27 @@
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/gpu_algorithm/SumByKey.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <algorithm>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cmath>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstring>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <random>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 using namespace Engine::Rhi;
@@ -119,10 +130,11 @@ namespace {
         auto cb = rsys.GetDevice().allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
+        Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
 
         cb.begin(vk::CommandBufferBeginInfo{});
         reducer.Record(
-            cb,
+            record_encoder,
             *ctx.keys,
             *ctx.payloads,
             *ctx.values,
@@ -495,12 +507,13 @@ int main() {
         auto cb = rsys->GetDevice().allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
+        Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
         cb.begin(vk::CommandBufferBeginInfo{});
 
         auto throws_invalid = [&](uint32_t capacity, uint32_t channels, uint32_t max_key) {
             try {
                 reducer.Record(
-                    cb, *ctx.keys, *ctx.payloads, *ctx.values, *ctx.out, &*ctx.count, capacity, channels, max_key
+                    record_encoder, *ctx.keys, *ctx.payloads, *ctx.values, *ctx.out, &*ctx.count, capacity, channels, max_key
                 );
             } catch (const std::invalid_argument &) {
                 return true;
@@ -518,7 +531,7 @@ int main() {
         bool threw_runtime = false;
         try {
             reducer.Record(
-                cb, *ctx.keys, *ctx.payloads, *ctx.values, *ctx.out, &*ctx.count, kEntries * 4u, 1u, kMaxKey
+                record_encoder, *ctx.keys, *ctx.payloads, *ctx.values, *ctx.out, &*ctx.count, kEntries * 4u, 1u, kMaxKey
             );
         } catch (const std::runtime_error &) {
             threw_runtime = true;

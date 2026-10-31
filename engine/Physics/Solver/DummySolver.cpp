@@ -1,18 +1,30 @@
 #include "DummySolver.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/PhysicsDispatch.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsScene.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsSpirvLoader.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/Solver/XPBDGpuSolver.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/ComputeBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/DeviceBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Device/DeviceContext.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Pipeline/ComputeKernel.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <algorithm>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cassert>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Engine {
 
@@ -66,7 +78,7 @@ namespace Engine {
         return m_impl->config;
     }
 
-    void DummySolver::GPUStep(vk::CommandBuffer cb) {
+    void DummySolver::GPUStep(Rhi::CommandEncoder &encoder) {
         const auto gpu = m_bound_scene->GetGpuBuffers();
 
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) {
@@ -77,7 +89,7 @@ namespace Engine {
         // second step acquires nothing.
         m_impl->EnsureLoaded();
 
-        DispatchBarrier(cb);
+        DispatchBarrier(encoder);
 
         const uint32_t body_wg = (gpu.rigid_body_slot_count + 63u) / 64u;
 
@@ -85,8 +97,7 @@ namespace Engine {
         const glm::vec4 gravity_dt =
             glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt);
 
-        m_impl->compute_kernel->Dispatch(
-            cb,
+        m_impl->compute_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
             {{"RigidBodyAlive", *gpu.rigid_body_alive},
              {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
              {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation}},
@@ -97,7 +108,7 @@ namespace Engine {
         );
     }
 
-    void DummySolver::GPUCalcModelMatrices(vk::CommandBuffer cb, Rhi::ComputeBuffer &target) {
+    void DummySolver::GPUCalcModelMatrices(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target) {
         const auto gpu = m_bound_scene->GetGpuBuffers();
 
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) {
@@ -125,10 +136,9 @@ namespace Engine {
 
         // The production is separate from the step, so it records the barrier
         // that makes the poses it reads visible.
-        DispatchBarrier(cb);
+        DispatchBarrier(encoder);
 
-        m_impl->model_matrix_kernel->Dispatch(
-            cb,
+        m_impl->model_matrix_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
             {{"RigidBodyAlive", *gpu.rigid_body_alive},
              {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
              {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
@@ -140,3 +150,5 @@ namespace Engine {
     }
 
 } // namespace Engine
+
+

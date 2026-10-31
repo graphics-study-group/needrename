@@ -1,19 +1,32 @@
 #include "ConvexCollisionDetector.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/Collision/SpatialHashBroadDetector.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsDispatch.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsScene.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsSpirvLoader.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/ComputeBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/DeviceBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Device/DeviceContext.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Pipeline/ComputeKernel.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <algorithm>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cassert>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Engine {
 
@@ -139,7 +152,7 @@ namespace Engine {
         return result;
     }
 
-    void ConvexCollisionDetector::Record(vk::CommandBuffer cb) {
+    void ConvexCollisionDetector::Record(Rhi::CommandEncoder &encoder) {
         assert(m_impl->bound_scene != nullptr && "BindToScene must be called before Record");
 
         // Prepare for the pair capacity the broad-phase detector currently reports.
@@ -171,19 +184,18 @@ namespace Engine {
             return;
         }
 
-        DispatchBarrier(cb);
+        DispatchBarrier(encoder);
 
         // Every kernel was acquired during preparation above: recording creates no pipeline.
-        m_impl->clear_kernel->Dispatch(cb, {{"Target", *m_impl->gpu_collision_count}}, 1, 1, 1, 1u);
-        m_impl->clear_kernel->Dispatch(cb, {{"Target", *m_impl->gpu_contact_cursor}}, 1, 1, 1, 1u);
+        m_impl->clear_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", *m_impl->gpu_collision_count}}, 1, 1, 1, 1u);
+        m_impl->clear_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", *m_impl->gpu_contact_cursor}}, 1, 1, 1, 1u);
 
-        DispatchBarrier(cb);
+        DispatchBarrier(encoder);
 
         const DetectPushParams params{m_impl->contact_margin, m_impl->shape_slot_count, m_impl->contact_capacity};
 
         const uint32_t detect_wg = std::max(1u, (m_impl->max_input_collision_pairs + 63u) / 64u);
-        m_impl->detect_kernel->Dispatch(
-            cb,
+        m_impl->detect_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
             {{"ShapeAlive", *gpu.shape_alive},
              {"ShapeType", *gpu.shape_type},
              {"ShapeFeature", *gpu.shape_feature},
@@ -204,3 +216,5 @@ namespace Engine {
         );
     }
 } // namespace Engine
+
+
