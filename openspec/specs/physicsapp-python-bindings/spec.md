@@ -10,11 +10,12 @@ Expose the `PhysicsApp` simulator to Python through a distributable `needrename_
 The distribution SHALL provide a `needrename_sim` package whose importable
 surface wraps the `PhysicsApp` consumer API: create (execution mode, resolution,
 title, background color), scene building (box/sphere/cylinder bodies, fixed and
-hinge joints, actuator registration, URDF import returning link/joint name
-maps), `commit_scene`, `step`, `render_next_frame`, pause/resume/quit checks,
-per-body state readback and writes, joint state/limits/targets, joint torque,
-and render output. Wrong-phase usage and invalid handles SHALL raise Python
-exceptions translated from the C++ errors (phase misuse and invalid handles
+hinge joints, actuator registration/retrieval/removal, URDF import returning
+link/joint name maps), `commit_scene`, `step`, `render_next_frame`,
+pause/resume/quit checks, per-body state readback and writes, joint
+state/limits/targets, joint torque, actuator parameter tuning, and render
+output. Wrong-phase usage and invalid handles SHALL raise Python exceptions
+translated from the C++ errors (phase misuse and invalid handles
 distinguishable from initialization failure).
 
 #### Scenario: Headless run loop from Python
@@ -45,6 +46,32 @@ callback.
   on a hinge joint and the simulation is stepped
 - **THEN** the subclass callback is invoked each step and its returned torque
   influences the joint's motion
+
+### Requirement: Actuator instances are shared between Python and the app
+Registering an actuator SHALL share it between Python and the app: the object
+passed to `add_actuator` (a bound C++ actuator type or a Python subclass of the
+exposed base) SHALL be the object the app runs, and `get_actuator(joint)` SHALL
+return that same Python object. Parameters of the shipped actuator types SHALL
+be readable and writable properties whose changes affect subsequent simulation
+steps. `remove_actuator(joint)` SHALL detach the actuator and hand the joint's
+torque channel back to manual control. Actuator registration, retrieval, and
+removal SHALL be legal in both the pre-commit and post-commit phases.
+
+#### Scenario: Registered actuator is the caller's object
+- **WHEN** a Python actuator instance is registered with `add_actuator` and the
+  same joint is queried with `get_actuator`
+- **THEN** the returned object is the registered instance (identity preserved)
+  and remains alive while registered even if the caller drops its reference
+
+#### Scenario: Live parameter tuning
+- **WHEN** a parameter of a registered actuator (for example `kp`) is changed
+  from Python and the simulation is stepped
+- **THEN** the next torque computation uses the new value
+
+#### Scenario: Removal hands control back to the caller
+- **WHEN** `remove_actuator` is called on a joint whose actuator was driving it
+- **THEN** the joint is free for manual joint torque again and the removed
+  instance stays usable by Python
 
 ### Requirement: Zero-copy numpy readback
 Batch body-state arrays (positions, rotations, linear velocities, angular
@@ -128,9 +155,11 @@ Python and a GPU driver, not a C++ build environment.
 ### Requirement: Robot convenience layer and episode reset
 The package SHALL provide a robot-level helper over a URDF import result:
 joint/link name lookup, batch target-angle and joint-torque setting (by name or
-id), joint states as numpy arrays, and a snapshot-based `reset` that restores
-all body states to the recorded initial snapshot, zeroes external forces and
-torques, and restores actuator targets. Consumers bring their own URDF; robot
+id), joint states as numpy arrays, and a `reset` that restores the scene to the
+state recorded at `commit_scene` (body poses and velocities, zeroed external
+forces and torques, restored actuator targets) by delegating to the app-level
+episode reset. The helper SHALL NOT keep its own state snapshot and SHALL NOT
+require a recording call before `reset`. Consumers bring their own URDF; robot
 assets are not bundled.
 
 #### Scenario: Policy loop over named joints
@@ -141,12 +170,19 @@ assets are not bundled.
 
 #### Scenario: Reset restores the initial episode state
 - **WHEN** `reset` is called after a simulation episode
-- **THEN** all body positions and rotations match the initial snapshot, the
-  recorded velocities are written back as integration seeds, external forces and
-  torques are zero, and actuator targets are back at their initial values
+- **THEN** all body positions and rotations match the state recorded at
+  `commit_scene`, the recorded velocities are written back as integration seeds,
+  external forces and torques are zero, and actuator targets are back at their
+  commit-time values
 - **AND** the following step derives velocity from the pose change (XPBD), so a
   restored velocity is the input to that derivation rather than a state that
   survives the step unchanged
+
+#### Scenario: Reset works without a snapshot call
+- **WHEN** a helper is created over a URDF import result, the episode runs, and
+  `reset` is called without any prior recording call
+- **THEN** the scene is restored to the commit-time state and the readback
+  reflects it immediately
 
 ### Requirement: Python tests and examples
 The distribution SHALL ship a pytest suite covering the binding (import
