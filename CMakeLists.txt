@@ -16,6 +16,7 @@ set(CMAKE_CXX_STANDARD 20)
 option(ENGINE_BUILD_TESTS "Build first-party tests and vendored third-party tests" ON)
 option(ENGINE_BUILD_EXAMPLES "Build the example executables" ON)
 option(ENGINE_BUILD_APPS "Build the editor and physics applications" ON)
+option(ENGINE_BUILD_PYTHON_BINDINGS "Build the nanobind Python extension for PhysicsApp" ON)
 option(ENGINE_BUILD_TOOLS "Build build-time helper executables (e.g. shader_baker)" ON)
 option(ENGINE_BUILD_DOCS "Generate the doxygen documentation" ON)
 option(ENGINE_INSTALL_TESTS "Install test executables and their data" OFF)
@@ -170,7 +171,16 @@ install(
 )
 
 if (ENGINE_BUILD_APPS)
+    # The Python bindings live in app/python and are configured with the other
+    # apps, because they link the PhysicsApp target.
     add_subdirectory(app)
+endif()
+if (ENGINE_BUILD_PYTHON_BINDINGS AND NOT ENGINE_BUILD_APPS)
+    message(
+        WARNING
+        "ENGINE_BUILD_PYTHON_BINDINGS requires ENGINE_BUILD_APPS (the bindings link PhysicsApp); "
+        "the Python bindings will not be built"
+    )
 endif()
 if (ENGINE_BUILD_EXAMPLES)
     add_subdirectory(example)

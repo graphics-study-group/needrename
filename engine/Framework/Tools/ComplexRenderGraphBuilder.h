@@ -32,9 +32,12 @@ namespace Engine {
          * present provider extent, so resizing does not require rebuilding the graph.
          *
          * @param final_color_target_id     Output handle for the final (post-bloom) color target.
+         * @param background_color          Clear color of the HDR color target, in linear rgb.
          * @return Compiled RenderGraph.
          */
-        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(RGTextureHandle &final_color_target_id);
+        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
+            RGTextureHandle &final_color_target_id, const AttachmentUtils::ColorClearValue &background_color = {}
+        );
 
     protected:
         RenderSystem &m_system;

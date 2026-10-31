@@ -30,7 +30,7 @@ namespace Engine {
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        RGTextureHandle &final_color_target_id
+        RGTextureHandle &final_color_target_id, const AttachmentUtils::ColorClearValue &background_color
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -97,7 +97,11 @@ namespace Engine {
 
             lit_pass_builder
                 .AppendColorAttachment(
-                    {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                    {hdr_color_id,
+                     {},
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::Store,
+                     background_color}
                 )
                 .SetDepthStencilAttachment(
                     {depth_id,

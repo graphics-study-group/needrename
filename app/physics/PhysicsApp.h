@@ -28,14 +28,18 @@ namespace AppPhysics {
     /**
      * @brief Options for creating the physics app.
      *
-     * Only window parameters are exposed. Asset and project paths are read
-     * internally from cmake_config.h for this iteration.
+     * Only window parameters and the background clear color are exposed. Asset
+     * and project paths are read internally from cmake_config.h for this
+     * iteration.
      */
     struct CreateInfo {
         AppMode mode{AppMode::Windowed};
         uint32_t resol_x{1280};
         uint32_t resol_y{720};
         std::string window_title{"Physics App"};
+        /// Background clear color in linear rgb. Defaults to black; the rendered
+        /// frame background is this solid color (no skybox is drawn).
+        glm::vec3 background_color{0.0f, 0.0f, 0.0f};
     };
 
     /// Opaque handle identifying a created body. Not a pointer; do not dereference.
@@ -263,10 +267,13 @@ namespace AppPhysics {
      * measured from the previous step and write equal-and-opposite torques about
      * the joint axis to the child/parent bodies' ExternalTorque each step, so the
      * torque channel is owned by the actuators — user SetBodyValue(ExternalTorque)
-     * writes on an actuated joint's bodies are overwritten. Joint limits recorded
-     * from a URDF are data only and are never enforced. Actuators on joints whose
-     * two bodies are both kinematic compute torques but they have no effect
-     * (the solver skips such joints).
+     * writes on an actuated joint's bodies are overwritten. Joints without an
+     * actuator can instead be driven externally with SetJointTorque, which writes
+     * the same per-body ExternalTorque fields (caller-managed) and therefore
+     * shares their last-write-wins semantics. Joint limits recorded from a URDF
+     * are data only and are never enforced. Actuators on joints whose two bodies
+     * are both kinematic compute torques but they have no effect (the solver
+     * skips such joints).
      *
      * Wrong-phase usage throws `std::logic_error`. Exceptions may cross the
      * DLL boundary; a future C API must convert them to error codes.
@@ -548,6 +555,32 @@ namespace AppPhysics {
          * @throws std::out_of_range when `id` is invalid.
          */
         void SetBodyValue(BodyId id, BodyField field, glm::vec4 value);
+
+        /**
+         * @brief Apply an equal-and-opposite torque about a joint's hinge axis.
+         *
+         * Legal only in the Drive phase (after `CommitScene`). The torque is
+         * written through the same persistent external-torque channel as
+         * `SetBodyValue(ExternalTorque)`: `+torque * axis_world` on the child
+         * body and `-torque * axis_world` on the parent body. The world-space
+         * axis is resolved internally from the latest readback state and the
+         * joint's recorded axis, so the caller never handles frames.
+         *
+         * The write is caller-managed: it persists and keeps applying on every
+         * subsequent `Step` until overwritten (including with zero). Because it
+         * shares the per-body external-torque field with
+         * `SetBodyValue(ExternalTorque)`, the most recent write to a body wins.
+         *
+         * Manual torque control is for joints without actuators: an actuator
+         * owns its joint's torque channel and overwrites it every step.
+         *
+         * @param joint  Joint to drive.
+         * @param torque Torque [N·m] about the joint axis (sign follows the axis).
+         * @throws std::logic_error before CommitScene, or when `joint` has an
+         *         actuator.
+         * @throws std::out_of_range when `joint` is invalid.
+         */
+        void SetJointTorque(JointId joint, float torque);
 
         /**
          * @brief Toggle recording of a CPU readback of the final render target.

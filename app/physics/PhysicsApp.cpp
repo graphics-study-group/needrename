@@ -107,6 +107,7 @@ namespace AppPhysics {
 
         uint32_t resol_x{1280};
         uint32_t resol_y{720};
+        glm::vec3 background_color{0.0f, 0.0f, 0.0f};
 
         // FOV baseline read from the camera's vertical FOV at creation; used to
         // stabilize the view when the aspect ratio crosses 1.0 (see design D4).
@@ -404,6 +405,7 @@ namespace AppPhysics {
         impl.resol_x = info.resol_x;
         impl.resol_y = info.resol_y;
         impl.mode = info.mode;
+        impl.background_color = info.background_color;
 
         if (impl.mode != AppMode::Windowed && impl.mode != AppMode::Offscreen && impl.mode != AppMode::PhysicsOnly) {
             throw std::invalid_argument("PhysicsApp: unknown AppMode");
@@ -783,7 +785,11 @@ namespace AppPhysics {
         if (impl.mode != AppMode::PhysicsOnly) {
             impl.rg_builder = std::make_unique<ComplexRenderGraphBuilder>(*impl.renderer);
             RGTextureHandle final_color_id{0};
-            auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id);
+            // Solid background clear color (linear rgb); replaces the skybox.
+            const AttachmentUtils::ColorClearValue background{
+                impl.background_color.r, impl.background_color.g, impl.background_color.b, 1.0f
+            };
+            auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id, background);
             impl.render_graph = std::move(rg);
             impl.final_color_id = final_color_id;
         }
@@ -1128,5 +1134,31 @@ namespace AppPhysics {
         dst[slot] = value;
         impl.write_staging[idx]->Flush(slot * sizeof(glm::vec4), sizeof(glm::vec4));
         impl.any_dirty[idx] = true;
+    }
+
+    void PhysicsApp::SetJointTorque(JointId joint, float torque) {
+        auto &impl = *m_impl;
+        if (impl.phase != Impl::Phase::Committed) {
+            throw std::logic_error("PhysicsApp: SetJointTorque called before CommitScene");
+        }
+        if (joint >= impl.m_joints.size()) {
+            throw std::out_of_range("PhysicsApp: SetJointTorque invalid JointId");
+        }
+        if (impl.m_actuators[joint]) {
+            throw std::logic_error("PhysicsApp: SetJointTorque joint has an actuator");
+        }
+
+        // Resolve the world-space hinge axis from the latest readback rotations:
+        // the recorded axis lives in the parent's frame (finalized at CommitScene).
+        const auto &rec = impl.m_joints[joint];
+        const auto *rot = reinterpret_cast<const glm::vec4 *>(impl.rot_staging->GetVMAddress());
+        const glm::vec4 rp = rot[impl.body_to_slot[rec.parent]];
+        const glm::quat parent_rotation(rp.w, rp.x, rp.y, rp.z);
+        const glm::vec3 child_torque = torque * (parent_rotation * rec.axis);
+
+        // Same persistent per-body ExternalTorque write path actuators use, so the
+        // channel keeps last-write-wins semantics against SetBodyValue.
+        SetBodyValue(rec.child, BodyField::ExternalTorque, glm::vec4(child_torque, 0.0f));
+        SetBodyValue(rec.parent, BodyField::ExternalTorque, glm::vec4(-child_torque, 0.0f));
     }
 } // namespace AppPhysics
