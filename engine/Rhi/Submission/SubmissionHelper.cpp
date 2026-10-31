@@ -291,7 +291,7 @@ namespace Engine::Rhi {
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
                 TextureTransferType::TextureUploadBefore,
-                texture.GetImage(),
+                ToVulkanImage(texture.GetImage()),
                 Rhi::GetVkAspect(texture.GetTextureDescription().format)
             )};
             vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
@@ -316,13 +316,13 @@ namespace Engine::Rhi {
                 }
             };
             cb.copyBufferToImage(
-                ToVulkanBuffer(pbuf->GetBuffer()), texture.GetImage(), vk::ImageLayout::eTransferDstOptimal, {copy}
+                ToVulkanBuffer(pbuf->GetBuffer()), ToVulkanImage(texture.GetImage()), vk::ImageLayout::eTransferDstOptimal, {copy}
             );
 
             // Transfer image for sampling
             barriers[0] = GetTextureBarrier(
                 TextureTransferType::TextureUploadAfter,
-                texture.GetImage(),
+                ToVulkanImage(texture.GetImage()),
                 Rhi::GetVkAspect(texture.GetTextureDescription().format)
             );
             dinfo.setImageMemoryBarriers(barriers);
@@ -340,13 +340,13 @@ namespace Engine::Rhi {
         auto enqueued = [&texture, color](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
-                TextureTransferType::TextureClearBefore, texture.GetImage(), vk::ImageAspectFlagBits::eColor
+                TextureTransferType::TextureClearBefore, ToVulkanImage(texture.GetImage()), vk::ImageAspectFlagBits::eColor
             )};
             vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
             cb.pipelineBarrier2(dinfo);
             auto [r, g, b, a] = color;
             cb.clearColorImage(
-                texture.GetImage(),
+                ToVulkanImage(texture.GetImage()),
                 vk::ImageLayout::eTransferDstOptimal,
                 vk::ClearColorValue{r, g, b, a},
                 {vk::ImageSubresourceRange{
@@ -356,7 +356,7 @@ namespace Engine::Rhi {
 
             // Transfer image for sampling
             barriers[0] = GetTextureBarrier(
-                TextureTransferType::TextureClearAfter, texture.GetImage(), vk::ImageAspectFlagBits::eColor
+                TextureTransferType::TextureClearAfter, ToVulkanImage(texture.GetImage()), vk::ImageAspectFlagBits::eColor
             );
             dinfo.setImageMemoryBarriers(barriers);
             cb.pipelineBarrier2(dinfo);
@@ -375,12 +375,12 @@ namespace Engine::Rhi {
         auto enqueued = [&texture, depth](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
-                TextureTransferType::TextureClearBefore, texture.GetImage(), vk::ImageAspectFlagBits::eDepth
+                TextureTransferType::TextureClearBefore, ToVulkanImage(texture.GetImage()), vk::ImageAspectFlagBits::eDepth
             )};
             vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
             cb.pipelineBarrier2(dinfo);
             cb.clearDepthStencilImage(
-                texture.GetImage(),
+                ToVulkanImage(texture.GetImage()),
                 vk::ImageLayout::eTransferDstOptimal,
                 vk::ClearDepthStencilValue{depth, 0U},
                 {vk::ImageSubresourceRange{
@@ -390,7 +390,7 @@ namespace Engine::Rhi {
 
             // Transfer image for sampling
             barriers[0] = GetTextureBarrier(
-                TextureTransferType::TextureClearAfter, texture.GetImage(), vk::ImageAspectFlagBits::eDepth
+                TextureTransferType::TextureClearAfter, ToVulkanImage(texture.GetImage()), vk::ImageAspectFlagBits::eDepth
             );
             dinfo.setImageMemoryBarriers(barriers);
             cb.pipelineBarrier2(dinfo);
@@ -552,6 +552,9 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+
+
+
 
 
 

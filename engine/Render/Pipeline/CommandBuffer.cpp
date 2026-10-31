@@ -90,9 +90,9 @@ namespace Engine {
             {vk::Offset3D{dst_area.x0, dst_area.y0, dst_area.z0}, vk::Offset3D{dst_area.x1, dst_area.y1, dst_area.z1}},
         };
         vk::BlitImageInfo2 bii{
-            src.GetImage(),
+            Engine::Rhi::ToVulkanImage(src.GetImage()),
             vk::ImageLayout::eTransferSrcOptimal,
-            dst.GetImage(),
+            Engine::Rhi::ToVulkanImage(dst.GetImage()),
             vk::ImageLayout::eTransferDstOptimal,
             {blit},
             vk::Filter::eLinear
@@ -115,7 +115,7 @@ namespace Engine {
             vk::ImageLayout::eTransferSrcOptimal,
             vk::QueueFamilyIgnored,
             vk::QueueFamilyIgnored,
-            image.GetImage(),
+            Engine::Rhi::ToVulkanImage(image.GetImage()),
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, pre_barrier});
@@ -128,7 +128,7 @@ namespace Engine {
             vk::Offset3D{0, 0, 0},
             vk::Extent3D{desc.width, desc.height, desc.depth}
         };
-        cb.copyImageToBuffer(image.GetImage(), vk::ImageLayout::eTransferSrcOptimal, dst.GetBuffer(), region);
+        cb.copyImageToBuffer(Engine::Rhi::ToVulkanImage(image.GetImage()), vk::ImageLayout::eTransferSrcOptimal, dst.GetBuffer(), region);
 
         // Post-barrier: restore the source image to its nominal layout so the
         // frame-completion blit (or any later pass) still observes it.
@@ -141,7 +141,7 @@ namespace Engine {
             GetImageLayout({last_access}),
             vk::QueueFamilyIgnored,
             vk::QueueFamilyIgnored,
-            image.GetImage(),
+            Engine::Rhi::ToVulkanImage(image.GetImage()),
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, post_barrier});
@@ -388,6 +388,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 

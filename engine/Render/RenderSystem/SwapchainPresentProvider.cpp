@@ -101,7 +101,7 @@ namespace {
                 vk::ImageLayout::eTransferSrcOptimal,
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
-                texture.GetImage(),
+                Engine::Rhi::ToVulkanImage(texture.GetImage()),
                 vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
             },
             vk::ImageMemoryBarrier2{
@@ -128,7 +128,7 @@ namespace {
         };
 
         vk::BlitImageInfo2 blit_info{
-            texture.GetImage(),
+            Engine::Rhi::ToVulkanImage(texture.GetImage()),
             vk::ImageLayout::eTransferSrcOptimal,
             images[target_framebuffer],
             vk::ImageLayout::eTransferDstOptimal,
@@ -322,6 +322,7 @@ namespace Engine::RenderSystemState {
         return needs_recreating;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

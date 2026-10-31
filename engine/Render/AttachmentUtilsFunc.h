@@ -2,6 +2,7 @@
 #define RENDER_ATTACHMENTUTILSFUNC
 
 #include "AttachmentUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Resource/RenderTargetTexture.h"
 #include "Render/render_export.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
@@ -48,7 +49,7 @@ namespace Engine {
             assert(desc.texture && "");
 
             return vk::RenderingAttachmentInfo{
-                desc.texture->GetImageView(desc.range),
+                Engine::Rhi::ToVulkanImageView(desc.texture->GetImageView(desc.range)),
                 layout,
                 // We are not going to support MSAA...
                 vk::ResolveModeFlagBits::eNone,
@@ -63,3 +64,5 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDER_ATTACHMENTUTILSFUNC
+
+

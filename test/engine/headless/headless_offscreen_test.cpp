@@ -76,7 +76,7 @@ int main() {
                 };
                 vk::ImageSubresourceRange range{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
                 cb.GetCommandBuffer().clearColorImage(
-                    rt->GetImage(), vk::ImageLayout::eTransferDstOptimal, clear_color, range
+                    Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferDstOptimal, clear_color, range
                 );
             })
             .Get()
@@ -102,7 +102,7 @@ int main() {
                     }
                 }};
                 cb.GetCommandBuffer().copyImageToBuffer(
-                    rt->GetImage(), vk::ImageLayout::eTransferSrcOptimal, readback_raw->GetBuffer(), image_copies
+                    Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferSrcOptimal, readback_raw->GetBuffer(), image_copies
                 );
             })
             .Get()
@@ -152,3 +152,4 @@ int main() {
     std::cout << "Headless offscreen test PASSED." << std::endl;
     return 0;
 }
+

@@ -1,21 +1,38 @@
 #include "SceneWidget.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Core/Functional/SDLWindow.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/MainClass.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/Scene/LevelAsset.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/Scene/SceneAsset.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/World/Scene.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/World/WorldSystem.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/Renderer/Camera.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/CameraManager.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/FrameManager.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Resource/RenderTargetTexture.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <AnnoRefl/serialization.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <backends/imgui_impl_vulkan.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Editor {
     SceneWidget::SceneWidget(const std::string &name) : Widget(name) {
@@ -110,7 +127,7 @@ namespace Editor {
             ImGui_ImplVulkan_RemoveTexture(reinterpret_cast<VkDescriptorSet>(m_color_att_id));
         }
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
-            texture.GetSampler(), texture.GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            Engine::Rhi::ToVulkanSampler(texture.GetSampler()), Engine::Rhi::ToVulkanImageView(texture.GetImageView()), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         ));
         m_texture_size = ImVec2(texture.GetTextureDescription().width, texture.GetTextureDescription().height);
         SDL_LogInfo(
@@ -127,3 +144,5 @@ namespace Editor {
         return m_camera.m_camera->m_display_id;
     }
 } // namespace Editor
+
+

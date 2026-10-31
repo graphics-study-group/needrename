@@ -64,12 +64,12 @@ namespace Engine::Rhi {
         /**
          * @brief Get the underlying handle of this texture.
          */
-        vk::Image GetImage() const noexcept;
+        ImageHandle GetImage() const noexcept;
 
         /**
          * @brief Get the underlying handle of the sampler.
          */
-        vk::Sampler GetSampler() const noexcept;
+        SamplerHandle GetSampler() const noexcept;
 
         /**
          * @brief Get the sampler's binding reference: its handle plus its
@@ -80,12 +80,12 @@ namespace Engine::Rhi {
         /**
          * @brief Get the underlying handle of the full texture subresource view.
          */
-        vk::ImageView GetImageView() const;
+        ImageViewHandle GetImageView() const;
 
         /**
          * @brief Get the underlying handle of a texture subresource view.
          */
-        vk::ImageView GetImageView(const TextureSubresourceRange &tsr) const;
+        ImageViewHandle GetImageView(const TextureSubresourceRange &tsr) const;
 
         /**
          * @brief Get the binding reference of a texture subresource view.
@@ -120,4 +120,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_TEXTURE_INCLUDED
+
 

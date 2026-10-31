@@ -475,7 +475,7 @@ int main(int argc, char **argv) {
             vk::ImageLayout::eGeneral,
             VK_QUEUE_FAMILY_IGNORED,
             VK_QUEUE_FAMILY_IGNORED,
-            input.GetImage(),
+            Engine::Rhi::ToVulkanImage(input.GetImage()),
             range
         };
         const vk::ImageMemoryBarrier2 output_to_general{
@@ -487,12 +487,12 @@ int main(int argc, char **argv) {
             vk::ImageLayout::eGeneral,
             VK_QUEUE_FAMILY_IGNORED,
             VK_QUEUE_FAMILY_IGNORED,
-            output.GetImage(),
+            Engine::Rhi::ToVulkanImage(output.GetImage()),
             range
         };
         const vk::ImageMemoryBarrier2 to_general[2] = {input_to_general, output_to_general};
         cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, 0, nullptr, 0, nullptr, 2, to_general});
-        cb.clearColorImage(input.GetImage(), vk::ImageLayout::eGeneral, clear, range);
+        cb.clearColorImage(Engine::Rhi::ToVulkanImage(input.GetImage()), vk::ImageLayout::eGeneral, clear, range);
 
         const vk::ImageMemoryBarrier2 input_to_sampled{
             vk::PipelineStageFlagBits2::eTransfer,
@@ -503,7 +503,7 @@ int main(int argc, char **argv) {
             vk::ImageLayout::eReadOnlyOptimal,
             VK_QUEUE_FAMILY_IGNORED,
             VK_QUEUE_FAMILY_IGNORED,
-            input.GetImage(),
+            Engine::Rhi::ToVulkanImage(input.GetImage()),
             range
         };
         const vk::ImageMemoryBarrier2 to_sampled[1] = {input_to_sampled};
@@ -527,13 +527,13 @@ int main(int argc, char **argv) {
             vk::ImageLayout::eTransferSrcOptimal,
             VK_QUEUE_FAMILY_IGNORED,
             VK_QUEUE_FAMILY_IGNORED,
-            output.GetImage(),
+            Engine::Rhi::ToVulkanImage(output.GetImage()),
             range
         };
         const vk::ImageMemoryBarrier2 to_transfer[1] = {output_to_transfer};
         cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, 0, nullptr, 0, nullptr, 1, to_transfer});
         cb.copyImageToBuffer(
-            output.GetImage(),
+            Engine::Rhi::ToVulkanImage(output.GetImage()),
             vk::ImageLayout::eTransferSrcOptimal,
             readback.GetBuffer(),
             {vk::BufferImageCopy{
@@ -665,6 +665,7 @@ int main(int argc, char **argv) {
     std::cout << "Compute kernel test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

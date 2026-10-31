@@ -261,7 +261,7 @@ int main() {
             .SetPassFunction([present_handle](CommandBuffer &cb, const RenderGraph &rg) {
                 auto *target = rg.GetInternalTextureResource(present_handle);
                 cb.GetCommandBuffer().clearColorImage(
-                    target->GetImage(),
+                    Engine::Rhi::ToVulkanImage(target->GetImage()),
                     vk::ImageLayout::eTransferDstOptimal,
                     vk::ClearColorValue{0.1f, 0.1f, 0.2f, 1.0f},
                     vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
@@ -372,6 +372,7 @@ int main() {
     std::cout << "Gpu buffer retirement test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

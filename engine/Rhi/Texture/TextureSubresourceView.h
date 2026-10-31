@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_TEXTURESUBRESOURCEVIEW_INCLUDED
 #define ENGINE_RHI_TEXTURESUBRESOURCEVIEW_INCLUDED
 
+#include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
 #include <cstdint>
@@ -113,7 +114,7 @@ namespace Engine::Rhi {
          *
          * Performs creation if the given view is not created yet.
          */
-        vk::ImageView GetImageView(Texture &t) const;
+        ImageViewHandle GetImageView(Texture &t) const;
 
         /**
          * @brief Get a range that contains all array layers and all mip levels.
@@ -149,9 +150,11 @@ namespace Engine::Rhi {
          *
          * Performs creation if the given view is not created yet.
          */
-        vk::ImageView GetImageView();
+        ImageViewHandle GetImageView();
     };
 }; // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_TEXTURESUBRESOURCEVIEW_INCLUDED
+
+
 

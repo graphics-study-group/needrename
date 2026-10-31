@@ -64,7 +64,7 @@ namespace Engine {
             for (size_t i = 0; i < ca.size(); i++) {
                 auto t = rg.GetInternalTextureResource(ca[i].rt_handle);
                 cai[i] = vk::RenderingAttachmentInfo{
-                    t->GetImageView(ca[i].range),
+                    Engine::Rhi::ToVulkanImageView(t->GetImageView(ca[i].range)),
                     vk::ImageLayout::eColorAttachmentOptimal,
                     vk::ResolveModeFlagBits::eNone,
                     nullptr,
@@ -81,7 +81,7 @@ namespace Engine {
             if (static_cast<int32_t>(da.rt_handle) != 0) {
                 auto t = rg.GetInternalTextureResource(da.rt_handle);
                 dai = vk::RenderingAttachmentInfo{
-                    t->GetImageView(da.range),
+                    Engine::Rhi::ToVulkanImageView(t->GetImageView(da.range)),
                     vk::ImageLayout::eDepthStencilAttachmentOptimal,
                     vk::ResolveModeFlagBits::eNone,
                     nullptr,
@@ -111,4 +111,5 @@ namespace Engine {
         return *this;
     }
 } // namespace Engine
+
 

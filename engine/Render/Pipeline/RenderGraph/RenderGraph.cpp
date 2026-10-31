@@ -1,7 +1,10 @@
 #include "RenderGraph.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Render/Resource/MemoryAccessHelper.hpp"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "RenderGraphStruct.hpp"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Engine {
     struct RenderGraph::impl {
@@ -26,7 +29,7 @@ namespace Engine {
                 GetImageLayout({dst}),
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
-                t.GetImage(),
+                Engine::Rhi::ToVulkanImage(t.GetImage()),
                 vk::ImageSubresourceRange{
                     Rhi::GetVkAspect(t.GetTextureDescription().format),
                     0,
@@ -106,7 +109,7 @@ namespace Engine {
             imb.reserve(subpass.image_barriers.size());
             for (const auto &[r, b] : subpass.image_barriers) {
                 imb.push_back(b);
-                imb.back().image = this->GetInternalTextureResource(r)->GetImage();
+                imb.back().image = Engine::Rhi::ToVulkanImage(this->GetInternalTextureResource(r)->GetImage());
             }
             bmb.clear();
             bmb.reserve(subpass.buffer_barriers.size());
@@ -196,3 +199,5 @@ namespace Engine {
     }
 
 } // namespace Engine
+
+

@@ -512,8 +512,8 @@ namespace Engine::RenderSystemState {
             // remaining slots keep sampling the fallback map; the shaders never
             // read a slot past the reported light count.
             const vk::ImageView image_view = i < shadow_casting_light_count
-                                                 ? pimpl->scene.shadow_maps[i]->GetImageView()
-                                                 : pimpl->scene.default_light_map->GetImageView();
+                                                 ? Engine::Rhi::ToVulkanImageView(pimpl->scene.shadow_maps[i]->GetImageView())
+                                                 : Engine::Rhi::ToVulkanImageView(pimpl->scene.default_light_map->GetImageView());
             shadowmap_image_descriptor_writes[i] =
                 vk::DescriptorImageInfo{nullptr, image_view, vk::ImageLayout::eReadOnlyOptimal};
         }
@@ -616,6 +616,7 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

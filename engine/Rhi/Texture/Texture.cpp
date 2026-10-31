@@ -209,17 +209,17 @@ namespace Engine::Rhi {
         return pimpl->m_sdesc;
     }
 
-    vk::Image Engine::Rhi::Texture::GetImage() const noexcept {
+    ImageHandle Engine::Rhi::Texture::GetImage() const noexcept {
         assert(pimpl->m_image && pimpl->m_image->GetImage().IsValid());
-        return ToVulkanImage(pimpl->m_image->GetImage());
+        return pimpl->m_image->GetImage();
     }
 
-    vk::ImageView Engine::Rhi::Texture::GetImageView() const {
+    ImageViewHandle Engine::Rhi::Texture::GetImageView() const {
         return this->GetImageView(TextureSubresourceRange{});
     }
 
-    vk::ImageView Texture::GetImageView(const TextureSubresourceRange &tsv) const {
-        return ToVulkanImageView(GetViewRef(tsv).handle);
+    ImageViewHandle Texture::GetImageView(const TextureSubresourceRange &tsv) const {
+        return GetViewRef(tsv).handle;
     }
 
     ViewRef Texture::GetViewRef(const TextureSubresourceRange &tsv) const {
@@ -247,8 +247,8 @@ namespace Engine::Rhi {
         return ViewRef{FromVulkan(itr->second.view.get()), itr->second.id};
     }
 
-    vk::Sampler Texture::GetSampler() const noexcept {
-        return ToVulkanSampler(pimpl->m_sampler_ref.handle);
+    SamplerHandle Texture::GetSampler() const noexcept {
+        return pimpl->m_sampler_ref.handle;
     }
 
     SamplerRef Texture::GetSamplerRef() const noexcept {
@@ -267,6 +267,10 @@ namespace Engine::Rhi {
         return false;
     }
 } // namespace Engine::Rhi
+
+
+
+
 
 
 
