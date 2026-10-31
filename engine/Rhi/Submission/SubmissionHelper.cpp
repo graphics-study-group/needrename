@@ -202,14 +202,14 @@ namespace Engine::Rhi {
         pimpl(std::make_unique<impl>()) {
         // Pre-allocate a fence
         vk::FenceCreateInfo fcinfo{};
-        pimpl->m_completion_fence = m_device_interface.GetDevice().createFenceUnique(fcinfo);
+        pimpl->m_completion_fence = ToVulkanDevice(m_device_interface.GetDevice()).createFenceUnique(fcinfo);
     }
 
     SubmissionHelper::~SubmissionHelper() {
         // A pending deferred batch must finish executing before its command
         // buffer and staging allocations are destroyed.
         if (pimpl->m_state == BatchState::Submitted) {
-            m_device_interface.GetDevice().waitForFences(
+            ToVulkanDevice(m_device_interface.GetDevice()).waitForFences(
                 {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
             );
             // The fence was observed, so this helper can report the epoch it
@@ -403,7 +403,7 @@ namespace Engine::Rhi {
             );
         }
 
-        auto device = m_device_interface.GetDevice();
+        auto device = ToVulkanDevice(m_device_interface.GetDevice());
         if (pimpl->m_pending_operations.empty()) {
             // We do not need to worry about synchronization too much
             // as timeline semaphores are guaranteed to be monotonically increasing.
@@ -469,7 +469,7 @@ namespace Engine::Rhi {
         // the fence has actually been waited on.
         const EpochWatermark epoch = m_epoch_tracker.BeginEpoch();
 
-        auto device = m_device_interface.GetDevice();
+        auto device = ToVulkanDevice(m_device_interface.GetDevice());
         vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
 
         const auto &queue_info = m_device_interface.GetQueueInfo();
@@ -515,7 +515,7 @@ namespace Engine::Rhi {
 
     void SubmissionHelper::OnBatchComplete() {
         if (pimpl->m_state == BatchState::Submitted) {
-            auto device = m_device_interface.GetDevice();
+            auto device = ToVulkanDevice(m_device_interface.GetDevice());
             auto wfresult =
                 device.waitForFences({pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max());
             if (wfresult != vk::Result::eSuccess) {
@@ -550,4 +550,5 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+
 

@@ -15,18 +15,30 @@
 // `EpochTracker`, with no `DeviceContext`.
 
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Buffer/DeviceBuffer.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/AllocatorState.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceInterface.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/MemoryTypes.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Submission/EpochTracker.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #include <SDL3/SDL.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdint>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <iostream>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <string>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vk_mem_alloc.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vulkan/vulkan.hpp>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 using namespace Engine;
 using namespace Engine::Rhi;
@@ -73,16 +85,15 @@ int main() {
         .window = nullptr,
         .application_name = "Rhi::BufferReallocation Test",
         .application_version = 0,
-        .dynamic_dispatcher = nullptr,
     };
     DeviceInterface gpu_device{cfg};
-    const auto device = gpu_device.GetDevice();
+    const auto device = Rhi::ToVulkanDevice(gpu_device.GetDevice());
     CHECK(device && "Rhi must create a Vulkan device headlessly.");
 
     // The tracked allocator (retire sink installed) and a plain one (no
     // retirement facility at all).
     AllocatorState allocator{gpu_device};
-    EpochTracker tracker{gpu_device.GetDevice()};
+    EpochTracker tracker{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
     allocator.SetRetireSink(&tracker);
     AllocatorState plain_allocator{gpu_device};
 
@@ -258,4 +269,6 @@ int main() {
     std::cout << "Rhi::BufferReallocation test PASSED." << std::endl;
     return 0;
 }
+
+
 

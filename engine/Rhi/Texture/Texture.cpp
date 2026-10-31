@@ -174,7 +174,7 @@ namespace Engine::Rhi {
 
         const Rhi::ImageType dim =
             dimension == 1 ? Rhi::ImageType::D1 : (dimension == 2 ? Rhi::ImageType::D2 : Rhi::ImageType::D3);
-        pimpl->device = device_context.GetDevice();
+        pimpl->device = ToVulkanDevice(device_context.GetDevice());
         pimpl->m_image = allocator.AllocateImageUnique(
             Rhi::AllocatorState::ImageAllocationDescription{
                 texture.memory_type,
@@ -267,6 +267,7 @@ namespace Engine::Rhi {
         return false;
     }
 } // namespace Engine::Rhi
+
 
 
 

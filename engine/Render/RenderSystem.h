@@ -140,7 +140,7 @@ namespace Engine {
          * @brief Get a handle to the Vulkan logical device that the current Render
          * System runs on.
          *
-         * Shorthand for `GetDeviceInterface().GetDevice()`
+         * Shorthand for `ToVulkanDevice(GetDeviceInterface().GetDevice())`
          */
         vk::Device GetDevice() const;
 
@@ -179,3 +179,5 @@ namespace Engine {
 #pragma GCC diagnostic pop
 
 #endif // RENDER_RENDERSYSTEM
+
+

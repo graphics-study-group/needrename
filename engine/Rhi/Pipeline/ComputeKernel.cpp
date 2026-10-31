@@ -75,7 +75,7 @@ namespace Engine::Rhi {
             name = std::string{requested_name};
 
             const auto &device_interface = context.GetDeviceInterface();
-            vk::Device device = device_interface.GetDevice();
+            vk::Device device = ToVulkanDevice(device_interface.GetDevice());
 
             // Reflect the module and resolve the set layout once, through the
             // arena, so the layout the pipeline layout is built over is the
@@ -383,6 +383,7 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
 
 
 

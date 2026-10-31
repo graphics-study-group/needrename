@@ -8,6 +8,7 @@
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/Structs.h"
 #include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Submission/SubmissionHelper.h"
@@ -71,12 +72,12 @@ namespace Engine::RenderSystemState {
 
             void InitializeRegistry(const Rhi::DeviceInterface &di) {
                 assert(!current_registry.fence && "Reinitializing readback registry");
-                current_registry.fence = di.GetDevice().createFenceUnique(vk::FenceCreateInfo{});
+                current_registry.fence = ToVulkanDevice(di.GetDevice()).createFenceUnique(vk::FenceCreateInfo{});
 
                 auto cbai = vk::CommandBufferAllocateInfo{
                     di.GetQueueInfo().graphicsOneTimePool.get(), vk::CommandBufferLevel::ePrimary, 1
                 };
-                auto onetime_cb = di.GetDevice().allocateCommandBuffersUnique(cbai);
+                auto onetime_cb = ToVulkanDevice(di.GetDevice()).allocateCommandBuffersUnique(cbai);
                 current_registry.combuf = std::move(onetime_cb[0]);
                 current_registry.combuf.get().begin(
                     vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit}
@@ -497,3 +498,5 @@ namespace Engine::RenderSystemState {
         return true;
     }
 } // namespace Engine::RenderSystemState
+
+

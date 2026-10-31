@@ -10,25 +10,42 @@
 // an assertion failure terminates the process that trips it.
 
 #include "Rhi/Buffer/DeviceBuffer.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/AllocatorState.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceContext.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceInterface.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/MemoryAllocation.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/MemoryTypes.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Submission/EpochTracker.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #include <SDL3/SDL.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdint>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <iostream>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <string>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <utility>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vk_mem_alloc.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vulkan/vulkan.hpp>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #if defined(_MSC_VER) && !defined(NDEBUG)
 #include <crtdbg.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdlib>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <process.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #endif
 
 using namespace Engine;
@@ -63,20 +80,19 @@ static int RunDeathScenario(const char *name) {
         .window = nullptr,
         .application_name = "EpochTracker death scenario",
         .application_version = 0,
-        .dynamic_dispatcher = nullptr,
     };
     DeviceInterface gpu_device{cfg};
 
     const std::string scenario{name};
     if (scenario == "--death-second-tracker") {
-        EpochTracker first{gpu_device.GetDevice()};
+        EpochTracker first{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
         // A device must have exactly one tracker; this must assert.
-        EpochTracker second{gpu_device.GetDevice()};
+        EpochTracker second{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
         std::cerr << "UNREACHABLE: a second tracker for the same device was accepted." << std::endl;
         return 0;
     }
     if (scenario == "--death-outstanding-epochs") {
-        EpochTracker tracker{gpu_device.GetDevice()};
+        EpochTracker tracker{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
         // Open epochs and never terminate them: the completed prefix can never
         // advance past them, so the debug bound must fire.
         for (size_t i = 0; i <= EpochTracker::MAX_OUTSTANDING_EPOCHS; ++i) {
@@ -111,16 +127,15 @@ int main(int argc, char **argv) {
         .window = nullptr,
         .application_name = "Rhi::EpochTracker Test",
         .application_version = 0,
-        .dynamic_dispatcher = nullptr,
     };
     DeviceInterface gpu_device{cfg};
-    const auto device = gpu_device.GetDevice();
+    const auto device = Rhi::ToVulkanDevice(gpu_device.GetDevice());
     CHECK(device && "Rhi must create a Vulkan device headlessly.");
 
     // The tracked allocator: its retire sink is the tracker, so every buffer
     // allocated through it becomes retire-safe without opt-in.
     AllocatorState allocator{gpu_device};
-    EpochTracker tracker{gpu_device.GetDevice()};
+    EpochTracker tracker{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
     allocator.SetRetireSink(&tracker);
     // An allocator with no tracker: allocations destroy immediately.
     AllocatorState plain_allocator{gpu_device};
@@ -427,4 +442,6 @@ int main(int argc, char **argv) {
     std::cout << "Rhi::EpochTracker test PASSED." << std::endl;
     return 0;
 }
+
+
 

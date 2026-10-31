@@ -3,6 +3,8 @@
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
+
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/IPresentProvider.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/Structs.h"
@@ -120,8 +122,8 @@ namespace Engine {
 
         const auto &present_provider = render_system.GetPresentProvider();
         ImGui_ImplVulkan_InitInfo info{};
-        info.Instance = render_system.GetDeviceInterface().GetInstance();
-        info.PhysicalDevice = render_system.GetDeviceInterface().GetPhysicalDevice();
+        info.Instance = ToVulkanInstance(render_system.GetDeviceInterface().GetInstance());
+        info.PhysicalDevice = ToVulkanPhysicalDevice(render_system.GetDeviceInterface().GetPhysicalDevice());
         info.Device = render_system.GetDevice();
         info.Queue = render_system.GetDeviceInterface().GetQueueInfo().graphicsQueue;
         info.DescriptorPool = pimpl->vkr.descriptor_pool.get();
@@ -171,3 +173,4 @@ namespace Engine {
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }
 } // namespace Engine
+

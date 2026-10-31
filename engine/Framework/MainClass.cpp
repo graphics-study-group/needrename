@@ -147,7 +147,6 @@ namespace Engine {
             .window = is_headless ? nullptr : this->window->GetWindow(),
             .application_name = opt->title.c_str(),
             .application_version = 0,
-            .dynamic_dispatcher = nullptr,
         };
         this->m_device_context = std::make_unique<Rhi::DeviceContext>(cfg);
         const vk::Extent2D render_extent = is_headless
@@ -333,3 +332,4 @@ namespace Engine {
         );
     }
 } // namespace Engine
+

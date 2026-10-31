@@ -46,27 +46,48 @@
 // model matrices work pending at all, which is exactly the property asserted.
 
 #include "Framework/MainClass.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Physics/PhysicsScene.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Physics/PhysicsSystem.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Physics/Solver/DummySolver.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Render/FullRenderSystem.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Render/RenderSystem/FrameManager.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Render/RenderSystem/SceneDataManager.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/AllocatorState.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceContext.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Submission/EpochTracker.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Submission/SubmissionHelper.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #include <SDL3/SDL.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <array>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdint>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstring>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <iostream>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <limits>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <memory>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vector>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vulkan/vulkan.hpp>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 using namespace Engine;
 
@@ -100,7 +121,7 @@ int main() {
     auto &scene_data = rsys->GetSceneDataManager();
     auto &tracker = device_context.GetEpochTracker();
     const auto &dev_iface = device_context.GetDeviceInterface();
-    auto device = dev_iface.GetDevice();
+    auto device = Rhi::ToVulkanDevice(dev_iface.GetDevice());
     const auto &queue_info = dev_iface.GetQueueInfo();
 
     constexpr uint32_t kInitCount = RenderSystemState::SceneDataManager::MAX_MODEL_MATRICES;
@@ -266,3 +287,4 @@ int main() {
     std::cout << "Model matrices initialization test PASSED." << std::endl;
     return 0;
 }
+

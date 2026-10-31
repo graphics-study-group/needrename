@@ -1,4 +1,5 @@
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/Structs.h"
 
@@ -80,15 +81,9 @@ namespace Engine::Rhi {
                 SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Failed to load Vulkan library, %s.", SDL_GetError());
                 std::terminate();
             }
-            if (cfg.dynamic_dispatcher) {
-                cfg.dynamic_dispatcher->init(
-                    reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
-                );
-            } else {
-                VULKAN_HPP_DEFAULT_DISPATCHER.init(
-                    reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
-                );
-            }
+            VULKAN_HPP_DEFAULT_DISPATCHER.init(
+                reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
+            );
 
             vk::ApplicationInfo appInfo{
                 cfg.application_name.c_str(),
@@ -150,9 +145,7 @@ namespace Engine::Rhi {
             instInfo.enabledLayerCount = 0;
 #endif
             instance = vk::createInstanceUnique(instInfo);
-            if (cfg.dynamic_dispatcher) {
-                cfg.dynamic_dispatcher->init(instance.get());
-            } else {
+            {
                 VULKAN_HPP_DEFAULT_DISPATCHER.init(instance.get());
             }
 
@@ -482,11 +475,7 @@ namespace Engine::Rhi {
             dci.ppEnabledExtensionNames = extensions.data();
 
             device = physical_device.createDeviceUnique(dci);
-            if (cfg.dynamic_dispatcher) {
-                cfg.dynamic_dispatcher->init(device.get());
-            } else {
-                VULKAN_HPP_DEFAULT_DISPATCHER.init(device.get());
-            }
+            VULKAN_HPP_DEFAULT_DISPATCHER.init(device.get());
         }
 
         /**
@@ -524,21 +513,21 @@ namespace Engine::Rhi {
     }
     DeviceInterface::~DeviceInterface() = default;
 
-    vk::Instance DeviceInterface::GetInstance() const {
+    InstanceHandle DeviceInterface::GetInstance() const {
         assert(pimpl->instance);
-        return pimpl->instance.get();
+        return FromVulkan(pimpl->instance.get());
     }
-    vk::SurfaceKHR DeviceInterface::GetSurface() const {
+    SurfaceHandle DeviceInterface::GetSurface() const {
         assert(pimpl->surface);
-        return pimpl->surface.get();
+        return FromVulkan(pimpl->surface.get());
     }
-    vk::PhysicalDevice DeviceInterface::GetPhysicalDevice() const {
+    PhysicalDeviceHandle DeviceInterface::GetPhysicalDevice() const {
         assert(pimpl->physical_device);
-        return pimpl->physical_device;
+        return FromVulkan(pimpl->physical_device);
     }
-    vk::Device DeviceInterface::GetDevice() const {
+    DeviceHandle DeviceInterface::GetDevice() const {
         assert(pimpl->device);
-        return pimpl->device.get();
+        return FromVulkan(pimpl->device.get());
     }
     SwapchainSupport DeviceInterface::GetSwapchainSupport() const {
         return pimpl->FillSwapchainSupport(pimpl->physical_device);
@@ -599,3 +588,7 @@ namespace Engine::Rhi {
         return 0.0f;
     }
 } // namespace Engine::Rhi
+
+
+
+

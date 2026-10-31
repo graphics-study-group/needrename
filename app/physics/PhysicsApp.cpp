@@ -1,4 +1,6 @@
 #include "PhysicsApp.h"
+
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <Core/FileSystem/DataRoot.h>
 
 #include "CameraControllerComponent.h"
@@ -359,7 +361,7 @@ namespace AppPhysics {
             // One-time seed copy so state reads are legal before the first Step.
             auto &dc = renderer->GetDeviceContext();
             const auto &dev_iface = dc.GetDeviceInterface();
-            auto device = dev_iface.GetDevice();
+            auto device = Rhi::ToVulkanDevice(dev_iface.GetDevice());
             auto cbs = device.allocateCommandBuffersUnique(
                 vk::CommandBufferAllocateInfo{
                     dev_iface.GetQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
@@ -757,7 +759,7 @@ namespace AppPhysics {
 
             auto &dc = impl.renderer->GetDeviceContext();
             const auto &dev_iface = dc.GetDeviceInterface();
-            auto device = dev_iface.GetDevice();
+            auto device = Rhi::ToVulkanDevice(dev_iface.GetDevice());
             auto cbs = device.allocateCommandBuffersUnique(
                 vk::CommandBufferAllocateInfo{
                     dev_iface.GetQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
@@ -816,7 +818,7 @@ namespace AppPhysics {
         // DeviceInterface, replacing the SubmissionHelper in this design.
         auto &dc = impl.renderer->GetDeviceContext();
         const auto &dev_iface = dc.GetDeviceInterface();
-        auto device = dev_iface.GetDevice();
+        auto device = Rhi::ToVulkanDevice(dev_iface.GetDevice());
         const auto &queue_info = dev_iface.GetQueueInfo();
 
         vk::CommandBufferAllocateInfo cbainfo{queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
@@ -1130,3 +1132,4 @@ namespace AppPhysics {
         impl.any_dirty[idx] = true;
     }
 } // namespace AppPhysics
+

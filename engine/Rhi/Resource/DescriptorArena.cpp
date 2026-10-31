@@ -147,7 +147,7 @@ namespace Engine::Rhi {
         EpochWatermark claimed_through{INVALID_EPOCH_WATERMARK};
 
         vk::Device Device() const noexcept {
-            return device_context->GetDevice();
+            return ToVulkanDevice(device_context->GetDevice());
         }
         ImmutableResourceCache &Cache() const noexcept {
             return device_context->GetIRCache();
@@ -500,6 +500,7 @@ namespace Engine::Rhi {
         return resident > pimpl->resident_budget ? resident - pimpl->resident_budget : 0;
     }
 } // namespace Engine::Rhi
+
 
 
 

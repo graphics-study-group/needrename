@@ -243,9 +243,9 @@ namespace Engine::Rhi {
     AllocatorState::AllocatorState(DeviceInterface &device_interface) :
         pimpl(std::make_unique<impl>()), m_device_interface(&device_interface) {
         VmaAllocatorCreateInfo info{};
-        info.device = m_device_interface->GetDevice();
-        info.physicalDevice = m_device_interface->GetPhysicalDevice();
-        info.instance = m_device_interface->GetInstance();
+        info.device = ToVulkanDevice(m_device_interface->GetDevice());
+        info.physicalDevice = ToVulkanPhysicalDevice(m_device_interface->GetPhysicalDevice());
+        info.instance = ToVulkanInstance(m_device_interface->GetInstance());
         info.vulkanApiVersion = vk::ApiVersion13;
 
         vmaCreateAllocator(&info, &pimpl->m_allocator);
@@ -296,7 +296,7 @@ namespace Engine::Rhi {
         VkResult result = vmaCreateBuffer(pimpl->m_allocator, &bcinfo, &ainfo, &buffer, &allocation, nullptr);
         vk::detail::resultCheck(vk::Result{result}, "Failed to create buffer.");
         assert(buffer != nullptr && allocation != nullptr);
-        DEBUG_SET_NAME_TEMPLATE(m_device_interface->GetDevice(), static_cast<vk::Buffer>(buffer), name);
+        DEBUG_SET_NAME_TEMPLATE(ToVulkanDevice(m_device_interface->GetDevice()), static_cast<vk::Buffer>(buffer), name);
         return BufferAllocation(
             static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator, type, pimpl->m_retire_sink
         );
@@ -321,7 +321,7 @@ namespace Engine::Rhi {
     }
 
     bool AllocatorState::QueryFormatFeatures(ImageFormat format, FormatFeature feature) const noexcept {
-        auto ret = pimpl->UpdateFormatSupportInfo(m_device_interface->GetPhysicalDevice(), GetVkFormat(format));
+        auto ret = pimpl->UpdateFormatSupportInfo(ToVulkanPhysicalDevice(m_device_interface->GetPhysicalDevice()), GetVkFormat(format));
         return static_cast<bool>(
             vk::FormatFeatureFlags{ret.formatProperties.optimalTilingFeatures & GetVkFormatFeature(feature)}
         );
@@ -332,7 +332,7 @@ namespace Engine::Rhi {
     ) const {
         const auto [iusage, musage] = GetImageFlags(desc.type);
         auto fsupport =
-            pimpl->QueryFormatSupport(m_device_interface->GetPhysicalDevice(), GetVkFormat(desc.format), desc.type);
+            pimpl->QueryFormatSupport(ToVulkanPhysicalDevice(m_device_interface->GetPhysicalDevice()), GetVkFormat(desc.format), desc.type);
         if (fsupport.first <= 0) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
@@ -349,7 +349,7 @@ namespace Engine::Rhi {
         }
 
         auto ifsupport = pimpl->UpdateImageFormatSupportInfo(
-            m_device_interface->GetPhysicalDevice(),
+            ToVulkanPhysicalDevice(m_device_interface->GetPhysicalDevice()),
             GetVkFormat(desc.format),
             GetVkImageType(desc.dimension),
             vk::ImageTiling::eOptimal,
@@ -384,10 +384,11 @@ namespace Engine::Rhi {
         VkImage image;
         VmaAllocation allocation;
         vmaCreateImage(pimpl->m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
-        DEBUG_SET_NAME_TEMPLATE(m_device_interface->GetDevice(), static_cast<vk::Image>(image), name);
+        DEBUG_SET_NAME_TEMPLATE(ToVulkanDevice(m_device_interface->GetDevice()), static_cast<vk::Image>(image), name);
         return ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, desc.type);
     }
 } // namespace Engine::Rhi
+
 
 
 

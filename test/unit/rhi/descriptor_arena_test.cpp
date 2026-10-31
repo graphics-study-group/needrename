@@ -113,7 +113,6 @@ namespace {
             .window = nullptr,
             .application_name = "Rhi::DescriptorArena Test",
             .application_version = 0,
-            .dynamic_dispatcher = nullptr,
         }};
         std::vector<DeviceBuffer> buffers{};
 
@@ -568,3 +567,4 @@ int main() {
     std::cout << "Rhi::DescriptorArena test PASSED." << std::endl;
     return 0;
 }
+

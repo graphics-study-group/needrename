@@ -12,30 +12,52 @@
 // Every scenario builds its own headless DeviceContext with no render system.
 
 #include "Render/Asset/Shader/ShaderCompiler.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/AllocatorState.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceContext.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceInterface.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/MemoryTypes.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/Structs.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Resource/DescriptorArena.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Texture/Texture.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Texture/TextureSubresourceView.h"
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #include <SDL3/SDL.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cmath>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdint>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <iostream>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <memory>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <stdexcept>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <string>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vector>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vulkan/vulkan.hpp>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #ifdef _MSC_VER
 #include <crtdbg.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <stdlib.h>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #endif
 
 using namespace Engine;
@@ -142,7 +164,6 @@ void main() {
             .window = nullptr,
             .application_name = "Rhi::ComputeKernel Test",
             .application_version = 0,
-            .dynamic_dispatcher = nullptr,
         }};
         std::vector<std::unique_ptr<ComputeBuffer>> buffers{};
         std::vector<std::unique_ptr<Texture>> textures{};
@@ -161,7 +182,7 @@ void main() {
 
         vk::CommandBuffer Begin() {
             const auto &queues = context.GetDeviceInterface().GetQueueInfo();
-            auto cb = context.GetDevice().allocateCommandBuffers(
+            auto cb = Rhi::ToVulkanDevice(context.GetDevice()).allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             cb.begin(vk::CommandBufferBeginInfo{});
@@ -632,3 +653,5 @@ int main(int argc, char **argv) {
     std::cout << "Compute kernel test PASSED." << std::endl;
     return 0;
 }
+
+

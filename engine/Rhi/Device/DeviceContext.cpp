@@ -1,5 +1,7 @@
 #include "Rhi/Device/DeviceContext.h"
 
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
 #include "Rhi/Resource/DescriptorArena.h"
@@ -11,12 +13,12 @@
 namespace Engine::Rhi {
     DeviceContext::DeviceContext(DeviceInterface::DeviceConfiguration cfg) :
         m_device_interface(std::make_unique<DeviceInterface>(std::move(cfg))) {
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device_interface->GetInstance(), ::vkGetInstanceProcAddr);
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device_interface->GetDevice());
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(ToVulkanInstance(m_device_interface->GetInstance()), ::vkGetInstanceProcAddr);
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(ToVulkanDevice(m_device_interface->GetDevice()));
 
-        m_immutable_resource_cache = std::make_unique<ImmutableResourceCache>(m_device_interface->GetDevice());
+        m_immutable_resource_cache = std::make_unique<ImmutableResourceCache>(ToVulkanDevice(m_device_interface->GetDevice()));
         m_allocator_state = std::make_unique<AllocatorState>(*m_device_interface);
-        m_epoch_tracker = std::make_unique<EpochTracker>(m_device_interface->GetDevice());
+        m_epoch_tracker = std::make_unique<EpochTracker>(ToVulkanDevice(m_device_interface->GetDevice()));
         // The arena reads the tracker, so the tracker must exist first.
         m_descriptor_arena = std::make_unique<DescriptorArena>(*this);
         m_compute_kernel_cache = std::make_unique<ComputeKernelCache>(*this);
@@ -85,12 +87,12 @@ namespace Engine::Rhi {
         return *m_epoch_tracker;
     }
 
-    vk::Device DeviceContext::GetDevice() const noexcept {
+    DeviceHandle DeviceContext::GetDevice() const noexcept {
         return m_device_interface->GetDevice();
     }
 
     void DeviceContext::WaitForIdle() {
-        m_device_interface->GetDevice().waitIdle();
+        ToVulkanDevice(m_device_interface->GetDevice()).waitIdle();
         // What was already parked can go: a device-idle wait proves that every
         // submission finished, not that a live resource has no owner.
         m_epoch_tracker->ReleaseAllParked();
@@ -98,3 +100,8 @@ namespace Engine::Rhi {
         m_descriptor_arena->OnDeviceIdle();
     }
 } // namespace Engine::Rhi
+
+
+
+
+

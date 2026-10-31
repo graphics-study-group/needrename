@@ -3,6 +3,7 @@
 #include "Render/Resource/MemoryAccessHelper.hpp"
 #include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
@@ -179,7 +180,7 @@ namespace Engine::RenderSystemState {
         // may still be pending in the WSI: drain the device first, otherwise
         // the swapchain is torn down while the driver still references it.
         if (pimpl->m_device_interface != nullptr && pimpl->m_swapchain) {
-            pimpl->m_device_interface->GetDevice().waitIdle();
+            ToVulkanDevice(pimpl->m_device_interface->GetDevice()).waitIdle();
         }
     }
 
@@ -204,7 +205,7 @@ namespace Engine::RenderSystemState {
         }
 
         vk::SwapchainCreateInfoKHR info;
-        info.surface = di.GetSurface();
+        info.surface = ToVulkanSurface(di.GetSurface());
         info.minImageCount = image_count;
         info.imageFormat = format.format;
         info.imageColorSpace = format.colorSpace;
@@ -234,7 +235,7 @@ namespace Engine::RenderSystemState {
             info.imageSharingMode = vk::SharingMode::eExclusive;
         }
 
-        auto device = di.GetDevice();
+        auto device = ToVulkanDevice(di.GetDevice());
         // The old swapchain (if any) is destroyed when the new handle below is
         // assigned. Its images/present operations must have completed first.
         if (pimpl->m_swapchain) {
@@ -311,3 +312,6 @@ namespace Engine::RenderSystemState {
         return needs_recreating;
     }
 } // namespace Engine::RenderSystemState
+
+
+

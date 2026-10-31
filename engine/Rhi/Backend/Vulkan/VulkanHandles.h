@@ -99,7 +99,43 @@ namespace Engine::Rhi {
     inline vk::PipelineLayout ToVulkanPipelineLayout(PipelineLayoutHandle handle) noexcept {
         return vk::PipelineLayout(ToVulkan<VkPipelineLayout>(handle));
     }
+    /// @brief Convert a Vulkan instance to its portable handle.
+    inline InstanceHandle FromVulkan(vk::Instance instance) noexcept {
+        return FromVulkan<InstanceHandle>(static_cast<VkInstance>(instance));
+    }
+    /// @brief Convert a portable instance handle to its Vulkan instance.
+    inline vk::Instance ToVulkanInstance(InstanceHandle handle) noexcept {
+        return vk::Instance(ToVulkan<VkInstance>(handle));
+    }
+
+    /// @brief Convert a Vulkan physical device to its portable handle.
+    inline PhysicalDeviceHandle FromVulkan(vk::PhysicalDevice device) noexcept {
+        return FromVulkan<PhysicalDeviceHandle>(static_cast<VkPhysicalDevice>(device));
+    }
+    /// @brief Convert a portable physical device handle to its Vulkan object.
+    inline vk::PhysicalDevice ToVulkanPhysicalDevice(PhysicalDeviceHandle handle) noexcept {
+        return vk::PhysicalDevice(ToVulkan<VkPhysicalDevice>(handle));
+    }
+
+    /// @brief Convert a Vulkan device to its portable handle.
+    inline DeviceHandle FromVulkan(vk::Device device) noexcept {
+        return FromVulkan<DeviceHandle>(static_cast<VkDevice>(device));
+    }
+    /// @brief Convert a portable device handle to its Vulkan device.
+    inline vk::Device ToVulkanDevice(DeviceHandle handle) noexcept {
+        return vk::Device(ToVulkan<VkDevice>(handle));
+    }
+
+    /// @brief Convert a Vulkan surface to its portable handle.
+    inline SurfaceHandle FromVulkan(vk::SurfaceKHR surface) noexcept {
+        return FromVulkan<SurfaceHandle>(static_cast<VkSurfaceKHR>(surface));
+    }
+    /// @brief Convert a portable surface handle to its Vulkan surface.
+    inline vk::SurfaceKHR ToVulkanSurface(SurfaceHandle handle) noexcept {
+        return vk::SurfaceKHR(ToVulkan<VkSurfaceKHR>(handle));
+    }
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANHANDLES_INCLUDED
+
 

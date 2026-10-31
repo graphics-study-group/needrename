@@ -41,10 +41,9 @@ int main() {
         .window = nullptr,
         .application_name = "Rhi Standalone Test",
         .application_version = 0,
-        .dynamic_dispatcher = nullptr,
     }};
     auto &allocator = context.GetAllocatorState();
-    const auto device = context.GetDevice();
+    const auto device = Rhi::ToVulkanDevice(context.GetDevice());
     const auto &queues = context.GetDeviceInterface().GetQueueInfo();
     assert(device && "Rhi must create a Vulkan device headlessly.");
     assert(queues.graphicsQueue && "Headless device must expose a graphics queue.");
@@ -119,5 +118,7 @@ int main() {
     std::cout << "Rhi standalone test PASSED." << std::endl;
     return 0;
 }
+
+
 
 

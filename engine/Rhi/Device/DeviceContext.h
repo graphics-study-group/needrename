@@ -120,8 +120,8 @@ namespace Engine::Rhi {
         EpochTracker &GetEpochTracker() noexcept;
         const EpochTracker &GetEpochTracker() const noexcept;
 
-        /// @brief Get the underlying Vulkan device.
-        vk::Device GetDevice() const noexcept;
+        /// @brief Get the underlying device.
+        DeviceHandle GetDevice() const noexcept;
 
         /**
          * @brief Wait for the device to be idle and broadcast that fact.
@@ -137,4 +137,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICECONTEXT_INCLUDED
+
 

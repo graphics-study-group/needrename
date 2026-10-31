@@ -17,6 +17,7 @@
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 #include "Rhi/Device/Structs.h"
 #include "Rhi/Submission/EpochTracker.h"
@@ -131,7 +132,7 @@ namespace Engine {
     }
 
     vk::Device RenderSystem::GetDevice() const {
-        return pimpl->m_device_context.GetDevice();
+        return ToVulkanDevice(pimpl->m_device_context.GetDevice());
     }
     const Rhi::DeviceInterface &RenderSystem::GetDeviceInterface() const {
         return pimpl->m_device_context.GetDeviceInterface();
@@ -222,3 +223,5 @@ namespace Engine {
     }
 
 } // namespace Engine
+
+

@@ -1,3 +1,4 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DeviceInterface.h"
 
@@ -53,23 +54,22 @@ int main() {
         .window = nullptr,
         .application_name = "Rhi::SubmissionHelper Standalone Test",
         .application_version = 0,
-        .dynamic_dispatcher = nullptr,
     };
     Rhi::DeviceInterface gpu_device{cfg};
     Rhi::AllocatorState allocator_state{gpu_device};
     // The retirement facility is standalone-constructible from the same
     // facilities the allocator is built from, and is installed through the
     // allocator's setter. Declared last so that it is destroyed first.
-    Rhi::EpochTracker epoch_tracker{gpu_device.GetDevice()};
+    Rhi::EpochTracker epoch_tracker{Rhi::ToVulkanDevice(gpu_device.GetDevice())};
     allocator_state.SetRetireSink(&epoch_tracker);
 
-    const auto device = gpu_device.GetDevice();
+    const auto device = Rhi::ToVulkanDevice(gpu_device.GetDevice());
     const auto &allocator = allocator_state;
     CHECK(device && "Rhi must create a Vulkan device headlessly.");
 
     // Initialize this module's copy of the dynamic dispatch loader (instance
     // first, then device). Same pattern as RenderSystem::Create.
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(gpu_device.GetInstance(), ::vkGetInstanceProcAddr);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(Rhi::ToVulkanInstance(gpu_device.GetInstance()), ::vkGetInstanceProcAddr);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
 
     // Timeline semaphore for the caller-provided submission signal.
@@ -216,4 +216,7 @@ int main() {
     std::cout << "Rhi::SubmissionHelper standalone test PASSED." << std::endl;
     return 0;
 }
+
+
+
 

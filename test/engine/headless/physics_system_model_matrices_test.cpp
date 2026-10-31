@@ -81,7 +81,6 @@ int main() {
         .window = nullptr,
         .application_name = "PhysicsSystem model matrices test",
         .application_version = 0,
-        .dynamic_dispatcher = nullptr,
     };
     Rhi::DeviceInterface gpu_device{cfg};
     Rhi::AllocatorState allocator{gpu_device};
@@ -150,3 +149,4 @@ int main() {
     std::cout << "PhysicsSystem model matrices test PASSED." << std::endl;
     return 0;
 }
+

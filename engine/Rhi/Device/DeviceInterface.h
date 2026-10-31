@@ -6,18 +6,9 @@
 #include <optional>
 #include <string>
 
+#include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 struct SDL_Window;
-
-namespace vk {
-    class Instance;
-    class SurfaceKHR;
-    class PhysicalDevice;
-    class Device;
-    namespace detail {
-        class DispatchLoaderDynamic;
-    }
-} // namespace vk
 
 namespace Engine::Rhi {
     struct QueueInfo;
@@ -43,8 +34,6 @@ namespace Engine::Rhi {
             std::string application_name;
             /// Arbitrary application version. Does not affect Vulkan behavior.
             uint32_t application_version;
-            /// Vulkan-Hpp dynamic dispatcher, can be null, in which case uses the default one.
-            vk::detail::DispatchLoaderDynamic *dynamic_dispatcher;
         };
 
         /// @brief Types of integer limits that can be queried for.
@@ -90,14 +79,14 @@ namespace Engine::Rhi {
         DeviceInterface(DeviceConfiguration cfg);
         ~DeviceInterface();
 
-        /// @brief Get the current unique instance of Vulkan.
-        vk::Instance GetInstance() const;
+        /// @brief Get the current unique instance.
+        InstanceHandle GetInstance() const;
         /// @brief Get the current unique surface of the OS.
-        vk::SurfaceKHR GetSurface() const;
+        SurfaceHandle GetSurface() const;
         /// @brief Get the current selected physical device.
-        vk::PhysicalDevice GetPhysicalDevice() const;
+        PhysicalDeviceHandle GetPhysicalDevice() const;
         /// @brief Get the current logical device.
-        vk::Device GetDevice() const;
+        DeviceHandle GetDevice() const;
         /**
          * @brief Get the queue information of current logical device.
          *
@@ -132,4 +121,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICEINTERFACE_INCLUDED
+
 
