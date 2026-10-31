@@ -583,3 +583,37 @@ were converted and compiled in the last attempt:
 and the skybox `bindDescriptorSets` call. An index-based edit there shifted lines
 and broke an unrelated declaration, which is why the round was reverted: those
 three sites want the `edit` tool with the exact text, not line arithmetic.
+
+### A design gap the scene layout exposes: immutable samplers
+
+The descriptor pass ran to `SceneDataManager` and stopped on a real gap rather
+than a mechanical one. The scene descriptor set is built like this:
+
+```cpp
+descriptor_bindings.assign(DESCRIPTOR_BINDINGS.begin(), DESCRIPTOR_BINDINGS.end());
+descriptor_bindings[1].setImmutableSamplers(immutable_samplers);   // shadow map sampler
+```
+
+An immutable sampler is part of a *descriptor-set layout*, not of a binding's
+type, and `Rhi::DescriptorBinding{binding, type, count}` has no field for it. So
+`ResolveLayout(const DescriptorSetLayout &)` cannot express this layout at all —
+`descriptor_bindings` is still a vector of Vulkan bindings precisely because one
+entry carries a sampler that lives in the layout.
+
+Three ways forward, in the order I would try them:
+
+1. **Add the field.** `DescriptorBinding` gains `SamplerHandle immutable_sampler{}`
+   and an `immutable_sampler_count`, and `ToVulkanBindings` passes
+   `pImmutableSamplers` through. This is the honest shape: an immutable sampler
+   *is* a property of the layout, and the WebGPU backend will need it too,
+   because a bind group layout with a fixed sampler is exactly what WebGPU calls
+   an immutable sampler.
+2. **Bind it dynamically.** Drop the immutable sampler and bind a normal sampler
+   with the shadow-map set. Costs one descriptor slot and one shader change.
+3. **Keep a Vulkan overload.** Rejected: it reintroduces the type this whole pass
+   exists to remove.
+
+Option 1 is the one the design wants, and it is small: one field, one pass-through
+in `ToVulkanBindings`, and `SceneDataManager` builds
+`DESCRIPTOR_BINDINGS` as an `Rhi::DescriptorSetLayout` with the sampler filled in
+instead of patching a Vulkan binding afterwards.
