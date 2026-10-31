@@ -1,5 +1,7 @@
 #include "Rhi/Device/MemoryAllocation.h"
 
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+
 #include "Rhi/Device/BindingRef.h"
 #include "Rhi/Submission/EpochTracker.h"
 
@@ -17,15 +19,14 @@ namespace Engine::Rhi {
     void ImageAllocation::Destory() noexcept {
         if (pimpl) {
             if (pimpl->image) {
-                vmaDestroyImage(GetAllocator(), pimpl->image, GetAllocation());
+                vmaDestroyImage(static_cast<VmaAllocator>(GetAllocator()), pimpl->image, static_cast<VmaAllocation>(GetAllocation()));
             }
             pimpl.reset();
         }
     }
 
-    ImageAllocation::ImageAllocation(
-        vk::Image image, VmaAllocation allocation, VmaAllocator allocator, ImageMemoryType type
-    ) : VmaMemoryAllocation(allocation, allocator), pimpl(std::make_unique<impl>(image, type)) {
+    ImageAllocation::ImageAllocation(ImageHandle image, void *allocation, void *allocator, ImageMemoryType type) :
+        VmaMemoryAllocation(allocation, allocator), pimpl(std::make_unique<impl>(ToVulkanImage(image), type)) {
     }
     ImageAllocation::~ImageAllocation() {
         Destory();
@@ -45,9 +46,9 @@ namespace Engine::Rhi {
         return *this;
     }
 
-    vk::Image ImageAllocation::GetImage() const noexcept {
+    ImageHandle ImageAllocation::GetImage() const noexcept {
         assert(pimpl);
-        return pimpl->image;
+        return FromVulkan(pimpl->image);
     }
     ImageMemoryType ImageAllocation::GetMemoryType() const noexcept {
         assert(pimpl);
@@ -81,15 +82,16 @@ namespace Engine::Rhi {
                 return;
             }
             if (pimpl->mapped_ptr) {
-                vmaUnmapMemory(GetAllocator(), GetAllocation());
+                vmaUnmapMemory(static_cast<VmaAllocator>(GetAllocator()), static_cast<VmaAllocation>(GetAllocation()));
             }
-            vmaDestroyBuffer(GetAllocator(), pimpl->buffer, GetAllocation());
+            vmaDestroyBuffer(static_cast<VmaAllocator>(GetAllocator()), pimpl->buffer, static_cast<VmaAllocation>(GetAllocation()));
             pimpl.reset();
         }
     }
     BufferAllocation::BufferAllocation(
-        vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator, BufferType type, EpochTracker *sink
-    ) : VmaMemoryAllocation(allocation, allocator), pimpl(std::make_unique<impl>(buffer, type, nullptr, sink)) {
+        BufferHandle buffer, void *allocation, void *allocator, BufferType type, EpochTracker *sink
+    ) : VmaMemoryAllocation(allocation, allocator),
+        pimpl(std::make_unique<impl>(ToVulkanBuffer(buffer), type, nullptr, sink)) {
     }
     BufferAllocation::~BufferAllocation() {
         Destroy();
@@ -106,9 +108,9 @@ namespace Engine::Rhi {
         }
         return *this;
     }
-    vk::Buffer BufferAllocation::GetBuffer() const noexcept {
+    BufferHandle BufferAllocation::GetBuffer() const noexcept {
         assert(pimpl);
-        return pimpl->buffer;
+        return FromVulkan(pimpl->buffer);
     }
     VulkanIdentity BufferAllocation::GetIdentity() const noexcept {
         assert(pimpl);
@@ -125,7 +127,7 @@ namespace Engine::Rhi {
         }
         void *ptr{nullptr};
         vk::detail::resultCheck(
-            static_cast<vk::Result>(vmaMapMemory(GetAllocator(), GetAllocation(), &ptr)), "Cannot map memory."
+            static_cast<vk::Result>(vmaMapMemory(static_cast<VmaAllocator>(GetAllocator()), static_cast<VmaAllocation>(GetAllocation()), &ptr)), "Cannot map memory."
         );
         pimpl->mapped_ptr = reinterpret_cast<std::byte *>(ptr);
         return pimpl->mapped_ptr;
@@ -137,7 +139,7 @@ namespace Engine::Rhi {
             size = vk::WholeSize;
         }
         vk::detail::resultCheck(
-            static_cast<vk::Result>(vmaFlushAllocation(GetAllocator(), GetAllocation(), offset, size)),
+            static_cast<vk::Result>(vmaFlushAllocation(static_cast<VmaAllocator>(GetAllocator()), static_cast<VmaAllocation>(GetAllocation()), offset, size)),
             "Failed to flush mapped memory."
         );
     }
@@ -148,7 +150,7 @@ namespace Engine::Rhi {
             size = VK_WHOLE_SIZE;
         }
         vk::detail::resultCheck(
-            static_cast<vk::Result>(vmaInvalidateAllocation(GetAllocator(), GetAllocation(), offset, size)),
+            static_cast<vk::Result>(vmaInvalidateAllocation(static_cast<VmaAllocator>(GetAllocator()), static_cast<VmaAllocation>(GetAllocation()), offset, size)),
             "Failed to invalidate mapped memory."
         );
     }
@@ -158,3 +160,9 @@ namespace Engine::Rhi {
         return pimpl->type;
     }
 } // namespace Engine::Rhi
+
+
+
+
+
+

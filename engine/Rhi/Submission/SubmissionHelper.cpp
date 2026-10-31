@@ -251,7 +251,7 @@ namespace Engine::Rhi {
 
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
             vk::BufferCopy copy{0, buffer_offset, static_cast<vk::DeviceSize>(data.size_bytes())};
-            cb.copyBuffer(pbuf->GetBuffer(), buffer.GetBuffer(), {copy});
+            cb.copyBuffer(ToVulkanBuffer(pbuf->GetBuffer()), buffer.GetBuffer(), {copy});
 
             mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferAfter);
             barriers[0] = {
@@ -315,7 +315,9 @@ namespace Engine::Rhi {
                     texture.GetTextureDescription().depth
                 }
             };
-            cb.copyBufferToImage(pbuf->GetBuffer(), texture.GetImage(), vk::ImageLayout::eTransferDstOptimal, {copy});
+            cb.copyBufferToImage(
+                ToVulkanBuffer(pbuf->GetBuffer()), texture.GetImage(), vk::ImageLayout::eTransferDstOptimal, {copy}
+            );
 
             // Transfer image for sampling
             barriers[0] = GetTextureBarrier(
@@ -550,6 +552,12 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+
+
+
+
+
+
 
 
 

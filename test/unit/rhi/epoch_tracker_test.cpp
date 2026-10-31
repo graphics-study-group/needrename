@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
         const uint32_t before = LiveAllocationCount(plain_allocator);
         {
             auto allocation = plain_allocator.AllocateBuffer({BufferTypeBits::CopyTo}, 256, "Hand-off test buffer");
-            CHECK(allocation.GetBuffer() != nullptr);
+            CHECK(allocation.GetBuffer().IsValid());
         }
         CHECK(tracker.GetParkedResourceCount() == 1u && "destruction must hand off exactly once");
         CHECK(
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
         const uint32_t before = LiveAllocationCount(plain_allocator);
         {
             auto allocation = plain_allocator.AllocateBuffer({BufferTypeBits::CopyTo}, 256, "No tracker buffer");
-            CHECK(allocation.GetBuffer() != nullptr);
+            CHECK(allocation.GetBuffer().IsValid());
         }
         CHECK(
             LiveAllocationCount(plain_allocator) == before
@@ -442,6 +442,7 @@ int main(int argc, char **argv) {
     std::cout << "Rhi::EpochTracker test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

@@ -2,21 +2,11 @@
 #define ENGINE_RHI_MEMORYALLOCATION_INCLUDED
 
 #include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
 #include <cassert>
 #include <memory>
-
-struct VmaAllocation_T;
-struct VmaAllocator_T;
-struct VmaAllocationInfo;
-typedef VmaAllocation_T *VmaAllocation;
-typedef VmaAllocator_T *VmaAllocator;
-
-namespace vk {
-    class Image;
-    class Buffer;
-} // namespace vk
 
 namespace Engine::Rhi {
     class EpochTracker;
@@ -38,16 +28,15 @@ namespace Engine::Rhi {
      * allocation until moved or destructed.
      */
     class VmaMemoryAllocation {
-        VmaAllocation m_allocation;
-        VmaAllocator m_allocator;
+        void *m_allocation;
+        void *m_allocator;
 
     public:
         VmaMemoryAllocation() : m_allocation(nullptr), m_allocator(nullptr) {
         }
 
         /// @brief Create an allocation, called from `Engine::Rhi::AllocatorState`.
-        VmaMemoryAllocation(VmaAllocation allocation, VmaAllocator allocator) :
-            m_allocation(allocation), m_allocator(allocator) {
+        VmaMemoryAllocation(void *allocation, void *allocator) : m_allocation(allocation), m_allocator(allocator) {
         }
         ~VmaMemoryAllocation() {
         }
@@ -60,11 +49,11 @@ namespace Engine::Rhi {
         /// @brief Construct an allocation from another allocation.
         VmaMemoryAllocation &operator=(VmaMemoryAllocation &&other) = default;
 
-        const VmaAllocation &GetAllocation() const noexcept {
+        void *GetAllocation() const noexcept {
             assert(m_allocation);
             return m_allocation;
         }
-        const VmaAllocator &GetAllocator() const noexcept {
+        void *GetAllocator() const noexcept {
             assert(m_allocator);
             return m_allocator;
         }
@@ -88,7 +77,7 @@ namespace Engine::Rhi {
 
     public:
         /// @brief Create an image allocation, called from `Engine::Rhi::AllocatorState`.
-        ImageAllocation(vk::Image image, VmaAllocation allocation, VmaAllocator allocator, ImageMemoryType type);
+        ImageAllocation(ImageHandle image, void *allocation, void *allocator, ImageMemoryType type);
 
         ~ImageAllocation();
 
@@ -112,7 +101,7 @@ namespace Engine::Rhi {
         ImageAllocation &operator=(ImageAllocation &&other) noexcept;
 
         /// @brief Get the underlying Vulkan image object.
-        vk::Image GetImage() const noexcept;
+        ImageHandle GetImage() const noexcept;
         /// @brief Query the memory type specified on creation.
         ImageMemoryType GetMemoryType() const noexcept;
 
@@ -158,9 +147,9 @@ namespace Engine::Rhi {
          * destruction.
          */
         BufferAllocation(
-            vk::Buffer buffer,
-            VmaAllocation allocation,
-            VmaAllocator allocator,
+            BufferHandle buffer,
+            void *allocation,
+            void *allocator,
             BufferType type,
             EpochTracker *retire_sink = nullptr
         );
@@ -186,7 +175,7 @@ namespace Engine::Rhi {
         BufferAllocation &operator=(BufferAllocation &&other) noexcept;
 
         /// @brief Get the underlying Vulkan buffer object.
-        vk::Buffer GetBuffer() const noexcept;
+        BufferHandle GetBuffer() const noexcept;
 
         /**
          * @brief Get this allocation's never-reused identity.
@@ -237,4 +226,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_MEMORYALLOCATION_INCLUDED
+
 

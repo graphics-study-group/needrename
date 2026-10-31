@@ -101,7 +101,7 @@ int main() {
 
     {
         auto named = plain_allocator.AllocateBuffer({BufferTypeBits::CopyTo}, 256, "Named allocation");
-        CHECK(named.GetBuffer() != nullptr);
+        CHECK(named.GetBuffer().IsValid());
 
         auto unnamed = plain_allocator.AllocateBuffer({BufferTypeBits::CopyTo}, 256);
     }
@@ -269,6 +269,7 @@ int main() {
     std::cout << "Rhi::BufferReallocation test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

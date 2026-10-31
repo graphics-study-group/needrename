@@ -21,11 +21,11 @@ namespace Engine::Rhi {
     }
 
     vk::Buffer DeviceBuffer::GetBuffer() const {
-        return allocation.GetBuffer();
+        return ToVulkanBuffer(allocation.GetBuffer());
     }
 
     BufferRef DeviceBuffer::GetBufferRef() const {
-        return BufferRef{FromVulkan(allocation.GetBuffer()), allocation.GetIdentity()};
+        return BufferRef{allocation.GetBuffer(), allocation.GetIdentity()};
     }
 
     size_t DeviceBuffer::GetSize() const {
@@ -54,5 +54,6 @@ namespace Engine::Rhi {
         m_size = bytes;
     }
 } // namespace Engine::Rhi
+
 
 

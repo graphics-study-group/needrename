@@ -297,9 +297,7 @@ namespace Engine::Rhi {
         vk::detail::resultCheck(vk::Result{result}, "Failed to create buffer.");
         assert(buffer != nullptr && allocation != nullptr);
         DEBUG_SET_NAME_TEMPLATE(ToVulkanDevice(m_device_interface->GetDevice()), static_cast<vk::Buffer>(buffer), name);
-        return BufferAllocation(
-            static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator, type, pimpl->m_retire_sink
-        );
+        return BufferAllocation(FromVulkan(vk::Buffer(buffer)), allocation, pimpl->m_allocator, type, pimpl->m_retire_sink);
     }
 
     std::unique_ptr<BufferAllocation> AllocatorState::AllocateBufferUnique(
@@ -385,9 +383,11 @@ namespace Engine::Rhi {
         VmaAllocation allocation;
         vmaCreateImage(pimpl->m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
         DEBUG_SET_NAME_TEMPLATE(ToVulkanDevice(m_device_interface->GetDevice()), static_cast<vk::Image>(image), name);
-        return ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, desc.type);
+        return ImageAllocation(FromVulkan(vk::Image(image)), allocation, pimpl->m_allocator, desc.type);
     }
 } // namespace Engine::Rhi
+
+
 
 
 

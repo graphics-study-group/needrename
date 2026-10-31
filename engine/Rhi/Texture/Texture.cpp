@@ -210,8 +210,8 @@ namespace Engine::Rhi {
     }
 
     vk::Image Engine::Rhi::Texture::GetImage() const noexcept {
-        assert(pimpl->m_image && pimpl->m_image->GetImage());
-        return pimpl->m_image->GetImage();
+        assert(pimpl->m_image && pimpl->m_image->GetImage().IsValid());
+        return ToVulkanImage(pimpl->m_image->GetImage());
     }
 
     vk::ImageView Engine::Rhi::Texture::GetImageView() const {
@@ -227,7 +227,7 @@ namespace Engine::Rhi {
         if (itr == pimpl->m_views.end()) {
             vk::ImageViewCreateInfo ivci{
                 vk::ImageViewCreateFlags{},
-                pimpl->m_image->GetImage(),
+                ToVulkanImage(pimpl->m_image->GetImage()),
                 GetImageViewType(pimpl->m_tdesc, tsv),
                 ConvertSrgbFormat(Rhi::GetVkFormat(pimpl->m_tdesc.format), tsv.swizzle_and_srgb),
                 ToVkComponentMapping(tsv.swizzle_and_srgb),
@@ -267,6 +267,9 @@ namespace Engine::Rhi {
         return false;
     }
 } // namespace Engine::Rhi
+
+
+
 
 
 

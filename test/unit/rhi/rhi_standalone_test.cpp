@@ -79,7 +79,7 @@ int main() {
         Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice}, buffer_size, "Standalone output buffer"
     );
 
-    vk::DescriptorBufferInfo descriptor_buffer_info{buffer.GetBuffer(), 0, buffer_size};
+    vk::DescriptorBufferInfo descriptor_buffer_info{Engine::Rhi::ToVulkanBuffer(buffer.GetBuffer()), 0, buffer_size};
     vk::WriteDescriptorSet write_descriptor{
         descriptor_set, 0, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &descriptor_buffer_info
     };
@@ -118,6 +118,7 @@ int main() {
     std::cout << "Rhi standalone test PASSED." << std::endl;
     return 0;
 }
+
 
 
 
