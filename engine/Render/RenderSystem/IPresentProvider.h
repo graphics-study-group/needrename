@@ -34,7 +34,7 @@ namespace Engine {
          * @return Windowed: the current swapchain extent; headless: the extent
          * configured at construction (updated by `Recreate`).
          */
-        virtual vk::Extent2D GetExtent() const = 0;
+        virtual Rhi::Extent2D GetExtent() const = 0;
 
         /**
          * @brief Get the color format of the presentation target.
@@ -42,7 +42,7 @@ namespace Engine {
          * @return The surface format for windowed mode, or the format passed
          * at construction for headless mode.
          */
-        virtual vk::Format GetColorFormat() const = 0;
+        virtual Rhi::ImageFormat GetColorFormat() const = 0;
 
         /**
          * @brief Get the number of presentation target images.
@@ -148,8 +148,9 @@ namespace Engine {
          * @param new_extent The new extent in pixels (e.g. from a window
          *                   resize).
          */
-        virtual void Recreate(vk::Extent2D new_extent) = 0;
+        virtual void Recreate(Rhi::Extent2D new_extent) = 0;
     };
 } // namespace Engine
 
 #endif // RENDER_RENDERSYSTEM_IPRESENTPROVIDER_INCLUDED
+

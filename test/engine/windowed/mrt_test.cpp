@@ -149,8 +149,10 @@ auto BuildRenderGraph(
             .SetPassFunction([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](
                                  CommandBuffer &cb, const RenderGraph &
                              ) {
-                auto extent = rsys->GetPresentProvider().GetExtent();
-                cb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+                const auto extent = rsys->GetPresentProvider().GetExtent();
+                cb.SetupViewport(
+                    static_cast<float>(extent.width), static_cast<float>(extent.height), {{0, 0}, {extent.width, extent.height}}
+                );
                 cb.BindSceneResources(rsys->GetSceneDataManager());
                 cb.BindCameraResources(rsys->GetCameraManager());
 
@@ -355,3 +357,6 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+
+

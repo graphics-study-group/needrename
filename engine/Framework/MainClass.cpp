@@ -291,7 +291,7 @@ namespace Engine {
         // only when the extent changes. Interim shim (see design): the camera
         // system lacks a size-notification mechanism; the projection matrix is
         // lazily recomputed each frame, so no resize event is needed.
-        const vk::Extent2D present_extent = this->renderer->GetPresentProvider().GetExtent();
+        const Rhi::Extent2D present_extent = this->renderer->GetPresentProvider().GetExtent();
         if ((present_extent.width > 0 && present_extent.height > 0)
             && (present_extent.width != m_last_present_width || present_extent.height != m_last_present_height)) {
             m_last_present_width = present_extent.width;
@@ -332,4 +332,5 @@ namespace Engine {
         );
     }
 } // namespace Engine
+
 

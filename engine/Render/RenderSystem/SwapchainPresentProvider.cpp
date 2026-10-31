@@ -1,12 +1,19 @@
 #include "SwapchainPresentProvider.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Render/Resource/MemoryAccessHelper.hpp"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Render/Resource/RenderTargetTexture.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 namespace {
     static constexpr std::array PREFERED_COLOR_FORMATS = {
@@ -188,10 +195,11 @@ namespace Engine::RenderSystemState {
         const Rhi::DeviceInterface &device_interface, vk::Extent2D expected_extent
     ) {
         pimpl->m_device_interface = &device_interface;
-        Recreate(expected_extent);
+        Recreate(Rhi::Extent2D{expected_extent.width, expected_extent.height});
     }
 
-    void SwapchainPresentProvider::Recreate(vk::Extent2D expected_extent) {
+    void SwapchainPresentProvider::Recreate(Rhi::Extent2D portable_extent) {
+        const vk::Extent2D expected_extent{portable_extent.width, portable_extent.height};
         const auto &di = *pimpl->m_device_interface;
         const auto swapchain_support = di.GetSwapchainSupport();
         const auto extent = SelectSwapchainExtent(swapchain_support.capabilities, expected_extent);
@@ -248,12 +256,12 @@ namespace Engine::RenderSystemState {
         pimpl->AllocateCopyCommandBuffers(device);
     }
 
-    vk::Extent2D SwapchainPresentProvider::GetExtent() const {
-        return pimpl->m_extent;
+    Rhi::Extent2D SwapchainPresentProvider::GetExtent() const {
+        return Rhi::Extent2D{pimpl->m_extent.width, pimpl->m_extent.height};
     }
 
-    vk::Format SwapchainPresentProvider::GetColorFormat() const {
-        return pimpl->m_image_format.format;
+    Rhi::ImageFormat SwapchainPresentProvider::GetColorFormat() const {
+        return Rhi::FromVkFormat(pimpl->m_image_format.format);
     }
 
     uint32_t SwapchainPresentProvider::GetImageCount() const {
@@ -312,6 +320,9 @@ namespace Engine::RenderSystemState {
         return needs_recreating;
     }
 } // namespace Engine::RenderSystemState
+
+
+
 
 
 

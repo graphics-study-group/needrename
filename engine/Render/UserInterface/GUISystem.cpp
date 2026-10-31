@@ -131,9 +131,10 @@ namespace Engine {
         info.MinImageCount = info.ImageCount;
         info.UseDynamicRendering = true;
 
+        const vk::Format present_format =
+            Rhi::GetVkFormat(render_system.GetPresentProvider().GetColorFormat());
         std::array<vk::Format, 1> formats = {
-            {color_attachment_format == vk::Format::eUndefined ? render_system.GetPresentProvider().GetColorFormat()
-                                                               : color_attachment_format}
+            {color_attachment_format == vk::Format::eUndefined ? present_format : color_attachment_format}
         };
         VkPipelineRenderingCreateInfoKHR pipeline{static_cast<VkPipelineRenderingCreateInfoKHR>(
             vk::PipelineRenderingCreateInfo{0, formats, vk::Format::eUndefined, vk::Format::eUndefined}
@@ -173,6 +174,7 @@ namespace Engine {
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }
 } // namespace Engine
+
 
 
 

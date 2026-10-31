@@ -165,7 +165,7 @@ namespace Editor {
                         cb,
                         system.GetFrameManager().GetFrameInFlight(),
                         system.GetCameraManager().GetPVMatForSkybox(),
-                        extent
+                        Rhi::Extent2D{extent.width, extent.height}
                     );
                 })
                 .WrapRenderPass();
@@ -246,7 +246,7 @@ namespace Editor {
                         cb,
                         system.GetFrameManager().GetFrameInFlight(),
                         system.GetCameraManager().GetPVMatForSkybox(),
-                        extent
+                        Rhi::Extent2D{extent.width, extent.height}
                     );
                 })
                 .WrapRenderPass();
@@ -306,5 +306,6 @@ namespace Editor {
         return rgb.BuildRenderGraph();
     }
 } // namespace Editor
+
 
 

@@ -80,11 +80,11 @@ namespace {
             m_device_interface(&device_interface) {
         }
 
-        vk::Extent2D GetExtent() const override {
-            return extent;
+        Rhi::Extent2D GetExtent() const override {
+            return Rhi::Extent2D{extent.width, extent.height};
         }
-        vk::Format GetColorFormat() const override {
-            return format;
+        Rhi::ImageFormat GetColorFormat() const override {
+            return Rhi::FromVkFormat(format);
         }
         uint32_t GetImageCount() const override {
             return m_image_count;
@@ -114,8 +114,8 @@ namespace {
             return false;
         }
 
-        void Recreate(vk::Extent2D new_extent) override {
-            extent = new_extent;
+        void Recreate(Rhi::Extent2D new_extent) override {
+            extent = vk::Extent2D{new_extent.width, new_extent.height};
         }
     };
 
@@ -346,6 +346,8 @@ int main() {
     std::cout << "Gpu buffer retirement test PASSED." << std::endl;
     return 0;
 }
+
+
 
 
 

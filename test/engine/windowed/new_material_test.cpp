@@ -147,7 +147,9 @@ auto BuildRenderGraph(
                 pri.color_attachment_format[1] = Rhi::ImageFormat::UNDEFINED;
                 pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
 
-                cb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+                cb.SetupViewport(
+                    static_cast<float>(extent.width), static_cast<float>(extent.height), {{0, 0}, {extent.width, extent.height}}
+                );
                 cb.BindSceneResources(rsys->GetSceneDataManager());
                 cb.BindCameraResources(rsys->GetCameraManager());
                 auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
@@ -344,5 +346,7 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+
 
 

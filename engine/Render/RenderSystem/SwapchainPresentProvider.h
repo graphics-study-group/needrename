@@ -22,8 +22,8 @@ namespace Engine {
 
             void Initialize(const Rhi::DeviceInterface &device_interface, vk::Extent2D expected_extent);
 
-            vk::Extent2D GetExtent() const override;
-            vk::Format GetColorFormat() const override;
+            Rhi::Extent2D GetExtent() const override;
+            Rhi::ImageFormat GetColorFormat() const override;
             uint32_t GetImageCount() const override;
 
             uint32_t AcquireNextImage(
@@ -39,9 +39,10 @@ namespace Engine {
 
             bool Present(vk::Device device, uint32_t image_index, vk::Semaphore frame_done_semaphore) override;
 
-            void Recreate(vk::Extent2D new_extent) override;
+            void Recreate(Rhi::Extent2D new_extent) override;
         };
     } // namespace RenderSystemState
 } // namespace Engine
 
 #endif
+

@@ -287,3 +287,16 @@ compiled before the call surface was touched.
 This also reprioritises the round: the same `Extent2D`/`Format` collision exists
 in `IPresentProvider` and `AttachmentUtilsFunc`, so 5.2 should land provider by
 provider, starting with the presentation interface where the types are fewest.
+### 5.2, first provider landed
+
+`IPresentProvider::GetExtent`, `GetColorFormat` and `Recreate` now speak
+`Rhi::Extent2D` and `Rhi::ImageFormat`, and so do both implementations and the
+`SceneDataManager::DrawSkybox` call that takes an extent. The render command
+buffer still takes `vk::Extent2D` for `BeginRendering`/`DrawRenderers`; the
+conversion happens at the call site with an explicit
+`vk::Extent2D{extent.width, extent.height}`, which is the shape the rest of 5.2
+should take.
+
+Done per call site, as the rollback note predicted: thirty-odd edits, each one
+either "this argument is portable" or "this argument builds a Vulkan structure",
+and the compiler named every one. All 77 tests pass.

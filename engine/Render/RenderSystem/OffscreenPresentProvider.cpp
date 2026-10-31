@@ -1,12 +1,20 @@
 #include "OffscreenPresentProvider.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Render/Resource/MemoryAccessHelper.hpp"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Render/Resource/RenderTargetTexture.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 namespace Engine::RenderSystemState {
 
@@ -124,12 +132,12 @@ namespace Engine::RenderSystemState {
 
     OffscreenPresentProvider::~OffscreenPresentProvider() = default;
 
-    vk::Extent2D OffscreenPresentProvider::GetExtent() const {
-        return pimpl->m_extent;
+    Rhi::Extent2D OffscreenPresentProvider::GetExtent() const {
+        return Rhi::Extent2D{pimpl->m_extent.width, pimpl->m_extent.height};
     }
 
-    vk::Format OffscreenPresentProvider::GetColorFormat() const {
-        return pimpl->m_color_format;
+    Rhi::ImageFormat OffscreenPresentProvider::GetColorFormat() const {
+        return Rhi::FromVkFormat(pimpl->m_color_format);
     }
 
     uint32_t OffscreenPresentProvider::GetImageCount() const {
@@ -177,7 +185,8 @@ namespace Engine::RenderSystemState {
         return false;
     }
 
-    void OffscreenPresentProvider::Recreate(vk::Extent2D new_extent) {
-        pimpl->m_extent = new_extent;
+    void OffscreenPresentProvider::Recreate(Rhi::Extent2D new_extent) {
+        pimpl->m_extent = vk::Extent2D{new_extent.width, new_extent.height};
     }
 } // namespace Engine::RenderSystemState
+

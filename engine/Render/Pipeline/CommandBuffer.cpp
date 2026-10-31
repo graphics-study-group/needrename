@@ -342,11 +342,9 @@ namespace Engine {
     }
 
     void CommandBuffer::DrawRenderers(const std::string &tag, const RendererList &renderers) {
+        const Rhi::Extent2D extent = m_system.GetPresentProvider().GetExtent();
         this->DrawRenderers(
-            tag,
-            renderers,
-            m_system.GetCameraManager().GetActiveCameraIndex(),
-            m_system.GetPresentProvider().GetExtent()
+            tag, renderers, m_system.GetCameraManager().GetActiveCameraIndex(), vk::Extent2D{extent.width, extent.height}
         );
     }
 
@@ -389,6 +387,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 

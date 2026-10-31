@@ -559,7 +559,7 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::DrawSkybox(
-        CommandBuffer &cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent
+        CommandBuffer &cb, uint32_t frame_in_flight, glm::mat4 pv_mat, Rhi::Extent2D extent
     ) const {
         if (!pimpl->skybox.skybox_material.IsValid()) return;
 
@@ -567,8 +567,8 @@ namespace Engine::RenderSystemState {
             m_system.GetRenderResourceManager<MaterialInstanceManager>()->Resolve(pimpl->skybox.skybox_material);
         if (!material) return;
 
-        vk::Rect2D scissor{{0, 0}, extent};
-        cb.SetupViewport(extent.width, extent.height, scissor);
+        const vk::Rect2D scissor{{0, 0}, {extent.width, extent.height}};
+        cb.SetupViewport(static_cast<float>(extent.width), static_cast<float>(extent.height), scissor);
 
         auto tpl = material->GetLibrary().FindMaterialTemplate("SKYBOX", {{0}, cb.GetRenderingInfo()});
         if (!tpl) return;
@@ -616,6 +616,9 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
+
+
 
 
 

@@ -128,7 +128,8 @@ namespace Engine {
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
                 .SetPassFunction([&system, world_system](CommandBuffer &cb, const RenderGraph &) {
-                    vk::Extent2D extent{system.GetPresentProvider().GetExtent()};
+                    const Rhi::Extent2D portable = system.GetPresentProvider().GetExtent();
+                    const vk::Extent2D extent{portable.width, portable.height};
                     if (extent.width <= 0 || extent.height <= 0) return;
                     vk::Rect2D scissor{{0, 0}, extent};
                     cb.SetupViewport(extent.width, extent.height, scissor);
@@ -148,7 +149,7 @@ namespace Engine {
                         cb,
                         system.GetFrameManager().GetFrameInFlight(),
                         system.GetCameraManager().GetPVMatForSkybox(),
-                        extent
+                        Rhi::Extent2D{extent.width, extent.height}
                     );
                 })
                 .WrapRenderPass();
@@ -186,5 +187,7 @@ namespace Engine {
         return rgb.BuildRenderGraph();
     }
 } // namespace Engine
+
+
 
 

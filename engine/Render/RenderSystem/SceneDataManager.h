@@ -3,6 +3,7 @@
 
 #include "Render/Resource/RenderResourceHandle.h"
 #include "Render/render_export.h"
+#include "Rhi/RhiTypes.h"
 
 #include <fwd.hpp>
 #include <memory>
@@ -290,7 +291,7 @@ namespace Engine {
              * @todo It should be relocated and integrated with GraphicsCommandBuffer.
              */
             void DrawSkybox(
-                CommandBuffer &cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent
+                CommandBuffer &cb, uint32_t frame_in_flight, glm::mat4 pv_mat, Rhi::Extent2D extent
             ) const;
 
             /**
@@ -348,3 +349,5 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDERSYSTEM_SCENEDATAMANAGER
+
+

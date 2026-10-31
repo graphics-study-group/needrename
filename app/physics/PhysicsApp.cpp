@@ -938,7 +938,7 @@ namespace AppPhysics {
         // stable across a resize (see design D4). Interim shim — no camera-API
         // commitment.
         if (impl.camera_component) {
-            const vk::Extent2D present_extent = impl.renderer->GetPresentProvider().GetExtent();
+            const Rhi::Extent2D present_extent = impl.renderer->GetPresentProvider().GetExtent();
             if ((present_extent.width > 0 && present_extent.height > 0)
                 && (present_extent.width != impl.last_present_width
                     || present_extent.height != impl.last_present_height)) {
@@ -1132,5 +1132,6 @@ namespace AppPhysics {
         impl.any_dirty[idx] = true;
     }
 } // namespace AppPhysics
+
 
 
