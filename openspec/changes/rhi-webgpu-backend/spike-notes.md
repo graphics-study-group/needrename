@@ -412,3 +412,28 @@ opaque arrays (F3) and `std140` padding (F4). The next pass should switch the
 bake's converter to Tint, compile the WGSL variant at Vulkan 1.1 without debug
 info, and re-measure the corpus. That is a smaller job than writing the three
 rewrites, and it leaves the naga path as the fallback it was always meant to be.
+
+### F11. A workgroup barrier inside non-uniform control flow is not WGSL
+
+With Tint as the converter, 40 of 42 physics kernels bake. The two that do not
+fail on the same uniformity rule:
+
+```
+error: 'workgroupBarrier' must only be called from uniform control flow
+```
+
+(`sum_by_key.comp`, `sum_by_key_push.comp`.) Vulkan accepts a `barrier()` under a
+condition the compiler cannot prove uniform; WGSL does not. The fix is at the
+source: hoist the barrier out of the conditional, or make the condition provably
+uniform. That changes the shader, not the seam, and it is the one remaining
+corpus fix the bake cannot do for the shader.
+
+Two implementation details the Tint comparison also established:
+
+- Changing a push-constant block's storage class is not a one-word edit: every
+  `OpTypePointer` into that class, including the member pointers an
+  `OpAccessChain` produces, has to move as well, or the module is internally
+  inconsistent (naga tolerates it, Tint and any validator do not).
+- The converter's own diagnostic is worth capturing: the bake now quotes the
+  converter's error line back with the failing module's name, which is what
+  turned this list from "17 failures" into three named causes.

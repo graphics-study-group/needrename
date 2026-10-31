@@ -182,6 +182,21 @@ namespace Engine::ShaderBake {
             const size_t operands = rewritten.empty() ? 0 : instructions[variable_index].word_index + 1;
             rewritten[operands + 2] = StorageClassUniform;
         }
+        // Pointer types into the block carry the same storage class — not just
+        // the variable's own pointer but every member pointer an
+        // `OpAccessChain` results in. A module with a Uniform variable whose
+        // pointers still say PushConstant is an inconsistency a validator
+        // rejects even though a lenient reader accepts it, so every one of them
+        // has to move.
+        for (const Instruction &instruction : instructions) {
+            if (instruction.opcode != OpTypePointer || instruction.word_count < 4) {
+                continue;
+            }
+            const size_t operands = instruction.word_index + 1;
+            if (spirv[operands + 1] == StorageClassPushConstant) {
+                rewritten[operands + 1] = StorageClassUniform;
+            }
+        }
 
         std::vector<uint32_t> decorations;
         const auto append_decoration = [&decorations](uint32_t target, uint32_t decoration, uint32_t value) {
@@ -241,6 +256,57 @@ namespace Engine::ShaderBake {
             );
         }
         (void)removed;
+        error.clear();
+        return rewritten;
+    }
+
+    std::vector<uint32_t> StripNonSemanticDebugInfo(const std::vector<uint32_t> &spirv, std::string &error) {
+        std::vector<Instruction> instructions;
+        if (!Parse(spirv, instructions, error)) {
+            return {};
+        }
+
+        // An ext-instruction import is `OpExtInstImport %id "name"`; the name is
+        // a NUL-terminated string packed into the remaining words.
+        constexpr uint16_t op_ext_inst_import = 11;
+        constexpr uint16_t op_ext_inst = 12;
+        std::vector<uint32_t> debug_set_ids;
+        for (const Instruction &instruction : instructions) {
+            if (instruction.opcode != op_ext_inst_import || instruction.word_count < 3) {
+                continue;
+            }
+            const char *name = reinterpret_cast<const char *>(spirv.data() + instruction.word_index + 2);
+            if (std::strstr(name, "NonSemantic.Shader.DebugInfo") != nullptr) {
+                debug_set_ids.push_back(spirv[instruction.word_index + 1]);
+            }
+        }
+        if (debug_set_ids.empty()) {
+            error.clear();
+            return spirv;
+        }
+
+        std::vector<uint32_t> rewritten;
+        rewritten.reserve(spirv.size());
+        rewritten.insert(rewritten.end(), spirv.begin(), spirv.begin() + 5);
+        for (const Instruction &instruction : instructions) {
+            if (instruction.opcode == op_ext_inst_import && instruction.word_count >= 3) {
+                const char *name = reinterpret_cast<const char *>(spirv.data() + instruction.word_index + 2);
+                if (std::strstr(name, "NonSemantic.Shader.DebugInfo") != nullptr) {
+                    continue;
+                }
+            }
+            if (instruction.opcode == op_ext_inst && instruction.word_count >= 4) {
+                const uint32_t set_id = spirv[instruction.word_index + 3];
+                if (std::find(debug_set_ids.begin(), debug_set_ids.end(), set_id) != debug_set_ids.end()) {
+                    continue;
+                }
+            }
+            rewritten.insert(
+                rewritten.end(),
+                spirv.begin() + static_cast<std::ptrdiff_t>(instruction.word_index),
+                spirv.begin() + static_cast<std::ptrdiff_t>(instruction.word_index + instruction.word_count)
+            );
+        }
         error.clear();
         return rewritten;
     }

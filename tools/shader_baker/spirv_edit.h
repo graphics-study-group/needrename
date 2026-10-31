@@ -74,6 +74,24 @@ namespace Engine::ShaderBake {
     std::vector<uint32_t> StripWriteOnlyDecorations(const std::vector<uint32_t> &spirv, std::string &error);
 
     /**
+     * @brief Drop a module's non-semantic debug information.
+     *
+     * A debug build embeds `NonSemantic.Shader.DebugInfo.100` ext-instructions,
+     * which are informational only. The reference WGSL compiler validates them
+     * strictly enough to reject some compiler-generated ones, and WGSL has no
+     * debug-info construct to carry them into, so the WGSL variant is built from
+     * a module without them.
+     *
+     * Only that instruction set is removed: `GLSL.std.450` and the other
+     * ext-instruction sets stay, because they carry meaning.
+     *
+     * @param spirv The module to rewrite, as SPIR-V words.
+     * @param error Receives a description of what went wrong on failure.
+     * @return The rewritten module, or an empty vector on failure.
+     */
+    std::vector<uint32_t> StripNonSemanticDebugInfo(const std::vector<uint32_t> &spirv, std::string &error);
+
+    /**
      * @brief Demote specialization-constant declarations in GLSL source to plain constants.
      *
      * A shader that declares `layout(constant_id = N) const T name = value;`

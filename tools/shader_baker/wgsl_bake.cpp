@@ -57,6 +57,25 @@ namespace Engine::ShaderBake {
             " > /dev/null 2>&1";
 #endif
 
+        /// @brief Get the first diagnostic line of a log file, for quoting back in an error.
+        std::string FirstLogLine(const std::filesystem::path &log_path) {
+            std::ifstream log_file(log_path);
+            if (!log_file.is_open()) {
+                return "no diagnostic was produced";
+            }
+            std::string first_non_empty;
+            std::string line;
+            while (std::getline(log_file, line)) {
+                if (line.empty() || line.find_first_not_of(" \t\r") == std::string::npos) {
+                    continue;
+                }
+                // A converter usually prints a summary line and then the actual
+                // reason, so prefer the line that names an error.
+                first_non_empty = line;
+            }
+            return first_non_empty.empty() ? "the converter reported no reason" : first_non_empty;
+        }
+
         /// @brief Run a command and return its exit code.
         int Run(const std::string &command) {
 #ifdef _WIN32
@@ -177,16 +196,20 @@ namespace Engine::ShaderBake {
             const uint32_t reserved_set = layout.interfaces.empty() ? 0 : highest_set + 1;
             constexpr uint32_t k_reserved_binding = 0;
 
-            // Two rewrites make the module expressible in WGSL: the access
-            // qualifiers WGSL does not have, and the constant block's address
-            // space. Both are recorded in the description where they change what
-            // the runtime must bind.
+            // Three rewrites make the module expressible in WGSL: the access
+            // qualifiers WGSL does not have, the debug information WGSL cannot
+            // carry, and the constant block's address space. Each is recorded in
+            // the description where it changes what the runtime must bind.
             std::vector<uint32_t> widened = StripWriteOnlyDecorations(spirv, error);
             if (widened.empty()) {
                 return false;
             }
+            std::vector<uint32_t> undebugged = StripNonSemanticDebugInfo(widened, error);
+            if (undebugged.empty()) {
+                return false;
+            }
             const std::vector<uint32_t> rewritten = FreezePushConstantsToUniform(
-                widened, reserved_set, k_reserved_binding, layout.push_constant_size, error
+                undebugged, reserved_set, k_reserved_binding, layout.push_constant_size, error
             );
             if (rewritten.empty()) {
                 return false;
@@ -206,19 +229,42 @@ namespace Engine::ShaderBake {
             }
 
             const std::filesystem::path wgsl_path = module_path.parent_path() / (module_path.stem().string() + ".wgsl");
-            const std::string convert = Quote(options.converter_executable) + " " + Quote(intermediate) + " "
-                                        + Quote(wgsl_path) + k_silence;
+            // The two supported converters take the same information through
+            // different command lines: naga infers the direction from the file
+            // extensions, Tint asks for the output format explicitly.
+            const bool is_tint = options.converter_executable.find("tint") != std::string::npos;
+            const std::filesystem::path log_path =
+                module_path.parent_path() / (module_path.stem().string() + ".convert.log");
+            // The converter's own diagnostic is what makes a failure actionable,
+            // so it is captured rather than discarded and quoted back in the
+            // error message.
+            const std::string redirect = " > " + Quote(log_path) + " 2>&1";
+            const std::string convert = is_tint
+                                            ? Quote(options.converter_executable) + " -f wgsl -o " + Quote(wgsl_path)
+                                                  + " " + Quote(intermediate) + redirect
+                                            : Quote(options.converter_executable) + " " + Quote(intermediate) + " "
+                                                  + Quote(wgsl_path) + redirect;
             const bool converted = Run(convert) == 0 && std::filesystem::is_regular_file(wgsl_path);
             std::error_code remove_error;
             std::filesystem::remove(intermediate, remove_error);
             if (!converted) {
-                error = "the converter did not produce WGSL";
+                error = "the converter did not produce WGSL: " + FirstLogLine(log_path);
                 return false;
             }
+            std::filesystem::remove(log_path, remove_error);
 
             if (options.validate) {
-                const std::string validate_command = Quote(options.converter_executable) + " " + Quote(wgsl_path) + k_silence;
-                if (Run(validate_command) != 0) {
+                // Tint validates an input by compiling it again; naga validates
+                // when it is given no output file.
+                const std::filesystem::path validate_output =
+                    module_path.parent_path() / (module_path.stem().string() + ".validate.tmp.wgsl");
+                const std::string validate_command =
+                    is_tint ? Quote(options.converter_executable) + " -f wgsl -o " + Quote(validate_output) + " "
+                                  + Quote(wgsl_path) + k_silence
+                            : Quote(options.converter_executable) + " " + Quote(wgsl_path) + k_silence;
+                const bool validated = Run(validate_command) == 0;
+                std::filesystem::remove(validate_output, remove_error);
+                if (!validated) {
                     error = "the WGSL the converter produced does not validate";
                     return false;
                 }
@@ -277,6 +323,7 @@ namespace Engine::ShaderBake {
         return static_cast<int>(failures);
     }
 } // namespace Engine::ShaderBake
+
 
 
 
