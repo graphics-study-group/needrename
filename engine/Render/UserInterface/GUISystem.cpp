@@ -7,8 +7,8 @@
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/IPresentProvider.h"
 #include "Rhi/Device/DeviceInterface.h"
-#include "Rhi/Device/Structs.h"
-#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -173,4 +173,6 @@ namespace Engine {
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }
 } // namespace Engine
+
+
 

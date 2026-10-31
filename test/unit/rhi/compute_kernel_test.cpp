@@ -23,7 +23,7 @@
 #include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/MemoryTypes.h"
 #include <Rhi/Backend/Vulkan/VulkanHandles.h>
-#include "Rhi/Device/Structs.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Pipeline/ComputeKernel.h"
 #include <Rhi/Backend/Vulkan/VulkanHandles.h>
@@ -665,6 +665,7 @@ int main(int argc, char **argv) {
     std::cout << "Compute kernel test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

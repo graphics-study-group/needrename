@@ -7,7 +7,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Render/AttachmentUtilsFunc.h"
-#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
@@ -17,7 +17,7 @@
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Render/Resource/StaticMeshResource.h"
 #include "Rhi/Device/DeviceInterface.h"
-#include "Rhi/Device/Structs.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
 #include "Rhi/Submission/SubmissionHelper.h"
 
@@ -54,3 +54,5 @@
 #include "Render/RenderSystem.h"
 
 #endif // RENDER_FULLRENDERSYSTEM
+
+

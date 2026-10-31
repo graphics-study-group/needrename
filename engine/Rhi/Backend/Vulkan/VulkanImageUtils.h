@@ -1,5 +1,5 @@
-#ifndef ENGINE_RHI_IMAGEUTILSFUNC_INCLUDED
-#define ENGINE_RHI_IMAGEUTILSFUNC_INCLUDED
+#ifndef ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
+#define ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
 
 #include "Rhi/Texture/ImageUtils.h"
 #include <vk_mem_alloc.h>
@@ -268,5 +268,6 @@ namespace Engine::Rhi {
     }
 } // namespace Engine::Rhi
 
-#endif // ENGINE_RHI_IMAGEUTILSFUNC_INCLUDED
+#endif // ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
+
 

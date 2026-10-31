@@ -9,10 +9,10 @@
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Device/Structs.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Submission/SubmissionHelper.h"
-#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 
@@ -498,5 +498,7 @@ namespace Engine::RenderSystemState {
         return true;
     }
 } // namespace Engine::RenderSystemState
+
+
 
 

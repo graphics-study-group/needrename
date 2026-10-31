@@ -4,7 +4,7 @@
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryTypes.h"
-#include "Rhi/Device/Structs.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Resource/DescriptorArena.h"
 #include <SDL3/SDL.h>
 #include <cassert>
@@ -118,6 +118,7 @@ int main() {
     std::cout << "Rhi standalone test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

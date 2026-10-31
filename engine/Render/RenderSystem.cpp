@@ -19,7 +19,7 @@
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
-#include "Rhi/Device/Structs.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
 
 #include <Core/Functional/SDLWindow.h>
@@ -223,5 +223,6 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 

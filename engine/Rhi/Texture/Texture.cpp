@@ -6,7 +6,7 @@
 #include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
-#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
 
 #include <vulkan/vulkan.hpp>
@@ -267,6 +267,7 @@ namespace Engine::Rhi {
         return false;
     }
 } // namespace Engine::Rhi
+
 
 
 

@@ -34,7 +34,7 @@
 #include <Rhi/Buffer/DeviceBuffer.h>
 #include <Rhi/Device/MemoryAccessTypes.h>
 #include <Rhi/Device/MemoryTypes.h>
-#include <Rhi/Device/Structs.h>
+#include <Rhi/Backend/Vulkan/VulkanStructs.h>
 #include <Rhi/Submission/EpochTracker.h>
 #include <SDL3/SDL.h>
 #include <glm.hpp>
@@ -1132,4 +1132,5 @@ namespace AppPhysics {
         impl.any_dirty[idx] = true;
     }
 } // namespace AppPhysics
+
 

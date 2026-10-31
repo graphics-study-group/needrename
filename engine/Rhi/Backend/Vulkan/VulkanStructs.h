@@ -1,5 +1,5 @@
-#ifndef ENGINE_RHI_STRUCTS_INCLUDED
-#define ENGINE_RHI_STRUCTS_INCLUDED
+#ifndef ENGINE_RHI_VULKANSTRUCTS_INCLUDED
+#define ENGINE_RHI_VULKANSTRUCTS_INCLUDED
 
 #include <optional>
 #include <vector>
@@ -33,4 +33,5 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
-#endif // ENGINE_RHI_STRUCTS_INCLUDED
+#endif // ENGINE_RHI_VULKANSTRUCTS_INCLUDED
+

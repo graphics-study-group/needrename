@@ -5,7 +5,7 @@
 #include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Pipeline/PipelineEnums.h"
 #include "Rhi/Backend/Vulkan/VulkanPipelineEnums.h"
-#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
@@ -206,6 +206,7 @@ namespace Engine::Rhi {
         return itr->second.get();
     }
 } // namespace Engine::Rhi
+
 
 
 

@@ -6,9 +6,9 @@
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryAllocation.h"
-#include "Rhi/Device/Structs.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
-#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Texture/Texture.h"
 #include <SDL3/SDL.h>
 
@@ -550,5 +550,7 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+
+
 
 

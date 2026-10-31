@@ -4,7 +4,7 @@
 
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/MemoryTypes.h"
-#include "Rhi/Device/Structs.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Submission/SubmissionHelper.h"
 
@@ -216,6 +216,7 @@ int main() {
     std::cout << "Rhi::SubmissionHelper standalone test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

@@ -12,7 +12,7 @@
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
-#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include <SDL3/SDL.h>
 #include <fstream>
@@ -203,5 +203,6 @@ namespace Engine {
         return pimpl->m_has_material_data;
     }
 } // namespace Engine
+
 
 

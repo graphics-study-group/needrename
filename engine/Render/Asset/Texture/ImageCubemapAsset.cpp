@@ -1,6 +1,6 @@
 #include "ImageCubemapAsset.h"
 
-#include <Rhi/Texture/ImageUtilsFunc.h>
+#include <Rhi/Backend/Vulkan/VulkanImageUtils.h>
 #include <SDL3/SDL_log.h>
 #include <algorithm>
 #include <cstdlib>
@@ -232,3 +232,4 @@ namespace Engine {
 } // namespace Engine
 
 #include "__generated__/ImageCubemapAsset.h.inc"
+

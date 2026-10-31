@@ -3,7 +3,7 @@
 
 #include "Rhi/Device/DebugUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
-#include "Rhi/Texture/ImageUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include <SDL3/SDL.h>
 #include <vk_mem_alloc.h>
@@ -388,6 +388,7 @@ namespace Engine::Rhi {
         return ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, desc.type);
     }
 } // namespace Engine::Rhi
+
 
 
 

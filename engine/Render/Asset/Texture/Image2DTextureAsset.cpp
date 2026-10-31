@@ -1,7 +1,7 @@
 #include "Image2DTextureAsset.h"
 
 #include <AnnoRefl/serialization.h>
-#include <Rhi/Texture/ImageUtilsFunc.h>
+#include <Rhi/Backend/Vulkan/VulkanImageUtils.h>
 #include <SDL3/SDL_log.h>
 #include <ktx.h>
 
@@ -209,3 +209,4 @@ namespace Engine {
 } // namespace Engine
 
 #include "__generated__/Image2DTextureAsset.h.inc"
+
