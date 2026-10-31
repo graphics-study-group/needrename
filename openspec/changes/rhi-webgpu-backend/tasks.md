@@ -188,3 +188,29 @@ cheaper than starting the seam and coming back.
   answer: its members are backend objects, and they stop being reachable from
   consumers when 4.1/5.1 route recording through the encoder, so the encoder
   migration should come before the queue/pool accessors are redesigned.
+### Attempt at 4.1-4.3, and why it was rolled back
+
+The physics migration was carried out and then reverted rather than committed
+half-done. What worked, and is worth keeping for the next attempt:
+
+- `PhysicsDispatch.h` becomes two lines — `DispatchBarrier(encoder)` calls
+  `encoder.Barrier()` — which keeps all 35 call sites' *positions* unchanged and
+  is what preserves the Vulkan command stream.
+- Every physics header and source compiles with `vk::CommandBuffer cb` replaced
+  by `Rhi::CommandEncoder &encoder`: 20 files, and the bodies needed only
+  `DispatchBarrier(cb)` -> `DispatchBarrier(encoder)` and
+  `->Dispatch(cb,` -> `->Dispatch(encoder,`. `EnginePhysics` built clean.
+- `ComputeKernel::Dispatch`/`DispatchAndRecord` take the encoder and bind the
+  Vulkan command buffer once, from `encoder.GetHandle()`.
+
+What failed: the same substitution applied to the *test* surface by regular
+expression. The tests declare their command buffer in several different ways
+(`auto cb = f.Begin()`, a `CommandBuffer &` parameter, a `vk::CommandBuffer`
+built by hand), so a regex that inserts an encoder after every `cb` declaration
+produced duplicated declarations and encoders built from the wrong object. The
+fix is not a better regex: each test needs its encoder declared where its
+command buffer is, which is a file-by-file pass of about a dozen files.
+
+So 4.1-4.3 stay open, with the shape above already proven on the engine side.
+The next attempt should migrate `engine/Physics` first (it compiles), then walk
+`test/` file by file, and only then delete `PhysicsDispatch.h`'s Vulkan include.
