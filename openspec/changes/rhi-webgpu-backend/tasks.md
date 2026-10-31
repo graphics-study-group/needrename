@@ -388,3 +388,27 @@ The order that avoids doing it twice:
 That is one coherent pass, not four. Starting it halfway — which is what
 attempting `InterfaceBindingResolver` alone would be — leaves the descriptor
 layer expressing itself in both vocabularies at once.
+
+### Descriptor-layer pass: what it actually needs first
+
+The first attempt at step 1 stalled on a question the plan had glossed over:
+`DescriptorArena::ResolveLayout` takes a `vk::DescriptorSetLayoutCreateInfo`, and
+that structure is not a rename away from portable — it is the *input* the arena
+is built around, and its callers fill it from `SPLayout::GenerateLayoutBindings`,
+which returns `vk::DescriptorSetLayoutBinding`.
+
+So the pass has a missing first step before the four in the order above:
+
+0. Choose the portable shape of a descriptor-set layout description — most
+   likely a small struct of `{binding, DescriptorType, array count, stages}` and
+   a `std::vector` of them — and have `SPLayout::GenerateLayoutBindings` produce
+   *that* instead of Vulkan bindings. Only `ImmutableResourceCache` then needs to
+   translate it into a `vk::DescriptorSetLayoutCreateInfo`, in one place.
+
+That also removes the `vk::*CreateInfo` parameters from `ImmutableResourceCache`
+at the same time, because they become the portable description.
+
+Nothing was committed from the attempt: the value-type half of the change (the
+`DescriptorType`/`ResourceState` enumerations and the handle-typed set) is easy
+but useless on its own, and leaving the arena expressing itself in both
+vocabularies is the outcome the previous note set out to avoid.
