@@ -141,10 +141,11 @@ $env:NEEDRENAME_DATA_ROOT = "$PWD\build\py-runtime\share\needrename"
   (`step`, `render_next_frame`, readback). Wrong-phase calls raise
   `RuntimeError`; invalid handles raise `IndexError`.
 - **Zero-copy readback.** `get_body_states()` and `get_render_output()` return
-  numpy arrays that view the engine's CPU readback memory — no copy. Their
-  contents are valid until the next `step()` / frame capture; `step_id` on the
-  body-state view detects staleness, and `.copy()` takes a snapshot. A live view
-  keeps its producing app alive.
+  numpy arrays that view the engine's CPU readback memory — no copy. The arrays
+  show the app's current known state: a `set_body_value` write is visible in
+  them immediately, in place, without bumping `step_id` (which counts steps
+  only). Their contents are valid until the next `step()` / frame capture;
+  `.copy()` takes a snapshot. A live view keeps its producing app alive.
 - **GIL.** `step`, `render_next_frame`, `get_render_output` and `load_urdf`
   release the GIL while they block, so other Python threads keep running. A
   Python actuator's `compute_torque` (and `reset`) is called with the GIL held:
@@ -161,7 +162,8 @@ $env:NEEDRENAME_DATA_ROOT = "$PWD\build\py-runtime\share\needrename"
 - **Torque channels.** `add_actuator(joint, actuator)` gives an actuator
   ownership of a joint's torque. Joints without an actuator can be driven with
   `set_joint_torque(joint, torque)`; both write the same persistent per-body
-  external-torque channel (last write wins, cleared by `Robot.reset()`).
+  external-torque channel (last write wins, cleared by `reset_to_initial()` /
+  `Robot.reset()`).
   `remove_actuator(joint)` detaches the actuator, clears that channel (the last
   applied actuator torque stops applying), and hands the joint back to
   `set_joint_torque`; the removed instance stays usable from Python.
@@ -188,15 +190,17 @@ app.commit_scene()
 first_joint = robot.joint_ids[robot.joint_names[0]]
 app.get_actuator(first_joint).kp = 40.0
 
-robot.snapshot()                 # episode start (after commit_scene, before stepping)
 for _ in range(600):
     app.step()
-robot.reset()                    # restores the snapshot and zeroes force/torque channels
+robot.reset()                    # back to the state recorded at commit_scene
 ```
 
-`reset()` restores the body poses, linear/angular velocities and the target
-angles this helper applied, and zeroes every body's external force and torque.
-Targets set directly through `app.set_target_angle` are outside its bookkeeping.
+`reset()` delegates to `app.reset_to_initial()`: every body returns to its
+commit-time pose with the commit-time velocities as integration seeds, external
+force and torque are zeroed, and every actuator target is back at its
+commit-time value with its internal state cleared. The app takes that snapshot
+itself at `commit_scene`, so no recording call is needed; the restored state is
+readable immediately and takes effect on the next `step`.
 
 ## Tests and examples
 

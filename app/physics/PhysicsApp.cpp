@@ -119,29 +119,123 @@ namespace AppPhysics {
         bool paused{true};
         bool toggle_was_pressed{false};
 
-        // ── Physics state readback ──────────────────────────────────────
+        // ── Physics state staging (readback and writes share one buffer) ──
         bool physics_readback_built{false};
         uint32_t slot_count{0};
         std::vector<uint32_t> body_to_slot{}; // BodyId -> rigid-body slot index.
         std::vector<glm::vec3> com_offsets{}; // Per-slot COM offset (GO-local).
 
+        /// @brief GPU physics buffer backing each `BodyField` slot.
+        std::array<const Rhi::ComputeBuffer *, 6> field_src{}; // Slot-indexed GPU buffer per BodyField.
+
+        // Named aliases of the four readback-backed GPU sources (readability only).
         const Rhi::ComputeBuffer *pos_src{};
         const Rhi::ComputeBuffer *rot_src{};
         const Rhi::ComputeBuffer *linvel_src{};
         const Rhi::ComputeBuffer *angvel_src{};
 
+        /// @brief Host staging for the four readback-backed fields.
+        ///
+        /// Shared buffer per field, holding "last simulated state + pending
+        /// writes": the GPU->CPU copy at the end of every `Step` refreshes it, a
+        /// `SetBodyValue` slot write overlays it, and the upload copies it back.
+        /// Because untouched slots carry their own current values, a whole-field
+        /// upload cannot clobber bodies the caller never wrote. Usage covers both
+        /// transfer directions plus mapped host access.
         std::unique_ptr<Rhi::DeviceBuffer> pos_staging{};
         std::unique_ptr<Rhi::DeviceBuffer> rot_staging{};
         std::unique_ptr<Rhi::DeviceBuffer> linvel_staging{};
         std::unique_ptr<Rhi::DeviceBuffer> angvel_staging{};
 
-        // ── Physics state write (SetBodyValue) ──────────────────────────
-        // One persistent upload staging buffer per writable field, mirroring the
-        // readback design (fixed size, frozen after CommitScene). Whole-field
-        // dirty flags gate the upload copies in Step.
-        std::array<const Rhi::ComputeBuffer *, 6> write_src{}; // Slot-indexed GPU buffer per BodyField.
-        std::array<std::unique_ptr<Rhi::DeviceBuffer>, 6> write_staging{};
+        /// @brief Write-only staging for the caller-managed force channels.
+        ///
+        /// These fields have no readback, so there is nothing to merge with; zero
+        /// is the neutral value for untouched slots and written values persist
+        /// across steps (composing repeated writes correctly). Fixed size, frozen
+        /// after CommitScene.
+        std::unique_ptr<Rhi::DeviceBuffer> force_staging{};
+        std::unique_ptr<Rhi::DeviceBuffer> torque_staging{};
+
+        /// @brief Field-indexed view of the host staging: the four shared buffers
+        /// plus the two dedicated write-only ones. Owns nothing.
+        std::array<Rhi::DeviceBuffer *, 6> field_staging{};
+        /// @brief Whole-field dirty flags gating the upload copies in `Step`.
         std::array<bool, 6> any_dirty{false, false, false, false, false, false};
+
+        /// @brief Commit-time body state, restored by `ResetToInitial`.
+        ///
+        /// One entry per rigid-body slot (four vec4 streams) plus one optional
+        /// target angle per `JointId` as of `CommitScene` (empty = the joint had no
+        /// actuator then).
+        struct InitialSnapshot {
+            std::vector<glm::vec4> positions{};
+            std::vector<glm::vec4> rotations{};
+            std::vector<glm::vec4> linear_velocities{};
+            std::vector<glm::vec4> angular_velocities{};
+            std::vector<std::optional<float>> actuator_targets{};
+        };
+        std::optional<InitialSnapshot> initial_snapshot{};
+
+        /// @brief Size in bytes of one whole field's staging.
+        size_t FieldBytes() const {
+            return static_cast<size_t>(slot_count) * sizeof(glm::vec4);
+        }
+
+        /// @brief Map a BodyField to the write-path slot index (declaration order).
+        static size_t BodyFieldIndex(BodyField field) {
+            return static_cast<size_t>(field);
+        }
+
+        /// @brief Record the physics SoA -> staging copies into a command buffer.
+        void RecordBodyStateCopy(vk::CommandBuffer cb) {
+            if (slot_count == 0) {
+                return;
+            }
+            const size_t bytes = FieldBytes();
+            cb.copyBuffer(pos_src->GetBuffer(), pos_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(rot_src->GetBuffer(), rot_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(linvel_src->GetBuffer(), linvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(angvel_src->GetBuffer(), angvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+        }
+
+        /// @brief Make every dirty field's pending host writes device-visible.
+        ///
+        /// One flush per dirty field (a no-op on coherent memory), replacing the
+        /// per-call flush that `SetBodyValue` used to do.
+        void FlushDirtyFieldStaging() {
+            const size_t bytes = FieldBytes();
+            for (size_t i = 0; i < field_staging.size(); ++i) {
+                if (any_dirty[i] && field_staging[i]) {
+                    field_staging[i]->Flush(0, bytes);
+                }
+            }
+        }
+
+        /// @brief Discard the host cache of the shared field staging so CPU reads
+        /// observe the device-written readback (defensive; a no-op on coherent
+        /// memory).
+        void InvalidateSharedFieldStaging() {
+            for (auto *buffer : {pos_staging.get(), rot_staging.get(), linvel_staging.get(), angvel_staging.get()}) {
+                if (buffer) {
+                    buffer->Invalidate(0, FieldBytes());
+                }
+            }
+        }
+
+        /// @brief Record the dirty host staging -> GPU buffer copies into a command buffer.
+        /// Called before GPUStep so the solver reads the overridden values.
+        void RecordBodyStateUpload(vk::CommandBuffer cb) {
+            if (slot_count == 0) {
+                return;
+            }
+            const size_t bytes = FieldBytes();
+            for (size_t i = 0; i < field_src.size(); ++i) {
+                if (!any_dirty[i] || !field_src[i] || !field_staging[i]) {
+                    continue;
+                }
+                cb.copyBuffer(field_staging[i]->GetBuffer(), field_src[i]->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+            }
+        }
 
         // ── Joint registry & actuators ──────────────────────────────────
         /// @brief Per-joint metadata needed to compute joint angle/torque CPU-side.
@@ -171,78 +265,6 @@ namespace AppPhysics {
         uint32_t render_staging_h{0};
         std::unique_ptr<Rhi::DeviceBuffer> render_staging{};
 
-        /// @brief Record the physics SoA -> staging copies into a command buffer.
-        void RecordBodyStateCopy(vk::CommandBuffer cb) {
-            if (slot_count == 0) {
-                return;
-            }
-            const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
-            cb.copyBuffer(pos_src->GetBuffer(), pos_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(rot_src->GetBuffer(), rot_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(linvel_src->GetBuffer(), linvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(angvel_src->GetBuffer(), angvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
-        }
-
-        /// @brief Map a BodyField to the write-path slot index (declaration order).
-        static size_t BodyFieldIndex(BodyField field) {
-            return static_cast<size_t>(field);
-        }
-
-        /// @brief Record the dirty write staging -> GPU buffer copies into a command buffer.
-        /// Called before GPUStep so the solver reads the overridden values.
-        void RecordBodyStateUpload(vk::CommandBuffer cb) {
-            if (slot_count == 0) {
-                return;
-            }
-            const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
-            for (size_t i = 0; i < write_src.size(); ++i) {
-                if (!any_dirty[i] || !write_src[i] || !write_staging[i]) {
-                    continue;
-                }
-                cb.copyBuffer(write_staging[i]->GetBuffer(), write_src[i]->GetBuffer(), vk::BufferCopy{0, 0, bytes});
-            }
-        }
-
-        /// @brief Allocate the six write staging buffers and capture the GPU sources.
-        void BuildPhysicsWrite() {
-            auto *phys_scene = scene->GetPhysicsScene();
-            if (!phys_scene) {
-                throw std::logic_error("PhysicsApp: no physics scene available for writes");
-            }
-            auto gpu = phys_scene->GetGpuBuffers();
-            write_src[BodyFieldIndex(BodyField::Position)] = gpu.rigid_body_center_world_position;
-            write_src[BodyFieldIndex(BodyField::Rotation)] = gpu.rigid_body_center_world_rotation;
-            write_src[BodyFieldIndex(BodyField::LinearVelocity)] = gpu.rigid_body_linear_velocity;
-            write_src[BodyFieldIndex(BodyField::AngularVelocity)] = gpu.rigid_body_angular_velocity;
-            write_src[BodyFieldIndex(BodyField::ExternalForce)] = gpu.rigid_body_external_force;
-            write_src[BodyFieldIndex(BodyField::ExternalTorque)] = gpu.rigid_body_external_torque;
-
-            const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
-            const Rhi::BufferType ut{Rhi::BufferTypeBits::StagingToDevice};
-            const auto &alloc = renderer->GetAllocatorState();
-            write_staging[BodyFieldIndex(BodyField::Position)] =
-                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics pos write staging");
-            write_staging[BodyFieldIndex(BodyField::Rotation)] =
-                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics rot write staging");
-            write_staging[BodyFieldIndex(BodyField::LinearVelocity)] =
-                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics linvel write staging");
-            write_staging[BodyFieldIndex(BodyField::AngularVelocity)] =
-                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics angvel write staging");
-            write_staging[BodyFieldIndex(BodyField::ExternalForce)] =
-                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics extforce write staging");
-            write_staging[BodyFieldIndex(BodyField::ExternalTorque)] =
-                Rhi::DeviceBuffer::CreateUnique(alloc, ut, bytes, "Physics exttorque write staging");
-
-            // Zero the staging so untouched slots are clean. The whole field is
-            // uploaded whenever any slot is dirty (and actuators mark ExternalTorque
-            // dirty every step), so uninitialized slots would otherwise upload
-            // garbage for bodies the caller never wrote.
-            for (auto &sb : write_staging) {
-                std::memset(sb->GetVMAddress(), 0, bytes);
-                sb->Flush(0, bytes);
-            }
-        }
-
         /// @brief Finalize per-joint initial relative rotation and parent-frame axis.
         /// Called at CommitScene after FlushCmdQueue (world transforms are final),
         /// using the same values `PhysicsConstraintComponent::Init` read.
@@ -264,9 +286,10 @@ namespace AppPhysics {
         }
 
         /// @brief Run every registered actuator: measure joint state from the CPU
-        /// readback staging, compute torque, and write it to the ExternalTorque
-        /// write staging so the next upload applies it. Called each Step before
-        /// the write upload.
+        /// staging (the shared "simulated state + pending writes" view, so it sees
+        /// pose writes made since the last step), compute torque, and write it to
+        /// the ExternalTorque staging so the upload applies it. Called each Step
+        /// before the write upload.
         void RunActuators() {
             bool any_actuator = false;
             for (const auto &a : m_actuators) {
@@ -278,9 +301,7 @@ namespace AppPhysics {
 
             const auto *rot = reinterpret_cast<const glm::vec4 *>(rot_staging->GetVMAddress());
             const auto *avel = reinterpret_cast<const glm::vec4 *>(angvel_staging->GetVMAddress());
-
-            const size_t torque_idx = BodyFieldIndex(BodyField::ExternalTorque);
-            auto *torque = reinterpret_cast<glm::vec4 *>(write_staging[torque_idx]->GetVMAddress());
+            auto *torque = reinterpret_cast<glm::vec4 *>(torque_staging->GetVMAddress());
 
             for (size_t i = 0; i < m_actuators.size(); ++i) {
                 if (!m_actuators[i]) {
@@ -305,11 +326,38 @@ namespace AppPhysics {
                 torque[ps] = glm::vec4(-child_torque, 0.0f);
             }
 
-            write_staging[torque_idx]->Flush(0, static_cast<size_t>(slot_count) * sizeof(glm::vec4));
-            any_dirty[torque_idx] = true;
+            any_dirty[BodyFieldIndex(BodyField::ExternalTorque)] = true;
         }
 
-        /// @brief Build the BodyId->slot mapping, allocate staging, and seed it.
+        /// @brief Record the state every body and actuator has at `CommitScene`.
+        ///
+        /// Taken from the freshly seeded staging (see `BuildPhysicsReadback`), so
+        /// it is exactly what a read returns before the first step. Only the commit
+        /// state is kept; later steps do not touch it.
+        void RecordInitialSnapshot() {
+            InitialSnapshot snap;
+            const size_t count = slot_count;
+            if (count > 0) {
+                const auto *pos = reinterpret_cast<const glm::vec4 *>(pos_staging->GetVMAddress());
+                const auto *rot = reinterpret_cast<const glm::vec4 *>(rot_staging->GetVMAddress());
+                const auto *lvel = reinterpret_cast<const glm::vec4 *>(linvel_staging->GetVMAddress());
+                const auto *avel = reinterpret_cast<const glm::vec4 *>(angvel_staging->GetVMAddress());
+                snap.positions.assign(pos, pos + count);
+                snap.rotations.assign(rot, rot + count);
+                snap.linear_velocities.assign(lvel, lvel + count);
+                snap.angular_velocities.assign(avel, avel + count);
+            }
+            snap.actuator_targets.resize(m_actuators.size());
+            for (size_t i = 0; i < m_actuators.size(); ++i) {
+                if (m_actuators[i]) {
+                    snap.actuator_targets[i] = m_actuators[i]->GetTargetAngle();
+                }
+            }
+            initial_snapshot = std::move(snap);
+        }
+
+        /// @brief Build the BodyId->slot mapping, allocate the host staging, and
+        /// seed it from the GPU physics buffers.
         void BuildPhysicsReadback() {
             auto *phys_scene = scene->GetPhysicsScene();
             if (!phys_scene) {
@@ -321,6 +369,12 @@ namespace AppPhysics {
             rot_src = gpu.rigid_body_center_world_rotation;
             linvel_src = gpu.rigid_body_linear_velocity;
             angvel_src = gpu.rigid_body_angular_velocity;
+            field_src[BodyFieldIndex(BodyField::Position)] = gpu.rigid_body_center_world_position;
+            field_src[BodyFieldIndex(BodyField::Rotation)] = gpu.rigid_body_center_world_rotation;
+            field_src[BodyFieldIndex(BodyField::LinearVelocity)] = gpu.rigid_body_linear_velocity;
+            field_src[BodyFieldIndex(BodyField::AngularVelocity)] = gpu.rigid_body_angular_velocity;
+            field_src[BodyFieldIndex(BodyField::ExternalForce)] = gpu.rigid_body_external_force;
+            field_src[BodyFieldIndex(BodyField::ExternalTorque)] = gpu.rigid_body_external_torque;
 
             auto &adaptor = scene->GetPhysicsAdaptor();
             const uint32_t n = builder->GetBodyCount();
@@ -348,14 +402,34 @@ namespace AppPhysics {
                 com_offsets[slot] = adaptor.GetComOffsetLocal(slot);
             }
 
-            // Allocate the four resident readback buffers (fixed size, frozen).
-            const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
-            const Rhi::BufferType rt{Rhi::BufferTypeBits::ReadbackFromDevice};
+            // Allocate the four shared staging buffers (fixed size, frozen).
+            // They are both transfer source (upload) and transfer destination
+            // (readback), with mapped host random access.
+            const size_t bytes = FieldBytes();
+            const Rhi::BufferType shared_type{Rhi::BufferTypeBits::ReadbackFromDevice, Rhi::BufferTypeBits::CopyFrom};
             const auto &alloc = renderer->GetAllocatorState();
-            pos_staging = Rhi::DeviceBuffer::CreateUnique(alloc, rt, bytes, "Physics pos readback");
-            rot_staging = Rhi::DeviceBuffer::CreateUnique(alloc, rt, bytes, "Physics rot readback");
-            linvel_staging = Rhi::DeviceBuffer::CreateUnique(alloc, rt, bytes, "Physics linvel readback");
-            angvel_staging = Rhi::DeviceBuffer::CreateUnique(alloc, rt, bytes, "Physics angvel readback");
+            pos_staging = Rhi::DeviceBuffer::CreateUnique(alloc, shared_type, bytes, "Physics pos staging");
+            rot_staging = Rhi::DeviceBuffer::CreateUnique(alloc, shared_type, bytes, "Physics rot staging");
+            linvel_staging = Rhi::DeviceBuffer::CreateUnique(alloc, shared_type, bytes, "Physics linvel staging");
+            angvel_staging = Rhi::DeviceBuffer::CreateUnique(alloc, shared_type, bytes, "Physics angvel staging");
+            field_staging[BodyFieldIndex(BodyField::Position)] = pos_staging.get();
+            field_staging[BodyFieldIndex(BodyField::Rotation)] = rot_staging.get();
+            field_staging[BodyFieldIndex(BodyField::LinearVelocity)] = linvel_staging.get();
+            field_staging[BodyFieldIndex(BodyField::AngularVelocity)] = angvel_staging.get();
+
+            // Dedicated write-only staging for the two force channels, zeroed so
+            // untouched slots are clean (the whole field is uploaded whenever any
+            // slot is dirty, and actuators mark ExternalTorque dirty every step).
+            const Rhi::BufferType write_type{Rhi::BufferTypeBits::StagingToDevice};
+            force_staging = Rhi::DeviceBuffer::CreateUnique(alloc, write_type, bytes, "Physics extforce write staging");
+            torque_staging =
+                Rhi::DeviceBuffer::CreateUnique(alloc, write_type, bytes, "Physics exttorque write staging");
+            field_staging[BodyFieldIndex(BodyField::ExternalForce)] = force_staging.get();
+            field_staging[BodyFieldIndex(BodyField::ExternalTorque)] = torque_staging.get();
+            for (auto *sb : {force_staging.get(), torque_staging.get()}) {
+                std::memset(sb->GetVMAddress(), 0, bytes);
+                sb->Flush(0, bytes);
+            }
 
             // One-time seed copy so state reads are legal before the first Step.
             auto &dc = renderer->GetDeviceContext();
@@ -379,6 +453,9 @@ namespace AppPhysics {
             if (wait_result != vk::Result::eSuccess) {
                 throw std::runtime_error("PhysicsApp: physics readback seed copy wait failed");
             }
+
+            // The seed copy was device work: make it visible to host reads.
+            InvalidateSharedFieldStaging();
 
             physics_readback_built = true;
         }
@@ -767,11 +844,13 @@ namespace AppPhysics {
 
         // Build the BodyId->slot readback BEFORE freezing: FlushPhysics has
         // assigned slots, and the GPU buffers exist. Seeds the initial state so
-        // reads are legal before the first Step.
+        // reads are legal before the first Step, and allocates the write staging
+        // (same frozen sizing) for SetBodyValue.
         impl.BuildPhysicsReadback();
 
-        // Build the write staging for SetBodyValue (same frozen sizing as readback).
-        impl.BuildPhysicsWrite();
+        // Episode-start snapshot: exactly the seeded state, so ResetToInitial can
+        // restore it without any caller-side recording call.
+        impl.RecordInitialSnapshot();
 
         // One-time initial model matrix production (rendering modes only), from
         // the FlushPhysics-seeded poses. Model matrices are produced only when a
@@ -862,9 +941,11 @@ namespace AppPhysics {
         cb->begin(cbbinfo);
         try {
             // Measure joint state from the last readback and write actuator torques
-            // into the ExternalTorque write staging before the solver reads them.
+            // into the ExternalTorque staging before the solver reads them.
             impl.RunActuators();
-            // Write staging -> GPU uploads first so the solver reads overridden values.
+            // Make pending host writes device-visible once per dirty field, then
+            // upload the dirty fields so the solver reads the overridden values.
+            impl.FlushDirtyFieldStaging();
             impl.RecordBodyStateUpload(cb.get());
             impl.physics->GPUStep(cb.get());
             // Produce model matrices on the same command buffer, after the step, so
@@ -901,6 +982,10 @@ namespace AppPhysics {
         // The recorded uploads have been submitted and executed; clear the dirty
         // flags so unset fields are not re-uploaded next step.
         impl.any_dirty.fill(false);
+
+        // The readback copy was device work: make it visible to host reads before
+        // any state query returns.
+        impl.InvalidateSharedFieldStaging();
 
         // Post-wait: physics writes are visible before the next render frame.
         impl.renderer->WaitForIdle();
@@ -1157,10 +1242,59 @@ namespace AppPhysics {
 
         const size_t idx = Impl::BodyFieldIndex(field);
         const uint32_t slot = impl.body_to_slot[id];
-        auto *dst = reinterpret_cast<glm::vec4 *>(impl.write_staging[idx]->GetVMAddress());
+        // Plain host store into the field's staging: for the four readback-backed
+        // fields that staging is the same buffer state reads use, so the write is
+        // observable immediately. No Vulkan call here — Step flushes once per dirty
+        // field.
+        auto *dst = reinterpret_cast<glm::vec4 *>(impl.field_staging[idx]->GetVMAddress());
         dst[slot] = value;
-        impl.write_staging[idx]->Flush(slot * sizeof(glm::vec4), sizeof(glm::vec4));
         impl.any_dirty[idx] = true;
+    }
+
+    void PhysicsApp::ResetToInitial() {
+        auto &impl = *m_impl;
+        if (impl.phase != Impl::Phase::Committed || !impl.initial_snapshot) {
+            throw std::logic_error("PhysicsApp: ResetToInitial called before CommitScene");
+        }
+        const auto &snap = *impl.initial_snapshot;
+        const size_t bytes = impl.FieldBytes();
+
+        if (bytes > 0) {
+            // Restore pose and velocity through the shared staging: reads observe the
+            // restored state immediately, and the next Step uploads it (velocity is
+            // an integration seed for XPBD's pose-delta derivation).
+            std::memcpy(impl.pos_staging->GetVMAddress(), snap.positions.data(), bytes);
+            std::memcpy(impl.rot_staging->GetVMAddress(), snap.rotations.data(), bytes);
+            std::memcpy(impl.linvel_staging->GetVMAddress(), snap.linear_velocities.data(), bytes);
+            std::memcpy(impl.angvel_staging->GetVMAddress(), snap.angular_velocities.data(), bytes);
+
+            // External force/torque are caller-managed channels: zero both so a
+            // previous episode's force or torque never leaks into the next one.
+            std::memset(impl.force_staging->GetVMAddress(), 0, bytes);
+            std::memset(impl.torque_staging->GetVMAddress(), 0, bytes);
+        }
+
+        for (const BodyField field :
+             {BodyField::Position,
+              BodyField::Rotation,
+              BodyField::LinearVelocity,
+              BodyField::AngularVelocity,
+              BodyField::ExternalForce,
+              BodyField::ExternalTorque}) {
+            impl.any_dirty[Impl::BodyFieldIndex(field)] = true;
+        }
+
+        // Restore commit-time targets and clear control state. A target only exists
+        // for actuators registered at CommitScene; later registrations keep theirs.
+        for (size_t i = 0; i < impl.m_actuators.size(); ++i) {
+            if (!impl.m_actuators[i]) {
+                continue;
+            }
+            if (i < snap.actuator_targets.size() && snap.actuator_targets[i].has_value()) {
+                impl.m_actuators[i]->SetTargetAngle(*snap.actuator_targets[i]);
+            }
+            impl.m_actuators[i]->Reset();
+        }
     }
 
     void PhysicsApp::SetJointTorque(JointId joint, float torque) {

@@ -1,12 +1,13 @@
-"""RL-style loop sketch: episodes, decimated control ticks, snapshot resets.
+"""RL-style loop sketch: episodes, decimated control ticks, episode resets.
 
 Usage:
     python examples/rl_loop_sketch.py <robot.urdf> [--episodes N] [--steps N]
 
 The "policy" here is a trivial sinusoidal target pattern driven through the
 robot helper's batch target API; the point is the loop structure an RL user
-needs: one app per worker process, an episode snapshot, control ticks decoupled
-from physics ticks, a per-episode reward, and `robot.reset()` between episodes.
+needs: one app per worker process, an episode start recorded by the app at
+`commit_scene`, control ticks decoupled from physics ticks, a per-episode
+reward, and `robot.reset()` between episodes.
 """
 
 from __future__ import annotations
@@ -48,8 +49,8 @@ def main(argv: list[str]) -> int:
     robot.set_target_angles({name: 0.0 for name in robot.joint_names})
     app.commit_scene()
 
-    # Episode start state, captured once after the scene is committed.
-    robot.snapshot()
+    # The episode start is the state the app records itself at commit_scene;
+    # `robot.reset()` restores exactly that, with no recording call needed.
     start_height = float(np.mean([app.get_body_state(body).position.z for body in robot.link_bodies.values()]))
 
     for episode in range(args.episodes):
@@ -79,7 +80,7 @@ def main(argv: list[str]) -> int:
         )
         robot.reset()
 
-    print("done (each episode starts from the recorded snapshot)")
+    print("done (each episode starts from the state recorded at commit_scene)")
     return 0
 
 

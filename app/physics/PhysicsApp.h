@@ -67,7 +67,8 @@ namespace AppPhysics {
     };
 
     /**
-     * @brief Single body's dynamic state, assembled from the readback arrays.
+     * @brief Single body's dynamic state, assembled from the app's current known
+     * body state (last simulated state overlaid with pending writes).
      *
      * All values are in physics (COM) space.
      */
@@ -105,7 +106,12 @@ namespace AppPhysics {
      * `slot_indices`; `positions`/`rotations`/`linear_velocities`/
      * `angular_velocities` store vec4 (rotation is quaternion xyzw, velocity
      * `.w` is padding). `com_offsets` is GO-local and static (zero for
-     * self-built shapes). Valid until the next `Step`.
+     * self-built shapes).
+     *
+     * The arrays show the app's current known state, not just the last step's
+     * result: a `SetBodyValue` (or `ResetToInitial`) write is visible in them
+     * immediately, in place, without bumping the step counter. Valid until the
+     * next `Step`.
      */
     struct BodyStatesView {
         std::span<const uint32_t> slot_indices;        ///< BodyId → slot index mapping.
@@ -261,12 +267,15 @@ namespace AppPhysics {
      *   1. Create(info) - full initialization (window, assets, project, input axes).
      *   2. Building phase - add bodies, joints, lights, set camera pose.
      *   3. CommitScene() - one-way freeze; afterwards no scene changes are allowed.
-     *   4. Drive phase - Step() / RenderNextFrame() / Pause() / Resume() / ShouldQuit().
+     *      Records the episode-start state restored by ResetToInitial().
+     *   4. Drive phase - Step() / ResetToInitial() / RenderNextFrame() / Pause() /
+     *      Resume() / ShouldQuit().
      *
-     * Actuators (see AddActuator) run inside Step(): they read the joint state
-     * measured from the previous step and write equal-and-opposite torques about
-     * the joint axis to the child/parent bodies' ExternalTorque each step, so the
-     * torque channel is owned by the actuators — user SetBodyValue(ExternalTorque)
+     * Actuators (see AddActuator) run inside Step(): they measure the current known
+     * joint state (the last step's result overlaid with any pose writes made since)
+     * and write equal-and-opposite torques about the joint axis to the child/parent
+     * bodies' ExternalTorque each step, so the torque channel is owned by the
+     * actuators — user SetBodyValue(ExternalTorque)
      * writes on an actuated joint's bodies are overwritten. Actuators are shared
      * with the caller: the app keeps them alive while they are registered and
      * `RemoveActuator` clears the channel so manual control (SetJointTorque) can
@@ -417,6 +426,9 @@ namespace AppPhysics {
         /**
          * @brief Get a joint's measured state (Drive phase only).
          *
+         * Measured from the same current known body state the readback exposes, so
+         * a pose written by `SetBodyValue` is measured immediately.
+         *
          * @param joint Joint to read.
          * @return Current signed angle (relative to initial pose) and angular
          *         velocity, computed CPU-side from the body readback.
@@ -495,9 +507,39 @@ namespace AppPhysics {
          * pause flag — the caller's loop decides whether to call this by checking
          * `IsPaused()`.
          *
+         * Pending `SetBodyValue` writes are uploaded before the solve (one
+         * whole-field upload per dirty field) and made device-visible once per
+         * step, so writes never synchronize with the device themselves. After the
+         * step the readback is refreshed and state reads see the integrated
+         * result.
+         *
          * @throws std::logic_error before CommitScene.
          */
         void Step();
+
+        /**
+         * @brief Restore the whole app to the state recorded at `CommitScene`.
+         *
+         * Episode-level reset for repeated trials. Restores every body's position
+         * and rotation to the commit-time snapshot, writes the snapshot velocities
+         * back as integration seeds (XPBD derives velocity from the pose change,
+         * so a restored velocity seeds the next step's derivation rather than
+         * persisting as state), zeroes every body's external force and torque,
+         * restores every actuator's target angle to its commit-time value and
+         * clears actuator internal state through `Actuator::Reset()`. Actuators
+         * registered after `CommitScene` have no commit-time target and keep
+         * theirs, but their internal state is cleared too.
+         *
+         * The restored state is visible to `GetBodyState` / `GetBodyStates` /
+         * `GetJointState` immediately and reaches the physics buffers on the next
+         * `Step`. The reset itself neither advances the simulation nor renders.
+         *
+         * Like `SetBodyValue`, call between `Step` calls: the app is
+         * single-threaded and this performs host writes with no synchronization.
+         *
+         * @throws std::logic_error before CommitScene.
+         */
+        void ResetToInitial();
 
         /**
          * @brief Render one frame, processing input and updating the camera.
@@ -540,6 +582,10 @@ namespace AppPhysics {
         /**
          * @brief Get a single body's dynamic state.
          *
+         * Returns the app's current known state: the last step's simulated state
+         * overlaid with any `SetBodyValue` writes made since, so a write is
+         * observable here without an intervening `Step`.
+         *
          * @param id BodyId returned by an Add method.
          * @return The body's COM position, rotation and velocities.
          * @throws std::logic_error before CommitScene.
@@ -550,7 +596,7 @@ namespace AppPhysics {
         /**
          * @brief Get the SoA batch view of all bodies' dynamic state.
          *
-         * @return BodyStatesView over the readback arrays (slot-indexed).
+         * @return BodyStatesView over the staging arrays (slot-indexed).
          * @throws std::logic_error before CommitScene.
          */
         BodyStatesView GetBodyStates() const;
@@ -558,9 +604,11 @@ namespace AppPhysics {
         /**
          * @brief Override one writable field of a single body before the next step.
          *
-         * Legal in the Drive phase (after `CommitScene`). The value directly
-         * replaces the corresponding GPU physics buffer slot at the next `Step`
-         * and persists until overwritten by another call:
+         * Legal in the Drive phase (after `CommitScene`). The write lands in the
+         * app's host staging for that field, which holds "last simulated state +
+         * pending writes": it is observable immediately by `GetBodyState` /
+         * `GetBodyStates` / `GetJointState` and by actuator measurement, and it
+         * reaches the GPU physics buffer on the next `Step`.
          *
          * - Rotation is stored as a quaternion (xyzw); the other five fields
          *   store their quantity in xyz with w = 0.
@@ -570,9 +618,13 @@ namespace AppPhysics {
          *   (caller-managed lifetime). Position/rotation/velocity evolve under
          *   integration after they are applied and are not re-applied on later
          *   steps.
-         * - The write is applied on the next `Step`; it is not reflected by
-         *   `GetBodyState` before that step. Call between `Step` calls (the app
-         *   is single-threaded and waits on the device inside `Step`).
+         * - Upload is whole-field per dirty field, but untouched slots carry their
+         *   own current values, so writing one body's field never changes another
+         *   body. Any number of writes to one field within a step interval cost
+         *   exactly one upload of that field.
+         * - No per-call device synchronization: pending writes are made
+         *   device-visible once per step. Call between `Step` calls (the app is
+         *   single-threaded and waits on the device inside `Step`).
          *
          * The rotation quaternion is normalized on write.
          *
@@ -591,8 +643,9 @@ namespace AppPhysics {
          * written through the same persistent external-torque channel as
          * `SetBodyValue(ExternalTorque)`: `+torque * axis_world` on the child
          * body and `-torque * axis_world` on the parent body. The world-space
-         * axis is resolved internally from the latest readback state and the
-         * joint's recorded axis, so the caller never handles frames.
+         * axis is resolved internally from the current known body state
+         * (including pending writes) and the joint's recorded axis, so the caller
+         * never handles frames.
          *
          * The write is caller-managed: it persists and keeps applying on every
          * subsequent `Step` until overwritten (including with zero). Because it

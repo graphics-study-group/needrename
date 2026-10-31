@@ -10,6 +10,7 @@ set_tests_properties(physics_app_background_configured_test PROPERTIES LABELS "h
 anro_add_test(physics_app_windowed_test WINDOWED FRAMES 120 TIMEOUT 300 LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_actuator_unit_test LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_joint_torque_test LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
+anro_add_test(physics_app_reset_test LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_friction_test LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 anro_add_test(physics_app_actuator_stand_test WINDOWED FRAMES 600 TIMEOUT 300 LINK "Engine;PhysicsApp" FOLDER tests/app/physics)
 

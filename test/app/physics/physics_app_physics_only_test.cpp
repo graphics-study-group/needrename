@@ -1,3 +1,14 @@
+// physics_app_physics_only_test.cpp — PhysicsApp in `AppMode::PhysicsOnly`.
+//
+// Covered: phase guards, initial readback, the batch SoA view, pause model,
+// gravity integration, and the body-state write semantics of `SetBodyValue`:
+//   * writes are visible to `GetBodyState` / `GetBodyStates` / `GetJointState`
+//     before any step, and to actuator measurement inside the next step,
+//   * a teleport applies on the next step and does not snap back,
+//   * fields are not re-uploaded on later steps,
+//   * a whole-field upload never disturbs bodies the caller did not write,
+//   * external force/torque stay caller-managed (persist until zeroed).
+
 #include <PhysicsApp.h>
 
 #include <glm.hpp>
@@ -5,6 +16,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 
 using namespace AppPhysics;
@@ -50,6 +62,27 @@ namespace {
         }
         return false;
     }
+
+    /// @brief Zero-torque control law that records the joint state it measured.
+    ///
+    /// Applying no torque keeps the measured assembly undisturbed, so the recorded
+    /// angles are a clean probe of what the actuator saw inside `Step`.
+    class MeasuringActuator final : public Actuator {
+    public:
+        float ComputeTorque(float angle, float angular_velocity) override {
+            m_angle = angle;
+            m_angular_velocity = angular_velocity;
+            return 0.0f;
+        }
+
+        float last_angle() const {
+            return m_angle;
+        }
+
+    private:
+        float m_angle{0.0f};
+        float m_angular_velocity{0.0f};
+    };
 } // namespace
 
 int main() {
@@ -72,11 +105,24 @@ int main() {
     Check(ThrowsLogic([&] { app->SetCameraPose({0, 0, 0}, {1, 0, 0}); }), "SetCameraPose throws physics_only");
     Check(ThrowsLogic([&] { app->AddDirectionalLight({}); }), "AddDirectionalLight throws physics_only");
 
-    // Build a scene with two dynamic bodies.
+    // Build the scene: three independent dynamic bodies plus a hinge pair far
+    // away, which carries the zero-torque measuring actuator.
     const glm::vec3 box0(0.0f, 0.0f, 2.0f);
     const glm::vec3 sphere1(1.0f, 0.0f, 3.0f);
+    const glm::vec3 box2(-4.0f, 0.0f, 5.0f);
     BodyId b0 = app->AddBox({.position = box0, .half_extents = {0.5f, 0.5f, 0.5f}, .mass = 1.0f});
     BodyId b1 = app->AddSphere({.position = sphere1, .radius = 0.5f, .mass = 1.0f});
+    BodyId b2 = app->AddBox({.position = box2, .half_extents = {0.5f, 0.5f, 0.5f}, .mass = 1.0f});
+
+    const glm::vec3 hinge_axis(0.0f, 0.0f, 1.0f);
+    BodyId hinge_parent =
+        app->AddBox({.position = {20.0f, 0.0f, -0.25f}, .half_extents = {0.2f, 0.2f, 0.2f}, .mass = 1.0f});
+    BodyId hinge_child =
+        app->AddBox({.position = {20.0f, 0.0f, 0.25f}, .half_extents = {0.2f, 0.2f, 0.2f}, .mass = 1.0f});
+    JointId hinge_joint =
+        app->AddHingeJoint(hinge_parent, hinge_child, {.axis_obj1 = hinge_axis, .anchor_obj1 = {0.0f, 0.0f, 0.5f}});
+    auto measuring = std::make_shared<MeasuringActuator>();
+    app->AddActuator(hinge_joint, measuring);
 
     app->CommitScene();
 
@@ -96,13 +142,14 @@ int main() {
     Check(ThrowsOutOfRange([&] { (void)app->GetBodyState(9999); }), "out-of-range id throws");
 
     // Batch view: one entry per BodyId, unique slots, zero com offsets.
+    constexpr size_t kBodyCount = 5;
     auto view = app->GetBodyStates();
-    Check(view.slot_indices.size() == 2, "slot_indices size == body count");
+    Check(view.slot_indices.size() == kBodyCount, "slot_indices size == body count");
     Check(view.slot_indices[0] != view.slot_indices[1], "slot indices unique");
-    Check(view.com_offsets.size() >= 2, "com_offsets sized to slots");
+    Check(view.com_offsets.size() >= kBodyCount, "com_offsets sized to slots");
     Check(
-        view.positions.size() >= 2 && view.rotations.size() >= 2 && view.linear_velocities.size() >= 2
-            && view.angular_velocities.size() >= 2,
+        view.positions.size() >= kBodyCount && view.rotations.size() >= kBodyCount
+            && view.linear_velocities.size() >= kBodyCount && view.angular_velocities.size() >= kBodyCount,
         "SoA spans sized to slots"
     );
     Check(
@@ -149,10 +196,17 @@ int main() {
         "SetBodyValue invalid id throws"
     );
 
-    // Position teleport applies on the next Step, then does NOT snap back.
+    // A write is visible to state reads immediately: no intervening Step.
     const glm::vec3 tp(2.0f, 3.0f, 8.0f);
     app->SetBodyValue(b1, BodyField::Position, glm::vec4(tp, 1.0f));
-    Check(!CloseV(app->GetBodyState(b1).position, tp, 0.5f), "Set position not visible before Step");
+    Check(CloseV(app->GetBodyState(b1).position, tp, 1e-4f), "Set position visible before Step");
+    auto written_view = app->GetBodyStates();
+    Check(
+        CloseV(glm::vec3(written_view.positions[written_view.slot_indices[b1]]), tp, 1e-4f),
+        "batch view reflects the write immediately"
+    );
+
+    // ... and the teleport still applies on the next Step, without snapping back.
     app->Step();
     BodyState st = app->GetBodyState(b1);
     Check(CloseV(st.position, tp, 0.5f), "teleport applied on next Step");
@@ -197,6 +251,48 @@ int main() {
     }
     const float after_zero_z = app->GetBodyState(b0).position.z;
     Check(after_zero_z < peak_z - 0.3f, "zeroed force lets body fall again (caller-managed lifetime)");
+
+    // ── Whole-field upload does not disturb unwritten bodies ────────────
+    // The Position upload covers every slot of the field, so it must carry the
+    // untouched bodies' own simulated values: a zero-seeded upload would teleport
+    // b0 and b2 to the origin here.
+    app->Step();
+    const glm::vec3 b0_before = app->GetBodyState(b0).position;
+    const glm::vec3 b2_before = app->GetBodyState(b2).position;
+    const glm::vec3 b1_target(9.0f, 9.0f, 9.0f);
+    app->SetBodyValue(b1, BodyField::Position, glm::vec4(b1_target, 0.0f));
+    app->Step();
+    Check(CloseV(app->GetBodyState(b1).position, b1_target, 0.5f), "written body lands at the written position");
+    const glm::vec3 b0_after = app->GetBodyState(b0).position;
+    const glm::vec3 b2_after = app->GetBodyState(b2).position;
+    Check(glm::length(b0_after - b0_before) < 0.5f, "unwritten body b0 continues from its own simulated state");
+    Check(glm::length(b2_after - b2_before) < 0.5f, "unwritten body b2 continues from its own simulated state");
+    Check(glm::length(b0_after) > 1.0f, "unwritten body b0 is not teleported to the origin");
+    Check(glm::length(b2_after) > 1.0f, "unwritten body b2 is not teleported to the origin");
+
+    // ── Joint and actuator reads see a pose write immediately ───────────
+    const glm::vec3 parent_before = app->GetBodyState(hinge_parent).position;
+    const float angle_before = app->GetJointState(hinge_joint).angle;
+    const float written_angle = 0.4f;
+    const glm::quat q_written = glm::angleAxis(written_angle, hinge_axis);
+    app->SetBodyValue(hinge_child, BodyField::Rotation, glm::vec4(q_written.x, q_written.y, q_written.z, q_written.w));
+    const float angle_after = app->GetJointState(hinge_joint).angle;
+    Check(
+        std::fabs(angle_after - angle_before - written_angle) < 0.05f,
+        "GetJointState reflects the written pose before Step"
+    );
+    Check(
+        CloseV(app->GetBodyState(hinge_parent).position, parent_before, 1e-4f),
+        "writing the child's rotation leaves the parent body untouched"
+    );
+
+    // The actuator measures the joint at the start of the next step, so it must
+    // see the written pose rather than the pre-write one.
+    app->Step();
+    Check(
+        std::fabs(measuring->last_angle() - (angle_before + written_angle)) < 0.05f,
+        "actuator measurement uses the written pose"
+    );
 
     if (g_failures == 0) {
         std::cout << "physics_app_physics_only_test PASSED." << std::endl;

@@ -357,6 +357,16 @@ namespace NeedrenameBindings {
             .def("commit_scene", &PhysicsApp::CommitScene, "Commit and freeze the scene; starts the drive phase.")
             // ── Drive phase ────────────────────────────────────────────
             .def(
+                "reset_to_initial",
+                &PhysicsApp::ResetToInitial,
+                "Restore the whole app to the state recorded at `commit_scene`.\n\n"
+                "Every body returns to its commit-time pose with the recorded velocities as\n"
+                "integration seeds, external forces and torques are zeroed, and every\n"
+                "actuator target is restored and its internal state cleared. The restored\n"
+                "state is visible to state reads immediately and reaches the physics buffers\n"
+                "on the next `step`; the reset itself neither steps nor renders."
+            )
+            .def(
                 "step",
                 [](nb::object self) {
                     auto &app = nb::cast<PhysicsApp &>(self);
