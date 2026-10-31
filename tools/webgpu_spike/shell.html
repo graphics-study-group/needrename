@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>WebGPU spike</title>
+    <style>
+        body {
+            margin: 0;
+            background: #101418;
+            color: #d0d6dc;
+            font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        canvas {
+            display: block;
+            width: 256px;
+            height: 256px;
+            margin: 16px;
+            border: 1px solid #2a323a;
+            image-rendering: pixelated;
+        }
+
+        pre {
+            margin: 16px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="webgpu-canvas" width="64" height="64"></canvas>
+    <pre id="output"></pre>
+    <script>
+        // Mirror the module's stdout into the page so the measurement is visible
+        // without opening the developer console.
+        var output = document.getElementById('output');
+        Module['print'] = function (text) {
+            output.textContent += text + '\n';
+        };
+        Module['printErr'] = function (text) {
+            output.textContent += text + '\n';
+        };
+    </script>
+    {{{ SCRIPT }}}
+</body>
+</html>
