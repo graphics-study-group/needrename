@@ -97,7 +97,7 @@ namespace Engine {
         const glm::vec4 gravity_dt =
             glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt);
 
-        m_impl->compute_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+        m_impl->compute_kernel->Dispatch(encoder,
             {{"RigidBodyAlive", *gpu.rigid_body_alive},
              {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
              {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation}},
@@ -138,7 +138,7 @@ namespace Engine {
         // that makes the poses it reads visible.
         DispatchBarrier(encoder);
 
-        m_impl->model_matrix_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+        m_impl->model_matrix_kernel->Dispatch(encoder,
             {{"RigidBodyAlive", *gpu.rigid_body_alive},
              {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
              {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
@@ -150,5 +150,6 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 

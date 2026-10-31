@@ -1,10 +1,17 @@
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Shader/ShaderCompiler.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <random>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 using namespace Engine::Rhi;
@@ -97,8 +104,10 @@ int main() {
             .UseBuffer(cbi2, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction([&ckernel, &compbuf1, &compbuf2](CommandBuffer &cb, const RenderGraph &) -> void {
+                Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
                 ckernel.Dispatch(
-                    cb.GetCommandBuffer(),
+
+                    encoder,
                     {{"Input", Rhi::ComputeKernelResource::Buffer(compbuf1->GetComputeBuffer())},
                      {"Output", Rhi::ComputeKernelResource::Buffer(compbuf2->GetComputeBuffer())}},
                     BUFFER_SIZE / 16 + 1,
@@ -130,8 +139,10 @@ int main() {
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction(
                 [&ckernel_push, &compbuf1, &compbuf3, PUSH_OFFSET](CommandBuffer &cb, const RenderGraph &) -> void {
+                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
                     ckernel_push.Dispatch(
-                        cb.GetCommandBuffer(),
+
+                        encoder,
                         {{"Input", Rhi::ComputeKernelResource::Buffer(compbuf1->GetComputeBuffer())},
                          {"Output", Rhi::ComputeKernelResource::Buffer(compbuf3->GetComputeBuffer())}},
                         BUFFER_SIZE / 16 + 1,
@@ -195,3 +206,4 @@ int main() {
     std::cout << "Headless compute test PASSED." << std::endl;
     return 0;
 }
+

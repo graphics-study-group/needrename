@@ -474,13 +474,13 @@ namespace Engine {
         // A snapshot dispatch copies one scene column into a solver-owned one, so
         // its two bindings and its geometry are the same at every call site.
         auto snapshot = [this, &encoder, body_wg, body_count](const Rhi::ComputeBuffer &src, Rhi::ComputeBuffer &dst) {
-            m_impl->snapshot_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"SrcBuffer", src}, {"DstBuffer", dst}}, body_wg, 1, 1, body_count);
+            m_impl->snapshot_kernel->Dispatch(encoder, {{"SrcBuffer", src}, {"DstBuffer", dst}}, body_wg, 1, 1, body_count);
         };
 
         // The clear writes one element per element of the range, so its geometry
         // follows the range it is given.
         auto dispatch_clear = [this, &encoder](Rhi::ComputeBuffer &tgt, uint32_t elem_count) {
-            m_impl->clear_int_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", tgt}}, (elem_count + 63u) / 64u, 1, 1, elem_count);
+            m_impl->clear_int_kernel->Dispatch(encoder, {{"Target", tgt}}, (elem_count + 63u) / 64u, 1, 1, elem_count);
         };
 
         // Count-bounded clear of a group's per-iteration value buffer: only the
@@ -492,7 +492,7 @@ namespace Engine {
             [this, &encoder](Rhi::ComputeBuffer &values, Rhi::ComputeBuffer &entry_count, uint32_t capacity) {
                 const ClearEntryValuesPush push{capacity, kNumChannels};
                 const uint32_t wg = (kNumChannels * capacity + 63u) / 64u;
-                m_impl->clear_values_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Values", values}, {"EntryCount", entry_count}}, wg, 1, 1, push
+                m_impl->clear_values_kernel->Dispatch(encoder, {{"Values", values}, {"EntryCount", entry_count}}, wg, 1, 1, push
                 );
             };
 
@@ -502,7 +502,7 @@ namespace Engine {
         auto dispatch_clear_values_push = [this, &encoder](Rhi::ComputeBuffer &values, uint32_t capacity, uint32_t count) {
             if (count == 0u) return;
             const ClearEntryValuesPushCount push{capacity, kNumChannels, count};
-            m_impl->clear_values_push_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Values", values}}, (kNumChannels * count + 63u) / 64u, 1, 1, push
+            m_impl->clear_values_push_kernel->Dispatch(encoder, {{"Values", values}}, (kNumChannels * count + 63u) / 64u, 1, 1, push
             );
         };
 
@@ -535,7 +535,7 @@ namespace Engine {
                 barrier();
 
                 {
-                    m_impl->integrate_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->integrate_kernel->Dispatch(encoder,
                         {{"RigidBodyAlive", *gpu.rigid_body_alive},
                          {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
                          {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
@@ -560,7 +560,7 @@ namespace Engine {
                 barrier();
 
                 if (shape_count > 1u && gpu.shape_world_position != nullptr) {
-                    m_impl->update_shape_world_pose_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->update_shape_world_pose_kernel->Dispatch(encoder,
                         {{"ShapeAlive", *gpu.shape_alive},
                          {"ShapeBoundRigidBody", *gpu.shape_bound_rigid_body},
                          {"ShapeLocalPosition", *gpu.shape_local_position},
@@ -597,7 +597,7 @@ namespace Engine {
                 // reduction binds those directly.
                 {
                     const ContactEntryPush push{contact_cap, body_count, shape_count};
-                    m_impl->contact_entries_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->contact_entries_kernel->Dispatch(encoder,
                         {{"CollisionIds", *narrow.collision_ids},
                          {"CollisionCount", *narrow.collision_count},
                          {"ShapeBoundRigidBody", *gpu.shape_bound_rigid_body},
@@ -618,7 +618,7 @@ namespace Engine {
 
                 {
                     const JointCountPush push{s.hinge_joints, hinge_slots, body_count};
-                    m_impl->hinge_entries_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->hinge_entries_kernel->Dispatch(encoder,
                         {{"HingeJoints", *gpu.gpu_hinge_joints},
                          {"EntryKeys", *m_impl->hinge.keys},
                          {"EntryPayload", *m_impl->hinge.payload},
@@ -637,7 +637,7 @@ namespace Engine {
 
                 {
                     const JointCountPush push{s.fixed_joints, fixed_slots, body_count};
-                    m_impl->fixed_entries_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->fixed_entries_kernel->Dispatch(encoder,
                         {{"FixedJoints", *gpu.gpu_fixed_joints},
                          {"EntryKeys", *m_impl->fixed.keys},
                          {"EntryPayload", *m_impl->fixed.payload},
@@ -686,7 +686,7 @@ namespace Engine {
                 dispatch_clear(*m_impl->fixed.out, out_elems);
                 barrier();
                 {
-                    m_impl->clear_hinge_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->clear_hinge_kernel->Dispatch(encoder,
                         {{"HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange},
                          {"HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange}},
                         std::max(1u, (s.hinge_joints + 255u) / 256u),
@@ -697,7 +697,7 @@ namespace Engine {
                 }
                 barrier();
                 {
-                    m_impl->clear_fixed_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->clear_fixed_kernel->Dispatch(encoder,
                         {{"FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange},
                          {"FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange}},
                         std::max(1u, (s.fixed_joints + 255u) / 256u),
@@ -718,7 +718,7 @@ namespace Engine {
                     // written this iteration, and only those are read back.
                     dispatch_clear_values(*m_impl->contact.values, *m_impl->contact.entry_count, contact_cap);
                     barrier();
-                    m_impl->accum_pos_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->accum_pos_kernel->Dispatch(encoder,
                         {{"CollisionIds", *narrow.collision_ids},
                          {"CollisionNormals", *narrow.collision_normals},
                          {"ContactPointA", *narrow.contact_point_a},
@@ -760,7 +760,7 @@ namespace Engine {
                     barrier();
                     if (s.hinge_joints > 0u) {
                         const AccumJointPush push{m_impl->push_gravity_dt, s.hinge_joints, hinge_slots};
-                        m_impl->accum_hinge_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                        m_impl->accum_hinge_kernel->Dispatch(encoder,
                             {{"HingeJoints", *gpu.gpu_hinge_joints},
                              {"HingeAxisLagrange", *m_impl->gpu_hinge_axis_lagrange},
                              {"HingeAnchorLagrange", *m_impl->gpu_hinge_anchor_lagrange},
@@ -787,7 +787,7 @@ namespace Engine {
                     barrier();
                     if (s.fixed_joints > 0u) {
                         const AccumJointPush push{m_impl->push_gravity_dt, s.fixed_joints, fixed_slots};
-                        m_impl->accum_fixed_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                        m_impl->accum_fixed_kernel->Dispatch(encoder,
                             {{"FixedJoints", *gpu.gpu_fixed_joints},
                              {"FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange},
                              {"FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange},
@@ -810,7 +810,7 @@ namespace Engine {
                     barrier();
 
                     // Merged position apply.
-                    m_impl->apply_pos_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->apply_pos_kernel->Dispatch(encoder,
                         {{"RigidBodyAlive", *gpu.rigid_body_alive},
                          {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
                          {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
@@ -827,7 +827,7 @@ namespace Engine {
 
                 // ====== PostPosition: update velocities from pose ======
                 barrier();
-                m_impl->update_vel_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                m_impl->update_vel_kernel->Dispatch(encoder,
                     {{"RigidBodyAlive", *gpu.rigid_body_alive},
                      {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
                      {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
@@ -853,7 +853,7 @@ namespace Engine {
                     barrier();
                     {
                         const AccumVelocityPush push{m_impl->push_gravity_dt, contact_cap};
-                        m_impl->accum_vel_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                        m_impl->accum_vel_kernel->Dispatch(encoder,
                             {{"CollisionIds", *narrow.collision_ids},
                              {"CollisionNormals", *narrow.collision_normals},
                              {"ContactPointA", *narrow.contact_point_a},
@@ -892,7 +892,7 @@ namespace Engine {
                         body_count
                     );
                     barrier();
-                    m_impl->apply_vel_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                    m_impl->apply_vel_kernel->Dispatch(encoder,
                         {{"RigidBodyAlive", *gpu.rigid_body_alive},
                          {"RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic},
                          {"RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity},
@@ -932,7 +932,7 @@ namespace Engine {
         // barrier that makes the poses it reads visible.
         DispatchBarrier(encoder);
 
-        m_impl->model_matrix_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+        m_impl->model_matrix_kernel->Dispatch(encoder,
             {{"RigidBodyAlive", *gpu.rigid_body_alive},
              {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
              {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
@@ -943,6 +943,7 @@ namespace Engine {
         );
     }
 } // namespace Engine
+
 
 
 

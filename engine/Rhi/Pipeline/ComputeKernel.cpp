@@ -204,7 +204,7 @@ namespace Engine::Rhi {
     }
 
     void ComputeKernel::Dispatch(
-        vk::CommandBuffer cb,
+        CommandEncoder &encoder,
         ComputeResourceDictionary resources,
         uint32_t group_count_x,
         uint32_t group_count_y,
@@ -213,11 +213,11 @@ namespace Engine::Rhi {
         assert(
             pimpl->push_constant_size == 0 && "This kernel declares a push-constant block; dispatch it with a value."
         );
-        DispatchAndRecord(cb, resources, group_count_x, group_count_y, group_count_z, nullptr, 0);
+        DispatchAndRecord(encoder, resources, group_count_x, group_count_y, group_count_z, nullptr, 0);
     }
 
     void ComputeKernel::DispatchAndRecord(
-        vk::CommandBuffer cb,
+        CommandEncoder &encoder,
         ComputeResourceDictionary resources,
         uint32_t group_count_x,
         uint32_t group_count_y,
@@ -331,6 +331,7 @@ namespace Engine::Rhi {
 
         // The kernel records no barrier: synchronization between dispatches is
         // the caller's responsibility.
+        const vk::CommandBuffer cb = ToVulkanCommandBuffer(encoder.GetHandle());
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, pimpl->pass_info.pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pimpl->pass_info.pipeline_layout.get(), 0, set, {});
         if (push != nullptr && push_size > 0) {
@@ -383,6 +384,8 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
+
 
 
 

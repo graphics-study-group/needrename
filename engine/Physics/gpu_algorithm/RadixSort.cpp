@@ -203,7 +203,7 @@ namespace Engine {
 
             // 1. Per-block histogram, written transposed and in full: no clear
             //    pass precedes it, and none is needed.
-            m_impl->histogram_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+            m_impl->histogram_kernel->Dispatch(encoder,
                 {{"KeysIn", *keys_in}, {"Histogram", *m_impl->histogram}, {"ElemCount", *buffers.count}},
                 num_blocks,
                 1,
@@ -217,7 +217,7 @@ namespace Engine {
             DispatchBarrier(encoder);
 
             // 3. Stable scatter into the other array.
-            m_impl->scatter_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+            m_impl->scatter_kernel->Dispatch(encoder,
                 {{"KeysIn", *keys_in},
                  {"KeysOut", *keys_out},
                  {"PayloadIn", *payload_in},
@@ -237,7 +237,7 @@ namespace Engine {
         // Copy the ping-pong if the number of passes is odd.
         if (num_passes % 2u == 1u) {
             DispatchBarrier(encoder);
-            m_impl->copy_back_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+            m_impl->copy_back_kernel->Dispatch(encoder,
                 {{"SrcKeys", *keys_in},
                  {"DstKeys", *buffers.keys},
                  {"SrcPayload", *payload_in},
@@ -251,5 +251,6 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
 
 

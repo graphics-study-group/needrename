@@ -138,7 +138,7 @@ namespace Engine::Rhi {
          * For a shader that declares no push-constant block.
          */
         void Dispatch(
-            vk::CommandBuffer cb,
+            CommandEncoder &encoder,
             ComputeResourceDictionary resources,
             uint32_t group_count_x,
             uint32_t group_count_y,
@@ -152,7 +152,7 @@ namespace Engine::Rhi {
          */
         template <typename T>
         void Dispatch(
-            vk::CommandBuffer cb,
+            CommandEncoder &encoder,
             ComputeResourceDictionary resources,
             uint32_t group_count_x,
             uint32_t group_count_y,
@@ -161,7 +161,7 @@ namespace Engine::Rhi {
         ) const {
             static_assert(sizeof(T) % 4 == 0, "Push constant size must be a multiple of 4 bytes.");
             assert(sizeof(T) <= GetPushConstantSize() && "Push constant value exceeds the reflected block size.");
-            DispatchAndRecord(cb, resources, group_count_x, group_count_y, group_count_z, &push, sizeof(T));
+            DispatchAndRecord(encoder, resources, group_count_x, group_count_y, group_count_z, &push, sizeof(T));
         }
 
     private:
@@ -174,7 +174,7 @@ namespace Engine::Rhi {
 
         /// @brief The dispatcher both public overloads funnel into.
         void DispatchAndRecord(
-            vk::CommandBuffer cb,
+            CommandEncoder &encoder,
             ComputeResourceDictionary resources,
             uint32_t group_count_x,
             uint32_t group_count_y,
@@ -244,6 +244,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMPUTEKERNEL_INCLUDED
+
 
 
 

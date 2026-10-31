@@ -216,13 +216,13 @@ namespace Engine {
         void DispatchClear(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target, uint32_t elem_count) {
             uint32_t wg = (elem_count + 63u) / 64u;
             if (wg == 0) wg = 1;
-            memset_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", target}}, wg, 1, 1, elem_count);
+            memset_kernel->Dispatch(encoder, {{"Target", target}}, wg, 1, 1, elem_count);
         }
 
         void DispatchCopy(Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &src, Rhi::ComputeBuffer &dst, uint32_t elem_count) {
             uint32_t wg = (elem_count + 63u) / 64u;
             if (wg == 0) wg = 1;
-            copy_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"SrcBuffer", src}, {"DstBuffer", dst}}, wg, 1, 1, elem_count);
+            copy_kernel->Dispatch(encoder, {{"SrcBuffer", src}, {"DstBuffer", dst}}, wg, 1, 1, elem_count);
         }
 
         // -----------------------------------------------------------------
@@ -233,7 +233,7 @@ namespace Engine {
             const auto gpu = scene->GetGpuBuffers();
 
             uint32_t wg = (shape_count + 63u) / 64u;
-            aabb_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+            aabb_kernel->Dispatch(encoder,
                 {{"ShapeAlive", *gpu.shape_alive},
                  {"ShapeType", *gpu.shape_type},
                  {"ShapeFeature", *gpu.shape_feature},
@@ -259,7 +259,7 @@ namespace Engine {
 
             uint32_t total_pairs = (shape_count * (shape_count - 1u)) / 2u;
             uint32_t wg = (total_pairs + 63u) / 64u;
-            fallback_pairs_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+            fallback_pairs_kernel->Dispatch(encoder,
                 {{"ShapeAlive", *gpu.shape_alive},
                  {"CollisionPairs", *gpu_collision_pairs},
                  {"PairCount", *gpu_pair_count},
@@ -282,7 +282,7 @@ namespace Engine {
             // Count cells
             {
                 uint32_t wg = (shape_count + 63u) / 64u;
-                count_cells_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                count_cells_kernel->Dispatch(encoder,
                     {{"AabbMin", *gpu_aabb_min},
                      {"AabbMax", *gpu_aabb_max},
                      {"GlobalFlags", *gpu_global_flags},
@@ -303,7 +303,7 @@ namespace Engine {
             // Fill cells
             {
                 uint32_t wg = (shape_count + 63u) / 64u;
-                fill_cells_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                fill_cells_kernel->Dispatch(encoder,
                     {{"AabbMin", *gpu_aabb_min},
                      {"AabbMax", *gpu_aabb_max},
                      {"GlobalFlags", *gpu_global_flags},
@@ -324,7 +324,7 @@ namespace Engine {
             // Histogram
             {
                 uint32_t wg = (max_cell_shape_pair_count + 63u) / 64u;
-                histogram_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                histogram_kernel->Dispatch(encoder,
                     {{"CellShapePairs", *gpu_cell_shape_pairs},
                      {"CellHistogram", *gpu_cell_histogram},
                      {"TotalAssignments", *gpu_total_assignments}},
@@ -346,7 +346,7 @@ namespace Engine {
             // Scatter sort
             {
                 uint32_t wg = (max_cell_shape_pair_count + 63u) / 64u;
-                scatter_sort_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                scatter_sort_kernel->Dispatch(encoder,
                     {{"CellShapePairs", *gpu_cell_shape_pairs},
                      {"SortedPairs", *gpu_cell_shape_pairs_sorted},
                      {"CellScratch", *gpu_cell_scratch},
@@ -365,7 +365,7 @@ namespace Engine {
             // Generate pairs
             {
                 uint32_t wg = (grid_total_cells + 63u) / 64u;
-                generate_pairs_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                generate_pairs_kernel->Dispatch(encoder,
                     {{"SortedPairs", *gpu_cell_shape_pairs_sorted},
                      {"CellOffsets", *gpu_cell_histogram},
                      {"GlobalFlags", *gpu_global_flags},
@@ -387,7 +387,7 @@ namespace Engine {
             // Generate global pairs
             {
                 uint32_t n_wg = (shape_count + 63u) / 64u;
-                global_pairs_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                global_pairs_kernel->Dispatch(encoder,
                     {{"GlobalList", *gpu_global_list},
                      {"GlobalCount", *gpu_global_count},
                      {"GlobalFlags", *gpu_global_flags},
@@ -420,7 +420,7 @@ namespace Engine {
                 DispatchBarrier(encoder);
 
                 uint32_t wg = (max_output_pair_count + 63u) / 64u;
-                unpack_pairs_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                unpack_pairs_kernel->Dispatch(encoder,
                     {{"CompactedKeys", *gpu_pair_keys},
                      {"CollisionPairs", *gpu_collision_pairs},
                      {"UniqueCount", *gpu_unique_count},
@@ -562,6 +562,7 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
 
 
 

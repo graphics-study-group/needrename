@@ -104,7 +104,7 @@ namespace Engine {
             const ScanParamsPush &params,
             uint32_t num_workgroups
         ) {
-            kernel.Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+            kernel.Dispatch(encoder,
                 {{"InputData", data_input_buf}, {"OutputData", data_output_buf}, {"BlockSums", *block_sums}},
                 num_workgroups,
                 1,
@@ -192,5 +192,6 @@ namespace Engine {
         m_impl->RecordScanInternal(encoder, input_buf, output_buf, elem_count, 0u, 0u);
     }
 } // namespace Engine
+
 
 

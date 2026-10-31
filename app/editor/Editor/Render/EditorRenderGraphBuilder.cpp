@@ -1,30 +1,55 @@
 #include "EditorRenderGraphBuilder.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Asset/AssetRef.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/MainClass.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/Tools/ShadowCascadeResources.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/World/WorldSystem.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Asset/Shader/ShaderAsset.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Asset/Shader/ShaderKernel.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/CommandBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/Renderer/Camera.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/CameraManager.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/FrameManager.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/SceneDataManager.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Resource/RenderTargetTexture.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/UserInterface/GUISystem.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/ComputeBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Pipeline/ComputeKernel.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Pipeline/ShaderResourceBinding.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Editor/Widget/GameWidget.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Editor/Widget/SceneWidget.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Editor {
     using namespace Engine;
@@ -161,8 +186,9 @@ namespace Editor {
                                   texture_height,
                                   scene_hdr_color_id,
                                   scene_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
+                    Rhi::CommandEncoder bloom_encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
                     bloom_kernel.Dispatch(
-                        cb.GetCommandBuffer(),
+                        bloom_encoder,
                         {{"inputImage",
                           Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(scene_hdr_color_id))},
                          {"outputImage",
@@ -241,8 +267,9 @@ namespace Editor {
                                   texture_height,
                                   game_hdr_color_id,
                                   game_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
+                    Rhi::CommandEncoder bloom_encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
                     bloom_kernel.Dispatch(
-                        cb.GetCommandBuffer(),
+                        bloom_encoder,
                         {{"inputImage",
                           Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(game_hdr_color_id))},
                          {"outputImage",
@@ -279,3 +306,4 @@ namespace Editor {
         return rgb.BuildRenderGraph();
     }
 } // namespace Editor
+

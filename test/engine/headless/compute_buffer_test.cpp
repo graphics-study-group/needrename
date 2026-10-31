@@ -1,10 +1,17 @@
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Shader/ShaderCompiler.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <random>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 using namespace Engine::Rhi;
@@ -80,8 +87,9 @@ int main(int argc, char *argv[]) {
             .UseBuffer(cbi2, {Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetAffinity(RenderGraphPassAffinity::Compute)
             .SetPassFunction([&kernel, &compbuf1, &compbuf2](CommandBuffer &cb, const RenderGraph &) -> void {
+                Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
                 kernel.Dispatch(
-                    cb.GetCommandBuffer(),
+                    encoder,
                     {{"Input", Rhi::ComputeKernelResource::Buffer(compbuf1->GetComputeBuffer())},
                      {"Output", Rhi::ComputeKernelResource::Buffer(compbuf2->GetComputeBuffer())}},
                     BUFFER_SIZE / 16 + 1,
@@ -109,3 +117,4 @@ int main(int argc, char *argv[]) {
     }
     std::cout << std::endl;
 }
+

@@ -311,7 +311,7 @@ namespace Engine {
             const uint32_t gather_payload = (level == 0u) ? 1u : 0u;
             if (entry_count_buf != nullptr) {
                 const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_payload};
-                m_impl->reduce_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                m_impl->reduce_kernel->Dispatch(encoder,
                     {{"KeysIn", keys_in},
                      {"ValuesIn", values_in},
                      {"PayloadIn", payload_in},
@@ -328,7 +328,7 @@ namespace Engine {
                 const SumByKeyValuePush params{
                     input_count, num_channels, max_key_value, record_stride, gather_payload, *entry_count_value
                 };
-                m_impl->reduce_push_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+                m_impl->reduce_push_kernel->Dispatch(encoder,
                     {{"KeysIn", keys_in},
                      {"ValuesIn", values_in},
                      {"PayloadIn", payload_in},
@@ -349,5 +349,6 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
 
 

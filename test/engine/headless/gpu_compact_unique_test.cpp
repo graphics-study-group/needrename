@@ -222,7 +222,7 @@ namespace {
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {kComputeBarrier}, {}, {}});
 
         unpack_kernel.Dispatch(
-            cb,
+            encoder,
             {{"CompactedKeys", Rhi::ComputeKernelResource::Buffer(*keys_a)},
              {"CollisionPairs", Rhi::ComputeKernelResource::Buffer(*pairs_buf)},
              {"UniqueCount", Rhi::ComputeKernelResource::Buffer(*unique_count_buf)},
@@ -389,5 +389,6 @@ int main() try {
     std::cerr << "gpu_compact_unique_test ABORTED: unknown exception" << std::endl;
     return 1;
 }
+
 
 

@@ -225,6 +225,7 @@ void main() {
             f.context.RequestComputeKernel("test/oversize-push", Compile(SHADER_PUSH), "Oversize kernel");
         ComputeBuffer &buffer = f.MakeBuffer(4096, false);
         auto cb = f.Begin();
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
 
         struct TooLarge {
             float values[8];
@@ -233,7 +234,7 @@ void main() {
 
         const TooLarge oversized{};
         kernel.Dispatch(
-            cb,
+            encoder,
             {{"Input", ComputeKernelResource::Buffer(buffer)}, {"Output", ComputeKernelResource::Buffer(buffer)}},
             1,
             1,
@@ -330,11 +331,13 @@ int main(int argc, char **argv) {
         const auto resource_out = ComputeKernelResource::Buffer(output, output_offset, ELEMENT_COUNT * sizeof(float));
 
         auto cb = f.Begin();
+
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
         // Two dispatches in opposite dictionary orders: the arena must key both
         // to one set, because the entries are ordered by binding number.
         const size_t minted_before = f.Arena().GetMintedSetCount();
-        kernel.Dispatch(cb, {{"Input", resource_in}, {"Output", resource_out}}, 1, 1, 1);
-        kernel.Dispatch(cb, {{"Output", resource_out}, {"Input", resource_in}}, 1, 1, 1);
+        kernel.Dispatch(encoder, {{"Input", resource_in}, {"Output", resource_out}}, 1, 1, 1);
+        kernel.Dispatch(encoder, {{"Output", resource_out}, {"Input", resource_in}}, 1, 1, 1);
         f.Submit(cb);
 
         CHECK(f.Arena().GetMintedSetCount() == minted_before + 1u && "dictionary order must not change set identity");
@@ -374,8 +377,10 @@ int main(int argc, char **argv) {
         }
 
         auto cb = f.Begin();
+
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
         kernel.Dispatch(
-            cb,
+            encoder,
             {{"Params", ComputeKernelResource::Buffer(uniform, uniform_offset, 16)},
              {"Input", ComputeKernelResource::Buffer(input, storage_offset, ELEMENT_COUNT * sizeof(float))},
              {"Output", ComputeKernelResource::Buffer(output, storage_offset, ELEMENT_COUNT * sizeof(float))}},
@@ -420,8 +425,9 @@ int main(int argc, char **argv) {
 
         const PushBlock push{{3.5f, 0.0f, 0.0f, 0.0f}};
         auto cb = f.Begin();
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
         kernel.Dispatch(
-            cb,
+            encoder,
             {{"Input", ComputeKernelResource::Buffer(input, storage_offset, ELEMENT_COUNT * sizeof(float))},
              {"Output", ComputeKernelResource::Buffer(output, storage_offset, ELEMENT_COUNT * sizeof(float))}},
             1,
@@ -458,6 +464,8 @@ int main(int argc, char **argv) {
         const vk::ImageSubresourceRange range{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
 
         auto cb = f.Begin();
+
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
         const vk::ImageMemoryBarrier2 input_to_general{
             vk::PipelineStageFlagBits2::eNone,
             {},
@@ -502,7 +510,7 @@ int main(int argc, char **argv) {
         cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, 0, nullptr, 0, nullptr, 1, to_sampled});
 
         kernel.Dispatch(
-            cb,
+            encoder,
             {{"inputImage", ComputeKernelResource::Image(input)},
              {"outputImage", ComputeKernelResource::Image(output)}},
             1,
@@ -565,9 +573,11 @@ int main(int argc, char **argv) {
 
         auto cb = f.Begin();
 
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
+
         bool undeclared_threw = false;
         try {
-            kernel.Dispatch(cb, {{"NotDeclared", resource}}, 1, 1, 1);
+            kernel.Dispatch(encoder, {{"NotDeclared", resource}}, 1, 1, 1);
         } catch (const std::runtime_error &e) {
             const std::string message = e.what();
             undeclared_threw = message.find("Validation kernel") != std::string::npos
@@ -577,7 +587,7 @@ int main(int argc, char **argv) {
 
         bool omitted_threw = false;
         try {
-            kernel.Dispatch(cb, {{"Input", resource}}, 1, 1, 1);
+            kernel.Dispatch(encoder, {{"Input", resource}}, 1, 1, 1);
         } catch (const std::runtime_error &e) {
             const std::string message = e.what();
             omitted_threw =
@@ -587,7 +597,7 @@ int main(int argc, char **argv) {
 
         bool complete_passed = true;
         try {
-            kernel.Dispatch(cb, {{"Input", resource}, {"Output", ComputeKernelResource::Buffer(output)}}, 1, 1, 1);
+            kernel.Dispatch(encoder, {{"Input", resource}, {"Output", ComputeKernelResource::Buffer(output)}}, 1, 1, 1);
         } catch (const std::runtime_error &) {
             complete_passed = false;
         }
@@ -620,7 +630,9 @@ int main(int argc, char **argv) {
             ComputeKernelResource::Buffer(second, storage_offset, ELEMENT_COUNT * sizeof(float));
 
         auto cb = f.Begin();
-        kernel.Dispatch(cb, {{"Input", resource_first}, {"Output", resource_second}}, 1, 1, 1);
+
+        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
+        kernel.Dispatch(encoder, {{"Input", resource_first}, {"Output", resource_second}}, 1, 1, 1);
         // The caller places the one barrier its dependency needs; the kernel
         // adds none of its own.
         const vk::MemoryBarrier2 barrier{
@@ -631,7 +643,7 @@ int main(int argc, char **argv) {
         };
         const vk::MemoryBarrier2 dependencies[1] = {barrier};
         cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, 1, dependencies, 0, nullptr, 0, nullptr});
-        kernel.Dispatch(cb, {{"Input", resource_second}, {"Output", resource_first}}, 1, 1, 1);
+        kernel.Dispatch(encoder, {{"Input", resource_second}, {"Output", resource_first}}, 1, 1, 1);
         f.Submit(cb);
 
         first.Invalidate(0, first.GetSize());
@@ -653,5 +665,6 @@ int main(int argc, char **argv) {
     std::cout << "Compute kernel test PASSED." << std::endl;
     return 0;
 }
+
 
 

@@ -1,26 +1,47 @@
 #include "ComplexRenderGraphBuilder.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/MainClass.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/Tools/ShadowCascadeResources.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/World/WorldSystem.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Asset/Shader/ShaderAsset.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Asset/Shader/ShaderKernel.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/CommandBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/Renderer/Camera.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/CameraManager.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/FrameManager.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/IPresentProvider.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/SceneDataManager.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Resource/RenderTargetTexture.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Pipeline/ComputeKernel.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Rhi/Buffer/ComputeBuffer.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Engine {
     ComplexRenderGraphBuilder::ComplexRenderGraphBuilder(RenderSystem &system) : m_system(system) {
@@ -147,8 +168,9 @@ namespace Engine {
                                   hdr_color_id,
                                   final_color_target_id](CommandBuffer &cb, const RenderGraph &rg) {
                     const auto &hdr_desc = rg.GetInternalTextureResource(hdr_color_id)->GetTextureDescription();
+                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
                     bloom_kernel.Dispatch(
-                        cb.GetCommandBuffer(),
+                        encoder,
                         {{"inputImage",
                           Rhi::ComputeKernelResource::Image(*rg.GetInternalTextureResource(hdr_color_id))},
                          {"outputImage",
@@ -164,3 +186,4 @@ namespace Engine {
         return rgb.BuildRenderGraph();
     }
 } // namespace Engine
+

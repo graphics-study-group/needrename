@@ -1,26 +1,47 @@
 #include <Core/FileSystem/DataRoot.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cassert>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <chrono>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <fstream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Asset/AssetManager/AssetManager.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Core/Functional/SDLWindow.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/Component/RenderComponent/StaticMeshComponent.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/Import/TextureImportUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Material/MaterialTemplateAsset.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Mesh/PlaneMeshAsset.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Shader/ShaderKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Texture/Image2DTextureAsset.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Pipeline/Renderer/StaticHomogeneousMesh.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/IPresentProvider.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/UserInterface/GUISystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "cmake_config.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -157,8 +178,8 @@ auto BuildRenderGraph(
                 .UseImage(gb, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
                 .SetPassFunction([blurred, kernel, color](CommandBuffer &cb, const RenderGraph &) {
-                    kernel->Dispatch(
-                        cb.GetCommandBuffer(),
+                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};                    kernel->Dispatch(
+                        encoder,
                         {{"inputImage", Rhi::ComputeKernelResource::Image(*color)},
                          {"outputImage", Rhi::ComputeKernelResource::Image(*blurred)}},
                         blurred->GetTextureDescription().width / 16 + 1,
@@ -323,3 +344,4 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+

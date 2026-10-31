@@ -96,27 +96,27 @@ namespace Engine {
         // 1. Flag unique, 2. clear the scan's input, 3. copy the flags into it,
         // 4. scan it into compacted positions, 5. clear the count, 6. scatter.
         const uint32_t wg = (elem_capacity + 63u) / 64u;
-        m_impl->flag_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"SortedKeys", keys_buf}, {"UniqueFlags", flags_buf}, {"ElemCount", elem_count_buf}}, wg, 1, 1
+        m_impl->flag_kernel->Dispatch(encoder, {{"SortedKeys", keys_buf}, {"UniqueFlags", flags_buf}, {"ElemCount", elem_count_buf}}, wg, 1, 1
         );
         DispatchBarrier(encoder);
 
         // The flag pass only writes `[0, count)`, but the scan below spans the whole
         // capacity, so the tail must be cleared first: a scan must never read
         // uninitialized storage, even where its result is discarded.
-        m_impl->memset_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", offsets_buf}}, wg, 1, 1, elem_capacity);
+        m_impl->memset_kernel->Dispatch(encoder, {{"Target", offsets_buf}}, wg, 1, 1, elem_capacity);
         DispatchBarrier(encoder);
 
-        m_impl->copy_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"SrcBuffer", flags_buf}, {"DstBuffer", offsets_buf}, {"ElemCount", elem_count_buf}}, wg, 1, 1
+        m_impl->copy_kernel->Dispatch(encoder, {{"SrcBuffer", flags_buf}, {"DstBuffer", offsets_buf}, {"ElemCount", elem_count_buf}}, wg, 1, 1
         );
         DispatchBarrier(encoder);
 
         m_impl->scan->Record(encoder, offsets_buf, offsets_buf, elem_capacity);
         DispatchBarrier(encoder);
 
-        m_impl->memset_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", count_buf}}, 1, 1, 1, 1u);
+        m_impl->memset_kernel->Dispatch(encoder, {{"Target", count_buf}}, 1, 1, 1, 1u);
         DispatchBarrier(encoder);
 
-        m_impl->scatter_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+        m_impl->scatter_kernel->Dispatch(encoder,
             {{"SortedKeys", keys_buf},
              {"CompactKeys", keys_buf},
              {"OriginalFlags", flags_buf},
@@ -129,5 +129,6 @@ namespace Engine {
         );
     }
 } // namespace Engine
+
 
 

@@ -187,15 +187,15 @@ namespace Engine {
         DispatchBarrier(encoder);
 
         // Every kernel was acquired during preparation above: recording creates no pipeline.
-        m_impl->clear_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", *m_impl->gpu_collision_count}}, 1, 1, 1, 1u);
-        m_impl->clear_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()), {{"Target", *m_impl->gpu_contact_cursor}}, 1, 1, 1, 1u);
+        m_impl->clear_kernel->Dispatch(encoder, {{"Target", *m_impl->gpu_collision_count}}, 1, 1, 1, 1u);
+        m_impl->clear_kernel->Dispatch(encoder, {{"Target", *m_impl->gpu_contact_cursor}}, 1, 1, 1, 1u);
 
         DispatchBarrier(encoder);
 
         const DetectPushParams params{m_impl->contact_margin, m_impl->shape_slot_count, m_impl->contact_capacity};
 
         const uint32_t detect_wg = std::max(1u, (m_impl->max_input_collision_pairs + 63u) / 64u);
-        m_impl->detect_kernel->Dispatch(ToVulkanCommandBuffer(encoder.GetHandle()),
+        m_impl->detect_kernel->Dispatch(encoder,
             {{"ShapeAlive", *gpu.shape_alive},
              {"ShapeType", *gpu.shape_type},
              {"ShapeFeature", *gpu.shape_feature},
@@ -216,5 +216,6 @@ namespace Engine {
         );
     }
 } // namespace Engine
+
 
 

@@ -1,15 +1,26 @@
 #include <Core/FileSystem/DataRoot.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <SDL3/SDL.h>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Asset/AssetManager/AssetManager.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/MainClass.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Shader/ShaderAsset.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Shader/ShaderKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 
@@ -37,8 +48,10 @@ auto BuildRenderGraph(
             .SetPassFunction(
                 [&compute, &ubo, &color_in, &color_out, &color_present](CommandBuffer &cb, const RenderGraph &)
                     -> void {
+                    Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb.GetCommandBuffer())};
                     compute.Dispatch(
-                        cb.GetCommandBuffer(),
+
+                        encoder,
                         {{"UBO", Rhi::ComputeKernelResource::Buffer(ubo)},
                          {"inputImage", Rhi::ComputeKernelResource::Image(color_in)},
                          {"outputImage", Rhi::ComputeKernelResource::Image(color_out)},
@@ -150,3 +163,4 @@ int main(int argc, char *argv[]) {
     rsys->WaitForIdle();
     return 0;
 }
+
