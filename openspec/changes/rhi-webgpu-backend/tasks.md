@@ -341,3 +341,17 @@ so the flush is the no-op it always effectively was; what changes is that the
 write is now expressed as the seam's contract rather than as a bare memcpy into a
 mapped pointer, which is what a backend without persistent mapping needs in order
 to make it work at all.
+
+### 3.3 progress: the compute kernel's getters
+
+`ComputeKernel::GetPipeline`, `GetPipelineLayout` and `GetDescriptorSetLayout`
+return portable handles, so the kernel header is free of backend types. The only
+conversion left in a caller is the debug-name helper in `compute_kernel_test`,
+which needs a Vulkan pipeline to name; the test's handle comparison now compares
+`GetValue()` identities instead of `CType`, which is the portable equivalent.
+
+Eleven headers still name a backend type. They are all return types whose callers
+are in Render (`Texture`'s image/sampler/view getters, `DeviceBuffer::GetBuffer`,
+`ImmutableResourceCache`'s sampler and layout returns, `DescriptorArena`'s set and
+type enums), plus three headers that only need their Vulkan include removed
+(`InterfaceBindingResolver`, `ShaderParameterLayout`, `ShaderInterface`).
