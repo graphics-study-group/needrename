@@ -13,7 +13,7 @@ target_link_libraries(EngineFramework
     EngineAssetCore
     EngineRhi
     EngineCore
-    EngineDepVulkan
+    EngineDepRhiBackend
     EngineDepSdl
     EngineDepJson
     EngineDepImgui
@@ -32,7 +32,7 @@ filter_files_with_reflection_macros(FRAMEWORK_HEADERS FRAMEWORK_REFLECTION_HEADE
 set(framework_include_dirs)
 foreach(dep IN ITEMS
     EngineLibHeaderInterface AnnoRefl EngineDepGlm EngineDepJson EngineDepSdl
-    EngineDepVulkan EngineDepImgui fastgltf tinyxml2 tinyobjloader stb)
+    EngineDepRhiBackend EngineDepImgui fastgltf tinyxml2 tinyobjloader stb)
     get_include_directories_for_target(${dep} framework_include_dirs)
 endforeach()
 

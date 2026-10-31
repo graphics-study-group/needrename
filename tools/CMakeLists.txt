@@ -6,3 +6,9 @@
 add_executable(shader_baker shader_baker/main.cpp)
 target_link_libraries(shader_baker PRIVATE Engine)
 set_target_properties(shader_baker PROPERTIES FOLDER tools)
+
+# The WebGPU spike harness is a measurement tool of the rhi-webgpu-backend
+# change, built only on request.
+if (ENGINE_BUILD_WEBGPU_SPIKE)
+    add_subdirectory(webgpu_spike)
+endif()

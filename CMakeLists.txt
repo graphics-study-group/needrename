@@ -17,8 +17,32 @@ option(ENGINE_BUILD_TESTS "Build first-party tests and vendored third-party test
 option(ENGINE_BUILD_EXAMPLES "Build the example executables" ON)
 option(ENGINE_BUILD_APPS "Build the editor and physics applications" ON)
 option(ENGINE_BUILD_TOOLS "Build build-time helper executables (e.g. shader_baker)" ON)
+option(ENGINE_BUILD_WEBGPU_SPIKE "Build the WebGPU spike harness (measurement tool, not a product target)" OFF)
 option(ENGINE_BUILD_DOCS "Generate the doxygen documentation" ON)
 option(ENGINE_INSTALL_TESTS "Install test executables and their data" OFF)
+
+# --- RHI backend selection -------------------------------------------------
+# Exactly one backend is compiled into a build, chosen here and not at runtime.
+# `vulkan` is the default and stays the behavioral reference for the whole
+# migration. `webgpu` targets the browser through Emscripten, and carries
+# neither the Vulkan SDK, VMA, glslang nor SPIRV-Cross; a desktop WebGPU build
+# exists only as a validation and A/B environment.
+set(ENGINE_RHI_BACKEND "vulkan" CACHE STRING "RHI backend compiled into the build (vulkan|webgpu)")
+set_property(CACHE ENGINE_RHI_BACKEND PROPERTY STRINGS vulkan webgpu)
+if (NOT ENGINE_RHI_BACKEND MATCHES "^(vulkan|webgpu)$")
+    message(FATAL_ERROR
+        "ENGINE_RHI_BACKEND must be one of vulkan, webgpu (got '${ENGINE_RHI_BACKEND}').")
+endif()
+if (ENGINE_RHI_BACKEND STREQUAL "vulkan")
+    set(ENGINE_RHI_BACKEND_VULKAN ON)
+    set(ENGINE_RHI_BACKEND_WEBGPU OFF)
+else()
+    set(ENGINE_RHI_BACKEND_VULKAN OFF)
+    set(ENGINE_RHI_BACKEND_WEBGPU ON)
+endif()
+add_compile_definitions($<$<BOOL:${ENGINE_RHI_BACKEND_VULKAN}>:ENGINE_RHI_BACKEND_VULKAN=1>)
+add_compile_definitions($<$<BOOL:${ENGINE_RHI_BACKEND_WEBGPU}>:ENGINE_RHI_BACKEND_WEBGPU=1>)
+message(STATUS "RHI backend: ${ENGINE_RHI_BACKEND}")
 
 # Built-in shader storage form:
 #   auto - glsl for Debug builds, spv for every other configuration
@@ -62,9 +86,57 @@ include(CTest)
 # Supplies CMAKE_INSTALL_INCLUDEDIR/LIBDIR, used by the SDK layout.
 include(GNUInstallDirs)
 
-find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
-find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
-message(STATUS "Vulkan version: ${Vulkan_VERSION}")
+# Vulkan is looked up only when the Vulkan backend is selected, so a `webgpu`
+# configure succeeds on a machine with no Vulkan SDK at all.
+if (ENGINE_RHI_BACKEND_VULKAN)
+    find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
+    message(STATUS "Vulkan version: ${Vulkan_VERSION}")
+endif()
+if (EMSCRIPTEN)
+    # A browser build cannot use the host's SDL3: the library has to be wasm.
+    # Emscripten supplies it as a port, which this module turns into the same
+    # imported targets `find_package(SDL3)` would have created.
+    include(cmake/EmscriptenSdl3.cmake)
+else()
+    find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
+endif()
+
+# The WebGPU dependency target is defined before third_party/, because the
+# ImGui WebGPU back-end links it. In the browser shape it is the Emscripten
+# port; on the desktop validation build it is a wgpu-native or Dawn
+# installation named by WEBGPU_ROOT. Tests, examples and the engine link it
+# through EngineDepWebgpu, so a build never names the implementation directly.
+if (ENGINE_RHI_BACKEND_WEBGPU)
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+    find_package(WebGPU REQUIRED)
+    message(STATUS "WebGPU: ${WebGPU_HEADER_DIR} library=${WebGPU_LIBRARY}")
+    add_library(EngineDepWebgpu INTERFACE)
+    target_link_libraries(EngineDepWebgpu INTERFACE WebGPU::WebGPU)
+endif()
+
+# The Vulkan dependency is defined here rather than in engine/ because the
+# ImGui back-end in third_party/ links the backend dependency, and third_party/
+# is configured before engine/.
+if (ENGINE_RHI_BACKEND_VULKAN)
+    add_library(EngineDepVulkan INTERFACE)
+    target_link_libraries(EngineDepVulkan INTERFACE Vulkan::Vulkan vma glslang)
+    target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+    if (WIN32 AND (NOT MSVC))
+        target_compile_definitions(EngineDepVulkan INTERFACE "VULKAN_HPP_STORAGE_API=__declspec(dllimport)")
+    else()
+        target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_STORAGE_SHARED=1)
+    endif()
+endif()
+
+# One name every module links for "whatever this build's backend needs". A
+# module never names the backend's own dependency target, so adding a backend
+# does not touch the module CMake files.
+add_library(EngineDepRhiBackend INTERFACE)
+if (ENGINE_RHI_BACKEND_VULKAN)
+    target_link_libraries(EngineDepRhiBackend INTERFACE EngineDepVulkan)
+else()
+    target_link_libraries(EngineDepRhiBackend INTERFACE EngineDepWebgpu)
+endif()
 
 add_subdirectory(third_party)
 
@@ -116,7 +188,7 @@ endif()
 # which would make build-tree executables resolve it as if it were installed.
 set(ENGINE_DATA_STAGE_DIR "${CMAKE_BINARY_DIR}/stage/$<CONFIG>")
 
-if (ENGINE_BUILD_TOOLS)
+if (ENGINE_BUILD_TOOLS OR ENGINE_BUILD_WEBGPU_SPIKE)
     add_subdirectory(tools)
 endif()
 

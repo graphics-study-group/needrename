@@ -13,7 +13,7 @@ target_link_libraries(EngineRender
     EngineRhi
     EngineCore
     EngineConfigHeader
-    EngineDepVulkan
+    EngineDepRhiBackend
     EngineDepSdl
     EngineDepImgui
     glslang
@@ -30,7 +30,7 @@ filter_files_with_reflection_macros(RENDER_HEADERS RENDER_REFLECTION_HEADERS)
 set(render_include_dirs)
 foreach(dep IN ITEMS
     EngineLibHeaderInterface AnnoRefl EngineDepGlm EngineDepJson EngineDepSdl
-    EngineDepVulkan EngineDepImgui ktx stb)
+    EngineDepRhiBackend EngineDepImgui ktx stb)
     get_include_directories_for_target(${dep} render_include_dirs)
 endforeach()
 

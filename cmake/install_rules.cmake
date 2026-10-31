@@ -29,14 +29,17 @@ set(ENGINE_EXPORT_INTERFACE_TARGETS
     EngineDepGlm
     EngineDepJson
     EngineDepSdl
-    EngineDepVulkan
-    EngineDepVulkanExport
     EngineDepImgui
     glm
     glm-header-only
     json
-    vma
 )
+# The backend dependency targets exist only in the build of that backend.
+foreach(candidate EngineDepRhiBackend EngineDepVulkan EngineDepVulkanExport EngineDepWebgpu vma)
+    if (TARGET ${candidate})
+        list(APPEND ENGINE_EXPORT_INTERFACE_TARGETS ${candidate})
+    endif()
+endforeach()
 
 set(ENGINE_EXPORT_LIBRARY_TARGETS
     AnnoRefl
@@ -47,9 +50,11 @@ set(ENGINE_EXPORT_LIBRARY_TARGETS
     EngineRender
     EngineFramework
     imgui
-    glslang
     fastgltf
 )
+if (TARGET glslang)
+    list(APPEND ENGINE_EXPORT_LIBRARY_TARGETS glslang)
+endif()
 foreach(candidate EngineEditor PhysicsApp)
     if (TARGET ${candidate})
         list(APPEND ENGINE_EXPORT_LIBRARY_TARGETS ${candidate})
@@ -176,11 +181,13 @@ install(
     PATTERN "*.hpp"
 )
 
-install(
-    FILES "${THIRD_PARTY_DIR}/vma/vk_mem_alloc.h"
-    DESTINATION "${ENGINE_SDK_INCLUDE_DIR}/vma"
-    COMPONENT sdk
-)
+if (TARGET vma)
+    install(
+        FILES "${THIRD_PARTY_DIR}/vma/vk_mem_alloc.h"
+        DESTINATION "${ENGINE_SDK_INCLUDE_DIR}/vma"
+        COMPONENT sdk
+    )
+endif()
 
 install(
     DIRECTORY "${THIRD_PARTY_DIR}/imgui/"
@@ -192,21 +199,24 @@ install(
     PATTERN "backends/*.h"
 )
 
-# glslang keeps its own `<prefix>/include` install interface.
-install(
-    DIRECTORY "${THIRD_PARTY_DIR}/glslang/glslang/Public"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/glslang"
-    COMPONENT sdk
-    FILES_MATCHING
-    PATTERN "*.h"
-)
-install(
-    DIRECTORY "${THIRD_PARTY_DIR}/glslang/glslang/Include"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/glslang"
-    COMPONENT sdk
-    FILES_MATCHING
-    PATTERN "*.h"
-)
+# glslang keeps its own `<prefix>/include` install interface. It exists only in
+# a Vulkan build.
+if (TARGET glslang)
+    install(
+        DIRECTORY "${THIRD_PARTY_DIR}/glslang/glslang/Public"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/glslang"
+        COMPONENT sdk
+        FILES_MATCHING
+        PATTERN "*.h"
+    )
+    install(
+        DIRECTORY "${THIRD_PARTY_DIR}/glslang/glslang/Include"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/glslang"
+        COMPONENT sdk
+        FILES_MATCHING
+        PATTERN "*.h"
+    )
+endif()
 
 # fastgltf (imported by EngineFramework) declares its own `<prefix>/include`
 # install interface, so its headers keep their `fastgltf/` layout there.
@@ -271,6 +281,13 @@ install(EXPORT needrenameTargets
 # TODO: rename - data-root directory name (also the NEEDRENAME_DATA_ROOT env var
 # in Core/FileSystem/DataRoot.cpp).
 set(NEEDRENAME_DATA_ROOT_REL "share/needrename")
+# The package asks for the backend's own external dependency only: a Vulkan
+# build's targets name Vulkan symbols, a WebGPU build's do not.
+if (ENGINE_RHI_BACKEND_VULKAN)
+    set(NEEDRENAME_VULKAN_DEPENDENCY "find_dependency(Vulkan)")
+else()
+    set(NEEDRENAME_VULKAN_DEPENDENCY "")
+endif()
 # The relative name is substituted, not resolved, so the package stays
 # relocatable: the config computes its prefix from its own location (see
 # needrename-config.cmake.in). A PATH_VARS entry here would bake the

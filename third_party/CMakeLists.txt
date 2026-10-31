@@ -12,8 +12,11 @@ set_target_properties(json PROPERTIES FOLDER third_party)
 add_subdirectory(stb EXCLUDE_FROM_ALL SYSTEM)
 set_target_properties(stb PROPERTIES FOLDER third_party)
 
-add_subdirectory(vma EXCLUDE_FROM_ALL SYSTEM)
-set_target_properties(vma PROPERTIES FOLDER third_party)
+# VMA is the Vulkan memory allocator: only the Vulkan backend uses it.
+if (ENGINE_RHI_BACKEND_VULKAN)
+    add_subdirectory(vma EXCLUDE_FROM_ALL SYSTEM)
+    set_target_properties(vma PROPERTIES FOLDER third_party)
+endif()
 
 add_subdirectory(tinyobjloader EXCLUDE_FROM_ALL SYSTEM)
 set_target_properties(tinyobjloader PROPERTIES FOLDER third_party)
@@ -32,24 +35,34 @@ set_target_properties(fastgltf PROPERTIES FOLDER third_party)
 set_target_properties(fastgltf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # For some reasons the SPIRV-Cross in Vulkan SDK cannot be found by CMake...
-set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
-set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)
-set(SPIRV_CROSS_ENABLE_HLSL OFF CACHE BOOL "Enable HLSL target support." FORCE)
-set(SPIRV_CROSS_ENABLE_MSL OFF CACHE BOOL "Enable MSL target support." FORCE)
-set(SPIRV_CROSS_ENABLE_C_API OFF CACHE BOOL "Enable C API wrapper support in static library." FORCE)
-set(SPIRV_CROSS_FORCE_PIC ON CACHE BOOL "Force position-independent code for all targets." FORCE)
-add_subdirectory(SPIRV-Cross EXCLUDE_FROM_ALL SYSTEM)
+# SPIRV-Cross reflects SPIR-V modules at runtime, which is a Vulkan-backend
+# concern: the WebGPU backend reads the baked interface description instead.
+if (ENGINE_RHI_BACKEND_VULKAN)
+    set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
+    set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)
+    set(SPIRV_CROSS_ENABLE_HLSL OFF CACHE BOOL "Enable HLSL target support." FORCE)
+    set(SPIRV_CROSS_ENABLE_MSL OFF CACHE BOOL "Enable MSL target support." FORCE)
+    set(SPIRV_CROSS_ENABLE_C_API OFF CACHE BOOL "Enable C API wrapper support in static library." FORCE)
+    set(SPIRV_CROSS_FORCE_PIC ON CACHE BOOL "Force position-independent code for all targets." FORCE)
+    add_subdirectory(SPIRV-Cross EXCLUDE_FROM_ALL SYSTEM)
 
-set_target_properties(spirv-cross-core PROPERTIES FOLDER third_party)
-set_target_properties(spirv-cross-cpp PROPERTIES FOLDER third_party)
-set_target_properties(spirv-cross-glsl PROPERTIES FOLDER third_party)
-set_target_properties(spirv-cross-reflect PROPERTIES FOLDER third_party)
-set_target_properties(spirv-cross-util PROPERTIES FOLDER third_party)
+    set_target_properties(spirv-cross-core PROPERTIES FOLDER third_party)
+    set_target_properties(spirv-cross-cpp PROPERTIES FOLDER third_party)
+    set_target_properties(spirv-cross-glsl PROPERTIES FOLDER third_party)
+    set_target_properties(spirv-cross-reflect PROPERTIES FOLDER third_party)
+    set_target_properties(spirv-cross-util PROPERTIES FOLDER third_party)
+endif()
 
-# Add ImGUI files
-file(GLOB IMGUI_SOURCE 
-    "${THIRD_PARTY_DIR}/imgui/*.cpp" 
-    "${THIRD_PARTY_DIR}/imgui/backends/*_vulkan.cpp"
+# Add ImGUI files. The renderer back-end is the RHI backend's own: the Vulkan
+# one is compiled only for the Vulkan backend, the WebGPU one only for WebGPU.
+if (ENGINE_RHI_BACKEND_VULKAN)
+    set(IMGUI_RENDERER_BACKEND "${THIRD_PARTY_DIR}/imgui/backends/*_vulkan.cpp")
+else()
+    set(IMGUI_RENDERER_BACKEND "${THIRD_PARTY_DIR}/imgui/backends/*_wgpu.cpp")
+endif()
+file(GLOB IMGUI_SOURCE
+    "${THIRD_PARTY_DIR}/imgui/*.cpp"
+    ${IMGUI_RENDERER_BACKEND}
     "${THIRD_PARTY_DIR}/imgui/backends/*_sdl3.cpp"
 )
 message(DEBUG "Found ImGUI files: ${IMGUI_SOURCE}")
@@ -60,7 +73,11 @@ set_target_properties(imgui PROPERTIES FOLDER third_party)
 if(MSVC)
     set_target_properties(imgui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
-target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
+if (ENGINE_RHI_BACKEND_VULKAN)
+    target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
+else()
+    target_link_libraries(imgui PUBLIC SDL3::SDL3 EngineDepWebgpu)
+endif()
 target_include_directories(
     imgui 
     SYSTEM PUBLIC 
@@ -87,7 +104,11 @@ if(TARGET ktx)
 endif()
 
 set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
-add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)
+if (ENGINE_RHI_BACKEND_VULKAN)
+    # glslang is the runtime GLSL compiler of the Vulkan backend only; the
+    # WebGPU backend loads baked WGSL and compiles nothing at runtime.
+    add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)
+endif()
 
 # --- SDK install interfaces ------------------------------------------------
 # The targets below are exported with the engine package, so their include
@@ -103,14 +124,20 @@ set_target_properties(json PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES
         "$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/json>;$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/json>"
 )
-set_target_properties(vma PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES
-        "$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/vma>;$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/vma>"
-)
+if (TARGET vma)
+    set_target_properties(vma PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES
+            "$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/vma>;$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/vma>"
+    )
+endif()
 set_target_properties(imgui PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES
         "$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/imgui>;$<BUILD_INTERFACE:${THIRD_PARTY_DIR}/imgui/backends>;\
 $<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/imgui>;$<INSTALL_INTERFACE:${ANRO_SDK_INCLUDE_DIR}/imgui/backends>"
 )
 # Drop the SYSTEM copies: they duplicate the source-tree paths above.
-set_target_properties(glm json vma imgui PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")
+set(_anro_system_reset_targets glm json imgui)
+if (TARGET vma)
+    list(APPEND _anro_system_reset_targets vma)
+endif()
+set_target_properties(${_anro_system_reset_targets} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")

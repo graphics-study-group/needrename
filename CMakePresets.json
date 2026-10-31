@@ -36,6 +36,36 @@
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
             }
+        },
+        {
+            "name": "emscripten",
+            "displayName": "Emscripten browser build (WebGPU)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/emscripten",
+            "toolchainFile": "${sourceDir}/cmake/toolchains/emscripten.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install-emscripten",
+                "ENGINE_RHI_BACKEND": "webgpu",
+                "ENGINE_BUILD_APPS": "OFF",
+                "ENGINE_BUILD_DOCS": "OFF",
+                "ENGINE_SHADER_MODE": "glsl",
+                "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
+            }
+        },
+        {
+            "name": "webgpu-desktop",
+            "displayName": "Desktop WebGPU validation build (wgpu-native or Dawn)",
+            "generator": "Visual Studio 18 2026",
+            "binaryDir": "${sourceDir}/build/webgpu",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install-webgpu",
+                "ENGINE_RHI_BACKEND": "webgpu",
+                "ENGINE_BUILD_APPS": "OFF",
+                "ENGINE_BUILD_DOCS": "OFF",
+                "ENGINE_BUILD_WEBGPU_SPIKE": "ON",
+                "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
+            }
         }
     ],
     "buildPresets": [
@@ -56,6 +86,15 @@
             "name": "msvc-release",
             "configurePreset": "msvc",
             "configuration": "Release"
+        },
+        {
+            "name": "emscripten",
+            "configurePreset": "emscripten"
+        },
+        {
+            "name": "webgpu-desktop",
+            "configurePreset": "webgpu-desktop",
+            "configuration": "Debug"
         }
     ],
     "testPresets": [

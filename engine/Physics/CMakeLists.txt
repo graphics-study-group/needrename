@@ -11,7 +11,7 @@ target_link_libraries(EnginePhysics
     EngineRhi
     EngineCore
     EngineConfigHeader
-    EngineDepVulkan
+    EngineDepRhiBackend
     EngineDepSdl
 )
 
@@ -23,7 +23,20 @@ target_link_libraries(EnginePhysics
 # Each configuration gets its own subdirectory because the glslangValidator
 # arguments differ per configuration (Debug adds -gVS); sharing one directory
 # would let a Debug build overwrite the Release artefacts, or vice versa.
-if (NOT Vulkan_glslangValidator_FOUND)
+# glslangValidator is a *build-host* tool here: it compiles the physics GLSL to
+# SPIR-V during the build and the runtime links no part of it. A Vulkan build
+# gets it from the Vulkan SDK package; a WebGPU build has no Vulkan SDK lookup,
+# so it falls back to a standalone search.
+if (Vulkan_glslangValidator_FOUND)
+    set(PHYSICS_GLSLANG_VALIDATOR "${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE}")
+else()
+    find_program(PHYSICS_GLSLANG_VALIDATOR
+        NAMES glslangValidator
+        HINTS "$ENV{VULKAN_SDK}/Bin" "$ENV{VULKAN_SDK}/bin"
+        DOC "glslangValidator used to compile the physics shaders to SPIR-V"
+    )
+endif()
+if (NOT PHYSICS_GLSLANG_VALIDATOR)
     message(FATAL_ERROR "Physics shader pipeline requires glslangValidator but it was not found.")
 endif()
 
@@ -54,7 +67,7 @@ foreach(SRC ${PHYSICS_GLSL_SOURCES})
     add_custom_command(
         OUTPUT "${OUT}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${OUT_DIR}"
-        COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} $<$<CONFIG:Debug>:-gVS> -V "${SRC}" -o "${OUT}"
+        COMMAND "${PHYSICS_GLSLANG_VALIDATOR}" $<$<CONFIG:Debug>:-gVS> -V "${SRC}" -o "${OUT}"
         DEPENDS "${SRC}"
     )
     list(APPEND PHYSICS_SPIRV_OUTPUTS "${OUT}")

@@ -1,29 +1,36 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
 file(GLOB_RECURSE RHI_HEADERS "./*.h")
 
-add_library(EngineDepVulkanExport INTERFACE)
-target_link_libraries(EngineDepVulkanExport INTERFACE Vulkan::Vulkan vma glslang)
-target_compile_definitions(EngineDepVulkanExport INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
-
 # EngineRhi is the engine's generic GPU infrastructure layer, built as its own DLL
 add_library(EngineRhi SHARED ${SOURCE})
 target_link_libraries(EngineRhi
     PUBLIC
     EngineLibHeaderInterface
     EngineDepSdl
-    EngineDepVulkanExport
     AnnoRefl
 )
-target_link_libraries(EngineRhi
-    PRIVATE
-    spirv-cross-cpp
-)
 
-# export VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-if (WIN32 AND (NOT MSVC))
-    target_compile_definitions(EngineRhi PRIVATE "VULKAN_HPP_STORAGE_API=__declspec(dllexport)")
+if (ENGINE_RHI_BACKEND_VULKAN)
+    target_link_libraries(EngineRhi
+        PUBLIC
+        EngineDepVulkanExport
+    )
+    target_link_libraries(EngineRhi
+        PRIVATE
+        spirv-cross-cpp
+    )
+
+    # export VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+    if (WIN32 AND (NOT MSVC))
+        target_compile_definitions(EngineRhi PRIVATE "VULKAN_HPP_STORAGE_API=__declspec(dllexport)")
+    else()
+        target_compile_definitions(EngineRhi PRIVATE VULKAN_HPP_STORAGE_SHARED=1 VULKAN_HPP_STORAGE_SHARED_EXPORT=1)
+    endif()
 else()
-    target_compile_definitions(EngineRhi PRIVATE VULKAN_HPP_STORAGE_SHARED=1 VULKAN_HPP_STORAGE_SHARED_EXPORT=1)
+    # The WebGPU backend reaches the standard WebGPU C interface only. It has no
+    # Vulkan SDK, VMA, glslang or SPIRV-Cross dependency, and reflects nothing at
+    # runtime: the shader interface description is baked alongside the WGSL.
+    target_link_libraries(EngineRhi PUBLIC EngineDepWebgpu)
 endif()
 target_compile_definitions(EngineRhi PRIVATE RHI_DLL_EXPORTS)
 
