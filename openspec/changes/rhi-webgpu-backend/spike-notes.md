@@ -380,3 +380,35 @@ So the *first* real step of group 3 is also the gate on the whole WebGPU build:
 the `Rhi` public headers have to stop naming Vulkan types before anything can
 link against them in a `webgpu` configure. That is task 3.1 - 3.3, and it is
 confirmed as a hard ordering constraint rather than a preference.
+
+## F10. The reference converter is available prebuilt, and it changes the picture
+
+The Dawn release archive published for Windows contains a prebuilt `tint.exe`
+(`bin/tint.exe` next to `tint_info.exe`). It is the reference SPIR-V-to-WGSL
+compiler, and it was measured against the same corpus:
+
+- A physics kernel compiled at the default SPIR-V 1.0 converts cleanly, and Tint
+  maps `writeonly` to `read_write` on its own (F8 needs no rewrite with Tint).
+- The two blockers naga has and Tint may not are still unmeasured for this
+  corpus, because Tint refuses a module whose SPIR-V version is above 1.3:
+
+  ```
+  Invalid SPIR-V binary version 1.6 for target environment SPIR-V 1.3
+  ```
+
+  `engine/Render/Asset/Shader/ShaderCompiler.cpp` hard-codes
+  `EShTargetVulkan_1_3` / `EShTargetSpv_1_6`, so the render shaders come out
+  as 1.6 and Tint will not read them until the bake compiles its WGSL variant
+  against Vulkan 1.1 (SPIR-V 1.3) instead. Nothing in the corpus needs a 1.3
+  feature, so that is a bake-time-only change.
+- Tint also rejects the non-semantic debug info a Debug build embeds
+  (`NonSemantic.Shader.DebugInfo.100`), so the WGSL variant has to be compiled
+  without `-gVS`. The release physics tree already is.
+
+So the converter question in D6 is not settled by the naga measurements alone:
+Tint is available, it is the reference implementation, and it is the one that
+would likely remove the hand-written rewrites for combined samplers (F2),
+opaque arrays (F3) and `std140` padding (F4). The next pass should switch the
+bake's converter to Tint, compile the WGSL variant at Vulkan 1.1 without debug
+info, and re-measure the corpus. That is a smaller job than writing the three
+rewrites, and it leaves the naga path as the fallback it was always meant to be.

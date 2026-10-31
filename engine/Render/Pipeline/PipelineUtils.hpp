@@ -8,6 +8,7 @@
 #include "Render/Asset/Material/PipelineProperty.h"
 #include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Pipeline/PipelineEnums.h"
+#include "Rhi/Backend/Vulkan/VulkanPipelineEnums.h"
 
 namespace Engine::PipelineUtils {
     constexpr vk::PolygonMode ToVkPolygonMode(Rhi::FillingMode mode) {
@@ -349,3 +350,4 @@ namespace Engine::PipelineUtils {
 } // namespace Engine::PipelineUtils
 
 #endif // RENDER_PIPELINE_PIPELINEUTILS
+

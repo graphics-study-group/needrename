@@ -3,8 +3,6 @@
 
 #include <AnnoRefl/macros.h>
 
-#include <vulkan/vulkan.hpp>
-
 namespace Engine::Rhi {
     /**
      * @brief Utility definitions for graphics pipelines
@@ -123,12 +121,8 @@ namespace Engine::Rhi {
         OneMinusDstAlpha
     };
 
-    /**
-     * @brief Convert a depth comparison enumeration to its Vulkan equivalent.
-     */
-    constexpr vk::CompareOp ToVkCompareOp(DSComparator comp) {
-        return static_cast<vk::CompareOp>(static_cast<int>(comp));
-    }
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_PIPELINEENUMS_INCLUDED
+
+
