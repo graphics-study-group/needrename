@@ -488,3 +488,41 @@ which means one of the conversions produced a non-assignable element type. The
 next attempt should build after step 4 — before touching `DescriptorArena.cpp` —
 so the compiler points at the exact container rather than at the end of a
 six-file cascade.
+
+### The arena pass fails on one specific thing
+
+Three attempts at the descriptor arena have now ended on the same compiler output
+from `DescriptorArena.cpp`:
+
+```
+xmemory(730): error C2672: std::construct_at: no matching overloaded function found
+```
+
+Everything else in the six-file cascade compiles: the resolver, the arena and
+cache headers, the arena's `RequirementsOf`/`IsImageDescriptor`, and the three
+`return <vk set>` sites. The failure is a *container* of an element type that
+stopped being constructible, and it appears only once the arena's own source is
+compiled.
+
+The next attempt should therefore start by asking that question directly, before
+touching anything: **what does `DescriptorArena.cpp` put in a container whose
+element type mentions `ResolvedBinding`, `DescriptorSetBinding` or
+`DescriptorRequirements`?** Candidates worth checking first, in order:
+
+1. `std::vector<ResolvedBinding>` — `ResolvedBinding::operator==` is declared
+   `const noexcept` but the type gained two enumerations; if the comparison is
+   still defined out of line and something takes its address in a container, the
+   mismatch shows up exactly here.
+2. `std::map<vk::DescriptorType, uint32_t> DescriptorRequirements` — keyed on a
+   Vulkan enumeration; if `ToVulkanDescriptorType` is applied at the *element*
+   level instead of the key, the key type is portable and the map is fine, but a
+   stale `requirements[binding.descriptorType]` would not compile. It does
+   compile in the current head, so this is the least likely.
+3. The resident cache chain — `resident[key]` holds entries that own a
+   `DescriptorSetBinding`; if `set` became a handle, the entry is still
+   copyable, so this is only a suspect if the entry also stores something
+   derived from it.
+
+Neither the exact container nor the exact reason is known. That is the state to
+pick up, and one `cmake --build` on `DescriptorArena.cpp` alone with the six-file
+change applied reproduces it in seconds.
