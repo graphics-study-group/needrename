@@ -442,3 +442,33 @@ document:
 - **Four are WebGPU runtime work with no dependency left** (8.3-8.6). These are the ones a
   session could start tomorrow.
 - **The rest need a browser** (11.1, 11.3, 1.4) or a physics comparison across backends (9.1).
+## 8.5 cannot be half-built, and the reason is a rule
+
+The mapped window on this backend is a state machine, not a pair of calls, and writing it is not
+the hard part - the hard part is that the seam's `FlushMemory` is synchronous and the operation it
+has to perform is not.
+
+The rule: **a buffer that is mapped cannot be used by a submission.** The current WebGPU
+allocation creates a host-visible buffer with `mappedAtCreation` and keeps the range mapped for
+its whole life, so `GetVMAddress` returns a stable address and `FlushMemory` does nothing. That
+shape would pass a test that checks the address, and it would fail the one the task asks for -
+"verify no mapped buffer is consumed by device work".
+
+Doing it properly means `FlushMemory` unmaps, and the next `GetVMAddress` waits for
+`wgpuBufferMapAsync`. That is asynchronous, needs the event pump, and therefore spans frames. The
+seam's contract says `FlushMemory` publishes writes and returns.
+
+Three ways to resolve it, none taken yet:
+
+1. **Make `FlushMemory` asynchronous** - it returns a token and the window reopens later. Correct
+   and it changes a seam signature every call site uses.
+2. **Keep two buffers and swap** - a mapped staging buffer the caller writes and a device buffer
+   the copy fills. That is the shape `SubmissionHelper` already uses for uploads, and it costs a
+   copy per flush.
+3. **Let the window close lazily** - `FlushMemory` records the intent, the next `Submit` performs
+   the unmap and the copy. That fits D8's callbacks and keeps the signature, at the cost of the
+   address being valid only until the next submit - which is what D5 already says about it.
+
+The third is the one D5 describes ("address validity ends when the buffer next participates in
+device work"). It is a real piece of work rather than a correction, and it is why 8.5 is recorded
+rather than started.

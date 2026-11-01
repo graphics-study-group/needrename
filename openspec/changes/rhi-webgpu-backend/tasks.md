@@ -121,6 +121,17 @@
 - [ ] 8.3 Implement per-dispatch compute scopes with marks as no-ops and the rebind-on-scope-boundary behavior, and verify a marked and an unmarked recording both produce ordered results
 - [ ] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded constant block
 - [ ] 8.5 Implement mapped-window host access with queue-ordered uploads and completion-driven readback, and verify no mapped buffer is consumed by device work
+  - **Not implemented, and the obstacle is a rule rather than a missing call.** What exists: a
+    host-visible buffer is created with `mappedAtCreation` and the allocation keeps the mapped
+    range for its life, so `GetVMAddress` has a stable address and `FlushMemory` has nothing to do.
+  - What the task requires is stronger than that: *"verify no mapped buffer is consumed by device
+    work"*. The standard interface forbids exactly what the current shape does - a buffer that is
+    mapped cannot be used by a submission. `FlushMemory` therefore has to unmap, and the next
+    `GetVMAddress` has to wait for `wgpuBufferMapAsync`, which is asynchronous and needs the event
+    pump. So the mapped window on this backend is a state machine across frames, not a pair of
+    calls - and the seam's `FlushMemory` is synchronous, which is the mismatch to resolve.
+  - Recorded rather than half-built: a smaller version that keeps the mapping would pass a test
+    that only checks the address and would fail the one this task asks for.
 - [x] 8.6 Implement error and device-loss reporting through the logging path and verify a deliberately invalid recording is reported naming the operation
   - The path exists and was exercised by accident, which is the best kind of evidence: the first
     run of `webgpu_device_test` produced
