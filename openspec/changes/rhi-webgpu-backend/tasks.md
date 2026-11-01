@@ -1080,3 +1080,20 @@ Two things to do, in order:
 2. Either way, the tests need one pixel assertion each - at minimum "the centre
    of the frame is not the clear colour" - because a renderer with no pixel
    assertions can regress into anything and still be green.
+Two things the capture settled, so the next person does not chase them:
+
+- the "depth not kept" on the first pass is written by `pbr_test` itself
+  (`SetDepthStencilAttachment` with `StoreOperation::DontCare`, line 346), and the
+  second pass has no depth because it is a colour-only pass. Neither is a
+  consequence of the encoder work.
+- `debug_pixel` on the first draw's centre reports `gl_FragCoord.z = 0.99975`,
+  i.e. the fragment that wrote the black pixel is at the far plane. So the
+  geometry was not culled by a broken depth range; that fragment is background,
+  which points at the camera or the model transform rather than at the barrier
+  work.
+
+What is still unknown: whether the frame was ever non-black. `mrt_test` reads
+pixels back and only prints them, so even the one test that could have compared a
+value does not. Establishing this needs the tree built at the commit before the
+render-graph wiring, captured the same way - about ten minutes of build time, and
+the only honest way to tell.
