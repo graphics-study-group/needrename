@@ -135,3 +135,11 @@ namespace Engine::Rhi {
         return ToWgpu<WGPUBindGroup>(handle);
     }
 } // namespace Engine::Rhi
+namespace Engine::Rhi {
+    inline ShaderModuleHandle FromWgpuShaderModule(WGPUShaderModule module) noexcept {
+        return FromWgpu<ShaderModuleHandle>(module);
+    }
+    inline WGPUShaderModule ToWgpuShaderModule(ShaderModuleHandle handle) noexcept {
+        return ToWgpu<WGPUShaderModule>(handle);
+    }
+} // namespace Engine::Rhi
