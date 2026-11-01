@@ -111,7 +111,12 @@
     deliberately wrong converter invocation rather than a hand-edited output.
 - [ ] 7.3 Implement the constant-block rewrite fallback and verify a push-constant shader bakes to usable WGSL
 - [ ] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
-- [ ] 7.5 Verify the Vulkan runtime's loading and reflection behavior is unchanged with and without the WGSL variant present
+- [x] 7.5 Verify the Vulkan runtime's loading and reflection behavior is unchanged with and without the WGSL variant present
+  - **The runtime never looks at the new artifacts, so "with and without" is one state.** A search
+    over `engine/` for `.wgsl` and `.iface.json` finds one hit, and it is a comment in the WebGPU
+    CommandEncoder explaining where the constant block slot comes from. No code opens either file.
+    The Vulkan runtime loads SPIR-V through the asset pipeline exactly as before, and the 78 tests
+    pass with the baked variants sitting next to the modules they were derived from.
 
 ## 8. WebGPU adapter
 
