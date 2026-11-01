@@ -223,3 +223,33 @@ read the Vulkan `MemoryAllocation.cpp` first**, which is where that decision liv
 backend a buffer is `wgpuDeviceCreateBuffer` with usage flags derived from
 `BufferType`, and there is nothing to allocate from - which is simpler than the
 Vulkan path, not harder.
+## DeviceContext is where the port stops being mechanical
+
+The first four units - DeviceInterface, the buffer and image allocations, the allocator,
+the sampler cache - were each a file with a clear shape. DeviceContext is not, and an
+attempt at it was written and reverted rather than committed half-working.
+
+What it needs that does not exist:
+
+- **`DeviceCapabilities` has four fields and none of them is `max_bind_groups`.** The
+  header says push constants, uniform offsets, storage range and compute invocations.
+  A backend whose real limit is bind groups has nowhere to put it, which is a seam gap
+  rather than a porting problem.
+- **`RequestComputeKernel` takes a `std::vector<uint32_t>` of SPIR-V.** That is the
+  Vulkan shape. A WebGPU backend needs a `ShaderModule` and a compute entry point, and
+  the seam's signature assumes the other one.
+- **No fence and no timeline semaphore.** The standard interface has completion
+  callbacks. `Submit`, `WaitForFence` and `SignalSemaphore` therefore have no
+  implementation to give, and the choice is between a unit that reports that and one
+  that pretends - the first is what the skeleton should say, but it cannot be written
+  without deciding what a submission *is* on this backend.
+- **`wgpuDevicePoll` is in `wgpu.h`, not `webgpu.h`.** wgpu-native extension, not
+  standard. A browser build does not have it.
+
+That last point is the one to take seriously: three of the four connect to decisions the
+change has not made. **`Backend/WebGPU/` cannot reach the frame loop without deciding
+what a submission and a capability query look like on a callback-based backend** - which
+is group 10's work (frame completion as callbacks, task 10.1), not a porting detail.
+
+So the honest reading of the remaining ~16 units is: **roughly a third are mechanical,
+and the rest wait on three design decisions this change lists but has not taken.**
