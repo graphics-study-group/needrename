@@ -59,6 +59,15 @@
     - This branch has one commit touching `MemoryAllocation.cpp`, `ac457141`, and it moved the
       file behind `Backend/` without changing a line of the window logic.
 - [ ] 6.2 Implement dirty accounting and automatic flush-before-submission, and verify a caller that never calls `Flush` still has its writes visible to the consuming submission
+  - **Smaller than it sounds: two call sites reach the window.** A search over `engine/` for
+    `GetVMAddress()` outside the backends finds `DeviceBuffer::GetVMAddress` (a forwarder) and
+    `IndexedBuffer`, which caches the base pointer once. The render and physics upload paths do not
+    write through it - they go through `SubmissionHelper`, which already flushes its staging buffer
+    explicitly at both of its write sites.
+  - So dirty accounting is about the two paths that do write through the window, not about the whole
+    engine. It still needs the rule from 8.5 - a mapped buffer cannot be handed to a submission - which
+    is why 6.2 is recorded rather than started: a dirty flag that the submission ignores would be worse
+    than no flag at all.
 - [x] 6.3 Implement asynchronous readback registration and the blocking pump, and verify the existing headless tests pass through the pump with unchanged assertions
   - The pump exists and runs every frame: `FrameManager` keeps a deque of registries, each a
     fence, a command buffer and a list of callbacks; `WaitForFence(handle, 0)` polls rather than
