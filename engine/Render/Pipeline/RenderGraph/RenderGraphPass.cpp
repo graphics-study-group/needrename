@@ -1,9 +1,47 @@
 #include "RenderGraphPass.h"
 
+#include "Render/AttachmentUtils.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"
 #include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
+
+namespace {
+    /// @brief The seam's load operation for an attachment's own.
+    Engine::Rhi::LoadOperation ToRhiLoadOperation(Engine::AttachmentUtils::LoadOperation operation) {
+        switch (operation) {
+        case Engine::AttachmentUtils::LoadOperation::Load:
+            return Engine::Rhi::LoadOperation::Load;
+        case Engine::AttachmentUtils::LoadOperation::Clear:
+            return Engine::Rhi::LoadOperation::Clear;
+        case Engine::AttachmentUtils::LoadOperation::DontCare:
+        default:
+            return Engine::Rhi::LoadOperation::DontCare;
+        }
+    }
+
+    /// @brief The seam's store operation for an attachment's own.
+    Engine::Rhi::StoreOperation ToRhiStoreOperation(Engine::AttachmentUtils::StoreOperation operation) {
+        return operation == Engine::AttachmentUtils::StoreOperation::Store ? Engine::Rhi::StoreOperation::Store
+                                                                          : Engine::Rhi::StoreOperation::DontCare;
+    }
+
+    /// @brief The colour a clear attachment is cleared to.
+    Engine::Rhi::ClearColor ToRhiClearColor(const Engine::AttachmentUtils::ClearValue &value) {
+        if (const auto *color = std::get_if<Engine::AttachmentUtils::ColorClearValue>(&value)) {
+            return Engine::Rhi::ClearColor{color->r, color->g, color->b, color->a};
+        }
+        return Engine::Rhi::ClearColor{};
+    }
+
+    /// @brief The depth a clear depth attachment is cleared to.
+    float ToRhiClearDepth(const Engine::AttachmentUtils::ClearValue &value) {
+        if (const auto *depth = std::get_if<Engine::AttachmentUtils::DepthClearValue>(&value)) {
+            return depth->depth;
+        }
+        return 1.0f;
+    }
+} // namespace
 
 namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetPassFunction(
@@ -53,59 +91,41 @@ namespace Engine {
                      name = pass.name,
                      wrapped = pass.pass_function](Rhi::CommandEncoder &encoder, const RenderGraph &rg) {
             vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
-            // Construct rendering info
 
-            vk::Rect2D rendering_area{
-                {0, 0}, {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()}
+            Rhi::RenderPassDescription description{};
+            // A pass covers everything its attachments can cover; the smaller of
+            // them wins, which is what the render area has always been.
+            description.area = Rhi::Rect2D{
+                Rhi::Offset2D{0, 0}, Rhi::Extent2D{std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()}
             };
-            std::vector<vk::RenderingAttachmentInfo> cai{ca.size()};
-            vk::RenderingAttachmentInfo dai{}, sai{};
+            description.color_attachments.reserve(ca.size());
+            for (const auto &attachment : ca) {
+                auto t = rg.GetInternalTextureResource(attachment.rt_handle);
+                Rhi::ColorAttachmentDescription color{};
+                color.view = t->GetImageView(attachment.range);
+                color.load = ToRhiLoadOperation(attachment.load_op);
+                color.store = ToRhiStoreOperation(attachment.store_op);
+                color.clear = ToRhiClearColor(attachment.clear_value);
+                description.color_attachments.push_back(color);
 
-            // Fill up color attachment info.
-            for (size_t i = 0; i < ca.size(); i++) {
-                auto t = rg.GetInternalTextureResource(ca[i].rt_handle);
-                cai[i] = vk::RenderingAttachmentInfo{
-                    Engine::Rhi::ToVulkanImageView(t->GetImageView(ca[i].range)),
-                    vk::ImageLayout::eColorAttachmentOptimal,
-                    vk::ResolveModeFlagBits::eNone,
-                    nullptr,
-                    vk::ImageLayout::eUndefined,
-                    AttachmentUtils::GetVkLoadOp(ca[i].load_op),
-                    AttachmentUtils::GetVkStoreOp(ca[i].store_op),
-                    AttachmentUtils::GetVkClearValue(ca[i].clear_value)
-                };
-                rendering_area.extent.width = std::min(t->GetTextureDescription().width, rendering_area.extent.width);
-                rendering_area.extent.height =
-                    std::min(t->GetTextureDescription().height, rendering_area.extent.height);
+                description.area.extent.width =
+                    std::min(t->GetTextureDescription().width, description.area.extent.width);
+                description.area.extent.height =
+                    std::min(t->GetTextureDescription().height, description.area.extent.height);
             }
 
             if (static_cast<int32_t>(da.rt_handle) != 0) {
                 auto t = rg.GetInternalTextureResource(da.rt_handle);
-                dai = vk::RenderingAttachmentInfo{
-                    Engine::Rhi::ToVulkanImageView(t->GetImageView(da.range)),
-                    vk::ImageLayout::eDepthStencilAttachmentOptimal,
-                    vk::ResolveModeFlagBits::eNone,
-                    nullptr,
-                    vk::ImageLayout::eUndefined,
-                    AttachmentUtils::GetVkLoadOp(da.load_op),
-                    AttachmentUtils::GetVkStoreOp(da.store_op),
-                    AttachmentUtils::GetVkClearValue(da.clear_value)
-                };
-
-                if (Rhi::GetVkAspect(t->GetTextureDescription().format) & vk::ImageAspectFlagBits::eStencil) {
-                    sai = dai;
-                } else {
-                    sai = {nullptr};
-                }
-            } else {
-                dai = {nullptr};
-                sai = {nullptr};
+                description.depth_attachment.view = t->GetImageView(da.range);
+                description.depth_attachment.load = ToRhiLoadOperation(da.load_op);
+                description.depth_attachment.store = ToRhiStoreOperation(da.store_op);
+                description.depth_attachment.clear_depth = ToRhiClearDepth(da.clear_value);
             }
 
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Rasterizer)", name).c_str());
-            cb.beginRendering(vk::RenderingInfo{vk::RenderingFlags{}, rendering_area, 1, 0, cai, &dai, &sai});
+            encoder.BeginRenderPass(description);
             wrapped(encoder, rg);
-            cb.endRendering();
+            encoder.EndRenderPass();
             DEBUG_CMD_END_LABEL(cb);
         };
         pass.pass_function = f;
