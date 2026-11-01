@@ -1,6 +1,7 @@
 #include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <iostream>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -163,6 +164,13 @@ int main(int argc, char **argv) {
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
     auto da = rgb.RequestRenderTargetTexture(rtt_desc, Rhi::Texture::SamplerDesc{});
 
+    // Read the composed frame back so the test can assert that the mesh drew.
+    auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
+        rsys->GetAllocatorState(),
+        Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice},
+        1280u * 720u * 4u
+    );
+
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("Main Lit pass")
@@ -194,6 +202,27 @@ int main(int argc, char **argv) {
                     gsys->DrawGUI(cb.GetEncoder());
                 })
                 .WrapRenderPass()
+                .Get()
+        );
+    }
+
+    {
+        const auto rb = rgb.ImportExternalResource(*readback_buffer);
+        rgb.AddPass(
+            RenderGraphPassBuilder{*rsys}
+                .SetName("Frame Readback")
+                .UseImage(ca, Rhi::MemoryAccessTypeImageBits::TransferRead)
+                .UseBuffer(rb, {Rhi::MemoryAccessTypeBufferBits::TransferWrite})
+                .SetAffinity(RenderGraphPassAffinity::Transfer)
+                .SetPassFunction([ca, readback = readback_buffer.get()](CommandBuffer &cb, const RenderGraph &graph) {
+                    auto rt = graph.GetInternalTextureResource(ca);
+                    cb.GetEncoder().CopyImageToBuffer(
+                        rt->GetImage(),
+                        readback->GetBuffer(),
+                        Rhi::Extent3D{rt->GetTextureDescription().width, rt->GetTextureDescription().height, 1},
+                        Rhi::ImageAspect::Color
+                    );
+                })
                 .Get()
         );
     }
@@ -268,9 +297,29 @@ int main(int argc, char **argv) {
     );
     rsys->WaitForIdle();
 
+    // If nothing was drawn the readback is uniformly black.
+    {
+        const auto *pixels = reinterpret_cast<const uint8_t *>(readback_buffer->GetVMAddress());
+        constexpr size_t PIXEL_COUNT = 1280u * 720u;
+        size_t non_black = 0;
+        for (size_t i = 0; i < PIXEL_COUNT; i++) {
+            if (pixels[i * 4 + 0] != 0 || pixels[i * 4 + 1] != 0 || pixels[i * 4 + 2] != 0) {
+                non_black++;
+            }
+        }
+        if (non_black < PIXEL_COUNT / 100) {
+            std::cerr << "Complex mesh test FAILED: only " << non_black << " of " << PIXEL_COUNT
+                      << " pixels are not black; the mesh did not draw." << std::endl;
+            return 1;
+        }
+        SDL_LogInfo(0, "Complex mesh test: %zu of %zu pixels are not black.", non_black, PIXEL_COUNT);
+    }
+
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;
 }
+
+
 
 
 

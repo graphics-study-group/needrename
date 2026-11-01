@@ -69,8 +69,11 @@ Two assertions now exist, and one of them has been verified in both directions:
   exits 1 and says so; with the fix it reports 640000 of 640000 pixels not black.**
 - `pbr_test` fails when fewer than one percent of the composed frame is non-black. It
   measures 805875 of 8294400 (9.7%), which is the sphere.
+- `new_material_test` does the same and measures 2073538 of 2073600, because the sunset
+  fills the frame. This one found a real defect on its first run.
+- `complex_mesh_test` does the same and measures 118270 of 921600.
 
-The other eight windowed tests still assert nothing about pixels. That is a known gap,
+The other six windowed tests still assert nothing about pixels. That is a known gap,
 not an oversight.
 
 ## What is honestly unfinished
@@ -133,4 +136,5 @@ one percent.
 with the wrong aspect, the frame encoder replaced under a live command buffer, and now a
 texture bound to a name nothing reads - all four were silent, and all four survived a
 suite that reported success.
+
 
