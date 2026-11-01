@@ -259,6 +259,14 @@
 ## 10. Frame loop and presentation
 
 - [ ] 10.1 Convert frame completion to callbacks advancing the epoch watermark and verify resource retirement still reclaims at the same watermark
+  - **The move is small and localised.** The epoch is advanced in exactly two places, both in
+    `FrameManager`: `StartFrame` reports the previous frame's watermark once its fence has been waited
+    on (line 283-285), and `BeginFrame` opens a new one when the command buffer is reset (line 325).
+    Reporting moves from after the wait to inside `Submission::on_complete`, which already rides the
+    fence the submission signals and is already run by `PumpCompletions` from `WaitForIdle`.
+  - What stays put is the wait itself: 10.2's note explains why removing it needs every caller to
+    advance its own clock, and an epoch reported from a callback does not change that. So 10.1 and 10.2
+    are separable after all - 10.1 is the reporting point, 10.2 is the ordering.
 - [ ] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the frame instead of blocking
   - **The blocking wait is load-bearing, and its comment says why.** `FrameManager::BeginFrame`
     waits on `command_executed_fences[fif]` before acquiring, because the acquire semaphore was
