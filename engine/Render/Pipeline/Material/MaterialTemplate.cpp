@@ -24,9 +24,6 @@
 namespace Engine {
 
     struct MaterialTemplate::impl {
-        constexpr static std::array<vk::DynamicState, 2> PIPELINE_DYNAMIC_STATES = {
-            vk::DynamicState::eViewport, vk::DynamicState::eScissor
-        };
 
         Rhi::PipelineLayoutHandle pipeline_layout{};
         /// @brief Layout of the per-material set, the object the arena resolved.
