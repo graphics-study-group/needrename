@@ -158,6 +158,41 @@ back - which is exactly the barrier work in the abandoned section.
 So the test keeps its validation check and no pixel assertion. That is a smaller gap
 than it sounds: a frame with a wrong layout is a validation error there, and the test
 already fails on those.
+## The WebGPU build links, and the library it links is empty
 
+Measured rather than assumed:
 
+| Build | `EngineRhi.dll` | object files |
+|---|---|---|
+| `msvc-debug` (Vulkan) | 4 870 656 bytes | 32 |
+| `webgpu-desktop` | 324 608 bytes | 7 |
 
+The seven are the reflection-generated units and the two hand-written headers'
+helpers. **No backend implementation is in the WebGPU library at all**, because
+`Backend/WebGPU/` is empty and `Backend/Vulkan/` is excluded by the backend switch.
+
+So `cmake --preset webgpu-desktop && cmake --build ... --target EngineRhi` succeeding
+means **"nothing was compiled"**, not "the WebGPU backend works". The same is true of
+the wasm build, for the same reason.
+
+## What a next session starts from
+
+`tools/webgpu_spike/main.cpp` is 40 KB and already does the parts that are hardest to
+get right without feedback: instance and device creation, adapter selection, a
+triangle that rasterises and reads back, a compute dispatch whose results are checked,
+and the limits query. It is a program, not a backend - it calls `wgpu.h` directly and
+knows nothing about the seam - but every call it makes has to appear in
+`Backend/WebGPU/` somewhere.
+
+The order that avoids the empty-library trap:
+
+1. Port the device creation and the allocation into `Backend/WebGPU/Device/`
+   (`DeviceInterface`, `DeviceContext`, `AllocatorState`) and the buffer object.
+2. Wire `ENGINE_RHI_BACKEND=webgpu` to compile **only** those, with the rest of the
+   seam left as declarations. The library will not link - that is the point, because
+   the missing symbols are the list of what remains.
+3. Work down that list until `rhi_standalone_test` links; it is the smallest executable
+   that exercises the seam end to end.
+
+Step 2 is what makes this incremental. Without it, the only feedback is "it links
+because nothing is there".
