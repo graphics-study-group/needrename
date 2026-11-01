@@ -34,6 +34,7 @@ if (EMSCRIPTEN)
         # The port supplies both the headers and the JavaScript glue. It is a
         # link-time port, so it is requested as a link option.
         set_target_properties(WebGPU::WebGPU PROPERTIES
+            INTERFACE_COMPILE_OPTIONS "--use-port=emdawnwebgpu"
             INTERFACE_LINK_OPTIONS "--use-port=emdawnwebgpu"
         )
     endif()

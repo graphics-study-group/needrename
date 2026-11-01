@@ -49,6 +49,7 @@
                 "ENGINE_RHI_BACKEND": "webgpu",
                 "ENGINE_BUILD_APPS": "OFF",
                 "ENGINE_BUILD_DOCS": "OFF",
+                "ENGINE_BUILD_TESTS": "OFF",
                 "ENGINE_SHADER_MODE": "glsl",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
             }
@@ -118,3 +119,4 @@
         }
     ]
 }
+

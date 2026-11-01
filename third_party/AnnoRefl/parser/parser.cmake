@@ -39,7 +39,9 @@ function(_anrorefl_find_vs_libclang out_dir)
     # Preference order: CMAKE_GENERATOR_INSTANCE (VS generator), then derive the VC
     # root by ascending from cl.exe's directory (VC/Tools/MSVC/<ver>/bin/Hostx64/x64).
     set(_vs_vc_dirs)
-    if(DEFINED CMAKE_GENERATOR_INSTANCE)
+    # A generator that has no instance (Ninja) defines the variable as empty,
+    # which is not the same as naming an installation.
+    if(CMAKE_GENERATOR_INSTANCE)
         list(APPEND _vs_vc_dirs "${CMAKE_GENERATOR_INSTANCE}/VC")
     endif()
     if(CMAKE_CXX_COMPILER AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -52,6 +54,28 @@ function(_anrorefl_find_vs_libclang out_dir)
         get_filename_component(_asc "${_asc}" DIRECTORY)                   # VC
         list(APPEND _vs_vc_dirs "${_asc}")
     endif()
+    if(NOT _vs_vc_dirs)
+        # A cross build compiles with something other than cl.exe, so neither the
+        # generator instance nor the compiler path names a Visual Studio install.
+        # vswhere ships with the installer and does know.
+        find_program(_vswhere_exe vswhere
+            PATHS "C:/Program Files (x86)/Microsoft Visual Studio/Installer"
+                  "C:/Program Files/Microsoft Visual Studio/Installer"
+            NO_DEFAULT_PATH
+        )
+        if(_vswhere_exe)
+            execute_process(
+                COMMAND "${_vswhere_exe}" -latest -products * -property installationPath
+                OUTPUT_VARIABLE _vs_install
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET
+            )
+            if(_vs_install)
+                list(APPEND _vs_vc_dirs "${_vs_install}/VC")
+            endif()
+        endif()
+    endif()
+
     foreach(_vc IN LISTS _vs_vc_dirs)
         if(EXISTS "${_vc}/Tools/Llvm/x64/bin/libclang.dll")
             set(${out_dir} "${_vc}/Tools/Llvm/x64/bin" PARENT_SCOPE)
@@ -61,7 +85,9 @@ function(_anrorefl_find_vs_libclang out_dir)
 endfunction()
 
 function(anrorefl_libclang_extra_args)
-    if(WIN32)
+    # The parser runs on the host even when the compiler targets another system,
+    # so the host platform decides how it is driven.
+    if(CMAKE_HOST_WIN32)
         # --- Windows (MSVC) ---
         # pip's bundled libclang (clang 18.x) is too old to parse current MSVC STL
         # headers, so load the libclang.dll from the VS "C++ Clang tools for Windows"
@@ -80,8 +106,24 @@ function(anrorefl_libclang_extra_args)
         # installation and Windows SDK when targeting x86_64-pc-windows-msvc, so no
         # explicit -I list is needed and the args stay free of spaces/quotes (they are
         # embedded as a single JSON string in config.json, so quotes would corrupt it).
+        # A cross build's compiler is not cl.exe, so CMake never learns the MSVC
+        # version the host STL belongs to. The toolset directory next to the
+        # libclang we just found names it (14.51.36231 -> 1951).
+        set(_anrorefl_msvc_version "${MSVC_VERSION}")
+        if(NOT _anrorefl_msvc_version)
+            get_filename_component(_anrorefl_vc "${_VS_LLVM_BIN_DIR}/../../../.." ABSOLUTE)
+            file(GLOB _anrorefl_toolsets "${_anrorefl_vc}/Tools/MSVC/14.*")
+            if(_anrorefl_toolsets)
+                list(GET _anrorefl_toolsets -1 _anrorefl_toolset)
+                get_filename_component(_anrorefl_toolset_name "${_anrorefl_toolset}" NAME)
+                string(REGEX MATCH "^14\\.([0-9]+)" _anrorefl_match "${_anrorefl_toolset_name}")
+                if(CMAKE_MATCH_1)
+                    math(EXPR _anrorefl_msvc_version "1900 + ${CMAKE_MATCH_1}")
+                endif()
+            endif()
+        endif()
         set(EXTRA_ARGS
-            "--target=x86_64-pc-windows-msvc -fms-compatibility -fms-extensions -fmsc-version=${MSVC_VERSION}")
+            "--target=x86_64-pc-windows-msvc -fms-compatibility -fms-extensions -fmsc-version=${_anrorefl_msvc_version}")
     else()
         # --- Other platforms ---
         # Pin builtin headers to the project toolchain so pip's libclang sees the
@@ -91,8 +133,15 @@ function(anrorefl_libclang_extra_args)
         execute_process(COMMAND "${CMAKE_CXX_COMPILER}" -print-resource-dir
                         OUTPUT_VARIABLE _RD OUTPUT_STRIP_TRAILING_WHITESPACE
                         ERROR_QUIET RESULT_VARIABLE _RC)
-        if(_RC EQUAL 0 AND EXISTS "${_RD}")
-            set(EXTRA_ARGS "-resource-dir ${_RD}")
+        # A cross build points the parser at the *target* toolchain's builtin
+        # headers, which a pip-installed libclang cannot parse (clang 24 intrinsics
+        # it has never heard of). Those headers belong to the target, not to the
+        # headers being reflected, so the parser keeps its own.
+        if(_RC EQUAL 0 AND EXISTS "${_RD}" AND NOT EMSCRIPTEN)
+            # The path ends up inside config.json, where a Windows backslash is an
+            # invalid JSON escape; libclang accepts forward slashes on every host.
+            file(TO_CMAKE_PATH "${_RD}" _RD_JSON)
+            set(EXTRA_ARGS "-resource-dir ${_RD_JSON}")
         endif()
 
         # Define FLT_MAX and FLT_MIN to work around float.h inclusion
@@ -374,3 +423,6 @@ function(filter_files_with_reflection_macros input_list output_list)
     endforeach()
     set(${output_list} ${filtered_list} PARENT_SCOPE)
 endfunction()
+
+
+
