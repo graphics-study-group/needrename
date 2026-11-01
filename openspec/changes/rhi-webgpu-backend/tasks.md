@@ -51,6 +51,20 @@
 - [ ] 6.2 Implement dirty accounting and automatic flush-before-submission, and verify a caller that never calls `Flush` still has its writes visible to the consuming submission
 - [ ] 6.3 Implement asynchronous readback registration and the blocking pump, and verify the existing headless tests pass through the pump with unchanged assertions
 - [ ] 6.4 Verify product frame paths contain no blocking wait on device completion
+  - **Not met, and the check is what found it.** Every WaitForIdle in product and example
+    code was read in context. Six of the eight are after a frame loop ends or in a destructor,
+    which is what the requirement allows. Two are not:
+
+    - app/physics/PhysicsApp.cpp:819, commented "Pre-wait: render frames (3 in flight) must
+      finish reading the physics buffers before the next physics step writes them."
+    - app/physics/PhysicsApp.cpp:881, "Post-wait: physics writes are visible before the next
+      render frame."
+
+    PhysicsApp::Step therefore blocks the device twice per step. Its own comment is the reason:
+    the three-in-flight render frames read the physics buffers, and nothing else orders them.
+    Fixing it is the work of design decision D8 - completion callbacks advancing the epoch
+    watermark, a slot whose previous work is unfinished skipped rather than waited on - which
+    is group 10.
 
 ## 7. Shader artifacts
 
