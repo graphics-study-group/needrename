@@ -566,26 +566,15 @@ namespace Engine::RenderSystemState {
         if (!tpl) return;
         auto material_binding = material->UpdateGPUInfo(*tpl, frame_in_flight);
 
-        const vk::DescriptorSet skybox_set = Rhi::ToVulkanDescriptorSet(material_binding.set);
-        auto rcb = cb.GetCommandBuffer();
-        rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
-        rcb.bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics,
-            tpl->GetPipelineLayout(),
-            2,
-            {skybox_set},
-            material_binding.dynamic_offsets
+        auto &encoder = cb.GetEncoder();
+        encoder.BindGraphicsPipeline(tpl->GetPipeline(), tpl->GetPipelineLayout());
+        encoder.BindGraphicsDescriptorSet(
+            2, material_binding.set, tpl->GetPipelineLayout(), material_binding.dynamic_offsets
         );
         // camera PV matrix is pushed directly.
-        rcb.pushConstants(
-            tpl->GetPipelineLayout(),
-            vk::ShaderStageFlagBits::eAllGraphics,
-            0,
-            sizeof(glm::mat4),
-            reinterpret_cast<const void *>(&pv_mat)
-        );
+        encoder.PushConstants(std::as_bytes(std::span{&pv_mat, 1}));
         // Vertex info is embedded in the skybox.vert shader.
-        rcb.draw(36, 1, 0, 0);
+        cb.GetCommandBuffer().draw(36, 1, 0, 0);
     }
 
     Rhi::DescriptorSetHandle SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {

@@ -235,7 +235,7 @@ namespace Engine {
             bind_new_pipeline = true;
         }
         if (bind_new_pipeline) {
-            m_encoder->BindGraphicsPipeline(Rhi::FromVulkan(pipeline), Rhi::FromVulkan(pipeline_layout));
+            m_encoder->BindGraphicsPipeline(pipeline, pipeline_layout);
             m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
         }
 
@@ -246,7 +246,7 @@ namespace Engine {
         auto material_binding = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
         if (material_binding.set.IsValid()) {
             m_encoder->BindGraphicsDescriptorSet(
-                2, material_binding.set, Rhi::FromVulkan(pipeline_layout), material_binding.dynamic_offsets
+                2, material_binding.set, pipeline_layout, material_binding.dynamic_offsets
             );
         }
     }

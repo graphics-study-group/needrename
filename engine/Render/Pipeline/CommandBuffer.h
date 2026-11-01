@@ -388,7 +388,7 @@ namespace Engine {
         /// state each of them tracks.
         Rhi::CommandEncoder *m_encoder{nullptr};
         uint32_t m_inflight_frame_index; ///< Current frame-in-flight index for per-frame descriptor set selection.
-        std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>>
+        std::optional<std::pair<Rhi::PipelineHandle, Rhi::PipelineLayoutHandle>>
             m_bound_material_pipeline{}; ///< Cached bound material pipeline + layout to skip redundant binds.
 
         PipelineRuntimeInfoPerRendering m_pripr{}; ///< Current render pass attachment formats for pipeline lookup.
@@ -396,6 +396,7 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_COMMANDBUFFER_INCLUDED
+
 
 
 

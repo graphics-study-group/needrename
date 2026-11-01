@@ -131,18 +131,16 @@ namespace Engine {
         /**
          * @brief Get the pipeline for a specific pass index.
          *
-         * @return vk::Pipeline The pipeline associated with
-         * the specified pass index.
+         * @return The pipeline the pass records with.
          */
-        vk::Pipeline GetPipeline() const noexcept;
+        Rhi::PipelineHandle GetPipeline() const noexcept;
 
         /**
          * @brief Get the pipeline layout for a specific pass index.
          *
-         * @return vk::PipelineLayout
-         * The pipeline layout associated with the specified pass index.
+         * @return The layout its bindings and constants belong to.
          */
-        vk::PipelineLayout GetPipelineLayout() const noexcept;
+        Rhi::PipelineLayoutHandle GetPipelineLayout() const noexcept;
 
         /**
          * @brief Get the layout of the per-material descriptor set.
@@ -174,3 +172,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
+

@@ -220,11 +220,11 @@ namespace Engine {
 
     MaterialTemplate::~MaterialTemplate() = default;
 
-    vk::Pipeline MaterialTemplate::GetPipeline() const noexcept {
-        return pimpl->pipeline.get();
+    Rhi::PipelineHandle MaterialTemplate::GetPipeline() const noexcept {
+        return Rhi::FromVulkan(pimpl->pipeline.get());
     }
-    vk::PipelineLayout MaterialTemplate::GetPipelineLayout() const noexcept {
-        return pimpl->pipeline_layout;
+    Rhi::PipelineLayoutHandle MaterialTemplate::GetPipelineLayout() const noexcept {
+        return Rhi::FromVulkan(pimpl->pipeline_layout);
     }
 
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const noexcept {

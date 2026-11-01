@@ -156,14 +156,7 @@ auto BuildRenderGraph(
                 assert(tpl);
                 cb.BindMaterial(*material, *tpl);
                 // Push model matrix...
-                vk::CommandBuffer rcb = cb.GetCommandBuffer();
-                rcb.pushConstants(
-                    material->GetLibrary().FindMaterialTemplate("", pri)->GetPipelineLayout(),
-                    vk::ShaderStageFlagBits::eAllGraphics,
-                    0,
-                    sizeof(RenderSystemState::RendererManager::RendererDataStruct),
-                    reinterpret_cast<const void *>(&EYE4)
-                );
+                cb.GetEncoder().PushConstants(std::as_bytes(std::span{&EYE4, 1}));
                 cb.DrawMesh(*mesh);
             })
             .WrapRenderPass()
