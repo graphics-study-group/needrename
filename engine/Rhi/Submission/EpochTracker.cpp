@@ -1,5 +1,4 @@
 #include "Rhi/Submission/EpochTracker.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <cassert>
 #include <utility>
@@ -16,13 +15,13 @@ namespace Engine::Rhi {
          * turning the freedom to construct a tracker outside `DeviceContext`
          * into a silent trap.
          */
-        std::unordered_set<VkDevice> g_live_tracker_devices{};
+        std::unordered_set<uintptr_t> g_live_tracker_devices{};
     } // namespace
 #endif
 
     EpochTracker::EpochTracker(DeviceHandle device) : m_device(device) {
 #if !defined(NDEBUG)
-        const VkDevice handle = ToVulkanDevice(device);
+        const uintptr_t handle = device.GetValue();
         const auto [it, inserted] = g_live_tracker_devices.insert(handle);
         (void)it;
         assert(inserted && "A device already has a live EpochTracker. A device must have exactly one.");
@@ -36,7 +35,7 @@ namespace Engine::Rhi {
         m_parked.shrink_to_fit();
 
 #if !defined(NDEBUG)
-        g_live_tracker_devices.erase(ToVulkanDevice(m_device));
+        g_live_tracker_devices.erase(m_device.GetValue());
 #endif
     }
 
@@ -168,5 +167,7 @@ namespace Engine::Rhi {
         return m_outstanding.contains(epoch);
     }
 } // namespace Engine::Rhi
+
+
 
 
