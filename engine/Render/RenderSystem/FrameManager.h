@@ -117,7 +117,7 @@ namespace Engine {
              * @brief Get the raw main command buffer handle of the current
              * frame in flight.
              */
-            vk::CommandBuffer GetRawMainCommandBuffer();
+            Rhi::CommandBufferHandle GetRawMainCommandBuffer();
 
             /**
              * @brief Start the rendering of a new frame.
@@ -199,4 +199,5 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
+
 

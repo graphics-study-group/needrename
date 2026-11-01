@@ -10,6 +10,7 @@
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/Fence.h"
 #include "Rhi/Device/Semaphore.h"
+#include "Rhi/Command/CommandBuffer.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
@@ -59,7 +60,7 @@ namespace Engine::RenderSystemState {
 
 std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{};
 
-        std::array<vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers{};
+std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{};
 
         // Data and handles used by readback routines.
         struct {
@@ -174,16 +175,11 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
 
         // Allocate main render command buffers
         const auto &queue_info = m_system.GetDeviceInterface().GetQueueInfo();
-        auto new_command_buffers = device.allocateCommandBuffersUnique(
-            vk::CommandBufferAllocateInfo{
-                queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
-            }
+        auto main_command_buffers = Rhi::CommandBuffer::Create(
+            m_system.GetDeviceContext(), Rhi::CommandBufferPool::Graphics, FRAMES_IN_FLIGHT
         );
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-            command_buffers[i] = std::move(new_command_buffers[i]);
-            DEBUG_SET_NAME_TEMPLATE(
-                device, command_buffers[i].get(), std::format("Command buffer - main render {}", i)
-            );
+            command_buffers[i] = std::move(main_command_buffers[i]);
         }
 
         current_frame_in_flight = 0;
@@ -247,9 +243,8 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
 
     CommandBuffer FrameManager::BeginMainCommandBuffer() {
         pimpl->assert_in_frame();
-        auto cb = GetRawMainCommandBuffer();
-        cb.begin(vk::CommandBufferBeginInfo{});
         const uint32_t frame = GetFrameInFlight();
+        pimpl->command_buffers[frame]->Begin();
         // Reuse the frame slot's encoder rather than building a fresh one: a later
         // RecordIntoMainCommandBuffer borrows the same object.
         Rhi::CommandEncoder &encoder = GetMainEncoder();
@@ -260,13 +255,13 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         const uint32_t frame = GetFrameInFlight();
         if (!pimpl->main_encoders[frame]) {
             pimpl->main_encoders[frame] =
-                std::make_unique<Rhi::CommandEncoder>(Rhi::FromVulkan(GetRawMainCommandBuffer()));
+std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         }
         return *pimpl->main_encoders[frame];
     }
 
-    vk::CommandBuffer FrameManager::GetRawMainCommandBuffer() {
-        return pimpl->command_buffers[GetFrameInFlight()].get();
+    Rhi::CommandBufferHandle FrameManager::GetRawMainCommandBuffer() {
+        return pimpl->command_buffers[GetFrameInFlight()]->GetHandle();
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout) {
@@ -310,7 +305,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         // so resetting the command buffer and fence here cannot deadlock a
         // later wait (fences are only signaled by a completed submit, and
         // `waitIdle` does not signal them).
-        pimpl->command_buffers[fif]->reset();
+        pimpl->command_buffers[fif]->Reset();
         pimpl->command_executed_fences[fif]->Reset();
 
         // Kickstart of this frame
@@ -351,7 +346,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
 
         // End the main command buffer (recording is driven by the render layer,
         // but the lifecycle belongs to FrameManager).
-        pimpl->command_buffers[fif]->end();
+        pimpl->command_buffers[fif]->End();
 
         // Staged resource submission (signals timeline timepoint 2).
         pimpl->m_submission_helper->ExecuteSubmission(
@@ -367,7 +362,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         // ── One frame-completion batch: {main render CB, copy CB} ──
         // ── One frame-completion batch: {main render CB, copy CB} ──
         Rhi::Submission submission{};
-        submission.command_buffers.push_back(Rhi::FromVulkan(pimpl->command_buffers[fif].get()));
+        submission.command_buffers.push_back(pimpl->command_buffers[fif]->GetHandle());
         if (copy_cb.IsValid()) {
             submission.command_buffers.push_back(copy_cb);
         }
