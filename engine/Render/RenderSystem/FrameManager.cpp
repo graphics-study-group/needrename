@@ -356,23 +356,34 @@ namespace Engine::RenderSystemState {
         );
 
         // ── One frame-completion batch: {main render CB, copy CB} ──
-        std::array<vk::SemaphoreSubmitInfo, 3> wait_infos{};
-        wait_infos[0] = this_timeline_semaphore.GetSubmitInfo(
-            2,
-            // Wait for staged upload before any command starts.
-            vk::PipelineStageFlagBits2::eAllCommands
-        );
+        // ── One frame-completion batch: {main render CB, copy CB} ──
+        Rhi::Submission submission{};
+        submission.command_buffers.push_back(Rhi::FromVulkan(pimpl->command_buffers[fif].get()));
+        if (copy_cb.IsValid()) {
+            submission.command_buffers.push_back(copy_cb);
+        }
+
+        // Wait for staged upload before any command starts.
+        submission.waits.push_back(Rhi::SubmissionDependency{
+            Rhi::FromVulkan(this_timeline_semaphore.GetSemaphore()),
+            this_timeline_semaphore.GetTimepointValue(2),
+            Rhi::PipelineScope::Unspecified
+        });
         // Wait for total completion of the last frame.
-        wait_infos[1] = prev_timeline_semaphore.GetSubmitInfo(
-            prev_timeline_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllCommands
-        );
-        // Wait for image acquisition. eAllTransfer = a stage latch, NOT a batch
-        // latch: graphics/compute stages (earlier than eTransfer) may proceed
-        // before the image is ready; only transfer-stage commands (the copy
-        // blit) are gated. Must not use eAllCommands here.
-        wait_infos[2] = vk::SemaphoreSubmitInfo{
-            pimpl->image_acquired_semaphores[fif].get(), 0, vk::PipelineStageFlagBits2::eAllTransfer
-        };
+        submission.waits.push_back(Rhi::SubmissionDependency{
+            Rhi::FromVulkan(prev_timeline_semaphore.GetSemaphore()),
+            prev_timeline_semaphore.GetExpectedTimepoints(),
+            Rhi::PipelineScope::Unspecified
+        });
+        // Wait for image acquisition. Transfer scope is a stage latch, NOT a batch
+        // latch: graphics and compute work may proceed before the image is ready;
+        // only the copy blit is gated. Widening this to everything would serialize
+        // the frame behind the acquire.
+        submission.waits.push_back(Rhi::SubmissionDependency{
+            Rhi::FromVulkan(pimpl->image_acquired_semaphores[fif].get()),
+            0,
+            Rhi::PipelineScope::Transfer
+        });
 
         // Special consideration for deadlock on the first frame.
         if (GetTotalFrame() == 0) {
@@ -384,40 +395,27 @@ namespace Engine::RenderSystemState {
         // We must step frame after wait info is recorded to avoid deadlock.
         prev_timeline_semaphore.EndFrame();
 
-        std::array<vk::SemaphoreSubmitInfo, 2> signal_infos{};
-        // Frame complete (timeline).
-        signal_infos[0] = this_timeline_semaphore.GetSubmitInfo(
-            4,
-            // Signal after all commands (render + copy) are finished.
-            vk::PipelineStageFlagBits2::eAllCommands
-        );
+        // Frame complete (timeline), after both command buffers.
+        submission.signals.push_back(Rhi::SubmissionDependency{
+            Rhi::FromVulkan(this_timeline_semaphore.GetSemaphore()),
+            this_timeline_semaphore.GetTimepointValue(4),
+            Rhi::PipelineScope::Unspecified
+        });
         // Frame completion credential (binary) — waited on by Present. Indexed
         // by the acquired image, so the semaphore is only reused together with
         // its image, i.e. after the present that waited on it has completed.
-        uint32_t signal_count = 1;
         if (pimpl->m_present_provider->NeedsPresentSemaphore()) {
             assert(image_index < pimpl->frame_completed_semaphores.size());
-            signal_infos[1] = vk::SemaphoreSubmitInfo{
-                pimpl->frame_completed_semaphores[image_index].get(), 0, vk::PipelineStageFlagBits2::eAllCommands
-            };
-            signal_count = 2;
+            submission.signals.push_back(Rhi::SubmissionDependency{
+                Rhi::FromVulkan(pimpl->frame_completed_semaphores[image_index].get()),
+                0,
+                Rhi::PipelineScope::Unspecified
+            });
         }
 
-        vk::CommandBufferSubmitInfo cbs[]{
-            {pimpl->command_buffers[fif].get()}, {Rhi::ToVulkanCommandBuffer(copy_cb)}
-        };
-        const uint32_t cb_count = copy_cb.IsValid() ? 2u : 1u;
-        vk::SubmitInfo2 sinfo{};
-        sinfo.waitSemaphoreInfoCount = static_cast<uint32_t>(wait_infos.size());
-        sinfo.pWaitSemaphoreInfos = wait_infos.data();
-        sinfo.commandBufferInfoCount = cb_count;
-        sinfo.pCommandBufferInfos = cbs;
-        sinfo.signalSemaphoreInfoCount = signal_count;
-        sinfo.pSignalSemaphoreInfos = signal_infos.data();
-        pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
-            sinfo, pimpl->command_executed_fences[fif].get()
+        pimpl->m_system.GetDeviceContext().Submit(
+            submission, Rhi::FromVulkan(pimpl->command_executed_fences[fif].get())
         );
-
         // Capture the fence BEFORE CompleteFrame advances the FIF counter, so a
         // later WaitForFrameCompletion() targets the just-submitted frame.
         pimpl->m_last_submitted_fence = pimpl->command_executed_fences[fif].get();

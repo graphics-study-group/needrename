@@ -465,8 +465,8 @@ namespace Engine::Rhi {
      * order frames without being told how the queues are arranged.
      */
     struct Submission {
-        /// @brief The recorded command buffer to run.
-        CommandBufferHandle command_buffer{};
+        /// @brief The recorded command buffers to run, in order.
+        std::vector<CommandBufferHandle> command_buffers;
         /// @brief Dependencies that must be satisfied first.
         std::vector<SubmissionDependency> waits;
         /// @brief Dependencies this submission satisfies on completion.

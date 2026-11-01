@@ -213,13 +213,18 @@ namespace Engine::Rhi {
             });
         }
 
-        const vk::CommandBufferSubmitInfo command_buffer{ToVulkanCommandBuffer(submission.command_buffer)};
-        const vk::SubmitInfo2 info{vk::SubmitFlags{}, waits, {command_buffer}, signals};
+        std::vector<vk::CommandBufferSubmitInfo> command_buffers;
+        command_buffers.reserve(submission.command_buffers.size());
+        for (const CommandBufferHandle command_buffer : submission.command_buffers) {
+            command_buffers.push_back(vk::CommandBufferSubmitInfo{ToVulkanCommandBuffer(command_buffer)});
+        }
+        const vk::SubmitInfo2 info{vk::SubmitFlags{}, waits, command_buffers, signals};
 
         const vk::Fence submit_fence = fence.IsValid() ? ToVulkanFence(fence) : nullptr;
         m_device_interface->GetQueueInfo().graphicsQueue.submit2(info, submit_fence);
     }
 } // namespace Engine::Rhi
+
 
 
 
