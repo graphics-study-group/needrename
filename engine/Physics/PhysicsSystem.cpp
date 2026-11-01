@@ -1,6 +1,5 @@
 #include "PhysicsSystem.h"
 
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
 
