@@ -117,6 +117,41 @@ out an encoder, and offers `submit`/`wait`. Physics' façade then takes a
   place a backend type is still handed across a module boundary, and it would
   outlive the migration.
 
+### D11. The render layer describes a pipeline, not a Vulkan one
+
+The seam covers compute completely because a compute dispatch needs little more
+than a pipeline, a set of bindings and a workgroup count. Rendering needs three
+descriptions the seam does not have yet, and `engine/Render` cannot leave Vulkan
+behind until they exist:
+
+1. **Pipeline state.** Vertex input (attribute formats and strides), primitive
+   assembly, rasterisation, depth-stencil, and colour blend state, plus the
+   attachment formats the pipeline is created against. Vulkan takes these as four
+   separate `vk::Pipeline*CreateInfo` structs and a `PipelineRenderingCreateInfo`;
+   WebGPU takes one `WGPURenderPipelineDescriptor`. The portable form is a struct
+   holding those five groups as value types, with formats named by `ImageFormat`.
+2. **A render pass over existing images.** Vulkan's dynamic rendering binds
+   attachments per pass; WebGPU begins a render pass with attachments fixed for
+   its duration. Both are expressible as "a list of colour attachments and an
+   optional depth attachment, each with a load operation, a store operation and a
+   clear value". A pass description in those terms records the same thing to
+   either backend, which is what D3's scope boundary already does for compute.
+3. **Barrier placement.** The layer records `vk::ImageMemoryBarrier2` with stage
+   and access masks in twenty places. `CommandEncoder::Barrier()` already exists
+   for compute and takes no arguments, because the only thing a caller can know is
+   *that* one dispatch's output is read by the next. The render layer's marks are
+   the same kind of statement — colour attachment written, then sampled — so they
+   become `Barrier()` calls, and the stage masks stay inside the backend.
+
+Two consequences worth stating before the work starts:
+
+- `vk::Format` disappears from the layer's interfaces but not from its
+  implementations: KTX2 stores a `VkFormat` for the payload, so the asset layer
+  keeps converting at the boundary where it fills that field.
+- `VertexAttribute::ToVkVertexInputBinding` and `ToVkVertexInputAttribute` become
+  producers of portable vertex descriptions. That is the first thing to migrate,
+  because the pipeline state description depends on it and nothing else does.
+
 ## Risks / Trade-offs
 
 - [Converter fidelity: SPIR-V constant blocks, combined samplers, layout edge cases] → Spike (a) measures it before design is frozen; the bake falls back to a pre-conversion SPIR-V rewrite of the constant block, and layout validation fails the bake rather than shipping a mismatch.
@@ -143,4 +178,5 @@ out an encoder, and offers `submit`/`wait`. Physics' façade then takes a
 - Converter choice (naga vs Tint) can be revisited if the spike shows fidelity gaps; both are host-side bake tools and neither affects the specs.
 - Which desktop WebGPU implementation stays (wgpu-native vs Dawn) is a validation-harness detail.
 - Whether browser-side tests run under a headless browser harness, and when that harness is worth building, is deferred until the Emscripten build exists.
+
 
