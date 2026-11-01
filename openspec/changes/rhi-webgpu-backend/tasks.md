@@ -15,9 +15,9 @@
 
 ## 3. Rhi interface purification
 
-- [ ] 3.1 Introduce the portable value types (image format, extent, rectangle, sample count, usage bits) and the opaque handle/identity types, and verify every `engine/Rhi` public header compiles with no backend header on the include path
-- [ ] 3.2 Replace backend types in `BindingRef`, `MemoryAllocation`, `DeviceInterface`, `AllocatorState` interfaces and verify the Vulkan build and its unit tests pass unchanged
-- [ ] 3.3 Replace backend types in `DescriptorArena`, `ShaderResourceBinding`, `ImmutableResourceCache` and verify the descriptor tests pass unchanged
+- [x] 3.1 Introduce the portable value types (image format, extent, rectangle, sample count, usage bits) and the opaque handle/identity types, and verify every `engine/Rhi` public header compiles with no backend header on the include path
+- [x] 3.2 Replace backend types in `BindingRef`, `MemoryAllocation`, `DeviceInterface`, `AllocatorState` interfaces and verify the Vulkan build and its unit tests pass unchanged
+- [x] 3.3 Replace backend types in `DescriptorArena`, `ShaderResourceBinding`, `ImmutableResourceCache` and verify the descriptor tests pass unchanged
 - [ ] 3.4 Introduce the command encoder with flat recording, `Barrier`, `TextureBarrier`, `SetKernelParams`, `SetUniformSlice` and the render scope, and verify the Vulkan implementation records exactly the commands it does today for an equivalent recording
 - [ ] 3.5 Add the capability and limits query and verify a consumer can distinguish a single-queue backend and emulated constants without naming a backend
 - [ ] 3.6 Verify a translation unit including every `engine/Rhi` public header links against neither Vulkan nor WebGPU headers
@@ -776,3 +776,22 @@ Four sites remain, two files:
   subject.
 
 With the first item done, tasks 3.2 and 3.3 can be checked.
+### Group 3 is done, bar the submission helper
+
+`engine/Rhi` public headers now name exactly two Vulkan types, both in
+`SubmissionHelper.h`: `CmdOperation`'s command-buffer parameter and
+`ExecuteSubmission`'s `vk::SemaphoreSignalInfo`. Those are not leftovers — the
+`submission-helper-sync` delta in this change specifies their replacement, and
+they move with group 6, which owns submission and synchronization.
+
+That closes 3.1, 3.2 and 3.3: every portable header either carries no backend
+type or has moved into `Rhi/Backend/Vulkan`, the Vulkan build is unchanged, and
+all 77 tests pass — including the descriptor and kernel suites that exercise the
+converted interfaces.
+
+What is *not* done in group 3, and stays open:
+
+- **3.6** wants a translation unit that includes every public header and links
+  against neither Vulkan nor WebGPU. With `SubmissionHelper.h` still naming a
+  command buffer it cannot pass yet, so it lands with group 6.
+- **3.5** (the capability/limits query) is untouched.
