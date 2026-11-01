@@ -88,9 +88,13 @@ namespace Engine {
         cb.EndRendering();
     }
 
-    void GUISystem::DrawGUI(vk::CommandBuffer cb) const noexcept {
+    void GUISystem::DrawGUI(Rhi::CommandEncoder &encoder) const noexcept {
         ImGui::Render();
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb), nullptr);
+        ImGui_ImplVulkan_RenderDrawData(
+            ImGui::GetDrawData(),
+            static_cast<VkCommandBuffer>(Rhi::ToVulkanCommandBuffer(encoder.GetHandle())),
+            nullptr
+        );
     }
 
     void GUISystem::Create(SDL_Window *window) {
@@ -102,9 +106,10 @@ namespace Engine {
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
-    void GUISystem::CreateVulkanBackend(
-        RenderSystem &render_system, vk::Format color_attachment_format, uint8_t samples
+    void GUISystem::CreateBackend(
+        RenderSystem &render_system, Rhi::ImageFormat color_format, uint8_t samples
     ) {
+        const vk::Format color_attachment_format = Rhi::GetVkFormat(color_format);
 
         if (pimpl->vkr.descriptor_pool) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Recreating Vulkan backend for GUI subsystem.");
@@ -160,9 +165,10 @@ namespace Engine {
         assert(pimpl->m_context);
         return pimpl->m_context;
     }
-    void GUISystem::ResetColorAttachmentFormat(vk::Format format, uint8_t samples) noexcept {
+    void GUISystem::ResetColorAttachmentFormat(Rhi::ImageFormat format, uint8_t samples) noexcept {
+        const vk::Format vk_format = Rhi::GetVkFormat(format);
         VkPipelineRenderingCreateInfoKHR prci{static_cast<VkPipelineRenderingCreateInfoKHR>(
-            vk::PipelineRenderingCreateInfo{0, {format}, vk::Format::eUndefined, vk::Format::eUndefined}
+            vk::PipelineRenderingCreateInfo{0, {vk_format}, vk::Format::eUndefined, vk::Format::eUndefined}
         )};
         ImGui_ImplVulkan_PipelineInfo pi{
             .RenderPass = nullptr,
@@ -174,6 +180,8 @@ namespace Engine {
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }
 } // namespace Engine
+
+
 
 
 

@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
     auto rsys = cmc->GetRenderSystem();
 
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateBackend(*rsys, Engine::Rhi::ImageFormat::R8G8B8A8UNorm);
 
     RenderGraphBuilder rgb{*rsys};
 
@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
                     {ca, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
                 )
                 .SetPassFunction([gsys](CommandBuffer &cb, const RenderGraph &) {
-                    gsys->DrawGUI(cb.GetCommandBuffer());
+                    gsys->DrawGUI(cb.GetEncoder());
                 })
                 .WrapRenderPass()
                 .Get()
@@ -271,3 +271,6 @@ int main(int argc, char **argv) {
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;
 }
+
+
+

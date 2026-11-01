@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 
     auto rsys = cmc->GetRenderSystem();
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateBackend(*rsys, Engine::Rhi::ImageFormat::R8G8B8A8UNorm);
 
     RenderGraphBuilder rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
@@ -101,5 +101,8 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
+
+
 
 

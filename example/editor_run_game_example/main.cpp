@@ -168,7 +168,7 @@ int RunExample(int argc, char **argv) {
     auto asys = cmc->GetAssetManager();
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
-    gui->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
+    gui->CreateBackend(*rsys, Engine::Rhi::ImageFormat::R8G8B8A8UNorm);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -312,4 +312,7 @@ int RunExample(int argc, char **argv) {
     CleanupProject(project_path, options.keep_project);
     return 0;
 }
+
+
+
 

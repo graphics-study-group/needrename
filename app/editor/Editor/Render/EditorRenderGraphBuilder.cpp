@@ -297,7 +297,7 @@ namespace Editor {
                      AttachmentUtils::StoreOperation::Store}
                 )
                 .SetPassFunction([gui_system](CommandBuffer &cb, const RenderGraph &) {
-                    gui_system->DrawGUI(cb.GetCommandBuffer());
+                    gui_system->DrawGUI(cb.GetEncoder());
                 })
                 .WrapRenderPass()
                 .Get()
@@ -306,6 +306,7 @@ namespace Editor {
         return rgb.BuildRenderGraph();
     }
 } // namespace Editor
+
 
 
 

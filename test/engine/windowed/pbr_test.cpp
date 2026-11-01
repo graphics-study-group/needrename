@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
     pbr_material->Instantiate(*pbr_material_assets.first);
 
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Engine::Rhi::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateBackend(*rsys, Engine::Rhi::ImageFormat::R8G8B8A8UNorm);
 
     RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
@@ -383,7 +383,7 @@ int main(int argc, char **argv) {
                 {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
             )
             .SetPassFunction([rsys, gsys](CommandBuffer &cb, const RenderGraph &) {
-                gsys->DrawGUI(cb.GetCommandBuffer());
+                gsys->DrawGUI(cb.GetEncoder());
             })
             .WrapRenderPass()
             .Get()
@@ -447,5 +447,8 @@ int main(int argc, char **argv) {
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;
 }
+
+
+
 
 

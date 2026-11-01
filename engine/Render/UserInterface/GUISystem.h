@@ -2,15 +2,10 @@
 #define RENDER_USERINTERFACE_GUISYSTEM_INCLUDED
 
 #include "Render/render_export.h"
+#include "Rhi/RhiTypes.h"
 #include <SDL3/SDL.h>
 #include <imgui.h>
 #include <memory>
-
-namespace vk {
-    struct Extent2D;
-    struct CommandBuffer;
-    enum class Format;
-} // namespace vk
 
 namespace Engine {
     class RenderSystem;
@@ -79,13 +74,13 @@ namespace Engine {
          *
          * This method effectively only records draw calls onto the command buffer.
          */
-        void DrawGUI(vk::CommandBuffer cb) const noexcept;
+        void DrawGUI(Rhi::CommandEncoder &encoder) const noexcept;
 
         /**
          * @brief Initialize GUISystem.
          * This method only initalizes ImGUI front-end states. To
          * actually render anything you need to create
-         * the Vulkan backend by calling `CreateVulkanBackend()`
+         * the backend by calling `CreateBackend()`
          * method with attachment formats.
          */
         void Create(SDL_Window *window);
@@ -99,7 +94,7 @@ namespace Engine {
          * If UNDEFINED will use swapchain format.
          * @param samples Multisample state. Reserved for future use.
          */
-        void CreateVulkanBackend(RenderSystem &render_system, vk::Format color_attachment_format, uint8_t samples = 1);
+        void CreateBackend(RenderSystem &render_system, Rhi::ImageFormat color_format, uint8_t samples = 1);
 
         /**
          * @brief Get current ImGui context for drawing.
@@ -115,9 +110,11 @@ namespace Engine {
          *
          * This will recreate the rendering pipeline used by the Dear ImGui backend.
          */
-        void ResetColorAttachmentFormat(vk::Format format, uint8_t samples = 1) noexcept;
+        void ResetColorAttachmentFormat(Rhi::ImageFormat format, uint8_t samples = 1) noexcept;
     };
 } // namespace Engine
 
 #endif // RENDER_USERINTERFACE_GUISYSTEM_INCLUDED
+
+
 

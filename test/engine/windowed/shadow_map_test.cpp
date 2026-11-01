@@ -775,7 +775,7 @@ int main(int argc, char **argv) {
     GUISystem *gui_system = nullptr;
     if (interactive) {
         gui_system = cmc->GetGUISystem().get();
-        gui_system->CreateVulkanBackend(*rsys, Rhi::GetVkFormat(Rhi::ImageFormat::R8G8B8A8UNorm));
+        gui_system->CreateBackend(*rsys, Rhi::ImageFormat::R8G8B8A8UNorm);
     }
 
     RenderTargetTexture::RenderTargetTextureDesc desc{
@@ -869,7 +869,7 @@ int main(int argc, char **argv) {
                         {color_handle, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
                     )
                     .SetPassFunction([gui_system](CommandBuffer &cb, const RenderGraph &) {
-                        gui_system->DrawGUI(cb.GetCommandBuffer());
+                        gui_system->DrawGUI(cb.GetEncoder());
                     })
                     .WrapRenderPass()
                     .Get()
@@ -1060,5 +1060,8 @@ int main(int argc, char **argv) {
     }
     return 0;
 }
+
+
+
 
 
