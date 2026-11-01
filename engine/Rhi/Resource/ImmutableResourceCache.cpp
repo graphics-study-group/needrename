@@ -149,12 +149,6 @@ namespace Engine::Rhi {
             sci.borderColor = Rhi::ToVkBorderColor(desc.w_address);
         }
 
-        return GetSamplerRef(sci);
-    }
-    SamplerHandle ImmutableResourceCache::GetSampler(const vk::SamplerCreateInfo &sci) {
-        return GetSamplerRef(sci).handle;
-    }
-    SamplerRef ImmutableResourceCache::GetSamplerRef(const vk::SamplerCreateInfo &sci) {
         auto itr = pimpl->sampler_cache.find(sci);
 
         if (itr == pimpl->sampler_cache.end()) {

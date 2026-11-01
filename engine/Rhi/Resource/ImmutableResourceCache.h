@@ -41,8 +41,6 @@ namespace Engine::Rhi {
          * the first one will be used.
          */
         SamplerHandle GetSampler(const Rhi::SamplerDesc &);
-        /// @overload SamplerHandle GetSampler(const Rhi::SamplerDesc &)
-        SamplerHandle GetSampler(const vk::SamplerCreateInfo &);
 
         /**
          * @brief Request a sampler together with the identity it was issued at
@@ -54,7 +52,6 @@ namespace Engine::Rhi {
          */
         SamplerRef GetSamplerRef(const Rhi::SamplerDesc &);
         /// @overload SamplerRef GetSamplerRef(const Rhi::SamplerDesc &)
-        SamplerRef GetSamplerRef(const vk::SamplerCreateInfo &);
 
         /**
          * @brief Request a descriptor set layout.
@@ -89,6 +86,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
+
 
 
 
