@@ -128,7 +128,6 @@ namespace Engine::RenderSystemState {
 
             void Create(RenderSystem &system) {
                 auto &allocator = system.GetAllocatorState();
-                auto device = system.GetDevice();
                 auto &arena = system.GetDeviceContext().GetDescriptorArena();
                 device_context = &system.GetDeviceContext();
 

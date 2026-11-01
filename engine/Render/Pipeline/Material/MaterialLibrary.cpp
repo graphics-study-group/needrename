@@ -30,7 +30,7 @@ namespace Engine {
             /// Descriptor set layout for material descriptors (could be null if no material descriptor is found).
             Rhi::DescriptorSetLayoutRef descriptor_set_layout{};
             /// Material pipeline layout.
-            vk::PipelineLayout pipeline_layout{};
+            Rhi::PipelineLayoutHandle pipeline_layout{};
 
             std::unordered_map<
                 PipelineRuntimeInfo,
@@ -80,7 +80,6 @@ namespace Engine {
         void GenerateDescriptorSetAndPipelineLayout(
             PipelineBundle &b,
             RenderSystem &system,
-            vk::Device d,
             Rhi::DescriptorSetLayoutHandle scene_descriptors,
             Rhi::DescriptorSetLayoutHandle camera_descriptors,
             const std::string &name
@@ -110,9 +109,7 @@ namespace Engine {
                     {scene_descriptors, camera_descriptors, b.descriptor_set_layout.handle},
                     {{0, RenderSystemState::RendererManager::GetPushConstantBlockSize(), false}}
                 };
-                b.pipeline_layout = Rhi::ToVulkanPipelineLayout(
-                    system.GetIRCache().GetPipelineLayout(material_pipeline_description)
-                );
+                b.pipeline_layout = system.GetIRCache().GetPipelineLayout(material_pipeline_description);
             } else {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material %s pipeline has no material descriptors.", name.c_str());
 
@@ -120,9 +117,7 @@ namespace Engine {
                     {scene_descriptors, camera_descriptors},
                     {{0, RenderSystemState::RendererManager::GetPushConstantBlockSize(), false}}
                 };
-                b.pipeline_layout = Rhi::ToVulkanPipelineLayout(
-                    system.GetIRCache().GetPipelineLayout(plain_pipeline_description)
-                );
+                b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plain_pipeline_description);
             }
         }
 
@@ -142,7 +137,6 @@ namespace Engine {
                 GenerateDescriptorSetAndPipelineLayout(
                     pipeline_table[tag],
                     system,
-                    system.GetDevice(),
                     system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                     system.GetCameraManager().GetDescriptorSetLayout(),
                     asset->name
@@ -161,7 +155,7 @@ namespace Engine {
                 system,
                 asset->properties,
                 shader_modules,
-                Rhi::FromVulkan(b.pipeline_layout),
+                b.pipeline_layout,
                 b.descriptor_set_layout,
                 b.reflected,
                 pri,
