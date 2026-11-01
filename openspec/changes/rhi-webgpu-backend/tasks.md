@@ -198,7 +198,14 @@
     decision - `StartFrame` returns a `uint32_t` slot index and has no value to return for "skip" -
     so it needs an `std::optional<uint32_t>` or an out-parameter, and every call site follows.
   - **Left here deliberately.** The shape is clear and the edit is mechanical but wide; starting it
-    with this session's remaining budget would leave the frame loop half-converted, which is the one
+  - **Attempted and reverted, which proves the point above.** `RenderSystem::StartFrame` was
+    changed to pass timeout 0, and `FrameManager::StartFrame` to return `UINT32_MAX` instead of
+    throwing when the slot was busy. `pbr_test` then timed out at 300 s: its loop counts frames
+    that were started, and a skipped frame never advances the count, so it waited forever for a
+    frame that could not start. The suite went red and the change was reverted.
+  - The lesson is specific and worth keeping: skip-and-retry needs *every* caller to advance its
+    own clock on a skip. That is the wide edit the note predicted, and doing it in one place
+    turns a red suite into a hang.
     state worse than blocked.
 - [ ] 10.3 Implement presentation through the host surface and verify the frame ring's per-frame windows stay distinct when the host exposes a single surface image
 - [ ] 10.4 Port the UI backend to the WebGPU backend and verify the editor UI renders
