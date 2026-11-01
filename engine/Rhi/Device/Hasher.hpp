@@ -1,7 +1,10 @@
 #ifndef ENGINE_RHI_HASHER_INCLUDED
 #define ENGINE_RHI_HASHER_INCLUDED
 
+#include <bit>
 #include <cstdint>
+#include <string_view>
+#include <type_traits>
 
 namespace Engine::Rhi {
     template <typename T>
@@ -38,14 +41,10 @@ namespace Engine::Rhi {
             u32(static_cast<uint32_t>(value));
         }
 
-        /**
-         * @brief Hashing a Vulkan-Hpp flag.
-         */
-        template <typename T>
-        inline void f(vk::Flags<T> value) noexcept {
-            static_assert(std::is_convertible_v<typename vk::Flags<T>::MaskType, uint32_t>);
-            u32(static_cast<vk::Flags<T>::MaskType>(value));
-        }
+        // A Vulkan-Hpp flag overload used to sit here. It made a public header
+        // depend on a backend type, which is exactly what this change removed from
+        // every other one; it is now in the Vulkan backend's own HasherVulkan.hpp,
+        // included only by backend units.
 
         inline void s32(int32_t value) noexcept {
             u32(uint32_t(value));
@@ -103,3 +102,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_HASHER_INCLUDED
+
+

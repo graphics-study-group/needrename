@@ -105,4 +105,17 @@ namespace Engine::Rhi {
         }
     }
 } // namespace Engine::Rhi
-
+namespace Engine::Rhi {
+    inline SamplerHandle FromWgpuSampler(WGPUSampler sampler) noexcept {
+        return FromWgpu<SamplerHandle>(sampler);
+    }
+    inline WGPUSampler ToWgpuSampler(SamplerHandle handle) noexcept {
+        return ToWgpu<WGPUSampler>(handle);
+    }
+    inline ImageViewHandle FromWgpuTextureView(WGPUTextureView view) noexcept {
+        return FromWgpu<ImageViewHandle>(view);
+    }
+    inline WGPUTextureView ToWgpuTextureView(ImageViewHandle handle) noexcept {
+        return ToWgpu<WGPUTextureView>(handle);
+    }
+} // namespace Engine::Rhi
