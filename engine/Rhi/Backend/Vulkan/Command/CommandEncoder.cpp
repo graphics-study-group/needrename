@@ -25,19 +25,30 @@ namespace Engine::Rhi {
                                                        : vk::AttachmentStoreOp::eDontCare;
         }
 
-        /// @brief The stage a transition executes in, from the kind of work it separates.
+        /// @brief The stage a transition executes in, from the work and the access.
         ///
-        /// `Unspecified` is a pass that records no work of its own, so the widest
-        /// pair is the only safe answer. A named kind of work narrows it: a compute
-        /// dispatch or a copy does not have to wait for rasterisation to drain.
-        vk::PipelineStageFlags2 ToVkStage(PipelineScope scope) {
+        /// A transition with no access at all is the first use of a resource: there
+        /// is nothing to wait for, and naming a stage would claim otherwise. A named
+        /// kind of work narrows the stage - with one exception: a copy or blit
+        /// recorded inside a graphics pass synchronizes as transfer work, because
+        /// that is the stage its access belongs to.
+        vk::PipelineStageFlags2 ToVkStage(PipelineScope scope, MemoryAccessTypeImage access) {
+            const vk::AccessFlags2 access_flags = GetAccessFlags(access);
+            if (access_flags == vk::AccessFlagBits2::eNone) {
+                return vk::PipelineStageFlagBits2::eNone;
+            }
             switch (scope) {
             case PipelineScope::Transfer:
                 return vk::PipelineStageFlagBits2::eAllTransfer;
             case PipelineScope::Compute:
                 return vk::PipelineStageFlagBits2::eComputeShader;
-            case PipelineScope::Graphics:
+            case PipelineScope::Graphics: {
+                if (access_flags == vk::AccessFlagBits2::eTransferRead
+                    || access_flags == vk::AccessFlagBits2::eTransferWrite) {
+                    return vk::PipelineStageFlagBits2::eAllTransfer;
+                }
                 return vk::PipelineStageFlagBits2::eAllGraphics;
+            }
             case PipelineScope::Unspecified:
             default:
                 return vk::PipelineStageFlagBits2::eAllCommands;
@@ -86,9 +97,9 @@ namespace Engine::Rhi {
         image_barriers.reserve(barriers.size());
         for (const ImageBarrier &barrier : barriers) {
             vk::ImageMemoryBarrier2 image_barrier{};
-            image_barrier.srcStageMask = ToVkStage(barrier.from_scope);
+            image_barrier.srcStageMask = ToVkStage(barrier.from_scope, barrier.from);
             image_barrier.srcAccessMask = GetAccessFlags(barrier.from);
-            image_barrier.dstStageMask = ToVkStage(barrier.to_scope);
+            image_barrier.dstStageMask = ToVkStage(barrier.to_scope, barrier.to);
             image_barrier.dstAccessMask = GetAccessFlags(barrier.to);
             image_barrier.oldLayout = GetImageLayout(barrier.from);
             image_barrier.newLayout = GetImageLayout(barrier.to);
