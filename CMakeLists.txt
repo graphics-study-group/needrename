@@ -63,7 +63,11 @@ set(BUILTIN_ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/builtin_assets)
 set(EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/example)
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
-set(BUILD_SHARED_LIBS ON)
+# wasm has no shared-library product: the engine modules become static
+# archives linked into the final .html, and libktx refuses a shared build.
+if (NOT EMSCRIPTEN)
+    set(BUILD_SHARED_LIBS ON)
+endif()
 
 # Unified output directories: all executables and shared libraries go to bin/,
 # static/import libraries go to lib/. This keeps .exe and .dll in the same

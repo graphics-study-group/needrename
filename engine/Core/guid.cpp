@@ -13,11 +13,49 @@
 
 #include "guid.h"
 
-#if defined(__MSYS__) || defined(_WIN32) || defined(_WIN64)
+#if defined(__EMSCRIPTEN__)
+#include <atomic>
+#include <chrono>
+#include <cstring>
+#include <random>
+#elif defined(__MSYS__) || defined(_WIN32) || defined(_WIN64)
 #include <rpc.h>
 #include <windows.h>
 #elif defined(unix) || defined(__unix) || defined(__unix__) || defined(__APPLE__)
 #include <uuid/uuid.h>
+#endif
+
+#if defined(__EMSCRIPTEN__)
+namespace {
+    /// @brief Stamp the version and variant bits a v4 UUID carries.
+    void StampVersion4(std::array<uint8_t, 16> &data) {
+        data[6] = static_cast<uint8_t>((data[6] & 0x0F) | 0x40);
+        data[8] = static_cast<uint8_t>((data[8] & 0x3F) | 0x80);
+    }
+
+    /// @brief Fill a UUID from a seeded generator.
+    void FillRandomGuid(std::array<uint8_t, 16> &data) {
+        static std::mt19937_64 engine{std::random_device{}()};
+        std::uniform_int_distribution<uint32_t> byte{0, 255};
+        for (uint8_t &value : data) value = static_cast<uint8_t>(byte(engine));
+        StampVersion4(data);
+    }
+
+    /// @brief Fill a UUID that keeps ascending across calls.
+    ///
+    /// A browser has no system UUID service, so the value is built from the
+    /// monotonic clock and a process-wide counter: the leading bytes carry both,
+    /// which keeps successive calls ordered and distinct.
+    void FillSequentialGuid(std::array<uint8_t, 16> &data) {
+        static std::atomic<uint64_t> counter{0};
+        const uint64_t now = static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
+        const uint64_t sequence = counter.fetch_add(1, std::memory_order_relaxed);
+        FillRandomGuid(data);
+        std::memcpy(data.data(), &now, 6);
+        std::memcpy(data.data() + 8, &sequence, sizeof(sequence));
+        StampVersion4(data);
+    }
+} // namespace
 #endif
 
 namespace Engine {
@@ -63,6 +101,8 @@ namespace Engine {
         result._data[13] = uuid.Data4[5];
         result._data[14] = uuid.Data4[6];
         result._data[15] = uuid.Data4[7];
+#elif defined(__EMSCRIPTEN__)
+        FillSequentialGuid(result._data);
 #elif defined(unix) || defined(__unix) || defined(__unix__) || defined(__APPLE__)
         uuid_t uuid;
         uuid_generate_time(uuid);
@@ -117,6 +157,8 @@ namespace Engine {
         result._data[13] = uuid.Data4[5];
         result._data[14] = uuid.Data4[6];
         result._data[15] = uuid.Data4[7];
+#elif defined(__EMSCRIPTEN__)
+        FillRandomGuid(result._data);
 #elif defined(unix) || defined(__unix) || defined(__unix__) || defined(__APPLE__)
         uuid_t uuid;
         uuid_generate_random(uuid);

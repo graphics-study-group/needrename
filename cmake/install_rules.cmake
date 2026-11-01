@@ -100,12 +100,16 @@ endif()
 
 # SDL3 is an imported target; its shared runtime has to travel with the
 # executables. The Vulkan loader and driver are deliberately not bundled.
+if (NOT EMSCRIPTEN)
+# SDL3 is a port in a browser build: its code is linked into the module, so there
+# is no runtime artifact to bundle.
 install(
     IMPORTED_RUNTIME_ARTIFACTS SDL3::SDL3-shared
     LIBRARY DESTINATION bin
     RUNTIME DESTINATION bin
     COMPONENT runtime
 )
+endif()
 
 # --- Data components ------------------------------------------------------
 # builtin_assets is staged and installed by the top-level CMakeLists (mode
@@ -271,12 +275,17 @@ endforeach()
 # --- CMake package --------------------------------------------------------
 # TODO: rename - the export set name, the `needrename::` namespace prefix, the
 # package/config file names and the data-root directory name are rename points.
+# A browser build produces an application, not an installable SDK package:
+# there is no consumer that would call find_package(needrename), and the export
+# of a static third-party link interface is not expressible at all.
+if (NOT EMSCRIPTEN)
 install(EXPORT needrenameTargets
     NAMESPACE needrename::
     FILE needrenameTargets.cmake
     DESTINATION "${ENGINE_SDK_CMAKE_DIR}"
     COMPONENT sdk
 )
+endif()
 
 # TODO: rename - data-root directory name (also the NEEDRENAME_DATA_ROOT env var
 # in Core/FileSystem/DataRoot.cpp).

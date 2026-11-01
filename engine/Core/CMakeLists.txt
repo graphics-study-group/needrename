@@ -3,6 +3,10 @@ file(GLOB_RECURSE CORE_HEADERS "./*.h")
 
 if(WIN32)
     set(UUID_LIBRARIES rpcrt4)
+elseif(EMSCRIPTEN)
+    # wasm has neither libuuid nor a system UUID service: guid.cpp generates
+    # its own, so nothing has to be linked.
+    set(UUID_LIBRARIES "")
 else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(UUID REQUIRED uuid)
@@ -39,3 +43,4 @@ add_reflection_parser(
 )
 add_dependencies(EngineCore meta_core)
 target_link_libraries(EngineCore PRIVATE meta_core)
+
