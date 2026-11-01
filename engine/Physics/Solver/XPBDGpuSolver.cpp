@@ -1,38 +1,22 @@
 #include "XPBDGpuSolver.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/Collision/ConvexCollisionDetector.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/Collision/SpatialHashBroadDetector.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsDispatch.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsScene.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsSpirvLoader.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/gpu_algorithm/RadixSort.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/gpu_algorithm/SumByKey.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/ComputeBuffer.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/DeviceBuffer.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Device/DeviceContext.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Pipeline/ComputeKernel.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <algorithm>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cassert>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace {
     constexpr uint32_t kNumChannels = 7u; // Δlin3 + Δang3 + flag
