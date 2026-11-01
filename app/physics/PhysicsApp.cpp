@@ -771,7 +771,8 @@ namespace AppPhysics {
             );
             auto cb = std::move(cbs[0]);
             cb->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-            impl.physics->GPUCalcModelMatrices(*phys_scene, cb.get(), scene_data.GetModelMatricesBuffer());
+            Rhi::CommandEncoder model_matrix_encoder{Rhi::FromVulkan(static_cast<VkCommandBuffer>(cb.get()))};
+            impl.physics->GPUCalcModelMatrices(*phys_scene, model_matrix_encoder, scene_data.GetModelMatricesBuffer());
             cb->end();
 
             vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
@@ -833,20 +834,21 @@ namespace AppPhysics {
         const Rhi::EpochWatermark step_epoch = epoch_tracker.BeginEpoch();
         vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
         cb->begin(cbbinfo);
+        Rhi::CommandEncoder step_encoder{Rhi::FromVulkan(static_cast<VkCommandBuffer>(cb.get()))};
         try {
             // Measure joint state from the last readback and write actuator torques
             // into the ExternalTorque write staging before the solver reads them.
             impl.RunActuators();
             // Write staging -> GPU uploads first so the solver reads overridden values.
             impl.RecordBodyStateUpload(cb.get());
-            impl.physics->GPUStep(cb.get());
+            impl.physics->GPUStep(step_encoder);
             // Produce model matrices on the same command buffer, after the step, so
             // that a render frame following this step observes the new poses.
             if (impl.mode != AppMode::PhysicsOnly) {
                 if (auto *phys_scene = impl.scene->GetPhysicsScene()) {
                     auto &scene_data = impl.renderer->GetSceneDataManager();
                     scene_data.EnsureModelMatricesCapacity(phys_scene->GetGpuBuffers().rigid_body_slot_count);
-                    impl.physics->GPUCalcModelMatrices(*phys_scene, cb.get(), scene_data.GetModelMatricesBuffer());
+                    impl.physics->GPUCalcModelMatrices(*phys_scene, step_encoder, scene_data.GetModelMatricesBuffer());
                 }
             }
             // Physics readback: copy the SoA into resident staging in the same CB,
@@ -1136,6 +1138,7 @@ namespace AppPhysics {
         impl.any_dirty[idx] = true;
     }
 } // namespace AppPhysics
+
 
 
 

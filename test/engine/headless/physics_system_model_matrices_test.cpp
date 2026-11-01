@@ -90,7 +90,8 @@ int main() {
     );
     Check(target != nullptr, "the target buffer must be creatable");
 
-    const vk::CommandBuffer cb{};
+    // The fake solver only reads the handle back, so an empty one is enough.
+    Rhi::CommandEncoder encoder{Rhi::CommandBufferHandle{}};
 
     PhysicsSystem physics;
     PhysicsScene &scene1 = physics.CreateScene(1u);
@@ -110,7 +111,7 @@ int main() {
 
     // ── The call reaches exactly the named scene's solvers, in order ────────
 
-    physics.GPUCalcModelMatrices(scene1, cb, *target);
+    physics.GPUCalcModelMatrices(scene1, encoder, *target);
     Check(call_log.size() == 2u, "only the named scene's two solvers must be invoked");
     Check(
         call_log.size() >= 2u && call_log[0] == "scene1-first" && call_log[1] == "scene1-second",
@@ -125,7 +126,7 @@ int main() {
     // ── Another scene is a separate call that reaches only its own solver ───
 
     call_log.clear();
-    physics.GPUCalcModelMatrices(scene2, cb, *target);
+    physics.GPUCalcModelMatrices(scene2, encoder, *target);
     Check(call_log.size() == 1u && call_log[0] == "scene2-solver", "scene 2's own solver must be invoked");
     Check(
         first_ptr->GetCallCount() == 1 && second_ptr->GetCallCount() == 1,
@@ -135,7 +136,7 @@ int main() {
     // ── A scene with no solvers is skipped ──────────────────────────────────
 
     call_log.clear();
-    physics.GPUCalcModelMatrices(empty_scene, cb, *target);
+    physics.GPUCalcModelMatrices(empty_scene, encoder, *target);
     Check(call_log.empty(), "a scene with no registered solvers must be skipped");
     Check(
         first_ptr->GetCallCount() == 1 && second_ptr->GetCallCount() == 1 && other_ptr->GetCallCount() == 1,
@@ -149,6 +150,8 @@ int main() {
     std::cout << "PhysicsSystem model matrices test PASSED." << std::endl;
     return 0;
 }
+
+
 
 
 

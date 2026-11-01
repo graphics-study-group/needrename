@@ -9,9 +9,6 @@
 #include "Solver/ISolver.h"
 #include "physics_export.h"
 
-namespace vk {
-    class CommandBuffer;
-}
 
 namespace Engine {
     class PhysicsScene;
@@ -118,7 +115,7 @@ namespace Engine {
          *
          * @param cb Raw command buffer in Recording state.
          */
-        void GPUStep(vk::CommandBuffer cb);
+        void GPUStep(Rhi::CommandEncoder &encoder);
 
         /**
          * @brief Produce model matrices for one named physics scene.
@@ -137,7 +134,7 @@ namespace Engine {
          * @param cb     Raw command buffer in Recording state.
          * @param target Compute buffer receiving the model matrices.
          */
-        void GPUCalcModelMatrices(PhysicsScene &scene, vk::CommandBuffer cb, Rhi::ComputeBuffer &target);
+        void GPUCalcModelMatrices(PhysicsScene &scene, Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target);
 
     private:
         std::unordered_map<uint32_t, std::shared_ptr<PhysicsScene>> m_scene_map{};
@@ -146,3 +143,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_PHYSICSSYSTEM_INCLUDED
+

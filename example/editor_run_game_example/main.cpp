@@ -289,7 +289,7 @@ int RunExample(int argc, char **argv) {
         auto cb = rsys->GetFrameManager().BeginMainCommandBuffer();
 
         if (main_window.m_is_playing) {
-            cmc->GetPhysicsSystem()->GPUStep(cb.GetCommandBuffer());
+            cmc->GetPhysicsSystem()->GPUStep(cb.GetEncoder());
         }
         // Model matrix production is NOT gated on the play state: the physics
         // driven renderers read their transforms from this buffer in both
@@ -297,7 +297,7 @@ int RunExample(int argc, char **argv) {
         // before the render graph's passes.
         if (auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene()) {
             cmc->GetPhysicsSystem()->GPUCalcModelMatrices(
-                *phys_scene, cb.GetCommandBuffer(), rsys->GetSceneDataManager().GetModelMatricesBuffer()
+                *phys_scene, cb.GetEncoder(), rsys->GetSceneDataManager().GetModelMatricesBuffer()
             );
         }
         rg->RecordAllPasses(cb.GetCommandBuffer());
@@ -312,3 +312,4 @@ int RunExample(int argc, char **argv) {
     CleanupProject(project_path, options.keep_project);
     return 0;
 }
+

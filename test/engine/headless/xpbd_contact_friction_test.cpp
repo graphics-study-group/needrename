@@ -252,7 +252,7 @@ namespace {
                 )[0];
                 Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
                 cb.begin(vk::CommandBufferBeginInfo{});
-                physics.GPUStep(cb);
+                physics.GPUStep(record_encoder);
                 RecordReadback(cb);
                 cb.end();
                 queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {cb}, {}});
@@ -401,7 +401,7 @@ int main() {
             )[0];
             Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
             cb.begin(vk::CommandBufferBeginInfo{});
-            physics.GPUStep(cb);
+            physics.GPUStep(record_encoder);
             light.RecordReadback(cb);
             heavy.RecordReadback(cb);
             cb.end();
@@ -452,7 +452,7 @@ int main() {
             )[0];
             Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
             cb.begin(vk::CommandBufferBeginInfo{});
-            physics.GPUStep(cb);
+            physics.GPUStep(record_encoder);
             few.RecordReadback(cb);
             many.RecordReadback(cb);
             cb.end();
@@ -503,7 +503,7 @@ int main() {
             )[0];
             Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
             cb.begin(vk::CommandBufferBeginInfo{});
-            physics.GPUStep(cb);
+            physics.GPUStep(record_encoder);
             slide_x.RecordReadback(cb);
             slide_y.RecordReadback(cb);
             cb.end();
@@ -779,4 +779,5 @@ int main() {
     std::cerr << "xpbd_contact_friction_test FAILED (" << g_failures << " failures)." << std::endl;
     return 1;
 }
+
 

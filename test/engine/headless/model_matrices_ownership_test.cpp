@@ -273,7 +273,7 @@ int main() {
 
         // A step alone writes no model matrices: the target stays untouched.
         zero_target();
-        run_command_buffer([&](vk::CommandBuffer cb) { physics.GPUStep(cb); });
+        run_command_buffer([&](vk::CommandBuffer cb) { Rhi::CommandEncoder enc{Rhi::FromVulkan(cb)}; physics.GPUStep(enc); });
         Check(target_is_zeroed(), "a step alone must issue no model matrix dispatch");
 
         // 6.2 paused-frame fixture: simulation disabled and no step at all, yet
@@ -282,7 +282,7 @@ int main() {
         // which the check below reports.
         scene.SetSimulationEnabled(false);
         zero_target();
-        run_command_buffer([&](vk::CommandBuffer cb) { physics.GPUCalcModelMatrices(scene, cb, *target); });
+        run_command_buffer([&](vk::CommandBuffer cb) { Rhi::CommandEncoder enc{Rhi::FromVulkan(cb)}; physics.GPUCalcModelMatrices(scene, enc, *target); });
         Check(!target_is_zeroed(), "a paused frame with no step must still produce model matrices");
         target_matches_pose(body_z);
 
@@ -290,8 +290,9 @@ int main() {
         scene.SetSimulationEnabled(true);
         zero_target();
         run_command_buffer([&](vk::CommandBuffer cb) {
-            physics.GPUStep(cb);
-            physics.GPUCalcModelMatrices(scene, cb, *target);
+            Rhi::CommandEncoder enc{Rhi::FromVulkan(cb)};
+            physics.GPUStep(enc);
+            physics.GPUCalcModelMatrices(scene, enc, *target);
         });
         std::array<float, kBodyCount> displaced_z{};
         for (uint32_t i = 0; i < kBodyCount; ++i) {
@@ -313,6 +314,8 @@ int main() {
     std::cout << "Model matrices ownership test PASSED." << std::endl;
     return 0;
 }
+
+
 
 
 

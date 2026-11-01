@@ -253,7 +253,7 @@ int main() {
         // Produce through the engine's model matrix entry point, into the
         // render-owned buffer - the same call `PhysicsApp::CommitScene` seeds
         // with. No frame is submitted before or after it.
-        run_command_buffer([&](vk::CommandBuffer cb) { physics.GPUCalcModelMatrices(scene, cb, model_matrices); });
+        run_command_buffer([&](vk::CommandBuffer cb) { Rhi::CommandEncoder enc{Rhi::FromVulkan(cb)}; physics.GPUCalcModelMatrices(scene, enc, model_matrices); });
 
         // Flush the frame manager's staged uploads: what the first
         // `SubmitFrame` would have done. A creation-time fill left in that batch
@@ -287,6 +287,7 @@ int main() {
     std::cout << "Model matrices initialization test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

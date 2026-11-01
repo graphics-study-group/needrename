@@ -299,13 +299,13 @@ int main() {
                 continue;
             }
             auto cb = rsys->GetFrameManager().BeginMainCommandBuffer();
-            physics.GPUStep(cb.GetCommandBuffer());
+            physics.GPUStep(cb.GetEncoder());
             // Model matrix production is a separate, caller-invoked entry point
             // now, so exercise it here too: it must be safe against the same
             // in-flight frames and geometry changes as the step.
             auto &scene_data = rsys->GetSceneDataManager();
             scene_data.EnsureModelMatricesCapacity(scene.GetGpuBuffers().rigid_body_slot_count);
-            physics.GPUCalcModelMatrices(scene, cb.GetCommandBuffer(), scene_data.GetModelMatricesBuffer());
+            physics.GPUCalcModelMatrices(scene, cb.GetEncoder(), scene_data.GetModelMatricesBuffer());
             present_graph->RecordIntoMainCommandBuffer(*rsys);
             rsys->CompleteFrame(*present_texture, Rhi::MemoryAccessTypeImageBits::TransferWrite);
             parked_samples.push_back(tracker.GetParkedResourceCount());
@@ -372,6 +372,7 @@ int main() {
     std::cout << "Gpu buffer retirement test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

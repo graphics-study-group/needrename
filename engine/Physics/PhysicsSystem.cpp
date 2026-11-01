@@ -62,8 +62,7 @@ namespace Engine {
         m_solvers_per_scene[scene_id].push_back(std::move(solver));
     }
 
-    void PhysicsSystem::GPUStep(vk::CommandBuffer cb) {
-        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
+    void PhysicsSystem::GPUStep(Rhi::CommandEncoder &encoder) {
         for (auto &[scene_id, scene] : m_scene_map) {
             auto iter = m_solvers_per_scene.find(scene_id);
             if (iter == m_solvers_per_scene.end()) {
@@ -75,16 +74,18 @@ namespace Engine {
         }
     }
 
-    void PhysicsSystem::GPUCalcModelMatrices(PhysicsScene &scene, vk::CommandBuffer cb, Rhi::ComputeBuffer &target) {
+    void PhysicsSystem::GPUCalcModelMatrices(
+        PhysicsScene &scene, Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &target
+    ) {
         auto iter = m_solvers_per_scene.find(scene.GetSceneID());
         if (iter == m_solvers_per_scene.end()) {
             return;
         }
-        Rhi::CommandEncoder encoder{Rhi::FromVulkan(cb)};
         for (auto &solver : iter->second) {
             solver->GPUCalcModelMatrices(encoder, target);
         }
     }
 
 } // namespace Engine
+
 

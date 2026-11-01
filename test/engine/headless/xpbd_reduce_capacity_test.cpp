@@ -238,7 +238,8 @@ namespace {
                     vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
                 )[0];
                 cb.begin(vk::CommandBufferBeginInfo{});
-                physics.GPUStep(cb);
+                Rhi::CommandEncoder step_encoder{Rhi::FromVulkan(cb)};
+                physics.GPUStep(step_encoder);
                 RecordReadback(cb);
                 cb.end();
                 queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {cb}, {}});
@@ -287,7 +288,8 @@ namespace {
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             cb.begin(vk::CommandBufferBeginInfo{});
-            physics.GPUStep(cb);
+            Rhi::CommandEncoder step_encoder{Rhi::FromVulkan(cb)};
+            physics.GPUStep(step_encoder);
             for (Fixture *f : fixtures) {
                 f->RecordReadback(cb);
             }

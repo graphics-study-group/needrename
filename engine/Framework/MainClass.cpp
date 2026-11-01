@@ -313,11 +313,11 @@ namespace Engine {
         // Physics prepares itself inside GPUStep, then records its compute passes;
         // physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
-        this->physics->GPUStep(cb.GetCommandBuffer()); // physics solvers record their compute passes
+        this->physics->GPUStep(cb.GetEncoder()); // physics solvers record their compute passes
         // Calculate model matrices for main scene
         if (phys_scene != nullptr) {
             this->physics->GPUCalcModelMatrices(
-                *phys_scene, cb.GetCommandBuffer(), this->renderer->GetSceneDataManager().GetModelMatricesBuffer()
+                *phys_scene, cb.GetEncoder(), this->renderer->GetSceneDataManager().GetModelMatricesBuffer()
             );
         }
         if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
@@ -332,6 +332,7 @@ namespace Engine {
         );
     }
 } // namespace Engine
+
 
 
 
