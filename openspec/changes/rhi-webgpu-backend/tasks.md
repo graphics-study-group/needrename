@@ -1291,3 +1291,45 @@ replaced while a command buffer still held it.
 nothing. `mrt_test` fails when its read-back target is uniformly zero; `skybox_test`
 fails when the frame is black, and that one has been verified in both directions -
 with the zero write mask restored it exits 1 and says so.
+## State at the end of this stretch
+
+The shared render layer went from 513 places that name a Vulkan type to 92, and
+that number now understates the work: of the 92, fifty-four are the render graph's
+own barriers (abandoned, see above), seven are CommandBuffer's own member and
+accessor, and four are the KTX2 payload field. **Twenty-seven are real, and they
+are all one job**: MaterialTemplate still assembles `vk::GraphicsPipelineCreateInfo`
+by hand.
+
+What is finished and verified:
+
+| area | state |
+|---|---|
+| `engine/Rhi` public headers | zero `vk::`, enforced by a test |
+| render recording | zero `vk::` - passes, bindings, draws, viewport, blit, readback |
+| frame submission | portable Submission, dependencies, fence, semaphore, command buffer |
+| descriptor writes | portable WriteDescriptorSet, three call sites converted |
+| present providers, GUI, texture loaders | portable interfaces or moved behind Backend/ |
+| objects | Buffer, Texture, Image, ImageView, Sampler, Pipeline, PipelineLayout, DescriptorSet, DescriptorArena, CommandEncoder, CommandBuffer, Fence, Semaphore, ShaderModule, RecordingScope |
+
+What remains, in the order it should be done:
+
+1. **MaterialTemplate's pipeline build (27 sites).** Everything it needs exists -
+   `PipelineDescription`, `PipelineLayoutHandle`, `ShaderModuleHandle` - so the
+   work is to move the `vk::GraphicsPipelineCreateInfo` assembly into
+   `Backend/Vulkan/Pipeline/` behind a build call, along with the specialization
+   constants it fills in. This is the last piece with real design content.
+2. **The WebGPU backend (22 units, group 8).** Nothing here has been written; the
+   directory is empty. It needs the whole `Backend/WebGPU/` surface and cannot be
+   done incrementally, because EngineRhi does not link until every unit of the
+   selected backend exists.
+3. **The browser build (group 1.4).** Configures and compiles up to `engine/Render`
+   with Emscripten; the render layer is what blocks it, and the render layer is
+   blocked by item 1 above.
+4. **Groups 9, 10 and 12** have not been started.
+
+**Two things this stretch bought that the count does not show**: three real
+rendering bugs found by capturing frames (a zero colour write mask that blanked
+every 3D path, a barrier naming the wrong aspect and subresource range, and a frame
+encoder replaced while a command buffer still held it), and two pixel assertions -
+one of which has been verified in both directions - in a suite where eleven
+windowed tests used to pass while drawing nothing.
