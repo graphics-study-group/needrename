@@ -64,7 +64,7 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Address is stable while the window is open | **test**: `compute_buffer_test` takes the address twice and fails if it moved |
 | Address is invalidated by device use | **none yet** |
 | Explicit flush publishes writes | **partially**: `compute_buffer_test` calls `Flush` over a range and over nothing, so the call is accepted; that a write is *visible* to the device after it is not asserted anywhere |
-| Implicit flush covers forgotten calls | **none yet** |
+| Implicit flush covers forgotten calls | **partially**: `compute_buffer_test` writes through the window without flushing every element and the dispatch reads the result correctly. That is weaker than it sounds - on host-coherent memory a flush is a no-op, so this shows the path works rather than that the implicit-flush step does anything. |
 | Vulkan keeps the window open | **none yet** |
 | Refresh exposes completed device writes | **test**: `gpu_buffer_retirement_test` |
 | No torn state is observable | **none yet** |
@@ -146,5 +146,6 @@ one, because it costs every future run rather than one reader's attention.
 What the next attempt should try first: reproduce the setup from
 `compute_buffer_test` rather than from `buffer_reallocation_test`, because the
 former has a working `GetVMAddress()` call in it and the latter does not.
+
 
 

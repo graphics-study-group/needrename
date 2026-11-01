@@ -4,6 +4,7 @@
 #include "Rhi/Pipeline/ComputeKernel.h"
 #include <SDL3/SDL.h>
 #include <iostream>
+#include <cmath>
 #include <random>
 
 using namespace Engine;
@@ -74,10 +75,12 @@ int main(int argc, char *argv[]) {
         // And an explicit flush over a range is accepted.
         compbuf1->GetComputeBuffer().Flush(0, sizeof(float));
     }
+    std::vector<float> written{};
 
     for (auto &f : compbuf1->GetVMAddress()) {
         f = urd(mt);
         std::cout << f << " ";
+        written.push_back(f);
     }
     std::cout << std::endl;
 
@@ -122,11 +125,25 @@ int main(int argc, char *argv[]) {
     queues.graphicsQueue.submit(si);
     rsys->WaitForIdle();
 
+    // The kernel wrote input + 1. The input was written through the window
+    // without an explicit flush beyond its first element, so a correct result here
+    // is also the implicit-flush contract holding: the submission saw bytes the
+    // caller never flushed.
+    bool all_correct = true;
+    size_t element = 0;
     for (const auto &f : compbuf2->GetVMAddress()) {
+        const float expected = written[element] + 1.0f;
+        if (std::abs(f - expected) > 1e-5f) {
+            std::cerr << "Compute buffer test FAILED: element " << element << " is " << f
+                      << " but the shader should have produced " << expected << std::endl;
+            all_correct = false;
+        }
+        element++;
         std::cout << f << " ";
     }
     std::cout << std::endl;
 }
+
 
 
 
