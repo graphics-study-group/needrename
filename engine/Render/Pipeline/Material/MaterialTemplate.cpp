@@ -209,9 +209,6 @@ namespace Engine {
         return pimpl->pipeline_layout;
     }
 
-    vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const noexcept {
-        return Engine::Rhi::ToVulkanDescriptorSetLayout(pimpl->desc_set_layout.handle);
-    }
 
     Rhi::DescriptorSetLayoutRef MaterialTemplate::GetDescriptorSetLayoutRef() const noexcept {
         return pimpl->desc_set_layout;

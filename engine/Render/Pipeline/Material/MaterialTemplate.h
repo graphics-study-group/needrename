@@ -143,14 +143,6 @@ namespace Engine {
         Rhi::PipelineLayoutHandle GetPipelineLayout() const noexcept;
 
         /**
-         * @brief Get the layout of the per-material descriptor set.
-         *
-         * @return The layout the arena resolved, or null when the reflected
-         * layout declares no per-material set.
-         */
-        vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
-
-        /**
          * @brief Get the layout of the per-material descriptor set, with its
          * never-reused identity.
          *
