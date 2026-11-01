@@ -1007,3 +1007,37 @@ which is the same decision `PhysicsSystem` already took.
 Order for the next attempt: convert `RenderGraph::Record`'s signature and the
 `pass_work` type first, let the compiler list every pass body, then convert them
 in one pass over the render layer, the editor and the tests.
+### Why the pass-body conversion was reverted twice
+
+Two attempts at converting `pass_function` and `pass_work` to take a
+`Rhi::CommandEncoder &` produced a green build and a failing suite, so both were
+reverted. The second attempt got as far as converting `RenderGraphPass`,
+`RenderGraph`, the frame loop, the editor example and two headless tests, and
+`headless_compute_test` then reported every push-constant value as zero.
+
+That failure is worth recording precisely, because it rules out the shortcut the
+attempt took. The shortcut was: keep `RenderGraphPassBuilder` building a
+`CommandBuffer` (the render layer's recording object), and reach the command
+buffer it needs back out of the encoder with `ToVulkanCommandBuffer(GetHandle())`.
+That keeps every pass body untouched, which is why it looked cheap.
+
+It is not equivalent, and the reason is that `Render::CommandBuffer` owns its own
+`Rhi::CommandEncoder` built from the handle it was given. Two encoders then exist
+over one command buffer: the outer one passed into `pass_function`, and the inner
+one the pass body records through. Push constants are the first thing that
+notices, because `SetKernelParams` records against an encoder's state.
+
+So the conversion cannot be routed around: **`Render::CommandBuffer` has to become
+a wrapper over an encoder someone else owns**, instead of an object that builds
+its own from a handle. Until that changes, every pass body is a Vulkan pass body.
+
+Order for the next attempt:
+
+1. `Render::CommandBuffer` takes `Rhi::CommandEncoder &` and holds a pointer
+   rather than owning one; `GetHandle()` and the `vk::CommandBuffer` member
+   become derived from the encoder where they are still needed.
+2. Then `pass_function` and `pass_work` change type, and the compiler lists every
+   pass body at once.
+3. Only then is `WrapRenderPass` worth rewriting onto `BeginRenderPass`.
+
+Trying (2) before (1) is what cost these two rounds.
