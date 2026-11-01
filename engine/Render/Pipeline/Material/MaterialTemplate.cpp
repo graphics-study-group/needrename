@@ -13,6 +13,7 @@
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanPipelineState.h"
 
 #include <SDL3/SDL.h>
 #include <fstream>
@@ -69,103 +70,120 @@ namespace Engine {
                 }
             }
 
-            const auto portable_bindings = pri.va.ToVertexInputBinding();
-            const auto portable_attributes = pri.va.ToVertexInputAttribute();
-            std::vector<vk::VertexInputBindingDescription> vertex_bindings;
-            vertex_bindings.reserve(portable_bindings.size());
-            for (const Rhi::VertexBinding &binding : portable_bindings) {
-                vertex_bindings.push_back(
-                    vk::VertexInputBindingDescription{
-                        static_cast<uint32_t>(vertex_bindings.size()),
-                        binding.stride,
-                        binding.per_instance ? vk::VertexInputRate::eInstance : vk::VertexInputRate::eVertex
-                    }
-                );
-            }
-            std::vector<vk::VertexInputAttributeDescription> vertex_attribute;
-            vertex_attribute.reserve(portable_attributes.size());
-            for (const Rhi::VertexAttributeDescription &attribute : portable_attributes) {
-                vertex_attribute.push_back(
-                    vk::VertexInputAttributeDescription{
-                        attribute.location,
-                        attribute.binding,
-                        Rhi::GetVkVertexFormat(attribute.format),
-                        attribute.offset
-                    }
-                );
-            }
-            auto vis = vk::PipelineVertexInputStateCreateInfo{
-                vk::PipelineVertexInputStateCreateFlags{}, vertex_bindings, vertex_attribute
+            // The four state groups, the vertex input and the attachment formats
+            // are what a pipeline is. The viewport and the sample count are not
+            // part of the description: one is dynamic and the other is a device
+            // property.
+            Rhi::PipelineDescription pipeline_description{};
+            pipeline_description.vertex_bindings = pri.va.ToVertexInputBinding();
+            pipeline_description.vertex_attributes = pri.va.ToVertexInputAttribute();
+            pipeline_description.rasterization = Rhi::RasterizationState{
+                prop.rasterizer.filling,
+                prop.rasterizer.culling,
+                prop.rasterizer.front,
+                prop.rasterizer.line_width,
+                prop.rasterizer.depth_bias_constant,
+                prop.rasterizer.depth_bias_slope,
             };
-            auto iasi = vk::PipelineInputAssemblyStateCreateInfo{{}, vk::PrimitiveTopology::eTriangleList, vk::False};
-            auto vsi = vk::PipelineViewportStateCreateInfo{{}, 1, nullptr, 1, nullptr};
-            auto rsci = PipelineUtils::ToVulkanRasterizationStateCreateInfo(prop.rasterizer);
-            auto msi = vk::PipelineMultisampleStateCreateInfo{{}, vk::SampleCountFlagBits::e1, vk::False};
-            auto dsci = PipelineUtils::ToVulkanDepthStencilStateCreateInfo(prop.depth_stencil);
-            auto dsi = vk::PipelineDynamicStateCreateInfo{{}, PIPELINE_DYNAMIC_STATES};
-
-            vk::PipelineColorBlendStateCreateInfo cbsi{};
-            vk::PipelineRenderingCreateInfo prci{};
-
-            std::vector<vk::Format> color_attachment_formats{};
-
+            pipeline_description.depth_stencil = Rhi::DepthStencilState{
+                prop.depth_stencil.depth_test_enable,
+                prop.depth_stencil.depth_write_enable,
+                prop.depth_stencil.depth_comparator,
+                prop.depth_stencil.depth_bound_test_enable,
+                prop.depth_stencil.min_depth,
+                prop.depth_stencil.max_depth,
+                prop.depth_stencil.stencil_test_enable,
+                Rhi::StencilState{
+                    prop.depth_stencil.stencil_front.fail_op,
+                    prop.depth_stencil.stencil_front.pass_op,
+                    prop.depth_stencil.stencil_front.zfail_op,
+                    prop.depth_stencil.stencil_front.comparator,
+                    prop.depth_stencil.stencil_front.compare_mask,
+                    prop.depth_stencil.stencil_front.write_mask,
+                    prop.depth_stencil.stencil_front.reference,
+                },
+                Rhi::StencilState{
+                    prop.depth_stencil.stencil_back.fail_op,
+                    prop.depth_stencil.stencil_back.pass_op,
+                    prop.depth_stencil.stencil_back.zfail_op,
+                    prop.depth_stencil.stencil_back.comparator,
+                    prop.depth_stencil.stencil_back.compare_mask,
+                    prop.depth_stencil.stencil_back.write_mask,
+                    prop.depth_stencil.stencil_back.reference,
+                },
+            };
+            for (const auto &blend : prop.attachments.color_blending) {
+                // Either operation being `None` turns blending off, and the state
+                // then resolves to the description default rather than to the
+                // factors this entry names.
+                if (blend.color_op == Rhi::BlendOperation::None || blend.alpha_op == Rhi::BlendOperation::None) {
+                    // A target with no blending entry writes no channel at all,
+                    // which is what a zero state has always meant here.
+                    pipeline_description.color_blends.push_back(
+                        Rhi::ColorBlendState{.write_mask = Rhi::ColorChannelMask::None}
+                    );
+                    continue;
+                }
+                pipeline_description.color_blends.push_back(
+                    Rhi::ColorBlendState{
+                        true,
+                        blend.color_op,
+                        blend.src_color,
+                        blend.dst_color,
+                        blend.alpha_op,
+                        blend.src_alpha,
+                        blend.dst_alpha,
+                        blend.color_write_mask,
+                    }
+                );
+            }
             for (const auto &f : pri.color_attachment_format) {
                 if (f == Rhi::ImageFormat::UNDEFINED) break;
-                color_attachment_formats.push_back(Rhi::GetVkFormat(f));
+                pipeline_description.color_formats.push_back(f);
             }
+            pipeline_description.depth_format = pri.depth_stencil_attachment_format;
 
-            std::vector<vk::PipelineColorBlendAttachmentState> cbass{
-                PipelineUtils::ToVulkanColorBlendingOps(prop.attachments.color_blending)
-            };
-
-            if (color_attachment_formats.size() < cbass.size()) {
+            if (pipeline_description.color_formats.size() < pipeline_description.color_blends.size()) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_RENDER,
                     "For material %s, %llu color render targets are requested, but only %llu are provided. "
                     "Shader writes to extra color attachments will be discarded.",
                     m_name.c_str(),
-                    color_attachment_formats.size(),
-                    cbass.size()
+                    pipeline_description.color_formats.size(),
+                    pipeline_description.color_blends.size()
                 );
-                cbass.resize(color_attachment_formats.size());
-            } else if (color_attachment_formats.size() > cbass.size()) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "For material %s, %llu color render targets are requested, but only %llu are provided. "
-                    "Extra color render targets will not be written in the shader.",
-                    m_name.c_str(),
-                    color_attachment_formats.size(),
-                    cbass.size()
-                );
-                for (auto i = cbass.size(); i < color_attachment_formats.size(); i++) {
-                    cbass.push_back(vk::PipelineColorBlendAttachmentState{});
+                pipeline_description.color_blends.resize(pipeline_description.color_formats.size());
+            } else if (pipeline_description.color_formats.size() > pipeline_description.color_blends.size()) {
+                for (size_t i = pipeline_description.color_blends.size();
+                     i < pipeline_description.color_formats.size();
+                     i++) {
+                    // A target with no blending entry writes no channel at all,
+                    // which is what a zero state has always meant here.
+                    pipeline_description.color_blends.push_back(
+                        Rhi::ColorBlendState{.write_mask = Rhi::ColorChannelMask::None}
+                    );
                 }
             }
 
-            prci = vk::PipelineRenderingCreateInfo{
-                0,
-                color_attachment_formats,
-                Rhi::GetVkFormat(pri.depth_stencil_attachment_format),
-                // XXX: stencil attachment support
-                vk::Format::eUndefined
-            };
-            cbsi.logicOpEnable = vk::False;
-            cbsi.setAttachments(cbass);
+            const Rhi::VulkanPipelineState pipeline_state{pipeline_description};
+            auto vsi = vk::PipelineViewportStateCreateInfo{{}, 1, nullptr, 1, nullptr};
+            auto msi = vk::PipelineMultisampleStateCreateInfo{{}, vk::SampleCountFlagBits::e1, vk::False};
+            auto dsi = vk::PipelineDynamicStateCreateInfo{{}, PIPELINE_DYNAMIC_STATES};
 
             vk::GraphicsPipelineCreateInfo gpci{};
             gpci.setStages(psscis);
-            gpci.pVertexInputState = &vis;
-            gpci.pInputAssemblyState = &iasi;
+            gpci.pNext = &pipeline_state.Rendering();
+            gpci.pVertexInputState = &pipeline_state.VertexInput();
+            gpci.pInputAssemblyState = &pipeline_state.InputAssembly();
             gpci.pViewportState = &vsi;
-            gpci.pRasterizationState = &rsci;
+            gpci.pRasterizationState = &pipeline_state.Rasterization();
             gpci.pMultisampleState = &msi;
-            gpci.pDepthStencilState = &dsci;
-            gpci.pColorBlendState = &cbsi;
+            gpci.pDepthStencilState = &pipeline_state.DepthStencil();
+            gpci.pColorBlendState = &pipeline_state.ColorBlend();
             gpci.pDynamicState = &dsi;
             gpci.layout = pipeline_layout;
             gpci.renderPass = nullptr;
             gpci.subpass = 0;
-            gpci.pNext = &prci;
 
             auto ret = device.createGraphicsPipelineUnique(nullptr, gpci);
             pipeline = std::move(ret.value);
@@ -226,6 +244,8 @@ namespace Engine {
         return pimpl->m_has_material_data;
     }
 } // namespace Engine
+
+
 
 
 

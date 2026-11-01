@@ -3,6 +3,8 @@
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanPipelineEnums.h"
 
+#include <limits>
+
 namespace Engine::Rhi {
     namespace {
         vk::Format ToVkVertexFormat(VertexFormat format) {
@@ -167,17 +169,27 @@ namespace Engine::Rhi {
         };
 
         const RasterizationState &raster = description.rasterization;
-        m_rasterization = vk::PipelineRasterizationStateCreateInfo{
-            {},
-            vk::False,
-            vk::False,
-            ToVkPolygonMode(raster.fill),
-            ToVkCullMode(raster.cull),
-            ToVkFrontFace(raster.front_face),
-            vk::False,
-            0.0f, 0.0f, 0.0f,
-            raster.line_width
+        m_rasterization.polygonMode = ToVkPolygonMode(raster.fill);
+        m_rasterization.lineWidth = raster.line_width;
+        m_rasterization.cullMode = ToVkCullMode(raster.cull);
+        m_rasterization.frontFace = ToVkFrontFace(raster.front_face);
+        m_rasterization.depthClampEnable = vk::False;
+        m_rasterization.rasterizerDiscardEnable = vk::False;
+
+        // Depth bias is a sum of a constant and a slope-scaled term, so either one
+        // being non-zero makes the whole thing meaningful: shadow maps commonly
+        // use the slope factor alone to follow a surface's depth gradient.
+        const auto is_finite = [](float value) constexpr {
+            constexpr float limit = std::numeric_limits<float>::max();
+            return value == value && value <= limit && value >= -limit;
         };
+        const bool depth_bias_enabled = is_finite(raster.depth_bias_constant) && is_finite(raster.depth_bias_slope)
+                                        && (raster.depth_bias_constant != 0.0f || raster.depth_bias_slope != 0.0f);
+        m_rasterization.depthBiasEnable = depth_bias_enabled ? vk::True : vk::False;
+        if (depth_bias_enabled) {
+            m_rasterization.depthBiasConstantFactor = raster.depth_bias_constant;
+            m_rasterization.depthBiasSlopeFactor = raster.depth_bias_slope;
+        }
 
         const DepthStencilState &depth = description.depth_stencil;
         m_depth_stencil.depthTestEnable = depth.depth_test_enabled ? vk::True : vk::False;
@@ -223,6 +235,7 @@ namespace Engine::Rhi {
         m_rendering.stencilAttachmentFormat = vk::Format::eUndefined;
     }
 } // namespace Engine::Rhi
+
 
 
 

@@ -99,6 +99,10 @@ namespace Engine::Rhi {
         FrontFace front_face{FrontFace::Counterclockwise};
         /// @brief Whether to draw lines with a width other than one.
         float line_width{1.0f};
+        /// @brief Constant term added to the depth of every fragment.
+        float depth_bias_constant{0.0f};
+        /// @brief Term scaled by the depth gradient of every fragment.
+        float depth_bias_slope{0.0f};
 
         bool operator==(const RasterizationState &) const = default;
     };
@@ -245,6 +249,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_PIPELINEDESCRIPTION_INCLUDED
+
 
 
 
