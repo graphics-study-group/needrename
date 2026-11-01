@@ -202,6 +202,15 @@ namespace Engine::Rhi {
         return pimpl->pass_info.desc_layout.handle;
     }
 
+    void ComputeKernel::CreateFromModule(ShaderModuleHandle, std::string_view, std::string_view) {
+        // This backend reflects the module itself; a caller that already has one has
+        // skipped the step it needs.
+        throw std::logic_error(
+            "ComputeKernel::CreateFromModule is not available on the Vulkan backend; it "
+            "reflects from SPIR-V words, so use Create."
+        );
+    }
+
     void ComputeKernel::Dispatch(
         CommandEncoder &encoder,
         ComputeResourceDictionary resources,
@@ -359,6 +368,15 @@ namespace Engine::Rhi {
         return itr == pimpl->kernels.end() ? nullptr : itr->second.get();
     }
 
+    ComputeKernel &ComputeKernelCache::RequestFromModule(
+        std::string_view, ShaderModuleHandle, std::string_view, std::string_view
+    ) {
+        throw std::logic_error(
+            "ComputeKernelCache::RequestFromModule is not available on the Vulkan backend; "
+            "use Request."
+        );
+    }
+
     ComputeKernel &ComputeKernelCache::Request(
         std::string_view module_id, const std::vector<uint32_t> &spirv_code, std::string_view debug_name
     ) {
@@ -380,6 +398,7 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
 
 
 

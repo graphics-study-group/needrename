@@ -171,6 +171,14 @@ namespace Engine::Rhi {
         /// @brief Reflect the module and build the pipeline, layouts and table.
         void Create(const std::vector<uint32_t> &spirv_code, std::string_view name);
 
+        /// @brief Build the pipeline from a module that is already compiled code.
+        ///
+        /// A backend that receives its code in a form it cannot reflect - WGSL, on a build
+        /// whose reflection happened at bake time - needs this rather than `Create`. The
+        /// interface description comes from the caller because the backend cannot derive
+        /// it; a backend that reflects reports this as unsupported.
+        void CreateFromModule(ShaderModuleHandle module, std::string_view entry_point, std::string_view name);
+
         /// @brief The dispatcher both public overloads funnel into.
         void DispatchAndRecord(
             CommandEncoder &encoder,
@@ -233,6 +241,19 @@ namespace Engine::Rhi {
             std::string_view module_id, const std::vector<uint32_t> &spirv_code, std::string_view debug_name = {}
         );
 
+        /**
+         * @brief Get the kernel for a module identity, creating it from compiled code.
+         *
+         * The counterpart of `Request` for a backend whose code is not SPIR-V. See
+         * `ComputeKernel::CreateFromModule`.
+         */
+        ComputeKernel &RequestFromModule(
+            std::string_view module_id,
+            ShaderModuleHandle module,
+            std::string_view entry_point,
+            std::string_view debug_name = {}
+        );
+
         /// @brief Get the number of distinct kernels the cache holds.
         size_t GetKernelCount() const noexcept;
 
@@ -243,6 +264,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMPUTEKERNEL_INCLUDED
+
 
 
 
