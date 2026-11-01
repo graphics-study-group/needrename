@@ -923,3 +923,37 @@ What is left is one module and one backend:
 The browser build currently stops in `engine/Render`, which is the honest state:
 everything the change has made portable compiles for wasm, and everything it has
 not yet touched is in that one module.
+### engine/Render: the 500 sites, by file
+
+Ordered as the migration should take them — smallest and most self-contained
+first, so each step can be reviewed against a green Vulkan build:
+
+| sites | file |
+|---|---|
+| 81 | `RenderSystem/SwapchainPresentProvider.cpp` |
+| 62 | `Pipeline/CommandBuffer.cpp` |
+| 49 | `RenderSystem/FrameManager.cpp` |
+| 47 | `Pipeline/RenderGraph/RenderGraphBuilder.cpp` |
+| 38 | `RenderSystem/OffscreenPresentProvider.cpp` |
+| 35 | `RenderSystem/SceneDataManager.cpp` |
+| 30 | `Pipeline/Material/MaterialTemplate.cpp` |
+| 23 | `UserInterface/GUISystem.cpp` |
+| 21 | `Pipeline/RenderGraph/RenderGraph.cpp` |
+| 17 | `AttachmentUtilsFunc.h` |
+| 17 | `Pipeline/Renderer/VertexAttribute.cpp` |
+| 15 | `Pipeline/RenderGraph/RenderGraphPass.cpp` |
+| 9 | `RenderSystem/CameraManager.cpp` |
+| 9 | `Pipeline/Material/MaterialLibrary.cpp` |
+| 7 | `Pipeline/Material/MaterialTemplate.h` |
+| 6 | `Pipeline/CommandBuffer.h` |
+
+31 files in total. The two present providers are the natural pair to do first:
+both already implement `IPresentProvider`, whose interface is fully portable, so
+what remains inside them is Vulkan-only detail. `CommandBuffer.cpp` and
+`FrameManager.cpp` are the frame's recording path and depend on the pipeline
+state description that does not exist yet, so they come after it.
+
+One thing learned the hard way: `FullRenderSystem.h` is both the public interface
+header and the module's precompiled header. Removing its Vulkan includes makes
+every unit in the module fail at once, because it was the only thing bringing
+them in. It is the last header to change, not the first.
