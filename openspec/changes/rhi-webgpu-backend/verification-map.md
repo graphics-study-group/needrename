@@ -123,9 +123,24 @@ reader:
 That second group is what a reviewer should look at first: it is the difference
 between "the design is not finished" and "the design says something the code does
 not do".
+## One attempt at the mapped-window tests, and why it is not in the tree
 
+A `mapped_window_test.cpp` was written and then deleted rather than committed. It
+set up a `DeviceInterface` and an `AllocatorState` the way
+`buffer_reallocation_test` does, created a `CopyTo` buffer with
+`DeviceBuffer::CreateUnique`, and asserted three things: that two `GetVMAddress()`
+calls return the same pointer, that a write through the window reads back, and that
+both `Flush` forms are accepted.
 
+It hung. The binary was left running for sixty seconds with no output, which means
+the stall is in the setup rather than in an assertion - most likely in the first
+`GetVMAddress()` on a buffer created that way, since `buffer_reallocation_test`
+never calls it and the tests that do (`compute_buffer_test`, `gpu_compact_unique_test`)
+build their buffers through a `DeviceContext`, not bare.
 
+Deleting it was the right call: a hanging test in the suite is worse than a missing
+one, because it costs every future run rather than one reader's attention.
 
-
-
+What the next attempt should try first: reproduce the setup from
+`compute_buffer_test` rather than from `buffer_reallocation_test`, because the
+former has a working `GetVMAddress()` call in it and the latter does not.
