@@ -177,6 +177,16 @@ int main(int argc, char **argv) {
         {}
     );
 
+    // Read the rendered skybox back so the test can assert that something was
+    // drawn. This is the only material in the suite with no blend configuration
+    // at all, which is the case a zero colour write mask silently blanked.
+    auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
+        rsys->GetAllocatorState(),
+        Engine::Rhi::BufferType{Engine::Rhi::BufferTypeBits::ReadbackFromDevice},
+        800u * 800u * 4u
+    );
+    auto *readback_raw = readback_buffer.get();
+
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("Main")
@@ -200,6 +210,34 @@ int main(int argc, char **argv) {
             .WrapRenderPass()
             .Get()
     );
+
+    const auto skybox_readback = rgb.ImportExternalResource(*readback_buffer);
+    rgb.AddPass(
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Skybox Readback")
+            .UseImage(crt, Rhi::MemoryAccessTypeImageBits::TransferRead)
+            .UseBuffer(skybox_readback, {Rhi::MemoryAccessTypeBufferBits::TransferWrite})
+            .SetAffinity(RenderGraphPassAffinity::Transfer)
+            .SetPassFunction([crt, readback_raw](CommandBuffer &cb, const RenderGraph &rg) {
+                auto rt = rg.GetInternalTextureResource(crt);
+                std::array image_copies = {vk::BufferImageCopy{
+                    0,
+                    0,
+                    0,
+                    vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                    vk::Offset3D{0, 0, 0},
+                    vk::Extent3D{rt->GetTextureDescription().width, rt->GetTextureDescription().height, 1}
+                }};
+                cb.GetCommandBuffer().copyImageToBuffer(
+                    Engine::Rhi::ToVulkanImage(rt->GetImage()),
+                    vk::ImageLayout::eTransferSrcOptimal,
+                    Rhi::ToVulkanBuffer(readback_raw->GetBuffer()),
+                    image_copies
+                );
+            })
+            .Get()
+    );
+
     auto rg = rgb.BuildRenderGraph();
 
     bool quited{false};
@@ -265,5 +303,27 @@ int main(int argc, char **argv) {
 
     rsys->WaitForIdle();
 
+    // The skybox is an environment, so a frame that rendered it is never
+    // uniformly black. A zero colour write mask produces exactly that, and every
+    // other windowed test would still pass.
+    const auto *pixels = reinterpret_cast<const uint8_t *>(readback_buffer->GetVMAddress());
+    size_t non_black = 0;
+    for (size_t i = 0; i < 800u * 800u; i++) {
+        const uint8_t r = pixels[i * 4 + 0];
+        const uint8_t g = pixels[i * 4 + 1];
+        const uint8_t b = pixels[i * 4 + 2];
+        if (r != 0 || g != 0 || b != 0) {
+            non_black++;
+        }
+    }
+
+    if (non_black == 0) {
+        std::cerr << "Skybox test FAILED: the rendered frame is entirely black, so "
+                     "the skybox pipeline wrote no colour."
+                  << std::endl;
+        return 1;
+    }
+
+    std::cout << "Skybox test PASSED: " << non_black << " of 640000 pixels are not black." << std::endl;
     return 0;
 }
