@@ -38,7 +38,7 @@ namespace Engine {
 
         void CreatePipeline(
             RenderSystem &system,
-            const std::vector<vk::ShaderModule> shader_modules,
+            const std::vector<Rhi::ShaderModuleHandle> shader_modules,
             MaterialTemplateSinglePassProperties &prop,
             const PipelineRuntimeInfo &pri
         ) {
@@ -54,7 +54,7 @@ namespace Engine {
             for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
                 auto shader_asset = prop.shaders.shaders[i].as<ShaderAsset>();
                 stages[i] = Rhi::GraphicsPipelineStage{
-                    Rhi::FromVulkan(shader_modules[i]),
+                    shader_modules[i],
                     PipelineUtils::ToShaderStage(shader_asset->shaderType),
                     shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point
                 };
@@ -174,8 +174,8 @@ namespace Engine {
     MaterialTemplate::MaterialTemplate(
         RenderSystem &system,
         MaterialTemplateSinglePassProperties &properties,
-        const std::vector<vk::ShaderModule> &shaders,
-        vk::PipelineLayout layout,
+        const std::vector<Rhi::ShaderModuleHandle> &shaders,
+        Rhi::PipelineLayoutHandle layout,
         Rhi::DescriptorSetLayoutRef desc_set_layout,
         const Rhi::SPLayout &reflected,
         const PipelineRuntimeInfo &pri,
@@ -184,7 +184,7 @@ namespace Engine {
         pimpl->m_name = name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipelines for material %s.", pimpl->m_name.c_str());
 
-        pimpl->pipeline_layout = Rhi::FromVulkan(layout);
+        pimpl->pipeline_layout = layout;
         pimpl->desc_set_layout = desc_set_layout;
         pimpl->m_layout = &reflected;
         // "Has per-material data" is "the reflected layout declares set 2".
@@ -218,6 +218,8 @@ namespace Engine {
         return pimpl->m_has_material_data;
     }
 } // namespace Engine
+
+
 
 
 

@@ -118,8 +118,8 @@ namespace Engine {
         MaterialTemplate(
             RenderSystem &system,
             MaterialTemplateSinglePassProperties &properties,
-            const std::vector<vk::ShaderModule> &shaders,
-            vk::PipelineLayout layout,
+            const std::vector<Rhi::ShaderModuleHandle> &shaders,
+            Rhi::PipelineLayoutHandle layout,
             Rhi::DescriptorSetLayoutRef desc_set_layout,
             const Rhi::SPLayout &reflected,
             const PipelineRuntimeInfo &attribute,
@@ -164,4 +164,6 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
+
+
 

@@ -150,18 +150,18 @@ namespace Engine {
             }
 
             const auto &b = pipeline_table[tag];
-            std::vector<vk::ShaderModule> shader_modules;
+            std::vector<Rhi::ShaderModuleHandle> shader_modules;
             std::transform(
                 b.shader_modules.begin(),
                 b.shader_modules.end(),
                 std::back_inserter(shader_modules),
-                [](const Rhi::ShaderModule &sm) { return Rhi::ToVulkanShaderModule(sm.GetHandle()); }
+                                [](const Rhi::ShaderModule &sm) { return sm.GetHandle(); }
             );
             pipeline_table[tag].materials[pri] = std::make_unique<MaterialTemplate>(
                 system,
                 asset->properties,
                 shader_modules,
-                b.pipeline_layout,
+                Rhi::FromVulkan(b.pipeline_layout),
                 b.descriptor_set_layout,
                 b.reflected,
                 pri,
@@ -217,6 +217,8 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+
 
 
 
