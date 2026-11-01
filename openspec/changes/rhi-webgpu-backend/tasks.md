@@ -752,3 +752,27 @@ Three things that cost time in the attempts so far and are worth avoiding:
   still Vulkan and do;
 - the destination members are `vk::PipelineLayout`, so the cache's handle return
   is wrapped once, by `Rhi::ToVulkanPipelineLayout`.
+
+### Group 3 is four sites from done
+
+Landed this round: `GetPipelineLayout` takes a `PipelineLayoutDescription`
+(set-layout handles plus push-constant ranges) and the cache is the only place a
+Vulkan pipeline-layout structure is named; the constructor and the sampler
+creation take a `DeviceHandle`. Four call sites assemble their descriptions —
+`SceneDataManager`, `CameraManager`, and both `MaterialLibrary` branches — and the
+seventeenth trap of this migration is recorded with them: `scene_descriptor_set_layout`
+and `b.descriptor_set_layout` are `BindingRef`s, so they need `.handle` before
+they can sit in a `std::vector<DescriptorSetLayoutHandle>`.
+
+Four sites remain, two files:
+
+- `ImmutableResourceCache.h`: `GetSampler` and `GetSamplerRef` still take a
+  `vk::SamplerCreateInfo`. The only caller of either is `GetSamplerRef(const
+  SamplerDesc &)`, which builds that create-info itself and then calls it — so the
+  fix is to **inline the create-info body into the `SamplerDesc` overload and
+  delete both create-info functions**. A file-local helper cannot do it: `impl` is
+  a private nested type, and a free function in the `.cpp` cannot name it.
+- `SubmissionHelper.h`: `CmdOperation` and `ExecuteSubmission`, which are group 6's
+  subject.
+
+With the first item done, tasks 3.2 and 3.3 can be checked.
