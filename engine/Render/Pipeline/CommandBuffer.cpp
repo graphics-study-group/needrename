@@ -111,15 +111,12 @@ namespace Engine {
         pre_barrier.to_scope = Rhi::PipelineScope::Transfer;
         m_encoder->Barrier(pre_barrier);
 
-        vk::BufferImageCopy region{
-            0, // bufferOffset
-            0, // bufferRowLength (tight packing)
-            0, // bufferImageHeight
-            vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-            vk::Offset3D{0, 0, 0},
-            vk::Extent3D{desc.width, desc.height, desc.depth}
-        };
-        cb.copyImageToBuffer(Engine::Rhi::ToVulkanImage(image.GetImage()), vk::ImageLayout::eTransferSrcOptimal, Rhi::ToVulkanBuffer(dst.GetBuffer()), region);
+        m_encoder->CopyImageToBuffer(
+            image.GetImage(),
+            dst.GetBuffer(),
+            Rhi::Extent3D{desc.width, desc.height, desc.depth},
+            Rhi::ImageAspect::Color
+        );
 
         // Post-barrier: restore the source image to its nominal layout so the
         // frame-completion blit (or any later pass) still observes it.

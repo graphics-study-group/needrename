@@ -227,6 +227,22 @@ namespace Engine::Rhi {
         void CopyBuffer(BufferHandle source, BufferHandle destination, uint64_t size);
 
         /**
+         * @brief Copy a whole image into a buffer.
+         *
+         * The image is copied as one layer, tightly packed, from its first mip.
+         * This is the read-back shape: a target of known extent and format lands
+         * in a buffer the host can map.
+         *
+         * @param image The image being read.
+         * @param destination The buffer being written.
+         * @param extent The region to copy, from the image origin.
+         * @param aspect Which aspect of the image to read.
+         */
+        void CopyImageToBuffer(
+            ImageHandle image, BufferHandle destination, const Extent3D &extent, ImageAspect aspect
+        );
+
+        /**
          * @brief Bind one descriptor set for compute work.
          *
          * @param set_index Index of the set in the pipeline layout.
@@ -269,6 +285,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMMANDENCODER_INCLUDED
+
 
 
 

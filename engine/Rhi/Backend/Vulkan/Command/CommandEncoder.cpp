@@ -302,6 +302,22 @@ namespace Engine::Rhi {
         );
     }
 
+    void CommandEncoder::CopyImageToBuffer(
+        ImageHandle image, BufferHandle destination, const Extent3D &extent, ImageAspect aspect
+    ) {
+        const vk::BufferImageCopy region{
+            0, // bufferOffset
+            0, // bufferRowLength, tight packing
+            0, // bufferImageHeight
+            vk::ImageSubresourceLayers{GetVkAspect(aspect), 0, 0, 1},
+            vk::Offset3D{0, 0, 0},
+            vk::Extent3D{extent.width, extent.height, extent.depth}
+        };
+        pimpl->command_buffer.copyImageToBuffer(
+            ToVulkanImage(image), vk::ImageLayout::eTransferSrcOptimal, ToVulkanBuffer(destination), region
+        );
+    }
+
     void CommandEncoder::BindDescriptorSet(uint32_t set_index, DescriptorSetHandle set) {
         pimpl->command_buffer.bindDescriptorSets(
             vk::PipelineBindPoint::eCompute, pimpl->pipeline_layout, set_index, ToVulkanDescriptorSet(set), {}
@@ -331,6 +347,7 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
 
 
 
