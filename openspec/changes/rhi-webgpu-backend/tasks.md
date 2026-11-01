@@ -1097,3 +1097,35 @@ pixels back and only prints them, so even the one test that could have compared 
 value does not. Establishing this needs the tree built at the commit before the
 render-graph wiring, captured the same way - about ten minutes of build time, and
 the only honest way to tell.
+### The black frame: a zero colour write mask, present before this change
+
+`skybox_test` captured under RenderDoc told the whole story in one pixel history:
+
+| field | value |
+|---|---|
+| fragment shader output | `(0.024, 0.026, 0.014, 1)` - the skybox sampled its environment |
+| value after the pipeline | `(0, 0, 0, 1)` - the clear colour, untouched |
+
+The colour write mask was zero. `ToVulkanColorBlendingOps` produces one state per
+configured blend entry, and `MaterialTemplate` then padded the remaining targets
+with a value-initialised `vk::PipelineColorBlendAttachmentState`, whose
+`colorWriteMask` is zero. A material with no blend configuration - which is every
+material that does not explicitly ask for transparency - therefore got a pipeline
+that wrote no colour at all. ImGui has its own pipeline and the compute tests
+never touch a colour target, which is exactly why those two were the only things
+with a picture on screen.
+
+This predates the migration. The pipeline-description work initially reproduced
+it faithfully, first as a zero state and then as `write_mask = None` with a
+comment explaining that this matched the original. Copying a bug keeps it a bug:
+what the state should have said is "blending off, every channel written", and with
+that the skybox renders a full HDR environment.
+
+Two things follow, and the first is not optional:
+
+1. **A test has to look at a pixel.** Eleven windowed tests ran, eleven passed,
+   and every one of them drew nothing. `headless_offscreen_test` is the only test
+   in the suite that asserts a pixel value, and it asserts a *cleared* one.
+2. The pipeline-description translation is now the place a write mask is decided,
+   so the next correctness question about blending belongs there, not in the
+   builder that used to assemble the state inline.
