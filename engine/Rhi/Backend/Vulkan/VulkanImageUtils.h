@@ -211,20 +211,10 @@ namespace Engine::Rhi {
         }
     }
 
-    constexpr uint16_t GetPixelSize(ImageFormat format) {
-        switch (format) {
-        case ImageFormat::R8G8B8A8SNorm:
-        case ImageFormat::R8G8B8A8UNorm:
-        case ImageFormat::R8G8B8A8SRGB:
-        case ImageFormat::R11G11B10UFloat:
-        case ImageFormat::D32SFLOAT:
-            return 4;
-        case ImageFormat::R32G32B32A32SFloat:
-            return 16;
-        default:
-            return 0;
-        }
-    }
+    // GetPixelSize used to live here. It is a property of the format rather than of the
+    // graphics API, so it is in Rhi/Texture/ImageUtils.h now, where the second backend
+    // can reach it too. The table there also covers formats this one omitted, including
+    // the 12-byte R32G32B32SFloat that used to return zero.
 
     constexpr bool IsBlockCompressed(ImageFormat format) {
         switch (format) {
@@ -348,6 +338,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
+
 
 
 

@@ -147,5 +147,45 @@ namespace Engine::Rhi {
     };
 } // namespace Engine::Rhi
 
+namespace Engine::Rhi {
+    /**
+     * @brief Bytes one texel of a format occupies.
+     *
+     * The table lived in the Vulkan backend, which was the only place that needed it
+     * until a second backend wanted the same answer. It has nothing to do with a
+     * graphics API: it is the format's own definition.
+     *
+     * A format missing from the table returns zero, which is what a caller multiplying
+     * by it will notice immediately. `R32G32B32SFloat` is worth a note: a three-
+     * component 32-bit format has no equivalent in the standard WebGPU list, so the
+     * table states its size while the format mapping reports it as unsupported.
+     */
+    constexpr uint16_t GetPixelSize(ImageFormat format) {
+        switch (format) {
+        case ImageFormat::R8G8B8A8SNorm:
+        case ImageFormat::R8G8B8A8UNorm:
+        case ImageFormat::R8G8B8A8SRGB:
+        case ImageFormat::R8G8B8A8UInt:
+        case ImageFormat::B8G8R8A8UNorm:
+        case ImageFormat::B8G8R8A8SRGB:
+        case ImageFormat::R11G11B10UFloat:
+        case ImageFormat::R32SFloat:
+        case ImageFormat::R32UInt:
+        case ImageFormat::D32SFLOAT:
+            return 4;
+        case ImageFormat::R16G16UInt:
+            return 4;
+        case ImageFormat::R32G32SFloat:
+            return 8;
+        case ImageFormat::R32G32B32SFloat:
+            return 12;
+        case ImageFormat::R32G32B32A32SFloat:
+            return 16;
+        default:
+            return 0;
+        }
+    }
+} // namespace Engine::Rhi
+
 #endif // ENGINE_RHI_IMAGEUTILS_INCLUDED
 
