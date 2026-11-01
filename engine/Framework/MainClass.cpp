@@ -149,9 +149,9 @@ namespace Engine {
             .application_version = 0,
         };
         this->m_device_context = std::make_unique<Rhi::DeviceContext>(cfg);
-        const vk::Extent2D render_extent = is_headless
-                                               ? vk::Extent2D{(uint32_t)opt->resol_x, (uint32_t)opt->resol_y}
-                                               : vk::Extent2D{0, 0}; // windowed: render system derives from SDL pixels
+        const Rhi::Extent2D render_extent = is_headless
+                                                ? Rhi::Extent2D{(uint32_t)opt->resol_x, (uint32_t)opt->resol_y}
+                                                : Rhi::Extent2D{0, 0}; // windowed: render system derives from SDL pixels
         this->renderer = std::make_shared<RenderSystem>(this->window, *this->m_device_context, render_extent);
         this->physics = std::make_shared<PhysicsSystem>();
         this->world = std::make_shared<WorldSystem>();
@@ -332,5 +332,6 @@ namespace Engine {
         );
     }
 } // namespace Engine
+
 
 

@@ -34,9 +34,9 @@ namespace Engine {
             RenderSystem &parent,
             std::weak_ptr<SDLWindow> parent_window,
             Rhi::DeviceContext &device_context,
-            vk::Extent2D extent
+            Rhi::Extent2D extent
         ) :
-            m_window(parent_window), m_device_context(device_context), m_extent(extent), m_frame_manager(parent),
+            m_window(parent_window), m_device_context(device_context), m_extent(extent.width, extent.height), m_frame_manager(parent),
             m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent),
             m_resizable_rtt_manger(parent), m_material_instance_provider(parent), m_material_library_provider(parent),
             m_static_mesh_resource_provider(parent) {
@@ -62,7 +62,7 @@ namespace Engine {
     };
 
     RenderSystem::RenderSystem(
-        std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context, vk::Extent2D extent
+        std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context, Rhi::Extent2D extent
     ) :
         pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window, device_context, extent)),
         m_resource_managers{
@@ -223,6 +223,10 @@ namespace Engine {
     }
 
 } // namespace Engine
+
+
+
+
 
 
 

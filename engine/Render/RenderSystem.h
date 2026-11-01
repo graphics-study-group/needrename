@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "Rhi/Device/MemoryAccessTypes.h"
+#include "Rhi/RhiTypes.h"
 
 #include <vulkan/vulkan.hpp>
 
@@ -81,7 +82,7 @@ namespace Engine {
          *                       explicitly or Create() throws.
          */
         RenderSystem(
-            std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context, vk::Extent2D extent = {0, 0}
+            std::weak_ptr<SDLWindow> parent_window, Rhi::DeviceContext &device_context, Rhi::Extent2D extent = {0, 0}
         );
 
         RenderSystem(const RenderSystem &) = delete;
@@ -179,5 +180,7 @@ namespace Engine {
 #pragma GCC diagnostic pop
 
 #endif // RENDER_RENDERSYSTEM
+
+
 
 

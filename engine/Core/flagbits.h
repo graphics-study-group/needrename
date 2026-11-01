@@ -7,7 +7,7 @@
 namespace Engine {
     /**
      * @brief Type-safe bit flag to be used with scoped or unscoped enums.
-     * Maybe we can directly use vk::Flags and avoid re-inventing the wheels...
+     * A graphics API offers an equivalent type, but this one is the engine's own: it
      */
     template <class T>
         requires std::is_enum_v<T>
@@ -141,3 +141,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // CORE_FLAGBITS
+
