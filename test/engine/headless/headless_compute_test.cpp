@@ -160,7 +160,8 @@ int main() {
     auto cbai = vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
     auto cb = rsys->GetDevice().allocateCommandBuffers(cbai);
     cb[0].begin(vk::CommandBufferBeginInfo{});
-    rg->RecordAllPasses(cb[0]);
+    Rhi::CommandEncoder graph_encoder{Rhi::FromVulkan(cb[0])};
+    rg->RecordAllPasses(graph_encoder);
     cb[0].end();
 
     auto si = vk::SubmitInfo{{}, {}, {cb}, {}};
@@ -170,7 +171,8 @@ int main() {
     // Record and submit the push-constant pass.
     auto cb2 = rsys->GetDevice().allocateCommandBuffers(cbai);
     cb2[0].begin(vk::CommandBufferBeginInfo{});
-    rg_push->RecordAllPasses(cb2[0]);
+    Rhi::CommandEncoder push_encoder{Rhi::FromVulkan(cb2[0])};
+    rg_push->RecordAllPasses(push_encoder);
     cb2[0].end();
     auto si2 = vk::SubmitInfo{{}, {}, {cb2}, {}};
     queues.graphicsQueue.submit(si2);
@@ -206,5 +208,6 @@ int main() {
     std::cout << "Headless compute test PASSED." << std::endl;
     return 0;
 }
+
 
 

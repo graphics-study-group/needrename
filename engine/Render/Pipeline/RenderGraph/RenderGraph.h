@@ -72,7 +72,7 @@ namespace Engine {
          * @brief Record all operations of a given pass onto the specified
          * command buffer.
          */
-        void Record(uint32_t pass, vk::CommandBuffer cb) const;
+        void Record(uint32_t pass, Rhi::CommandEncoder &encoder) const;
 
         /**
          * @brief Record synchronization prior to any passes.
@@ -81,7 +81,7 @@ namespace Engine {
          * are specified.
          * External input dependencies will be reset.
          */
-        void RecordPrePass(vk::CommandBuffer);
+        void RecordPrePass(Rhi::CommandEncoder &);
 
         /**
          * @brief Record synchronization after the render graph.
@@ -90,7 +90,7 @@ namespace Engine {
          * are specified.
          * External output dependencies will be reset.
          */
-        void RecordPostPass(vk::CommandBuffer);
+        void RecordPostPass(Rhi::CommandEncoder &);
 
         /**
          * @brief Record all passes onto the same command buffer.
@@ -98,7 +98,7 @@ namespace Engine {
          * This method disregards task affinities, and enforces serialized
          * start of execution on GPU.
          */
-        void RecordAllPasses(vk::CommandBuffer);
+        void RecordAllPasses(Rhi::CommandEncoder &);
 
         /**
          * @brief Get the number of compiled passes in this render graph.
@@ -127,3 +127,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_RENDERGRAPH2_RENDERGRAPH2
+

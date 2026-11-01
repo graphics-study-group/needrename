@@ -34,6 +34,12 @@ namespace Engine::RenderSystemState {
 
         std::array<FrameSemaphore, FRAMES_IN_FLIGHT> timeline_semaphores{};
 
+        // One encoder per frame-in-flight. The render command buffer borrows it
+        // for the frame, because a second encoder over the same command buffer
+        // would track its own state and disagree about push constants.
+        std::array<std::unique_ptr<Rhi::CommandEncoder>, FRAMES_IN_FLIGHT> main_encoders{};
+
+
         std::array<vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores{};
 
         // Frame completion credential: one binary semaphore *per swapchain
@@ -239,7 +245,18 @@ namespace Engine::RenderSystemState {
         pimpl->assert_in_frame();
         auto cb = GetRawMainCommandBuffer();
         cb.begin(vk::CommandBufferBeginInfo{});
-        return CommandBuffer(pimpl->m_system, cb, GetFrameInFlight());
+        const uint32_t frame = GetFrameInFlight();
+        pimpl->main_encoders[frame] = std::make_unique<Rhi::CommandEncoder>(Rhi::FromVulkan(cb));
+        return CommandBuffer(pimpl->m_system, *pimpl->main_encoders[frame], frame);
+    }
+
+    Rhi::CommandEncoder &FrameManager::GetMainEncoder() {
+        const uint32_t frame = GetFrameInFlight();
+        if (!pimpl->main_encoders[frame]) {
+            pimpl->main_encoders[frame] =
+                std::make_unique<Rhi::CommandEncoder>(Rhi::FromVulkan(GetRawMainCommandBuffer()));
+        }
+        return *pimpl->main_encoders[frame];
     }
 
     vk::CommandBuffer FrameManager::GetRawMainCommandBuffer() {
@@ -503,6 +520,7 @@ namespace Engine::RenderSystemState {
         return true;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

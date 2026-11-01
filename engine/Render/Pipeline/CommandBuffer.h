@@ -70,7 +70,7 @@ namespace Engine {
          * @param frame_in_flight Frame-in-flight index (0..FRAMES_IN_FLIGHT-1),
          *                        used to select the correct per-frame descriptor set.
          */
-        CommandBuffer(RenderSystem &system, vk::CommandBuffer cb, uint32_t frame_in_flight);
+        CommandBuffer(RenderSystem &system, Rhi::CommandEncoder &encoder, uint32_t frame_in_flight);
 
         CommandBuffer(const CommandBuffer &) = delete;
         CommandBuffer(CommandBuffer &&) = default;
@@ -93,7 +93,7 @@ namespace Engine {
          * synchronization marks through it without naming a backend.
          */
         Rhi::CommandEncoder &GetEncoder() noexcept {
-            return m_encoder;
+            return *m_encoder;
         }
 
         // ── Transfer operations ──────────────────────────────────────────
@@ -383,9 +383,11 @@ namespace Engine {
         RenderSystem &m_system;          ///< Service locator for all rendering subsystems.
         vk::CommandBuffer cb;            ///< Raw Vulkan command buffer handle (non-owning).
         /// @brief Encoder over `cb`, for recording that uses the seam.
-        Rhi::CommandEncoder m_encoder;
+        /// @brief Encoder this buffer records through, owned by whoever opened the
+        /// recording. Two encoders over one command buffer would disagree about the
+        /// state each of them tracks.
+        Rhi::CommandEncoder *m_encoder{nullptr};
         uint32_t m_inflight_frame_index; ///< Current frame-in-flight index for per-frame descriptor set selection.
-
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>>
             m_bound_material_pipeline{}; ///< Cached bound material pipeline + layout to skip redundant binds.
 
@@ -394,5 +396,6 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_COMMANDBUFFER_INCLUDED
+
 
 

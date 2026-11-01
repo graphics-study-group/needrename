@@ -30,8 +30,8 @@ namespace Engine {
             break;
         }
 
-        auto f = [system = &this->system, fn, is_graphics](vk::CommandBuffer cb, const RenderGraph &rg) {
-            CommandBuffer cmdbuf{*system, cb, system->GetFrameManager().GetFrameInFlight()};
+        auto f = [system = &this->system, fn, is_graphics](Rhi::CommandEncoder &encoder, const RenderGraph &rg) {
+            CommandBuffer cmdbuf{*system, encoder, system->GetFrameManager().GetFrameInFlight()};
             if (is_graphics) {
                 cmdbuf.SetRenderingInfo(rg.GetCurrentPassRuntimeInfo());
             }
@@ -51,7 +51,8 @@ namespace Engine {
                      ca = pass.color_attachments,
                      da = pass.depth_attachment,
                      name = pass.name,
-                     wrapped = pass.pass_function](vk::CommandBuffer cb, const RenderGraph &rg) {
+                     wrapped = pass.pass_function](Rhi::CommandEncoder &encoder, const RenderGraph &rg) {
+            vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
             // Construct rendering info
 
             vk::Rect2D rendering_area{
@@ -103,7 +104,7 @@ namespace Engine {
 
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Rasterizer)", name).c_str());
             cb.beginRendering(vk::RenderingInfo{vk::RenderingFlags{}, rendering_area, 1, 0, cai, &dai, &sai});
-            wrapped(cb, rg);
+            wrapped(encoder, rg);
             cb.endRendering();
             DEBUG_CMD_END_LABEL(cb);
         };

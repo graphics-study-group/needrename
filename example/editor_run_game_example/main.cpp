@@ -300,7 +300,7 @@ int RunExample(int argc, char **argv) {
                 *phys_scene, cb.GetEncoder(), rsys->GetSceneDataManager().GetModelMatricesBuffer()
             );
         }
-        rg->RecordAllPasses(cb.GetCommandBuffer());
+        rg->RecordAllPasses(cb.GetEncoder());
 
         rsys->CompleteFrame(
             *rg->GetInternalTextureResource(final_color_id), Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
@@ -312,6 +312,7 @@ int RunExample(int argc, char **argv) {
     CleanupProject(project_path, options.keep_project);
     return 0;
 }
+
 
 
 

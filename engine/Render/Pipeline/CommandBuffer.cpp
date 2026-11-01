@@ -26,10 +26,10 @@
 
 namespace Engine {
 
-    CommandBuffer::CommandBuffer(RenderSystem &system, vk::CommandBuffer _cb, uint32_t frame_in_flight) :
+    CommandBuffer::CommandBuffer(RenderSystem &system, Rhi::CommandEncoder &encoder, uint32_t frame_in_flight) :
         m_system(system),
-        cb(_cb),
-        m_encoder(Rhi::FromVulkan(_cb)),
+        cb(Rhi::ToVulkanCommandBuffer(encoder.GetHandle())),
+        m_encoder(&encoder),
         m_inflight_frame_index(frame_in_flight) {
     }
 
@@ -381,6 +381,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 

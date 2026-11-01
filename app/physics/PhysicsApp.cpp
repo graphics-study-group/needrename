@@ -969,7 +969,7 @@ namespace AppPhysics {
         }
         auto cb = impl.renderer->GetFrameManager().BeginMainCommandBuffer();
         if (impl.render_graph && impl.render_graph->GetNumPasses() > 0) {
-            impl.render_graph->RecordAllPasses(cb.GetCommandBuffer());
+            impl.render_graph->RecordAllPasses(cb.GetEncoder());
         }
 
         // Opt-in render readback: record a copy of the final RTT into the
@@ -1138,6 +1138,7 @@ namespace AppPhysics {
         impl.any_dirty[idx] = true;
     }
 } // namespace AppPhysics
+
 
 
 

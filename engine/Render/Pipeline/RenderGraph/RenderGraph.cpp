@@ -98,7 +98,8 @@ namespace Engine {
         return *pimpl->pripr_ptr;
     }
 
-    void RenderGraph::Record(uint32_t pass, vk::CommandBuffer cb) const {
+    void RenderGraph::Record(uint32_t pass, Rhi::CommandEncoder &encoder) const {
+        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
         assert(pass < pimpl->passes.size());
 
         std::vector<vk::ImageMemoryBarrier2> imb{};
@@ -129,12 +130,13 @@ namespace Engine {
                 continue;
             }
             pimpl->pripr_ptr = &subpass.per_rendering_info;
-            std::invoke(subpass.pass_work, cb, *this);
+            std::invoke(subpass.pass_work, encoder, *this);
             pimpl->pripr_ptr = nullptr;
         }
     }
 
-    void RenderGraph::RecordPrePass(vk::CommandBuffer cb) {
+    void RenderGraph::RecordPrePass(Rhi::CommandEncoder &encoder) {
+        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
         std::vector<vk::ImageMemoryBarrier2> barriers{pimpl->pre_barrier_info.size()};
         for (size_t i = 0; i < pimpl->pre_barrier_info.size(); i++) {
             auto [t, a1, a2] = pimpl->pre_barrier_info[i];
@@ -144,7 +146,8 @@ namespace Engine {
         pimpl->pre_barrier_info.clear();
     }
 
-    void RenderGraph::RecordPostPass(vk::CommandBuffer cb) {
+    void RenderGraph::RecordPostPass(Rhi::CommandEncoder &encoder) {
+        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
         std::vector<vk::ImageMemoryBarrier2> barriers{pimpl->post_barrier_info.size()};
         for (size_t i = 0; i < pimpl->post_barrier_info.size(); i++) {
             auto [t, a1, a2] = pimpl->post_barrier_info[i];
@@ -154,12 +157,13 @@ namespace Engine {
         pimpl->post_barrier_info.clear();
     }
 
-    void RenderGraph::RecordAllPasses(vk::CommandBuffer cb) {
-        RecordPrePass(cb);
+    void RenderGraph::RecordAllPasses(Rhi::CommandEncoder &encoder) {
+        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
+        RecordPrePass(encoder);
         for (size_t i = 0; i < pimpl->passes.size(); i++) {
-            this->Record(i, cb);
+            this->Record(static_cast<uint32_t>(i), encoder);
         }
-        RecordPostPass(cb);
+        RecordPostPass(encoder);
     }
 
     void RenderGraph::RecordIntoMainCommandBuffer(RenderSystem &system) {
@@ -189,9 +193,10 @@ namespace Engine {
          * @see RenderGraphBuilder::AnalysisCrossQueueDependency
          */
         auto &fm = system.GetFrameManager();
-        auto cb = fm.GetRawMainCommandBuffer();
-
-        RecordAllPasses(cb);
+        // The frame already owns an encoder over this command buffer; borrowing
+        // it keeps one encoder per recording instead of one per wrapper.
+        auto &encoder = fm.GetMainEncoder();
+        RecordAllPasses(encoder);
     }
 
     uint32_t RenderGraph::GetNumPasses() const noexcept {

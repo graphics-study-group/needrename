@@ -2,6 +2,7 @@
 #define PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS_INCLUDED
 
 #include "Render/render_export.h"
+#include "Rhi/Command/CommandEncoder.h"
 #include <functional>
 #include <unordered_map>
 
@@ -38,7 +39,7 @@ namespace Engine {
         RenderGraphPassAffinity affinity{}, actual_type{};
 
         // Actual pass function
-        std::function<void(vk::CommandBuffer, const RenderGraph &)> pass_function{};
+        std::function<void(Rhi::CommandEncoder &, const RenderGraph &)> pass_function{};
 
         // Access registry
         std::unordered_map<RGTextureHandle, Rhi::MemoryAccessTypeImageBits> image_access{};
@@ -198,3 +199,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS_INCLUDED
+

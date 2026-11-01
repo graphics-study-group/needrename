@@ -321,7 +321,7 @@ namespace Engine {
             );
         }
         if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
-            this->render_graph->RecordAllPasses(cb.GetCommandBuffer());
+            this->render_graph->RecordAllPasses(cb.GetEncoder());
         }
 
         // Phase 3: Frame completion — ends the main CB, records the copy CB,
@@ -332,6 +332,7 @@ namespace Engine {
         );
     }
 } // namespace Engine
+
 
 
 

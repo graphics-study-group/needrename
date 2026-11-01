@@ -8,6 +8,7 @@
 
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
+#include "Rhi/Command/CommandEncoder.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 namespace Engine {
@@ -46,7 +47,7 @@ namespace Engine {
 
             PipelineRuntimeInfoPerRendering per_rendering_info{};
 
-            std::function<void(vk::CommandBuffer, const RenderGraph &rg)> pass_work{};
+            std::function<void(Rhi::CommandEncoder &, const RenderGraph &rg)> pass_work{};
         };
         std::vector<Subpass> subpasses{};
     };
@@ -73,3 +74,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_RENDERGRAPH2_RENDERGRAPHSTRUCT
+

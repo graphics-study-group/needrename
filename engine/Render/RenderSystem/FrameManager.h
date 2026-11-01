@@ -2,6 +2,7 @@
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
 #include "Render/render_export.h"
+#include "Rhi/Command/CommandEncoder.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 // May be safe to include here as this header is not included in other headers.
@@ -109,6 +110,8 @@ namespace Engine {
              * once each frame.
              */
             CommandBuffer BeginMainCommandBuffer();
+        /// @brief The encoder over the current frame's main command buffer.
+        Rhi::CommandEncoder &GetMainEncoder();
 
             /**
              * @brief Get the raw main command buffer handle of the current
@@ -196,3 +199,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
+
