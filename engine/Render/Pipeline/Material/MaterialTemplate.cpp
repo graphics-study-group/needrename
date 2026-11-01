@@ -117,11 +117,10 @@ namespace Engine {
                 // then resolves to the description default rather than to the
                 // factors this entry names.
                 if (blend.color_op == Rhi::BlendOperation::None || blend.alpha_op == Rhi::BlendOperation::None) {
-                    // A target with no blending entry writes no channel at all,
-                    // which is what a zero state has always meant here.
-                    pipeline_description.color_blends.push_back(
-                        Rhi::ColorBlendState{.write_mask = Rhi::ColorChannelMask::None}
-                    );
+                    // Blending is off, but the target is still written: a state
+                    // that writes no channel leaves the clear colour in place,
+                    // which reads as a black frame rather than as "unblended".
+                    pipeline_description.color_blends.push_back(Rhi::ColorBlendState{});
                     continue;
                 }
                 pipeline_description.color_blends.push_back(
@@ -157,11 +156,10 @@ namespace Engine {
                 for (size_t i = pipeline_description.color_blends.size();
                      i < pipeline_description.color_formats.size();
                      i++) {
-                    // A target with no blending entry writes no channel at all,
-                    // which is what a zero state has always meant here.
-                    pipeline_description.color_blends.push_back(
-                        Rhi::ColorBlendState{.write_mask = Rhi::ColorChannelMask::None}
-                    );
+                    // A target the material says nothing about is written
+                    // unblended; writing no channel would leave the clear colour
+                    // in place and read as a black frame.
+                    pipeline_description.color_blends.push_back(Rhi::ColorBlendState{});
                 }
             }
 
