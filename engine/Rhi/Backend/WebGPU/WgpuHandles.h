@@ -168,3 +168,20 @@ namespace Engine::Rhi {
         return ToWgpu<WGPUPipelineLayout>(handle);
     }
 } // namespace Engine::Rhi
+namespace Engine::Rhi {
+    /**
+     * @brief A finished command buffer, wrapped in the seam's command-buffer handle.
+     *
+     * The standard interface has two objects where Vulkan has one: a
+     * `WGPUCommandEncoder` records and a `WGPUCommandBuffer` submits. The seam's handle
+     * covers both, so `CommandBuffer::GetHandle` returns the encoder while recording and
+     * the finished buffer afterwards. A caller that submits gets the second; a caller
+     * that records gets the first.
+     */
+    inline CommandBufferHandle FromWgpuFinishedBuffer(WGPUCommandBuffer buffer) noexcept {
+        return FromWgpu<CommandBufferHandle>(buffer);
+    }
+    inline WGPUCommandBuffer ToWgpuFinishedBuffer(CommandBufferHandle handle) noexcept {
+        return ToWgpu<WGPUCommandBuffer>(handle);
+    }
+} // namespace Engine::Rhi

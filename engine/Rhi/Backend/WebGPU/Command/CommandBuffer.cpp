@@ -67,6 +67,12 @@ namespace Engine::Rhi {
     CommandBuffer &CommandBuffer::operator=(CommandBuffer &&) noexcept = default;
 
     CommandBufferHandle CommandBuffer::GetHandle() const noexcept {
+        // Recording hands out the encoder; a finished buffer hands out itself. The seam
+        // has one handle for both, and which one a caller needs is decided by whether it
+        // has called End.
+        if (pimpl->finished != nullptr) {
+            return FromWgpuFinishedBuffer(pimpl->finished);
+        }
         return FromWgpuCommandEncoder(pimpl->encoder);
     }
 
@@ -96,3 +102,4 @@ namespace Engine::Rhi {
         pimpl->encoder = wgpuDeviceCreateCommandEncoder(pimpl->device, nullptr);
     }
 } // namespace Engine::Rhi
+

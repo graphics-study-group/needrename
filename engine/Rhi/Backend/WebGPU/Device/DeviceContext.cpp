@@ -182,11 +182,53 @@ namespace Engine::Rhi {
         );
     }
 
-    void DeviceContext::Submit(const Submission &, FenceHandle) {
-        SDL_LogError(
-            SDL_LOG_CATEGORY_RENDER,
-            "WebGPU: Submit is not implemented. There is no command encoder to submit yet."
-        );
+    void DeviceContext::Submit(const Submission &submission, FenceHandle) {
+        // The standard interface has one queue and no dependencies: a submission is an
+        // ordered list of finished command buffers, and "wait for this semaphore" has no
+        // meaning because nothing else can be in flight on a different queue.
+        std::vector<WGPUCommandBuffer> commands;
+        commands.reserve(submission.command_buffers.size());
+        for (const CommandBufferHandle &handle : submission.command_buffers) {
+            WGPUCommandBuffer buffer = ToWgpuFinishedBuffer(handle);
+            if (buffer == nullptr) {
+                SDL_LogError(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "WebGPU: a submitted command buffer was never finished. Call End first."
+                );
+                continue;
+            }
+            commands.push_back(buffer);
+        }
+        if (commands.empty()) {
+            return;
+        }
+
+        WGPUQueue queue = wgpuDeviceGetQueue(ToWgpuDevice(GetDevice()));
+        wgpuQueueSubmit(queue, commands.size(), commands.data());
+
+        // Completion is a callback rather than a fence. The submission carries it, so it is
+        // registered here against the work just handed over.
+        if (submission.on_complete) {
+            auto *callback = new std::function<void()>(submission.on_complete);
+            WGPUQueueWorkDoneCallbackInfo info{};
+            info.mode = WGPUCallbackMode_AllowProcessEvents;
+            info.callback = [](WGPUQueueWorkDoneStatus status, WGPUStringView, void *userdata1, void *) {
+                auto *fn = static_cast<std::function<void()> *>(userdata1);
+                if (status != WGPUQueueWorkDoneStatus_Success) {
+                    SDL_LogError(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "WebGPU: a submission completed with status %d.",
+                        static_cast<int>(status)
+                    );
+                }
+                if (fn != nullptr && *fn) {
+                    (*fn)();
+                }
+                delete fn;
+            };
+            info.userdata1 = callback;
+            wgpuQueueOnSubmittedWorkDone(queue, info);
+        }
     }
 
     bool DeviceContext::WaitForFence(FenceHandle, uint64_t) {
@@ -206,4 +248,5 @@ namespace Engine::Rhi {
         );
     }
 } // namespace Engine::Rhi
+
 
