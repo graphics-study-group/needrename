@@ -1129,3 +1129,30 @@ Two things follow, and the first is not optional:
 2. The pipeline-description translation is now the place a write mask is decided,
    so the next correctness question about blending belongs there, not in the
    builder that used to assemble the state inline.
+### The render graph's own barriers cannot go through Barrier() yet
+
+Converting `RenderGraphCompiledPass::Subpass::image_barriers` from
+`vk::ImageMemoryBarrier2` to `Rhi::ImageBarrier`, and replaying them as
+`encoder.Barrier(...)`, compiles and passes 77 of 78 tests. `shadow_map_test`
+fails with ten validation errors that end in a `spirv-val` complaint, and reverts
+cleanly.
+
+The difference is the stage mask. The builder did not take the stages from the
+accesses directly; it asked `GuessPipelineStageFromAccess(pass_type, access)`,
+which weighs the pass's affinity (graphics, compute, transfer) against the access
+bits. `Barrier(ImageBarrier)` uses `eAllCommands` on both sides, which is the
+widest pair and is correct for the transitions the physics path records - but a
+shadow cascade rewrites a depth atlas mid-frame, and there the stage a transition
+executes in is part of the meaning, not an implementation detail.
+
+So the seam needs one more thing before the graph can use it: an image transition
+has to carry the stages it separates, in portable terms. The options are:
+
+1. put the pass kind (`graphics`/`compute`/`transfer`) on `ImageBarrier` and let
+   the backend derive exact stage masks, which keeps the seam free of Vulkan
+   stage names and matches what `GuessPipelineStageFromAccess` already encodes;
+2. give `Barrier` a variant that takes a scope, and keep `eAllCommands` only for
+   the compute path where it is known to be enough.
+
+The first is smaller and says more. Until one of them lands, the graph keeps its
+own barriers.
