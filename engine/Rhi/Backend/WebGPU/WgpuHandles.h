@@ -143,3 +143,20 @@ namespace Engine::Rhi {
         return ToWgpu<WGPUShaderModule>(handle);
     }
 } // namespace Engine::Rhi
+namespace Engine::Rhi {
+    inline CommandBufferHandle FromWgpuCommandEncoder(WGPUCommandEncoder encoder) noexcept {
+        return FromWgpu<CommandBufferHandle>(encoder);
+    }
+    inline WGPUCommandEncoder ToWgpuCommandEncoder(CommandBufferHandle handle) noexcept {
+        return ToWgpu<WGPUCommandEncoder>(handle);
+    }
+    inline PipelineHandle FromWgpuRenderPipeline(WGPURenderPipeline pipeline) noexcept {
+        return FromWgpu<PipelineHandle>(pipeline);
+    }
+    inline WGPURenderPipeline ToWgpuRenderPipeline(PipelineHandle handle) noexcept {
+        return ToWgpu<WGPURenderPipeline>(handle);
+    }
+    inline WGPUComputePipeline ToWgpuComputePipeline(PipelineHandle handle) noexcept {
+        return reinterpret_cast<WGPUComputePipeline>(handle.GetValue());
+    }
+} // namespace Engine::Rhi
