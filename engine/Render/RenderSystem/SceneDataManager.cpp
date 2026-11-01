@@ -168,7 +168,7 @@ namespace Engine::RenderSystemState {
                 {
                     const Rhi::PipelineLayoutDescription scene_pipeline_description{
                         {scene_descriptor_set_layout.handle},
-                        {{0, RendererManager::GetPushConstantRange().size, false}}
+                        {{0, RendererManager::GetPushConstantBlockSize(), false}}
                     };
                     scene_common_pipeline_layout = system.GetIRCache().GetPipelineLayout(
                         scene_pipeline_description, "Scene Common Pipeline Layout"
@@ -576,6 +576,7 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

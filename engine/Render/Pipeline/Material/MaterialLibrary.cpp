@@ -110,7 +110,7 @@ namespace Engine {
 
                 const Rhi::PipelineLayoutDescription material_pipeline_description{
                     {scene_descriptors, camera_descriptors, b.descriptor_set_layout.handle},
-                    {{0, RenderSystemState::RendererManager::GetPushConstantRange().size, false}}
+                    {{0, RenderSystemState::RendererManager::GetPushConstantBlockSize(), false}}
                 };
                 b.pipeline_layout = Rhi::ToVulkanPipelineLayout(
                     system.GetIRCache().GetPipelineLayout(material_pipeline_description)
@@ -120,7 +120,7 @@ namespace Engine {
 
                 const Rhi::PipelineLayoutDescription plain_pipeline_description{
                     {scene_descriptors, camera_descriptors},
-                    {{0, RenderSystemState::RendererManager::GetPushConstantRange().size, false}}
+                    {{0, RenderSystemState::RendererManager::GetPushConstantBlockSize(), false}}
                 };
                 b.pipeline_layout = Rhi::ToVulkanPipelineLayout(
                     system.GetIRCache().GetPipelineLayout(plain_pipeline_description)
@@ -219,6 +219,7 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
 
 
 

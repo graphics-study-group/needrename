@@ -170,7 +170,8 @@ namespace Engine::RenderSystemState {
         return it->second.model_mat_index;
     }
 
-    vk::PushConstantRange RendererManager::GetPushConstantRange() {
-        return vk::PushConstantRange{vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(RendererDataStruct)};
+    uint32_t RendererManager::GetPushConstantBlockSize() {
+        return sizeof(RendererDataStruct);
     };
 } // namespace Engine::RenderSystemState
+

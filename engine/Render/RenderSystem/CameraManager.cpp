@@ -60,7 +60,7 @@ namespace Engine::RenderSystemState {
             const Rhi::PipelineLayoutDescription camera_pipeline_description{
                 {m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                  pimpl->camera_descriptor_set_layout.handle},
-                {{0, RendererManager::GetPushConstantRange().size, false}}
+                {{0, RendererManager::GetPushConstantBlockSize(), false}}
             };
             pimpl->camera_common_pipeline_layout = m_system.GetIRCache().GetPipelineLayout(
                 camera_pipeline_description, "Camera Common Pipeline Layout"
@@ -181,6 +181,7 @@ namespace Engine::RenderSystemState {
         return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

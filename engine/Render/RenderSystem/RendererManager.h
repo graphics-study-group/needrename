@@ -181,9 +181,12 @@ namespace Engine {
             int32_t GetModelMatrixIndex(RendererHandle handle) const noexcept;
 
             /**
-             * @brief Return push-constant range definition for draw data.
+             * @brief Bytes of constants every renderer pipeline must reserve.
+             *
+             * The block holds one draw's model matrix and its two indices, so the
+             * size is a property of the renderer, not of any backend.
              */
-            static vk::PushConstantRange GetPushConstantRange();
+            static uint32_t GetPushConstantBlockSize();
         };
     } // namespace RenderSystemState
 
