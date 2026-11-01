@@ -567,4 +567,26 @@ description they need.
 So the next session's highest-value move is not any single task on the list. It is **a physics kernel
 created from a baked module and dispatched once**, because that one test would move 7.4, 8.4, 8.5 and
 9.1 at the same time - and it is the only thing in this change that four open tasks share.
+### The 18 open tasks converge on six decisions
 
+Each was investigated this session; none is still "needs looking into". What makes the list short is
+that they are not independent:
+
+| Decision | Tasks it unblocks |
+|---|---|
+| **A physics kernel created from a baked module and dispatched once** | 7.4, 8.4, 8.5, 9.1 |
+| **A mapped window that a submission may read** (two buffers; 8.5's three options all end there) | 8.5, 8.4, 10.3 |
+| **Every frame-loop caller advancing its own clock on a skip** (eleven sites) | 10.2, 6.4, 6.2 |
+| **A loader that knows which artifact format it was built for** | 9.1, 7.4 |
+| **A WebGPU present provider** (`wgpuSurfaceCreate/Configure/GetCurrentTexture`) | 10.3, 10.4 |
+| **`sum_by_key`'s `workgroupBarrier` in a form Tint accepts** | 7.1, and 1.1's validator clause |
+
+Everything else waits on a browser (1.4, 11.1, 11.3) or is a measurement away (7.2's failing case, 7.3
+is done, 7.5 is done).
+
+**Two of the six are the same shape seen twice**: the mapped window and the per-frame surface window are
+both "one image, several windows, and a submission that must not see a mapped copy". Treating them
+together is probably cheaper than treating them apart.
+
+**Start with the first row.** It is the only one that moves four tasks, the types for it all exist, and
+the bake already produces the description they need.
