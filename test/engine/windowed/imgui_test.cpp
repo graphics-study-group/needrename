@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <iostream>
 #include <chrono>
 #include <fstream>
 
@@ -43,6 +44,13 @@ int main(int argc, char **argv) {
         .is_cube_map = false
     };
     auto c = rgb.RequestRenderTargetTexture(desc, {});
+
+    // Read the composed frame back so the test can assert that the UI drew.
+    auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
+        rsys->GetAllocatorState(),
+        Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice},
+        1920u * 1080u * 4u
+    );
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .AppendColorAttachment(
@@ -63,6 +71,27 @@ int main(int argc, char **argv) {
             })
             .Get()
     );
+    {
+        const auto rb = rgb.ImportExternalResource(*readback_buffer);
+        rgb.AddPass(
+            RenderGraphPassBuilder{*rsys}
+                .SetName("Frame Readback")
+                .UseImage(c, Rhi::MemoryAccessTypeImageBits::TransferRead)
+                .UseBuffer(rb, {Rhi::MemoryAccessTypeBufferBits::TransferWrite})
+                .SetAffinity(RenderGraphPassAffinity::Transfer)
+                .SetPassFunction([c, readback = readback_buffer.get()](CommandBuffer &cb, const RenderGraph &graph) {
+                    auto rt = graph.GetInternalTextureResource(c);
+                    cb.GetEncoder().CopyImageToBuffer(
+                        rt->GetImage(),
+                        readback->GetBuffer(),
+                        Rhi::Extent3D{rt->GetTextureDescription().width, rt->GetTextureDescription().height, 1},
+                        Rhi::ImageAspect::Color
+                    );
+                })
+                .Get()
+        );
+    }
+
     auto rg = rgb.BuildRenderGraph();
 
     bool quited = false;
@@ -99,8 +128,26 @@ int main(int argc, char **argv) {
 
     rsys->WaitForIdle();
 
+    // If the UI pipeline drew nothing the frame is uniformly black.
+    {
+        const auto *pixels = reinterpret_cast<const uint8_t *>(readback_buffer->GetVMAddress());
+        constexpr size_t PIXEL_COUNT = 1920u * 1080u;
+        size_t non_black = 0;
+        for (size_t i = 0; i < PIXEL_COUNT; i++) {
+            if (pixels[i * 4 + 0] != 0 || pixels[i * 4 + 1] != 0 || pixels[i * 4 + 2] != 0) {
+                non_black++;
+            }
+        }
+        if (non_black == 0) {
+            std::cerr << "ImGui test FAILED: the frame is entirely black; the UI did not draw." << std::endl;
+            return 1;
+        }
+        SDL_LogInfo(0, "ImGui test: %zu of %zu pixels are not black.", non_black, PIXEL_COUNT);
+    }
+
     return 0;
 }
+
 
 
 

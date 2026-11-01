@@ -72,8 +72,14 @@ Two assertions now exist, and one of them has been verified in both directions:
 - `new_material_test` does the same and measures 2073538 of 2073600, because the sunset
   fills the frame. This one found a real defect on its first run.
 - `complex_mesh_test` does the same and measures 118270 of 921600.
+- `imgui_test` fails when the frame is entirely black. Measures 374000 of 2073600 -
+  the UI panel.
 
-The other six windowed tests still assert nothing about pixels. That is a known gap,
+The other five windowed tests assert nothing about pixels, and three of those
+(`input_test`, `physics_registration_test`, `project_loading_test`) do not render a
+scene in the first place. `shadow_map_test` keeps its validation-error check instead;
+adding a pixel assertion there was tried and reverted for the reason in the section
+below. That is a known gap,
 not an oversight.
 
 ## What is honestly unfinished
@@ -152,3 +158,4 @@ back - which is exactly the barrier work in the abandoned section.
 So the test keeps its validation check and no pixel assertion. That is a smaller gap
 than it sounds: a frame with a wrong layout is a validation error there, and the test
 already fails on those.
+
