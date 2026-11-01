@@ -51,6 +51,23 @@ namespace Engine::Rhi {
             }
             case PipelineScope::Unspecified:
             default:
+                // A pass with no work of its own still has to name a stage, and
+                // the access says which one: a copy is transfer work wherever it
+                // was recorded, an attachment access belongs to graphics, and
+                // anything else really is every command.
+                if (access_flags == vk::AccessFlagBits2::eTransferRead
+                    || access_flags == vk::AccessFlagBits2::eTransferWrite) {
+                    return vk::PipelineStageFlagBits2::eTransfer;
+                }
+                if (access_flags == vk::AccessFlagBits2::eColorAttachmentRead
+                    || access_flags == vk::AccessFlagBits2::eColorAttachmentWrite
+                    || access_flags == (vk::AccessFlagBits2::eColorAttachmentRead | vk::AccessFlagBits2::eColorAttachmentWrite)
+                    || access_flags == vk::AccessFlagBits2::eDepthStencilAttachmentRead
+                    || access_flags == vk::AccessFlagBits2::eDepthStencilAttachmentWrite
+                    || access_flags == (vk::AccessFlagBits2::eDepthStencilAttachmentRead
+                                        | vk::AccessFlagBits2::eDepthStencilAttachmentWrite)) {
+                    return vk::PipelineStageFlagBits2::eAllGraphics;
+                }
                 return vk::PipelineStageFlagBits2::eAllCommands;
             }
         }
