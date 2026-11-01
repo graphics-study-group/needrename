@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <stdexcept>
 #include <filesystem>
 #include <fstream>
 
@@ -122,6 +123,36 @@ int main() {
             continue;
         }
         rsys->GetFrameManager().BeginMainCommandBuffer();
+
+        // A mark inside a pass is refused. The rule exists because the WebGPU
+        // backend has no transitions: a barrier recorded mid-pass has nothing to
+        // move, so the seam states the rule and the Vulkan encoder enforces it
+        // rather than doing something undefined. This is the only place the guard
+        // is exercised, and it runs once.
+        if (frame == 0) {
+            Rhi::RenderPassDescription guard_pass{};
+            guard_pass.area = Rhi::Rect2D{Rhi::Offset2D{0, 0}, Rhi::Extent2D{IMAGE_WIDTH, IMAGE_HEIGHT}};
+            Rhi::ColorAttachmentDescription guard_attachment{};
+            guard_attachment.view = color->GetImageView();
+            guard_attachment.load = Rhi::LoadOperation::DontCare;
+            guard_attachment.store = Rhi::StoreOperation::Store;
+            guard_pass.color_attachments.push_back(guard_attachment);
+
+            auto &encoder = rsys->GetFrameManager().GetMainEncoder();
+            encoder.BeginRenderPass(guard_pass);
+            bool refused = false;
+            try {
+                encoder.Barrier();
+            } catch (const std::logic_error &) {
+                refused = true;
+            }
+            encoder.EndRenderPass();
+            if (!refused) {
+                std::cerr << "Headless offscreen test FAILED: a mark inside a render pass was accepted." << std::endl;
+                return 1;
+            }
+        }
+
         rg->RecordIntoMainCommandBuffer(*rsys);
         rsys->CompleteFrame(*color, Rhi::MemoryAccessTypeImageBits::TransferRead);
     }
@@ -152,5 +183,6 @@ int main() {
     std::cout << "Headless offscreen test PASSED." << std::endl;
     return 0;
 }
+
 
 

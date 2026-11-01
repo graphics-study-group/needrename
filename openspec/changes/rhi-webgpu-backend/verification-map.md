@@ -34,7 +34,7 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Vulkan backend records a real barrier | **test**: `gpu_sum_by_key_test` (a wrong barrier changes the sum) |
 | WebGPU backend carries ordering by scope boundary | **none yet** |
 | The kernel adds no synchronization | **test**: `compute_kernel_test` |
-| Mark inside a render scope is rejected | **enforced, not tested**: `CommandEncoder` now tracks whether a pass is open and throws `std::logic_error` from both `Barrier` overloads. No test builds a pass and calls it, so the guard has never fired. |
+| Mark inside a render scope is rejected | **test**: `headless_offscreen_test` opens a pass and calls `Barrier`, and fails when it is accepted. Verified in both directions - with the guard disabled the test fails. |
 | Constants reach the shader on both backends | **test** on Vulkan: `headless_compute_test`; WebGPU: **none yet** |
 | Oversized constant block is caught | **test**: `compute_kernel_oversize_test` |
 | Backend maps constants to its own mechanism | **test** on Vulkan (push constants); WebGPU: **none yet** |
@@ -95,13 +95,13 @@ unchecked and the whole directory has to exist before any of these can run.
 | Spec | Total | Verified | Not verified |
 |---|---|---|---|
 | `rhi-backend-selection` | 10 | 9 | 1 |
-| `rhi-command-encoder` | 14 | 9 | 5 |
+| `rhi-command-encoder` | 14 | 10 | 4 |
 | `rhi-compute-kernel` | 6 | 6 | 0 |
 | `rhi-mapped-window` | 12 | 5 | 7 |
 | `submission-helper-sync` | 7 | 7 | 0 |
 | `shader-wgsl-artifact` | 9 | 0 | 9 |
 | `webgpu-backend` | 17 | 0 | 17 |
-| **Total** | **75** | **36** | **39** |
+| **Total** | **75** | **37** | **38** |
 
 ## The two kinds of "not verified"
 
@@ -127,5 +127,7 @@ reader:
 That second group is what a reviewer should look at first: it is the difference
 between "the design is not finished" and "the design says something the code does
 not do".
+
+
 
 
