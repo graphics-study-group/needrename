@@ -7,6 +7,7 @@
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 namespace Engine::Rhi {
@@ -481,6 +482,16 @@ namespace Engine::Rhi {
         std::vector<SubmissionDependency> waits;
         /// @brief Dependencies this submission satisfies on completion.
         std::vector<SubmissionDependency> signals;
+        /// @brief Work to run once this submission has finished on the device.
+        ///
+        /// This is how a frame reports completion without anyone waiting. A backend
+        /// with completion callbacks passes it straight through; one with a
+        /// host-waitable fence calls it from the wait. A caller that needs the result
+        /// now still waits on the fence; a caller driving frames does not.
+        ///
+        /// It runs on whatever thread the backend completes on, which is the backend's
+        /// thread and not necessarily the recording thread.
+        std::function<void()> on_complete;
     };
 
 
@@ -501,6 +512,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
 

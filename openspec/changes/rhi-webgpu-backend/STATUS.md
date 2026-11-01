@@ -255,5 +255,32 @@ is group 10's work (frame completion as callbacks, task 10.1), not a porting det
 
 So the honest reading of the remaining ~16 units is: **roughly a third are mechanical,
 and the rest wait on three design decisions this change lists but has not taken.**
+## The third decision has a shape but no home
 
+`Submission` now carries an `on_complete` callback. That is the decision stated as
+contract: a frame reports completion instead of anyone waiting, and a backend with
+completion callbacks passes it through.
 
+Wiring it on the Vulkan side was attempted and reverted. The submission already signals a
+fence, so registering the callback against it costs nothing - but `DeviceContext` declares
+its members directly, with no pimpl, and storing a pending callback means storing the fence
+it belongs to. `vk::Fence` in `DeviceContext.h` is a backend type in a public header, which
+is the one thing this change has been removing everywhere else.
+
+Three ways out, and they are not equivalent:
+
+1. **Give `DeviceContext` a pimpl.** Then the pending list lives in the backend's
+   `.cpp`. Correct, and it makes the class header smaller rather than larger - but it is a
+   change to a type every backend unit touches.
+2. **Store the fence as a `FenceHandle` and convert on use.** No header change, and the
+   handle is already the seam's vocabulary. The cost is a lookup on a path that runs once
+   per submission.
+3. **Keep a `Fence` object** rather than a raw fence, since `Rhi::Fence` already owns one
+   and hands out a handle. That is the seam's own type and this is what it is for.
+
+The third is the smallest and the most consistent with the rest of the seam; the first is
+what the class probably wants eventually. Either way it is a decision about
+`DeviceContext`'s shape, which is the same question the port stopped on two rounds ago.
+
+So the contract is stated and the implementation waits for that decision - stated in the
+type, not hidden in a task list.
