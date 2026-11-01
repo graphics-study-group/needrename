@@ -105,20 +105,21 @@ namespace Engine {
     ) {
         const auto &desc = image.GetTextureDescription();
 
-        // Pre-barrier: source image into a copyable layout.
-        vk::ImageMemoryBarrier2 pre_barrier{
-            vk::PipelineStageFlagBits2::eAllCommands,
-            GetAccessFlags({last_access}),
-            vk::PipelineStageFlagBits2::eAllTransfer,
-            vk::AccessFlagBits2::eTransferRead,
-            GetImageLayout({last_access}),
-            vk::ImageLayout::eTransferSrcOptimal,
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            Engine::Rhi::ToVulkanImage(image.GetImage()),
-            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        };
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, pre_barrier});
+        // Pre-barrier: source image into a copyable layout. The transition is one
+        // the caller knows the shape of - a single mip and layer, colour aspect,
+        // read by a copy - so it is recorded through the seam.
+        Rhi::ImageBarrier pre_barrier{};
+        pre_barrier.image = image.GetImage();
+        pre_barrier.aspect = Rhi::ImageAspect::Color;
+        pre_barrier.base_mip = 0;
+        pre_barrier.mip_count = 1;
+        pre_barrier.base_layer = 0;
+        pre_barrier.layer_count = 1;
+        pre_barrier.from = {last_access};
+        pre_barrier.to = {Rhi::MemoryAccessTypeImageBits::TransferRead};
+        pre_barrier.from_scope = Rhi::PipelineScope::Unspecified;
+        pre_barrier.to_scope = Rhi::PipelineScope::Transfer;
+        m_encoder->Barrier(pre_barrier);
 
         vk::BufferImageCopy region{
             0, // bufferOffset
@@ -132,19 +133,12 @@ namespace Engine {
 
         // Post-barrier: restore the source image to its nominal layout so the
         // frame-completion blit (or any later pass) still observes it.
-        vk::ImageMemoryBarrier2 post_barrier{
-            vk::PipelineStageFlagBits2::eAllTransfer,
-            vk::AccessFlagBits2::eTransferRead,
-            vk::PipelineStageFlagBits2::eAllCommands,
-            vk::AccessFlagBits2::eMemoryRead,
-            vk::ImageLayout::eTransferSrcOptimal,
-            GetImageLayout({last_access}),
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            Engine::Rhi::ToVulkanImage(image.GetImage()),
-            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        };
-        cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, post_barrier});
+        Rhi::ImageBarrier post_barrier = pre_barrier;
+        post_barrier.from = {Rhi::MemoryAccessTypeImageBits::TransferRead};
+        post_barrier.to = {};
+        post_barrier.from_scope = Rhi::PipelineScope::Transfer;
+        post_barrier.to_scope = Rhi::PipelineScope::Unspecified;
+        m_encoder->Barrier(post_barrier);
     }
 
     // ── Render pass ─────────────────────────────────────────────────────────
