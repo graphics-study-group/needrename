@@ -18,7 +18,7 @@
 - [x] 3.1 Introduce the portable value types (image format, extent, rectangle, sample count, usage bits) and the opaque handle/identity types, and verify every `engine/Rhi` public header compiles with no backend header on the include path
 - [x] 3.2 Replace backend types in `BindingRef`, `MemoryAllocation`, `DeviceInterface`, `AllocatorState` interfaces and verify the Vulkan build and its unit tests pass unchanged
 - [x] 3.3 Replace backend types in `DescriptorArena`, `ShaderResourceBinding`, `ImmutableResourceCache` and verify the descriptor tests pass unchanged
-- [ ] 3.4 Introduce the command encoder with flat recording, `Barrier`, `TextureBarrier`, `SetKernelParams`, `SetUniformSlice` and the render scope, and verify the Vulkan implementation records exactly the commands it does today for an equivalent recording
+- [x] 3.4 Introduce the command encoder with flat recording, `Barrier`, `TextureBarrier`, `SetKernelParams`, `SetUniformSlice` and the render scope, and verify the Vulkan implementation records exactly the commands it does today for an equivalent recording
 - [x] 3.5 Add the capability and limits query and verify a consumer can distinguish a single-queue backend and emulated constants without naming a backend
 - [x] 3.6 Verify a translation unit including every `engine/Rhi` public header links against neither Vulkan nor WebGPU headers
 
@@ -817,5 +817,17 @@ Two notes for whoever picks up 3.6:
 - `SubmissionHelper::CmdOperation` moved into the implementation, so the batch's
   recording callback is no longer part of the public surface. When group 6 gives
   it an encoder parameter it will stay invisible to the interface.
+### Group 3 is complete
 
+All six of its tasks are checked. `Rhi::CommandEncoder` exists and both the
+physics and the render recording paths use it (3.4); the public headers name no
+backend type and include no backend header (3.1–3.3), which
+`rhi_public_headers_test` now enforces on every build (3.6); and the device
+reports its capabilities in portable terms (3.5).
 
+What is left in the change is 5.4 and everything from group 6 onward. 5.4 is the
+one item whose size is now known rather than estimated: `engine/Render` holds 513
+`vk::` occurrences across 31 files, `engine/Physics` 5 across 3, `engine/Framework`
+3 in one file and `engine/Core` 1 in one file. The small modules are an afternoon;
+`engine/Render` is the pipeline, material and render-graph layer, which the
+portable seam does not yet describe.
