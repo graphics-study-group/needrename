@@ -28,6 +28,8 @@ namespace {
 
 namespace Engine::RenderSystemState {
     struct SceneDataManager::impl {
+        /// @brief The seam, for anything that is not a raw Vulkan call.
+        Rhi::DeviceContext *device_context{nullptr};
         vk::Device device{};
 
         struct Scene {
@@ -122,11 +124,14 @@ namespace Engine::RenderSystemState {
 
             // Model matrices storage buffer (owned here; for physics-driven objects)
             std::unique_ptr<Rhi::ComputeBuffer> model_matrices_buffer{};
+            /// @brief The seam, for the descriptor writes below.
+            Rhi::DeviceContext *device_context{nullptr};
 
             void Create(RenderSystem &system) {
                 auto &allocator = system.GetAllocatorState();
                 auto device = system.GetDevice();
                 auto &arena = system.GetDeviceContext().GetDescriptorArena();
+                device_context = &system.GetDeviceContext();
 
                 // Create decriptor set layout
                 {
@@ -261,40 +266,29 @@ namespace Engine::RenderSystemState {
                 }
 
                 // Write out descriptors
-                std::vector<vk::DescriptorBufferInfo> buffers(
-                    scene_descriptor_sets.size(),
-                    vk::DescriptorBufferInfo{Rhi::ToVulkanBuffer(light_back_buffer->GetBuffer()), 0, light_back_buffer->GetSliceSize()}
-                );
-                std::vector<vk::WriteDescriptorSet> writes(
-                    scene_descriptor_sets.size(),
-                    vk::WriteDescriptorSet{nullptr, 0, 0, vk::DescriptorType::eUniformBuffer, {}, {}, {}}
-                );
+                std::vector<Rhi::WriteDescriptorSet> writes(scene_descriptor_sets.size());
                 for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
-                    buffers[i].offset = light_back_buffer->GetSliceOffset(i);
-                    writes[i].dstSet = Rhi::ToVulkanDescriptorSet(scene_descriptor_sets[i]);
-                    writes[i].descriptorCount = 1;
-                    writes[i].pBufferInfo = &buffers[i];
+                    writes[i].set = scene_descriptor_sets[i];
+                    writes[i].binding = 0;
+                    writes[i].type = Rhi::DescriptorType::UniformBuffer;
+                    writes[i].buffer = light_back_buffer->GetBuffer();
+                    writes[i].offset = light_back_buffer->GetSliceOffset(i);
+                    writes[i].range = light_back_buffer->GetSliceSize();
                 }
-                device.updateDescriptorSets(writes, {});
+                device_context->UpdateDescriptorSets(writes);
 
                 // Write model matrices buffer descriptor (binding 2)
                 {
-                    std::vector<vk::DescriptorBufferInfo> model_mat_buffers(
-                        scene_descriptor_sets.size(),
-                        vk::DescriptorBufferInfo{
-                            Rhi::ToVulkanBuffer(model_matrices_buffer->GetBuffer()), 0, model_matrices_buffer->GetSize()
-                        }
-                    );
-                    std::vector<vk::WriteDescriptorSet> mm_writes(
-                        scene_descriptor_sets.size(),
-                        vk::WriteDescriptorSet{nullptr, 2, 0, vk::DescriptorType::eStorageBuffer, {}, {}, {}}
-                    );
+                    std::vector<Rhi::WriteDescriptorSet> mm_writes(scene_descriptor_sets.size());
                     for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
-                        mm_writes[i].dstSet = Rhi::ToVulkanDescriptorSet(scene_descriptor_sets[i]);
-                        mm_writes[i].descriptorCount = 1;
-                        mm_writes[i].pBufferInfo = &model_mat_buffers[i];
+                        mm_writes[i].set = scene_descriptor_sets[i];
+                        mm_writes[i].binding = 2;
+                        mm_writes[i].type = Rhi::DescriptorType::StorageBuffer;
+                        mm_writes[i].buffer = model_matrices_buffer->GetBuffer();
+                        mm_writes[i].offset = 0;
+                        mm_writes[i].range = model_matrices_buffer->GetSize();
                     }
-                    device.updateDescriptorSets(mm_writes, {});
+                    device_context->UpdateDescriptorSets(mm_writes);
                 }
             }
         } scene{};
@@ -305,6 +299,7 @@ namespace Engine::RenderSystemState {
 
         void Create(RenderSystem &system) {
             device = system.GetDevice();
+            device_context = &system.GetDeviceContext();
             scene.Create(system);
         }
     };
