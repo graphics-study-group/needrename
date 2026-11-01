@@ -184,6 +184,30 @@ namespace Engine::Rhi {
         pimpl->command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ToVulkanPipeline(pipeline));
     }
 
+    void CommandEncoder::BindGraphicsPipeline(PipelineHandle pipeline, PipelineLayoutHandle layout) {
+        pimpl->pipeline_layout = ToVulkanPipelineLayout(layout);
+        pimpl->command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, ToVulkanPipeline(pipeline));
+    }
+
+    void CommandEncoder::PushConstants(std::span<const std::byte> params) {
+        if (params.empty()) {
+            return;
+        }
+        pimpl->command_buffer.pushConstants(
+            pimpl->pipeline_layout,
+            vk::ShaderStageFlagBits::eAllGraphics,
+            0,
+            static_cast<uint32_t>(params.size()),
+            params.data()
+        );
+    }
+
+    void CommandEncoder::BindGraphicsDescriptorSet(uint32_t set_index, DescriptorSetHandle set) {
+        pimpl->command_buffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics, pimpl->pipeline_layout, set_index, {ToVulkanDescriptorSet(set)}, {}
+        );
+    }
+
     void CommandEncoder::BindDescriptorSet(uint32_t set_index, DescriptorSetHandle set) {
         pimpl->command_buffer.bindDescriptorSets(
             vk::PipelineBindPoint::eCompute, pimpl->pipeline_layout, set_index, ToVulkanDescriptorSet(set), {}

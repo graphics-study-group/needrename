@@ -110,6 +110,34 @@ namespace Engine::Rhi {
         void BindComputePipeline(PipelineHandle pipeline, PipelineLayoutHandle layout);
 
         /**
+         * @brief Bind a graphics pipeline for the pass already opened.
+         *
+         * @param pipeline The graphics pipeline to record with.
+         * @param layout The pipeline layout its bindings and constants belong to.
+         */
+        void BindGraphicsPipeline(PipelineHandle pipeline, PipelineLayoutHandle layout);
+
+        /**
+         * @brief Record the constant block of the currently bound graphics pipeline.
+         *
+         * The same idea as `SetKernelParams` one stage over: the values apply to
+         * the draws that follow and have no identity of their own. Vulkan reads
+         * them from push constants; a backend without them writes the block into
+         * a window it binds.
+         *
+         * @param params The bytes to record, at most the layout's block size.
+         */
+        void PushConstants(std::span<const std::byte> params);
+
+        /**
+         * @brief Bind one descriptor set for graphics work.
+         *
+         * @param set_index Index of the set in the pipeline layout.
+         * @param set The descriptor set to bind.
+         */
+        void BindGraphicsDescriptorSet(uint32_t set_index, DescriptorSetHandle set);
+
+        /**
          * @brief Bind one descriptor set for compute work.
          *
          * @param set_index Index of the set in the pipeline layout.
