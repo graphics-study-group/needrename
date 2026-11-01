@@ -85,6 +85,19 @@ namespace Engine::Rhi {
         void Barrier(std::span<const ImageBarrier> barriers);
 
         /**
+         * @brief Copy one box of an image into one box of another.
+         *
+         * A blit is a transfer: it reads one layout and writes another, and both
+         * are stated by the transitions recorded around it. The caller says
+         * whether the copy filters when the boxes differ in size, because a
+         * backend defaults differently.
+         *
+         * @param description Source, destination, boxes and layers.
+         * @param linear Whether to filter when scaling.
+         */
+        void BlitImage(const ImageBlitDescription &description, bool linear);
+
+        /**
          * @brief Begin a pass over the given attachments.
          *
          * A pass states its attachments, what to do with their previous contents,
@@ -234,6 +247,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMMANDENCODER_INCLUDED
+
 
 
 

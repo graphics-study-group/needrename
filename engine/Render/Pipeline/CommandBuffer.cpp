@@ -73,31 +73,21 @@ namespace Engine {
         assert(src_area.x0 < src_area.x1 && src_area.y0 < src_area.y1 && src_area.z0 < src_area.z1);
         assert(dst_area.x0 < dst_area.x1 && dst_area.y0 < dst_area.y1 && dst_area.z0 < src_area.z1);
 
-        vk::ImageBlit2 blit{
-            vk::ImageSubresourceLayers{
-                vk::ImageAspectFlagBits::eColor,
-                src_area.mip_level,
-                src_area.array_layer_base,
-                src_area.array_layer_count
-            },
-            {vk::Offset3D{src_area.x0, src_area.y0, src_area.z0}, vk::Offset3D{src_area.x1, src_area.y1, src_area.z1}},
-            vk::ImageSubresourceLayers{
-                vk::ImageAspectFlagBits::eColor,
-                dst_area.mip_level,
-                dst_area.array_layer_base,
-                dst_area.array_layer_count
-            },
-            {vk::Offset3D{dst_area.x0, dst_area.y0, dst_area.z0}, vk::Offset3D{dst_area.x1, dst_area.y1, dst_area.z1}},
-        };
-        vk::BlitImageInfo2 bii{
-            Engine::Rhi::ToVulkanImage(src.GetImage()),
-            vk::ImageLayout::eTransferSrcOptimal,
-            Engine::Rhi::ToVulkanImage(dst.GetImage()),
-            vk::ImageLayout::eTransferDstOptimal,
-            {blit},
-            vk::Filter::eLinear
-        };
-        cb.blitImage2(bii);
+        Rhi::ImageBlitDescription blit{};
+        blit.source = src.GetImage();
+        blit.destination = dst.GetImage();
+        blit.aspect = Rhi::ImageAspect::Color;
+        blit.source_mip = src_area.mip_level;
+        blit.source_layer = src_area.array_layer_base;
+        blit.source_layer_count = src_area.array_layer_count;
+        blit.destination_mip = dst_area.mip_level;
+        blit.destination_layer = dst_area.array_layer_base;
+        blit.destination_layer_count = dst_area.array_layer_count;
+        blit.source_min = Rhi::Offset3D{src_area.x0, src_area.y0, src_area.z0};
+        blit.source_max = Rhi::Offset3D{src_area.x1, src_area.y1, src_area.z1};
+        blit.destination_min = Rhi::Offset3D{dst_area.x0, dst_area.y0, dst_area.z0};
+        blit.destination_max = Rhi::Offset3D{dst_area.x1, dst_area.y1, dst_area.z1};
+        m_encoder->BlitImage(blit, true);
     }
 
     void CommandBuffer::RecordCopyImageToBuffer(

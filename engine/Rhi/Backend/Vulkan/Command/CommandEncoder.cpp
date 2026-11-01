@@ -135,6 +135,40 @@ namespace Engine::Rhi {
         pimpl->command_buffer.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, image_barriers});
     }
 
+    void CommandEncoder::BlitImage(const ImageBlitDescription &description, bool linear) {
+        const vk::ImageBlit2 blit{
+            vk::ImageSubresourceLayers{
+                GetVkAspect(description.aspect),
+                description.source_mip,
+                description.source_layer,
+                description.source_layer_count
+            },
+            {vk::Offset3D{description.source_min.x, description.source_min.y, description.source_min.z},
+             vk::Offset3D{description.source_max.x, description.source_max.y, description.source_max.z}},
+            vk::ImageSubresourceLayers{
+                GetVkAspect(description.aspect),
+                description.destination_mip,
+                description.destination_layer,
+                description.destination_layer_count
+            },
+            {vk::Offset3D{
+                 description.destination_min.x, description.destination_min.y, description.destination_min.z
+             },
+             vk::Offset3D{
+                 description.destination_max.x, description.destination_max.y, description.destination_max.z
+             }},
+        };
+        const vk::BlitImageInfo2 info{
+            ToVulkanImage(description.source),
+            vk::ImageLayout::eTransferSrcOptimal,
+            ToVulkanImage(description.destination),
+            vk::ImageLayout::eTransferDstOptimal,
+            {blit},
+            linear ? vk::Filter::eLinear : vk::Filter::eNearest
+        };
+        pimpl->command_buffer.blitImage2(info);
+    }
+
     void CommandEncoder::BeginRenderPass(const RenderPassDescription &description) {
         std::vector<vk::RenderingAttachmentInfo> color_attachments;
         color_attachments.reserve(description.color_attachments.size());
@@ -285,6 +319,7 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
 
 
 

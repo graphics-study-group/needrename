@@ -374,6 +374,43 @@ namespace Engine::Rhi {
         /// @brief The kind of work that reads the image after this point.
         PipelineScope to_scope{PipelineScope::Unspecified};
     };
+
+    /**
+     * @brief One box of an image copied into one box of another.
+     *
+     * A blit names a box in the source and a box in the destination; when the
+     * sizes differ the copy is scaled. The layers are named as a range because
+     * that is what both APIs take, and a cube-face copy is exactly this shape.
+     */
+    struct ImageBlitDescription {
+        /// @brief The image being read.
+        ImageHandle source{};
+        /// @brief The image being written.
+        ImageHandle destination{};
+        /// @brief Which aspects of both images the copy covers.
+        ImageAspect aspect{ImageAspect::Color};
+        /// @brief Source mip level.
+        uint32_t source_mip{0};
+        /// @brief First source array layer.
+        uint32_t source_layer{0};
+        /// @brief Number of source array layers.
+        uint32_t source_layer_count{1};
+        /// @brief Destination mip level.
+        uint32_t destination_mip{0};
+        /// @brief First destination array layer.
+        uint32_t destination_layer{0};
+        /// @brief Number of destination array layers.
+        uint32_t destination_layer_count{1};
+        /// @brief Inclusive lower corner of the source box.
+        Offset3D source_min{};
+        /// @brief Exclusive upper corner of the source box.
+        Offset3D source_max{};
+        /// @brief Inclusive lower corner of the destination box.
+        Offset3D destination_min{};
+        /// @brief Exclusive upper corner of the destination box.
+        Offset3D destination_max{};
+    };
+
     /**
      * @brief A capability a format may or may not have on the current device.
      *
@@ -391,6 +428,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
 
