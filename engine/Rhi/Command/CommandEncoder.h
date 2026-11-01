@@ -72,6 +72,19 @@ namespace Engine::Rhi {
         void Barrier(const ImageBarrier &barrier);
 
         /**
+         * @brief Transition several images as one dependency.
+         *
+         * A render graph transitions everything a pass needs before the pass
+         * records any work, and the transitions are one dependency: nothing
+         * between them needs the earlier ones to have completed. Recording them
+         * as one call says that, and a backend that can only express the batch at
+         * a coarser boundary loses nothing by treating it as one.
+         *
+         * @param barriers The transitions, applied together.
+         */
+        void Barrier(std::span<const ImageBarrier> barriers);
+
+        /**
          * @brief Begin a pass over the given attachments.
          *
          * A pass states its attachments, what to do with their previous contents,

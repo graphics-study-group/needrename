@@ -77,24 +77,34 @@ namespace Engine::Rhi {
     }
 
     void CommandEncoder::Barrier(const ImageBarrier &barrier) {
-        vk::ImageMemoryBarrier2 image_barrier{};
-        image_barrier.srcStageMask = ToVkStage(barrier.from_scope);
-        image_barrier.srcAccessMask = GetAccessFlags(barrier.from);
-        image_barrier.dstStageMask = ToVkStage(barrier.to_scope);
-        image_barrier.dstAccessMask = GetAccessFlags(barrier.to);
-        image_barrier.oldLayout = GetImageLayout(barrier.from);
-        image_barrier.newLayout = GetImageLayout(barrier.to);
-        image_barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-        image_barrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
-        image_barrier.image = ToVulkanImage(barrier.image);
-        image_barrier.subresourceRange = vk::ImageSubresourceRange{
-            GetVkAspect(barrier.aspect),
-            barrier.base_mip,
-            barrier.mip_count,
-            barrier.base_layer,
-            barrier.layer_count
-        };
-        pimpl->command_buffer.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, {image_barrier}});
+        const std::array single{barrier};
+        Barrier(std::span<const ImageBarrier>{single});
+    }
+
+    void CommandEncoder::Barrier(std::span<const ImageBarrier> barriers) {
+        std::vector<vk::ImageMemoryBarrier2> image_barriers;
+        image_barriers.reserve(barriers.size());
+        for (const ImageBarrier &barrier : barriers) {
+            vk::ImageMemoryBarrier2 image_barrier{};
+            image_barrier.srcStageMask = ToVkStage(barrier.from_scope);
+            image_barrier.srcAccessMask = GetAccessFlags(barrier.from);
+            image_barrier.dstStageMask = ToVkStage(barrier.to_scope);
+            image_barrier.dstAccessMask = GetAccessFlags(barrier.to);
+            image_barrier.oldLayout = GetImageLayout(barrier.from);
+            image_barrier.newLayout = GetImageLayout(barrier.to);
+            image_barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
+            image_barrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
+            image_barrier.image = ToVulkanImage(barrier.image);
+            image_barrier.subresourceRange = vk::ImageSubresourceRange{
+                GetVkAspect(barrier.aspect),
+                barrier.base_mip,
+                barrier.mip_count,
+                barrier.base_layer,
+                barrier.layer_count
+            };
+            image_barriers.push_back(image_barrier);
+        }
+        pimpl->command_buffer.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, image_barriers});
     }
 
     void CommandEncoder::BeginRenderPass(const RenderPassDescription &description) {
