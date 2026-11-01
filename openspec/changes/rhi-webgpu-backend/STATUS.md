@@ -102,4 +102,25 @@ In the order a next session should take them:
   something, not of everything.
 - **`Backend/WebGPU/` is empty.** Any document that reads as though the backend
   exists is wrong, including any that this one has not yet corrected.
+## A fourth black frame, and why the test for it was reverted
 
+While adding a pixel assertion to `new_material_test`, the assertion fired: **0 of
+2073600 pixels non-black**. A RenderDoc capture of the same test confirms it - one
+indexed draw of six indices into a 1920x1080 target, and the target is uniformly
+black.
+
+The readback path itself is sound: `pbr_test` reads 9.7% non-black through the same
+`CopyImageToBuffer` call, and `mrt_test` reads its target back too. The difference is
+what is being drawn, not how it is read.
+
+What is not known is whether this is a bug. `new_material_test` builds a Blinn-Phong
+material and draws a two-triangle quad; a scene that produces no visible output may be
+what the test's own setup intends - it asserts nothing about the frame today - or it
+may be the same class of defect as the zero colour write mask. Telling those apart
+needs a look at what the shader receives, which is a debugging session rather than a
+test.
+
+**The readback and the assertion were reverted.** A test that fails on a frame nobody
+has explained is a red suite without an answer, and the honest state is the one before:
+the scenario is a known unknown, written down here rather than encoded in a failing
+assertion.
