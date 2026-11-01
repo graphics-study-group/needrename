@@ -273,10 +273,10 @@ namespace Engine::RenderSystemState {
         // MUST happen before acquire: the acquire semaphore was waited on by
         // the previous frame's submit, and reusing it while that wait is still
         // pending violates VUID-vkAcquireNextImageKHR-semaphore-01779.
-        vk::Fence fence = pimpl->command_executed_fences[fif].get();
-        vk::Result wait_result = device.waitForFences({fence}, vk::True, timeout);
-        if (wait_result != vk::Result::eSuccess) {
-            throw std::runtime_error(vk::to_string(wait_result) + " happened when waiting for frame fences.");
+        if (!pimpl->m_system.GetDeviceContext().WaitForFence(
+                Rhi::FromVulkan(pimpl->command_executed_fences[fif].get()), timeout
+            )) {
+            throw std::runtime_error("Timed out waiting for the frame fence.");
         }
 
         // The fence of the frame that last used this slot has been observed, so
@@ -307,7 +307,7 @@ namespace Engine::RenderSystemState {
         // later wait (fences are only signaled by a completed submit, and
         // `waitIdle` does not signal them).
         pimpl->command_buffers[fif]->reset();
-        device.resetFences({fence});
+        device.resetFences({pimpl->command_executed_fences[fif].get()});
 
         // Kickstart of this frame
         // Prevent validation layer from complaining
@@ -437,19 +437,19 @@ namespace Engine::RenderSystemState {
         // Record current readbacks.
         if (readback.HasReadback()) {
             readback.current_registry.combuf->end();
-            // Submit this commandbuffer
-            vk::CommandBufferSubmitInfo cbsi{readback.current_registry.combuf.get()};
-            std::array<vk::SemaphoreSubmitInfo, 1> wait_infos{};
-
-            // Wait for the last timepoint
+            // Submit this commandbuffer, waiting for the frame's last timepoint.
             auto &this_frame_semaphore = timeline_semaphores[current_frame_in_flight];
-            wait_infos[0] = this_frame_semaphore.GetSubmitInfo(
-                this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllCommands
+            Rhi::Submission readback_submission{};
+            readback_submission.command_buffers.push_back(
+                Rhi::FromVulkan(readback.current_registry.combuf.get())
             );
-
-            const auto &gqueue = m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue;
-            gqueue.submit2(
-                {vk::SubmitInfo2{vk::SubmitFlags{}, wait_infos, {cbsi}, {}}}, readback.current_registry.fence.get()
+            readback_submission.waits.push_back(Rhi::SubmissionDependency{
+                Rhi::FromVulkan(this_frame_semaphore.GetSemaphore()),
+                this_frame_semaphore.GetExpectedTimepoints(),
+                Rhi::PipelineScope::Unspecified
+            });
+            m_system.GetDeviceContext().Submit(
+                readback_submission, Rhi::FromVulkan(readback.current_registry.fence.get())
             );
 
             readback.AddRegistery();

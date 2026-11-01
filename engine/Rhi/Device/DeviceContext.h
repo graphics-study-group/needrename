@@ -163,10 +163,20 @@ namespace Engine::Rhi {
          * @param fence Signalled when the submission completes, or empty.
          */
         void Submit(const Submission &submission, FenceHandle fence = {});
+
+        /**
+         * @brief Wait until a fence is signalled.
+         *
+         * @param fence The fence to wait on.
+         * @param timeout_ns How long to wait, or the maximum value for no limit.
+         * @return Whether the fence was signalled before the timeout.
+         */
+        bool WaitForFence(FenceHandle fence, uint64_t timeout_ns);
     };
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICECONTEXT_INCLUDED
+
 
 
 

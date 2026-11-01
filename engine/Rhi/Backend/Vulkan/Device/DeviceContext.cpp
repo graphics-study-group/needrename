@@ -190,6 +190,12 @@ namespace Engine::Rhi {
 
         ToVulkanDevice(m_device_interface->GetDevice()).updateDescriptorSets(vk_writes, {});
     }
+    bool DeviceContext::WaitForFence(FenceHandle fence, uint64_t timeout_ns) {
+        const vk::Result result =
+            ToVulkanDevice(m_device_interface->GetDevice()).waitForFences({ToVulkanFence(fence)}, vk::True, timeout_ns);
+        return result == vk::Result::eSuccess;
+    }
+
     void DeviceContext::Submit(const Submission &submission, FenceHandle fence) {
         std::vector<vk::SemaphoreSubmitInfo> waits;
         waits.reserve(submission.waits.size());
@@ -224,6 +230,7 @@ namespace Engine::Rhi {
         m_device_interface->GetQueueInfo().graphicsQueue.submit2(info, submit_fence);
     }
 } // namespace Engine::Rhi
+
 
 
 
