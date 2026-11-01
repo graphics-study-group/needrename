@@ -20,7 +20,7 @@
 - [x] 3.3 Replace backend types in `DescriptorArena`, `ShaderResourceBinding`, `ImmutableResourceCache` and verify the descriptor tests pass unchanged
 - [ ] 3.4 Introduce the command encoder with flat recording, `Barrier`, `TextureBarrier`, `SetKernelParams`, `SetUniformSlice` and the render scope, and verify the Vulkan implementation records exactly the commands it does today for an equivalent recording
 - [ ] 3.5 Add the capability and limits query and verify a consumer can distinguish a single-queue backend and emulated constants without naming a backend
-- [ ] 3.6 Verify a translation unit including every `engine/Rhi` public header links against neither Vulkan nor WebGPU headers
+- [x] 3.6 Verify a translation unit including every `engine/Rhi` public header links against neither Vulkan nor WebGPU headers
 
 ## 4. Physics recording migration
 
@@ -817,3 +817,4 @@ Two notes for whoever picks up 3.6:
 - `SubmissionHelper::CmdOperation` moved into the implementation, so the batch's
   recording callback is no longer part of the public surface. When group 6 gives
   it an encoder parameter it will stay invisible to the interface.
+
