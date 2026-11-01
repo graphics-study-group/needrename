@@ -87,6 +87,7 @@ namespace Engine::Rhi {
     struct DescriptorSetHandleTag;
     struct DescriptorSetLayoutHandleTag;
     struct PipelineHandleTag;
+    struct ShaderModuleHandleTag;
     struct PipelineLayoutHandleTag;
     struct CommandBufferHandleTag;
     struct SemaphoreHandleTag;
@@ -112,6 +113,8 @@ namespace Engine::Rhi {
     using PipelineHandle = ObjectHandle<PipelineHandleTag>;
     /// @brief A pipeline layout.
     using PipelineLayoutHandle = ObjectHandle<PipelineLayoutHandleTag>;
+    /// @brief A compiled shader module, as the backend names it.
+    using ShaderModuleHandle = ObjectHandle<ShaderModuleHandleTag>;
     /// @brief A command buffer.
     using CommandBufferHandle = ObjectHandle<CommandBufferHandleTag>;
     /// @brief A timeline or binary semaphore.

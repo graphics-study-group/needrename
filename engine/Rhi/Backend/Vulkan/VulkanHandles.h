@@ -96,7 +96,15 @@ namespace Engine::Rhi {
     inline PipelineLayoutHandle FromVulkan(vk::PipelineLayout layout) noexcept {
         return FromVulkan<PipelineLayoutHandle>(static_cast<VkPipelineLayout>(layout));
     }
-    /// @brief Convert a portable pipeline layout handle to its Vulkan layout.
+    /// @brief Convert a portable shader module handle to its Vulkan module.
+    inline vk::ShaderModule ToVulkanShaderModule(ShaderModuleHandle handle) noexcept {
+        return vk::ShaderModule{reinterpret_cast<VkShaderModule>(handle.GetValue())};
+    }
+
+    inline ShaderModuleHandle FromVulkan(vk::ShaderModule module) noexcept {
+        return FromVulkan<ShaderModuleHandle>(static_cast<VkShaderModule>(module));
+    }
+
     inline vk::PipelineLayout ToVulkanPipelineLayout(PipelineLayoutHandle handle) noexcept {
         return vk::PipelineLayout(ToVulkan<VkPipelineLayout>(handle));
     }
