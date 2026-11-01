@@ -62,7 +62,7 @@ ran for as long as the suite has existed, reported success, and **drew nothing a
 all** - because none of them asserted anything about a pixel. A renderer can regress
 into anything and stay green.
 
-Two assertions now exist, and one of them has been verified in both directions:
+Six assertions now exist, and one of them has been verified in both directions:
 
 - `mrt_test` fails when its read-back colour target is uniformly zero.
 - `skybox_test` fails when the frame is black. **With the zero write mask restored it
@@ -75,12 +75,12 @@ Two assertions now exist, and one of them has been verified in both directions:
 - `imgui_test` fails when the frame is entirely black. Measures 374000 of 2073600 -
   the UI panel.
 
-The other five windowed tests assert nothing about pixels, and three of those
-(`input_test`, `physics_registration_test`, `project_loading_test`) do not render a
-scene in the first place. `shadow_map_test` keeps its validation-error check instead;
-adding a pixel assertion there was tried and reverted for the reason in the section
-below. That is a known gap,
-not an oversight.
+Four windowed tests assert nothing about pixels. Three of those (`input_test`,
+`physics_registration_test`, `project_loading_test`) do not render a scene in the first
+place, so there is nothing for them to assert. `shadow_map_test` keeps its
+validation-error check instead - adding a pixel assertion there was tried and reverted
+for the reason in its own section below. That is a known gap, not an oversight - and a
+narrow one, since a wrong layout in that test is a validation error it already fails on.
 
 ## What is honestly unfinished
 
@@ -158,4 +158,6 @@ back - which is exactly the barrier work in the abandoned section.
 So the test keeps its validation check and no pixel assertion. That is a smaller gap
 than it sounds: a frame with a wrong layout is a validation error there, and the test
 already fails on those.
+
+
 
