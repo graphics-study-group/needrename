@@ -99,23 +99,6 @@ namespace Engine::RenderSystemState {
                 "LightUniformBuffer must match the std140 layout of PerSceneUniform"
             );
 
-            static constexpr std::array DESCRIPTOR_BINDINGS{
-                // Uniform buffer for lights
-                vk::DescriptorSetLayoutBinding{
-                    0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
-                },
-                // Shadow maps binding
-                vk::DescriptorSetLayoutBinding{
-                    1,
-                    vk::DescriptorType::eCombinedImageSampler,
-                    MAX_SHADOW_CASTING_LIGHTS,
-                    vk::ShaderStageFlagBits::eAllGraphics
-                },
-                // Model matrices storage buffer (readonly in graphics)
-                vk::DescriptorSetLayoutBinding{
-                    2, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
-                }
-            };
 
             // Light data
             LightUniformBuffer light_front_buffer{};
