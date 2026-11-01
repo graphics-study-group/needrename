@@ -14,6 +14,7 @@
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanPipelineState.h"
+#include "Rhi/Pipeline/Pipeline.h"
 
 #include <SDL3/SDL.h>
 #include <fstream>
@@ -27,7 +28,7 @@ namespace Engine {
             vk::DynamicState::eViewport, vk::DynamicState::eScissor
         };
 
-        vk::PipelineLayout pipeline_layout{};
+        Rhi::PipelineLayoutHandle pipeline_layout{};
         /// @brief Layout of the per-material set, the object the arena resolved.
         Rhi::DescriptorSetLayoutRef desc_set_layout{};
         const Rhi::SPLayout *m_layout{};
@@ -35,7 +36,7 @@ namespace Engine {
         /// construction, because `GenerateLayoutBindings` allocates.
         bool m_has_material_data{false};
 
-        vk::UniquePipeline pipeline{};
+        std::optional<Rhi::Pipeline> pipeline{};
         std::string m_name{};
 
         void CreatePipeline(
@@ -44,30 +45,22 @@ namespace Engine {
             MaterialTemplateSinglePassProperties &prop,
             const PipelineRuntimeInfo &pri
         ) {
-            vk::Device device = system.GetDevice();
 
             // Process shaders.
-            vk::SpecializationInfo speci{};
-            std::vector<vk::PipelineShaderStageCreateInfo> psscis;
-            std::vector<vk::SpecializationMapEntry> sme;
-            std::vector<std::byte> specialization_constant_buffer;
-            {
-                // Prepare specialization constants
-                speci = PipelineUtils::FillSpecializationInfo(
-                    prop.shaders.specialization_constants, sme, specialization_constant_buffer
-                );
+            std::vector<Rhi::SpecializationConstant> specialization_entries;
+            std::vector<std::byte> specialization_data;
+            PipelineUtils::FillSpecializationConstants(
+                prop.shaders.specialization_constants, specialization_entries, specialization_data
+            );
 
-                psscis.resize(prop.shaders.shaders.size());
-                for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
-                    auto shader_asset = prop.shaders.shaders[i].as<ShaderAsset>();
-                    psscis[i] = vk::PipelineShaderStageCreateInfo{
-                        {},
-                        PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
-                        shader_modules[i],
-                        shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point.c_str(),
-                        &speci
-                    };
-                }
+            std::vector<Rhi::GraphicsPipelineStage> stages(prop.shaders.shaders.size());
+            for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
+                auto shader_asset = prop.shaders.shaders[i].as<ShaderAsset>();
+                stages[i] = Rhi::GraphicsPipelineStage{
+                    Rhi::FromVulkan(shader_modules[i]),
+                    PipelineUtils::ToShaderStage(shader_asset->shaderType),
+                    shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point
+                };
             }
 
             // The four state groups, the vertex input and the attachment formats
@@ -163,28 +156,17 @@ namespace Engine {
                 }
             }
 
-            const Rhi::VulkanPipelineState pipeline_state{pipeline_description};
-            auto vsi = vk::PipelineViewportStateCreateInfo{{}, 1, nullptr, 1, nullptr};
-            auto msi = vk::PipelineMultisampleStateCreateInfo{{}, vk::SampleCountFlagBits::e1, vk::False};
-            auto dsi = vk::PipelineDynamicStateCreateInfo{{}, PIPELINE_DYNAMIC_STATES};
-
-            vk::GraphicsPipelineCreateInfo gpci{};
-            gpci.setStages(psscis);
-            gpci.pNext = &pipeline_state.Rendering();
-            gpci.pVertexInputState = &pipeline_state.VertexInput();
-            gpci.pInputAssemblyState = &pipeline_state.InputAssembly();
-            gpci.pViewportState = &vsi;
-            gpci.pRasterizationState = &pipeline_state.Rasterization();
-            gpci.pMultisampleState = &msi;
-            gpci.pDepthStencilState = &pipeline_state.DepthStencil();
-            gpci.pColorBlendState = &pipeline_state.ColorBlend();
-            gpci.pDynamicState = &dsi;
-            gpci.layout = pipeline_layout;
-            gpci.renderPass = nullptr;
-            gpci.subpass = 0;
-
-            auto ret = device.createGraphicsPipelineUnique(nullptr, gpci);
-            pipeline = std::move(ret.value);
+            Rhi::GraphicsPipelineBuildDescription build{};
+            build.pipeline = pipeline_description;
+            build.layout = pipeline_layout;
+            build.stages = std::move(stages);
+            build.specialization_entries = std::move(specialization_entries);
+            build.specialization_data = std::move(specialization_data);
+            pipeline = Rhi::Pipeline::Create(system.GetDeviceContext(), build);
+            if (!pipeline->IsValid()) {
+                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to create material %s.", m_name.c_str());
+                return;
+            }
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Successfully created material %s.", m_name.c_str());
         }
     };
@@ -205,7 +187,7 @@ namespace Engine {
         pimpl->m_name = name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipelines for material %s.", pimpl->m_name.c_str());
 
-        pimpl->pipeline_layout = layout;
+        pimpl->pipeline_layout = Rhi::FromVulkan(layout);
         pimpl->desc_set_layout = desc_set_layout;
         pimpl->m_layout = &reflected;
         // "Has per-material data" is "the reflected layout declares set 2".
@@ -221,10 +203,10 @@ namespace Engine {
     MaterialTemplate::~MaterialTemplate() = default;
 
     Rhi::PipelineHandle MaterialTemplate::GetPipeline() const noexcept {
-        return Rhi::FromVulkan(pimpl->pipeline.get());
+        return pimpl->pipeline ? pimpl->pipeline->GetHandle() : Rhi::PipelineHandle{};
     }
     Rhi::PipelineLayoutHandle MaterialTemplate::GetPipelineLayout() const noexcept {
-        return Rhi::FromVulkan(pimpl->pipeline_layout);
+        return pimpl->pipeline_layout;
     }
 
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const noexcept {

@@ -48,11 +48,20 @@ namespace Engine::Rhi {
         const vk::Device device = ToVulkanDevice(device_context.GetDeviceInterface().GetDevice());
 
         // Specialization constants are baked into the pipeline, so both the values
-        // and where each sits have to outlive the create call; the two vectors are
-        // sized before any entry points into them.
+        // and where each sits have to outlive the create call.
+        //
+        // The entries are translated rather than reinterpreted: vk::SpecializationMapEntry
+        // ends with a size_t while the portable one ends with a uint32_t, so the two
+        // are not the same layout and casting between them reads garbage for the size.
+        std::vector<vk::SpecializationMapEntry> map_entries;
+        map_entries.reserve(description.specialization_entries.size());
+        for (const SpecializationConstant &constant : description.specialization_entries) {
+            map_entries.push_back(vk::SpecializationMapEntry{constant.constant_id, constant.offset, constant.size});
+        }
+
         const vk::SpecializationInfo specialization_info{
-            static_cast<uint32_t>(description.specialization_entries.size()),
-            reinterpret_cast<const vk::SpecializationMapEntry *>(description.specialization_entries.data()),
+            static_cast<uint32_t>(map_entries.size()),
+            map_entries.data(),
             description.specialization_data.size(),
             description.specialization_data.data()
         };
@@ -65,7 +74,7 @@ namespace Engine::Rhi {
                 ToVkShaderStage(stage.stage),
                 ToVulkanShaderModule(stage.module),
                 stage.entry_point.c_str(),
-                description.specialization_entries.empty() ? nullptr : &specialization_info
+                map_entries.empty() ? nullptr : &specialization_info
             });
         }
 

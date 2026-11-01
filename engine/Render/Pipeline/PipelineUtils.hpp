@@ -7,6 +7,7 @@
 
 #include "Render/Asset/Material/PipelineProperty.h"
 #include "Rhi/Device/Hasher.hpp"
+#include "Rhi/Pipeline/PipelineBuilder.h"
 #include "Rhi/Pipeline/PipelineEnums.h"
 #include "Rhi/Backend/Vulkan/VulkanPipelineEnums.h"
 
@@ -238,6 +239,57 @@ namespace Engine::PipelineUtils {
     }
 
     /**
+     * @brief Converts a shader asset's type to the seam's stage.
+     *
+     * @param type The shader type to convert.
+     */
+    constexpr Rhi::ShaderStage ToShaderStage(ShaderAsset::ShaderType type) {
+        using Type = ShaderAsset::ShaderType;
+        switch (type) {
+        case Type::Fragment:
+            return Rhi::ShaderStage::Fragment;
+        case Type::Vertex:
+            return Rhi::ShaderStage::Vertex;
+        case Type::Compute:
+            return Rhi::ShaderStage::Compute;
+        default:
+            throw std::invalid_argument("Unsupported shader stage.");
+        }
+    }
+
+    /**
+     * @brief Pack specialization constants for a pipeline build.
+     *
+     * A specialization constant is a value baked into the pipeline rather than
+     * bound at draw time, so a build needs both where each one sits and the bytes
+     * themselves.
+     *
+     * @param spec_vars The values, keyed by constant id.
+     * @param entries Filled with one entry per value, in the order they are packed.
+     * @param data Filled with the packed values; `entries` indexes into it.
+     */
+    inline void FillSpecializationConstants(
+        const std::unordered_map<uint32_t, int32_t> &spec_vars,
+        std::vector<Rhi::SpecializationConstant> &entries,
+        std::vector<std::byte> &data
+    ) {
+        entries.clear();
+        data.clear();
+        if (spec_vars.empty()) {
+            return;
+        }
+
+        entries.reserve(spec_vars.size());
+        data.resize(spec_vars.size() * sizeof(int32_t));
+        uint32_t current_offset = 0u;
+        for (const auto &[k, v] : spec_vars) {
+            const auto size = sizeof(int32_t);
+            std::memcpy(data.data() + current_offset, &v, size);
+            entries.push_back(Rhi::SpecializationConstant{k, current_offset, static_cast<uint32_t>(size)});
+            current_offset += static_cast<uint32_t>(size);
+        }
+    }
+    /**
      * @brief Fill up shader specialization info.
      *
      * @param spec_vars specialization variables.
@@ -350,4 +402,6 @@ namespace Engine::PipelineUtils {
 } // namespace Engine::PipelineUtils
 
 #endif // RENDER_PIPELINE_PIPELINEUTILS
+
+
 
