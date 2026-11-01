@@ -30,7 +30,6 @@ namespace Engine::RenderSystemState {
     struct SceneDataManager::impl {
         /// @brief The seam, for anything that is not a raw Vulkan call.
         Rhi::DeviceContext *device_context{nullptr};
-        vk::Device device{};
 
         struct Scene {
             /// One light's cascade count, padded to the std140 array stride of a
@@ -298,7 +297,6 @@ namespace Engine::RenderSystemState {
         } skybox{};
 
         void Create(RenderSystem &system) {
-            device = system.GetDevice();
             device_context = &system.GetDeviceContext();
             scene.Create(system);
         }
