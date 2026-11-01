@@ -67,8 +67,10 @@ Two assertions now exist, and one of them has been verified in both directions:
 - `mrt_test` fails when its read-back colour target is uniformly zero.
 - `skybox_test` fails when the frame is black. **With the zero write mask restored it
   exits 1 and says so; with the fix it reports 640000 of 640000 pixels not black.**
+- `pbr_test` fails when fewer than one percent of the composed frame is non-black. It
+  measures 805875 of 8294400 (9.7%), which is the sphere.
 
-The other nine windowed tests still assert nothing about pixels. That is a known gap,
+The other eight windowed tests still assert nothing about pixels. That is a known gap,
 not an oversight.
 
 ## What is honestly unfinished
@@ -100,3 +102,4 @@ In the order a next session should take them:
   something, not of everything.
 - **`Backend/WebGPU/` is empty.** Any document that reads as though the backend
   exists is wrong, including any that this one has not yet corrected.
+

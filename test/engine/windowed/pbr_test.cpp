@@ -1,6 +1,7 @@
 #include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <iostream>
 #include <chrono>
 #include <fstream>
 #include <numbers>
@@ -288,6 +289,16 @@ int main(int argc, char **argv) {
     auto cs_ref = adb->GetNewAssetRef(AssetPath{"builtin://shaders/bloom.comp.asset"});
     Rhi::ComputeKernel &bloom_kernel = RequestComputeKernel(rsys->GetDeviceContext(), *cs_ref.as<ShaderAsset>());
 
+    // Read the composed frame back so the test can assert that something was
+    // drawn. Every windowed test in this suite reported success for as long as it
+    // has existed while drawing nothing; this one looks.
+    auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
+        rsys->GetAllocatorState(),
+        Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice},
+        static_cast<size_t>(screenWidth) * static_cast<size_t>(screenHeight) * 4u
+    );
+    auto *readback_raw = readback_buffer.get();
+
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};
     RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
@@ -364,6 +375,29 @@ int main(int argc, char **argv) {
             .Get()
     );
 
+    // Copy the composed frame into the readback buffer, after the GUI pass has
+    // drawn, so the assertion covers the 3D content and not the UI.
+    {
+        const auto rb = rgb.ImportExternalResource(*readback_buffer);
+        rgb.AddPass(
+            RenderGraphPassBuilder{*rsys}
+                .SetName("Frame Readback")
+                .UseImage(c, Rhi::MemoryAccessTypeImageBits::TransferRead)
+                .UseBuffer(rb, {Rhi::MemoryAccessTypeBufferBits::TransferWrite})
+                .SetAffinity(RenderGraphPassAffinity::Transfer)
+                .SetPassFunction([c, readback_raw](CommandBuffer &cb, const RenderGraph &graph) {
+                    auto rt = graph.GetInternalTextureResource(c);
+                    cb.GetEncoder().CopyImageToBuffer(
+                        rt->GetImage(),
+                        readback_raw->GetBuffer(),
+                        Rhi::Extent3D{rt->GetTextureDescription().width, rt->GetTextureDescription().height, 1},
+                        Rhi::ImageAspect::Color
+                    );
+                })
+                .Get()
+        );
+    }
+
     auto rg{rgb.BuildRenderGraph()};
 
     uint64_t frame_count = 0;
@@ -419,9 +453,33 @@ int main(int argc, char **argv) {
     );
     rsys->WaitForIdle();
 
+    // The frame was composed; if nothing was drawn the readback is uniformly
+    // black and the test says so instead of reporting a pass.
+    {
+        const auto *pixels = reinterpret_cast<const uint8_t *>(readback_buffer->GetVMAddress());
+        size_t non_black = 0;
+        const size_t pixel_count = static_cast<size_t>(screenWidth) * static_cast<size_t>(screenHeight);
+        for (size_t i = 0; i < pixel_count; i++) {
+            if (pixels[i * 4 + 0] != 0 || pixels[i * 4 + 1] != 0 || pixels[i * 4 + 2] != 0) {
+                non_black++;
+            }
+        }
+        // A sphere covers a real part of the frame; a single stray pixel means
+        // the scene did not draw. One percent is far below the ~10% measured and far
+        // above anything a clear colour or a stray fragment would produce.
+        const size_t minimum = pixel_count / 100;
+        if (non_black < minimum) {
+            std::cerr << "PBR test FAILED: only " << non_black << " of " << pixel_count
+                      << " pixels are not black; the scene did not draw." << std::endl;
+            return 1;
+        }
+        SDL_LogInfo(0, "PBR test: %zu of %zu pixels are not black.", non_black, pixel_count);
+    }
+
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;
 }
+
 
 
 
