@@ -1180,3 +1180,32 @@ barrier a caller records knowingly. What changes next is the method: instead of
 converting the whole graph at once, convert **one** transition class at a time
 (pre-pass, post-pass, subpass) and run the suite after each, so whichever of the
 three differences matters names itself.
+### The comparison build rules out the encoder
+
+The decisive test was to keep the graph's original submission path
+(`vkCmdPipelineBarrier2` with the same batching) and only change how the barrier
+*fields* are produced: build an `Rhi::ImageBarrier` in the builder, translate it
+back to `vk::ImageMemoryBarrier2` in `Record` with a local copy of the encoder's
+translation. If that build had passed, the difference would have been inside
+`CommandEncoder::Barrier`.
+
+**It failed.** So the field values are what differ, not the encoder, and after six
+rounds the candidates that have been checked and eliminated are:
+
+| candidate | verdict |
+|---|---|
+| stage mask `eAllCommands` instead of a guessed stage | eliminated (`PipelineScope`) |
+| batching transitions into one dependency | eliminated (`Barrier(span)`) |
+| aspect picking one face instead of the format's flags | eliminated (`ToImageAspect`) |
+| transfer access inside a graphics pass | eliminated (mirrored in `ToVkStage`) |
+| first use having no source stage | eliminated (`access == None` maps to `eNone`) |
+| `GetAccessFlags` / `GetImageLayout` on `None` | ruled out by reading: they return `eNone` / `eUndefined` |
+
+What is left can only be found by printing both barriers for the same transition
+and diffing the fields - not by reading. That is the next step, and it wants a
+temporary `std::vector<vk::ImageMemoryBarrier2>` stored alongside the portable one
+in `Subpass`, filled by the builder, and compared in `Record` with an `SDL_LogError`
+per differing field.
+
+Until that lands, the render graph keeps its own barriers and the shared render
+layer stays at 291 sites. Nothing else in this change is blocked by it.
