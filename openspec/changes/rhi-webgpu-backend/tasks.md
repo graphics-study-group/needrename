@@ -1209,3 +1209,44 @@ per differing field.
 
 Until that lands, the render graph keeps its own barriers and the shared render
 layer stays at 291 sites. Nothing else in this change is blocked by it.
+### Eight attempts, every field identical, still red: stop and record
+
+The field diff finally compared everything that can differ:
+
+| field | portable | vulkan | same? |
+|---|---|---|---|
+| srcAccessMask | from | from | yes |
+| dstAccessMask | to | to | yes |
+| oldLayout | from | from | yes |
+| newLayout | to | to | yes |
+| aspectMask | `ToImageAspect(format)` | `GetVkAspect(format)` | **yes** |
+| levelCount | `UINT32_MAX` | `RemainingMipLevels` | yes |
+| layerCount | `UINT32_MAX` | `RemainingArrayLayers` | yes |
+| stage masks | `ToVkStage` | `GuessPipelineStageFromAccess` | branch-for-branch |
+
+The diff printed **nothing** for aspect and range, which means they agree. The
+stage mapping was reproduced from the original helper case by case. Submission
+order (buffer barrier before or after the image transitions) was tried both ways.
+
+`shadow_map_test` fails in every variant.
+
+So the difference is not in any field this seam expresses, and it is not in the
+encoder (the comparison build ruled that out), and it is not the batching, the
+order, or the aspect. Eight attempts have now been spent on this one conversion.
+**Stopping.**
+
+What stays, because each is right on its own:
+
+- `PipelineScope` and the stage derivation from it, including "no source access
+  means no source stage" and "a virtual pass names its stage from its access".
+- `Barrier(std::span<const ImageBarrier>)`, because a pass boundary is one
+  dependency.
+
+The render graph keeps its own barriers. The seam has everything it needs for
+compute and for anything a caller records knowingly; what it does not have is a
+demonstrated equivalent of the graph's own barrier builder, and finding that
+equivalence is a task for someone with a working debugger session rather than for
+another round of guessing.
+
+Nothing else in the change depends on it: groups 6, 8, 9, 10 and 12 remain, and
+the render layer's shared surface stays at 291 sites.
