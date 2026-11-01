@@ -40,7 +40,7 @@ namespace Engine::Rhi {
         BufferRef buffer{};
         /// @brief Byte offset into the buffer.
         size_t offset{0};
-        /// @brief Byte range of the buffer binding (`vk::WholeSize` for all of it).
+        /// @brief Byte range of the buffer binding; the maximum size means all of it.
         size_t range{std::numeric_limits<size_t>::max()};
 
         /**
@@ -215,4 +215,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DESCRIPTORARENA_INCLUDED
+
 
