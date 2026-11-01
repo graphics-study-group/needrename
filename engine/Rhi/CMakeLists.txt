@@ -1,5 +1,24 @@
-file(GLOB_RECURSE SOURCE "./*.cpp")
-file(GLOB_RECURSE RHI_HEADERS "./*.h")
+# Only the selected backend is compiled. Everything outside Backend/ is
+# shared, and the reflection pass below covers only the public headers.
+file(GLOB_RECURSE RHI_ALL_SOURCES "./*.cpp")
+file(GLOB_RECURSE RHI_ALL_HEADERS "./*.h")
+set(SOURCE "")
+set(RHI_HEADERS "")
+foreach(_src IN LISTS RHI_ALL_SOURCES)
+    if (ENGINE_RHI_BACKEND_VULKAN AND _src MATCHES "/Backend/WebGPU/")
+        continue()
+    endif()
+    if (ENGINE_RHI_BACKEND_WEBGPU AND _src MATCHES "/Backend/Vulkan/")
+        continue()
+    endif()
+    list(APPEND SOURCE "${_src}")
+endforeach()
+foreach(_hdr IN LISTS RHI_ALL_HEADERS)
+    if (_hdr MATCHES "/Backend/")
+        continue()
+    endif()
+    list(APPEND RHI_HEADERS "${_hdr}")
+endforeach()
 
 # EngineRhi is the engine's generic GPU infrastructure layer, built as its own DLL
 add_library(EngineRhi SHARED ${SOURCE})
