@@ -483,4 +483,66 @@ and it does so by moving the wait to the caller.
 So the shape of the answer is settled even though the work is not: **a host-visible staging buffer
 plus a device buffer, with the copy performed at submission.** `SubmissionHelper` already builds
 exactly that pair for uploads; 8.5 is that pattern owned by the allocation instead of by a helper.
+## Handover: what is done, what is not, and what the next session should not redo
 
+Verified at commit `c1f43fe7` - three builds green, both suites passing, tree clean,
+`openspec validate --strict` passes, 31 of 51 tasks checked.
+
+### The four things to know before touching anything
+
+1. **`engine/Rhi` is backend-neutral and enforced.** `rhi_public_headers_test` fails if a `vk::`
+   appears in a public header anywhere under `engine/Rhi`. Six units moved from the Vulkan backend
+   to the shared layer during this change, each because its body was portable and one detail -
+   an include, a key, a constant - was backend-shaped. The second backend is what found them.
+
+2. **The WebGPU backend builds and links on three targets**: desktop (`webgpu-desktop`), browser
+   (`emscripten`), and - at 31 objects - it is no longer an empty library. `Backend/WebGPU/` has 16
+   units. It can create a device, allocate buffers and textures, cache samplers and layouts, build
+   bind groups, create render and compute pipelines from baked descriptions, record a pass, and
+   submit.
+
+3. **No frame has ever been rendered through it.** The one WebGPU test creates a device, asserts
+   its limits, creates a buffer and a texture, and checks the layout cache. Everything else about
+   this backend is inspected rather than observed. Say that plainly to anyone who asks whether the
+   web build works.
+
+4. **The remaining 20 tasks are blocked on decisions or external resources, not on volume.** Some are
+   one-line decisions away; none are "write more code".
+
+### The three decisions this change has taken, and the two that are still open
+
+Taken:
+
+- `DeviceCapabilities` gained `max_bind_groups`, because a backend whose real limit is bind groups
+  had nowhere to put it.
+- `RequestComputeKernelFromModule` and `ComputeKernel::CreateFromModule` take a `ShaderInterfaceDescription`,
+  because a backend without reflection cannot derive bindings. The Vulkan backend reports both as
+  unsupported and names the call to use instead.
+- `Submission::on_complete` exists and is wired on Vulkan: a callback rides the fence the submission
+  already signals and is run by `PumpCompletions` from `WaitForIdle`.
+
+Open:
+
+- **The mapped window on WebGPU needs two buffers.** Established in this session: the buffer that is
+  mapped cannot be handed to a submission, so the writes must land in a second, unmapped buffer
+  before the read. Lazy close hides the same copy rather than avoiding it. The remaining choice is
+  whether `FlushMemory` becomes asynchronous or the copy happens at submission.
+- **Skip-and-retry in the frame loop is not local.** Attempted and reverted: `StartFrame(0)` makes
+  `pbr_test` hang, because a skipped frame does not advance its counter and there are eleven call
+  sites. Every caller must advance its own clock on a skip.
+
+### What not to redo
+
+- Do not try to move `ShaderParameterLayout.cpp` to the shared layer. It has zero `vk::` references
+  and includes `spirv_cross.hpp`; zero backend types is not the same test as zero backend
+  dependencies.
+- Do not try `wgpuBufferGetMapState`. wgpu-native implements it as `unimplemented!()`; the mapped
+  state follows from the usage flags the buffer was created with. `RUST_BACKTRACE=1` is how this was
+  found after two wrong diagnoses.
+- Do not pass `maxAnisotropy = 0` to `wgpuDeviceCreateSampler`; the seam disables anisotropic
+  filtering with a value below one and the standard interface rejects zero.
+- Do not expect `imgui_impl_wgpu.cpp` to compile against wgpu-native 29. It is written for an older
+  header whose shader descriptor had a `source` field. `IMGUI_IMPL_WEBGPU_BACKEND_WGPU` is now
+  defined, which is necessary and not sufficient.
+- Do not look for the two modules Tint refuses under debug info. The bake strips it before invoking
+  the converter, so `sum_by_key.comp` and `sum_by_key_push.comp` fail for another reason.
