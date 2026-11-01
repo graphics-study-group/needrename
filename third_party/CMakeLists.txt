@@ -77,6 +77,10 @@ if (ENGINE_RHI_BACKEND_VULKAN)
     target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 else()
     target_link_libraries(imgui PUBLIC SDL3::SDL3 EngineDepWebgpu)
+    # imgui's WebGPU back-end has to be told which implementation it talks to: the
+    # standard interface and wgpu-native's header differ enough that it asks rather than
+    # guessing, and a build naming neither fails with an #error naming both.
+    target_compile_definitions(imgui PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_WGPU=1)
 endif()
 target_include_directories(
     imgui 
@@ -142,3 +146,4 @@ if (TARGET vma)
     list(APPEND _anro_system_reset_targets vma)
 endif()
 set_target_properties(${_anro_system_reset_targets} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")
+

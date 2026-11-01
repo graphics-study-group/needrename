@@ -168,10 +168,37 @@ namespace Engine::Rhi {
         return pimpl->queue_info;
     }
 
+    uint32_t DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger limit) const {
+        // The limits block is read once at creation; these are the entries the seam names.
+        switch (limit) {
+        case PhysicalDeviceLimitInteger::MaxUniformBufferSize:
+            return pimpl->limits.maxUniformBufferBindingSize;
+        case PhysicalDeviceLimitInteger::MaxStorageBufferSize:
+            return pimpl->limits.maxStorageBufferBindingSize;
+        case PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment:
+            return pimpl->limits.minUniformBufferOffsetAlignment;
+        case PhysicalDeviceLimitInteger::StorageBufferOffsetAlignment:
+            return pimpl->limits.minStorageBufferOffsetAlignment;
+        case PhysicalDeviceLimitInteger::AsyncTransferImageGranularityWidth:
+        case PhysicalDeviceLimitInteger::AsyncTransferImageGranularityHeight:
+        case PhysicalDeviceLimitInteger::AsyncTransferImageGranularityDepth:
+            // No transfer granularity: a copy is expressed in texels and the device honours
+            // the whole range.
+            return 1;
+        }
+        return 0;
+    }
+
+    float DeviceInterface::QueryLimit(PhysicalDeviceLimitFloat) const {
+        // The seam declares no float limits today; the enum is empty.
+        return 0.0f;
+    }
+
     SwapchainSupport DeviceInterface::GetSwapchainSupport() const {
         return SwapchainSupport{};
     }
 } // namespace Engine::Rhi
+
 
 
 

@@ -1,10 +1,13 @@
 #include "Rhi/Pipeline/ComputeKernel.h"
 
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
+#include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Pipeline/ShaderInterfaceDescription.h"
 #include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
+#include "Rhi/Texture/Texture.h"
+#include "Rhi/Texture/TextureSubresourceView.h"
 
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -36,6 +39,28 @@ namespace Engine::Rhi {
         /// Name to the description entry that declares it, for matching a dispatch.
         std::map<std::string, const ShaderInterfaceBinding *> interface_by_name{};
     };
+
+    ComputeKernelResource::ComputeKernelResource(const DeviceBuffer &buffer) {
+        kind = Kind::Buffer;
+        this->buffer.ref = buffer.GetBufferRef();
+        this->buffer.offset = 0u;
+        this->buffer.size = std::numeric_limits<size_t>::max();
+    }
+
+    ComputeKernelResource ComputeKernelResource::Buffer(const DeviceBuffer &buffer, size_t offset, size_t size) {
+        ComputeKernelResource resource(buffer);
+        resource.buffer.offset = offset;
+        resource.buffer.size = size;
+        return resource;
+    }
+
+    ComputeKernelResource ComputeKernelResource::Image(Texture &texture, const TextureSubresourceRange &range) {
+        ComputeKernelResource resource;
+        resource.kind = Kind::Texture;
+        resource.image.view = texture.GetViewRef(range);
+        resource.image.sampler = texture.GetSamplerRef();
+        return resource;
+    }
 
     ComputeKernel::ComputeKernel(DeviceContext &device_context) : pimpl(std::make_unique<impl>()) {
         pimpl->device_context = &device_context;
@@ -231,4 +256,5 @@ namespace Engine::Rhi {
         encoder.EndComputePass();
     }
 } // namespace Engine::Rhi
+
 
