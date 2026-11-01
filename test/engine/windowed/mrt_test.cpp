@@ -329,6 +329,12 @@ int main(int argc, char **argv) {
             continue;
         }
 
+        // Registration must not wait for the device: it queues a callback and
+        // returns. A blocking implementation would wait for the frame's work to
+        // land here, which on this hardware is milliseconds - an order of
+        // magnitude above the threshold below.
+        const auto register_start = sch::steady_clock::now();
+
         rsys->GetFrameManager().RegisterReadbackCallback(*readback_buffer, [](std::unique_ptr<Rhi::DeviceBuffer> in) {
             auto byte = in->GetVMAddress();
 
@@ -351,6 +357,14 @@ int main(int argc, char **argv) {
                 }
             }
         });
+
+        const auto register_elapsed = sch::steady_clock::now() - register_start;
+        if (register_elapsed > sch::milliseconds(100)) {
+            std::cerr << "MRT test FAILED: registering a readback blocked for "
+                      << sch::duration_cast<sch::milliseconds>(register_elapsed).count()
+                      << " ms. Registration queues a callback; it must not wait for the device." << std::endl;
+            return 1;
+        }
 
         rsys->GetFrameManager().BeginMainCommandBuffer();
         rg->RecordIntoMainCommandBuffer(*rsys);

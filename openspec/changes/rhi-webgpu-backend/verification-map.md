@@ -69,7 +69,7 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Refresh exposes completed device writes | **test**: `gpu_buffer_retirement_test` |
 | No torn state is observable | **none yet** |
 | Callback fires on completion | **test**: `mrt_test` (its readback callback runs) |
-| Registration does not block | **none yet** |
+| Registration does not block | **test**: `mrt_test` times the call and fails above 100 ms; a blocking implementation waits for the frame's work, which is milliseconds |
 | Test reads results synchronously | **test**: `mrt_test`, `headless_offscreen_test` |
 | Product path never blocks | **none yet** |
 | Actuator reads previous step state | **test**: `physics_app_actuator_unit_test` |
@@ -97,11 +97,11 @@ unchecked and the whole directory has to exist before any of these can run.
 | `rhi-backend-selection` | 10 | 9 | 1 |
 | `rhi-command-encoder` | 14 | 12 | 2 |
 | `rhi-compute-kernel` | 6 | 6 | 0 |
-| `rhi-mapped-window` | 12 | 6 | 6 |
+| `rhi-mapped-window` | 12 | 7 | 5 |
 | `submission-helper-sync` | 7 | 7 | 0 |
 | `shader-wgsl-artifact` | 9 | 0 | 9 |
 | `webgpu-backend` | 17 | 0 | 17 |
-| **Total** | **75** | **40** | **35** |
+| **Total** | **75** | **41** | **34** |
 
 ## The two kinds of "not verified"
 
@@ -112,13 +112,13 @@ They are worth separating, because they call for different work.
 can check these until group 7 and group 8 exist; writing a test now would test
 nothing.
 
-**Verifiable today but not written (5).** These are the ones that should bother a
+**Verifiable today but not written (4).** These are the ones that should bother a
 reader:
 
 - *Web build contains no runtime shader compiler* - checkable by scanning the wasm
   library's imports for glslang and SPIRV-Cross once the library is non-trivial.
-- Three in `rhi-mapped-window` (invalidation, implicit flush, registration not
-  blocking) - each is a small focused test over an API that exists.
+- Two in `rhi-mapped-window` (invalidation, implicit flush) - each needs a submission
+  whose completion is observed, which is a different shape from the checks above.
 - Four in `rhi-mapped-window` (address stability, invalidation, implicit flush,
   registration not blocking) - each is a small focused test over an API that exists.
 
@@ -146,4 +146,5 @@ one, because it costs every future run rather than one reader's attention.
 What the next attempt should try first: reproduce the setup from
 `compute_buffer_test` rather than from `buffer_reallocation_test`, because the
 former has a working `GetVMAddress()` call in it and the latter does not.
+
 
