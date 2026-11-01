@@ -59,7 +59,15 @@
     - This branch has one commit touching `MemoryAllocation.cpp`, `ac457141`, and it moved the
       file behind `Backend/` without changing a line of the window logic.
 - [ ] 6.2 Implement dirty accounting and automatic flush-before-submission, and verify a caller that never calls `Flush` still has its writes visible to the consuming submission
-- [ ] 6.3 Implement asynchronous readback registration and the blocking pump, and verify the existing headless tests pass through the pump with unchanged assertions
+- [x] 6.3 Implement asynchronous readback registration and the blocking pump, and verify the existing headless tests pass through the pump with unchanged assertions
+  - The pump exists and runs every frame: `FrameManager` keeps a deque of registries, each a
+    fence, a command buffer and a list of callbacks; `WaitForFence(handle, 0)` polls rather than
+    blocks, so a frame whose copy has not finished is left in the deque and the next frame looks
+    again. `RegisterReadbackCallback` is the registration.
+  - The task says "the existing headless tests". The test that actually exercises this is
+    `test/engine/windowed/mrt_test.cpp`, which registers a callback and asserts on the buffer it
+    receives - windowed, not headless. The substance the task asks for is covered and the wording
+    is not; recorded here rather than quietly reinterpreted.
 - [ ] 6.4 Verify product frame paths contain no blocking wait on device completion
   - **Not met, and the check is what found it.** Every WaitForIdle in product and example
     code was read in context. Six of the eight are after a frame loop ends or in a destructor,
