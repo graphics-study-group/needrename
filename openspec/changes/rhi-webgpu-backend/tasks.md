@@ -55,6 +55,16 @@
 ## 7. Shader artifacts
 
 - [ ] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact loads on both runtimes from one asset set
+  - **Partly done and measured.** Running `shader_baker --spirv-dir <physics tree> --converter
+    <tint>` bakes **40 of 42** modules: each gets a `.wgsl` and a `.iface.json` holding the
+    stage, entry point, the constant block (set, binding, size) and every binding with its set,
+    number, kind and name. The two failures are `algorithm/sum_by_key.comp` and its `_push`
+    twin, where Tint produces no WGSL; the bake names them and exits 2.
+  - **Two parts of the task are still missing.** The description carries no *variable offsets*,
+    and no *combined-sampler split map* - the latter because no shader in either tree declares a
+    combined binding, so there is nothing to split yet. And "loads on both runtimes from one
+    asset set" is unverified: the Vulkan backend reads SPIR-V and has never been pointed at a
+    `.wgsl`.
 - [ ] 7.2 Implement bake-time layout validation between the produced WGSL and the description, and verify a deliberately mismatching layout fails the bake naming the shader
 - [ ] 7.3 Implement the constant-block rewrite fallback and verify a push-constant shader bakes to usable WGSL
 - [ ] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
