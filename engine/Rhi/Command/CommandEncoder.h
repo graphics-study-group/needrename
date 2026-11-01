@@ -114,6 +114,18 @@ namespace Engine::Rhi {
         void EndRenderPass();
 
         /**
+         * @brief Close a compute pass opened implicitly by a bind or a dispatch.
+         *
+         * A backend whose command buffer has no pass concept - Vulkan's - has nothing to
+         * do here; one whose pass is a separate object must close it before the recording
+         * is finished. The seam has no `BeginComputePass` because a caller does not say
+         * when compute starts: the first bind or dispatch does.
+         *
+         * Called by whoever finishes the recording. Calling it twice is not an error.
+         */
+        void EndComputePass();
+
+        /**
          * @brief Bind a compute pipeline and the layout its constants are read from.
          *
          * @param pipeline The compute pipeline to record with.

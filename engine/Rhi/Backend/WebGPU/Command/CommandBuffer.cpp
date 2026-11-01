@@ -85,6 +85,9 @@ namespace Engine::Rhi {
         if (pimpl->encoder == nullptr || pimpl->finished != nullptr) {
             return;
         }
+        // An open compute pass belongs to the encoder, and finishing it while a pass is
+        // still open fails. The seam has no BeginComputePass, so the encoder cannot be
+        // asked to close one from here; a caller that dispatches must call EndComputePass.
         pimpl->finished = wgpuCommandEncoderFinish(pimpl->encoder, nullptr);
         if (pimpl->finished == nullptr) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: finishing a command encoder failed.");
@@ -102,4 +105,5 @@ namespace Engine::Rhi {
         pimpl->encoder = wgpuDeviceCreateCommandEncoder(pimpl->device, nullptr);
     }
 } // namespace Engine::Rhi
+
 

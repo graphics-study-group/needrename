@@ -144,13 +144,25 @@ namespace Engine::Rhi {
 
     void CommandEncoder::BindComputePipeline(PipelineHandle pipeline, PipelineLayoutHandle layout) {
         static_cast<void>(layout);
+        if (pimpl->in_render_pass) {
+            throw std::logic_error("BindComputePipeline inside a render pass.");
+        }
+        // The seam has no BeginComputePass: the first compute call opens one, because a
+        // caller does not say when compute starts. EndComputePass closes it, and so does
+        // the destructor.
         if (pimpl->compute_pass == nullptr) {
-            throw std::logic_error(
-                "BindComputePipeline outside a compute pass: the standard interface binds to "
-                "the pass encoder, which only exists while one is open."
-            );
+            pimpl->compute_pass = wgpuCommandEncoderBeginComputePass(pimpl->encoder, nullptr);
         }
         wgpuComputePassEncoderSetPipeline(pimpl->compute_pass, ToWgpuComputePipeline(pipeline));
+    }
+
+    void CommandEncoder::EndComputePass() {
+        if (pimpl->compute_pass == nullptr) {
+            return;
+        }
+        wgpuComputePassEncoderEnd(pimpl->compute_pass);
+        wgpuComputePassEncoderRelease(pimpl->compute_pass);
+        pimpl->compute_pass = nullptr;
     }
 
     void CommandEncoder::BindGraphicsPipeline(PipelineHandle pipeline, PipelineLayoutHandle layout) {
@@ -279,10 +291,9 @@ namespace Engine::Rhi {
         uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z
     ) {
         if (pimpl->compute_pass == nullptr) {
-            Unsupported(
-                "DispatchCompute outside a compute pass",
-                "Workgroups are dispatched to a compute pass encoder, and nothing opens one "
-                "yet: a compute pass needs a pipeline, which needs the pipeline builder."
+            throw std::logic_error(
+                "DispatchCompute with no compute pipeline bound: the standard interface has no "
+                "current pipeline outside a pass, so bind one first."
             );
         }
         wgpuComputePassEncoderDispatchWorkgroups(
@@ -294,6 +305,7 @@ namespace Engine::Rhi {
         return {};
     }
 } // namespace Engine::Rhi
+
 
 
 

@@ -228,6 +228,11 @@ namespace Engine::Rhi {
         pimpl->command_buffer.endRendering();
     }
 
+    void CommandEncoder::EndComputePass() {
+        // Vulkan records compute into the same command buffer as everything else; there is
+        // no pass object to close.
+    }
+
     void CommandEncoder::BindComputePipeline(PipelineHandle pipeline, PipelineLayoutHandle layout) {
         pimpl->pipeline_layout = ToVulkanPipelineLayout(layout);
         pimpl->command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ToVulkanPipeline(pipeline));
@@ -371,6 +376,7 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
 
 
 
