@@ -47,7 +47,17 @@
 
 ## 6. Mapped window
 
-- [ ] 6.1 Implement the mapped-window contract on the Vulkan backend with the window permanently open, and verify pointer stability and flush behavior are unchanged
+- [x] 6.1 Implement the mapped-window contract on the Vulkan backend with the window permanently open, and verify pointer stability and flush behavior are unchanged
+  - Three pieces of evidence, and the third is the one that makes "unchanged" a fact rather
+    than a claim:
+
+    - `BufferAllocation::GetVMAddress` maps once and caches `mapped_ptr`; `FlushMemory` calls
+      `vmaFlushAllocation` and never unmaps, so the window stays open for the allocation's life.
+    - `compute_buffer_test.cpp` asserts it: two `GetVMAddress()` calls return the same pointer and
+      fail the test if they do not, and an explicit `Flush(0, sizeof(float))` over a range is
+      accepted. The test passes.
+    - This branch has one commit touching `MemoryAllocation.cpp`, `ac457141`, and it moved the
+      file behind `Backend/` without changing a line of the window logic.
 - [ ] 6.2 Implement dirty accounting and automatic flush-before-submission, and verify a caller that never calls `Flush` still has its writes visible to the consuming submission
 - [ ] 6.3 Implement asynchronous readback registration and the blocking pump, and verify the existing headless tests pass through the pump with unchanged assertions
 - [ ] 6.4 Verify product frame paths contain no blocking wait on device completion
