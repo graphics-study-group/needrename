@@ -33,10 +33,12 @@ namespace Engine::Rhi {
      *   nothing is correct here and is not a stub - the same call on the same resource
      *   produces the same frame, which is what a portable barrier is for.
      *
-     * - `PushConstants` and `SetKernelParams` throw. There is no push-constant block;
-     *   a kernel parameter block is a uniform buffer on this backend, and a small block
-     *   is a small uniform buffer bound to a slot the bake decides. Until that slot is
-     *   decided, throwing is the only answer that does not silently drop the values.
+     * - `PushConstants` and `SetKernelParams` throw. There is no push-constant block; a
+     *   kernel parameter block is a uniform buffer bound at the slot the bake records in
+     *   `.iface.json` under `constant_block` - `{set: 1, binding: 0, size: 12}` for
+     *   `radix_scatter.comp`, so the slot is decided. What is missing is the ring that holds
+     *   one window per dispatch; throwing until then is the answer that does not silently
+     *   drop the values.
      */
     struct CommandEncoder::impl {
         WGPUCommandEncoder encoder{nullptr};
@@ -176,13 +178,18 @@ namespace Engine::Rhi {
     void CommandEncoder::PushConstants(std::span<const std::byte>) {
         Unsupported(
             "PushConstants",
-            "There is no push-constant block here. A small block becomes a uniform buffer "
-            "bound to a slot the bake decides, which is not chosen yet."
+            "There is no push-constant block here. A graphics parameter block becomes a "
+            "uniform buffer at the slot the bake records, and the ring that holds those "
+            "windows is not built yet."
         );
     }
 
     void CommandEncoder::SetKernelParams(std::span<const std::byte>) {
-        Unsupported("SetKernelParams", "Kernel parameters are a uniform buffer on this backend.");
+        Unsupported(
+            "SetKernelParams",
+            "Kernel parameters are a uniform buffer bound at the slot the bake records under "
+            "constant_block; the ring that holds one window per dispatch is not built yet."
+        );
     }
 
     void CommandEncoder::BindGraphicsDescriptorSet(
@@ -305,6 +312,8 @@ namespace Engine::Rhi {
         return {};
     }
 } // namespace Engine::Rhi
+
+
 
 
 

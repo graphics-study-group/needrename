@@ -120,6 +120,15 @@
     description with a combined binding, the second is 8.4.
 - [ ] 8.3 Implement per-dispatch compute scopes with marks as no-ops and the rebind-on-scope-boundary behavior, and verify a marked and an unmarked recording both produce ordered results
 - [ ] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded constant block
+  - **The slot is decided; the ring is not built.** The bake already records where the constant
+    block goes: `.iface.json` carries `"constant_block": { "set": 1, "binding": 0, "size": 12 }`
+    for `radix_scatter.comp`, with the SPIR-V push-constant block rewritten into a uniform buffer
+    before conversion. So the open question this task used to have is closed.
+  - What remains is the ring: a host-writable buffer divided into windows, one per dispatch, with
+    the window bound at that set and binding and the write published before the submission that
+    reads it. That is the same shape `SubmissionHelper` uses for uploads, and it needs 8.5's
+    answer first - a buffer that is mapped cannot be handed to a submission, so a window-per-dispatch
+    ring is exactly the case where the two-buffer form is required rather than the lazy one.
 - [ ] 8.5 Implement mapped-window host access with queue-ordered uploads and completion-driven readback, and verify no mapped buffer is consumed by device work
   - **Not implemented, and the obstacle is a rule rather than a missing call.** What exists: a
     host-visible buffer is created with `mappedAtCreation` and the allocation keeps the mapped
