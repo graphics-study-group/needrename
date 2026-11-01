@@ -109,8 +109,24 @@
     written, but the next invocation regenerates that file, so the edit never reached the check.
     Provoking a real mismatch needs the converter to produce one, which means a fixture module and a
     deliberately wrong converter invocation rather than a hand-edited output.
-- [ ] 7.3 Implement the constant-block rewrite fallback and verify a push-constant shader bakes to usable WGSL
+- [x] 7.3 Implement the constant-block rewrite fallback and verify a push-constant shader bakes to usable WGSL
+  - **Measured on the physics tree: 33 of the 42 modules carry a push-constant block, and every one
+    of them came out as a uniform.** The interface description of each says
+    `"constant_block": { "set": 1, "binding": 0, "size": N }`, and the matching WGSL declares
+    `@group(1u) @binding(0u) var<uniform> params : ScanParamsPush;`. The SPIR-V rewrite that moves the
+    block into a uniform buffer before conversion ran on all 33, which is what the task calls the
+    fallback - and the spike record already established it is not optional (naga cannot read
+    push-constant blocks at all).
 - [ ] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
+  - **The artifacts are emitted: 40 `.wgsl` and 40 `.iface.json` for the physics tree**, produced by
+    one `shader_baker --spirv-dir` run, and the two modules that fail are `sum_by_key.comp` and its
+    `_push` twin, for the converter reason recorded under 7.1.
+  - **"A physics kernel can be created without any reflection library linked" is the half that is
+    not shown.** The library side is: `libEngineRhi.so` in the browser build defines 2086 symbols and
+    `llvm-nm` finds zero matching `spirv_cross` (task 11.2). What is missing is an actual
+    `ComputeKernel::CreateFromModule` call against a baked physics module, which needs a compute
+    pipeline created on the device and the resource binding that 8.4/8.5 are waiting on. So the task
+    stays open on its second clause.
 - [x] 7.5 Verify the Vulkan runtime's loading and reflection behavior is unchanged with and without the WGSL variant present
   - **The runtime never looks at the new artifacts, so "with and without" is one state.** A search
     over `engine/` for `.wgsl` and `.iface.json` finds one hit, and it is a comment in the WebGPU
