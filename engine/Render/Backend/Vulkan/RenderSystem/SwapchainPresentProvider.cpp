@@ -192,7 +192,7 @@ namespace Engine::RenderSystemState {
     }
 
     void SwapchainPresentProvider::Initialize(
-        const Rhi::DeviceInterface &device_interface, vk::Extent2D expected_extent
+        const Rhi::DeviceInterface &device_interface, Rhi::Extent2D expected_extent
     ) {
         pimpl->m_device_interface = &device_interface;
         Recreate(Rhi::Extent2D{expected_extent.width, expected_extent.height});
@@ -322,6 +322,7 @@ namespace Engine::RenderSystemState {
         return needs_recreating;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

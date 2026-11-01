@@ -98,8 +98,8 @@ namespace Engine::RenderSystemState {
     struct OffscreenPresentProvider::impl {
         const Rhi::DeviceInterface *m_device_interface;
         const Rhi::AllocatorState *m_allocator;
-        vk::Extent2D m_extent;
-        vk::Format m_color_format;
+        Rhi::Extent2D m_extent;
+        Rhi::ImageFormat m_color_format;
         uint32_t m_image_count;
         uint32_t m_frame_counter = 0;
 
@@ -140,8 +140,8 @@ namespace Engine::RenderSystemState {
     OffscreenPresentProvider::OffscreenPresentProvider(
         const Rhi::DeviceInterface &device_interface,
         const Rhi::AllocatorState &allocator,
-        vk::Extent2D extent,
-        vk::Format color_format,
+        Rhi::Extent2D extent,
+        Rhi::ImageFormat color_format,
         uint32_t image_count
     ) : pimpl(std::make_unique<impl>(impl{&device_interface, &allocator, extent, color_format, image_count})) {
     }
@@ -153,7 +153,7 @@ namespace Engine::RenderSystemState {
     }
 
     Rhi::ImageFormat OffscreenPresentProvider::GetColorFormat() const {
-        return Rhi::FromVkFormat(pimpl->m_color_format);
+        return pimpl->m_color_format;
     }
 
     uint32_t OffscreenPresentProvider::GetImageCount() const {
@@ -205,9 +205,10 @@ namespace Engine::RenderSystemState {
     }
 
     void OffscreenPresentProvider::Recreate(Rhi::Extent2D new_extent) {
-        pimpl->m_extent = vk::Extent2D{new_extent.width, new_extent.height};
+        pimpl->m_extent = new_extent;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

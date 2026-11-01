@@ -30,8 +30,8 @@ namespace Engine {
             OffscreenPresentProvider(
                 const Rhi::DeviceInterface &device_interface,
                 const Rhi::AllocatorState &allocator,
-                vk::Extent2D extent,
-                vk::Format color_format,
+                Rhi::Extent2D extent,
+                Rhi::ImageFormat color_format,
                 uint32_t image_count
             );
             ~OffscreenPresentProvider() override;
@@ -66,6 +66,8 @@ namespace Engine {
 } // namespace Engine
 
 #endif
+
+
 
 
 

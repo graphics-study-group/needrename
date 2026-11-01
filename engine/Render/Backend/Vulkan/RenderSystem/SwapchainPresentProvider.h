@@ -20,7 +20,7 @@ namespace Engine {
             SwapchainPresentProvider();
             ~SwapchainPresentProvider() override;
 
-            void Initialize(const Rhi::DeviceInterface &device_interface, vk::Extent2D expected_extent);
+            void Initialize(const Rhi::DeviceInterface &device_interface, Rhi::Extent2D expected_extent);
 
             Rhi::Extent2D GetExtent() const override;
             Rhi::ImageFormat GetColorFormat() const override;
@@ -45,6 +45,7 @@ namespace Engine {
 } // namespace Engine
 
 #endif
+
 
 
 

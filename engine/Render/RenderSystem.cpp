@@ -45,7 +45,7 @@ namespace Engine {
 
         std::weak_ptr<SDLWindow> m_window;
 
-        vk::Extent2D m_extent{0, 0};
+        Rhi::Extent2D m_extent{0, 0};
 
         Rhi::DeviceContext &m_device_context;
 
@@ -88,12 +88,12 @@ namespace Engine {
                 device_interface,
                 pimpl->m_device_context.GetAllocatorState(),
                 pimpl->m_extent,
-                vk::Format::eR8G8B8A8Unorm,
+                Rhi::ImageFormat::R8G8B8A8UNorm,
                 3
             );
             pimpl->m_resizable_rtt_manger.SetReferenceSize(pimpl->m_extent.width, pimpl->m_extent.height);
         } else {
-            vk::Extent2D expected_extent = pimpl->m_extent;
+            Rhi::Extent2D expected_extent = pimpl->m_extent;
             if (expected_extent.width == 0 || expected_extent.height == 0) {
                 int w, h;
                 SDL_GetWindowSizeInPixels(sdl_window, &w, &h);
