@@ -155,37 +155,34 @@ namespace Engine {
         Rhi::Extent2D extent,
         const std::string &name
     ) {
-        std::vector<vk::RenderingAttachmentInfo> color_attachment;
+        Rhi::RenderPassDescription description{};
+        description.area = Rhi::Rect2D{Rhi::Offset2D{0, 0}, Rhi::Extent2D{extent.width, extent.height}};
 
         if (color.texture) {
-            color_attachment.push_back(GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal));
+            Rhi::ColorAttachmentDescription attachment{};
+            attachment.view = color.texture->GetImageView(color.range);
+            attachment.load = AttachmentUtils::ToRhiLoadOperation(color.load_op);
+            attachment.store = AttachmentUtils::ToRhiStoreOperation(color.store_op);
+            attachment.clear = AttachmentUtils::ToRhiClearColor(color.clear_value);
+            description.color_attachments.push_back(attachment);
             m_pripr.color_attachment_format[0] = color.texture->GetTextureDescription().format;
             m_pripr.color_attachment_format[1] = Rhi::ImageFormat::UNDEFINED;
         } else {
             m_pripr.color_attachment_format[0] = Rhi::ImageFormat::UNDEFINED;
         }
 
-        vk::RenderingAttachmentInfo depth_attachment;
         if (depth.texture) {
-            depth_attachment = vk::RenderingAttachmentInfo{
-                GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthStencilAttachmentOptimal)
-            };
+            description.depth_attachment.view = depth.texture->GetImageView(depth.range);
+            description.depth_attachment.load = AttachmentUtils::ToRhiLoadOperation(depth.load_op);
+            description.depth_attachment.store = AttachmentUtils::ToRhiStoreOperation(depth.store_op);
+            description.depth_attachment.clear_depth = AttachmentUtils::ToRhiClearDepth(depth.clear_value);
             m_pripr.depth_stencil_attachment_format = depth.texture->GetTextureDescription().format;
         } else {
             m_pripr.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
         }
 
-        vk::RenderingInfo info{
-            vk::RenderingFlags{0},
-            vk::Rect2D{{0, 0}, {extent.width, extent.height}},
-            1,
-            0,
-            color_attachment,
-            depth.texture ? &depth_attachment : nullptr,
-            nullptr
-        };
         DEBUG_CMD_START_LABEL(cb, name.c_str());
-        cb.beginRendering(info);
+        m_encoder->BeginRenderPass(description);
     }
 
     void CommandBuffer::BeginRendering(
@@ -194,40 +191,40 @@ namespace Engine {
         Rhi::Extent2D extent,
         const std::string &name
     ) {
-        std::vector<vk::RenderingAttachmentInfo> color_attachment_info(colors.size(), vk::RenderingAttachmentInfo{});
         assert(colors.size() < 8 && "At most 8 color rendering targets are supported.");
+
+        Rhi::RenderPassDescription description{};
+        description.area = Rhi::Rect2D{Rhi::Offset2D{0, 0}, Rhi::Extent2D{extent.width, extent.height}};
+        description.color_attachments.reserve(colors.size());
         for (size_t i = 0; i < colors.size(); i++) {
-            color_attachment_info[i] = GetVkAttachmentInfo(colors[i], vk::ImageLayout::eColorAttachmentOptimal);
+            Rhi::ColorAttachmentDescription attachment{};
+            attachment.view = colors[i].texture->GetImageView(colors[i].range);
+            attachment.load = AttachmentUtils::ToRhiLoadOperation(colors[i].load_op);
+            attachment.store = AttachmentUtils::ToRhiStoreOperation(colors[i].store_op);
+            attachment.clear = AttachmentUtils::ToRhiClearColor(colors[i].clear_value);
+            description.color_attachments.push_back(attachment);
             m_pripr.color_attachment_format[i] = colors[i].texture->GetTextureDescription().format;
         }
         if (colors.size() < 8) {
             m_pripr.color_attachment_format[colors.size()] = Rhi::ImageFormat::UNDEFINED;
         }
 
-        vk::RenderingAttachmentInfo depth_attachment_info{};
         if (depth.texture) {
-            depth_attachment_info = GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+            description.depth_attachment.view = depth.texture->GetImageView(depth.range);
+            description.depth_attachment.load = AttachmentUtils::ToRhiLoadOperation(depth.load_op);
+            description.depth_attachment.store = AttachmentUtils::ToRhiStoreOperation(depth.store_op);
+            description.depth_attachment.clear_depth = AttachmentUtils::ToRhiClearDepth(depth.clear_value);
             m_pripr.depth_stencil_attachment_format = depth.texture->GetTextureDescription().format;
         } else {
             m_pripr.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
         }
 
-        vk::RenderingInfo info{
-            vk::RenderingFlags{0},
-            vk::Rect2D{{0, 0}, {extent.width, extent.height}},
-            1,
-            0,
-            color_attachment_info,
-            depth.texture ? &depth_attachment_info : nullptr,
-            nullptr
-        };
-
         DEBUG_CMD_START_LABEL(cb, name.c_str());
-        cb.beginRendering(info);
+        m_encoder->BeginRenderPass(description);
     }
 
     void CommandBuffer::EndRendering() {
-        cb.endRendering();
+        m_encoder->EndRenderPass();
         DEBUG_CMD_END_LABEL(cb);
         m_pripr = {};
     }

@@ -6,42 +6,6 @@
 #include "Render/RenderSystem.h"
 #include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 
-namespace {
-    /// @brief The seam's load operation for an attachment's own.
-    Engine::Rhi::LoadOperation ToRhiLoadOperation(Engine::AttachmentUtils::LoadOperation operation) {
-        switch (operation) {
-        case Engine::AttachmentUtils::LoadOperation::Load:
-            return Engine::Rhi::LoadOperation::Load;
-        case Engine::AttachmentUtils::LoadOperation::Clear:
-            return Engine::Rhi::LoadOperation::Clear;
-        case Engine::AttachmentUtils::LoadOperation::DontCare:
-        default:
-            return Engine::Rhi::LoadOperation::DontCare;
-        }
-    }
-
-    /// @brief The seam's store operation for an attachment's own.
-    Engine::Rhi::StoreOperation ToRhiStoreOperation(Engine::AttachmentUtils::StoreOperation operation) {
-        return operation == Engine::AttachmentUtils::StoreOperation::Store ? Engine::Rhi::StoreOperation::Store
-                                                                          : Engine::Rhi::StoreOperation::DontCare;
-    }
-
-    /// @brief The colour a clear attachment is cleared to.
-    Engine::Rhi::ClearColor ToRhiClearColor(const Engine::AttachmentUtils::ClearValue &value) {
-        if (const auto *color = std::get_if<Engine::AttachmentUtils::ColorClearValue>(&value)) {
-            return Engine::Rhi::ClearColor{color->r, color->g, color->b, color->a};
-        }
-        return Engine::Rhi::ClearColor{};
-    }
-
-    /// @brief The depth a clear depth attachment is cleared to.
-    float ToRhiClearDepth(const Engine::AttachmentUtils::ClearValue &value) {
-        if (const auto *depth = std::get_if<Engine::AttachmentUtils::DepthClearValue>(&value)) {
-            return depth->depth;
-        }
-        return 1.0f;
-    }
-} // namespace
 
 namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetPassFunction(

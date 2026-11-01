@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <variant>
 
+#include "Rhi/Pipeline/PipelineDescription.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
 
 namespace Engine {
@@ -63,7 +64,49 @@ namespace Engine {
             /// Only used if load operation is clear.
             ClearValue clear_value{};
         };
+
+        // ── The same vocabulary in the Rhi seam's terms ──────────────────────
+        //
+        // An attachment is described here in the render layer's own enums and
+        // passed to the seam as Rhi's. The two sets mean the same things, so the
+        // conversion is a table and belongs next to the definitions rather than
+        // repeated wherever an attachment crosses into the seam.
+
+        /// @brief The seam's load operation for this one.
+        inline Rhi::LoadOperation ToRhiLoadOperation(LoadOperation operation) noexcept {
+            switch (operation) {
+            case LoadOperation::Load:
+                return Rhi::LoadOperation::Load;
+            case LoadOperation::Clear:
+                return Rhi::LoadOperation::Clear;
+            case LoadOperation::DontCare:
+            default:
+                return Rhi::LoadOperation::DontCare;
+            }
+        }
+
+        /// @brief The seam's store operation for this one.
+        inline Rhi::StoreOperation ToRhiStoreOperation(StoreOperation operation) noexcept {
+            return operation == StoreOperation::Store ? Rhi::StoreOperation::Store : Rhi::StoreOperation::DontCare;
+        }
+
+        /// @brief The colour a cleared attachment is cleared to.
+        inline Rhi::ClearColor ToRhiClearColor(const ClearValue &value) noexcept {
+            if (const auto *color = std::get_if<ColorClearValue>(&value)) {
+                return Rhi::ClearColor{color->r, color->g, color->b, color->a};
+            }
+            return Rhi::ClearColor{};
+        }
+
+        /// @brief The depth a cleared attachment is cleared to.
+        inline float ToRhiClearDepth(const ClearValue &value) noexcept {
+            if (const auto *depth = std::get_if<DepthClearValue>(&value)) {
+                return depth->depth;
+            }
+            return 1.0f;
+        }
     } // namespace AttachmentUtils
 } // namespace Engine
 
 #endif // ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
+
