@@ -856,3 +856,21 @@ encoder**: either the tests build a `Render::CommandBuffer` (heavier, but honest
 or the portable layer grows a scoped recording object a test can open on the
 device's own one-time buffer. That decision belongs in the design, next to D3's
 "a scope is a boundary" — it is the same question one level down.
+
+### Where to start next
+
+D10 is the next thing to build, and it is small: one portable entry point
+("open a one-time recording"), one Vulkan implementation, one submission. With it
+in place:
+
+1. `PhysicsSystem::GPUStep` and `GPUCalcModelMatrices` take `CommandEncoder &`,
+   the `vk::CommandBuffer` overloads go, and `engine/Physics` reaches zero. The
+   headless tests open a recording instead of a raw command buffer.
+2. `engine/Render`'s 500 mentions are then all inside the render layer proper —
+   pipeline state, material descriptors, render-graph attachments — which needs
+   the seam extended before any of it can move. That extension is the real
+   remainder of 5.4 and the precondition for group 8.
+
+Nothing in this change is blocked on a missing tool any more except the browser
+half: `D:\emsdk` exists but has no `upstream/emscripten`, so `emcc` was never
+installed, and tasks 1.4 and all of group 11 wait on that download.
