@@ -188,6 +188,18 @@
     VUID-vkAcquireNextImageKHR-semaphore-01779. Removing the wait therefore needs a per-FIF acquire
     semaphore or a timeline, not a callback in place of the fence - the ordering that makes
     skip-and-retry safe has to come from somewhere.
+  - **A correction to the note above, found by reading further:** the acquire semaphore is already
+    one per FIF (`std::array<std::optional<Rhi::Semaphore>, FRAMES_IN_FLIGHT>
+    image_acquired_semaphores`), so the VUID the comment cites is already satisfied by the array.
+    What the wait still guarantees is that the *same slot*'s previous frame finished, because the
+    frame fence and the acquire semaphore are per-slot but the swapchain image behind them is not.
+  - So skip-and-retry is smaller than it first looked: `StartFrame(timeout)` can pass 0 and return
+    "busy" instead of throwing, and the caller retries next frame. The signature is what makes it a
+    decision - `StartFrame` returns a `uint32_t` slot index and has no value to return for "skip" -
+    so it needs an `std::optional<uint32_t>` or an out-parameter, and every call site follows.
+  - **Left here deliberately.** The shape is clear and the edit is mechanical but wide; starting it
+    with this session's remaining budget would leave the frame loop half-converted, which is the one
+    state worse than blocked.
 - [ ] 10.3 Implement presentation through the host surface and verify the frame ring's per-frame windows stay distinct when the host exposes a single surface image
 - [ ] 10.4 Port the UI backend to the WebGPU backend and verify the editor UI renders
 
