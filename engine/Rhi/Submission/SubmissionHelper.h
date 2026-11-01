@@ -3,7 +3,7 @@
 
 #include "Rhi/rhi_export.h"
 
-#include <vulkan/vulkan.hpp>
+#include "Rhi/RhiTypes.h"
 
 #include <functional>
 #include <memory>
@@ -60,7 +60,6 @@ namespace Engine::Rhi {
      * epochs is a completion ledger, not a synchronization primitive.
      */
     class RHI_API SubmissionHelper {
-        using CmdOperation = std::function<void(vk::CommandBuffer)>;
 
     private:
         const DeviceInterface &m_device_interface;
@@ -159,7 +158,7 @@ namespace Engine::Rhi {
          * batch is still pending and this call throws `std::runtime_error`.
          * The batch is reaped by `OnBatchComplete`.
          */
-        void ExecuteSubmission(vk::SemaphoreSignalInfo signal_info);
+        void ExecuteSubmission(TimelineSignal signal);
 
         /**
          * @brief Immediately execute staged submissions.
@@ -189,3 +188,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_SUBMISSIONHELPER_INCLUDED
+

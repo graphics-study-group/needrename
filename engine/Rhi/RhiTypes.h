@@ -281,6 +281,14 @@ namespace Engine::Rhi {
         bool operator==(const PushConstantRange &) const = default;
     };
 
+    /// @brief A timeline signal: a semaphore and the value it reaches.
+    struct TimelineSignal {
+        /// @brief The semaphore to signal.
+        SemaphoreHandle semaphore{};
+        /// @brief The value the semaphore is signaled to.
+        uint64_t value{0};
+    };
+
     /// @brief The portable description of a pipeline layout.
     struct PipelineLayoutDescription {
         /// @brief Set layouts, in binding order.
@@ -313,6 +321,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
 

@@ -326,7 +326,9 @@ namespace Engine::RenderSystemState {
         pimpl->command_buffers[fif]->end();
 
         // Staged resource submission (signals timeline timepoint 2).
-        pimpl->m_submission_helper->ExecuteSubmission(this_timeline_semaphore.GetSignalInfo(2));
+        pimpl->m_submission_helper->ExecuteSubmission(
+            Rhi::TimelineSignal{Rhi::FromVulkan(this_timeline_semaphore.GetSemaphore()), this_timeline_semaphore.GetTimepointValue(2)}
+        );
 
         // Record the copy CB (headless → nullptr; the batch then carries no copy).
         const uint32_t image_index = GetFramebuffer();
@@ -501,6 +503,8 @@ namespace Engine::RenderSystemState {
         return true;
     }
 } // namespace Engine::RenderSystemState
+
+
 
 
 

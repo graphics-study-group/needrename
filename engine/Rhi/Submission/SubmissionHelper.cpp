@@ -178,6 +178,8 @@ namespace Engine::Rhi {
     };
 
     struct SubmissionHelper::impl {
+        /// @brief One recorded operation, applied to a command buffer.
+        using CmdOperation = std::function<void(vk::CommandBuffer)>;
         BatchState m_state{BatchState::Reset};
 
         std::queue<CmdOperation> m_pending_operations{};
@@ -398,7 +400,7 @@ namespace Engine::Rhi {
         pimpl->m_pending_operations.push(enqueued);
     }
 
-    void SubmissionHelper::ExecuteSubmission(vk::SemaphoreSignalInfo signal_info) {
+    void SubmissionHelper::ExecuteSubmission(TimelineSignal signal) {
         if (pimpl->m_state != BatchState::Reset) {
             throw std::runtime_error(
                 "ExecuteSubmission called while a previous batch is still pending. Call OnBatchComplete() first."
@@ -409,7 +411,7 @@ namespace Engine::Rhi {
         if (pimpl->m_pending_operations.empty()) {
             // We do not need to worry about synchronization too much
             // as timeline semaphores are guaranteed to be monotonically increasing.
-            device.signalSemaphore(signal_info);
+            device.signalSemaphore(vk::SemaphoreSignalInfo{ToVulkanSemaphore(signal.semaphore), signal.value});
             return;
         }
 
@@ -444,13 +446,13 @@ namespace Engine::Rhi {
         // reaped by OnBatchComplete.
         pimpl->m_active_staging = std::move(pimpl->m_pending_staging);
 
-        vk::SemaphoreSubmitInfo signal{
-            signal_info.semaphore, signal_info.value, vk::PipelineStageFlagBits2::eAllTransfer
+        vk::SemaphoreSubmitInfo signal_submit{
+            ToVulkanSemaphore(signal.semaphore), signal.value, vk::PipelineStageFlagBits2::eAllTransfer
         };
         vk::CommandBufferSubmitInfo cbsinfo{pimpl->m_one_time_cb.get()};
         // The batch is guaranteed to be sequential: either this is the first
         // submission, or the previous batch has been reaped (state == Reset).
-        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {signal}};
+        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {signal_submit}};
         queue_info.graphicsQueue.submit2(sinfo, pimpl->m_completion_fence.get());
 
         pimpl->m_active_epoch = epoch;
@@ -552,6 +554,10 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+
+
+
+
 
 
 

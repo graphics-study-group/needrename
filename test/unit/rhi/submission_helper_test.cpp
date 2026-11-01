@@ -84,28 +84,28 @@ int main() {
 
     // Case 1: empty-batch ExecuteSubmission advances the signal CPU-side;
     // idle OnBatchComplete is idempotent.
-    helper.ExecuteSubmission({timeline.get(), 1});
+    helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 1});
     uint64_t value = 0;
     CHECK(device.getSemaphoreCounterValue(timeline.get(), &value) == vk::Result::eSuccess && value == 1);
     helper.OnBatchComplete();
 
     // Case 2: normal submit -> reap -> re-submit cycle.
     helper.EnqueueBufferSubmission(*target, data);
-    helper.ExecuteSubmission({timeline.get(), 2});
+    helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 2});
     helper.OnBatchComplete();
     helper.EnqueueBufferSubmission(*target, data);
-    helper.ExecuteSubmission({timeline.get(), 3});
+    helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 3});
     helper.OnBatchComplete();
 
     // Case 3: consecutive deferred submissions are rejected.
     helper.EnqueueBufferSubmission(*target, data);
-    helper.ExecuteSubmission({timeline.get(), 4});
-    CHECK(ExpectRuntimeError([&] { helper.ExecuteSubmission({timeline.get(), 5}); }));
+    helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 4});
+    CHECK(ExpectRuntimeError([&] { helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 5}); }));
     helper.OnBatchComplete();
 
     // Case 4: immediate submission while a deferred batch is pending is rejected.
     helper.EnqueueBufferSubmission(*target, data);
-    helper.ExecuteSubmission({timeline.get(), 6});
+    helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 6});
     CHECK(ExpectRuntimeError([&] { helper.ExecuteSubmissionImmediately(); }));
     helper.OnBatchComplete();
 
@@ -113,7 +113,7 @@ int main() {
     // left untouched (Reset with pending operations), so submission recovers.
     helper.EnqueueBufferSubmission(*target, data);
     CHECK(ExpectRuntimeError([&] { helper.OnBatchComplete(); }));
-    helper.ExecuteSubmission({timeline.get(), 7});
+    helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 7});
     helper.OnBatchComplete();
 
     // Case 6: consecutive immediate submissions are legal (self-contained).
@@ -124,7 +124,7 @@ int main() {
 
     // Case 7: mixing immediate and deferred submissions.
     helper.EnqueueBufferSubmission(*target, data);
-    helper.ExecuteSubmission({timeline.get(), 8});
+    helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 8});
     helper.OnBatchComplete();
     helper.EnqueueBufferSubmission(*target, data);
     helper.ExecuteSubmissionImmediately();
@@ -137,7 +137,7 @@ int main() {
             Rhi::DeviceBuffer::CreateUnique(allocator, {Rhi::BufferTypeBits::CopyTo}, 64, "Destructing target");
         std::vector<std::byte> destructing_data(64, std::byte{0xCD});
         destructing_helper.EnqueueBufferSubmission(*destructing_target, destructing_data);
-        destructing_helper.ExecuteSubmission({timeline.get(), 9});
+        destructing_helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 9});
     }
 
     // Case 9: a partial upload with a non-zero offset writes exactly the
@@ -193,7 +193,7 @@ int main() {
     {
         const uint32_t baseline = LiveAllocationCount(allocator_state);
         helper.EnqueueBufferSubmission(*target, data);
-        helper.ExecuteSubmission({timeline.get(), 10});
+        helper.ExecuteSubmission(Rhi::TimelineSignal{Rhi::FromVulkan(timeline.get()), 10});
         CHECK(LiveAllocationCount(allocator_state) == baseline + 1u && "staging must survive until the reap");
         helper.OnBatchComplete();
         CHECK(epoch_tracker.GetParkedResourceCount() == 0u && "reaping must not park the batch's staging");
@@ -216,6 +216,7 @@ int main() {
     std::cout << "Rhi::SubmissionHelper standalone test PASSED." << std::endl;
     return 0;
 }
+
 
 
 
