@@ -1,0 +1,76 @@
+#ifndef ENGINE_RHI_SHADERINTERFACEDESCRIPTION_INCLUDED
+#define ENGINE_RHI_SHADERINTERFACEDESCRIPTION_INCLUDED
+
+#include "Rhi/RhiTypes.h"
+#include "Rhi/rhi_export.h"
+
+#include <filesystem>
+#include <optional>
+#include <string>
+#include <vector>
+
+namespace Engine::Rhi {
+    /**
+     * @brief One descriptor binding a shader declares.
+     *
+     * The bake records these; a runtime that receives baked code reads them instead of
+     * reflecting. `kind` is the string the baker wrote, kept as a string so that a
+     * description from a newer bake does not silently become a different type - a caller
+     * that does not recognise a kind sees it.
+     */
+    struct RHI_API ShaderInterfaceBinding {
+        /// @brief Descriptor set the binding belongs to.
+        uint32_t set{0};
+        /// @brief Binding number within the set.
+        uint32_t binding{0};
+        /// @brief What the binding accepts, as the baker named it.
+        std::string kind{};
+        /// @brief The name the shader declares it with.
+        std::string name{};
+    };
+
+    /**
+     * @brief Everything a runtime needs to bind a baked shader without reflecting it.
+     *
+     * This is the seam's counterpart to `ShaderInterface`, which is the output of runtime
+     * reflection and therefore unavailable to a backend that cannot reflect. A backend that
+     * gets its code from the bake reads this instead.
+     *
+     * The two are produced from the same facts: the Vulkan backend can build one of these
+     * from its `ShaderInterface`, and the bake writes one from the same reflection. That is
+     * what makes it a seam type rather than a WebGPU type.
+     */
+    struct RHI_API ShaderInterfaceDescription {
+        /// @brief The shader's logical name.
+        std::string shader{};
+        /// @brief The stage it runs as, as the baker named it.
+        std::string stage{};
+        /// @brief The function the pipeline starts at.
+        std::string entry_point{"main"};
+        /// @brief Where the constant block sits, when the shader has one.
+        struct ConstantBlock {
+            uint32_t set{0};
+            uint32_t binding{0};
+            uint32_t size{0};
+        } constant_block{};
+        /// @brief Whether the shader declares a constant block at all.
+        bool has_constant_block{false};
+        /// @brief Every binding the shader declares.
+        std::vector<ShaderInterfaceBinding> bindings{};
+
+        /**
+         * @brief Read a description written by the shader baker.
+         *
+         * @param path The `.interface.json` file next to a baked module.
+         * @return The description, or nothing when the file cannot be read or parsed; the
+         * caller reports which file it was.
+         */
+        static std::optional<ShaderInterfaceDescription> FromFile(const std::filesystem::path &path);
+
+        /// @brief The descriptor type a `kind` string names, or a value with `UNDEFINED`
+        /// placeholder when it is not recognised.
+        static DescriptorType ToDescriptorType(const std::string &kind);
+    };
+} // namespace Engine::Rhi
+
+#endif // ENGINE_RHI_SHADERINTERFACEDESCRIPTION_INCLUDED
