@@ -202,7 +202,7 @@ namespace Engine::Rhi {
         return pimpl->pass_info.desc_layout.handle;
     }
 
-    void ComputeKernel::CreateFromModule(ShaderModuleHandle, std::string_view, std::string_view) {
+    void ComputeKernel::CreateFromModule(ShaderModuleHandle, const ShaderInterfaceDescription &, std::string_view) {
         // This backend reflects the module itself; a caller that already has one has
         // skipped the step it needs.
         throw std::logic_error(
@@ -369,7 +369,7 @@ namespace Engine::Rhi {
     }
 
     ComputeKernel &ComputeKernelCache::RequestFromModule(
-        std::string_view, ShaderModuleHandle, std::string_view, std::string_view
+        std::string_view, ShaderModuleHandle, const ShaderInterfaceDescription &, std::string_view
     ) {
         throw std::logic_error(
             "ComputeKernelCache::RequestFromModule is not available on the Vulkan backend; "
@@ -398,6 +398,7 @@ namespace Engine::Rhi {
         return pimpl->kernels.size();
     }
 } // namespace Engine::Rhi
+
 
 
 

@@ -4,6 +4,7 @@
 #include "Rhi/Command/CommandEncoder.h"
 #include "Rhi/Device/BindingRef.h"
 #include "Rhi/Texture/TextureSubresourceView.h"
+#include "Rhi/Pipeline/ShaderInterfaceDescription.h"
 #include "Rhi/rhi_export.h"
 
 #include <cassert>
@@ -177,7 +178,11 @@ namespace Engine::Rhi {
         /// whose reflection happened at bake time - needs this rather than `Create`. The
         /// interface description comes from the caller because the backend cannot derive
         /// it; a backend that reflects reports this as unsupported.
-        void CreateFromModule(ShaderModuleHandle module, std::string_view entry_point, std::string_view name);
+        void CreateFromModule(
+            ShaderModuleHandle module,
+            const ShaderInterfaceDescription &description,
+            std::string_view name
+        );
 
         /// @brief The dispatcher both public overloads funnel into.
         void DispatchAndRecord(
@@ -250,7 +255,7 @@ namespace Engine::Rhi {
         ComputeKernel &RequestFromModule(
             std::string_view module_id,
             ShaderModuleHandle module,
-            std::string_view entry_point,
+            const ShaderInterfaceDescription &description,
             std::string_view debug_name = {}
         );
 
@@ -264,6 +269,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMPUTEKERNEL_INCLUDED
+
 
 
 
