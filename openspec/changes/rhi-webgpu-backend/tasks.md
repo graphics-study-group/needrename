@@ -182,6 +182,12 @@
 
 - [ ] 10.1 Convert frame completion to callbacks advancing the epoch watermark and verify resource retirement still reclaims at the same watermark
 - [ ] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the frame instead of blocking
+  - **The blocking wait is load-bearing, and its comment says why.** `FrameManager::BeginFrame`
+    waits on `command_executed_fences[fif]` before acquiring, because the acquire semaphore was
+    waited on by the previous frame's submit and reusing it while that wait is pending violates
+    VUID-vkAcquireNextImageKHR-semaphore-01779. Removing the wait therefore needs a per-FIF acquire
+    semaphore or a timeline, not a callback in place of the fence - the ordering that makes
+    skip-and-retry safe has to come from somewhere.
 - [ ] 10.3 Implement presentation through the host surface and verify the frame ring's per-frame windows stay distinct when the host exposes a single surface image
 - [ ] 10.4 Port the UI backend to the WebGPU backend and verify the editor UI renders
 
