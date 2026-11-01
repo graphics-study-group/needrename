@@ -101,6 +101,14 @@
     asset set" is unverified: the Vulkan backend reads SPIR-V and has never been pointed at a
     `.wgsl`.
 - [ ] 7.2 Implement bake-time layout validation between the produced WGSL and the description, and verify a deliberately mismatching layout fails the bake naming the shader
+  - **The check is written and has not been made to fire.** `BakeModule` now reads back the WGSL
+    it just produced, extracts every `@group(N) @binding(M)` pair, and compares that set against
+    the description plus the constant block; a difference fails the bake with both sides named.
+  - It does not fire on a correct bake - 40 of 42 still convert - so it does not misreport. What is
+    missing is the failing case the task asks for. The first attempt edited the `.wgsl` after it was
+    written, but the next invocation regenerates that file, so the edit never reached the check.
+    Provoking a real mismatch needs the converter to produce one, which means a fixture module and a
+    deliberately wrong converter invocation rather than a hand-edited output.
 - [ ] 7.3 Implement the constant-block rewrite fallback and verify a push-constant shader bakes to usable WGSL
 - [ ] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
 - [ ] 7.5 Verify the Vulkan runtime's loading and reflection behavior is unchanged with and without the WGSL variant present

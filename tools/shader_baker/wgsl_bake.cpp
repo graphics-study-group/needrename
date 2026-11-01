@@ -11,6 +11,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <regex>
 #include <sstream>
 #include <vector>
 
@@ -253,6 +254,54 @@ namespace Engine::ShaderBake {
             }
             std::filesystem::remove(log_path, remove_error);
 
+            // The description is the source of truth the runtime binds against, so the WGSL and
+            // the description must agree on which slots exist. A mismatch here is a bake bug that
+            // would otherwise surface as a validation error at dispatch, far from its cause.
+            {
+                std::ifstream wgsl_file(wgsl_path);
+                std::stringstream wgsl_text;
+                wgsl_text << wgsl_file.rdbuf();
+
+                std::set<std::pair<uint32_t, uint32_t>> declared;
+                const std::regex slot(R"(@group\((\d+)u?\)\s*@binding\((\d+)u?\))");
+                const std::string text = wgsl_text.str();
+                for (auto it = std::sregex_iterator(text.begin(), text.end(), slot);
+                     it != std::sregex_iterator();
+                     ++it) {
+                    declared.emplace(
+                        static_cast<uint32_t>(std::stoul((*it)[1].str())),
+                        static_cast<uint32_t>(std::stoul((*it)[2].str()))
+                    );
+                }
+
+                std::set<std::pair<uint32_t, uint32_t>> described;
+                for (const auto &interface : layout.interfaces) {
+                    described.emplace(interface->layout_set, interface->layout_binding);
+                }
+                if (constant_block.has_block) {
+                    described.emplace(constant_block.set, constant_block.binding);
+                }
+
+                if (declared != described) {
+                    std::ostringstream message;
+                    message << "the baked WGSL and the interface description disagree";
+                    for (const auto &[set, binding] : declared) {
+                        if (described.count({set, binding}) == 0) {
+                            message << "; WGSL declares set " << set << " binding " << binding
+                                    << " that the description does not";
+                        }
+                    }
+                    for (const auto &[set, binding] : described) {
+                        if (declared.count({set, binding}) == 0) {
+                            message << "; the description names set " << set << " binding " << binding
+                                    << " that the WGSL does not declare";
+                        }
+                    }
+                    error = message.str();
+                    return false;
+                }
+            }
+
             if (options.validate) {
                 // Tint validates an input by compiling it again; naga validates
                 // when it is given no output file.
@@ -329,6 +378,7 @@ namespace Engine::ShaderBake {
         return static_cast<int>(failures);
     }
 } // namespace Engine::ShaderBake
+
 
 
 
