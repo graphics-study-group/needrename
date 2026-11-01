@@ -196,6 +196,11 @@ namespace Engine::Rhi {
         return result == vk::Result::eSuccess;
     }
 
+    void DeviceContext::SignalSemaphore(const TimelineSignal &signal) {
+        const vk::SemaphoreSignalInfo info{ToVulkanSemaphore(signal.semaphore), signal.value};
+        ToVulkanDevice(m_device_interface->GetDevice()).signalSemaphore(info);
+    }
+
     void DeviceContext::Submit(const Submission &submission, FenceHandle fence) {
         std::vector<vk::SemaphoreSubmitInfo> waits;
         waits.reserve(submission.waits.size());
@@ -230,6 +235,7 @@ namespace Engine::Rhi {
         m_device_interface->GetQueueInfo().graphicsQueue.submit2(info, submit_fence);
     }
 } // namespace Engine::Rhi
+
 
 
 

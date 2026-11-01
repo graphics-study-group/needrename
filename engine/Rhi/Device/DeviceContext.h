@@ -172,10 +172,22 @@ namespace Engine::Rhi {
          * @return Whether the fence was signalled before the timeout.
          */
         bool WaitForFence(FenceHandle fence, uint64_t timeout_ns);
+
+        /**
+         * @brief Signal a timeline semaphore from the host.
+         *
+         * A frame loop that has not submitted anything yet still has to give the
+         * first wait something to observe; signalling is how it does that without
+         * recording a submission.
+         *
+         * @param signal The semaphore and the value to move it to.
+         */
+        void SignalSemaphore(const TimelineSignal &signal);
     };
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICECONTEXT_INCLUDED
+
 
 
 

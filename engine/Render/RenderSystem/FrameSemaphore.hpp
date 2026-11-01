@@ -2,23 +2,28 @@
 #define RENDER_RENDERSYSTEM_FRAMESEMAPHORE_INCLUDED
 
 #include <cstdint>
-#include <vulkan/vulkan.hpp>
+#include <optional>
+#include <utility>
+
+#include "Rhi/Device/Semaphore.h"
+#include "Rhi/RhiTypes.h"
+#include "Render/render_export.h"
 
 namespace Engine::RenderSystemState {
     /**
      * @brief Simple, frame-based wrapper around Vulkan timeline semaphore.
      */
     class RENDER_API FrameSemaphore {
-        vk::UniqueSemaphore timeline_semaphore{nullptr};
+        std::optional<Rhi::Semaphore> timeline_semaphore{};
         uint32_t current_frame_expected_timepoints{0};
         uint64_t total_elapsed_timepoints{0};
 
     public:
-        void SetSemaphore(vk::UniqueSemaphore &&s) noexcept {
+        void SetSemaphore(Rhi::Semaphore &&s) noexcept {
             timeline_semaphore = std::move(s);
         }
-        vk::Semaphore GetSemaphore() const noexcept {
-            return timeline_semaphore.get();
+        Rhi::SemaphoreHandle GetSemaphore() const noexcept {
+            return timeline_semaphore->GetHandle();
         }
         uint32_t GetExpectedTimepoints() const noexcept {
             return current_frame_expected_timepoints;
@@ -70,18 +75,14 @@ namespace Engine::RenderSystemState {
             return total_elapsed_timepoints + timepoint;
         }
 
-        vk::SemaphoreSubmitInfo GetSubmitInfo(uint32_t timepoint, vk::PipelineStageFlags2 stage) const noexcept {
-            assert(timeline_semaphore);
-            assert(timepoint <= current_frame_expected_timepoints && "Timepoint out of range.");
-            return vk::SemaphoreSubmitInfo{timeline_semaphore.get(), GetTimepointValue(timepoint), stage};
-        }
-
-        vk::SemaphoreSignalInfo GetSignalInfo(uint32_t timepoint) const noexcept {
-            assert(timeline_semaphore);
-            assert(timepoint <= current_frame_expected_timepoints && "Timepoint out of range.");
-            return vk::SemaphoreSignalInfo{timeline_semaphore.get(), GetTimepointValue(timepoint)};
+        /**
+         * @brief A submission dependency waiting for this frame's timepoint.
+         */
+        Rhi::SubmissionDependency GetDependency(uint32_t timepoint) const noexcept {
+            return Rhi::SubmissionDependency{GetSemaphore(), GetTimepointValue(timepoint), Rhi::PipelineScope::Unspecified};
         }
     };
 } // namespace Engine::RenderSystemState
 
 #endif // RENDER_RENDERSYSTEM_FRAMESEMAPHORE_INCLUDED
+

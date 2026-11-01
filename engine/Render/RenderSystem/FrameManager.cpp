@@ -147,13 +147,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         m_present_provider = &present_provider;
         auto device = m_system.GetDevice();
 
-        vk::SemaphoreCreateInfo scinfo{};
-        vk::SemaphoreTypeCreateInfo stcinfo{};
-        stcinfo.semaphoreType = vk::SemaphoreType::eBinary;
-        stcinfo.initialValue = 0;
-        scinfo.pNext = &stcinfo;
 
-        vk::FenceCreateInfo finfo{{vk::FenceCreateFlagBits::eSignaled}};
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             image_acquired_semaphores[i] = Rhi::Semaphore::Create(
                 m_system.GetDeviceInterface(), Rhi::SemaphoreType::Binary, 0, std::format("Semaphore - image acquired {}", i)
@@ -166,12 +160,16 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
                 Rhi::Fence::Create(m_system.GetDeviceInterface(), true, std::format("Fence - all commands executed {}", i));
         }
 
-        stcinfo.semaphoreType = vk::SemaphoreType::eTimeline;
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-            timeline_semaphores[i].SetSemaphore(device.createSemaphoreUnique(scinfo));
-            DEBUG_SET_NAME_TEMPLATE(
-                device, timeline_semaphores[i].GetSemaphore(), std::format("Semaphore - timeline semaphore {}", i)
-            );
+            timeline_semaphores[i].SetSemaphore(Rhi::Semaphore::Create(
+                m_system.GetDeviceInterface(),
+                Rhi::SemaphoreType::Timeline,
+                0,
+                std::format("Semaphore - timeline semaphore {}", i)
+            ));
+
+
+
         }
 
         // Allocate main render command buffers
@@ -207,7 +205,6 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         }
 
         auto device = m_system.GetDevice();
-        vk::SemaphoreCreateInfo scinfo{};
         frame_completed_semaphores.reserve(image_count);
         for (uint32_t i = 0; i < image_count; i++) {
             frame_completed_semaphores.push_back(Rhi::Semaphore::Create(
@@ -319,7 +316,12 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         // Kickstart of this frame
         // Prevent validation layer from complaining
         if (pimpl->timeline_semaphores[fif].GetTotalElapsedTimepoints() > 0) {
-            device.signalSemaphore(pimpl->timeline_semaphores[fif].GetSignalInfo(1));
+            pimpl->m_system.GetDeviceContext().SignalSemaphore(
+                Rhi::TimelineSignal{
+                    pimpl->timeline_semaphores[fif].GetSemaphore(),
+                    pimpl->timeline_semaphores[fif].GetTimepointValue(1)
+                }
+            );
         }
 
         // The frame is committed: acquisition succeeded and the command buffer
@@ -353,7 +355,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
 
         // Staged resource submission (signals timeline timepoint 2).
         pimpl->m_submission_helper->ExecuteSubmission(
-            Rhi::TimelineSignal{Rhi::FromVulkan(this_timeline_semaphore.GetSemaphore()), this_timeline_semaphore.GetTimepointValue(2)}
+            Rhi::TimelineSignal{this_timeline_semaphore.GetSemaphore(), this_timeline_semaphore.GetTimepointValue(2)}
         );
 
         // Record the copy CB (headless → nullptr; the batch then carries no copy).
@@ -372,13 +374,13 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
 
         // Wait for staged upload before any command starts.
         submission.waits.push_back(Rhi::SubmissionDependency{
-            Rhi::FromVulkan(this_timeline_semaphore.GetSemaphore()),
+            this_timeline_semaphore.GetSemaphore(),
             this_timeline_semaphore.GetTimepointValue(2),
             Rhi::PipelineScope::Unspecified
         });
         // Wait for total completion of the last frame.
         submission.waits.push_back(Rhi::SubmissionDependency{
-            Rhi::FromVulkan(prev_timeline_semaphore.GetSemaphore()),
+            prev_timeline_semaphore.GetSemaphore(),
             prev_timeline_semaphore.GetExpectedTimepoints(),
             Rhi::PipelineScope::Unspecified
         });
@@ -395,8 +397,11 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         // Special consideration for deadlock on the first frame.
         if (GetTotalFrame() == 0) {
             prev_timeline_semaphore.SetExpectedTimepoints(1);
-            this->pimpl->m_system.GetDevice().signalSemaphore(
-                prev_timeline_semaphore.GetSignalInfo(prev_timeline_semaphore.GetExpectedTimepoints())
+            this->pimpl->m_system.GetDeviceContext().SignalSemaphore(
+                Rhi::TimelineSignal{
+                    prev_timeline_semaphore.GetSemaphore(),
+                    prev_timeline_semaphore.GetTimepointValue(1)
+                }
             );
         }
         // We must step frame after wait info is recorded to avoid deadlock.
@@ -404,7 +409,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
 
         // Frame complete (timeline), after both command buffers.
         submission.signals.push_back(Rhi::SubmissionDependency{
-            Rhi::FromVulkan(this_timeline_semaphore.GetSemaphore()),
+            this_timeline_semaphore.GetSemaphore(),
             this_timeline_semaphore.GetTimepointValue(4),
             Rhi::PipelineScope::Unspecified
         });
@@ -451,7 +456,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
                 Rhi::FromVulkan(readback.current_registry.combuf.get())
             );
             readback_submission.waits.push_back(Rhi::SubmissionDependency{
-                Rhi::FromVulkan(this_frame_semaphore.GetSemaphore()),
+                this_frame_semaphore.GetSemaphore(),
                 this_frame_semaphore.GetExpectedTimepoints(),
                 Rhi::PipelineScope::Unspecified
             });
@@ -526,6 +531,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         return true;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 
