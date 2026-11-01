@@ -112,6 +112,67 @@ namespace Engine::Rhi {
         // What the arena adds: entries become eligible, but nothing is released.
         m_descriptor_arena->OnDeviceIdle();
     }
+
+    void DeviceContext::UpdateDescriptorSets(std::span<const WriteDescriptorSet> writes) {
+        if (writes.empty()) {
+            return;
+        }
+
+        // Vulkan reads these through pointers into the two info arrays, so both
+        // are sized before anything is built - a reallocation would leave a write
+        // pointing at freed storage.
+        std::vector<vk::DescriptorBufferInfo> buffer_infos(writes.size());
+        std::vector<vk::DescriptorImageInfo> image_infos(writes.size());
+        std::vector<vk::WriteDescriptorSet> vk_writes;
+        vk_writes.reserve(writes.size());
+
+        for (size_t i = 0; i < writes.size(); i++) {
+            const WriteDescriptorSet &write = writes[i];
+            vk::WriteDescriptorSet vk_write{};
+            vk_write.dstSet = ToVulkanDescriptorSet(write.set);
+            vk_write.dstBinding = write.binding;
+            vk_write.dstArrayElement = write.array_element;
+            vk_write.descriptorCount = 1;
+            vk_write.descriptorType = ToVulkanDescriptorType(write.type);
+
+            switch (write.type) {
+            case DescriptorType::UniformBuffer:
+            case DescriptorType::UniformBufferDynamic:
+            case DescriptorType::StorageBuffer:
+            case DescriptorType::StorageBufferDynamic:
+                buffer_infos[i] = vk::DescriptorBufferInfo{
+                    ToVulkanBuffer(write.buffer), write.offset, write.range
+                };
+                vk_write.pBufferInfo = &buffer_infos[i];
+                break;
+            case DescriptorType::CombinedImageSampler:
+                image_infos[i] = vk::DescriptorImageInfo{
+                    ToVulkanSampler(write.sampler), ToVulkanImageView(write.image_view), vk::ImageLayout::eReadOnlyOptimal
+                };
+                vk_write.pImageInfo = &image_infos[i];
+                break;
+            case DescriptorType::SampledImage:
+                image_infos[i] = vk::DescriptorImageInfo{
+                    nullptr, ToVulkanImageView(write.image_view), vk::ImageLayout::eReadOnlyOptimal
+                };
+                vk_write.pImageInfo = &image_infos[i];
+                break;
+            case DescriptorType::Sampler:
+                image_infos[i] = vk::DescriptorImageInfo{ToVulkanSampler(write.sampler), nullptr, vk::ImageLayout::eUndefined};
+                vk_write.pImageInfo = &image_infos[i];
+                break;
+            case DescriptorType::StorageImage:
+                image_infos[i] = vk::DescriptorImageInfo{
+                    nullptr, ToVulkanImageView(write.image_view), vk::ImageLayout::eGeneral
+                };
+                vk_write.pImageInfo = &image_infos[i];
+                break;
+            }
+            vk_writes.push_back(vk_write);
+        }
+
+        ToVulkanDevice(m_device_interface->GetDevice()).updateDescriptorSets(vk_writes, {});
+    }
 } // namespace Engine::Rhi
 
 

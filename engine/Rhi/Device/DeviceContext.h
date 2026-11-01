@@ -4,6 +4,7 @@
 #include "Rhi/Device/DeviceInterface.h"
 
 #include <cstdint>
+#include <span>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -137,10 +138,23 @@ namespace Engine::Rhi {
          * that "notify without waiting" cannot be written.
          */
         void WaitForIdle();
+
+        /**
+         * @brief Point descriptor bindings at resources.
+         *
+         * A descriptor set is a table of bindings; filling it is what makes a
+         * shader's declared inputs resolve to the buffers and images it will
+         * actually read. Writes that name the same set are applied together, so a
+         * frame that rewrites a set every frame is one call rather than a dozen.
+         *
+         * @param writes The bindings to point somewhere, in any order.
+         */
+        void UpdateDescriptorSets(std::span<const WriteDescriptorSet> writes);
     };
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICECONTEXT_INCLUDED
+
 
 
 

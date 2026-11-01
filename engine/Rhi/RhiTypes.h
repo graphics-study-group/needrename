@@ -376,6 +376,34 @@ namespace Engine::Rhi {
     };
 
     /**
+     * @brief One resource bound into one slot of one descriptor set.
+     *
+     * A write names a set, a binding, and - for an array binding - which element
+     * of it. Exactly one of the resource members is used, chosen by `type`; a
+     * combined image sampler fills both the view and the sampler.
+     */
+    struct WriteDescriptorSet {
+        /// @brief The set being written.
+        DescriptorSetHandle set{};
+        /// @brief Which binding of the layout.
+        uint32_t binding{0};
+        /// @brief Which element, for a binding declared as an array.
+        uint32_t array_element{0};
+        /// @brief How the shader sees the resource, which picks the member below.
+        DescriptorType type{DescriptorType::UniformBuffer};
+        /// @brief The buffer, for a buffer binding.
+        BufferHandle buffer{};
+        /// @brief Byte offset into the buffer.
+        uint64_t offset{0};
+        /// @brief Bytes covered, or zero for the rest of the buffer.
+        uint64_t range{0};
+        /// @brief The image view, for any binding that reads or writes an image.
+        ImageViewHandle image_view{};
+        /// @brief The sampler, for a combined or standalone sampler binding.
+        SamplerHandle sampler{};
+    };
+
+    /**
      * @brief One box of an image copied into one box of another.
      *
      * A blit names a box in the source and a box in the destination; when the
@@ -428,6 +456,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
 
