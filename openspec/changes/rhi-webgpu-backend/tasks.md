@@ -267,6 +267,14 @@
   - What stays put is the wait itself: 10.2's note explains why removing it needs every caller to
     advance its own clock, and an epoch reported from a callback does not change that. So 10.1 and 10.2
     are separable after all - 10.1 is the reporting point, 10.2 is the ordering.
+  - **The edit itself is three lines, and the reason it was not made is the lifecycle.**
+    `RecordFrameSubmission` builds the `Submission` and calls `Submit(submission, fence)`; setting
+    `submission.on_complete` there is one line, and deleting the report from `StartFrame` is another.
+    What needs thinking through first is that the callback runs on the backend's thread and captures
+    `fif`, whose slot the next frame will reuse before an unrelated `WaitForIdle` pumps the callback.
+    Reporting the wrong epoch leaks rather than dangles - the tracker parks under watermarks that never
+    complete - so the failure is quiet, and `gpu_buffer_retirement_test` is the test that would catch
+    it.
 - [ ] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the frame instead of blocking
   - **The blocking wait is load-bearing, and its comment says why.** `FrameManager::BeginFrame`
     waits on `command_executed_fences[fif]` before acquiring, because the acquire semaphore was
