@@ -3,7 +3,7 @@
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
-#include "Render/Resource/MemoryAccessHelper.hpp"
+#include "Render/Backend/Vulkan/MemoryAccessHelper.hpp"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
@@ -208,6 +208,7 @@ namespace Engine::RenderSystemState {
         pimpl->m_extent = vk::Extent2D{new_extent.width, new_extent.height};
     }
 } // namespace Engine::RenderSystemState
+
 
 
 
