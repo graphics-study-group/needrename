@@ -302,6 +302,13 @@ namespace Engine::Rhi {
         uint64_t max_storage_buffer_range{0};
         /// @brief Largest number of invocations in one workgroup.
         uint32_t max_compute_invocations{0};
+        /// @brief Most descriptor sets one pipeline layout may bind at once.
+        ///
+        /// Vulkan's limit is per pipeline layout; the standard WebGPU interface calls
+        /// the same thing `maxBindGroups` and defaults it to four. A backend with no
+        /// such limit reports a large number rather than zero, so a consumer comparing
+        /// against a budget does not read "unsupported" from "unbounded".
+        uint32_t max_bind_groups{0};
     };
 
     /// @brief A timeline signal: a semaphore and the value it reaches.

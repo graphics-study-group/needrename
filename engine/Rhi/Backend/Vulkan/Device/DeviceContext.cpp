@@ -46,7 +46,8 @@ namespace Engine::Rhi {
             .max_push_constant_bytes = limits.maxPushConstantsSize,
             .uniform_buffer_offset_alignment = limits.minUniformBufferOffsetAlignment,
             .max_storage_buffer_range = limits.maxStorageBufferRange,
-            .max_compute_invocations = limits.maxComputeWorkGroupInvocations
+            .max_compute_invocations = limits.maxComputeWorkGroupInvocations,
+            .max_bind_groups = limits.maxBoundDescriptorSets
         };
         // Install the tracker as the allocator's retire sink: from here on every
         // buffer allocated through this context is retire-safe by construction.

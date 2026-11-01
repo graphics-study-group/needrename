@@ -42,6 +42,7 @@ They live in `RhiTypes.h` and `Pipeline/PipelineDescription.h`.
 | `PipelineScope` | what kind of work a barrier separates | not a stage name; the backend derives stages from it |
 | `DescriptorType` | how a shader sees a resource | the eight kinds both APIs share |
 | `ResourceState`, `FormatFeature` | portable state and capability | ignored by a backend that does not need them |
+| `DeviceCapabilities` | four limits the engine asks about, plus `max_bind_groups` | the fifth was added because WebGPU's most binding limit had nowhere to live |
 | `ShaderStage` | which stage a build runs a module as | belongs to the build, not to the module |
 | `SubmissionDependency` | a semaphore, a timeline value and a stage | a backend cannot infer the stage, and a wrong one is a race, not an error |
 
@@ -98,3 +99,4 @@ against the seam today does not have to be rewritten later.
 - The Vulkan column is the implemented behaviour, exercised by the 78-test suite.
 - The WebGPU column is the design; it is not implemented, and this document says so
   in its first paragraph rather than in a footnote.
+

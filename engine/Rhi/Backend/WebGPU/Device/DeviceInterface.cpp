@@ -77,6 +77,7 @@ namespace Engine::Rhi {
         WGPUAdapter adapter{nullptr};
         WGPUDevice device{nullptr};
         QueueInfo queue_info{};
+        WGPULimits limits{};
     };
 
     DeviceInterface::DeviceInterface(DeviceConfiguration cfg) : pimpl(std::make_unique<impl>()) {
@@ -117,6 +118,14 @@ namespace Engine::Rhi {
         }
 
         pimpl->queue_info.graphicsQueue = wgpuDeviceGetQueue(pimpl->device);
+
+        // What the device says it can do. The seam exposes four of these through
+        // DeviceCapabilities; the rest are here so that a consumer that outgrows the
+        // four has somewhere to look rather than a second query to write.
+        pimpl->limits = WGPULimits{};
+        if (!wgpuDeviceGetLimits(pimpl->device, &pimpl->limits)) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: the device did not report its limits.");
+        }
 
         SDL_LogInfo(
             SDL_LOG_CATEGORY_RENDER,
@@ -163,6 +172,8 @@ namespace Engine::Rhi {
         return SwapchainSupport{};
     }
 } // namespace Engine::Rhi
+
+
 
 
 
