@@ -188,6 +188,8 @@ The order that avoids the empty-library trap:
 
 1. Port the device creation and the allocation into `Backend/WebGPU/Device/`
    (`DeviceInterface`, `DeviceContext`, `AllocatorState`) and the buffer object.
+   **`DeviceInterface.cpp` is done**; the allocation is where the next three
+   obstacles are (below).
 2. Wire `ENGINE_RHI_BACKEND=webgpu` to compile **only** those, with the rest of the
    seam left as declarations. The library will not link - that is the point, because
    the missing symbols are the list of what remains.
@@ -196,3 +198,28 @@ The order that avoids the empty-library trap:
 
 Step 2 is what makes this incremental. Without it, the only feedback is "it links
 because nothing is there".
+## Three obstacles the first port hit, in the order they appeared
+
+**Solved.** `DeviceInterface.cpp` compiles and links: instance, adapter, device and
+queue, in 6.7 KB, ported from the spike. Two things were only discoverable by
+building it - the header is `<webgpu/webgpu.h>` because wgpu-native puts it in a
+subdirectory, and a backend wraps its objects through `ObjectHandle::FromValue`
+rather than the constructor, which is private on purpose.
+
+**Not yet solved: `BufferAllocation`.** A first attempt at `MemoryAllocation.cpp`
+was written and reverted. Its interface is portable in shape - `BufferHandle`,
+`void *` allocation and allocator, `FlushMemory`, `InvalidateMemory` - and the
+WebGPU mapping model fits it: a buffer created with `mappedAtCreation` stays mapped
+for its life, so `GetVMAddress` has one address to return and `FlushMemory` has
+nothing to do.
+
+What stopped it is `GetIdentity()`, which returns `VulkanIdentity`. That type is a
+`uint64_t` wrapper in `BindingRef.h` - portable in everything but its name - but the
+field it reads (`m_identity`) is not on the shared class, so each backend stores the
+identity its own way and the shared header does not say how. **The next attempt should
+read the Vulkan `MemoryAllocation.cpp` first**, which is where that decision lives.
+
+**Not yet looked at: `AllocatorState`.** It allocates through VMA today. On this
+backend a buffer is `wgpuDeviceCreateBuffer` with usage flags derived from
+`BufferType`, and there is nothing to allocate from - which is simpler than the
+Vulkan path, not harder.
