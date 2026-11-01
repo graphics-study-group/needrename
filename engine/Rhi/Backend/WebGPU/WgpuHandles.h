@@ -2,6 +2,7 @@
 #define ENGINE_RHI_BACKEND_WEBGPU_WGPUHANDLES_INCLUDED
 
 #include "Rhi/RhiTypes.h"
+#include "Rhi/Texture/ImageUtils.h"
 
 #include <webgpu/webgpu.h>
 
@@ -58,5 +59,50 @@ namespace Engine::Rhi {
 
 #endif // ENGINE_RHI_BACKEND_WEBGPU_WGPUHANDLES_INCLUDED
 
-
+namespace Engine::Rhi {
+    /**
+     * @brief Map a seam image format to the standard interface's format.
+     *
+     * The two lists overlap almost completely for the formats the engine uses; the
+     * ones that do not map return Undefined, which the caller reports rather than
+     * creating a texture the device would reject.
+     */
+    inline WGPUTextureFormat ToWgpuTextureFormat(ImageFormat format) noexcept {
+        switch (format) {
+        case ImageFormat::R8G8B8A8UNorm:
+            return WGPUTextureFormat_RGBA8Unorm;
+        case ImageFormat::R8G8B8A8SRGB:
+            return WGPUTextureFormat_RGBA8UnormSrgb;
+        case ImageFormat::R8G8B8A8SNorm:
+            return WGPUTextureFormat_RGBA8Snorm;
+        case ImageFormat::R8G8B8A8UInt:
+            return WGPUTextureFormat_RGBA8Uint;
+        case ImageFormat::B8G8R8A8UNorm:
+            return WGPUTextureFormat_BGRA8Unorm;
+        case ImageFormat::B8G8R8A8SRGB:
+            return WGPUTextureFormat_BGRA8UnormSrgb;
+        case ImageFormat::R11G11B10UFloat:
+            return WGPUTextureFormat_RG11B10Ufloat;
+        case ImageFormat::R32G32B32A32SFloat:
+            return WGPUTextureFormat_RGBA32Float;
+        case ImageFormat::R32G32B32SFloat:
+            // No RGB32Float in the standard list; a three-component 32-bit format is
+            // not a render target on this interface. Callers that need it use RGBA.
+            return WGPUTextureFormat_Undefined;
+        case ImageFormat::R32G32SFloat:
+            return WGPUTextureFormat_RG32Float;
+        case ImageFormat::R32SFloat:
+            return WGPUTextureFormat_R32Float;
+        case ImageFormat::R32UInt:
+            return WGPUTextureFormat_R32Uint;
+        case ImageFormat::R16G16UInt:
+            return WGPUTextureFormat_RG16Uint;
+        case ImageFormat::D32SFLOAT:
+            return WGPUTextureFormat_Depth32Float;
+        case ImageFormat::UNDEFINED:
+        default:
+            return WGPUTextureFormat_Undefined;
+        }
+    }
+} // namespace Engine::Rhi
 

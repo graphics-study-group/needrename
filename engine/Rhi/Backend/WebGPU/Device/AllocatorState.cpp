@@ -121,3 +121,70 @@ namespace Engine::Rhi {
     }
 } // namespace Engine::Rhi
 
+namespace Engine::Rhi {
+    namespace {
+        /**
+         * @brief Turn the seam's image usage into the standard interface's flags.
+         *
+         * The names are close: a framebuffer colour attachment is RENDER_ATTACHMENT
+         * here, a blit source is COPY_SRC, and a storage image is STORAGE_BINDING.
+         * The seam splits attachment usage into colour and depth-stencil; the
+         * standard interface has one flag for both.
+         */
+        WGPUTextureUsage ToWgpuTextureUsage(ImageMemoryType type) {
+            WGPUTextureUsage usage = WGPUTextureUsage_None;
+            if (type.Test(ImageMemoryTypeBits::CopyFrom)) {
+                usage |= WGPUTextureUsage_CopySrc;
+            }
+            if (type.Test(ImageMemoryTypeBits::CopyTo)) {
+                usage |= WGPUTextureUsage_CopyDst;
+            }
+            if (type.Test(ImageMemoryTypeBits::ShaderSampled)) {
+                usage |= WGPUTextureUsage_TextureBinding;
+            }
+            if (type.Test(ImageMemoryTypeBits::ShaderRandomAccess)) {
+                usage |= WGPUTextureUsage_StorageBinding;
+            }
+            if (type.Test(ImageMemoryTypeBits::ColorAttachment) || type.Test(ImageMemoryTypeBits::DepthStencilAttachment)) {
+                usage |= WGPUTextureUsage_RenderAttachment;
+            }
+            return usage;
+        }
+    } // namespace
+
+    ImageAllocation AllocatorState::AllocateImage(const ImageAllocationDescription &desc, const std::string &name) const {
+        WGPUTextureDescriptor texture_desc{};
+        texture_desc.usage = ToWgpuTextureUsage(desc.type);
+        texture_desc.dimension = desc.dimension == ImageType::D1   ? WGPUTextureDimension_1D
+                                 : desc.dimension == ImageType::D2 ? WGPUTextureDimension_2D
+                                                                   : WGPUTextureDimension_3D;
+        texture_desc.size = WGPUExtent3D{desc.extent.width, desc.extent.height, desc.extent.depth};
+        texture_desc.format = ToWgpuTextureFormat(desc.format);
+        texture_desc.mipLevelCount = desc.miplevel;
+        texture_desc.sampleCount = static_cast<uint32_t>(desc.samples == SampleCountBits::C1 ? 1 : 4);
+        if (desc.is_cube_map) {
+            texture_desc.viewFormatCount = 0;
+            texture_desc.viewFormats = nullptr;
+        }
+        texture_desc.label = WGPUStringView{name.data(), name.size()};
+
+        WGPUTexture texture = wgpuDeviceCreateTexture(pimpl->device, &texture_desc);
+        if (texture == nullptr) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "WebGPU: texture creation failed (%ux%ux%u, format %d).",
+                desc.extent.width,
+                desc.extent.height,
+                desc.extent.depth,
+                static_cast<int>(desc.format)
+            );
+        }
+        return ImageAllocation(FromWgpuTexture(texture), texture, pimpl->device, desc.type);
+    }
+
+    std::unique_ptr<ImageAllocation> AllocatorState::AllocateImageUnique(
+        const ImageAllocationDescription &desc, const std::string &name
+    ) const noexcept {
+        return std::make_unique<ImageAllocation>(AllocateImage(desc, name));
+    }
+} // namespace Engine::Rhi
