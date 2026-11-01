@@ -43,9 +43,12 @@ namespace {
      *
      * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
      */
-    ktxTexture2 *Create2DTextureFromData(int width, int height, vk::Format format, const std::byte *data, size_t size) {
+    ktxTexture2 *Create2DTextureFromData(
+        int width, int height, Engine::Rhi::ImageFormat format, const std::byte *data, size_t size
+    ) {
+        const vk::Format vk_format = Engine::Rhi::GetVkFormat(format);
         ktxTextureCreateInfo create_info{};
-        create_info.vkFormat = static_cast<ktx_uint32_t>(format);
+        create_info.vkFormat = static_cast<ktx_uint32_t>(vk_format);
         create_info.baseWidth = static_cast<ktx_uint32_t>(width);
         create_info.baseHeight = static_cast<ktx_uint32_t>(height);
         create_info.baseDepth = 1;
@@ -92,7 +95,7 @@ namespace Engine {
             throw std::runtime_error("Unsupported image format for texture.");
         }
 
-        ktxTexture2 *texture = Create2DTextureFromData(width, height, vk_format, data.data(), data.size());
+        ktxTexture2 *texture = Create2DTextureFromData(width, height, format, data.data(), data.size());
         if (texture == nullptr) {
             throw std::runtime_error("Failed to create KTX2 texture from decoded data.");
         }

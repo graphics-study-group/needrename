@@ -46,14 +46,14 @@ namespace {
      * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
      */
     ktxTexture2 *CreateCubemapTextureData(
-        int width, int height, vk::Format format, const std::byte *data, size_t size
+        int width, int height, Engine::Rhi::ImageFormat format, const std::byte *data, size_t size
     ) {
         if (size % 6 != 0) {
             throw std::runtime_error("Cubemap data size must be divisible by 6.");
         }
 
         ktxTextureCreateInfo create_info{};
-        create_info.vkFormat = static_cast<ktx_uint32_t>(format);
+        create_info.vkFormat = static_cast<ktx_uint32_t>(Engine::Rhi::GetVkFormat(format));
         create_info.baseWidth = static_cast<ktx_uint32_t>(width);
         create_info.baseHeight = static_cast<ktx_uint32_t>(height);
         create_info.baseDepth = 1;
@@ -108,7 +108,7 @@ namespace Engine {
             throw std::runtime_error("Unsupported image format for cubemap.");
         }
 
-        ktxTexture2 *texture = CreateCubemapTextureData(width, height, vk_format, data.data(), data.size());
+        ktxTexture2 *texture = CreateCubemapTextureData(width, height, format, data.data(), data.size());
         if (texture == nullptr) {
             throw std::runtime_error("Failed to create KTX2 cubemap from decoded data.");
         }
