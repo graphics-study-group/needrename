@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <unordered_set>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
     /**
@@ -215,4 +214,6 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_EPOCHTRACKER_INCLUDED
+
+
 

@@ -15,7 +15,6 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
     class DeviceBuffer;
@@ -244,6 +243,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMPUTEKERNEL_INCLUDED
+
 
 
 

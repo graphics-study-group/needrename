@@ -7,9 +7,9 @@
 
 // GLM forward declarations.
 #include <fwd.hpp>
-#include <vulkan/vulkan.hpp>
 
 #include <memory>
+#include <string>
 
 namespace Engine::Rhi {
 
@@ -108,4 +108,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_SHADERRESOURCEBINDING_INCLUDED
+
+
+
 

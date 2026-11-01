@@ -4,7 +4,6 @@
 #include "Rhi/Device/BindingRef.h"
 #include "Rhi/rhi_export.h"
 
-#include <vulkan/vulkan.hpp>
 
 #include <memory>
 
@@ -86,6 +85,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
+
 
 
 
