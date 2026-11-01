@@ -31,7 +31,7 @@ namespace Engine::Rhi {
 
     public:
         /// @brief Create the cache on the given device.
-        ImmutableResourceCache(vk::Device dvc);
+        explicit ImmutableResourceCache(DeviceHandle device);
         ~ImmutableResourceCache() noexcept;
 
         /**
@@ -42,7 +42,7 @@ namespace Engine::Rhi {
          */
         SamplerHandle GetSampler(const Rhi::SamplerDesc &);
         /// @overload SamplerHandle GetSampler(const Rhi::SamplerDesc &)
-        vk::Sampler GetSampler(const vk::SamplerCreateInfo &);
+        SamplerHandle GetSampler(const vk::SamplerCreateInfo &);
 
         /**
          * @brief Request a sampler together with the identity it was issued at
@@ -89,6 +89,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
+
 
 
 

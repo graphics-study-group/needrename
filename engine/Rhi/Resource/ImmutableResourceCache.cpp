@@ -111,8 +111,8 @@ namespace Engine::Rhi {
         std::unordered_map<size_t, vk::UniquePipelineLayout> pipeline_layout_cache;
     };
 
-    ImmutableResourceCache::ImmutableResourceCache(vk::Device dvc) : pimpl(std::make_unique<impl>()) {
-        pimpl->dvc = dvc;
+    ImmutableResourceCache::ImmutableResourceCache(DeviceHandle device) : pimpl(std::make_unique<impl>()) {
+        pimpl->dvc = ToVulkanDevice(device);
     }
 
     ImmutableResourceCache::~ImmutableResourceCache() noexcept = default;
@@ -151,8 +151,8 @@ namespace Engine::Rhi {
 
         return GetSamplerRef(sci);
     }
-    vk::Sampler ImmutableResourceCache::GetSampler(const vk::SamplerCreateInfo &sci) {
-        return Engine::Rhi::ToVulkanSampler(GetSamplerRef(sci).handle);
+    SamplerHandle ImmutableResourceCache::GetSampler(const vk::SamplerCreateInfo &sci) {
+        return GetSamplerRef(sci).handle;
     }
     SamplerRef ImmutableResourceCache::GetSamplerRef(const vk::SamplerCreateInfo &sci) {
         auto itr = pimpl->sampler_cache.find(sci);
@@ -224,6 +224,7 @@ namespace Engine::Rhi {
         return FromVulkan(itr->second.get());
     }
 } // namespace Engine::Rhi
+
 
 
 

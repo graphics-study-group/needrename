@@ -16,7 +16,7 @@ namespace Engine::Rhi {
         VULKAN_HPP_DEFAULT_DISPATCHER.init(ToVulkanInstance(m_device_interface->GetInstance()), ::vkGetInstanceProcAddr);
         VULKAN_HPP_DEFAULT_DISPATCHER.init(ToVulkanDevice(m_device_interface->GetDevice()));
 
-        m_immutable_resource_cache = std::make_unique<ImmutableResourceCache>(ToVulkanDevice(m_device_interface->GetDevice()));
+        m_immutable_resource_cache = std::make_unique<ImmutableResourceCache>(m_device_interface->GetDevice());
         m_allocator_state = std::make_unique<AllocatorState>(*m_device_interface);
         m_epoch_tracker = std::make_unique<EpochTracker>(m_device_interface->GetDevice());
         // The arena reads the tracker, so the tracker must exist first.
@@ -100,6 +100,7 @@ namespace Engine::Rhi {
         m_descriptor_arena->OnDeviceIdle();
     }
 } // namespace Engine::Rhi
+
 
 
 
