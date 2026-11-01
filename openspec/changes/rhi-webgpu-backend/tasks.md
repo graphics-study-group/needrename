@@ -10,7 +10,7 @@
 
 - [x] 2.1 Add the `ENGINE_RHI_BACKEND` configure variable accepting exactly `vulkan` and `webgpu`, and verify an unknown value fails configuration naming the accepted values
 - [x] 2.2 Make the Vulkan SDK/glslang lookup and the Vulkan-only third-party targets conditional on the `vulkan` backend, and verify a `webgpu` configure succeeds on a machine without a Vulkan SDK
-- [ ] 2.3 Add an Emscripten toolchain file and configure preset for the web build, and verify the preset produces a wasm library target
+- [x] 2.3 Add an Emscripten toolchain file and configure preset for the web build, and verify the preset produces a wasm library target
 - [x] 2.4 Add the optional desktop WebGPU validation target linking the standard WebGPU C interface, and verify it builds a headless executable skeleton
 
 ## 3. Rhi interface purification
