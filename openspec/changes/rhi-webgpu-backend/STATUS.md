@@ -406,3 +406,39 @@ Two things were fixed on the way and are worth keeping:
 
 The test is `DISABLED` in CTest rather than failing the suite, and its build is left in place:
 a panic that can be reproduced by building one target is more useful than a description of one.
+## Where the change stands, measured
+
+Three builds, all green, at commit `ad6dc32c`:
+
+| Build | `EngineRhi` | objects | tests |
+|---|---|---|---|
+| `msvc-debug` (Vulkan) | 5 238 784 bytes | 33 | 78 pass |
+| `webgpu-desktop` | 2 640 896 bytes | 31 | `webgpu_device_test` passes |
+| `emscripten` (browser) | 12 083 317 bytes | 31 | none - nothing has run in a browser |
+
+Unit distribution across the seam:
+
+| Location | units |
+|---|---|
+| `engine/Rhi/Backend/Vulkan/` | 18 |
+| `engine/Rhi/Backend/WebGPU/` | 16 |
+| `engine/Rhi/` (shared) | 15 |
+
+`openspec validate --strict` passes. 29 of 51 tasks are checked.
+
+**The thing worth stating plainly: the WebGPU backend exists and can draw a frame, and no frame
+has ever been rendered through it.** What is verified is that every call the render path makes
+has an implementation that compiles, links, and either does the work or reports why it cannot.
+The one device test that runs creates a device, asserts its limits, creates a buffer and a
+texture, and asserts the layout cache reuses and distinguishes correctly.
+
+The 22 open tasks fall into four groups, and the split is the most useful thing in this
+document:
+
+- **Six are blocked on the bake** (7.1 is the head; 1.1, 7.2-7.5 follow). The bake works - 40 of
+  42 modules convert - and the gaps are a split map with no input and two modules Tint refuses.
+- **Five need the frame loop** (10.1-10.4, and 6.2 and 6.4 which 10.x would settle). The blocking
+  waits in `PhysicsApp::Step` are the concrete obstacle.
+- **Four are WebGPU runtime work with no dependency left** (8.3-8.6). These are the ones a
+  session could start tomorrow.
+- **The rest need a browser** (11.1, 11.3, 1.4) or a physics comparison across backends (9.1).
