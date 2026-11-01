@@ -116,6 +116,15 @@
     a shader-level difference between the two runtimes, not a converter limitation and not something
     stripping can fix. `sum_by_key_push.comp` is the same shader with a different entry point, which is
     why both fail together.
+    why both fail together.
+
+    **The shader's own comment says the pattern is deliberate.** `sum_by_key_body.glsl` documents the
+    loop as "an exit read after a barrier, so the block leaves together", and notes that "a block whose
+    first element is at or beyond the bound leaves before any barrier". That is the standard way to
+    write it: read the exit condition after a barrier so every invocation in the block sees the same
+    answer. Tint does not accept the proof, so the difference is analytical rather than a bug - and
+    fixing it means either restructuring the loop into a form Tint can prove uniform or finding the
+    switch that relaxes the check. Neither is a change to the engine.
   - **Two parts of the task are still missing.** The description carries no *variable offsets*,
     and no *combined-sampler split map* - the latter because no shader in either tree declares a
     combined binding, so there is nothing to split yet. And "loads on both runtimes from one
