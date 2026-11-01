@@ -1,3 +1,6 @@
+> **Start at the handover.** The section "Handover: what is done, what is not, and what the next
+> session should not redo" near the end of this file is the shortest accurate description of where
+> the change stands. Everything above it is the record of how it got there.
 # Where this change stands
 
 Written to be read before the code, by someone deciding what to do next. It says
@@ -546,3 +549,4 @@ Open:
   defined, which is necessary and not sufficient.
 - Do not look for the two modules Tint refuses under debug info. The bake strips it before invoking
   the converter, so `sum_by_key.comp` and `sum_by_key_push.comp` fail for another reason.
+
