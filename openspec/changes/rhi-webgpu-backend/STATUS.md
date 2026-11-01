@@ -344,3 +344,38 @@ Six units left the Vulkan backend for the shared layer along the way - BindingRe
 EpochTracker, InterfaceBindingResolver, five buffer and texture units, DeviceBuffer,
 ShaderResourceBinding - and one, TextureSubresourceView, was three forwarding calls. Each had
 a portable body and one backend-shaped detail, and the second backend is what found them.
+## Creating a kernel from a module needs a description the seam does not have
+
+`ComputeKernel::CreateFromModule(module, entry_point, name)` was added last round and its
+signature is incomplete. Building a compute pipeline needs the bindings the shader declares -
+sets, bindings, types - and on this backend there is no way to derive them: WGSL is not
+reflective through the standard interface, and that is the point of baking reflection (D9).
+
+What exists today is `ShaderInterface`, which is the *output* of runtime reflection. It is
+built by parsing SPIR-V with SPIRV-Cross, so the backend that cannot reflect cannot build it
+either. A backend that receives baked code needs the same facts from the bake, and the seam
+has no type for them.
+
+The shape that would work, stated so the next attempt does not rediscover it:
+
+```cpp
+struct ShaderInterfaceDescription {
+    struct Binding {
+        uint32_t set;
+        uint32_t binding;
+        DescriptorType type;
+        uint32_t count;
+        ShaderStage stages;   // which stages read it
+    };
+    std::vector<Binding> bindings;
+    uint32_t parameter_block_size;  // push constants on Vulkan, a uniform buffer here
+};
+```
+
+It is producible from both ends: the bake emits it alongside the WGSL, and the Vulkan backend
+can build the same struct from `ShaderInterface` today. That makes it a seam type rather than
+a WebGPU type, and it is what `CreateFromModule` should have taken.
+
+Until it exists, the WebGPU compute path stops here - and it stops honestly, because a kernel
+built without knowing its bindings would be a pipeline the device rejects or, worse, one it
+accepts and binds wrongly.
