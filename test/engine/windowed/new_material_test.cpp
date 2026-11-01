@@ -1,6 +1,7 @@
 #include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <iostream>
 #include <chrono>
 #include <fstream>
 
@@ -97,12 +98,20 @@ auto BuildRenderGraph(
     MaterialInstance *material,
     IVertexBasedRenderer *mesh,
     RenderTargetTexture *blurred = nullptr,
-    Rhi::ComputeKernel *kernel = nullptr
+    Rhi::ComputeKernel *kernel = nullptr,
+    Rhi::DeviceBuffer *readback = nullptr
 ) {
     using IAT = Engine::Rhi::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
     auto c = rgb.ImportExternalResource(*color);
     auto d = rgb.ImportExternalResource(*depth);
+    // Imported once: a second import of the same texture would be a different
+    // node in the graph, and the barrier that lets the readback see the render
+    // would not be recorded.
+    std::optional<RGTextureHandle> blurred_handle{};
+    if (blurred != nullptr) {
+        blurred_handle = rgb.ImportExternalResource(*blurred);
+    }
 
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
@@ -164,6 +173,31 @@ auto BuildRenderGraph(
                 .Get()
         );
     }
+    // Copy the composed frame into a buffer so the test can assert that something
+    // was drawn. Without it the test passes on a frame that drew nothing - which
+    // it did until the material's texture was bound to a name the shader knows.
+    if (readback != nullptr) {
+        const auto rb = rgb.ImportExternalResource(*readback);
+        const auto target_handle = blurred_handle.has_value() ? *blurred_handle : c;
+        rgb.AddPass(
+            RenderGraphPassBuilder{*rsys}
+                .SetName("Frame Readback")
+                .UseImage(target_handle, IAT::TransferRead)
+                .UseBuffer(rb, {Rhi::MemoryAccessTypeBufferBits::TransferWrite})
+                .SetAffinity(RenderGraphPassAffinity::Transfer)
+                .SetPassFunction([target_handle, readback](CommandBuffer &cb, const RenderGraph &graph) {
+                    auto target = graph.GetInternalTextureResource(target_handle);
+                    cb.GetEncoder().CopyImageToBuffer(
+                        target->GetImage(),
+                        readback->GetBuffer(),
+                        Rhi::Extent3D{target->GetTextureDescription().width, target->GetTextureDescription().height, 1},
+                        Rhi::ImageAspect::Color
+                    );
+                })
+                .Get()
+        );
+    }
+
     return rgb.BuildRenderGraph();
 }
 
@@ -259,7 +293,16 @@ int main(int argc, char **argv) {
     Rhi::ComputeKernel &gaussian_blur_kernel =
         RequestComputeKernel(rsys->GetDeviceContext(), *cs_ref.as<ShaderAsset>());
 
-    auto nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
+    auto readback_buffer = Rhi::DeviceBuffer::CreateUnique(
+        rsys->GetAllocatorState(),
+        Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice},
+        static_cast<size_t>(desc.width) * static_cast<size_t>(desc.height) * 4u
+    );
+
+    auto nonblur{BuildRenderGraph(
+        rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh, nullptr, nullptr,
+        readback_buffer.get()
+    )};
     auto blur{BuildRenderGraph(
         rsys.get(),
         color.get(),
@@ -267,7 +310,8 @@ int main(int argc, char **argv) {
         test_material_instance.get(),
         &test_mesh,
         postproc.get(),
-        &gaussian_blur_kernel
+        &gaussian_blur_kernel,
+        readback_buffer.get()
     )};
 
     bool quited = false;
@@ -316,8 +360,30 @@ int main(int argc, char **argv) {
 
     rsys->WaitForIdle();
 
+    // The frame was composed; if nothing was drawn the readback is uniformly black.
+    // This is the assertion that found the material binding its texture to a name
+    // the shader does not use - it reported success while drawing nothing.
+    {
+        const auto *pixels = reinterpret_cast<const uint8_t *>(readback_buffer->GetVMAddress());
+        const size_t pixel_count = static_cast<size_t>(desc.width) * static_cast<size_t>(desc.height);
+        size_t non_black = 0;
+        for (size_t i = 0; i < pixel_count; i++) {
+            if (pixels[i * 4 + 0] != 0 || pixels[i * 4 + 1] != 0 || pixels[i * 4 + 2] != 0) {
+                non_black++;
+            }
+        }
+        if (non_black < pixel_count / 100) {
+            std::cerr << "New material test FAILED: only " << non_black << " of " << pixel_count
+                      << " pixels are not black; the scene did not draw." << std::endl;
+            return 1;
+        }
+        SDL_LogInfo(0, "New material test: %zu of %zu pixels are not black.", non_black, pixel_count);
+    }
+
     return 0;
 }
+
+
 
 
 

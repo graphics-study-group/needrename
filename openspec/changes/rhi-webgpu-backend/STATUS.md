@@ -102,25 +102,35 @@ In the order a next session should take them:
   something, not of everything.
 - **`Backend/WebGPU/` is empty.** Any document that reads as though the backend
   exists is wrong, including any that this one has not yet corrected.
-## A fourth black frame, and why the test for it was reverted
+## The fourth black frame, and what it turned out to be
 
-While adding a pixel assertion to `new_material_test`, the assertion fired: **0 of
-2073600 pixels non-black**. A RenderDoc capture of the same test confirms it - one
-indexed draw of six indices into a 1920x1080 target, and the target is uniformly
-black.
+Adding a pixel assertion to `new_material_test` made it fire: **0 of 2073600 pixels
+non-black**, confirmed by a RenderDoc capture of a single six-index draw into a
+1920x1080 target.
 
-The readback path itself is sound: `pbr_test` reads 9.7% non-black through the same
-`CopyImageToBuffer` call, and `mrt_test` reads its target back too. The difference is
-what is being drawn, not how it is read.
+The readback path was not at fault - `pbr_test` reads 9.7% non-black through the same
+`CopyImageToBuffer` call. The material was:
 
-What is not known is whether this is a bug. `new_material_test` builds a Blinn-Phong
-material and draws a two-triangle quad; a scene that produces no visible output may be
-what the test's own setup intends - it asserts nothing about the frame today - or it
-may be the same class of defect as the zero colour write mask. Telling those apart
-needs a look at what the shader receives, which is a debugging session rather than a
-test.
+```cpp
+test_material_instance->AssignTexture("base_texture", allocated_image_texture);
+```
 
-**The readback and the assertion were reverted.** A test that fails on a frame nobody
-has explained is a red suite without an answer, and the honest state is the one before:
-the scenario is a known unknown, written down here rather than encoded in a failing
-assertion.
+and the fragment shader declares
+
+```glsl
+layout(set = 2, binding = 1) uniform sampler2D base_tex;
+```
+
+`AssignTexture` does not complain about a name it cannot find; it binds nothing. The
+sampler read zero, `base_color` was zero, and the scene was black. One word later the
+capture shows the sunset.
+
+The readback was reverted for a round while the cause was unknown, then reinstated once
+it was: `new_material_test` now reads 2073538 of 2073600 pixels non-black and fails below
+one percent.
+
+**This is the fourth defect of the same shape.** The zero colour write mask, the barrier
+with the wrong aspect, the frame encoder replaced under a live command buffer, and now a
+texture bound to a name nothing reads - all four were silent, and all four survived a
+suite that reported success.
+
