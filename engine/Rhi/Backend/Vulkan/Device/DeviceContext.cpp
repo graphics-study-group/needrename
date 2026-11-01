@@ -1,6 +1,23 @@
 #include "Rhi/Device/DeviceContext.h"
 
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
+
+namespace {
+    /// @brief The stage a dependency is observed at.
+    vk::PipelineStageFlags2 ToVkStage(Engine::Rhi::PipelineScope scope) {
+        switch (scope) {
+        case Engine::Rhi::PipelineScope::Transfer:
+            return vk::PipelineStageFlagBits2::eAllTransfer;
+        case Engine::Rhi::PipelineScope::Compute:
+            return vk::PipelineStageFlagBits2::eComputeShader;
+        case Engine::Rhi::PipelineScope::Graphics:
+            return vk::PipelineStageFlagBits2::eAllGraphics;
+        default:
+            return vk::PipelineStageFlagBits2::eAllCommands;
+        }
+    }
+} // namespace
 
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
@@ -173,7 +190,40 @@ namespace Engine::Rhi {
 
         ToVulkanDevice(m_device_interface->GetDevice()).updateDescriptorSets(vk_writes, {});
     }
+    void DeviceContext::Submit(const Submission &submission, FenceHandle fence) {
+        std::vector<vk::SemaphoreSubmitInfo> waits;
+        waits.reserve(submission.waits.size());
+        for (const SubmissionDependency &dependency : submission.waits) {
+            waits.push_back(vk::SemaphoreSubmitInfo{
+                ToVulkanSemaphore(dependency.semaphore),
+                dependency.value,
+                ToVkStage(dependency.stage),
+                1
+            });
+        }
+
+        std::vector<vk::SemaphoreSubmitInfo> signals;
+        signals.reserve(submission.signals.size());
+        for (const SubmissionDependency &dependency : submission.signals) {
+            signals.push_back(vk::SemaphoreSubmitInfo{
+                ToVulkanSemaphore(dependency.semaphore),
+                dependency.value,
+                ToVkStage(dependency.stage),
+                1
+            });
+        }
+
+        const vk::CommandBufferSubmitInfo command_buffer{ToVulkanCommandBuffer(submission.command_buffer)};
+        const vk::SubmitInfo2 info{vk::SubmitFlags{}, waits, {command_buffer}, signals};
+
+        const vk::Fence submit_fence = fence.IsValid() ? ToVulkanFence(fence) : nullptr;
+        m_device_interface->GetQueueInfo().graphicsQueue.submit2(info, submit_fence);
+    }
 } // namespace Engine::Rhi
+
+
+
+
 
 
 

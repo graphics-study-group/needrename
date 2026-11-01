@@ -440,6 +440,41 @@ namespace Engine::Rhi {
     };
 
     /**
+     * @brief One thing a submission waits for or signals.
+     *
+     * A semaphore orders work between submissions. A timeline one carries a
+     * value, so waiting for it says how far to wait; a binary one is either
+     * signalled or not, and its value is left at zero. The stage says at which
+     * point the wait takes effect, because a backend cannot infer it and getting
+     * it wrong is a race rather than an error.
+     */
+    struct SubmissionDependency {
+        /// @brief The semaphore involved.
+        SemaphoreHandle semaphore{};
+        /// @brief The timeline value, or zero for a binary semaphore.
+        uint64_t value{0};
+        /// @brief The stage the dependency is observed at.
+        PipelineScope stage{PipelineScope::Unspecified};
+    };
+
+    /**
+     * @brief One unit of work handed to a queue.
+     *
+     * A submission is a command buffer, what it waits for before it starts, and
+     * what it signals when it finishes. That is everything a backend needs to
+     * order frames without being told how the queues are arranged.
+     */
+    struct Submission {
+        /// @brief The recorded command buffer to run.
+        CommandBufferHandle command_buffer{};
+        /// @brief Dependencies that must be satisfied first.
+        std::vector<SubmissionDependency> waits;
+        /// @brief Dependencies this submission satisfies on completion.
+        std::vector<SubmissionDependency> signals;
+    };
+
+
+    /**
      * @brief A capability a format may or may not have on the current device.
      *
      * The set is what the engine asks about: whether a format can back a vertex
@@ -456,6 +491,8 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
+
 
 
 

@@ -150,10 +150,24 @@ namespace Engine::Rhi {
          * @param writes The bindings to point somewhere, in any order.
          */
         void UpdateDescriptorSets(std::span<const WriteDescriptorSet> writes);
+
+        /**
+         * @brief Hand one command buffer to a queue.
+         *
+         * The submission says what to wait for before it starts and what to
+         * signal when it finishes; the fence, if given, is signalled when the
+         * submission completes on the host side, which is what a caller waits on
+         * to reuse the resources it read from.
+         *
+         * @param submission The command buffer and its dependencies.
+         * @param fence Signalled when the submission completes, or empty.
+         */
+        void Submit(const Submission &submission, FenceHandle fence = {});
     };
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICECONTEXT_INCLUDED
+
 
 
 
