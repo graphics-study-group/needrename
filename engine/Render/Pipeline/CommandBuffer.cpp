@@ -235,13 +235,9 @@ namespace Engine {
     // ── Scene / Camera / Material ───────────────────────────────────────────
 
     void CommandBuffer::BindSceneResources(const RenderSystemState::SceneDataManager &sdm) {
-        cb.bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics,
-            sdm.GetCommonPipelineLayout(),
-            0,
-            {sdm.GetLightDescriptorSet(m_inflight_frame_index)},
-            {}
-        );
+        const vk::PipelineLayout layout = Rhi::ToVulkanPipelineLayout(sdm.GetCommonPipelineLayout());
+        const vk::DescriptorSet light_set = Rhi::ToVulkanDescriptorSet(sdm.GetLightDescriptorSet(m_inflight_frame_index));
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, 0, {light_set}, {});
     }
 
     void CommandBuffer::BindCameraResources(const RenderSystemState::CameraManager &cm) {
@@ -385,6 +381,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 

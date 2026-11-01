@@ -129,8 +129,8 @@ namespace Engine::RenderSystemState {
 
             // Scene data
             Rhi::DescriptorSetLayoutRef scene_descriptor_set_layout{};
-            vk::PipelineLayout scene_common_pipeline_layout{};
-            std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
+            Rhi::PipelineLayoutHandle scene_common_pipeline_layout{};
+            std::array<Rhi::DescriptorSetHandle, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
             // The layout description, kept alive so the arena can allocate the
             // per-in-flight sets against the same cached layout object.
@@ -183,8 +183,8 @@ namespace Engine::RenderSystemState {
                         {scene_descriptor_set_layout.handle},
                         {{0, RendererManager::GetPushConstantRange().size, false}}
                     };
-                    scene_common_pipeline_layout = Rhi::ToVulkanPipelineLayout(
-                        system.GetIRCache().GetPipelineLayout(scene_pipeline_description, "Scene Common Pipeline Layout")
+                    scene_common_pipeline_layout = system.GetIRCache().GetPipelineLayout(
+                        scene_pipeline_description, "Scene Common Pipeline Layout"
                     );
                 }
 
@@ -195,9 +195,8 @@ namespace Engine::RenderSystemState {
                 // FrameManager waits before resetting a slot's command buffer
                 // already establishes.
                 for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
-                    scene_descriptor_sets[i] = Rhi::ToVulkanDescriptorSet(
-                        arena.AcquireRawSet(scene_descriptor_set_layout, std::format("Desc Set - Scene FIF {}", i))
-                    );
+                    scene_descriptor_sets[i] =
+                        arena.AcquireRawSet(scene_descriptor_set_layout, std::format("Desc Set - Scene FIF {}", i));
                 }
                 // Allocate the back buffer for lights.
                 light_back_buffer = Rhi::IndexedBuffer::CreateUnique(
@@ -289,7 +288,7 @@ namespace Engine::RenderSystemState {
                 );
                 for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
                     buffers[i].offset = light_back_buffer->GetSliceOffset(i);
-                    writes[i].dstSet = scene_descriptor_sets[i];
+                    writes[i].dstSet = Rhi::ToVulkanDescriptorSet(scene_descriptor_sets[i]);
                     writes[i].descriptorCount = 1;
                     writes[i].pBufferInfo = &buffers[i];
                 }
@@ -308,7 +307,7 @@ namespace Engine::RenderSystemState {
                         vk::WriteDescriptorSet{nullptr, 2, 0, vk::DescriptorType::eStorageBuffer, {}, {}, {}}
                     );
                     for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
-                        mm_writes[i].dstSet = scene_descriptor_sets[i];
+                        mm_writes[i].dstSet = Rhi::ToVulkanDescriptorSet(scene_descriptor_sets[i]);
                         mm_writes[i].descriptorCount = 1;
                         mm_writes[i].pBufferInfo = &model_mat_buffers[i];
                     }
@@ -530,7 +529,7 @@ namespace Engine::RenderSystemState {
 
         descriptor_writes.push_back(
             vk::WriteDescriptorSet{
-                pimpl->scene.scene_descriptor_sets[frame_in_flight],
+                Rhi::ToVulkanDescriptorSet(pimpl->scene.scene_descriptor_sets[frame_in_flight]),
                 1,
                 0,
                 vk::DescriptorType::eCombinedImageSampler,
@@ -545,7 +544,7 @@ namespace Engine::RenderSystemState {
             const auto &current_buffer = *pimpl->scene.model_matrices_buffer;
             vk::DescriptorBufferInfo mm_buffer_info{Rhi::ToVulkanBuffer(current_buffer.GetBuffer()), 0, current_buffer.GetSize()};
             vk::WriteDescriptorSet mm_write{
-                pimpl->scene.scene_descriptor_sets[frame_in_flight],
+                Rhi::ToVulkanDescriptorSet(pimpl->scene.scene_descriptor_sets[frame_in_flight]),
                 2,
                 0,
                 1,
@@ -606,15 +605,15 @@ namespace Engine::RenderSystemState {
         rcb.draw(36, 1, 0, 0);
     }
 
-    vk::DescriptorSet SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {
+    Rhi::DescriptorSetHandle SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {
         assert(frame_in_flight < pimpl->scene.scene_descriptor_sets.size());
         return pimpl->scene.scene_descriptor_sets[frame_in_flight];
     }
 
-    vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
-        return Engine::Rhi::ToVulkanDescriptorSetLayout(pimpl->scene.scene_descriptor_set_layout.handle);
+    Rhi::DescriptorSetLayoutHandle SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
+        return pimpl->scene.scene_descriptor_set_layout.handle;
     }
-    vk::PipelineLayout SceneDataManager::GetCommonPipelineLayout() const noexcept {
+    Rhi::PipelineLayoutHandle SceneDataManager::GetCommonPipelineLayout() const noexcept {
         return pimpl->scene.scene_common_pipeline_layout;
     }
 
@@ -627,6 +626,10 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
+
+
+
 
 
 

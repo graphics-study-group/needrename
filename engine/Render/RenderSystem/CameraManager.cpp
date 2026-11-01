@@ -59,7 +59,7 @@ namespace Engine::RenderSystemState {
         {
             assert(m_system.GetSceneDataManager().GetLightDescriptorSetLayout());
             const Rhi::PipelineLayoutDescription camera_pipeline_description{
-                {Rhi::FromVulkan(m_system.GetSceneDataManager().GetLightDescriptorSetLayout()),
+                {m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                  pimpl->camera_descriptor_set_layout.handle},
                 {{0, RendererManager::GetPushConstantRange().size, false}}
             };
@@ -186,6 +186,7 @@ namespace Engine::RenderSystemState {
         return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

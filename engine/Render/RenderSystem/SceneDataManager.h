@@ -298,13 +298,13 @@ namespace Engine {
              * @brief Get the descriptor set pointing to the resources
              * of the current frame-in-flight.
              */
-            vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
+            Rhi::DescriptorSetHandle GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
 
             /**
              * @brief Get the descriptor set layout containing lighting
              * information.
              */
-            vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;
+            Rhi::DescriptorSetLayoutHandle GetLightDescriptorSetLayout() const noexcept;
 
             /**
              * @brief Acquire a pipeline layout that has descriptor set 0
@@ -313,7 +313,7 @@ namespace Engine {
              * All graphics pipelines should therefore be compatible to
              * this common pipeline layout.
              */
-            vk::PipelineLayout GetCommonPipelineLayout() const noexcept;
+            Rhi::PipelineLayoutHandle GetCommonPipelineLayout() const noexcept;
 
             /**
              * @brief Grow the model matrices buffer to hold at least a number of matrices.
@@ -349,5 +349,6 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDERSYSTEM_SCENEDATAMANAGER
+
 
 

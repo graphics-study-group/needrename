@@ -145,7 +145,7 @@ namespace Engine {
                     pipeline_table[tag],
                     system,
                     system.GetDevice(),
-                    Rhi::FromVulkan(system.GetSceneDataManager().GetLightDescriptorSetLayout()),
+                    system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                     system.GetCameraManager().GetDescriptorSetLayout(),
                     asset->name
                 );
@@ -219,6 +219,7 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
 
 
 
