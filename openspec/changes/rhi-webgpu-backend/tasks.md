@@ -990,3 +990,20 @@ that, when a dropped `gpci.layout` cost twelve tests.
 `CommandBuffer.cpp` (66) and `GUISystem.cpp` (22) are not on that list: both are
 recording surfaces that will be rewritten once (1) exists, because every barrier
 they record is a transition.
+### The image transition API exists; the render graph cannot use it yet
+
+`CommandEncoder::Barrier(const ImageBarrier &)` is in and green. Wiring the render
+graph to it stopped on something the API cannot fix from outside:
+`RenderGraphPass::pass_work` is invoked as `std::invoke(pass_work, cb, *this)`
+with a `vk::CommandBuffer`. Every recorded pass body in the engine - render
+graph, editor, shadow cascades, the physics preview - is a lambda that takes that
+handle, so moving the graph onto an encoder moves all of them in one step.
+
+That is why the attempt was reverted rather than forced: it is not a barrier
+change, it is a change to how every pass body is written. The seam is ready;
+what is missing is the decision to convert pass bodies to `CommandEncoder &`,
+which is the same decision `PhysicsSystem` already took.
+
+Order for the next attempt: convert `RenderGraph::Record`'s signature and the
+`pass_work` type first, let the compiler list every pass body, then convert them
+in one pass over the render layer, the editor and the tests.
