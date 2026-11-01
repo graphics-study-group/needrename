@@ -1,0 +1,209 @@
+#include "Rhi/Device/DeviceContext.h"
+
+#include "Rhi/Backend/WebGPU/WgpuHandles.h"
+#include "Rhi/Backend/WebGPU/WgpuStructs.h"
+#include "Rhi/Device/AllocatorState.h"
+#include "Rhi/Device/Fence.h"
+#include "Rhi/Device/Semaphore.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
+#include "Rhi/Resource/DescriptorArena.h"
+#include "Rhi/Resource/ImmutableResourceCache.h"
+#include "Rhi/Submission/EpochTracker.h"
+
+#include <SDL3/SDL.h>
+#include <webgpu/webgpu.h>
+
+namespace Engine::Rhi {
+    /**
+     * @brief The seam's device on a backend with one queue and no fences.
+     *
+     * What the standard interface gives is a device, a queue and completion callbacks.
+     * What it does not give is a host-waitable fence or a timeline semaphore, and the
+     * seam's submission contract leans on both. The honest state of this unit is
+     * therefore: the device, the allocator, the caches and the epoch tracker are real,
+     * and the submission primitives report what they cannot do rather than faking a
+     * completion they cannot observe.
+     *
+     * There is no compute kernel cache here either, and the reason is a shape rather
+     * than an omission: the seam's kernel is built from raw SPIR-V words, and this
+     * backend receives WGSL through the bake. RequestComputeKernelFromModule is the
+     * entry point that fits, and it needs a compute pipeline, which is the unit after
+     * the buffers and textures.
+     */
+    struct DeviceContext::impl {
+        /// Declared first: everything below reads the device through it.
+        std::unique_ptr<DeviceInterface> device_interface{};
+        std::unique_ptr<AllocatorState> allocator_state{};
+        DeviceCapabilities capabilities{};
+        std::unique_ptr<ImmutableResourceCache> immutable_resource_cache{};
+        std::unique_ptr<DescriptorArena> descriptor_arena{};
+        /// Declared last so that it is destroyed first: releasing the resources parked
+        /// in it needs the allocator and the device to be alive.
+        std::unique_ptr<EpochTracker> epoch_tracker{};
+        /// There is no fence to key a completion on. The queue's own callback is what
+        /// this backend will use once submissions exist; until then nothing is pending.
+        std::size_t pending_completions{0};
+    };
+
+    DeviceContext::DeviceContext(DeviceInterface::DeviceConfiguration cfg) : pimpl(std::make_unique<impl>()) {
+        pimpl->device_interface = std::make_unique<DeviceInterface>(std::move(cfg));
+        pimpl->immutable_resource_cache =
+            std::make_unique<ImmutableResourceCache>(pimpl->device_interface->GetDevice());
+        pimpl->allocator_state = std::make_unique<AllocatorState>(*pimpl->device_interface);
+        pimpl->epoch_tracker = std::make_unique<EpochTracker>(pimpl->device_interface->GetDevice());
+        // The arena reads the tracker and the cache, so both must exist first.
+        pimpl->descriptor_arena = std::make_unique<DescriptorArena>(*this);
+
+        pimpl->allocator_state->SetRetireSink(pimpl->epoch_tracker.get());
+
+        // The four the seam asks about, from the one limits block the device reports.
+        // `wgpuDeviceGetLimits` takes an out-parameter and returns whether it filled it.
+        WGPULimits limits{};
+        if (!wgpuDeviceGetLimits(ToWgpuDevice(pimpl->device_interface->GetDevice()), &limits)) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: the device did not report its limits.");
+        }
+        pimpl->capabilities = DeviceCapabilities{
+            // Push constants have no equivalent: a kernel parameter block is a uniform
+            // buffer here, so the seam sees zero rather than a lie.
+            .max_push_constant_bytes = 0,
+            .uniform_buffer_offset_alignment = limits.minUniformBufferOffsetAlignment,
+            .max_storage_buffer_range = limits.maxStorageBufferBindingSize,
+            .max_compute_invocations = limits.maxComputeInvocationsPerWorkgroup,
+            .max_bind_groups = limits.maxBindGroups
+        };
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "WebGPU device context ready.");
+    }
+
+    DeviceContext::~DeviceContext() = default;
+
+    const DeviceCapabilities &DeviceContext::GetCapabilities() const noexcept {
+        return pimpl->capabilities;
+    }
+
+    DeviceInterface &DeviceContext::GetDeviceInterface() noexcept {
+        return *pimpl->device_interface;
+    }
+    const DeviceInterface &DeviceContext::GetDeviceInterface() const noexcept {
+        return *pimpl->device_interface;
+    }
+
+    AllocatorState &DeviceContext::GetAllocatorState() noexcept {
+        return *pimpl->allocator_state;
+    }
+    const AllocatorState &DeviceContext::GetAllocatorState() const noexcept {
+        return *pimpl->allocator_state;
+    }
+
+    ImmutableResourceCache &DeviceContext::GetIRCache() noexcept {
+        return *pimpl->immutable_resource_cache;
+    }
+    const ImmutableResourceCache &DeviceContext::GetIRCache() const noexcept {
+        return *pimpl->immutable_resource_cache;
+    }
+
+    DescriptorArena &DeviceContext::GetDescriptorArena() noexcept {
+        return *pimpl->descriptor_arena;
+    }
+    const DescriptorArena &DeviceContext::GetDescriptorArena() const noexcept {
+        return *pimpl->descriptor_arena;
+    }
+
+    ComputeKernelCache &DeviceContext::GetComputeKernelCache() noexcept {
+        // No kernel cache exists on this backend, and a reference to nothing is not a
+        // useful error. This stops and says why rather than returning one.
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "WebGPU: there is no compute kernel cache on this backend. A kernel is built "
+            "from WGSL through RequestComputeKernelFromModule once compute pipelines exist."
+        );
+        std::terminate();
+    }
+
+    const ComputeKernelCache &DeviceContext::GetComputeKernelCache() const noexcept {
+        return const_cast<DeviceContext *>(this)->GetComputeKernelCache();
+    }
+
+    ComputeKernel &DeviceContext::RequestComputeKernel(
+        std::string_view, const std::vector<std::uint32_t> &, std::string_view
+    ) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "WebGPU: RequestComputeKernel takes SPIR-V words, which this backend cannot use. "
+            "Use RequestComputeKernelFromModule."
+        );
+        std::terminate();
+    }
+
+    ComputeKernel &DeviceContext::RequestComputeKernelFromModule(
+        std::string_view, ShaderModuleHandle, std::string_view, std::string_view
+    ) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "WebGPU: RequestComputeKernelFromModule is not implemented yet. It needs a "
+            "compute pipeline, which is the unit after the buffers and textures."
+        );
+        std::terminate();
+    }
+
+    ComputeKernel *DeviceContext::FindComputeKernel(std::string_view) noexcept {
+        return nullptr;
+    }
+
+    EpochTracker &DeviceContext::GetEpochTracker() noexcept {
+        return *pimpl->epoch_tracker;
+    }
+    const EpochTracker &DeviceContext::GetEpochTracker() const noexcept {
+        return *pimpl->epoch_tracker;
+    }
+
+    DeviceHandle DeviceContext::GetDevice() const noexcept {
+        return pimpl->device_interface->GetDevice();
+    }
+
+    void DeviceContext::WaitForIdle() {
+        // Process events until the queue has nothing in flight. This is the standard
+        // interface's own pump: wgpuDevicePoll in wgpu.h is an extension a browser build
+        // does not have.
+        wgpuInstanceProcessEvents(ToWgpuInstance(pimpl->device_interface->GetInstance()));
+        pimpl->epoch_tracker->ReleaseAllParked();
+        pimpl->descriptor_arena->OnDeviceIdle();
+    }
+
+    void DeviceContext::PumpCompletions() {
+        wgpuInstanceProcessEvents(ToWgpuInstance(pimpl->device_interface->GetInstance()));
+    }
+
+    void DeviceContext::UpdateDescriptorSets(std::span<const WriteDescriptorSet>) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "WebGPU: UpdateDescriptorSets has no meaning here. A bind group is created "
+            "with its contents rather than written into afterwards; see "
+            "DescriptorArena::Acquire."
+        );
+    }
+
+    void DeviceContext::Submit(const Submission &, FenceHandle) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "WebGPU: Submit is not implemented. There is no command encoder to submit yet."
+        );
+    }
+
+    bool DeviceContext::WaitForFence(FenceHandle, uint64_t) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "WebGPU: WaitForFence is not implemented. The standard interface has no "
+            "host-waitable fence; completion arrives as a callback."
+        );
+        return false;
+    }
+
+    void DeviceContext::SignalSemaphore(const TimelineSignal &) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "WebGPU: SignalSemaphore is not implemented. The standard interface has no "
+            "timeline semaphore."
+        );
+    }
+} // namespace Engine::Rhi
+
