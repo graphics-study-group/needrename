@@ -290,4 +290,27 @@ every backend unit touches, which is why it is a decision rather than a patch.
 
 So the contract is stated and the implementation waits for that decision - stated in the
 type, not hidden in a task list.
+## What the bind-group path needs, learned by trying it
 
+`DescriptorArena` for this backend was attempted twice and reverted twice. The second
+attempt got further and named three things that a reading of the headers had not:
+
+- **`WGPUBindGroupLayoutEntry` has no `count`.** A binding's array length is expressed
+  by the binding's own descriptor rather than by an entry field, so the seam's
+  `DescriptorBinding::count` has nowhere obvious to go. That is a real mapping question -
+  the two models differ here, not just in spelling.
+- **`DescriptorSetLayoutRef` cannot be constructed directly.** `BindingRef` has a private
+  constructor; a backend builds one through the factory the Vulkan side uses, which I did
+  not look for before writing the line.
+- **`Acquire` does not take a `DescriptorSetBinding`.** The signature I wrote does not
+  exist. The seam's acquisition path is shaped differently from what the Vulkan arena's
+  implementation makes obvious.
+
+None of these is hard. All three are the same mistake: **writing a unit against a header I
+had read once rather than against the type it actually declares.** The earlier units went
+smoothly where the header was small enough to hold in mind; this one has four types
+interacting and I did not check them all before starting.
+
+The next attempt should read, in this order: `BindingRef.h` for how a ref is made,
+`DescriptorArena.h` for the exact acquisition signatures, and `wgpu.h` for how a bind
+group's array bindings are expressed - and only then write the file.
