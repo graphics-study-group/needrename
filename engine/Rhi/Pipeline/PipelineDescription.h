@@ -125,8 +125,8 @@ namespace Engine::Rhi {
         RasterizationState rasterization;
         /// @brief Depth and stencil behaviour.
         DepthStencilState depth_stencil;
-        /// @brief Blending of the first colour target.
-        ColorBlendState color_blend;
+        /// @brief Blending, one entry per colour target.
+        std::vector<ColorBlendState> color_blends;
         /// @brief Formats of the colour targets the pipeline writes.
         std::vector<ImageFormat> color_formats;
         /// @brief Format of the depth target, or `UNDEFINED` when there is none.
@@ -207,5 +207,6 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_PIPELINEDESCRIPTION_INCLUDED
+
 
 

@@ -2,6 +2,7 @@
 #define ENGINE_RHI_VULKANPIPELINESTATE_INCLUDED
 
 #include "Rhi/Pipeline/PipelineDescription.h"
+#include "Rhi/rhi_export.h"
 
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -14,7 +15,7 @@ namespace Engine::Rhi {
      * neither copyable nor movable: a caller builds it, uses it to create a
      * pipeline, and lets it go out of scope afterwards.
      */
-    class VulkanPipelineState {
+    class RHI_API VulkanPipelineState {
     public:
         /// @brief Translate a portable pipeline description.
         explicit VulkanPipelineState(const PipelineDescription &description);
@@ -53,3 +54,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANPIPELINESTATE_INCLUDED
+
