@@ -1,4 +1,5 @@
 #include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Pipeline/Pipeline.h"
 
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanPipelineState.h"
@@ -37,8 +38,14 @@ namespace {
 } // namespace
 
 namespace Engine::Rhi {
-    PipelineHandle DeviceContext::CreateGraphicsPipeline(const GraphicsPipelineBuildDescription &description) {
-        const vk::Device device = ToVulkanDevice(m_device_interface->GetDevice());
+    struct Pipeline::impl {
+        vk::UniquePipeline pipeline{};
+    };
+
+    Pipeline::Pipeline(std::unique_ptr<impl> p) noexcept : pimpl(std::move(p)) {}
+
+    Pipeline Pipeline::Create(const DeviceContext &device_context, const GraphicsPipelineBuildDescription &description) {
+        const vk::Device device = ToVulkanDevice(device_context.GetDeviceInterface().GetDevice());
 
         // Specialization constants are baked into the pipeline, so both the values
         // and where each sits have to outlive the create call; the two vectors are
@@ -82,10 +89,24 @@ namespace Engine::Rhi {
         create_info.renderPass = nullptr;
         create_info.subpass = 0;
 
-        const auto result = device.createGraphicsPipelineUnique(nullptr, create_info);
-        if (result.result != vk::Result::eSuccess) {
-            return {};
+        auto result = device.createGraphicsPipelineUnique(nullptr, create_info);
+        auto p = std::make_unique<impl>();
+        if (result.result == vk::Result::eSuccess) {
+            p->pipeline = std::move(result.value);
         }
-        return FromVulkan(result.value.get());
+        return Pipeline(std::move(p));
     }
+    Pipeline::~Pipeline() = default;
+    Pipeline::Pipeline(Pipeline &&) noexcept = default;
+    Pipeline &Pipeline::operator=(Pipeline &&) noexcept = default;
+
+    PipelineHandle Pipeline::GetHandle() const noexcept {
+        return pimpl && pimpl->pipeline ? FromVulkan(pimpl->pipeline.get()) : PipelineHandle{};
+    }
+
+    bool Pipeline::IsValid() const noexcept {
+        return pimpl && static_cast<bool>(pimpl->pipeline);
+    }
+
 } // namespace Engine::Rhi
+
