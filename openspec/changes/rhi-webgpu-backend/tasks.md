@@ -103,6 +103,19 @@
     strip that would not be needed if the build did not add it. That is a real tension worth naming:
     the debug info is useful for the Vulkan backend and is stripped for the other one, and the strip is
     what the two failing modules do not survive.
+
+    **Tested that hypothesis, and it is not the cause.** Compiling `sum_by_key.comp` both ways and
+    handing each to Tint gives two different errors:
+
+    - with `-gVS`: `Failed to parse SPIR-V: spirv error: SPIR-V failed validation`
+    - without it: `Failed to convert IR to Program: error: 'workgroupBarrier' must only be called from
+      uniform control flow`
+
+    So the debug info only masks the second message. The real obstacle is that the shader calls
+    `workgroupBarrier` from non-uniform control flow, which Tint rejects and the Vulkan path does not -
+    a shader-level difference between the two runtimes, not a converter limitation and not something
+    stripping can fix. `sum_by_key_push.comp` is the same shader with a different entry point, which is
+    why both fail together.
   - **Two parts of the task are still missing.** The description carries no *variable offsets*,
     and no *combined-sampler split map* - the latter because no shader in either tree declares a
     combined binding, so there is nothing to split yet. And "loads on both runtimes from one
