@@ -2,6 +2,7 @@
 #define ENGINE_RHI_DEVICECONTEXT_INCLUDED
 
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Pipeline/PipelineBuilder.h"
 
 #include <cstdint>
 #include <span>
@@ -183,6 +184,19 @@ namespace Engine::Rhi {
          * @param signal The semaphore and the value to move it to.
          */
         void SignalSemaphore(const TimelineSignal &signal);
+
+        /**
+         * @brief Build a graphics pipeline from a description.
+         *
+         * Pipeline creation is where a backend's state vocabulary actually lands:
+         * the description names state groups, vertex input and attachment formats,
+         * and the backend turns that into whatever its API wants. Nothing in the
+         * description is Vulkan, which is why it can be stated once.
+         *
+         * @param description The shaders, the layout and the state.
+         * @return The pipeline, or an invalid handle if the build failed.
+         */
+        PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineBuildDescription &description);
     };
 } // namespace Engine::Rhi
 
