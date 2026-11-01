@@ -24,11 +24,13 @@
 
 namespace {
     void ReadbackCommand(
-        vk::CommandBuffer cb, const Engine::Rhi::DeviceBuffer &src, const Engine::Rhi::DeviceBuffer &dst
+        Engine::Rhi::CommandBufferHandle cb, const Engine::Rhi::DeviceBuffer &src, const Engine::Rhi::DeviceBuffer &dst
     ) {
-        using namespace Engine;
         assert(src.GetSize() == dst.GetSize());
-        cb.copyBuffer(Rhi::ToVulkanBuffer(src.GetBuffer()), Rhi::ToVulkanBuffer(dst.GetBuffer()), vk::BufferCopy{0, 0, dst.GetSize()});
+        // The copy is ordinary; only the command buffer it lands in is special,
+        // because this recording is submitted on its own fence.
+        Engine::Rhi::CommandEncoder encoder{cb};
+        encoder.CopyBuffer(src.GetBuffer(), dst.GetBuffer(), dst.GetSize());
     }
 } // namespace
 
@@ -66,8 +68,8 @@ std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{
         struct {
             struct ReadbackRegistry {
                 // TODO: reuse fences and command buffers to avoid frequent reallocation.
-                vk::UniqueFence fence;
-                vk::UniqueCommandBuffer combuf;
+                std::optional<Rhi::Fence> fence;
+                std::optional<Rhi::CommandBuffer> combuf;
                 std::deque<std::pair<ReadbackCallback, std::unique_ptr<Rhi::DeviceBuffer>>> callbacks;
             };
 
@@ -79,18 +81,14 @@ std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{
                 return static_cast<bool>(current_registry.fence);
             }
 
-            void InitializeRegistry(const Rhi::DeviceInterface &di) {
+            void InitializeRegistry(const Rhi::DeviceInterface &di, const Rhi::DeviceContext &device_context) {
                 assert(!current_registry.fence && "Reinitializing readback registry");
-                current_registry.fence = ToVulkanDevice(di.GetDevice()).createFenceUnique(vk::FenceCreateInfo{});
+                current_registry.fence = Rhi::Fence::Create(di, false);
 
-                auto cbai = vk::CommandBufferAllocateInfo{
-                    di.GetQueueInfo().graphicsOneTimePool.get(), vk::CommandBufferLevel::ePrimary, 1
-                };
-                auto onetime_cb = ToVulkanDevice(di.GetDevice()).allocateCommandBuffersUnique(cbai);
-                current_registry.combuf = std::move(onetime_cb[0]);
-                current_registry.combuf.get().begin(
-                    vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit}
-                );
+                auto onetime_buffers =
+                    Rhi::CommandBuffer::Create(device_context, Rhi::CommandBufferPool::GraphicsOneTime, 1);
+                current_registry.combuf = std::move(onetime_buffers[0]);
+                current_registry.combuf->Begin();
             }
 
             void AddRegistery() {
@@ -443,12 +441,12 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
     void FrameManager::impl::CompleteFrame() {
         // Record current readbacks.
         if (readback.HasReadback()) {
-            readback.current_registry.combuf->end();
+            readback.current_registry.combuf->End();
             // Submit this commandbuffer, waiting for the frame's last timepoint.
             auto &this_frame_semaphore = timeline_semaphores[current_frame_in_flight];
             Rhi::Submission readback_submission{};
             readback_submission.command_buffers.push_back(
-                Rhi::FromVulkan(readback.current_registry.combuf.get())
+                readback.current_registry.combuf->GetHandle()
             );
             readback_submission.waits.push_back(Rhi::SubmissionDependency{
                 this_frame_semaphore.GetSemaphore(),
@@ -456,7 +454,7 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
                 Rhi::PipelineScope::Unspecified
             });
             m_system.GetDeviceContext().Submit(
-                readback_submission, Rhi::FromVulkan(readback.current_registry.fence.get())
+                readback_submission, readback.current_registry.fence->GetHandle()
             );
 
             readback.AddRegistery();
@@ -465,11 +463,9 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         // call previous readbacks.
         while (!readback.registry.empty()) {
             auto &fnt = readback.registry.front();
-            auto ret = m_system.GetDevice().getFenceStatus(fnt.fence.get());
-            if (ret == vk::Result::eNotReady) break;
-            if (ret != vk::Result::eSuccess) {
-                throw std::runtime_error(vk::to_string(ret) + " happened when querying status of readback fence.");
-            }
+            auto &device_context = m_system.GetDeviceContext();
+            const bool signaled = device_context.WaitForFence(fnt.fence->GetHandle(), 0);
+            if (!signaled) break;
 
             for (auto &itr : fnt.callbacks) {
                 std::invoke(itr.first, std::move(itr.second));
@@ -512,7 +508,7 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         }
 
         if (!pimpl->readback.HasReadback()) {
-            pimpl->readback.InitializeRegistry(pimpl->m_system.GetDeviceInterface());
+        pimpl->readback.InitializeRegistry(pimpl->m_system.GetDeviceInterface(), pimpl->m_system.GetDeviceContext());
         }
 
         auto staging_buffer = Rhi::DeviceBuffer::CreateUnique(
@@ -521,7 +517,7 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
             buffer.GetSize()
         );
 
-        ReadbackCommand(pimpl->readback.current_registry.combuf.get(), buffer, *staging_buffer);
+        ReadbackCommand(pimpl->readback.current_registry.combuf->GetHandle(), buffer, *staging_buffer);
         pimpl->readback.current_registry.callbacks.push_back(std::make_pair(cb, std::move(staging_buffer)));
         return true;
     }
