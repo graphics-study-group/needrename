@@ -273,8 +273,16 @@
     What needs thinking through first is that the callback runs on the backend's thread and captures
     `fif`, whose slot the next frame will reuse before an unrelated `WaitForIdle` pumps the callback.
     Reporting the wrong epoch leaks rather than dangles - the tracker parks under watermarks that never
-    complete - so the failure is quiet, and `gpu_buffer_retirement_test` is the test that would catch
+    complete - so the failure is quiet.
     it.
+
+    **And `gpu_buffer_retirement_test` is only half the coverage, which was checked rather than
+    assumed.** It asserts that a committed frame opens exactly one epoch and that a skipped frame opens
+    none - and then abandons the epoch it opened, because it never submits. So it would catch a
+    reporting point that fires at the wrong time and would not catch one that never fires at all, which
+    is exactly the failure a callback-based report introduces. A second assertion is needed before 10.1
+    can be ticked: submit, pump, and check that the outstanding count dropped without an intervening
+    `StartFrame`.
 - [ ] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the frame instead of blocking
   - **The blocking wait is load-bearing, and its comment says why.** `FrameManager::BeginFrame`
     waits on `command_executed_fences[fif]` before acquiring, because the acquire semaphore was
