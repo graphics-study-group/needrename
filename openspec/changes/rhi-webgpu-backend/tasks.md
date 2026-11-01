@@ -795,3 +795,25 @@ What is *not* done in group 3, and stays open:
   against neither Vulkan nor WebGPU. With `SubmissionHelper.h` still naming a
   command buffer it cannot pass yet, so it lands with group 6.
 - **3.5** (the capability/limits query) is untouched.
+### The Rhi layer is backend-neutral
+
+`grep vk:: engine/Rhi/**/*.h` outside `Rhi/Backend/Vulkan` now returns **nothing**.
+Every public header in the layer names only portable value types: opaque typed
+handles, `Extent2D`/`Rect2D`, `ImageFormat`, `DescriptorType`, `ResourceState`,
+`DescriptorBinding`/`DescriptorSetLayout`, `PipelineLayoutDescription` and
+`TimelineSignal`. The conversion to Vulkan happens in
+`Rhi/Backend/Vulkan/VulkanHandles.h` and in the implementation units of each
+class.
+
+That is the whole point of the change and it is now true: a second backend has a
+seam to implement rather than a layer to rewrite.
+
+Two notes for whoever picks up 3.6:
+
+- the check that task 3.6 asks for is now meaningful — a translation unit that
+  includes every public `engine/Rhi` header needs only the engine's own include
+  path and the C++ standard library, and it should be run without the Vulkan
+  include directory on the path at all;
+- `SubmissionHelper::CmdOperation` moved into the implementation, so the batch's
+  recording callback is no longer part of the public surface. When group 6 gives
+  it an encoder parameter it will stay invisible to the interface.
