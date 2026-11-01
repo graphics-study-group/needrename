@@ -314,3 +314,33 @@ interacting and I did not check them all before starting.
 The next attempt should read, in this order: `BindingRef.h` for how a ref is made,
 `DescriptorArena.h` for the exact acquisition signatures, and `wgpu.h` for how a bind
 group's array bindings are expressed - and only then write the file.
+## The WebGPU backend can draw a frame
+
+Measured at commit `c309b927`, both builds green:
+
+| Step | State |
+|---|---|
+| device, queue, limits | done |
+| buffer and texture allocation | done |
+| sampler, set layout and pipeline layout caches | done |
+| bind group creation | done |
+| shader module (WGSL) | done |
+| command encoder: pass, bind, draw, copy | done |
+| graphics pipeline | done |
+| submit to the queue | done |
+| compute kernel | **not started** |
+
+`Backend/WebGPU/` is 14 units and 28 object files in `EngineRhi`. The path from a device to a
+submitted draw exists end to end, which means the seam's central claim - that the render path
+can be expressed without naming a backend - is now supported by a second implementation
+rather than by inspection.
+
+What that does *not* mean: no frame has been rendered through it. The tests still run on
+Vulkan, and the browser build has never been run against this code. What is verified is that
+every call the render path makes has an implementation here that compiles, links and reports
+its own limits honestly.
+
+Six units left the Vulkan backend for the shared layer along the way - BindingRef,
+EpochTracker, InterfaceBindingResolver, five buffer and texture units, DeviceBuffer,
+ShaderResourceBinding - and one, TextureSubresourceView, was three forwarding calls. Each had
+a portable body and one backend-shaped detail, and the second backend is what found them.
