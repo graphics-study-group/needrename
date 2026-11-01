@@ -207,7 +207,7 @@ auto BuildRenderGraph(
                     }
                 }};
                 cb.GetCommandBuffer().copyImageToBuffer(
-                    Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferSrcOptimal, readback->GetBuffer(), image_copies
+                    Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferSrcOptimal, Rhi::ToVulkanBuffer(readback->GetBuffer()), image_copies
                 );
             })
             .Get()
@@ -357,6 +357,7 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
 
 
 

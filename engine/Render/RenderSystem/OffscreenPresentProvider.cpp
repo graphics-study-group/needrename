@@ -78,7 +78,7 @@ namespace Engine::RenderSystemState {
                 vk::Offset3D{0, 0, 0},
                 vk::Extent3D{desc.width, desc.height, desc.depth}
             };
-            cb.copyImageToBuffer(Engine::Rhi::ToVulkanImage(image.GetImage()), vk::ImageLayout::eTransferSrcOptimal, dst.GetBuffer(), region);
+            cb.copyImageToBuffer(Engine::Rhi::ToVulkanImage(image.GetImage()), vk::ImageLayout::eTransferSrcOptimal, Rhi::ToVulkanBuffer(dst.GetBuffer()), region);
 
             vk::ImageMemoryBarrier2 post_barrier{
                 vk::PipelineStageFlagBits2::eAllTransfer,
@@ -208,6 +208,7 @@ namespace Engine::RenderSystemState {
         pimpl->m_extent = vk::Extent2D{new_extent.width, new_extent.height};
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

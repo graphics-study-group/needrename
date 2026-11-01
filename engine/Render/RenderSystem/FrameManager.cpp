@@ -25,7 +25,7 @@ namespace {
     ) {
         using namespace Engine;
         assert(src.GetSize() == dst.GetSize());
-        cb.copyBuffer(src.GetBuffer(), dst.GetBuffer(), vk::BufferCopy{0, 0, dst.GetSize()});
+        cb.copyBuffer(Rhi::ToVulkanBuffer(src.GetBuffer()), Rhi::ToVulkanBuffer(dst.GetBuffer()), vk::BufferCopy{0, 0, dst.GetSize()});
     }
 } // namespace
 
@@ -501,6 +501,7 @@ namespace Engine::RenderSystemState {
         return true;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

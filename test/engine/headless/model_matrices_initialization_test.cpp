@@ -155,7 +155,7 @@ int main() {
             vk::AccessFlagBits2::eMemoryRead
         }};
         cb->pipelineBarrier2(vk::DependencyInfo{{}, before_copy, {}, {}});
-        cb->copyBuffer(model_matrices.GetBuffer(), staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+        cb->copyBuffer(Rhi::ToVulkanBuffer(model_matrices.GetBuffer()), Rhi::ToVulkanBuffer(staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
         // Make the copy's result visible to the host read below.
         const std::array before_host_read{vk::MemoryBarrier2{
             vk::PipelineStageFlagBits2::eAllCommands,
@@ -287,4 +287,7 @@ int main() {
     std::cout << "Model matrices initialization test PASSED." << std::endl;
     return 0;
 }
+
+
+
 

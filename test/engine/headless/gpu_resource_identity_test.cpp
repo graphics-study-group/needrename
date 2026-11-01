@@ -235,7 +235,7 @@ int main() try {
         for (int i = 0; i < 32; i++) {
             auto buf = MakeHostBuffer(*rsys, 256, "Recycle probe");
             const auto value =
-                static_cast<uint64_t>(reinterpret_cast<uintptr_t>(static_cast<VkBuffer>(buf->GetBuffer())));
+                static_cast<uint64_t>(reinterpret_cast<uintptr_t>(static_cast<VkBuffer>(Rhi::ToVulkanBuffer(buf->GetBuffer()))));
             if (!seen_buffer_handles.insert(value).second) recycled_buffer_handles++;
         }
     }
@@ -257,6 +257,7 @@ int main() try {
     std::cerr << "gpu_resource_identity_test ABORTED: unknown exception" << std::endl;
     return 1;
 }
+
 
 
 

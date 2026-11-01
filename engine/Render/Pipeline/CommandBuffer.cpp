@@ -128,7 +128,7 @@ namespace Engine {
             vk::Offset3D{0, 0, 0},
             vk::Extent3D{desc.width, desc.height, desc.depth}
         };
-        cb.copyImageToBuffer(Engine::Rhi::ToVulkanImage(image.GetImage()), vk::ImageLayout::eTransferSrcOptimal, dst.GetBuffer(), region);
+        cb.copyImageToBuffer(Engine::Rhi::ToVulkanImage(image.GetImage()), vk::ImageLayout::eTransferSrcOptimal, Rhi::ToVulkanBuffer(dst.GetBuffer()), region);
 
         // Post-barrier: restore the source image to its nominal layout so the
         // frame-completion blit (or any later pass) still observes it.
@@ -320,12 +320,12 @@ namespace Engine {
         buffers.resize(bindings.size());
         for (size_t i = 0; i < bindings.size(); i++) {
             offsets[i] = bindings[i].offset;
-            buffers[i] = bindings[i].buffer->GetBuffer();
+            buffers[i] = Rhi::ToVulkanBuffer(bindings[i].buffer->GetBuffer());
         }
 
         cb.bindVertexBuffers(0, buffers, offsets);
         auto indices = mesh.GetIndexBufferBinding();
-        cb.bindIndexBuffer(indices.buffer->GetBuffer(), indices.offset, vk::IndexType::eUint32);
+        cb.bindIndexBuffer(Rhi::ToVulkanBuffer(indices.buffer->GetBuffer()), indices.offset, vk::IndexType::eUint32);
 
         struct {
             glm::mat4 m;
@@ -389,6 +389,8 @@ namespace Engine {
     }
 
 } // namespace Engine
+
+
 
 
 

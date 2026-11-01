@@ -149,7 +149,7 @@ int main() {
 
     {
         Rhi::ComputeBuffer *const address = &scene_data.GetModelMatricesBuffer();
-        const vk::Buffer handle_initial = address->GetBuffer();
+        const vk::Buffer handle_initial = Rhi::ToVulkanBuffer(address->GetBuffer());
         const size_t capacity_initial = address->GetSize();
         Check(handle_initial != nullptr, "the render-owned buffer must exist before any producer runs");
         Check(capacity_initial > 0u, "the buffer must start with an initial reservation");
@@ -157,7 +157,7 @@ int main() {
         // A request within the initial reservation reallocates nothing.
         scene_data.EnsureModelMatricesCapacity(4u);
         Check(&scene_data.GetModelMatricesBuffer() == address, "the buffer object must not move");
-        Check(address->GetBuffer() == handle_initial, "a within-capacity request must not change the handle");
+        Check(Rhi::ToVulkanBuffer(address->GetBuffer()) == handle_initial, "a within-capacity request must not change the handle");
         Check(address->GetSize() == capacity_initial, "a within-capacity request must not change the capacity");
 
         // A request above the reservation grows the storage in place.
@@ -168,7 +168,7 @@ int main() {
             &scene_data.GetModelMatricesBuffer() == address,
             "growth must keep the buffer object at the same address, so a long-lived reference stays valid"
         );
-        Check(address->GetBuffer() != handle_initial, "growth must replace the storage and its handle");
+        Check(Rhi::ToVulkanBuffer(address->GetBuffer()) != handle_initial, "growth must replace the storage and its handle");
         Check(
             address->GetSize() >= static_cast<size_t>(grown) * sizeof(glm::mat4),
             "the grown buffer must satisfy the requested element count"
@@ -188,7 +188,7 @@ int main() {
         );
         auto graph = rgb.BuildRenderGraph();
 
-        const vk::Buffer handle_imported = address->GetBuffer();
+        const vk::Buffer handle_imported = Rhi::ToVulkanBuffer(address->GetBuffer());
         // Capacity grows geometrically, so the next growth must ask for more than
         // the capacity the previous request established rather than for a small
         // increment over the earlier element count.
@@ -200,7 +200,7 @@ int main() {
             "a growth after the graph was built must leave the imported object alive"
         );
         Check(
-            address->GetBuffer() != handle_imported && address->GetBuffer() != nullptr,
+            Rhi::ToVulkanBuffer(address->GetBuffer()) != handle_imported && Rhi::ToVulkanBuffer(address->GetBuffer()) != nullptr,
             "the object the graph imported reports the current handle after a growth"
         );
         Check(
@@ -313,6 +313,7 @@ int main() {
     std::cout << "Model matrices ownership test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

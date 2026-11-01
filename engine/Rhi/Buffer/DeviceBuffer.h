@@ -4,6 +4,7 @@
 #include "Rhi/Device/BindingRef.h"
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Device/MemoryTypes.h"
+#include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
 #include <memory>
@@ -54,7 +55,7 @@ namespace Engine::Rhi {
         );
 
         /// @brief Get the underlying Vulkan buffer object.
-        vk::Buffer GetBuffer() const;
+        BufferHandle GetBuffer() const;
 
         /**
          * @brief Get this buffer's binding reference: its handle plus its
@@ -144,4 +145,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICEBUFFER_INCLUDED
+
 

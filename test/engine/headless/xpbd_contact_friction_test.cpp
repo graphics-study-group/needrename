@@ -232,9 +232,9 @@ namespace {
             }
             const size_t bytes = static_cast<size_t>(gpu.rigid_body_slot_count) * sizeof(glm::vec4);
             const vk::BufferCopy copy{0u, 0u, bytes};
-            cb.copyBuffer(gpu.rigid_body_center_world_position->GetBuffer(), pos_staging->GetBuffer(), copy);
-            cb.copyBuffer(gpu.rigid_body_linear_velocity->GetBuffer(), linvel_staging->GetBuffer(), copy);
-            cb.copyBuffer(gpu.rigid_body_angular_velocity->GetBuffer(), angvel_staging->GetBuffer(), copy);
+            cb.copyBuffer(Rhi::ToVulkanBuffer(gpu.rigid_body_center_world_position->GetBuffer()), Rhi::ToVulkanBuffer(pos_staging->GetBuffer()), copy);
+            cb.copyBuffer(Rhi::ToVulkanBuffer(gpu.rigid_body_linear_velocity->GetBuffer()), Rhi::ToVulkanBuffer(linvel_staging->GetBuffer()), copy);
+            cb.copyBuffer(Rhi::ToVulkanBuffer(gpu.rigid_body_angular_velocity->GetBuffer()), Rhi::ToVulkanBuffer(angvel_staging->GetBuffer()), copy);
         }
 
         void AfterStep() {
@@ -699,7 +699,7 @@ int main() {
             )[0];
             copy_cb.begin(vk::CommandBufferBeginInfo{});
             copy_cb.copyBuffer(
-                count_buffer->GetBuffer(), count_staging->GetBuffer(), vk::BufferCopy{0u, 0u, sizeof(uint32_t)}
+                Rhi::ToVulkanBuffer(count_buffer->GetBuffer()), Rhi::ToVulkanBuffer(count_staging->GetBuffer()), vk::BufferCopy{0u, 0u, sizeof(uint32_t)}
             );
             copy_cb.end();
             queues.graphicsQueue.submit(vk::SubmitInfo{{}, {}, {copy_cb}, {}});
@@ -779,3 +779,4 @@ int main() {
     std::cerr << "xpbd_contact_friction_test FAILED (" << g_failures << " failures)." << std::endl;
     return 1;
 }
+

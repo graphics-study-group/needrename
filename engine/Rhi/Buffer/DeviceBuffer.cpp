@@ -20,8 +20,8 @@ namespace Engine::Rhi {
         return std::unique_ptr<DeviceBuffer>(new DeviceBuffer(allocator.AllocateBuffer(type, size, name), size));
     }
 
-    vk::Buffer DeviceBuffer::GetBuffer() const {
-        return ToVulkanBuffer(allocation.GetBuffer());
+    BufferHandle DeviceBuffer::GetBuffer() const {
+        return allocation.GetBuffer();
     }
 
     BufferRef DeviceBuffer::GetBufferRef() const {
@@ -54,6 +54,9 @@ namespace Engine::Rhi {
         m_size = bytes;
     }
 } // namespace Engine::Rhi
+
+
+
 
 
 

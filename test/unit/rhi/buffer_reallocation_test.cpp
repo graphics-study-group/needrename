@@ -117,13 +117,13 @@ int main() {
         CHECK(LiveAllocationCount(allocator) == 1u && "only the buffer's own allocation is live");
 
         const ComputeBuffer *const address = buffer.get();
-        const vk::Buffer handle_before = buffer->GetBuffer();
+        const vk::Buffer handle_before = Rhi::ToVulkanBuffer(buffer->GetBuffer());
 
         // Exact reallocation: the object stays, the storage and handle move.
         buffer->Reallocate(allocator, 1024);
         CHECK(buffer.get() == address && "the buffer object must stay at the same address");
         CHECK(buffer->GetSize() == 1024 && "the buffer reports its new size");
-        CHECK(buffer->GetBuffer() != handle_before && "the Vulkan buffer handle must change");
+        CHECK(Rhi::ToVulkanBuffer(buffer->GetBuffer()) != handle_before && "the Vulkan buffer handle must change");
         CHECK(
             tracker.GetParkedResourceCount() == 1u
             && "the replaced allocation must take the retirement path, not be freed"
@@ -135,20 +135,20 @@ int main() {
 
         // A grow-only request at or below the current size is a no-op.
         const size_t size_before = buffer->GetSize();
-        const vk::Buffer handle_after = buffer->GetBuffer();
+        const vk::Buffer handle_after = Rhi::ToVulkanBuffer(buffer->GetBuffer());
         buffer->EnsureCapacity(allocator, 512);
-        CHECK(buffer->GetBuffer() == handle_after && "a within-capacity request must not change the handle");
+        CHECK(Rhi::ToVulkanBuffer(buffer->GetBuffer()) == handle_after && "a within-capacity request must not change the handle");
         CHECK(buffer->GetSize() == size_before && "a within-capacity request must not change the size");
         CHECK(tracker.GetParkedResourceCount() == 1u && "a within-capacity request must not reallocate");
         CHECK(LiveAllocationCount(allocator) == 2u);
         buffer->EnsureCapacity(allocator, size_before);
-        CHECK(buffer->GetBuffer() == handle_after && "a request exactly at capacity is a no-op too");
+        CHECK(Rhi::ToVulkanBuffer(buffer->GetBuffer()) == handle_after && "a request exactly at capacity is a no-op too");
 
         // A request above capacity grows in place.
         buffer->EnsureCapacity(allocator, 4096);
         CHECK(buffer.get() == address && "growth must keep the object at the same address");
         CHECK(buffer->GetSize() == 4096 && "growth must satisfy the requested size");
-        CHECK(buffer->GetBuffer() != handle_after && "growth must replace the handle");
+        CHECK(Rhi::ToVulkanBuffer(buffer->GetBuffer()) != handle_after && "growth must replace the handle");
         CHECK(tracker.GetParkedResourceCount() == 2u);
         CHECK(LiveAllocationCount(allocator) == 3u);
 
@@ -188,12 +188,12 @@ int main() {
         CHECK(LiveAllocationCount(plain_allocator) == 1u);
 
         const ComputeBuffer *const address = buffer.get();
-        const vk::Buffer handle_before = buffer->GetBuffer();
+        const vk::Buffer handle_before = Rhi::ToVulkanBuffer(buffer->GetBuffer());
 
         buffer->Reallocate(plain_allocator, 1024);
         CHECK(buffer.get() == address && "the object address survives even without a retirement facility");
         CHECK(buffer->GetSize() == 1024);
-        CHECK(buffer->GetBuffer() != handle_before);
+        CHECK(Rhi::ToVulkanBuffer(buffer->GetBuffer()) != handle_before);
         CHECK(
             LiveAllocationCount(plain_allocator) == 1u
             && "without a retirement facility the replaced allocation is destroyed immediately"
@@ -269,6 +269,8 @@ int main() {
     std::cout << "Rhi::BufferReallocation test PASSED." << std::endl;
     return 0;
 }
+
+
 
 
 

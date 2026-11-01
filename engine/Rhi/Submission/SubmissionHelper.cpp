@@ -244,14 +244,14 @@ namespace Engine::Rhi {
                 mbarrier.dstAccessMask,
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
-                buffer.GetBuffer(),
+                Rhi::ToVulkanBuffer(buffer.GetBuffer()),
                 buffer_offset,
                 data.size_bytes()
             };
 
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
             vk::BufferCopy copy{0, buffer_offset, static_cast<vk::DeviceSize>(data.size_bytes())};
-            cb.copyBuffer(ToVulkanBuffer(pbuf->GetBuffer()), buffer.GetBuffer(), {copy});
+            cb.copyBuffer(ToVulkanBuffer(pbuf->GetBuffer()), Rhi::ToVulkanBuffer(buffer.GetBuffer()), {copy});
 
             mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferAfter);
             barriers[0] = {
@@ -261,7 +261,7 @@ namespace Engine::Rhi {
                 mbarrier.dstAccessMask,
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
-                buffer.GetBuffer(),
+                Rhi::ToVulkanBuffer(buffer.GetBuffer()),
                 buffer_offset,
                 data.size_bytes()
             };
@@ -552,6 +552,8 @@ namespace Engine::Rhi {
     }
 
 } // namespace Engine::Rhi
+
+
 
 
 

@@ -535,7 +535,7 @@ int main(int argc, char **argv) {
         cb.copyImageToBuffer(
             Engine::Rhi::ToVulkanImage(output.GetImage()),
             vk::ImageLayout::eTransferSrcOptimal,
-            readback.GetBuffer(),
+            Rhi::ToVulkanBuffer(readback.GetBuffer()),
             {vk::BufferImageCopy{
                 0,
                 0,
@@ -665,6 +665,7 @@ int main(int argc, char **argv) {
     std::cout << "Compute kernel test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

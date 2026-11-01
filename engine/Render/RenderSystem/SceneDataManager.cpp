@@ -280,7 +280,7 @@ namespace Engine::RenderSystemState {
                 // Write out descriptors
                 std::vector<vk::DescriptorBufferInfo> buffers(
                     scene_descriptor_sets.size(),
-                    vk::DescriptorBufferInfo{light_back_buffer->GetBuffer(), 0, light_back_buffer->GetSliceSize()}
+                    vk::DescriptorBufferInfo{Rhi::ToVulkanBuffer(light_back_buffer->GetBuffer()), 0, light_back_buffer->GetSliceSize()}
                 );
                 std::vector<vk::WriteDescriptorSet> writes(
                     scene_descriptor_sets.size(),
@@ -299,7 +299,7 @@ namespace Engine::RenderSystemState {
                     std::vector<vk::DescriptorBufferInfo> model_mat_buffers(
                         scene_descriptor_sets.size(),
                         vk::DescriptorBufferInfo{
-                            model_matrices_buffer->GetBuffer(), 0, model_matrices_buffer->GetSize()
+                            Rhi::ToVulkanBuffer(model_matrices_buffer->GetBuffer()), 0, model_matrices_buffer->GetSize()
                         }
                     );
                     std::vector<vk::WriteDescriptorSet> mm_writes(
@@ -542,7 +542,7 @@ namespace Engine::RenderSystemState {
         // buffer's current storage, even after it grew in place.
         {
             const auto &current_buffer = *pimpl->scene.model_matrices_buffer;
-            vk::DescriptorBufferInfo mm_buffer_info{current_buffer.GetBuffer(), 0, current_buffer.GetSize()};
+            vk::DescriptorBufferInfo mm_buffer_info{Rhi::ToVulkanBuffer(current_buffer.GetBuffer()), 0, current_buffer.GetSize()};
             vk::WriteDescriptorSet mm_write{
                 pimpl->scene.scene_descriptor_sets[frame_in_flight],
                 2,
@@ -626,6 +626,7 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

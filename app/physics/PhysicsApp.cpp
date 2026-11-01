@@ -178,10 +178,10 @@ namespace AppPhysics {
                 return;
             }
             const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
-            cb.copyBuffer(pos_src->GetBuffer(), pos_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(rot_src->GetBuffer(), rot_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(linvel_src->GetBuffer(), linvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(angvel_src->GetBuffer(), angvel_staging->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(Rhi::ToVulkanBuffer(pos_src->GetBuffer()), Rhi::ToVulkanBuffer(pos_staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(Rhi::ToVulkanBuffer(rot_src->GetBuffer()), Rhi::ToVulkanBuffer(rot_staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(Rhi::ToVulkanBuffer(linvel_src->GetBuffer()), Rhi::ToVulkanBuffer(linvel_staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
+            cb.copyBuffer(Rhi::ToVulkanBuffer(angvel_src->GetBuffer()), Rhi::ToVulkanBuffer(angvel_staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
         }
 
         /// @brief Map a BodyField to the write-path slot index (declaration order).
@@ -200,7 +200,11 @@ namespace AppPhysics {
                 if (!any_dirty[i] || !write_src[i] || !write_staging[i]) {
                     continue;
                 }
-                cb.copyBuffer(write_staging[i]->GetBuffer(), write_src[i]->GetBuffer(), vk::BufferCopy{0, 0, bytes});
+                cb.copyBuffer(
+                    Rhi::ToVulkanBuffer(write_staging[i]->GetBuffer()),
+                    Rhi::ToVulkanBuffer(write_src[i]->GetBuffer()),
+                    vk::BufferCopy{0, 0, bytes}
+                );
             }
         }
 
@@ -1132,6 +1136,7 @@ namespace AppPhysics {
         impl.any_dirty[idx] = true;
     }
 } // namespace AppPhysics
+
 
 
 

@@ -102,7 +102,7 @@ int main() {
                     }
                 }};
                 cb.GetCommandBuffer().copyImageToBuffer(
-                    Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferSrcOptimal, readback_raw->GetBuffer(), image_copies
+                    Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferSrcOptimal, Rhi::ToVulkanBuffer(readback_raw->GetBuffer()), image_copies
                 );
             })
             .Get()
@@ -152,4 +152,5 @@ int main() {
     std::cout << "Headless offscreen test PASSED." << std::endl;
     return 0;
 }
+
 

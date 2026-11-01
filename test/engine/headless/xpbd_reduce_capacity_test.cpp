@@ -214,10 +214,10 @@ namespace {
             }
             const size_t bytes = static_cast<size_t>(gpu.rigid_body_slot_count) * sizeof(glm::vec4);
             const vk::BufferCopy copy{0u, 0u, bytes};
-            cb.copyBuffer(gpu.rigid_body_center_world_position->GetBuffer(), pos_staging->GetBuffer(), copy);
-            cb.copyBuffer(gpu.rigid_body_center_world_rotation->GetBuffer(), rot_staging->GetBuffer(), copy);
-            cb.copyBuffer(gpu.rigid_body_linear_velocity->GetBuffer(), linvel_staging->GetBuffer(), copy);
-            cb.copyBuffer(gpu.rigid_body_angular_velocity->GetBuffer(), angvel_staging->GetBuffer(), copy);
+            cb.copyBuffer(Rhi::ToVulkanBuffer(gpu.rigid_body_center_world_position->GetBuffer()), Rhi::ToVulkanBuffer(pos_staging->GetBuffer()), copy);
+            cb.copyBuffer(Rhi::ToVulkanBuffer(gpu.rigid_body_center_world_rotation->GetBuffer()), Rhi::ToVulkanBuffer(rot_staging->GetBuffer()), copy);
+            cb.copyBuffer(Rhi::ToVulkanBuffer(gpu.rigid_body_linear_velocity->GetBuffer()), Rhi::ToVulkanBuffer(linvel_staging->GetBuffer()), copy);
+            cb.copyBuffer(Rhi::ToVulkanBuffer(gpu.rigid_body_angular_velocity->GetBuffer()), Rhi::ToVulkanBuffer(angvel_staging->GetBuffer()), copy);
         }
 
         /// Make the readback visible to the host after the submission completes.
@@ -543,3 +543,4 @@ int main() {
     std::cerr << "xpbd_reduce_capacity_test FAILED (" << g_failures << " failures)." << std::endl;
     return 1;
 }
+

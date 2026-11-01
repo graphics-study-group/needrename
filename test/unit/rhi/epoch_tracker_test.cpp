@@ -367,12 +367,12 @@ int main(int argc, char **argv) {
         CHECK(tracker.GetParkedResourceCount() == 1u);
 
         auto live = DeviceBuffer::CreateUnique(plain_allocator, {BufferTypeBits::CopyTo}, 256, "Still-live buffer");
-        CHECK(live != nullptr && live->GetBuffer() != nullptr);
+        CHECK(live != nullptr && Rhi::ToVulkanBuffer(live->GetBuffer()) != nullptr);
 
         device.waitIdle();
         tracker.ReleaseAllParked();
         CHECK(tracker.GetParkedResourceCount() == 0u && "an idle wait must release every parked resource");
-        CHECK(live->GetBuffer() != nullptr && "live resources are untouched by an idle release");
+        CHECK(Rhi::ToVulkanBuffer(live->GetBuffer()) != nullptr && "live resources are untouched by an idle release");
 
         // The epoch is still open and still delays the prefix: an idle release
         // is not a substitute for reporting.
@@ -395,7 +395,7 @@ int main(int argc, char **argv) {
             auto allocation = DeviceBuffer::CreateUnique(
                 context.GetAllocatorState(), {BufferTypeBits::CopyTo}, 256, "DeviceContext buffer"
             );
-            CHECK(allocation != nullptr && allocation->GetBuffer() != nullptr);
+            CHECK(allocation != nullptr && Rhi::ToVulkanBuffer(allocation->GetBuffer()) != nullptr);
         }
         // Destroyed with no epoch open: the upper-bound condition holds already,
         // so it is freed immediately rather than parked.
@@ -442,6 +442,8 @@ int main(int argc, char **argv) {
     std::cout << "Rhi::EpochTracker test PASSED." << std::endl;
     return 0;
 }
+
+
 
 
 

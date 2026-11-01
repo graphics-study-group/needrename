@@ -95,7 +95,7 @@ namespace Engine::RenderSystemState {
         // Write out descriptors
         std::vector<vk::DescriptorBufferInfo> buffers(
             pimpl->descriptors.size(),
-            vk::DescriptorBufferInfo{pimpl->back_buffer->GetBuffer(), 0, pimpl->back_buffer->GetSliceSize()}
+            vk::DescriptorBufferInfo{Rhi::ToVulkanBuffer(pimpl->back_buffer->GetBuffer()), 0, pimpl->back_buffer->GetSliceSize()}
         );
         std::vector<vk::WriteDescriptorSet> writes(
             pimpl->descriptors.size(),
@@ -188,6 +188,7 @@ namespace Engine::RenderSystemState {
         return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
+
 
 
 
