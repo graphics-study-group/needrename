@@ -1367,3 +1367,25 @@ base case and a public one for the real build. If `make_unique` is resolving the
 protected overload, the failure would look exactly like this - a deletion of the
 copy of the argument inside `construct_at`, reported against one of the arguments
 rather than the call.
+### The browser build links no Vulkan, and that is not yet the achievement it sounds like
+
+Task 2.3 was checked because the preset does link a wasm library. Looking at what
+that library actually contains changes what the result means:
+
+```
+build bin/libEngineRhi.so: ... engine/Rhi/CMakeFiles/EngineRhi.dir/Pipeline/PipelineEnums_reflection.cpp.o
+                                 engine/Rhi/CMakeFiles/EngineRhi.dir/RhiReflectionRegistration.cpp.o
+                                 engine/Rhi/CMakeFiles/EngineRhi.dir/Texture/ImageUtils.cpp.o
+  LINK_FLAGS = -shared --use-port=sdl3 --use-port=emdawnwebgpu
+  LINK_LIBRARIES = bin/libAnnoRefl.so lib/libjson.a
+```
+
+Three object files. The HTTP-backed Vulkan backend is excluded by the backend
+switch, and `Backend/WebGPU/` is empty, so almost nothing of the seam is in the
+library at all. It links no Vulkan for the same reason a file with no code links no
+Vulkan.
+
+So task 11.2 ("verify the web build links neither the Vulkan SDK, VMA, glslang nor
+SPIRV-Cross") **cannot be checked yet**: the condition is satisfied by absence, and
+absence is the thing the task is supposed to prove is not happening. It becomes a
+real check once the WebGPU backend exists and the link is non-trivial.
