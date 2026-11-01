@@ -1,57 +1,32 @@
 #include <Core/FileSystem/DataRoot.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <SDL3/SDL.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cassert>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <chrono>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <fstream>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <numbers>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Render/FullRenderSystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Core/guid.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/Component/RenderComponent/ObjTestMeshComponent.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/Import/ObjLoader.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/MainClass.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/Object/GameObject.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/World/Scene.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/World/WorldSystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Material/MaterialAsset.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Material/MaterialTemplateAsset.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Mesh/MeshAsset.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Shader/ShaderKernel.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Texture/Image2DTextureAsset.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Render/UserInterface/GUISystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "cmake_config.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 namespace sch = std::chrono;

@@ -10,40 +10,24 @@
 // an assertion failure terminates the process that trips it.
 
 #include "Rhi/Buffer/DeviceBuffer.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/AllocatorState.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceContext.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceInterface.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/MemoryAllocation.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/MemoryTypes.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Submission/EpochTracker.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #include <SDL3/SDL.h>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdint>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <iostream>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <string>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <utility>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vk_mem_alloc.h>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vulkan/vulkan.hpp>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #if defined(_MSC_VER) && !defined(NDEBUG)
 #include <crtdbg.h>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdlib>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <process.h>
 #include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #endif

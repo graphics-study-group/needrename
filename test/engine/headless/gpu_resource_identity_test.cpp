@@ -20,7 +20,6 @@
 #include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/PhysicsSpirvLoader.h>
 #include <Physics/gpu_algorithm/CompactUnique.h>

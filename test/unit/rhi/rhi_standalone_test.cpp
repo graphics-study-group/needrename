@@ -1,6 +1,5 @@
 #include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Rhi/Device/AllocatorState.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryTypes.h"
@@ -10,6 +9,7 @@
 #include <cassert>
 #include <iostream>
 #include <vulkan/vulkan.hpp>
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 using namespace Engine;
 

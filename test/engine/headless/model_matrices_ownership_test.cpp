@@ -23,54 +23,30 @@
 // same shader binding name the renderer's buffer is bound with.
 
 #include "Framework/MainClass.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Physics/PhysicsScene.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Physics/PhysicsSystem.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Physics/Solver/DummySolver.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Render/FullRenderSystem.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Render/Pipeline/RenderGraph/RenderGraphPass.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Render/RenderSystem/SceneDataManager.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Buffer/ComputeBuffer.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/AllocatorState.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceContext.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Submission/EpochTracker.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Submission/SubmissionHelper.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #include <SDL3/SDL.h>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <array>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdint>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstring>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <iostream>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <limits>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <memory>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <type_traits>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vk_mem_alloc.h>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vulkan/vulkan.hpp>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 using namespace Engine;
 

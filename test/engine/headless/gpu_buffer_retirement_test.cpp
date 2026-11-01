@@ -15,54 +15,30 @@
 //     memory does not grow without bound (4.2).
 
 #include "Framework/MainClass.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsScene.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsSystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/Solver/XPBDGpuSolver.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphPass.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Resource/RenderTargetTexture.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/AllocatorState.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Submission/EpochTracker.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Submission/SubmissionHelper.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <algorithm>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <limits>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <memory>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vk_mem_alloc.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vulkan/vulkan.hpp>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 

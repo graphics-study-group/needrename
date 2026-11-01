@@ -12,40 +12,24 @@
 // measurement.
 
 #include "Framework/MainClass.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/Collision/ConvexCollisionDetector.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/Collision/SpatialHashBroadDetector.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsScene.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/PhysicsSystem.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Physics/Solver/XPBDGpuSolver.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Rhi/Buffer/ComputeBuffer.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Buffer/DeviceBuffer.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Rhi/Submission/SubmissionHelper.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cmath>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <memory>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 

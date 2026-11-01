@@ -12,48 +12,27 @@
 // leaves entries resident at teardown.
 
 #include "Rhi/Buffer/ComputeBuffer.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/AllocatorState.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceInterface.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryAllocation.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryTypes.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderInterface.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Resource/DescriptorArena.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Submission/EpochTracker.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Texture/ImageTexture.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <memory>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <string>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vulkan/vulkan.hpp>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 using namespace Engine::Rhi;

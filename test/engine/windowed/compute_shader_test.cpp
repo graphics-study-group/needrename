@@ -1,26 +1,15 @@
 #include <Core/FileSystem/DataRoot.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <SDL3/SDL.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Asset/AssetManager/AssetManager.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Framework/MainClass.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Shader/ShaderAsset.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/Asset/Shader/ShaderKernel.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 

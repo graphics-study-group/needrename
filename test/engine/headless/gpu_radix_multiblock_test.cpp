@@ -1,27 +1,16 @@
 #include "Framework/MainClass.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/FullRenderSystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <Physics/gpu_algorithm/RadixSort.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <algorithm>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstdint>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <cstring>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <iostream>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <numeric>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <random>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <vector>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 using namespace Engine;
 using namespace Engine::Rhi;

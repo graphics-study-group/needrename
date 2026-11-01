@@ -12,50 +12,29 @@
 // Every scenario builds its own headless DeviceContext with no render system.
 
 #include "Render/Asset/Shader/ShaderCompiler.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Buffer/ComputeBuffer.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/AllocatorState.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceContext.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/DeviceInterface.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Device/MemoryTypes.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Pipeline/ComputeKernel.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Resource/DescriptorArena.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Texture/Texture.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include "Rhi/Texture/TextureSubresourceView.h"
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #include <SDL3/SDL.h>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cmath>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <cstdint>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <iostream>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <memory>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <stdexcept>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <string>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vector>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <vulkan/vulkan.hpp>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 
 #ifdef _MSC_VER
 #include <crtdbg.h>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <stdlib.h>
 #include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #endif
