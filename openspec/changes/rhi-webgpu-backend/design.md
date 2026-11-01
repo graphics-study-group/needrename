@@ -94,6 +94,29 @@ Two spikes precede any interface work: (a) bake 3 representative shaders through
 
 - *Alternative: designing the full interface before touching a real WebGPU call.* Rejected: risks an abstraction fitted to imagined constraints.
 
+### D10. A recorder is opened against a submission the caller owns, not handed to it
+
+Recording and submission stay two separate concerns with one owner each: a caller
+that already has a frame's `Render::CommandBuffer` asks it for its encoder, and a
+caller that has no such object — a physics test, a one-shot upload — opens its own
+submission scope and asks *that* for an encoder. The encoder never comes from a
+command-buffer handle the caller made itself, because a handle is exactly what the
+portable layer exists to hide.
+
+The consequence is an addition to the seam rather than a substitution inside it:
+a portable `begin-one-time-recording` entry point that owns a command buffer, hands
+out an encoder, and offers `submit`/`wait`. Physics' façade then takes a
+`CommandEncoder &` from either source and the `vk::CommandBuffer` overload on
+`PhysicsSystem` disappears.
+
+- *Alternative: let tests build a `Render::CommandBuffer`.* Rejected as the
+  general answer: it works, but it puts a frame-lifecycle object in the way of
+  code that only wants to record once, and it makes the physics tests depend on
+  the render system's shape.
+- *Alternative: keep the raw-handle overload for tests.* Rejected: it is the only
+  place a backend type is still handed across a module boundary, and it would
+  outlive the migration.
+
 ## Risks / Trade-offs
 
 - [Converter fidelity: SPIR-V constant blocks, combined samplers, layout edge cases] → Spike (a) measures it before design is frozen; the bake falls back to a pre-conversion SPIR-V rewrite of the constant block, and layout validation fails the bake rather than shipping a mismatch.
@@ -120,3 +143,4 @@ Two spikes precede any interface work: (a) bake 3 representative shaders through
 - Converter choice (naga vs Tint) can be revisited if the spike shows fidelity gaps; both are host-side bake tools and neither affects the specs.
 - Which desktop WebGPU implementation stays (wgpu-native vs Dawn) is a validation-harness detail.
 - Whether browser-side tests run under a headless browser harness, and when that harness is worth building, is deferred until the Emscripten build exists.
+
