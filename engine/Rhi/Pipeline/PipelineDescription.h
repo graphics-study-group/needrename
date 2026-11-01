@@ -59,16 +59,24 @@ namespace Engine::Rhi {
         bool operator==(const VertexAttributeDescription &) const = default;
     };
 
-    /// @brief How a colour target is blended into.
+    /**
+     * @brief How one colour target is blended into.
+     *
+     * The defaults are the state a disabled blend still resolves to: the source
+     * is taken over the destination and every channel is written. A target the
+     * description says nothing about therefore behaves as an opaque pass-through,
+     * which is what the engine has always done for a target with no blending
+     * configured.
+     */
     struct ColorBlendState {
         /// @brief Whether blending is applied at all.
         bool enabled{false};
         /// @brief Operation combining source and destination.
         BlendOperation color_operation{BlendOperation::Add};
         /// @brief Factor applied to the source colour.
-        BlendFactor source_color_factor{BlendFactor::One};
+        BlendFactor source_color_factor{BlendFactor::SrcAlpha};
         /// @brief Factor applied to the destination colour.
-        BlendFactor destination_color_factor{BlendFactor::Zero};
+        BlendFactor destination_color_factor{BlendFactor::OneMinusSrcAlpha};
         /// @brief Operation combining source and destination alpha.
         BlendOperation alpha_operation{BlendOperation::Add};
         /// @brief Factor applied to the source alpha.
@@ -95,6 +103,26 @@ namespace Engine::Rhi {
         bool operator==(const RasterizationState &) const = default;
     };
 
+    /// @brief What the stencil test does to one facing.
+    struct StencilState {
+        /// @brief Operation when the stencil test fails.
+        StencilOperation fail_operation{StencilOperation::Keep};
+        /// @brief Operation when both stencil and depth tests pass.
+        StencilOperation pass_operation{StencilOperation::Keep};
+        /// @brief Operation when the stencil test passes but the depth test fails.
+        StencilOperation depth_fail_operation{StencilOperation::Keep};
+        /// @brief Comparison used by the stencil test.
+        DSComparator compare{DSComparator::Never};
+        /// @brief Mask applied to the stencil value before comparing.
+        uint8_t compare_mask{0xFF};
+        /// @brief Mask applied to the stencil value before writing.
+        uint8_t write_mask{0xFF};
+        /// @brief Reference value the comparison is made against.
+        uint8_t reference{0x00};
+
+        bool operator==(const StencilState &) const = default;
+    };
+
     /// @brief How depth and stencil tests are applied.
     struct DepthStencilState {
         /// @brief Whether the depth test runs.
@@ -103,8 +131,18 @@ namespace Engine::Rhi {
         bool depth_write_enabled{false};
         /// @brief Comparison used by the depth test.
         DSComparator depth_compare{DSComparator::Less};
+        /// @brief Whether the depth bounds test runs.
+        bool depth_bounds_test_enabled{false};
+        /// @brief Smallest depth the bounds test accepts.
+        float min_depth{0.0f};
+        /// @brief Largest depth the bounds test accepts.
+        float max_depth{1.0f};
         /// @brief Whether the stencil test runs.
         bool stencil_test_enabled{false};
+        /// @brief Stencil behaviour for front-facing polygons.
+        StencilState stencil_front{};
+        /// @brief Stencil behaviour for back-facing polygons.
+        StencilState stencil_back{};
 
         bool operator==(const DepthStencilState &) const = default;
     };
@@ -207,6 +245,9 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_PIPELINEDESCRIPTION_INCLUDED
+
+
+
 
 
 

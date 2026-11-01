@@ -92,6 +92,40 @@ namespace Engine::Rhi {
             }
         }
 
+        vk::StencilOp ToVkStencilOperation(StencilOperation operation) {
+            switch (operation) {
+            case StencilOperation::Zero:
+                return vk::StencilOp::eZero;
+            case StencilOperation::Replace:
+                return vk::StencilOp::eReplace;
+            case StencilOperation::IncrClamp:
+                return vk::StencilOp::eIncrementAndClamp;
+            case StencilOperation::DecrClamp:
+                return vk::StencilOp::eDecrementAndClamp;
+            case StencilOperation::Invert:
+                return vk::StencilOp::eInvert;
+            case StencilOperation::IncrWrap:
+                return vk::StencilOp::eIncrementAndWrap;
+            case StencilOperation::DecrWrap:
+                return vk::StencilOp::eDecrementAndWrap;
+            case StencilOperation::Keep:
+            default:
+                return vk::StencilOp::eKeep;
+            }
+        }
+
+        vk::StencilOpState ToVkStencil(const StencilState &state) {
+            return vk::StencilOpState{
+                ToVkStencilOperation(state.fail_operation),
+                ToVkStencilOperation(state.pass_operation),
+                ToVkStencilOperation(state.depth_fail_operation),
+                ToVkCompareOperation(state.compare),
+                state.compare_mask,
+                state.write_mask,
+                state.reference
+            };
+        }
+
         vk::ColorComponentFlags ToVkColorComponentMask(ColorChannelMask mask) {
             vk::ColorComponentFlags flags{};
             const auto raw = static_cast<int>(mask);
@@ -149,17 +183,23 @@ namespace Engine::Rhi {
         m_depth_stencil.depthTestEnable = depth.depth_test_enabled ? vk::True : vk::False;
         m_depth_stencil.depthWriteEnable = depth.depth_write_enabled ? vk::True : vk::False;
         m_depth_stencil.depthCompareOp = ToVkCompareOperation(depth.depth_compare);
-        m_depth_stencil.depthBoundsTestEnable = vk::False;
+        m_depth_stencil.depthBoundsTestEnable = depth.depth_bounds_test_enabled ? vk::True : vk::False;
         m_depth_stencil.stencilTestEnable = depth.stencil_test_enabled ? vk::True : vk::False;
-        m_depth_stencil.minDepthBounds = 0.0f;
-        m_depth_stencil.maxDepthBounds = 1.0f;
+        m_depth_stencil.front = ToVkStencil(depth.stencil_front);
+        m_depth_stencil.back = ToVkStencil(depth.stencil_back);
+        m_depth_stencil.minDepthBounds = depth.min_depth;
+        m_depth_stencil.maxDepthBounds = depth.max_depth;
 
         m_blend_attachments.resize(description.color_formats.size());
         for (size_t i = 0; i < m_blend_attachments.size(); i++) {
-            // A target the description says nothing about is written without
-            // blending, which is what an empty blend list has always meant here.
-            const ColorBlendState blend = i < description.color_blends.size() ? description.color_blends[i]
-                                                                             : ColorBlendState{};
+            if (i >= description.color_blends.size()) {
+                // A target the description does not mention is not written to at
+                // all: a zero state writes no channel, which is the behaviour a
+                // target with no blending entry has always had here.
+                m_blend_attachments[i] = vk::PipelineColorBlendAttachmentState{};
+                continue;
+            }
+            const ColorBlendState &blend = description.color_blends[i];
             m_blend_attachments[i] = vk::PipelineColorBlendAttachmentState{
                 blend.enabled ? vk::True : vk::False,
                 ToVkBlendFactor(blend.source_color_factor),
@@ -183,5 +223,8 @@ namespace Engine::Rhi {
         m_rendering.stencilAttachmentFormat = vk::Format::eUndefined;
     }
 } // namespace Engine::Rhi
+
+
+
 
 
