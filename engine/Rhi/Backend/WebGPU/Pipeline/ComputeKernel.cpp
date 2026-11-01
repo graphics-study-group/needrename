@@ -7,6 +7,8 @@
 #include "Rhi/Resource/ImmutableResourceCache.h"
 
 #include <SDL3/SDL.h>
+#include <algorithm>
+#include <format>
 #include <map>
 #include <webgpu/webgpu.h>
 
@@ -29,7 +31,10 @@ namespace Engine::Rhi {
         PipelineHandle pipeline{};
         PipelineLayoutHandle pipeline_layout{};
         DescriptorSetLayoutHandle set_layout{};
+        DescriptorSetLayoutRef set_layout_ref{};
         ShaderInterfaceDescription description{};
+        /// Name to the description entry that declares it, for matching a dispatch.
+        std::map<std::string, const ShaderInterfaceBinding *> interface_by_name{};
     };
 
     ComputeKernel::ComputeKernel(DeviceContext &device_context) : pimpl(std::make_unique<impl>()) {
@@ -43,6 +48,10 @@ namespace Engine::Rhi {
     ) {
         pimpl->name = std::string{name};
         pimpl->description = description;
+        pimpl->interface_by_name.clear();
+        for (const ShaderInterfaceBinding &binding : pimpl->description.bindings) {
+            pimpl->interface_by_name.emplace(binding.name, &binding);
+        }
 
         // One set layout per set the description names. Grouping by set is the shape the
         // Vulkan kernel produces from its reflected table, so a shader that bakes the same
@@ -63,16 +72,16 @@ namespace Engine::Rhi {
             static_cast<void>(set_index);
             const DescriptorSetLayoutRef resolved = cache.GetDescriptorSetLayoutRef(layout, name.data());
             set_layouts.push_back(resolved.handle);
-            if (pimpl->set_layout.IsValid() == false) {
+            if (!pimpl->set_layout_ref.handle.IsValid()) {
+                pimpl->set_layout_ref = resolved;
                 // The seam exposes one set layout through the getter; a kernel with several
-                // sets reports the first, which is what its callers bind today.
+                // sets reports the first, which is the set its callers bind today.
                 pimpl->set_layout = resolved.handle;
             }
         }
 
         const PipelineLayoutDescription layout_description{
-            .set_layouts = set_layouts,
-            .push_constant_ranges = {}
+            .set_layouts = set_layouts, .push_constant_ranges = {}
         };
         pimpl->pipeline_layout = cache.GetPipelineLayout(layout_description, name.data());
 
@@ -141,7 +150,7 @@ namespace Engine::Rhi {
 
     void ComputeKernel::DispatchAndRecord(
         CommandEncoder &encoder,
-        ComputeResourceDictionary,
+        ComputeResourceDictionary resources,
         uint32_t group_count_x,
         uint32_t group_count_y,
         uint32_t group_count_z,
@@ -158,11 +167,68 @@ namespace Engine::Rhi {
             throw std::logic_error("WebGPU: dispatching a kernel that was never created.");
         }
 
+        // Match every supplied name against the description, then order by binding number:
+        // the arena keys a bind group on its content, so the caller's dictionary order must
+        // not leak into the entries it is handed.
+        std::vector<ResolvedBinding> content;
+        content.reserve(resources.size());
+        for (const auto &[key, resource] : resources) {
+            auto itr = pimpl->interface_by_name.find(std::string{key});
+            if (itr == pimpl->interface_by_name.end()) {
+                throw std::runtime_error(
+                    std::format("Compute kernel '{}' does not declare interface '{}'.", pimpl->name, key)
+                );
+            }
+            const ShaderInterfaceBinding &declared = *itr->second;
+            ResolvedBinding binding{};
+            binding.binding = declared.binding;
+            binding.type = ShaderInterfaceDescription::ToDescriptorType(declared.kind);
+            const bool is_image = binding.type == DescriptorType::CombinedImageSampler
+                                  || binding.type == DescriptorType::SampledImage
+                                  || binding.type == DescriptorType::StorageImage
+                                  || binding.type == DescriptorType::Sampler;
+            if (is_image) {
+                if (resource.kind != ComputeKernelResource::Kind::Texture) {
+                    throw std::runtime_error(
+                        std::format(
+                            "Compute kernel '{}' interface '{}' is an image, but a buffer was supplied.",
+                            pimpl->name,
+                            key
+                        )
+                    );
+                }
+                binding.image_view = resource.image.view;
+                binding.sampler = resource.image.sampler;
+            } else {
+                if (resource.kind != ComputeKernelResource::Kind::Buffer) {
+                    throw std::runtime_error(
+                        std::format(
+                            "Compute kernel '{}' interface '{}' is a buffer, but an image was supplied.",
+                            pimpl->name,
+                            key
+                        )
+                    );
+                }
+                binding.buffer = resource.buffer.ref;
+                binding.offset = resource.buffer.offset;
+                binding.range = resource.buffer.size;
+            }
+            content.push_back(binding);
+        }
+
+        std::sort(content.begin(), content.end(), [](const ResolvedBinding &lhs, const ResolvedBinding &rhs) {
+            return lhs.binding < rhs.binding;
+        });
+
+        // Re-acquire on every dispatch: the arena keys on content, so an identical dictionary
+        // reuses one bind group and a changed one does not.
+        const DescriptorSetHandle set =
+            pimpl->device_context->GetDescriptorArena().Acquire(pimpl->set_layout_ref, 0, false, false, content);
+
         encoder.BindComputePipeline(pimpl->pipeline, pimpl->pipeline_layout);
-        // Binding the resources is what remains: a dictionary entry names a shader
-        // interface, and turning those into a bind group needs the resolved windows the
-        // Vulkan kernel builds from its reflected table. That is the next unit.
+        encoder.BindDescriptorSet(0, set);
         encoder.DispatchCompute(group_count_x, group_count_y, group_count_z);
         encoder.EndComputePass();
     }
 } // namespace Engine::Rhi
+
