@@ -874,3 +874,52 @@ in place:
 Nothing in this change is blocked on a missing tool any more except the browser
 half: `D:\emsdk` exists but has no `upstream/emscripten`, so `emcc` was never
 installed, and tasks 1.4 and all of group 11 wait on that download.
+### The toolchain is real now, and the seam holds everywhere but Render
+
+Emscripten is installed and both ports are warmed (`sdl3` 3.4.2 and
+`emdawnwebgpu`, the latter from Dawn 20260423), so the browser build no longer
+waits on the network. Getting it to configure took six fixes that only a cross
+build exposes: Core asked pkg-config for libuuid; the top level forced shared
+libraries that wasm cannot have and libktx refuses; the install rules bundled an
+SDL3 runtime artifact and exported a CMake package that a static third-party
+graph also cannot express; Framework copied DLLs a browser build never produces;
+libktx's JavaScript bindings default on. Getting it to compile took four more in
+the reflection parser, all of the same shape — it was deciding how to run from
+the *target* platform instead of the host: WIN32, an empty
+CMAKE_GENERATOR_INSTANCE, a compiler path that is not cl.exe, and a resource dir
+that belongs to the target toolchain. It now locates Visual Studio through
+vswhere, reads the MSVC version from the toolset beside the libclang it found,
+and keeps its own builtin headers.
+
+Where the seam now holds, measured by counting `vk::` outside `Backend/Vulkan`:
+
+| module | before | now |
+|---|---|---|
+| `engine/Rhi` | 167 sites | **0** |
+| `engine/Physics` | 5 sites + headers | **0** |
+| `engine/Framework` | 3 | **0** |
+| `engine/Core` | 1 | **0** |
+| `engine/Render` | 513 | **500** |
+
+`Rhi::RecordingScope` is what made the physics column reach zero: a caller with
+no frame command buffer opens a scope, records through its encoder, and submits.
+`PhysicsSystem` therefore takes `CommandEncoder&` and no backend type crosses a
+module boundary anywhere outside `engine/Render`.
+
+What is left is one module and one backend:
+
+- **`engine/Render`**, 500 sites in 31 files. The largest groups are `vk::Format`
+  39, `PipelineStageFlagBits2` 38, `vk::ImageLayout` 28, `vk::CommandBuffer` 24,
+  `vk::DescriptorType` 19, `vk::ImageMemoryBarrier2` 14, `vk::PipelineLayout` 14,
+  `vk::Extent2D` 14, `vk::RenderingAttachmentInfo` 12. Most map onto types the
+  seam already has (`ImageFormat`, `ResourceState`, `DescriptorType`, `Extent2D`,
+  the handle family); `Barrier()` already covers what the stage and access flags
+  express. The render pass and pipeline-state descriptions do not exist yet and
+  are the real design work.
+- **The WebGPU backend itself**: `Rhi/Backend/WebGPU/` has no implementation of
+  any of the 22 units that `Backend/Vulkan/` provides, so a WebGPU build links
+  nothing. This is group 8, and it is the largest single piece of the change.
+
+The browser build currently stops in `engine/Render`, which is the honest state:
+everything the change has made portable compiles for wasm, and everything it has
+not yet touched is in that one module.
