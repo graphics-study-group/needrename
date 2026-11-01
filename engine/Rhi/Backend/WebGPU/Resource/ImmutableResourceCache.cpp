@@ -6,7 +6,9 @@
 #include "Rhi/Device/Hasher.hpp"
 
 #include <SDL3/SDL.h>
+#include <cstring>
 #include <unordered_map>
+#include <vector>
 #include <webgpu/webgpu.h>
 
 namespace Engine::Rhi {
@@ -57,6 +59,8 @@ namespace Engine::Rhi {
         WGPUDevice device{nullptr};
         std::unordered_map<size_t, WGPUSampler> samplers{};
         std::unordered_map<size_t, SamplerRef> sampler_refs{};
+        std::unordered_map<size_t, DescriptorSetLayoutRef> layout_refs{};
+        std::unordered_map<size_t, WGPUBindGroupLayout> layout_handles{};
 
         ~impl() {
             for (auto &[key, sampler] : samplers) {
@@ -110,5 +114,87 @@ namespace Engine::Rhi {
     }
 } // namespace Engine::Rhi
 
+namespace Engine::Rhi {
+    namespace {
+        WGPUShaderStage ToWgpuVisibility() {
+            // The seam's layout says what a binding accepts, not which stage reads it.
+            return WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
+        }
 
+        size_t HashLayout(const DescriptorSetLayout &layout) noexcept {
+            RenderResourceHasher h;
+            for (const DescriptorBinding &binding : layout) {
+                h.u32(binding.binding);
+                h.u32(static_cast<uint32_t>(binding.type));
+                // `count` is deliberately absent: WGPUBindGroupLayoutEntry has no
+                // array-length field, so a binding is one entry whatever the seam says.
+                h.u32(static_cast<uint32_t>(binding.immutable_sampler.GetValue()));
+            }
+            return h.get();
+        }
+    } // namespace
 
+    DescriptorSetLayoutRef ImmutableResourceCache::GetDescriptorSetLayoutRef(
+        const DescriptorSetLayout &layout, const char *name
+    ) {
+        const size_t key = HashLayout(layout);
+        if (auto itr = pimpl->layout_refs.find(key); itr != pimpl->layout_refs.end()) {
+            return itr->second;
+        }
+
+        std::vector<WGPUBindGroupLayoutEntry> entries;
+        entries.reserve(layout.size());
+        for (const DescriptorBinding &binding : layout) {
+            WGPUBindGroupLayoutEntry entry{};
+            entry.binding = binding.binding;
+            entry.visibility = ToWgpuVisibility();
+            switch (binding.type) {
+            case DescriptorType::UniformBuffer:
+            case DescriptorType::UniformBufferDynamic:
+                entry.buffer.type = WGPUBufferBindingType_Uniform;
+                break;
+            case DescriptorType::StorageBuffer:
+            case DescriptorType::StorageBufferDynamic:
+                entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+                break;
+            case DescriptorType::CombinedImageSampler:
+                entry.texture.sampleType = WGPUTextureSampleType_Float;
+                entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+                entry.sampler.type = WGPUSamplerBindingType_Filtering;
+                break;
+            case DescriptorType::SampledImage:
+                entry.texture.sampleType = WGPUTextureSampleType_Float;
+                entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+                break;
+            case DescriptorType::Sampler:
+                entry.sampler.type = WGPUSamplerBindingType_Filtering;
+                break;
+            case DescriptorType::StorageImage:
+                entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+                entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+                entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+                break;
+            }
+            entries.push_back(entry);
+        }
+
+        WGPUBindGroupLayoutDescriptor desc{};
+        desc.entryCount = entries.size();
+        desc.entries = entries.data();
+        if (name != nullptr) {
+            desc.label = WGPUStringView{name, std::strlen(name)};
+        }
+
+        WGPUBindGroupLayout handle = wgpuDeviceCreateBindGroupLayout(pimpl->device, &desc);
+        const DescriptorSetLayoutRef ref{FromWgpuBindGroupLayout(handle), MintVulkanIdentity()};
+        pimpl->layout_handles.emplace(key, handle);
+        pimpl->layout_refs.emplace(key, ref);
+        return ref;
+    }
+
+    DescriptorSetLayoutHandle ImmutableResourceCache::GetDescriptorSetLayout(
+        const DescriptorSetLayout &layout, const char *name
+    ) {
+        return GetDescriptorSetLayoutRef(layout, name).handle;
+    }
+} // namespace Engine::Rhi

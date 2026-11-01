@@ -119,3 +119,11 @@ namespace Engine::Rhi {
         return ToWgpu<WGPUTextureView>(handle);
     }
 } // namespace Engine::Rhi
+namespace Engine::Rhi {
+    inline DescriptorSetLayoutHandle FromWgpuBindGroupLayout(WGPUBindGroupLayout layout) noexcept {
+        return FromWgpu<DescriptorSetLayoutHandle>(layout);
+    }
+    inline WGPUBindGroupLayout ToWgpuBindGroupLayout(DescriptorSetLayoutHandle handle) noexcept {
+        return ToWgpu<WGPUBindGroupLayout>(handle);
+    }
+} // namespace Engine::Rhi
