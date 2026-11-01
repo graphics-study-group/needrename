@@ -33,7 +33,7 @@
 
 - [x] 5.1 Replace the raw command buffer in the render command recorder and the render graph's pass functions with the encoder, and verify golden images are unchanged
 - [x] 5.2 Replace `vk::Extent2D`/`vk::Format`/semaphore types in the presentation provider, attachment descriptions and frame manager interfaces, and verify windowed and headless presentation still work
-- [ ] 5.3 Route material per-frame uniform writes and physics host writes through the mapped-window contract, and verify the existing resource and submission tests pass
+- [x] 5.3 Route material per-frame uniform writes and physics host writes through the mapped-window contract, and verify the existing resource and submission tests pass
 - [ ] 5.4 Verify `engine/Render`, `engine/Physics`, `engine/Framework` and `engine/Core` contain no backend type in any declaration
 
 ## 6. Mapped window
@@ -645,3 +645,32 @@ sweep that "saves" it has now cost three rounds.
 Also worth knowing: `engine/Rhi/Device/DeviceBuffer.h` does not exist — the
 header lives under `engine/Rhi/Buffer/`. A wrong path in a script creates the
 file silently and the error only surfaces two steps later.
+
+
+### Resume point
+
+State at the end of the fortieth working round, verified green (build exit 0, 77/77
+tests, `openspec validate --strict` passes, working tree clean):
+
+- 45 commits on `feature/wgpu` since the baseline `ecf28c17`.
+- Checked tasks: 2.1, 2.2, 2.4, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3.
+- `engine/Rhi` public headers that still name a Vulkan type: **three**, seven
+  sites in total — `ImmutableResourceCache.h` (4), `SubmissionHelper.h` (2),
+  `DeviceBuffer.h` (1).
+
+Three next steps, in the order that costs least:
+
+1. **`DeviceBuffer::GetBuffer`** — steps 1 to 3 of the recipe in the note above
+   are written and were verified to compile; what remains is the Render, app and
+   test call sites, **edited per expression by hand**. No regular expression can
+   wrap `pimpl->back_buffer->GetBuffer()`, because the `->` belongs to the
+   receiver chain: every sweep this session produced
+   `pimpl->Rhi::ToVulkanBuffer(back_buffer->GetBuffer())`.
+2. **`ImmutableResourceCache::GetPipelineLayout`** — needs a portable
+   pipeline-layout description, the same shape as `DescriptorSetLayout` plus the
+   push-constant ranges. Four call sites build the Vulkan create-info today.
+3. **`SubmissionHelper`** — `CmdOperation` and `ExecuteSubmission` are the
+   submission and synchronization contract, which is group 6's subject, not
+   group 3's; they should move with it.
+
+After (1) and (2), tasks 3.2 and 3.3 can be checked, which unblocks 5.4.
