@@ -7,6 +7,24 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
+    namespace {
+        vk::AttachmentLoadOp ToVkLoadOperation(LoadOperation operation) {
+            switch (operation) {
+            case LoadOperation::Load:
+                return vk::AttachmentLoadOp::eLoad;
+            case LoadOperation::Clear:
+                return vk::AttachmentLoadOp::eClear;
+            case LoadOperation::DontCare:
+            default:
+                return vk::AttachmentLoadOp::eDontCare;
+            }
+        }
+
+        vk::AttachmentStoreOp ToVkStoreOperation(StoreOperation operation) {
+            return operation == StoreOperation::Store ? vk::AttachmentStoreOp::eStore
+                                                       : vk::AttachmentStoreOp::eDontCare;
+        }
+    } // namespace
     /**
      * @brief The Vulkan encoder: one command buffer and the layout constants go to.
      *
@@ -63,6 +81,50 @@ namespace Engine::Rhi {
         pimpl->command_buffer.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, {image_barrier}});
     }
 
+    void CommandEncoder::BeginRenderPass(const RenderPassDescription &description) {
+        std::vector<vk::RenderingAttachmentInfo> color_attachments;
+        color_attachments.reserve(description.color_attachments.size());
+        for (const ColorAttachmentDescription &attachment : description.color_attachments) {
+            vk::RenderingAttachmentInfo info{};
+            info.imageView = ToVulkanImageView(attachment.view);
+            info.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+            info.loadOp = ToVkLoadOperation(attachment.load);
+            info.storeOp = ToVkStoreOperation(attachment.store);
+            info.clearValue = vk::ClearColorValue{
+                std::array<float, 4>{attachment.clear.r, attachment.clear.g, attachment.clear.b, attachment.clear.a}
+            };
+            color_attachments.push_back(info);
+        }
+
+        vk::RenderingAttachmentInfo depth_attachment{};
+        const bool has_depth = description.depth_attachment.view.IsValid();
+        if (has_depth) {
+            depth_attachment.imageView = ToVulkanImageView(description.depth_attachment.view);
+            depth_attachment.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+            depth_attachment.loadOp = ToVkLoadOperation(description.depth_attachment.load);
+            depth_attachment.storeOp = ToVkStoreOperation(description.depth_attachment.store);
+            depth_attachment.clearValue = vk::ClearDepthStencilValue{description.depth_attachment.clear_depth, 0};
+        }
+
+        const vk::Rect2D area{
+            vk::Offset2D{static_cast<int32_t>(description.area.offset.x), static_cast<int32_t>(description.area.offset.y)},
+            vk::Extent2D{description.area.extent.width, description.area.extent.height}
+        };
+
+        vk::RenderingInfo rendering_info{};
+        rendering_info.renderArea = area;
+        rendering_info.layerCount = 1;
+        rendering_info.colorAttachmentCount = static_cast<uint32_t>(color_attachments.size());
+        rendering_info.pColorAttachments = color_attachments.data();
+        rendering_info.pDepthAttachment = has_depth ? &depth_attachment : nullptr;
+
+        pimpl->command_buffer.beginRendering(rendering_info);
+    }
+
+    void CommandEncoder::EndRenderPass() {
+        pimpl->command_buffer.endRendering();
+    }
+
     void CommandEncoder::BindComputePipeline(PipelineHandle pipeline, PipelineLayoutHandle layout) {
         pimpl->pipeline_layout = ToVulkanPipelineLayout(layout);
         pimpl->command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ToVulkanPipeline(pipeline));
@@ -97,6 +159,7 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
 
 
 

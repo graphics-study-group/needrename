@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_COMMANDENCODER_INCLUDED
 #define ENGINE_RHI_COMMANDENCODER_INCLUDED
 
+#include "Rhi/Pipeline/PipelineDescription.h"
 #include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
@@ -71,6 +72,22 @@ namespace Engine::Rhi {
         void Barrier(const ImageBarrier &barrier);
 
         /**
+         * @brief Begin a pass over the given attachments.
+         *
+         * A pass states its attachments, what to do with their previous contents,
+         * and what to leave behind; between `BeginRenderPass` and `EndRenderPass`
+         * the encoder only accepts drawing work. Vulkan binds the attachments per
+         * pass and WebGPU fixes them for a pass's duration, which is why a pass is
+         * described once rather than assembled call by call.
+         *
+         * @param description The attachments, their operations, and the area.
+         */
+        void BeginRenderPass(const RenderPassDescription &description);
+
+        /// @brief End the pass opened by `BeginRenderPass`.
+        void EndRenderPass();
+
+        /**
          * @brief Bind a compute pipeline and the layout its constants are read from.
          *
          * @param pipeline The compute pipeline to record with.
@@ -122,5 +139,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMMANDENCODER_INCLUDED
+
+
 
 
