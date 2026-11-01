@@ -191,9 +191,24 @@ namespace Engine::Rhi {
         }
         return DescriptorSetLayoutRef{FromVulkan(itr->second.handle.get()), itr->second.id};
     }
-    vk::PipelineLayout ImmutableResourceCache::GetPipelineLayout(
-        const vk::PipelineLayoutCreateInfo &plci, const char *name
+    PipelineLayoutHandle ImmutableResourceCache::GetPipelineLayout(
+        const PipelineLayoutDescription &description, const char *name
     ) {
+        std::vector<vk::DescriptorSetLayout> set_layouts;
+        set_layouts.reserve(description.set_layouts.size());
+        for (const DescriptorSetLayoutHandle layout : description.set_layouts) {
+            set_layouts.push_back(ToVulkanDescriptorSetLayout(layout));
+        }
+        std::vector<vk::PushConstantRange> push_constants;
+        push_constants.reserve(description.push_constant_ranges.size());
+        for (const PushConstantRange &range : description.push_constant_ranges) {
+            push_constants.emplace_back(
+                range.compute ? vk::ShaderStageFlagBits::eCompute : vk::ShaderStageFlagBits::eAllGraphics,
+                range.offset,
+                range.size
+            );
+        }
+        vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, set_layouts, push_constants};
         auto h = pipeline_layout_hasher{}(plci);
         auto itr = pimpl->pipeline_layout_cache.find(h);
 
@@ -204,11 +219,12 @@ namespace Engine::Rhi {
             if (name) {
                 DEBUG_SET_NAME_TEMPLATE(pimpl->dvc, r.get(), name);
             }
-            return r.get();
+            return FromVulkan(r.get());
         }
-        return itr->second.get();
+        return FromVulkan(itr->second.get());
     }
 } // namespace Engine::Rhi
+
 
 
 

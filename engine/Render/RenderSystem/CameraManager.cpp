@@ -58,15 +58,16 @@ namespace Engine::RenderSystemState {
         // Create common pipeline layout
         {
             assert(m_system.GetSceneDataManager().GetLightDescriptorSetLayout());
-            std::array pipeline_layout_descriptor_sets{
-                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(), Engine::Rhi::ToVulkanDescriptorSetLayout(pimpl->camera_descriptor_set_layout.handle)
+            const Rhi::PipelineLayoutDescription camera_pipeline_description{
+                {Rhi::FromVulkan(m_system.GetSceneDataManager().GetLightDescriptorSetLayout()),
+                 pimpl->camera_descriptor_set_layout.handle},
+                {{0, RendererManager::GetPushConstantRange().size, false}}
             };
-            std::array pipeline_layout_pcr{RendererManager::GetPushConstantRange()};
-            vk::PipelineLayoutCreateInfo plci{
-                vk::PipelineLayoutCreateFlags{}, pipeline_layout_descriptor_sets, pipeline_layout_pcr
-            };
-            pimpl->camera_common_pipeline_layout =
-                m_system.GetIRCache().GetPipelineLayout(plci, "Camera Common Pipeline Layout");
+            pimpl->camera_common_pipeline_layout = Rhi::ToVulkanPipelineLayout(
+                m_system.GetIRCache().GetPipelineLayout(
+                    camera_pipeline_description, "Camera Common Pipeline Layout"
+                )
+            );
         }
 
         // The arena owns the pool. These sets live until it is destroyed, and the
@@ -188,6 +189,8 @@ namespace Engine::RenderSystemState {
         return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
+
+
 
 
 

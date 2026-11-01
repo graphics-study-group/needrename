@@ -84,10 +84,11 @@ namespace Engine::Rhi {
          * fine so long as all descriptor set layouts are managed by this
          * cache.
          */
-        vk::PipelineLayout GetPipelineLayout(const vk::PipelineLayoutCreateInfo &, const char *name = nullptr);
+        PipelineLayoutHandle GetPipelineLayout(const PipelineLayoutDescription &, const char *name = nullptr);
     };
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
+
 
 

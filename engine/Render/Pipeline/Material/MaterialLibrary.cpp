@@ -108,23 +108,23 @@ namespace Engine {
                 b.descriptor_set_layout =
                     system.GetDeviceContext().GetDescriptorArena().ResolveLayout(desc_bindings, nullptr);
 
-                std::array<vk::PushConstantRange, 1> push_constants{
-                    RenderSystemState::RendererManager::GetPushConstantRange()
+                const Rhi::PipelineLayoutDescription material_pipeline_description{
+                    {Rhi::FromVulkan(scene_descriptors), Rhi::FromVulkan(camera_descriptors), b.descriptor_set_layout.handle},
+                    {{0, RenderSystemState::RendererManager::GetPushConstantRange().size, false}}
                 };
-                std::array<vk::DescriptorSetLayout, 3> set_layouts{
-                    scene_descriptors, camera_descriptors, Engine::Rhi::ToVulkanDescriptorSetLayout(b.descriptor_set_layout.handle)
-                };
-                vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plci);
+                b.pipeline_layout = Rhi::ToVulkanPipelineLayout(
+                    system.GetIRCache().GetPipelineLayout(material_pipeline_description)
+                );
             } else {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material %s pipeline has no material descriptors.", name.c_str());
 
-                std::array<vk::PushConstantRange, 1> push_constants{
-                    RenderSystemState::RendererManager::GetPushConstantRange()
+                const Rhi::PipelineLayoutDescription plain_pipeline_description{
+                    {Rhi::FromVulkan(scene_descriptors), Rhi::FromVulkan(camera_descriptors)},
+                    {{0, RenderSystemState::RendererManager::GetPushConstantRange().size, false}}
                 };
-                std::array<vk::DescriptorSetLayout, 2> set_layouts{scene_descriptors, camera_descriptors};
-                vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                b.pipeline_layout = system.GetIRCache().GetPipelineLayout(plci);
+                b.pipeline_layout = Rhi::ToVulkanPipelineLayout(
+                    system.GetIRCache().GetPipelineLayout(plain_pipeline_description)
+                );
             }
         }
 
@@ -219,6 +219,7 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
 
 
 

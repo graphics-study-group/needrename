@@ -179,12 +179,13 @@ namespace Engine::RenderSystemState {
 
                 // Create common pipeline layout
                 {
-                    std::array pcr{RendererManager::GetPushConstantRange()};
-                    const vk::DescriptorSetLayout scene_layout =
-                        Engine::Rhi::ToVulkanDescriptorSetLayout(scene_descriptor_set_layout.handle);
-                    vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {scene_layout}, pcr};
-                    scene_common_pipeline_layout =
-                        system.GetIRCache().GetPipelineLayout(plci, "Scene Common Pipeline Layout");
+                    const Rhi::PipelineLayoutDescription scene_pipeline_description{
+                        {scene_descriptor_set_layout.handle},
+                        {{0, RendererManager::GetPushConstantRange().size, false}}
+                    };
+                    scene_common_pipeline_layout = Rhi::ToVulkanPipelineLayout(
+                        system.GetIRCache().GetPipelineLayout(scene_pipeline_description, "Scene Common Pipeline Layout")
+                    );
                 }
 
                 // The arena owns the pool; these sets live until it is destroyed.
@@ -626,6 +627,8 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
+
 
 
 

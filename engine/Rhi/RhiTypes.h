@@ -269,6 +269,26 @@ namespace Engine::Rhi {
     /// @brief The portable description of a descriptor-set layout.
     using DescriptorSetLayout = std::vector<DescriptorBinding>;
 
+    /// @brief One push-constant range of a pipeline layout.
+    struct PushConstantRange {
+        /// @brief Byte offset of the range within the block.
+        uint32_t offset{0};
+        /// @brief Byte size of the range.
+        uint32_t size{0};
+        /// @brief Whether the range is read by compute rather than graphics.
+        bool compute{false};
+
+        bool operator==(const PushConstantRange &) const = default;
+    };
+
+    /// @brief The portable description of a pipeline layout.
+    struct PipelineLayoutDescription {
+        /// @brief Set layouts, in binding order.
+        std::vector<DescriptorSetLayoutHandle> set_layouts;
+        /// @brief Constant ranges the pipeline reads.
+        std::vector<PushConstantRange> push_constant_ranges;
+    };
+
     /// @brief Which parts of an image a barrier or a copy covers.
     enum class ImageAspect : uint8_t {
         Color = 1 << 0,
@@ -293,6 +313,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
 
