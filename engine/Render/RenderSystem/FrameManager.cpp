@@ -8,6 +8,7 @@
 #include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/Fence.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
@@ -55,7 +56,7 @@ namespace Engine::RenderSystemState {
         // violation (VUID-vkQueueSubmit2-semaphore-03868).
         std::vector<vk::UniqueSemaphore> frame_completed_semaphores{};
 
-        std::array<vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences{};
+std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{};
 
         std::array<vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers{};
 
@@ -112,7 +113,7 @@ namespace Engine::RenderSystemState {
 
         // Last frame-completion fence, captured at submit time (before
         // CompleteFrame advances the FIF counter). Null until the first submit.
-        vk::Fence m_last_submitted_fence = nullptr;
+        Rhi::FenceHandle m_last_submitted_fence{};
         bool m_has_submitted = false;
 
         RenderSystem &m_system;
@@ -158,10 +159,8 @@ namespace Engine::RenderSystemState {
                 device, image_acquired_semaphores[i].get(), std::format("Semaphore - image acquired {}", i)
             );
 
-            command_executed_fences[i] = device.createFenceUnique(finfo);
-            DEBUG_SET_NAME_TEMPLATE(
-                device, command_executed_fences[i].get(), std::format("Fence - all commands executed {}", i)
-            );
+            command_executed_fences[i] =
+                Rhi::Fence::Create(m_system.GetDeviceInterface(), true, std::format("Fence - all commands executed {}", i));
         }
 
         stcinfo.semaphoreType = vk::SemaphoreType::eTimeline;
@@ -274,7 +273,7 @@ namespace Engine::RenderSystemState {
         // the previous frame's submit, and reusing it while that wait is still
         // pending violates VUID-vkAcquireNextImageKHR-semaphore-01779.
         if (!pimpl->m_system.GetDeviceContext().WaitForFence(
-                Rhi::FromVulkan(pimpl->command_executed_fences[fif].get()), timeout
+                pimpl->command_executed_fences[fif]->GetHandle(), timeout
             )) {
             throw std::runtime_error("Timed out waiting for the frame fence.");
         }
@@ -307,7 +306,7 @@ namespace Engine::RenderSystemState {
         // later wait (fences are only signaled by a completed submit, and
         // `waitIdle` does not signal them).
         pimpl->command_buffers[fif]->reset();
-        device.resetFences({pimpl->command_executed_fences[fif].get()});
+        pimpl->command_executed_fences[fif]->Reset();
 
         // Kickstart of this frame
         // Prevent validation layer from complaining
@@ -414,11 +413,11 @@ namespace Engine::RenderSystemState {
         }
 
         pimpl->m_system.GetDeviceContext().Submit(
-            submission, Rhi::FromVulkan(pimpl->command_executed_fences[fif].get())
+            submission, pimpl->command_executed_fences[fif]->GetHandle()
         );
         // Capture the fence BEFORE CompleteFrame advances the FIF counter, so a
         // later WaitForFrameCompletion() targets the just-submitted frame.
-        pimpl->m_last_submitted_fence = pimpl->command_executed_fences[fif].get();
+        pimpl->m_last_submitted_fence = pimpl->command_executed_fences[fif]->GetHandle();
         pimpl->m_has_submitted = true;
 
         // Present (waits on the frame completion credential).
@@ -485,14 +484,13 @@ namespace Engine::RenderSystemState {
     }
 
     void FrameManager::WaitForFrameCompletion() const {
-        if (!pimpl->m_has_submitted || pimpl->m_last_submitted_fence == nullptr) {
+        if (!pimpl->m_has_submitted || !pimpl->m_last_submitted_fence.IsValid()) {
             return;
         }
-        auto device = pimpl->m_system.GetDevice();
-        auto result =
-            device.waitForFences({pimpl->m_last_submitted_fence}, vk::True, std::numeric_limits<uint64_t>::max());
-        if (result != vk::Result::eSuccess) {
-            throw std::runtime_error(vk::to_string(result) + " happened when waiting for frame completion.");
+        if (!pimpl->m_system.GetDeviceContext().WaitForFence(
+                pimpl->m_last_submitted_fence, std::numeric_limits<uint64_t>::max()
+            )) {
+            throw std::runtime_error("Timed out waiting for frame completion.");
         }
     }
     const FrameSemaphore &FrameManager::GetFrameSemaphore() const noexcept {
