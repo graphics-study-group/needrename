@@ -33,6 +33,7 @@ namespace Engine::Rhi {
     class RHI_API DeviceContext {
         std::unique_ptr<DeviceInterface> m_device_interface;
         std::unique_ptr<AllocatorState> m_allocator_state;
+        DeviceCapabilities m_capabilities{};
         std::unique_ptr<ImmutableResourceCache> m_immutable_resource_cache;
         /// @note Declared after the device and the resource cache because its
         /// pools hold device objects, and before the tracker it reads so that
@@ -59,6 +60,9 @@ namespace Engine::Rhi {
 
         DeviceContext(const DeviceContext &) = delete;
         DeviceContext &operator=(const DeviceContext &) = delete;
+
+        /// @brief What this device can do.
+        const DeviceCapabilities &GetCapabilities() const noexcept;
 
         DeviceInterface &GetDeviceInterface() noexcept;
         const DeviceInterface &GetDeviceInterface() const noexcept;
@@ -137,5 +141,6 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICECONTEXT_INCLUDED
+
 
 

@@ -22,12 +22,25 @@ namespace Engine::Rhi {
         // The arena reads the tracker, so the tracker must exist first.
         m_descriptor_arena = std::make_unique<DescriptorArena>(*this);
         m_compute_kernel_cache = std::make_unique<ComputeKernelCache>(*this);
+
+        const vk::PhysicalDeviceLimits limits =
+            ToVulkanPhysicalDevice(m_device_interface->GetPhysicalDevice()).getProperties().limits;
+        m_capabilities = DeviceCapabilities{
+            .max_push_constant_bytes = limits.maxPushConstantsSize,
+            .uniform_buffer_offset_alignment = limits.minUniformBufferOffsetAlignment,
+            .max_storage_buffer_range = limits.maxStorageBufferRange,
+            .max_compute_invocations = limits.maxComputeWorkGroupInvocations
+        };
         // Install the tracker as the allocator's retire sink: from here on every
         // buffer allocated through this context is retire-safe by construction.
         m_allocator_state->SetRetireSink(m_epoch_tracker.get());
     }
 
     DeviceContext::~DeviceContext() = default;
+
+    const DeviceCapabilities &DeviceContext::GetCapabilities() const noexcept {
+        return m_capabilities;
+    }
 
     DeviceInterface &DeviceContext::GetDeviceInterface() noexcept {
         return *m_device_interface;
@@ -100,6 +113,8 @@ namespace Engine::Rhi {
         m_descriptor_arena->OnDeviceIdle();
     }
 } // namespace Engine::Rhi
+
+
 
 
 

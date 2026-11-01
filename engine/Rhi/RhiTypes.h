@@ -281,6 +281,24 @@ namespace Engine::Rhi {
         bool operator==(const PushConstantRange &) const = default;
     };
 
+    /**
+     * @brief What the device on this machine can do.
+     *
+     * Backends differ in their limits, so code that has to stay inside them asks
+     * the device rather than assuming a number. Only the values the engine's own
+     * work depends on are here; anything a backend enforces silently stays out.
+     */
+    struct DeviceCapabilities {
+        /// @brief Largest push-constant block a pipeline layout may declare.
+        uint32_t max_push_constant_bytes{0};
+        /// @brief Alignment a dynamic uniform offset must be a multiple of.
+        uint64_t uniform_buffer_offset_alignment{1};
+        /// @brief Largest byte range a single storage-buffer binding covers.
+        uint64_t max_storage_buffer_range{0};
+        /// @brief Largest number of invocations in one workgroup.
+        uint32_t max_compute_invocations{0};
+    };
+
     /// @brief A timeline signal: a semaphore and the value it reaches.
     struct TimelineSignal {
         /// @brief The semaphore to signal.
@@ -321,6 +339,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
 
