@@ -1156,3 +1156,27 @@ has to carry the stages it separates, in portable terms. The options are:
 
 The first is smaller and says more. Until one of them lands, the graph keeps its
 own barriers.
+### The stage mask was not the difference
+
+Adding `PipelineScope` to `ImageBarrier` and deriving the stage pair from it did
+not fix `shadow_map_test` either: with scopes filled in from each pass's affinity
+the test still fails. So the cause is not the stage mask, and the two attempts
+now narrow it to three remaining differences from the code the graph uses today:
+
+1. **Barrier grouping.** The builder batches every image transition of a subpass
+   into one `vkCmdPipelineBarrier2`; the encoder path records one call per
+   transition. They should be equivalent, but that is now an assumption rather
+   than a fact, and shadow cascades transition several faces of one atlas in a
+   single batch.
+2. **Aspect.** `GetVkAspect(format)` returns a *flags* value; `ImageAspect` is
+   also a bit enum but the conversion currently picks Depth or Color and never
+   combines. A depth-stencil format would lose its stencil aspect.
+3. **Subresource range.** The old code used `vk::RemainingMipLevels` /
+   `vk::RemainingArrayLayers`; the new one uses `UINT32_MAX`, which should be the
+   same value but is a second place to be wrong.
+
+`PipelineScope` stays - the type is right, and it is what the seam needs for any
+barrier a caller records knowingly. What changes next is the method: instead of
+converting the whole graph at once, convert **one** transition class at a time
+(pre-pass, post-pass, subpass) and run the suite after each, so whichever of the
+three differences matters names itself.
