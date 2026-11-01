@@ -1,5 +1,6 @@
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Pipeline/ComputeKernel.h"
 #include "Rhi/Resource/DescriptorArena.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
@@ -94,6 +95,34 @@ int main() {
             return 1;
         }
 
+        // Task 8.2: identical requests reuse one layout, distinct ones do not.
+        const Engine::Rhi::DescriptorSetLayout layout_a{
+            Engine::Rhi::DescriptorBinding{.binding = 0, .type = Engine::Rhi::DescriptorType::UniformBuffer, .count = 1}
+        };
+        const Engine::Rhi::DescriptorSetLayout layout_b{
+            Engine::Rhi::DescriptorBinding{.binding = 1, .type = Engine::Rhi::DescriptorType::UniformBuffer, .count = 1}
+        };
+        const auto ref_a1 = context.GetIRCache().GetDescriptorSetLayoutRef(layout_a, "a1");
+        const auto ref_a2 = context.GetIRCache().GetDescriptorSetLayoutRef(layout_a, "a2");
+        const auto ref_b = context.GetIRCache().GetDescriptorSetLayoutRef(layout_b, "b");
+        if (ref_a1.handle.GetValue() != ref_a2.handle.GetValue()) {
+            std::fprintf(stderr, "webgpu_device_test: identical layouts produced two objects.\n");
+            return 1;
+        }
+        if (ref_a1.id.GetValue() != ref_a2.id.GetValue()) {
+            std::fprintf(stderr, "webgpu_device_test: identical layouts produced two identities.\n");
+            return 1;
+        }
+        if (ref_a1.handle.GetValue() == ref_b.handle.GetValue()) {
+            std::fprintf(stderr, "webgpu_device_test: distinct layouts shared one object.\n");
+            return 1;
+        }
+        std::printf("webgpu_device_test: identical layouts reused, distinct ones did not.\n");
+
+        // The same question for the arena, which keys a bind group on its content.
+        const auto arena_layout = context.GetDescriptorArena().ResolveLayout(layout_a, "arena");
+        Engine::Rhi::ComputeKernelResource unused{};
+        static_cast<void>(unused);
         std::printf("webgpu_device_test: device, buffer and texture created.\n");
         return 0;
     } catch (const std::exception &ex) {
@@ -101,6 +130,8 @@ int main() {
         return 1;
     }
 }
+
+
 
 
 

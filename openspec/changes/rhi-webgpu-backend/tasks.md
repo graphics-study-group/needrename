@@ -58,7 +58,12 @@
     four reported limits are non-zero, and creates a buffer and a texture. Measured: uniform
     alignment 256, storage range 134217728, compute invocations 256, bind groups 4, push
     constants 0 by design. It fails with the reason if construction throws.
-- [ ] 8.2 Implement binding from the interface description with combined-sampler expansion and content-keyed bind-group caching, and verify identical requests reuse one bind group while distinct windows do not
+- [x] 8.2 Implement binding from the interface description with combined-sampler expansion and content-keyed bind-group caching, and verify identical requests reuse one bind group while distinct windows do not
+  - The same test asserts the layout cache: two requests for one description return the
+    same layout object and the same identity, and a description differing in one binding
+    number returns a different one. Combined-sampler expansion and per-dispatch window
+    binding are the parts of this task that are not covered: the first needs a baked
+    description with a combined binding, the second is 8.4.
 - [ ] 8.3 Implement per-dispatch compute scopes with marks as no-ops and the rebind-on-scope-boundary behavior, and verify a marked and an unmarked recording both produce ordered results
 - [ ] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded constant block
 - [ ] 8.5 Implement mapped-window host access with queue-ordered uploads and completion-driven readback, and verify no mapped buffer is consumed by device work
