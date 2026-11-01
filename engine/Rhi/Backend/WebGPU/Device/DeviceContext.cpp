@@ -46,12 +46,18 @@ namespace Engine::Rhi {
     };
 
     DeviceContext::DeviceContext(DeviceInterface::DeviceConfiguration cfg) : pimpl(std::make_unique<impl>()) {
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: creating DeviceInterface");
         pimpl->device_interface = std::make_unique<DeviceInterface>(std::move(cfg));
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: DeviceInterface ready");
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: creating cache");
         pimpl->immutable_resource_cache =
             std::make_unique<ImmutableResourceCache>(pimpl->device_interface->GetDevice());
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: creating allocator");
         pimpl->allocator_state = std::make_unique<AllocatorState>(*pimpl->device_interface);
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: creating tracker");
         pimpl->epoch_tracker = std::make_unique<EpochTracker>(pimpl->device_interface->GetDevice());
         // The arena reads the tracker and the cache, so both must exist first.
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: creating arena");
         pimpl->descriptor_arena = std::make_unique<DescriptorArena>(*this);
 
         pimpl->allocator_state->SetRetireSink(pimpl->epoch_tracker.get());
@@ -248,5 +254,6 @@ namespace Engine::Rhi {
         );
     }
 } // namespace Engine::Rhi
+
 
 

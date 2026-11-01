@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <SDL3/SDL.h>
 #include <webgpu/webgpu.h>
 
 /**
@@ -24,6 +25,9 @@
  * the engine's tests run.
  */
 int main() {
+    // SDL_Log drops messages until SDL is initialised, and this test's whole point is the
+    // backend's own tracing when something goes wrong.
+    SDL_Init(0);
     Engine::Rhi::DeviceInterface::DeviceConfiguration cfg{
         .window = nullptr,
         .application_name = "webgpu_device_test",
@@ -97,6 +101,7 @@ int main() {
         return 1;
     }
 }
+
 
 
 

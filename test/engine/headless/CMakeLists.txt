@@ -25,10 +25,8 @@ set_tests_properties(xpbd_contact_friction_test PROPERTIES DISABLED TRUE)
 # for that backend, because on Vulkan the rest of this directory already exercises the seam.
 if (ENGINE_RHI_BACKEND_WEBGPU)
     anro_add_test(webgpu_device_test LINK "EngineRhi" FOLDER tests/engine/headless)
-    # Disabled: wgpu-native panics inside buffer creation in this environment, before the
-    # test can report anything. The target still builds, which is what makes the panic
-    # reproducible; the reason is in STATUS.md.
-    set_tests_properties(webgpu_device_test PROPERTIES DISABLED TRUE)
+
 endif()
+
 
 

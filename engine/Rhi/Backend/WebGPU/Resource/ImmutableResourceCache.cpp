@@ -97,7 +97,10 @@ namespace Engine::Rhi {
                                        : WGPUMipmapFilterMode_Nearest;
         sampler_desc.lodMinClamp = desc.min_lod;
         sampler_desc.lodMaxClamp = desc.max_lod;
-        sampler_desc.maxAnisotropy = static_cast<uint16_t>(desc.max_anisotropy);
+        // The seam disables anisotropic filtering with a value below one; the standard
+        // interface rejects zero and wants at least one, so a disabled clamp becomes one.
+        sampler_desc.maxAnisotropy =
+            desc.max_anisotropy < 1.0f ? 1 : static_cast<uint16_t>(desc.max_anisotropy);
 
         WGPUSampler sampler = wgpuDeviceCreateSampler(pimpl->device, &sampler_desc);
         if (sampler == nullptr) {
@@ -238,4 +241,5 @@ namespace Engine::Rhi {
         return FromWgpuPipelineLayout(pipeline_layout);
     }
 } // namespace Engine::Rhi
+
 

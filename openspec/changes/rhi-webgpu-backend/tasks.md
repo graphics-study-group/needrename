@@ -53,7 +53,11 @@
 
 ## 8. WebGPU adapter
 
-- [ ] 8.1 Implement device, queue, resource creation and capability query against the standard WebGPU C interface and verify the desktop validation target creates a device and reports its limits
+- [x] 8.1 Implement device, queue, resource creation and capability query against the standard WebGPU C interface and verify the desktop validation target creates a device and reports its limits
+  - `webgpu_device_test` in the webgpu-desktop build creates a `DeviceContext`, asserts the
+    four reported limits are non-zero, and creates a buffer and a texture. Measured: uniform
+    alignment 256, storage range 134217728, compute invocations 256, bind groups 4, push
+    constants 0 by design. It fails with the reason if construction throws.
 - [ ] 8.2 Implement binding from the interface description with combined-sampler expansion and content-keyed bind-group caching, and verify identical requests reuse one bind group while distinct windows do not
 - [ ] 8.3 Implement per-dispatch compute scopes with marks as no-ops and the rebind-on-scope-boundary behavior, and verify a marked and an unmarked recording both produce ordered results
 - [ ] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded constant block
