@@ -76,7 +76,13 @@
 ## 11. Emscripten product build
 
 - [ ] 11.1 Build the engine and an example for the browser and verify it renders and runs the physics loop at interactive rates
-- [ ] 11.2 Verify the web build links neither the Vulkan SDK, VMA, glslang nor SPIRV-Cross
+- [x] 11.2 Verify the web build links neither the Vulkan SDK, VMA, glslang nor SPIRV-Cross
+  - The browser build compiles EngineRhi from 31 objects - the same set as the desktop
+    WebGPU build - and libEngineRhi.so defines 2086 symbols. llvm-nm finds zero matching
+    vk, glslang, spirv_cross or spv. The four Vma matches are VmaMemoryAllocation's
+    constructor and destructor and two GetVMAddress methods: that class holds two void
+    pointers and nothing VMA, and the name is a leftover recorded in STATUS.md. No VMA
+    code is linked.
 - [ ] 11.3 Move the test suite's synchronous readback onto the blocking pump with test-only yield support and verify the tests pass in the desktop WebGPU build
 
 ## 12. Documentation and closure
