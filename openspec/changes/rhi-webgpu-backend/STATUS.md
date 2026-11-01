@@ -472,3 +472,15 @@ Three ways to resolve it, none taken yet:
 The third is the one D5 describes ("address validity ends when the buffer next participates in
 device work"). It is a real piece of work rather than a correction, and it is why 8.5 is recorded
 rather than started.
+
+**All three end up needing two buffers, and that is the finding worth keeping.** Lazy close looks
+like it avoids the copy - the caller writes into the mapping and the submission publishes it - but
+the buffer that is mapped still cannot be handed to the device, so the published writes have to land
+in a second, unmapped buffer before the submission reads them. Option 2 says that out loud; option 3
+hides the same copy behind a deferred flush. Only option 1 (an asynchronous `FlushMemory`) avoids it,
+and it does so by moving the wait to the caller.
+
+So the shape of the answer is settled even though the work is not: **a host-visible staging buffer
+plus a device buffer, with the copy performed at submission.** `SubmissionHelper` already builds
+exactly that pair for uploads; 8.5 is that pattern owned by the allocation instead of by a helper.
+
