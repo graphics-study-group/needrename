@@ -61,6 +61,7 @@ namespace Engine::Rhi {
         std::unordered_map<size_t, SamplerRef> sampler_refs{};
         std::unordered_map<size_t, DescriptorSetLayoutRef> layout_refs{};
         std::unordered_map<size_t, WGPUBindGroupLayout> layout_handles{};
+        std::unordered_map<size_t, WGPUPipelineLayout> pipeline_layouts{};
 
         ~impl() {
             for (auto &[key, sampler] : samplers) {
@@ -198,3 +199,43 @@ namespace Engine::Rhi {
         return GetDescriptorSetLayoutRef(layout, name).handle;
     }
 } // namespace Engine::Rhi
+namespace Engine::Rhi {
+    PipelineLayoutHandle ImmutableResourceCache::GetPipelineLayout(
+        const PipelineLayoutDescription &description, const char *name
+    ) {
+        RenderResourceHasher h;
+        for (const DescriptorSetLayoutHandle &layout : description.set_layouts) {
+            h.u32(static_cast<uint32_t>(layout.GetValue()));
+        }
+        for (const PushConstantRange &range : description.push_constant_ranges) {
+            h.u32(range.offset);
+            h.u32(range.size);
+            h.u32(range.compute ? 1u : 0u);
+        }
+        const size_t key = h.get();
+        if (auto itr = pimpl->pipeline_layouts.find(key); itr != pimpl->pipeline_layouts.end()) {
+            return FromWgpuPipelineLayout(itr->second);
+        }
+
+        std::vector<WGPUBindGroupLayout> group_layouts;
+        group_layouts.reserve(description.set_layouts.size());
+        for (const DescriptorSetLayoutHandle &layout : description.set_layouts) {
+            group_layouts.push_back(ToWgpuBindGroupLayout(layout));
+        }
+
+        WGPUPipelineLayoutDescriptor desc{};
+        desc.bindGroupLayoutCount = group_layouts.size();
+        desc.bindGroupLayouts = group_layouts.data();
+        if (name != nullptr) {
+            desc.label = WGPUStringView{name, std::strlen(name)};
+        }
+
+        // Push-constant ranges are absent on purpose: there is no push-constant block
+        // here. The seam keeps them in the description because a backend that has them
+        // needs them, and a parameter block becomes a uniform buffer instead.
+        WGPUPipelineLayout pipeline_layout = wgpuDeviceCreatePipelineLayout(pimpl->device, &desc);
+        pimpl->pipeline_layouts.emplace(key, pipeline_layout);
+        return FromWgpuPipelineLayout(pipeline_layout);
+    }
+} // namespace Engine::Rhi
+

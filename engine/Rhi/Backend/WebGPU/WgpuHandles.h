@@ -160,3 +160,11 @@ namespace Engine::Rhi {
         return reinterpret_cast<WGPUComputePipeline>(handle.GetValue());
     }
 } // namespace Engine::Rhi
+namespace Engine::Rhi {
+    inline PipelineLayoutHandle FromWgpuPipelineLayout(WGPUPipelineLayout layout) noexcept {
+        return FromWgpu<PipelineLayoutHandle>(layout);
+    }
+    inline WGPUPipelineLayout ToWgpuPipelineLayout(PipelineLayoutHandle handle) noexcept {
+        return ToWgpu<WGPUPipelineLayout>(handle);
+    }
+} // namespace Engine::Rhi
