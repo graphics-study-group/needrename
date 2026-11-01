@@ -95,6 +95,14 @@
     bake already strips non-semantic debug info before invoking the converter, so these two
     fail on something else in the module - that is the next thing to look at, and it is a
     converter limitation rather than a missing bake step.
+
+    **And the debug info is there because the build puts it there.** `engine/Physics/CMakeLists.txt`
+    compiles every physics shader with `glslangValidator -gVS -V`, which emits
+    `SPV_KHR_non_semantic_info` and the `NonSemantic.Shader.DebugInfo.100` extension set. D12 says the
+    converter takes "SPIR-V 1.3 or lower, no debug info", so every physics module is baked through a
+    strip that would not be needed if the build did not add it. That is a real tension worth naming:
+    the debug info is useful for the Vulkan backend and is stripped for the other one, and the strip is
+    what the two failing modules do not survive.
   - **Two parts of the task are still missing.** The description carries no *variable offsets*,
     and no *combined-sampler split map* - the latter because no shader in either tree declares a
     combined binding, so there is nothing to split yet. And "loads on both runtimes from one
