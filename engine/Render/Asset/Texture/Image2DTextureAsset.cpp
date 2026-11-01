@@ -90,11 +90,12 @@ namespace Engine {
     void Image2DTextureAsset::SetDecodedData(
         int width, int height, int channel, std::vector<std::byte> data, Rhi::ImageFormat format, unsigned mip_level
     ) {
-        const vk::Format vk_format = Rhi::GetVkFormat(format);
-        if (vk_format == vk::Format::eUndefined) {
+        // The format is named portably; whether it is one this loader can
+        // handle is a question about the enum, not about Vulkan.
+        if (format == Rhi::ImageFormat::UNDEFINED) {
             throw std::runtime_error("Unsupported image format for texture.");
-        }
 
+        }
         ktxTexture2 *texture = Create2DTextureFromData(width, height, format, data.data(), data.size());
         if (texture == nullptr) {
             throw std::runtime_error("Failed to create KTX2 texture from decoded data.");

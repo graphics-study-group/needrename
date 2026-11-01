@@ -103,11 +103,12 @@ namespace Engine {
     void ImageCubemapAsset::SetDecodedData(
         int width, int height, int channel, std::vector<std::byte> data, Rhi::ImageFormat format
     ) {
-        const vk::Format vk_format = Rhi::GetVkFormat(format);
-        if (vk_format == vk::Format::eUndefined) {
+        // Whether this loader can handle the format is a question about the
+        // enum, not about Vulkan.
+        if (format == Rhi::ImageFormat::UNDEFINED) {
             throw std::runtime_error("Unsupported image format for cubemap.");
-        }
 
+        }
         ktxTexture2 *texture = CreateCubemapTextureData(width, height, format, data.data(), data.size());
         if (texture == nullptr) {
             throw std::runtime_error("Failed to create KTX2 cubemap from decoded data.");
