@@ -136,5 +136,19 @@ one percent.
 with the wrong aspect, the frame encoder replaced under a live command buffer, and now a
 texture bound to a name nothing reads - all four were silent, and all four survived a
 suite that reported success.
+## shadow_map_test was left without a pixel assertion, on purpose
 
+Adding one was tried and reverted. The assertion itself passes - 2002636 of 2073600
+pixels non-black - but the pass that makes the readback possible introduced ten
+validation errors, and `shadow_map_test` already fails on validation errors.
 
+The cause is the one this change spent eight attempts on and abandoned: that test
+**rebuilds its render graph mid-run** (`rg = build_render_graph()` at line 969 to prove
+shadow storage survives a rebuild). Adding a transfer pass gives the colour target a
+final layout of `TransferSrc`, and the graph built on the next iteration expects it to
+be a colour attachment. The layout does not come back because nothing transitions it
+back - which is exactly the barrier work in the abandoned section.
+
+So the test keeps its validation check and no pixel assertion. That is a smaller gap
+than it sounds: a frame with a wrong layout is a validation error there, and the test
+already fails on those.
