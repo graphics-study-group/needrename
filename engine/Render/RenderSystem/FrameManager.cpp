@@ -9,6 +9,7 @@
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/Fence.h"
+#include "Rhi/Device/Semaphore.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
@@ -41,7 +42,7 @@ namespace Engine::RenderSystemState {
         std::array<std::unique_ptr<Rhi::CommandEncoder>, FRAMES_IN_FLIGHT> main_encoders{};
 
 
-        std::array<vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores{};
+        std::array<std::optional<Rhi::Semaphore>, FRAMES_IN_FLIGHT> image_acquired_semaphores{};
 
         // Frame completion credential: one binary semaphore *per swapchain
         // image*, signaled by the frame-completion batch and waited on by
@@ -54,7 +55,7 @@ namespace Engine::RenderSystemState {
         // but a frame-in-flight slot would be reused with a *different* image
         // whose present may still be pending — a signal-while-signaled
         // violation (VUID-vkQueueSubmit2-semaphore-03868).
-        std::vector<vk::UniqueSemaphore> frame_completed_semaphores{};
+        std::vector<Rhi::Semaphore> frame_completed_semaphores{};
 
 std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{};
 
@@ -154,10 +155,12 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
 
         vk::FenceCreateInfo finfo{{vk::FenceCreateFlagBits::eSignaled}};
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-            image_acquired_semaphores[i] = device.createSemaphoreUnique(scinfo);
-            DEBUG_SET_NAME_TEMPLATE(
-                device, image_acquired_semaphores[i].get(), std::format("Semaphore - image acquired {}", i)
+            image_acquired_semaphores[i] = Rhi::Semaphore::Create(
+                m_system.GetDeviceInterface(), Rhi::SemaphoreType::Binary, 0, std::format("Semaphore - image acquired {}", i)
             );
+
+
+
 
             command_executed_fences[i] =
                 Rhi::Fence::Create(m_system.GetDeviceInterface(), true, std::format("Fence - all commands executed {}", i));
@@ -207,10 +210,15 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         vk::SemaphoreCreateInfo scinfo{};
         frame_completed_semaphores.reserve(image_count);
         for (uint32_t i = 0; i < image_count; i++) {
-            frame_completed_semaphores.push_back(device.createSemaphoreUnique(scinfo));
-            DEBUG_SET_NAME_TEMPLATE(
-                device, frame_completed_semaphores.back().get(), std::format("Semaphore - frame completed image {}", i)
-            );
+            frame_completed_semaphores.push_back(Rhi::Semaphore::Create(
+                m_system.GetDeviceInterface(),
+                Rhi::SemaphoreType::Binary,
+                0,
+                std::format("Semaphore - frame completed image {}", i)
+            ));
+
+
+
         }
     }
 
@@ -294,7 +302,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         // deadlocking — the fence stays signaled and no wait depends on this
         // frame's submit.
         auto result = pimpl->m_present_provider->AcquireNextImage(
-            Rhi::FromVulkan(pimpl->m_system.GetDevice()), Rhi::FromVulkan(pimpl->image_acquired_semaphores[fif].get()), timeout
+            Rhi::FromVulkan(pimpl->m_system.GetDevice()), pimpl->image_acquired_semaphores[fif]->GetHandle(), timeout
         );
         if (result == std::numeric_limits<uint32_t>::max()) {
             return std::numeric_limits<uint32_t>::max();
@@ -379,7 +387,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         // only the copy blit is gated. Widening this to everything would serialize
         // the frame behind the acquire.
         submission.waits.push_back(Rhi::SubmissionDependency{
-            Rhi::FromVulkan(pimpl->image_acquired_semaphores[fif].get()),
+            pimpl->image_acquired_semaphores[fif]->GetHandle(),
             0,
             Rhi::PipelineScope::Transfer
         });
@@ -406,7 +414,7 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         if (pimpl->m_present_provider->NeedsPresentSemaphore()) {
             assert(image_index < pimpl->frame_completed_semaphores.size());
             submission.signals.push_back(Rhi::SubmissionDependency{
-                Rhi::FromVulkan(pimpl->frame_completed_semaphores[image_index].get()),
+                pimpl->frame_completed_semaphores[image_index].GetHandle(),
                 0,
                 Rhi::PipelineScope::Unspecified
             });
@@ -421,11 +429,11 @@ std::array<std::optional<Rhi::Fence>, FRAMES_IN_FLIGHT> command_executed_fences{
         pimpl->m_has_submitted = true;
 
         // Present (waits on the frame completion credential).
-        const vk::Semaphore frame_done_semaphore = pimpl->m_present_provider->NeedsPresentSemaphore()
-                                                       ? pimpl->frame_completed_semaphores[image_index].get()
-                                                       : nullptr;
+        const Rhi::SemaphoreHandle frame_done_semaphore = pimpl->m_present_provider->NeedsPresentSemaphore()
+                                                             ? pimpl->frame_completed_semaphores[image_index].GetHandle()
+                                                             : Rhi::SemaphoreHandle{};
         bool needs_recreating = pimpl->m_present_provider->Present(
-            Rhi::FromVulkan(pimpl->m_system.GetDevice()), image_index, Rhi::FromVulkan(frame_done_semaphore)
+            Rhi::FromVulkan(pimpl->m_system.GetDevice()), image_index, frame_done_semaphore
         );
 
         pimpl->CompleteFrame();
