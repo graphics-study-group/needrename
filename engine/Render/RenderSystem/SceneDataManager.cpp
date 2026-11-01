@@ -574,7 +574,7 @@ namespace Engine::RenderSystemState {
         // camera PV matrix is pushed directly.
         encoder.PushConstants(std::as_bytes(std::span{&pv_mat, 1}));
         // Vertex info is embedded in the skybox.vert shader.
-        cb.GetCommandBuffer().draw(36, 1, 0, 0);
+        encoder.Draw(36, 1, 0, 0);
     }
 
     Rhi::DescriptorSetHandle SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {
@@ -598,6 +598,7 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
 
 
 

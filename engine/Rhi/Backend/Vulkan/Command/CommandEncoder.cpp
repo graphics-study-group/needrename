@@ -290,6 +290,18 @@ namespace Engine::Rhi {
         );
     }
 
+    void CommandEncoder::Draw(
+        uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance
+    ) {
+        pimpl->command_buffer.draw(vertex_count, instance_count, first_vertex, first_instance);
+    }
+
+    void CommandEncoder::CopyBuffer(BufferHandle source, BufferHandle destination, uint64_t size) {
+        pimpl->command_buffer.copyBuffer(
+            ToVulkanBuffer(source), ToVulkanBuffer(destination), vk::BufferCopy{0, 0, size}
+        );
+    }
+
     void CommandEncoder::BindDescriptorSet(uint32_t set_index, DescriptorSetHandle set) {
         pimpl->command_buffer.bindDescriptorSets(
             vk::PipelineBindPoint::eCompute, pimpl->pipeline_layout, set_index, ToVulkanDescriptorSet(set), {}
@@ -319,6 +331,7 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
 
 
 

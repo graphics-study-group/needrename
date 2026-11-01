@@ -205,6 +205,28 @@ namespace Engine::Rhi {
         );
 
         /**
+         * @brief Record a non-indexed draw.
+         *
+         * A mesh whose vertices are generated in the shader has no index buffer
+         * to bind; the count is the geometry.
+         *
+         * @param vertex_count Number of vertices to read.
+         * @param instance_count Number of instances.
+         * @param first_vertex Vertex to start at.
+         * @param first_instance Instance to start at.
+         */
+        void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance);
+
+        /**
+         * @brief Copy one buffer into another.
+         *
+         * @param source The buffer being read.
+         * @param destination The buffer being written.
+         * @param size Bytes to copy from the start of each.
+         */
+        void CopyBuffer(BufferHandle source, BufferHandle destination, uint64_t size);
+
+        /**
          * @brief Bind one descriptor set for compute work.
          *
          * @param set_index Index of the set in the pipeline layout.
@@ -247,6 +269,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMMANDENCODER_INCLUDED
+
 
 
 
