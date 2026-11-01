@@ -109,3 +109,54 @@ namespace Engine::Rhi {
         return pimpl->type;
     }
 } // namespace Engine::Rhi
+
+namespace Engine::Rhi {
+    /**
+     * @brief An image this backend created, and its identity.
+     *
+     * The standard interface has no separate device memory for an image: a
+     * WGPUTexture is the image. `allocation` and `allocator` therefore carry the
+     * texture and the device, and destruction releases the texture.
+     */
+    struct ImageAllocation::impl {
+        ImageHandle image{};
+        ImageMemoryType type{};
+        VulkanIdentity identity{MintVulkanIdentity()};
+    };
+
+    ImageAllocation::ImageAllocation(ImageHandle image, void *allocation, void *allocator, ImageMemoryType type) :
+        VmaMemoryAllocation(allocation, allocator), pimpl(std::make_unique<impl>()) {
+        pimpl->image = image;
+        pimpl->type = type;
+    }
+
+    ImageAllocation::~ImageAllocation() {
+        Destory();
+    }
+
+    ImageAllocation::ImageAllocation(ImageAllocation &&other) noexcept = default;
+    ImageAllocation &ImageAllocation::operator=(ImageAllocation &&other) noexcept = default;
+
+    void ImageAllocation::Destory() noexcept {
+        if (!pimpl || !pimpl->image.IsValid()) {
+            return;
+        }
+        wgpuTextureRelease(ToWgpuTexture(pimpl->image));
+        pimpl->image = {};
+    }
+
+    ImageHandle ImageAllocation::GetImage() const noexcept {
+        assert(pimpl);
+        return pimpl->image;
+    }
+
+    ImageMemoryType ImageAllocation::GetMemoryType() const noexcept {
+        assert(pimpl);
+        return pimpl->type;
+    }
+
+    VulkanIdentity ImageAllocation::GetIdentity() const noexcept {
+        assert(pimpl);
+        return pimpl->identity;
+    }
+} // namespace Engine::Rhi
