@@ -487,56 +487,41 @@ namespace Engine::RenderSystemState {
         );
         pimpl->scene.light_back_buffer->FlushSlice(frame_in_flight);
 
-        std::vector<vk::WriteDescriptorSet> descriptor_writes;
-        descriptor_writes.reserve(2);
-        std::vector<vk::DescriptorImageInfo> shadowmap_image_descriptor_writes{
-            MAX_SHADOW_CASTING_LIGHTS, vk::DescriptorImageInfo{}
-        };
-
+        // The shadow maps are an array binding, so each slot is one write. The
+        // manager owns every slot, so a used slot always has storage; the
+        // remaining slots keep sampling the fallback map and the shaders never
+        // read past the reported light count.
         const auto shadow_casting_light_count = pimpl->scene.light_front_buffer.shadow_casting_light_count;
-        for (size_t i = 0; i < MAX_SHADOW_CASTING_LIGHTS; i++) {
-            // The manager owns every slot, so a used slot always has storage. The
-            // remaining slots keep sampling the fallback map; the shaders never
-            // read a slot past the reported light count.
-            const vk::ImageView image_view = i < shadow_casting_light_count
-                                                 ? Engine::Rhi::ToVulkanImageView(pimpl->scene.shadow_maps[i]->GetImageView())
-                                                 : Engine::Rhi::ToVulkanImageView(pimpl->scene.default_light_map->GetImageView());
-            shadowmap_image_descriptor_writes[i] =
-                vk::DescriptorImageInfo{nullptr, image_view, vk::ImageLayout::eReadOnlyOptimal};
+        std::vector<Rhi::WriteDescriptorSet> writes;
+        writes.reserve(MAX_SHADOW_CASTING_LIGHTS + 1);
+        for (uint32_t i = 0; i < MAX_SHADOW_CASTING_LIGHTS; i++) {
+            Rhi::WriteDescriptorSet write{};
+            write.set = pimpl->scene.scene_descriptor_sets[frame_in_flight];
+            write.binding = 1;
+            write.array_element = i;
+            write.type = Rhi::DescriptorType::CombinedImageSampler;
+            write.image_view = i < shadow_casting_light_count
+                                   ? pimpl->scene.shadow_maps[i]->GetImageView()
+                                   : pimpl->scene.default_light_map->GetImageView();
+            writes.push_back(write);
         }
-
-        descriptor_writes.push_back(
-            vk::WriteDescriptorSet{
-                Rhi::ToVulkanDescriptorSet(pimpl->scene.scene_descriptor_sets[frame_in_flight]),
-                1,
-                0,
-                vk::DescriptorType::eCombinedImageSampler,
-                shadowmap_image_descriptor_writes
-            }
-        );
 
         // Update model matrices buffer descriptor (binding 2).
         // Rewritten every frame so that the handle bound for the frame is the
         // buffer's current storage, even after it grew in place.
         {
             const auto &current_buffer = *pimpl->scene.model_matrices_buffer;
-            vk::DescriptorBufferInfo mm_buffer_info{Rhi::ToVulkanBuffer(current_buffer.GetBuffer()), 0, current_buffer.GetSize()};
-            vk::WriteDescriptorSet mm_write{
-                Rhi::ToVulkanDescriptorSet(pimpl->scene.scene_descriptor_sets[frame_in_flight]),
-                2,
-                0,
-                1,
-                vk::DescriptorType::eStorageBuffer,
-                nullptr,
-                &mm_buffer_info,
-                nullptr
-            };
-            descriptor_writes.push_back(mm_write);
+            Rhi::WriteDescriptorSet write{};
+            write.set = pimpl->scene.scene_descriptor_sets[frame_in_flight];
+            write.binding = 2;
+            write.type = Rhi::DescriptorType::StorageBuffer;
+            write.buffer = current_buffer.GetBuffer();
+            write.offset = 0;
+            write.range = current_buffer.GetSize();
+            writes.push_back(write);
         }
 
-        if (!descriptor_writes.empty()) {
-            pimpl->device.updateDescriptorSets({descriptor_writes}, {});
-        }
+        pimpl->device_context->UpdateDescriptorSets(writes);
     }
 
     void SceneDataManager::FetchLightData() noexcept {
