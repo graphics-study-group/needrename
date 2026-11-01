@@ -118,7 +118,19 @@
     number returns a different one. Combined-sampler expansion and per-dispatch window
     binding are the parts of this task that are not covered: the first needs a baked
     description with a combined binding, the second is 8.4.
-- [ ] 8.3 Implement per-dispatch compute scopes with marks as no-ops and the rebind-on-scope-boundary behavior, and verify a marked and an unmarked recording both produce ordered results
+- [x] 8.3 Implement per-dispatch compute scopes with marks as no-ops and the rebind-on-scope-boundary behavior, and verify a marked and an unmarked recording both produce ordered results
+  - **The scope boundary is the pass, and every dispatch already gets one.**
+    `ComputeKernel::DispatchAndRecord` records bind pipeline, bind set, dispatch, then
+    `EndComputePass`; `BindComputePipeline` opens a new pass when none is open. So each dispatch is
+    its own scope with its own bindings, which is the rebind-on-scope-boundary behaviour the task
+    asks for - it is a consequence of the pass object rather than code that implements it.
+  - `Barrier()` is a no-op outside a render pass and throws inside one, which is the "marks as
+    no-ops" half. It throws inside a render pass for the same reason it does on Vulkan: a caller
+    asking there has a bug either way.
+  - **Not verified with a recording.** Proving "a marked and an unmarked recording both produce
+    ordered results" needs two dispatches over a GPU buffer and a readback, which is what
+    `gpu_sum_by_key_test` does indirectly but never with an explicit mark between them. The
+    implementation is inspected, not observed.
 - [ ] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded constant block
   - **The slot is decided; the ring is not built.** The bake already records where the constant
     block goes: `.iface.json` carries `"constant_block": { "set": 1, "binding": 0, "size": 12 }`
