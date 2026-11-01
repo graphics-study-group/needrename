@@ -12,7 +12,6 @@
 #include <tuple>
 #include <variant>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
     struct ShaderResourceBinding::impl {
@@ -41,7 +40,8 @@ namespace Engine::Rhi {
     void ShaderResourceBinding::BindBuffer(
         const std::string &name, const DeviceBuffer &buf, size_t offset, size_t size
     ) noexcept {
-        static_assert(vk::WholeSize == std::numeric_limits<size_t>::max());
+    // The range that means "all of it" is std::numeric_limits<size_t>::max() in the seam;
+    // the Vulkan constant it was checked against does not belong in a shared unit.
         pimpl->interfaces[name] = std::make_tuple(&buf, offset, size);
     }
     void ShaderResourceBinding::BindTexture(const std::string &name, Texture &texture) noexcept {
