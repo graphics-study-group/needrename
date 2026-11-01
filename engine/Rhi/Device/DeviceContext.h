@@ -110,6 +110,29 @@ namespace Engine::Rhi {
         );
 
         /**
+         * @brief Request a compute kernel from already-compiled code.
+         *
+         * The overload above takes SPIR-V words, which is what a backend that reflects
+         * at runtime needs. A backend that receives WGSL - or whatever form its own
+         * bake produced - has no use for the words: it needs the module and the entry
+         * point, which is what this takes.
+         *
+         * A backend implements the one it can and reports the other as unsupported.
+         * Neither is a stub that silently returns something.
+         *
+         * @param module_id Identity of the module, unique per module on this device.
+         * @param module The compiled code.
+         * @param entry_point The function to dispatch.
+         * @param debug_name Debug name applied to the kernel and its objects.
+         */
+        ComputeKernel &RequestComputeKernelFromModule(
+            std::string_view module_id,
+            ShaderModuleHandle module,
+            std::string_view entry_point,
+            std::string_view debug_name = {}
+        );
+
+        /**
          * @brief Find the compute kernel created for a module identity.
          *
          * @return The kernel, or nullptr when none exists for that identity.
@@ -188,6 +211,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICECONTEXT_INCLUDED
+
 
 
 

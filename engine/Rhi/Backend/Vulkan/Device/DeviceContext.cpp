@@ -1,5 +1,7 @@
 #include "Rhi/Device/DeviceContext.h"
 
+#include <stdexcept>
+
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
 
@@ -104,6 +106,17 @@ namespace Engine::Rhi {
         std::string_view module_id, const std::vector<uint32_t> &spirv_code, std::string_view debug_name
     ) {
         return m_compute_kernel_cache->Request(module_id, spirv_code, debug_name);
+    }
+
+    ComputeKernel &DeviceContext::RequestComputeKernelFromModule(
+        std::string_view, ShaderModuleHandle, std::string_view, std::string_view
+    ) {
+        // This backend reflects from SPIR-V words; a caller that already has a module
+        // has skipped the step this backend needs. Reported rather than approximated.
+        throw std::logic_error(
+            "RequestComputeKernelFromModule is not available on the Vulkan backend: it "
+            "reflects from SPIR-V words, so use RequestComputeKernel."
+        );
     }
 
     ComputeKernel *DeviceContext::FindComputeKernel(std::string_view module_id) noexcept {
@@ -236,6 +249,8 @@ namespace Engine::Rhi {
         m_device_interface->GetQueueInfo().graphicsQueue.submit2(info, submit_fence);
     }
 } // namespace Engine::Rhi
+
+
 
 
 

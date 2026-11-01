@@ -235,8 +235,11 @@ What it needs that does not exist:
   **Solved**: the field exists now, Vulkan fills it from `maxBoundDescriptorSets`, and
   the WebGPU device interface reads the whole `WGPULimits` block at creation.
 - **`RequestComputeKernel` takes a `std::vector<uint32_t>` of SPIR-V.** That is the
-  Vulkan shape. A WebGPU backend needs a `ShaderModule` and a compute entry point, and
-  the seam's signature assumes the other one.
+  Vulkan shape. **Answered by adding a second entry point rather than changing the
+  first**: `RequestComputeKernelFromModule` takes a `ShaderModuleHandle` and an entry
+  point. Vulkan reports it as unsupported because it reflects from words; the WebGPU
+  backend will implement it and report the other one as unsupported. A backend that
+  cannot honour a call says so; neither returns a plausible-looking stub.
 - **No fence and no timeline semaphore.** The standard interface has completion
   callbacks. `Submit`, `WaitForFence` and `SignalSemaphore` therefore have no
   implementation to give, and the choice is between a unit that reports that and one
@@ -252,4 +255,5 @@ is group 10's work (frame completion as callbacks, task 10.1), not a porting det
 
 So the honest reading of the remaining ~16 units is: **roughly a third are mechanical,
 and the rest wait on three design decisions this change lists but has not taken.**
+
 
