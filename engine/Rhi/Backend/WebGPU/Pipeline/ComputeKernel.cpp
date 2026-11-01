@@ -1,0 +1,168 @@
+#include "Rhi/Pipeline/ComputeKernel.h"
+
+#include "Rhi/Backend/WebGPU/WgpuHandles.h"
+#include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Pipeline/ShaderInterfaceDescription.h"
+#include "Rhi/Resource/DescriptorArena.h"
+#include "Rhi/Resource/ImmutableResourceCache.h"
+
+#include <SDL3/SDL.h>
+#include <map>
+#include <webgpu/webgpu.h>
+
+namespace Engine::Rhi {
+    /**
+     * @brief A compute pipeline and the bindings it was built around.
+     *
+     * The Vulkan kernel reflects its module and derives the binding table from that. This
+     * one is handed the table by the bake, which is the point of D9: no reflection library
+     * is linked into the build that runs here.
+     *
+     * `parameter_block_size` is zero and stays zero until a parameter block is bound as a
+     * uniform buffer, which is what this backend substitutes for push constants. A caller
+     * that dispatches with a value is told rather than having it dropped.
+     */
+    struct ComputeKernel::impl {
+        DeviceContext *device_context{nullptr};
+        std::string name{};
+        uint32_t parameter_block_size{0};
+        PipelineHandle pipeline{};
+        PipelineLayoutHandle pipeline_layout{};
+        DescriptorSetLayoutHandle set_layout{};
+        ShaderInterfaceDescription description{};
+    };
+
+    ComputeKernel::ComputeKernel(DeviceContext &device_context) : pimpl(std::make_unique<impl>()) {
+        pimpl->device_context = &device_context;
+    }
+
+    ComputeKernel::~ComputeKernel() = default;
+
+    void ComputeKernel::CreateFromModule(
+        ShaderModuleHandle module, const ShaderInterfaceDescription &description, std::string_view name
+    ) {
+        pimpl->name = std::string{name};
+        pimpl->description = description;
+
+        // One set layout per set the description names. Grouping by set is the shape the
+        // Vulkan kernel produces from its reflected table, so a shader that bakes the same
+        // way binds the same way.
+        std::map<uint32_t, DescriptorSetLayout> sets;
+        for (const ShaderInterfaceBinding &binding : description.bindings) {
+            DescriptorBinding entry{};
+            entry.binding = binding.binding;
+            entry.type = ShaderInterfaceDescription::ToDescriptorType(binding.kind);
+            entry.count = 1;
+            sets[binding.set].push_back(entry);
+        }
+
+        ImmutableResourceCache &cache = pimpl->device_context->GetIRCache();
+        std::vector<DescriptorSetLayoutHandle> set_layouts;
+        set_layouts.reserve(sets.size());
+        for (auto &[set_index, layout] : sets) {
+            static_cast<void>(set_index);
+            const DescriptorSetLayoutRef resolved = cache.GetDescriptorSetLayoutRef(layout, name.data());
+            set_layouts.push_back(resolved.handle);
+            if (pimpl->set_layout.IsValid() == false) {
+                // The seam exposes one set layout through the getter; a kernel with several
+                // sets reports the first, which is what its callers bind today.
+                pimpl->set_layout = resolved.handle;
+            }
+        }
+
+        const PipelineLayoutDescription layout_description{
+            .set_layouts = set_layouts,
+            .push_constant_ranges = {}
+        };
+        pimpl->pipeline_layout = cache.GetPipelineLayout(layout_description, name.data());
+
+        const WGPUDevice device = ToWgpuDevice(pimpl->device_context->GetDevice());
+        WGPUComputePipelineDescriptor pipeline_desc{};
+        pipeline_desc.layout = ToWgpuPipelineLayout(pimpl->pipeline_layout);
+        pipeline_desc.compute.module = ToWgpuShaderModule(module);
+        pipeline_desc.compute.entryPoint =
+            WGPUStringView{description.entry_point.data(), description.entry_point.size()};
+        if (!name.empty()) {
+            pipeline_desc.label = WGPUStringView{name.data(), name.size()};
+        }
+
+        WGPUComputePipeline pipeline = wgpuDeviceCreateComputePipeline(device, &pipeline_desc);
+        if (pipeline == nullptr) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "WebGPU: compute pipeline creation failed for '%.*s'.",
+                static_cast<int>(name.size()),
+                name.data()
+            );
+        }
+        pimpl->pipeline = PipelineHandle::FromValue(reinterpret_cast<uintptr_t>(pipeline));
+    }
+
+    void ComputeKernel::Create(const std::vector<uint32_t> &, std::string_view) {
+        // Reflecting SPIR-V is what this backend does not do; the bake already did it.
+        throw std::logic_error(
+            "ComputeKernel::Create takes SPIR-V words, which this backend cannot reflect. Use "
+            "CreateFromModule with the interface description the bake produced."
+        );
+    }
+
+    const std::string &ComputeKernel::GetName() const noexcept {
+        return pimpl->name;
+    }
+
+    uint32_t ComputeKernel::GetPushConstantSize() const noexcept {
+        return pimpl->parameter_block_size;
+    }
+
+    PipelineHandle ComputeKernel::GetPipeline() const noexcept {
+        return pimpl->pipeline;
+    }
+
+    PipelineLayoutHandle ComputeKernel::GetPipelineLayout() const noexcept {
+        return pimpl->pipeline_layout;
+    }
+
+    DescriptorSetLayoutHandle ComputeKernel::GetDescriptorSetLayout() const noexcept {
+        return pimpl->set_layout;
+    }
+
+    void ComputeKernel::Dispatch(
+        CommandEncoder &encoder,
+        ComputeResourceDictionary resources,
+        uint32_t group_count_x,
+        uint32_t group_count_y,
+        uint32_t group_count_z
+    ) const {
+        if (pimpl->parameter_block_size != 0) {
+            throw std::logic_error("This kernel declares a parameter block; dispatch it with a value.");
+        }
+        DispatchAndRecord(encoder, resources, group_count_x, group_count_y, group_count_z, nullptr, 0);
+    }
+
+    void ComputeKernel::DispatchAndRecord(
+        CommandEncoder &encoder,
+        ComputeResourceDictionary,
+        uint32_t group_count_x,
+        uint32_t group_count_y,
+        uint32_t group_count_z,
+        const void *push,
+        size_t push_size
+    ) const {
+        if (push != nullptr && push_size != 0) {
+            throw std::logic_error(
+                "WebGPU: a parameter block is a uniform buffer here, not a push constant. "
+                "Dispatch with no value until the block binding is decided."
+            );
+        }
+        if (!pimpl->pipeline.IsValid()) {
+            throw std::logic_error("WebGPU: dispatching a kernel that was never created.");
+        }
+
+        encoder.BindComputePipeline(pimpl->pipeline, pimpl->pipeline_layout);
+        // Binding the resources is what remains: a dictionary entry names a shader
+        // interface, and turning those into a bind group needs the resolved windows the
+        // Vulkan kernel builds from its reflected table. That is the next unit.
+        encoder.DispatchCompute(group_count_x, group_count_y, group_count_z);
+        encoder.EndComputePass();
+    }
+} // namespace Engine::Rhi
