@@ -705,3 +705,50 @@ Practical order for the next attempt: convert `CameraManager` first (one site,
 two layouts, no branching), build, then `SceneDataManager` (one site), then the
 two `MaterialLibrary` branches. Each is two or three edits and one build, and the
 type work is already done.
+
+### Pipeline layout: the four call sites, written out
+
+Everything below assumes the description types and the cache implementation from
+the previous note are in place (`EngineRhi` builds with them; only the callers
+below fail to compile).
+
+**SceneDataManager**, one site:
+
+```cpp
+// before
+std::array pcr{RendererManager::GetPushConstantRange()};
+const vk::DescriptorSetLayout scene_layout =
+    Engine::Rhi::ToVulkanDescriptorSetLayout(scene_descriptor_set_layout.handle);
+vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {scene_layout}, pcr};
+scene_common_pipeline_layout = system.GetIRCache().GetPipelineLayout(plci, "Scene Common Pipeline Layout");
+
+// after
+const Rhi::PipelineLayoutDescription scene_pipeline_description{
+    {scene_descriptor_set_layout},
+    {{0, RendererManager::GetPushConstantRange().size, false}}
+};
+scene_common_pipeline_layout = Rhi::ToVulkanPipelineLayout(
+    system.GetIRCache().GetPipelineLayout(scene_pipeline_description, "Scene Common Pipeline Layout")
+);
+```
+
+**CameraManager**, one site: the same shape with
+`{Rhi::FromVulkan(m_system.GetSceneDataManager().GetLightDescriptorSetLayout()), pimpl->camera_descriptor_set_layout}`
+as the set list, and `pimpl->camera_common_pipeline_layout` receives the
+`ToVulkanPipelineLayout`-wrapped result.
+
+**MaterialLibrary**, two branches (with and without the material set): set lists
+`{Rhi::FromVulkan(scene_descriptors), Rhi::FromVulkan(camera_descriptors), b.descriptor_set_layout}`
+and `{Rhi::FromVulkan(scene_descriptors), Rhi::FromVulkan(camera_descriptors)}`;
+both assign to `b.pipeline_layout`.
+
+Three things that cost time in the attempts so far and are worth avoiding:
+
+- the push-constant size comes from `RendererManager::GetPushConstantRange().size`,
+  which is one range at offset 0 — the graphics flag is `false`;
+- `scene_descriptor_set_layout` and `b.descriptor_set_layout` are already
+  `DescriptorSetLayoutRef`/handle values, so they need no `FromVulkan`, while
+  `scene_descriptors`/`camera_descriptors`/`GetLightDescriptorSetLayout()` are
+  still Vulkan and do;
+- the destination members are `vk::PipelineLayout`, so the cache's handle return
+  is wrapped once, by `Rhi::ToVulkanPipelineLayout`.
