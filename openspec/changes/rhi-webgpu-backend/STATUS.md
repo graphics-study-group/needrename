@@ -427,7 +427,7 @@ Unit distribution across the seam:
 | `engine/Rhi/Backend/WebGPU/` | 16 |
 | `engine/Rhi/` (shared) | 15 |
 
-`openspec validate --strict` passes. 29 of 51 tasks are checked.
+`openspec validate --strict` passes. 33 of 51 tasks are checked.
 
 **The thing worth stating plainly: the WebGPU backend exists and can draw a frame, and no frame
 has ever been rendered through it.** What is verified is that every call the render path makes
@@ -567,3 +567,4 @@ description they need.
 So the next session's highest-value move is not any single task on the list. It is **a physics kernel
 created from a baked module and dispatched once**, because that one test would move 7.4, 8.4, 8.5 and
 9.1 at the same time - and it is the only thing in this change that four open tasks share.
+
