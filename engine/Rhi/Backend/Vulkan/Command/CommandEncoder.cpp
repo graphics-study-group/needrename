@@ -202,9 +202,18 @@ namespace Engine::Rhi {
         );
     }
 
-    void CommandEncoder::BindGraphicsDescriptorSet(uint32_t set_index, DescriptorSetHandle set) {
+    void CommandEncoder::BindGraphicsDescriptorSet(
+        uint32_t set_index,
+        DescriptorSetHandle set,
+        PipelineLayoutHandle layout,
+        std::span<const uint32_t> dynamic_offsets
+    ) {
         pimpl->command_buffer.bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics, pimpl->pipeline_layout, set_index, {ToVulkanDescriptorSet(set)}, {}
+            vk::PipelineBindPoint::eGraphics,
+            ToVulkanPipelineLayout(layout),
+            set_index,
+            {ToVulkanDescriptorSet(set)},
+            dynamic_offsets
         );
     }
 
@@ -237,6 +246,8 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
+
 
 
 

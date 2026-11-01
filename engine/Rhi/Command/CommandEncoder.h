@@ -134,8 +134,16 @@ namespace Engine::Rhi {
          *
          * @param set_index Index of the set in the pipeline layout.
          * @param set The descriptor set to bind.
+         * @param layout The layout the set is bound against. A material, a camera
+         * and a scene each own their layout, so it is stated rather than taken
+         * from the last pipeline bound.
          */
-        void BindGraphicsDescriptorSet(uint32_t set_index, DescriptorSetHandle set);
+        void BindGraphicsDescriptorSet(
+            uint32_t set_index,
+            DescriptorSetHandle set,
+            PipelineLayoutHandle layout,
+            std::span<const uint32_t> dynamic_offsets = {}
+        );
 
         /**
          * @brief Bind one descriptor set for compute work.
@@ -180,6 +188,8 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMMANDENCODER_INCLUDED
+
+
 
 
 

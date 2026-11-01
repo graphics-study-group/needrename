@@ -226,15 +226,11 @@ namespace Engine {
     // ── Scene / Camera / Material ───────────────────────────────────────────
 
     void CommandBuffer::BindSceneResources(const RenderSystemState::SceneDataManager &sdm) {
-        const vk::PipelineLayout layout = Rhi::ToVulkanPipelineLayout(sdm.GetCommonPipelineLayout());
-        const vk::DescriptorSet light_set = Rhi::ToVulkanDescriptorSet(sdm.GetLightDescriptorSet(m_inflight_frame_index));
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, 0, {light_set}, {});
+        m_encoder->BindGraphicsDescriptorSet(0, sdm.GetLightDescriptorSet(m_inflight_frame_index), sdm.GetCommonPipelineLayout());
     }
 
     void CommandBuffer::BindCameraResources(const RenderSystemState::CameraManager &cm) {
-        const vk::PipelineLayout layout = Rhi::ToVulkanPipelineLayout(cm.GetCommonPipelineLayout());
-        const vk::DescriptorSet camera_set = Rhi::ToVulkanDescriptorSet(cm.GetDescriptorSet(m_inflight_frame_index));
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, 1, {camera_set}, {});
+        m_encoder->BindGraphicsDescriptorSet(1, cm.GetDescriptorSet(m_inflight_frame_index), cm.GetCommonPipelineLayout());
     }
 
     void CommandBuffer::BindMaterial(MaterialInstance &material, MaterialTemplate &tpl) {
@@ -249,7 +245,7 @@ namespace Engine {
             bind_new_pipeline = true;
         }
         if (bind_new_pipeline) {
-            cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+            m_encoder->BindGraphicsPipeline(Rhi::FromVulkan(pipeline), Rhi::FromVulkan(pipeline_layout));
             m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
         }
 
@@ -258,14 +254,9 @@ namespace Engine {
         // Refresh the set on every bind, so the epoch the arena records for it
         // stays an upper bound on the epochs whose command buffers use it.
         auto material_binding = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
-        const vk::DescriptorSet material_set = Rhi::ToVulkanDescriptorSet(material_binding.set);
         if (material_binding.set.IsValid()) {
-            cb.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics,
-                pipeline_layout,
-                2,
-                {material_set},
-                material_binding.dynamic_offsets
+            m_encoder->BindGraphicsDescriptorSet(
+                2, material_binding.set, Rhi::FromVulkan(pipeline_layout), material_binding.dynamic_offsets
             );
         }
     }
@@ -372,6 +363,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 
