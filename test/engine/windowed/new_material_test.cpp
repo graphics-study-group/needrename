@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
     auto test_material_instance = std::make_unique<MaterialInstance>(*rsys, test_library_handle);
     test_material_instance->AssignVectorVariable("Material::ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->AssignVectorVariable("Material::specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
-    test_material_instance->AssignTexture("base_texture", allocated_image_texture);
+    test_material_instance->AssignTexture("base_tex", allocated_image_texture);
 
     // Prepare mesh
     auto test_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();
@@ -318,6 +318,7 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
 
 
 
