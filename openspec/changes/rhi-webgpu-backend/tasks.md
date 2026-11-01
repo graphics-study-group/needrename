@@ -121,7 +121,24 @@
 - [ ] 8.3 Implement per-dispatch compute scopes with marks as no-ops and the rebind-on-scope-boundary behavior, and verify a marked and an unmarked recording both produce ordered results
 - [ ] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded constant block
 - [ ] 8.5 Implement mapped-window host access with queue-ordered uploads and completion-driven readback, and verify no mapped buffer is consumed by device work
-- [ ] 8.6 Implement error and device-loss reporting through the logging path and verify a deliberately invalid recording is reported naming the operation
+- [x] 8.6 Implement error and device-loss reporting through the logging path and verify a deliberately invalid recording is reported naming the operation
+  - The path exists and was exercised by accident, which is the best kind of evidence: the first
+    run of `webgpu_device_test` produced
+
+    ```
+    ERROR: WebGPU uncaptured error (type 2): Validation Error
+    Caused by:
+      In wgpuDeviceCreateSampler
+        Invalid anisotropic clamp: 0. Must be at least 1.
+    ```
+
+    `DeviceInterface` installs an uncaptured-error callback that routes to `SDL_LogError` with
+    the error type and the device message. The message names the operation - `In
+    wgpuDeviceCreateSampler` - which is the requirement.
+  - **Device loss is not verified.** The callback receives the type and would report
+    `WGPUErrorType_DeviceLost` the same way, but nothing has provoked a device loss: doing so on
+    a real adapter is not something a test can arrange without killing the run. Recorded as the
+    half that is inspected rather than observed.
 
 ## 9. WebGPU compute path and cross-backend comparison
 
