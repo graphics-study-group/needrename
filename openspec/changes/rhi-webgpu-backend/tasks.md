@@ -831,3 +831,28 @@ one item whose size is now known rather than estimated: `engine/Render` holds 51
 3 in one file and `engine/Core` 1 in one file. The small modules are an afternoon;
 `engine/Render` is the pipeline, material and render-graph layer, which the
 portable seam does not yet describe.
+### 5.4: what is left, and the one question that blocks Physics
+
+`engine/Framework` and `engine/Core` are now free of backend types. What remains
+is `engine/Physics` (5 mentions, all on two `vk::CommandBuffer` parameters of
+`PhysicsSystem`) and `engine/Render` (500 mentions across 31 files).
+
+The five physics mentions look trivial and are not, because of how the tests
+record. `PhysicsSystem::GPUStep` is the only place the engine still hands raw
+command buffers across a module boundary, and it was kept that way deliberately:
+`ISolver` and both solvers already take `Rhi::CommandEncoder &`, and
+`PhysicsSystem` builds the encoder internally. Converting the façade means the
+caller must supply an encoder — and a caller has no way to make one.
+
+- In production the answer is `Render::CommandBuffer::GetEncoder()`, which is why
+  `MainClass` and `PhysicsApp` convert easily.
+- The headless physics tests have no `CommandBuffer`: they open a one-time Vulkan
+  command buffer in a local lambda (`run_command_buffer`) and hand the raw handle
+  to the physics façade. There is no portable factory for an encoder that wraps a
+  command buffer a test opened itself.
+
+So the missing piece is not a type substitution but **a contract for obtaining an
+encoder**: either the tests build a `Render::CommandBuffer` (heavier, but honest),
+or the portable layer grows a scoped recording object a test can open on the
+device's own one-time buffer. That decision belongs in the design, next to D3's
+"a scope is a boundary" — it is the same question one level down.
