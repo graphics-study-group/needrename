@@ -217,6 +217,45 @@ namespace Engine::Rhi {
         );
     }
 
+    void CommandEncoder::BindVertexBuffers(
+        std::span<const BufferHandle> buffers, std::span<const uint64_t> offsets
+    ) {
+        std::vector<vk::Buffer> vk_buffers;
+        vk_buffers.reserve(buffers.size());
+        for (const BufferHandle buffer : buffers) {
+            vk_buffers.push_back(ToVulkanBuffer(buffer));
+        }
+        pimpl->command_buffer.bindVertexBuffers(0, vk_buffers, offsets);
+    }
+
+    void CommandEncoder::BindIndexBuffer(BufferHandle buffer, uint64_t offset, bool wide) {
+        pimpl->command_buffer.bindIndexBuffer(
+            ToVulkanBuffer(buffer), offset, wide ? vk::IndexType::eUint32 : vk::IndexType::eUint16
+        );
+    }
+
+    void CommandEncoder::SetViewport(float width, float height, const Rect2D &scissor) {
+        const vk::Viewport viewport{0.0f, 0.0f, width, height, 0.0f, 1.0f};
+        pimpl->command_buffer.setViewport(0, 1, &viewport);
+        const vk::Rect2D area{
+            vk::Offset2D{static_cast<int32_t>(scissor.offset.x), static_cast<int32_t>(scissor.offset.y)},
+            vk::Extent2D{scissor.extent.width, scissor.extent.height}
+        };
+        pimpl->command_buffer.setScissor(0, 1, &area);
+    }
+
+    void CommandEncoder::DrawIndexed(
+        uint32_t index_count,
+        uint32_t instance_count,
+        uint32_t first_index,
+        int32_t vertex_offset,
+        uint32_t first_instance
+    ) {
+        pimpl->command_buffer.drawIndexed(
+            index_count, instance_count, first_index, vertex_offset, first_instance
+        );
+    }
+
     void CommandEncoder::BindDescriptorSet(uint32_t set_index, DescriptorSetHandle set) {
         pimpl->command_buffer.bindDescriptorSets(
             vk::PipelineBindPoint::eCompute, pimpl->pipeline_layout, set_index, ToVulkanDescriptorSet(set), {}
@@ -246,6 +285,7 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
 
 
 

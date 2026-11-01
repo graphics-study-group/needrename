@@ -146,6 +146,52 @@ namespace Engine::Rhi {
         );
 
         /**
+         * @brief Bind the vertex buffers a draw reads.
+         *
+         * @param buffers The buffers, in binding order, starting at binding zero.
+         * @param offsets Byte offset into each buffer.
+         */
+        void BindVertexBuffers(std::span<const BufferHandle> buffers, std::span<const uint64_t> offsets);
+
+        /**
+         * @brief Bind the index buffer a draw reads.
+         *
+         * @param buffer The index buffer.
+         * @param offset Byte offset to the first index.
+         * @param wide Whether the indices are 32-bit rather than 16-bit.
+         */
+        void BindIndexBuffer(BufferHandle buffer, uint64_t offset, bool wide);
+
+        /**
+         * @brief Set the viewport and the scissor rectangle a pass draws through.
+         *
+         * A pass covers one area; the viewport and the scissor say the same thing
+         * to two different parts of the pipeline, so they are set together.
+         *
+         * @param width Viewport width in pixels.
+         * @param height Viewport height in pixels.
+         * @param scissor The area fragments are kept within.
+         */
+        void SetViewport(float width, float height, const Rect2D &scissor);
+
+        /**
+         * @brief Record an indexed draw.
+         *
+         * @param index_count Number of indices to read.
+         * @param instance_count Number of instances.
+         * @param first_index Index to start at.
+         * @param vertex_offset Value added to every index before lookup.
+         * @param first_instance Instance to start at.
+         */
+        void DrawIndexed(
+            uint32_t index_count,
+            uint32_t instance_count,
+            uint32_t first_index,
+            int32_t vertex_offset,
+            uint32_t first_instance
+        );
+
+        /**
          * @brief Bind one descriptor set for compute work.
          *
          * @param set_index Index of the set in the pipeline layout.
@@ -188,6 +234,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMMANDENCODER_INCLUDED
+
 
 
 

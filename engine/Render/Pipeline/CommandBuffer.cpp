@@ -264,14 +264,7 @@ namespace Engine {
     // ── Viewport ────────────────────────────────────────────────────────────
 
     void CommandBuffer::SetupViewport(float vpWidth, float vpHeight, Rhi::Rect2D scissor) {
-        vk::Viewport vp;
-        vp.setWidth(vpWidth).setHeight(vpHeight);
-        vp.setX(0.0f).setY(0.0f);
-        vp.setMaxDepth(1.0f).setMinDepth(0.0f);
-
-        cb.setViewport(0, 1, &vp);
-        const vk::Rect2D vk_scissor{{scissor.offset.x, scissor.offset.y}, {scissor.extent.width, scissor.extent.height}};
-        cb.setScissor(0, 1, &vk_scissor);
+        m_encoder->SetViewport(vpWidth, vpHeight, scissor);
     }
 
     // ── Drawing ─────────────────────────────────────────────────────────────
@@ -288,33 +281,25 @@ namespace Engine {
         const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index, int32_t model_mat_index
     ) {
         auto bindings = mesh.GetVertexAttributeBufferBindings();
-        std::vector<vk::DeviceSize> offsets{};
-        std::vector<vk::Buffer> buffers{};
-        offsets.resize(bindings.size());
-        buffers.resize(bindings.size());
+        std::vector<Rhi::BufferHandle> buffers{};
+        std::vector<uint64_t> offsets{};
+        buffers.reserve(bindings.size());
+        offsets.reserve(bindings.size());
         for (size_t i = 0; i < bindings.size(); i++) {
-            offsets[i] = bindings[i].offset;
-            buffers[i] = Rhi::ToVulkanBuffer(bindings[i].buffer->GetBuffer());
+            offsets.push_back(bindings[i].offset);
+            buffers.push_back(bindings[i].buffer->GetBuffer());
         }
-
-        cb.bindVertexBuffers(0, buffers, offsets);
+        m_encoder->BindVertexBuffers(buffers, offsets);
         auto indices = mesh.GetIndexBufferBinding();
-        cb.bindIndexBuffer(Rhi::ToVulkanBuffer(indices.buffer->GetBuffer()), indices.offset, vk::IndexType::eUint32);
-
+        m_encoder->BindIndexBuffer(indices.buffer->GetBuffer(), indices.offset, true);
         struct {
             glm::mat4 m;
             int32_t i;
             int32_t mi;
         } push_constants{.m = model_matrix, .i = camera_index, .mi = model_mat_index};
 
-        cb.pushConstants(
-            m_bound_material_pipeline.value().second,
-            vk::ShaderStageFlagBits::eAllGraphics,
-            0,
-            sizeof(push_constants),
-            reinterpret_cast<const void *>(&push_constants)
-        );
-        cb.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0);
+        m_encoder->PushConstants(std::as_bytes(std::span{&push_constants, 1}));
+        m_encoder->DrawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0);
     }
 
     void CommandBuffer::DrawRenderers(const std::string &tag, const RendererList &renderers) {
