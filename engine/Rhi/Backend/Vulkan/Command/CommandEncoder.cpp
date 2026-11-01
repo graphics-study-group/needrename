@@ -24,6 +24,25 @@ namespace Engine::Rhi {
             return operation == StoreOperation::Store ? vk::AttachmentStoreOp::eStore
                                                        : vk::AttachmentStoreOp::eDontCare;
         }
+
+        /// @brief The stage a transition executes in, from the kind of work it separates.
+        ///
+        /// `Unspecified` is a pass that records no work of its own, so the widest
+        /// pair is the only safe answer. A named kind of work narrows it: a compute
+        /// dispatch or a copy does not have to wait for rasterisation to drain.
+        vk::PipelineStageFlags2 ToVkStage(PipelineScope scope) {
+            switch (scope) {
+            case PipelineScope::Transfer:
+                return vk::PipelineStageFlagBits2::eAllTransfer;
+            case PipelineScope::Compute:
+                return vk::PipelineStageFlagBits2::eComputeShader;
+            case PipelineScope::Graphics:
+                return vk::PipelineStageFlagBits2::eAllGraphics;
+            case PipelineScope::Unspecified:
+            default:
+                return vk::PipelineStageFlagBits2::eAllCommands;
+            }
+        }
     } // namespace
     /**
      * @brief The Vulkan encoder: one command buffer and the layout constants go to.
@@ -59,12 +78,9 @@ namespace Engine::Rhi {
 
     void CommandEncoder::Barrier(const ImageBarrier &barrier) {
         vk::ImageMemoryBarrier2 image_barrier{};
-        // The graph names accesses, not stages: every barrier it records separates
-        // whole passes, so the widest stage that can be affected is the correct one
-        // for both sides.
-        image_barrier.srcStageMask = vk::PipelineStageFlagBits2::eAllCommands;
+        image_barrier.srcStageMask = ToVkStage(barrier.from_scope);
         image_barrier.srcAccessMask = GetAccessFlags(barrier.from);
-        image_barrier.dstStageMask = vk::PipelineStageFlagBits2::eAllCommands;
+        image_barrier.dstStageMask = ToVkStage(barrier.to_scope);
         image_barrier.dstAccessMask = GetAccessFlags(barrier.to);
         image_barrier.oldLayout = GetImageLayout(barrier.from);
         image_barrier.newLayout = GetImageLayout(barrier.to);

@@ -325,6 +325,27 @@ namespace Engine::Rhi {
     };
 
     /**
+     * @brief What kind of work a transition separates.
+     *
+     * An access description says what a resource is read or written as; it does
+     * not say what kind of pass does the reading. A barrier needs both: a
+     * shadow-map atlas rewritten mid-frame is only ordered correctly if the
+     * transition knows that graphics work follows it, while a compute dispatch
+     * needs a narrower stage. `Unspecified` = "let the backend widen it", which is
+     * what a pass with no work of its own leaves behind.
+     */
+    enum class PipelineScope : uint8_t {
+        /// @brief The pass records no work of its own; the backend guesses.
+        Unspecified,
+        /// @brief Rasterisation, attachment and shader work.
+        Graphics,
+        /// @brief A compute dispatch.
+        Compute,
+        /// @brief A copy, upload or blit.
+        Transfer
+    };
+
+    /**
      * @brief One image's transition between two access descriptions.
      *
      * The part of the image is named explicitly because a pass may write one mip
@@ -348,6 +369,10 @@ namespace Engine::Rhi {
         MemoryAccessTypeImage from{};
         /// @brief How the image is accessed after this point.
         MemoryAccessTypeImage to{};
+        /// @brief The kind of work that wrote the image before this point.
+        PipelineScope from_scope{PipelineScope::Unspecified};
+        /// @brief The kind of work that reads the image after this point.
+        PipelineScope to_scope{PipelineScope::Unspecified};
     };
     /**
      * @brief A capability a format may or may not have on the current device.
