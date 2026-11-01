@@ -62,10 +62,10 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Scenario | Evidence |
 |---|---|
 | Address is stable while the window is open | **test**: `compute_buffer_test` takes the address twice and fails if it moved |
-| Address is invalidated by device use | **none yet** |
+| Address is invalidated by device use | **not applicable to Vulkan**: `BufferAllocation::GetVMAddress` maps on first access and `vmaUnmapMemory` only runs when the allocation is destroyed, so the address never changes. The scenario states the worst case a backend may have; WebGPU is where it can occur, and there it is unverified. |
 | Explicit flush publishes writes | **partially**: `compute_buffer_test` calls `Flush` over a range and over nothing, so the call is accepted; that a write is *visible* to the device after it is not asserted anywhere |
 | Implicit flush covers forgotten calls | **partially**: `compute_buffer_test` writes through the window without flushing every element and the dispatch reads the result correctly. That is weaker than it sounds - on host-coherent memory a flush is a no-op, so this shows the path works rather than that the implicit-flush step does anything. |
-| Vulkan keeps the window open | **none yet** |
+| Vulkan keeps the window open | **test**: `compute_buffer_test` calls `GetVMAddress` twice and requires the same pointer, which is exactly "no mapping or unmapping and the address remains the same" |
 | Refresh exposes completed device writes | **test**: `gpu_buffer_retirement_test` |
 | No torn state is observable | **none yet** |
 | Callback fires on completion | **test**: `mrt_test` (its readback callback runs) |
@@ -107,20 +107,29 @@ unchecked and the whole directory has to exist before any of these can run.
 
 They are worth separating, because they call for different work.
 
-**Blocked on an unbuilt backend (30).** Everything in `shader-wgsl-artifact` and
-`webgpu-backend`, plus the five cross-backend rows in `rhi-command-encoder`. Nothing
-can check these until group 7 and group 8 exist; writing a test now would test
-nothing.
+**Blocked on an unbuilt backend (26).** All nine in `shader-wgsl-artifact` and all
+seventeen in `webgpu-backend`. Nothing can check these until groups 7 and 8 exist;
+writing a test now would test nothing.
 
-**Verifiable today but not written (4).** These are the ones that should bother a
+**Needs both backends (2).** The two cross-backend rows in `rhi-command-encoder` -
+slice semantics and the WebGPU side of constants reaching the shader.
+
+**Not applicable to this backend (1).** `rhi-mapped-window`'s invalidation scenario,
+for the reason given in its row.
+
+**Verifiable today but not written (5).** These are the ones that should bother a
 reader:
 
 - *Web build contains no runtime shader compiler* - checkable by scanning the wasm
-  library's imports for glslang and SPIRV-Cross once the library is non-trivial.
-- Two in `rhi-mapped-window` (invalidation, implicit flush) - each needs a submission
-  whose completion is observed, which is a different shape from the checks above.
-- Four in `rhi-mapped-window` (address stability, invalidation, implicit flush,
-  registration not blocking) - each is a small focused test over an API that exists.
+  library's imports once it is non-trivial.
+- *Explicit flush publishes writes* and *Implicit flush covers forgotten calls* -
+  both are marked partially: the calls happen and the results are right, but on
+  host-coherent memory a flush is a no-op, so neither shows the flush step doing
+  anything. Proving it needs memory that is not coherent, or a deliberate fault
+  injected into the flush path.
+- *No torn state is observable* and *Product path never blocks* - both need a frame
+  loop whose timing is asserted, which is a different kind of test from everything
+  above.
 
 That second group is what a reviewer should look at first: it is the difference
 between "the design is not finished" and "the design says something the code does
@@ -146,6 +155,8 @@ one, because it costs every future run rather than one reader's attention.
 What the next attempt should try first: reproduce the setup from
 `compute_buffer_test` rather than from `buffer_reallocation_test`, because the
 former has a working `GetVMAddress()` call in it and the latter does not.
+
+
 
 
 
