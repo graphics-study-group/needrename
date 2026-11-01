@@ -139,16 +139,36 @@ int main() {
             guard_pass.color_attachments.push_back(guard_attachment);
 
             auto &encoder = rsys->GetFrameManager().GetMainEncoder();
+
+            // A mark inside the pass is refused.
             encoder.BeginRenderPass(guard_pass);
-            bool refused = false;
+            bool mark_refused = false;
             try {
                 encoder.Barrier();
             } catch (const std::logic_error &) {
-                refused = true;
+                mark_refused = true;
+            }
+            // A dispatch inside the pass is refused too: a pass is graphics work.
+            bool dispatch_refused = false;
+            try {
+                encoder.DispatchCompute(1, 1, 1);
+            } catch (const std::logic_error &) {
+                dispatch_refused = true;
             }
             encoder.EndRenderPass();
-            if (!refused) {
-                std::cerr << "Headless offscreen test FAILED: a mark inside a render pass was accepted." << std::endl;
+
+            // And a draw outside one is refused, for the same reason in reverse.
+            bool draw_refused = false;
+            try {
+                encoder.Draw(3, 1, 0, 0);
+            } catch (const std::logic_error &) {
+                draw_refused = true;
+            }
+
+            if (!mark_refused || !dispatch_refused || !draw_refused) {
+                std::cerr << "Headless offscreen test FAILED: a call was accepted in the wrong scope. "
+                          << "mark=" << mark_refused << " dispatch=" << dispatch_refused
+                          << " draw=" << draw_refused << std::endl;
                 return 1;
             }
         }

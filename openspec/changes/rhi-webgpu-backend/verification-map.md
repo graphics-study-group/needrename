@@ -40,8 +40,8 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Backend maps constants to its own mechanism | **test** on Vulkan (push constants); WebGPU: **none yet** |
 | Slice semantics are identical across backends | **none yet** (needs both) |
 | Distinct windows do not alias | **test**: `descriptor_arena_test` |
-| Draws are confined to the render scope | **none yet** |
-| Dispatch is confined outside the render scope | **none yet** |
+| Draws are confined to the render scope | **test**: `headless_offscreen_test` draws outside a pass and expects a `std::logic_error`; verified in both directions |
+| Dispatch is confined outside the render scope | **test**: same test dispatches inside a pass and expects the same |
 | Copy between two dispatches is ordered | **test**: `mrt_test` (readback after a dispatch) |
 
 ## `rhi-compute-kernel` — 6 scenarios
@@ -95,13 +95,13 @@ unchecked and the whole directory has to exist before any of these can run.
 | Spec | Total | Verified | Not verified |
 |---|---|---|---|
 | `rhi-backend-selection` | 10 | 9 | 1 |
-| `rhi-command-encoder` | 14 | 10 | 4 |
+| `rhi-command-encoder` | 14 | 12 | 2 |
 | `rhi-compute-kernel` | 6 | 6 | 0 |
 | `rhi-mapped-window` | 12 | 5 | 7 |
 | `submission-helper-sync` | 7 | 7 | 0 |
 | `shader-wgsl-artifact` | 9 | 0 | 9 |
 | `webgpu-backend` | 17 | 0 | 17 |
-| **Total** | **75** | **37** | **38** |
+| **Total** | **75** | **39** | **36** |
 
 ## The two kinds of "not verified"
 
@@ -112,11 +112,9 @@ They are worth separating, because they call for different work.
 can check these until group 7 and group 8 exist; writing a test now would test
 nothing.
 
-**Verifiable today but not written (8).** These are the ones that should bother a
+**Verifiable today but not written (6).** These are the ones that should bother a
 reader:
 
-- *Draws are confined to the render scope*, *Dispatch is confined outside it* - the
-  same shape: the seam states a rule it does not enforce.
 - *Web build contains no runtime shader compiler* - checkable by scanning the wasm
   library's imports for glslang and SPIRV-Cross once the library is non-trivial.
 - Four in `rhi-mapped-window` (address stability, invalidation, implicit flush,
@@ -125,6 +123,7 @@ reader:
 That second group is what a reviewer should look at first: it is the difference
 between "the design is not finished" and "the design says something the code does
 not do".
+
 
 
 

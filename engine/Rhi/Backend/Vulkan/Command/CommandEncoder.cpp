@@ -300,6 +300,9 @@ namespace Engine::Rhi {
         int32_t vertex_offset,
         uint32_t first_instance
     ) {
+        if (!pimpl->in_render_pass) {
+            throw std::logic_error("Draw outside a render pass: open one with BeginRenderPass first");
+        }
         pimpl->command_buffer.drawIndexed(
             index_count, instance_count, first_index, vertex_offset, first_instance
         );
@@ -308,6 +311,9 @@ namespace Engine::Rhi {
     void CommandEncoder::Draw(
         uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance
     ) {
+        if (!pimpl->in_render_pass) {
+            throw std::logic_error("Draw outside a render pass: open one with BeginRenderPass first");
+        }
         pimpl->command_buffer.draw(vertex_count, instance_count, first_vertex, first_instance);
     }
 
@@ -355,6 +361,9 @@ namespace Engine::Rhi {
     }
 
     void CommandEncoder::DispatchCompute(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) {
+        if (pimpl->in_render_pass) {
+            throw std::logic_error("Dispatch inside a render pass: end the pass first");
+        }
         pimpl->command_buffer.dispatch(group_count_x, group_count_y, group_count_z);
     }
 
