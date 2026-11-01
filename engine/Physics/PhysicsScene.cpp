@@ -5,7 +5,6 @@
 #include <Rhi/Submission/SubmissionHelper.h>
 
 #include <SDL3/SDL.h>
-#include <vulkan/vulkan.hpp>
 
 #include <algorithm>
 #include <cassert>

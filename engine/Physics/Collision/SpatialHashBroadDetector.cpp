@@ -8,7 +8,6 @@
 
 #include <Physics/PhysicsSpirvLoader.h>
 
-#include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsScene.h>
 #include <Rhi/Buffer/ComputeBuffer.h>

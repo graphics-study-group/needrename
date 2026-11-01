@@ -3,7 +3,6 @@
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <SDL3/SDL.h>
-#include <vulkan/vulkan.hpp>
 
 #include "PhysicsScene.h"
 #include "Solver/ISolver.h"

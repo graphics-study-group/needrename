@@ -1,6 +1,5 @@
 #include "XPBDGpuSolver.h"
 
-#include <vulkan/vulkan.hpp>
 
 #include <Physics/Collision/ConvexCollisionDetector.h>
 #include <Physics/Collision/SpatialHashBroadDetector.h>

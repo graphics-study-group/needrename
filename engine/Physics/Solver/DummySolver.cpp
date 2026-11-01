@@ -1,6 +1,5 @@
 #include "DummySolver.h"
 
-#include <vulkan/vulkan.hpp>
 
 #include <Physics/PhysicsDispatch.h>
 #include <Physics/PhysicsScene.h>

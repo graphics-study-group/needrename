@@ -1,6 +1,5 @@
 #include "ConvexCollisionDetector.h"
 
-#include <vulkan/vulkan.hpp>
 
 #include <Physics/Collision/SpatialHashBroadDetector.h>
 #include <Physics/PhysicsDispatch.h>

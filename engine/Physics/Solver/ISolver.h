@@ -25,7 +25,7 @@ namespace Engine {
      * records its dispatches, so there is no caller-visible phase before or
      * after it.
      *
-     * GPUStep receives the raw vk::CommandBuffer and records compute
+ * GPUStep receives the command encoder and records compute
      * dispatches directly — callers never access the solver's internal
      * resources.
      *
