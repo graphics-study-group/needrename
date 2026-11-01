@@ -7,7 +7,9 @@ Three kinds of evidence appear below, and they are not interchangeable:
 
 - **test** — a named entry in the suite; `ctest --preset msvc-debug -R <name>`. A few entries are the same binary with a flag rather than a separate source file: `compute_kernel_oversize_test` is `compute_kernel_test --oversize-push`, which is why no `*oversize*` executable exists.
 - **build** — the claim is enforced by something that fails to compile or link.
-- **none yet** — nothing checks it. A promise without evidence is a wish, and this
+- **inspection** - the claim was checked by reading the code, with the line numbers
+  given. Real evidence, not automated: a future change can invalidate it silently.
+- **none yet** - nothing checks it. A promise without evidence is a wish, and this
   file says so rather than leaving it implied.
 
 ## `rhi-backend-selection` — 10 scenarios
@@ -71,7 +73,7 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Callback fires on completion | **test**: `mrt_test` (its readback callback runs) |
 | Registration does not block | **test**: `mrt_test` times the call and fails above 100 ms; a blocking implementation waits for the frame's work, which is milliseconds |
 | Test reads results synchronously | **test**: `mrt_test`, `headless_offscreen_test` |
-| Product path never blocks | **none yet** |
+| Product path never blocks | **inspection**: `WaitForIdle` has exactly three call sites in the engine - `MainClass.cpp:72` during teardown and `:191`/`:202` after each frame loop ends. None is inside a frame. Not automated, so a future caller could add a fourth; the claim is about today. |
 | Actuator reads previous step state | **test**: `physics_app_actuator_unit_test` |
 
 ## `submission-helper-sync` — 7 scenarios
@@ -97,15 +99,16 @@ unchecked and the whole directory has to exist before any of these can run.
 | `rhi-backend-selection` | 10 | 9 | 1 |
 | `rhi-command-encoder` | 14 | 12 | 2 |
 | `rhi-compute-kernel` | 6 | 6 | 0 |
-| `rhi-mapped-window` | 12 | 7 | 5 |
+| `rhi-mapped-window` | 12 | 8 | 4 |
 | `submission-helper-sync` | 7 | 7 | 0 |
 | `shader-wgsl-artifact` | 9 | 0 | 9 |
 | `webgpu-backend` | 17 | 0 | 17 |
-| **Total** | **75** | **41** | **34** |
+| **Total** | **75** | **42** | **33** |
 
-## The two kinds of "not verified"
+## The four kinds of "not verified"
 
-They are worth separating, because they call for different work.
+They are worth separating, because they call for different work. The four add up to
+33, which is what the table above says.
 
 **Blocked on an unbuilt backend (26).** All nine in `shader-wgsl-artifact` and all
 seventeen in `webgpu-backend`. Nothing can check these until groups 7 and 8 exist;
@@ -117,7 +120,7 @@ slice semantics and the WebGPU side of constants reaching the shader.
 **Not applicable to this backend (1).** `rhi-mapped-window`'s invalidation scenario,
 for the reason given in its row.
 
-**Verifiable today but not written (5).** These are the ones that should bother a
+**Verifiable today but not written (4).** These are the ones that should bother a
 reader:
 
 - *Web build contains no runtime shader compiler* - checkable by scanning the wasm
@@ -127,9 +130,8 @@ reader:
   host-coherent memory a flush is a no-op, so neither shows the flush step doing
   anything. Proving it needs memory that is not coherent, or a deliberate fault
   injected into the flush path.
-- *No torn state is observable* and *Product path never blocks* - both need a frame
-  loop whose timing is asserted, which is a different kind of test from everything
-  above.
+- *No torn state is observable* - needs a frame loop whose timing is asserted, which is
+  a different kind of test from everything above.
 
 That second group is what a reviewer should look at first: it is the difference
 between "the design is not finished" and "the design says something the code does
@@ -155,6 +157,8 @@ one, because it costs every future run rather than one reader's attention.
 What the next attempt should try first: reproduce the setup from
 `compute_buffer_test` rather than from `buffer_reallocation_test`, because the
 former has a working `GetVMAddress()` call in it and the latter does not.
+
+
 
 
 
