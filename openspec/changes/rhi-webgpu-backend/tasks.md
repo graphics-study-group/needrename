@@ -59,7 +59,10 @@
     <tint>` bakes **40 of 42** modules: each gets a `.wgsl` and a `.iface.json` holding the
     stage, entry point, the constant block (set, binding, size) and every binding with its set,
     number, kind and name. The two failures are `algorithm/sum_by_key.comp` and its `_push`
-    twin, where Tint produces no WGSL; the bake names them and exits 2.
+    twin, where Tint reports "SPIR-V failed validation" and exits without WGSL. The
+    bake already strips non-semantic debug info before invoking the converter, so these two
+    fail on something else in the module - that is the next thing to look at, and it is a
+    converter limitation rather than a missing bake step.
   - **Two parts of the task are still missing.** The description carries no *variable offsets*,
     and no *combined-sampler split map* - the latter because no shader in either tree declares a
     combined binding, so there is nothing to split yet. And "loads on both runtimes from one
