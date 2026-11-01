@@ -49,7 +49,6 @@ namespace Engine::RenderSystemState {
 
     void CameraManager::Create() {
         const auto &allocator = m_system.GetAllocatorState();
-        auto device = m_system.GetDevice();
         auto &arena = m_system.GetDeviceContext().GetDescriptorArena();
 
         pimpl->camera_descriptor_set_layout =
@@ -91,21 +90,17 @@ namespace Engine::RenderSystemState {
         assert(pimpl->back_buffer);
 
         // Write out descriptors
-        std::vector<vk::DescriptorBufferInfo> buffers(
-            pimpl->descriptors.size(),
-            vk::DescriptorBufferInfo{Rhi::ToVulkanBuffer(pimpl->back_buffer->GetBuffer()), 0, pimpl->back_buffer->GetSliceSize()}
-        );
-        std::vector<vk::WriteDescriptorSet> writes(
-            pimpl->descriptors.size(),
-            vk::WriteDescriptorSet{nullptr, 0, 0, vk::DescriptorType::eUniformBuffer, {}, {}, {}}
-        );
+        // Write out descriptors
+        std::vector<Rhi::WriteDescriptorSet> writes(pimpl->descriptors.size());
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
-            buffers[i].offset = pimpl->back_buffer->GetSliceOffset(i);
-            writes[i].dstSet = Rhi::ToVulkanDescriptorSet(pimpl->descriptors[i]);
-            writes[i].descriptorCount = 1;
-            writes[i].pBufferInfo = &buffers[i];
+            writes[i].set = pimpl->descriptors[i];
+            writes[i].binding = 0;
+            writes[i].type = Rhi::DescriptorType::UniformBuffer;
+            writes[i].buffer = pimpl->back_buffer->GetBuffer();
+            writes[i].offset = pimpl->back_buffer->GetSliceOffset(i);
+            writes[i].range = pimpl->back_buffer->GetSliceSize();
         }
-        device.updateDescriptorSets(writes, {});
+        m_system.GetDeviceContext().UpdateDescriptorSets(writes);
     }
     void CameraManager::WriteCameraMatrices(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix) {
         this->WriteCameraMatrices(this->GetActiveCameraIndex(), view_matrix, projection_matrix);
