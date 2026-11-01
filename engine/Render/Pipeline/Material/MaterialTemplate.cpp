@@ -69,8 +69,31 @@ namespace Engine {
                 }
             }
 
-            auto vertex_bindings = pri.va.ToVkVertexInputBinding();
-            auto vertex_attribute = pri.va.ToVkVertexAttribute();
+            const auto portable_bindings = pri.va.ToVertexInputBinding();
+            const auto portable_attributes = pri.va.ToVertexInputAttribute();
+            std::vector<vk::VertexInputBindingDescription> vertex_bindings;
+            vertex_bindings.reserve(portable_bindings.size());
+            for (const Rhi::VertexBinding &binding : portable_bindings) {
+                vertex_bindings.push_back(
+                    vk::VertexInputBindingDescription{
+                        static_cast<uint32_t>(vertex_bindings.size()),
+                        binding.stride,
+                        binding.per_instance ? vk::VertexInputRate::eInstance : vk::VertexInputRate::eVertex
+                    }
+                );
+            }
+            std::vector<vk::VertexInputAttributeDescription> vertex_attribute;
+            vertex_attribute.reserve(portable_attributes.size());
+            for (const Rhi::VertexAttributeDescription &attribute : portable_attributes) {
+                vertex_attribute.push_back(
+                    vk::VertexInputAttributeDescription{
+                        attribute.location,
+                        attribute.binding,
+                        Rhi::GetVkVertexFormat(attribute.format),
+                        attribute.offset
+                    }
+                );
+            }
             auto vis = vk::PipelineVertexInputStateCreateInfo{
                 vk::PipelineVertexInputStateCreateFlags{}, vertex_bindings, vertex_attribute
             };
@@ -203,6 +226,7 @@ namespace Engine {
         return pimpl->m_has_material_data;
     }
 } // namespace Engine
+
 
 
 

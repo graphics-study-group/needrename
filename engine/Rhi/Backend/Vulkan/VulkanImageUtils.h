@@ -1,6 +1,7 @@
 #ifndef ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
 #define ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
 
+#include "Rhi/Pipeline/PipelineDescription.h"
 #include "Rhi/Texture/ImageUtils.h"
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
@@ -73,8 +74,51 @@ namespace Engine::Rhi {
             return vk::Format::eR32G32B32A32Sfloat;
         case ImageFormat::D32SFLOAT:
             return vk::Format::eD32Sfloat;
+        case ImageFormat::R32SFloat:
+            return vk::Format::eR32Sfloat;
+        case ImageFormat::R32G32SFloat:
+            return vk::Format::eR32G32Sfloat;
+        case ImageFormat::R32G32B32SFloat:
+            return vk::Format::eR32G32B32Sfloat;
+        case ImageFormat::R32UInt:
+            return vk::Format::eR32Uint;
+        case ImageFormat::R16G16UInt:
+            return vk::Format::eR16G16Uint;
+        case ImageFormat::R8G8B8A8UInt:
+            return vk::Format::eR8G8B8A8Uint;
+        case ImageFormat::B8G8R8A8UNorm:
+            return vk::Format::eB8G8R8A8Unorm;
+        case ImageFormat::B8G8R8A8SRGB:
+            return vk::Format::eB8G8R8A8Srgb;
+        case ImageFormat::R8G8B8UNorm:
+            return vk::Format::eR8G8B8Unorm;
+        case ImageFormat::R8G8B8SRGB:
+            return vk::Format::eR8G8B8Srgb;
         }
         return vk::Format::eUndefined;
+    }
+
+    /// @brief Convert a portable vertex format to the Vulkan format that carries it.
+    constexpr vk::Format GetVkVertexFormat(VertexFormat format) {
+        switch (format) {
+        case VertexFormat::Float32x1:
+            return vk::Format::eR32Sfloat;
+        case VertexFormat::Float32x2:
+            return vk::Format::eR32G32Sfloat;
+        case VertexFormat::Float32x3:
+            return vk::Format::eR32G32B32Sfloat;
+        case VertexFormat::Float32x4:
+            return vk::Format::eR32G32B32A32Sfloat;
+        case VertexFormat::UInt8x4:
+            return vk::Format::eR8G8B8A8Uint;
+        case VertexFormat::UInt16x2:
+            return vk::Format::eR16G16Uint;
+        case VertexFormat::UInt32x1:
+            return vk::Format::eR32Uint;
+        case VertexFormat::Undefined:
+        default:
+            return vk::Format::eUndefined;
+        }
     }
 
     constexpr ImageFormat FromVkFormat(vk::Format format) {
@@ -91,6 +135,26 @@ namespace Engine::Rhi {
             return ImageFormat::R32G32B32A32SFloat;
         case vk::Format::eD32Sfloat:
             return ImageFormat::D32SFLOAT;
+        case vk::Format::eR32Sfloat:
+            return ImageFormat::R32SFloat;
+        case vk::Format::eR32G32Sfloat:
+            return ImageFormat::R32G32SFloat;
+        case vk::Format::eR32G32B32Sfloat:
+            return ImageFormat::R32G32B32SFloat;
+        case vk::Format::eR32Uint:
+            return ImageFormat::R32UInt;
+        case vk::Format::eR16G16Uint:
+            return ImageFormat::R16G16UInt;
+        case vk::Format::eR8G8B8A8Uint:
+            return ImageFormat::R8G8B8A8UInt;
+        case vk::Format::eB8G8R8A8Unorm:
+            return ImageFormat::B8G8R8A8UNorm;
+        case vk::Format::eB8G8R8A8Srgb:
+            return ImageFormat::B8G8R8A8SRGB;
+        case vk::Format::eR8G8B8Unorm:
+            return ImageFormat::R8G8B8UNorm;
+        case vk::Format::eR8G8B8Srgb:
+            return ImageFormat::R8G8B8SRGB;
         default:
             return ImageFormat::UNDEFINED;
         }
@@ -269,5 +333,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
+
+
 
 

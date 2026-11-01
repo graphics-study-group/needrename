@@ -36,6 +36,26 @@ namespace Engine::Rhi {
         R32G32B32A32SFloat,
         /// 32 bit floating point depth buffer.
         D32SFLOAT,
+        /// R32 image as a single precision floating point.
+        R32SFloat,
+        /// R32-G32 image as single precision floating points.
+        R32G32SFloat,
+        /// R32-G32-B32 image as single precision floating points.
+        R32G32B32SFloat,
+        /// R32 image as an unsigned integer.
+        R32UInt,
+        /// R16-G16 image as unsigned integers.
+        R16G16UInt,
+        /// R8-G8-B8-A8 image as unsigned integers.
+        R8G8B8A8UInt,
+        /// B8-G8-R8-A8 image as unsigned normalized real numbers.
+        B8G8R8A8UNorm,
+        /// B8-G8-R8-A8 image in sRGB space.
+        B8G8R8A8SRGB,
+        /// R8-G8-B8 image as unsigned normalized real numbers.
+        R8G8B8UNorm,
+        /// R8-G8-B8 image in sRGB space.
+        R8G8B8SRGB,
     };
 
     /// @brief Description of a texture
@@ -128,3 +148,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMAGEUTILS_INCLUDED
+

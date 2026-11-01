@@ -2,15 +2,10 @@
 #define RENDER_PIPELINE_RENDERER_VERTEXATTRIBUTE_INCLUDED
 
 #include "Render/render_export.h"
+#include "Rhi/Pipeline/PipelineDescription.h"
 #include <cstdint>
 #include <vector>
 
-namespace vk {
-    enum class Format;
-
-    class VertexInputBindingDescription;
-    class VertexInputAttributeDescription;
-} // namespace vk
 
 namespace Engine {
     namespace Rhi {
@@ -115,7 +110,7 @@ namespace Engine {
          * The input rate is set to per vertex.
          * The binding numbers are guranteed to be contingous and increasing.
          */
-        std::vector<vk::VertexInputBindingDescription> ToVkVertexInputBinding() const noexcept;
+        std::vector<Rhi::VertexBinding> ToVertexInputBinding() const noexcept;
 
         /**
          * @brief Generate a vertex input attribute description from the
@@ -124,14 +119,14 @@ namespace Engine {
          * The location of each attribute will be identical to its underlying
          * enum integer (i.e 1 for `Normal`), and its bindings will be contingous
          * and increasing, corresponding to the ones returned by
-         * `ToVkVertexInputBinding`.
+         * `ToVertexInputBinding`.
          * Offsets are set to zero, and true offsets of the attributes into the
          * underlying buffer will be determined at bind time.
          *
          * @param allocator a pointer to the allocator to check format limits.
          * Pass null to ignore the checks.
          */
-        std::vector<vk::VertexInputAttributeDescription> ToVkVertexAttribute(
+        std::vector<Rhi::VertexAttributeDescription> ToVertexInputAttribute(
             Rhi::AllocatorState *allocator = nullptr
         ) const noexcept;
 
@@ -180,3 +175,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDER_PIPELINE_RENDERER_VERTEXATTRIBUTE_INCLUDED
+

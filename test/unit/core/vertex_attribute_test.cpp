@@ -1,11 +1,12 @@
+#include <cassert>
+#include <format>
 #include <iostream>
-#include <vulkan/vulkan.hpp>
 
 #include "Render/Pipeline/Renderer/VertexAttribute.h"
 
 using namespace Engine;
 
-void Print(const std::vector<vk::VertexInputAttributeDescription> &desc) {
+void Print(const std::vector<Rhi::VertexAttributeDescription> &desc) {
     for (size_t i = 0; i < desc.size(); i++) {
         const auto &d = desc[i];
         std::cout << std::format(
@@ -17,13 +18,13 @@ void Print(const std::vector<vk::VertexInputAttributeDescription> &desc) {
             i,
             d.location,
             d.binding,
-            to_string(d.format),
+            static_cast<uint32_t>(d.format),
             d.offset
         ) << std::endl;
     }
 }
 
-void Print(const std::vector<vk::VertexInputBindingDescription> &desc) {
+void Print(const std::vector<Rhi::VertexBinding> &desc) {
     for (size_t i = 0; i < desc.size(); i++) {
         const auto &d = desc[i];
         std::cout << std::format(
@@ -32,9 +33,9 @@ void Print(const std::vector<vk::VertexInputBindingDescription> &desc) {
             "\tstride\t\t{}\n"
             "\trate\t\t{}",
             i,
-            d.binding,
+            static_cast<uint32_t>(d.per_instance ? 1 : 0),
             d.stride,
-            to_string(d.inputRate)
+            d.per_instance ? "instance" : "vertex"
         ) << std::endl;
     }
 }
@@ -49,8 +50,8 @@ int main() {
     assert(attribute.GetAttribute(VertexAttributeSemantic::BoneIndices) == VertexAttributeType::Uint16x2);
     assert(attribute.GetAttribute(VertexAttributeSemantic::BoneWeights) == VertexAttributeType::SFloat32x2);
 
-    Print(attribute.ToVkVertexInputBinding());
-    Print(attribute.ToVkVertexAttribute());
+    Print(attribute.ToVertexInputBinding());
+    Print(attribute.ToVertexInputAttribute());
 
     std::cout << "Total size: " << attribute.GetTotalPerVertexSize() << std::endl;
     auto offsets = attribute.EnumerateOffsetFactor();
@@ -61,3 +62,6 @@ int main() {
     }
     std::cout << std::endl;
 }
+
+
+
