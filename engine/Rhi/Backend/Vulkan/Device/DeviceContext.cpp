@@ -1,5 +1,8 @@
 #include "Rhi/Device/DeviceContext.h"
 
+#include <functional>
+#include <vector>
+
 #include <stdexcept>
 
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
@@ -30,21 +33,44 @@ namespace {
 #include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
-    DeviceContext::DeviceContext(DeviceInterface::DeviceConfiguration cfg) :
-        m_device_interface(std::make_unique<DeviceInterface>(std::move(cfg))) {
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(ToVulkanInstance(m_device_interface->GetInstance()), ::vkGetInstanceProcAddr);
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(ToVulkanDevice(m_device_interface->GetDevice()));
+    struct DeviceContext::impl {
+        /// Declared first: everything below reads the device through it.
+        std::unique_ptr<DeviceInterface> device_interface{};
+        std::unique_ptr<AllocatorState> allocator_state{};
+        DeviceCapabilities capabilities{};
+        std::unique_ptr<ImmutableResourceCache> immutable_resource_cache{};
+        /// Declared after the device and the resource cache because its pools hold
+        /// device objects.
+        std::unique_ptr<DescriptorArena> descriptor_arena{};
+        /// Declared after the resource cache and the arena because a kernel owns a
+        /// pipeline and a pipeline layout.
+        std::unique_ptr<ComputeKernelCache> compute_kernel_cache{};
+        /// Declared last so that it is destroyed first: releasing the resources still
+        /// parked in it needs the allocator and the device to be alive.
+        std::unique_ptr<EpochTracker> epoch_tracker{};
+        /// Completion callbacks waiting on the fence that will signal them.
+        struct PendingCompletion {
+            vk::Fence fence{nullptr};
+            std::function<void()> callback{};
+        };
+        std::vector<PendingCompletion> pending_completions{};
+    };
 
-        m_immutable_resource_cache = std::make_unique<ImmutableResourceCache>(m_device_interface->GetDevice());
-        m_allocator_state = std::make_unique<AllocatorState>(*m_device_interface);
-        m_epoch_tracker = std::make_unique<EpochTracker>(m_device_interface->GetDevice());
+    DeviceContext::DeviceContext(DeviceInterface::DeviceConfiguration cfg) : pimpl(std::make_unique<impl>()) {
+        pimpl->device_interface = std::make_unique<DeviceInterface>(std::move(cfg));
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(ToVulkanInstance(pimpl->device_interface->GetInstance()), ::vkGetInstanceProcAddr);
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(ToVulkanDevice(pimpl->device_interface->GetDevice()));
+
+        pimpl->immutable_resource_cache = std::make_unique<ImmutableResourceCache>(pimpl->device_interface->GetDevice());
+        pimpl->allocator_state = std::make_unique<AllocatorState>(*pimpl->device_interface);
+        pimpl->epoch_tracker = std::make_unique<EpochTracker>(pimpl->device_interface->GetDevice());
         // The arena reads the tracker, so the tracker must exist first.
-        m_descriptor_arena = std::make_unique<DescriptorArena>(*this);
-        m_compute_kernel_cache = std::make_unique<ComputeKernelCache>(*this);
+        pimpl->descriptor_arena = std::make_unique<DescriptorArena>(*this);
+        pimpl->compute_kernel_cache = std::make_unique<ComputeKernelCache>(*this);
 
         const vk::PhysicalDeviceLimits limits =
-            ToVulkanPhysicalDevice(m_device_interface->GetPhysicalDevice()).getProperties().limits;
-        m_capabilities = DeviceCapabilities{
+            ToVulkanPhysicalDevice(pimpl->device_interface->GetPhysicalDevice()).getProperties().limits;
+        pimpl->capabilities = DeviceCapabilities{
             .max_push_constant_bytes = limits.maxPushConstantsSize,
             .uniform_buffer_offset_alignment = limits.minUniformBufferOffsetAlignment,
             .max_storage_buffer_range = limits.maxStorageBufferRange,
@@ -53,59 +79,59 @@ namespace Engine::Rhi {
         };
         // Install the tracker as the allocator's retire sink: from here on every
         // buffer allocated through this context is retire-safe by construction.
-        m_allocator_state->SetRetireSink(m_epoch_tracker.get());
+        pimpl->allocator_state->SetRetireSink(pimpl->epoch_tracker.get());
     }
 
     DeviceContext::~DeviceContext() = default;
 
     const DeviceCapabilities &DeviceContext::GetCapabilities() const noexcept {
-        return m_capabilities;
+        return pimpl->capabilities;
     }
 
     DeviceInterface &DeviceContext::GetDeviceInterface() noexcept {
-        return *m_device_interface;
+        return *pimpl->device_interface;
     }
 
     const DeviceInterface &DeviceContext::GetDeviceInterface() const noexcept {
-        return *m_device_interface;
+        return *pimpl->device_interface;
     }
 
     AllocatorState &DeviceContext::GetAllocatorState() noexcept {
-        return *m_allocator_state;
+        return *pimpl->allocator_state;
     }
 
     const AllocatorState &DeviceContext::GetAllocatorState() const noexcept {
-        return *m_allocator_state;
+        return *pimpl->allocator_state;
     }
 
     ImmutableResourceCache &DeviceContext::GetIRCache() noexcept {
-        return *m_immutable_resource_cache;
+        return *pimpl->immutable_resource_cache;
     }
 
     const ImmutableResourceCache &DeviceContext::GetIRCache() const noexcept {
-        return *m_immutable_resource_cache;
+        return *pimpl->immutable_resource_cache;
     }
 
     DescriptorArena &DeviceContext::GetDescriptorArena() noexcept {
-        return *m_descriptor_arena;
+        return *pimpl->descriptor_arena;
     }
 
     const DescriptorArena &DeviceContext::GetDescriptorArena() const noexcept {
-        return *m_descriptor_arena;
+        return *pimpl->descriptor_arena;
     }
 
     ComputeKernelCache &DeviceContext::GetComputeKernelCache() noexcept {
-        return *m_compute_kernel_cache;
+        return *pimpl->compute_kernel_cache;
     }
 
     const ComputeKernelCache &DeviceContext::GetComputeKernelCache() const noexcept {
-        return *m_compute_kernel_cache;
+        return *pimpl->compute_kernel_cache;
     }
 
     ComputeKernel &DeviceContext::RequestComputeKernel(
         std::string_view module_id, const std::vector<uint32_t> &spirv_code, std::string_view debug_name
     ) {
-        return m_compute_kernel_cache->Request(module_id, spirv_code, debug_name);
+        return pimpl->compute_kernel_cache->Request(module_id, spirv_code, debug_name);
     }
 
     ComputeKernel &DeviceContext::RequestComputeKernelFromModule(
@@ -120,28 +146,48 @@ namespace Engine::Rhi {
     }
 
     ComputeKernel *DeviceContext::FindComputeKernel(std::string_view module_id) noexcept {
-        return m_compute_kernel_cache->Find(module_id);
+        return pimpl->compute_kernel_cache->Find(module_id);
     }
 
     EpochTracker &DeviceContext::GetEpochTracker() noexcept {
-        return *m_epoch_tracker;
+        return *pimpl->epoch_tracker;
     }
 
     const EpochTracker &DeviceContext::GetEpochTracker() const noexcept {
-        return *m_epoch_tracker;
+        return *pimpl->epoch_tracker;
     }
 
     DeviceHandle DeviceContext::GetDevice() const noexcept {
-        return m_device_interface->GetDevice();
+        return pimpl->device_interface->GetDevice();
+    }
+
+    void DeviceContext::PumpCompletions() {
+        // Called from every place that already observes completion: a wait, an idle,
+        // and the frame fence. It runs only the callbacks whose fence has signalled,
+        // so a caller that waits gets them in the wait and one that does not gets
+        // them at the next pump.
+        auto itr = pimpl->pending_completions.begin();
+        while (itr != pimpl->pending_completions.end()) {
+            if (itr->fence != nullptr
+                && ToVulkanDevice(pimpl->device_interface->GetDevice()).getFenceStatus(itr->fence)
+                       == vk::Result::eSuccess) {
+                std::function<void()> callback = std::move(itr->callback);
+                itr = pimpl->pending_completions.erase(itr);
+                callback();
+            } else {
+                ++itr;
+            }
+        }
     }
 
     void DeviceContext::WaitForIdle() {
-        ToVulkanDevice(m_device_interface->GetDevice()).waitIdle();
+        PumpCompletions();
+        ToVulkanDevice(pimpl->device_interface->GetDevice()).waitIdle();
         // What was already parked can go: a device-idle wait proves that every
         // submission finished, not that a live resource has no owner.
-        m_epoch_tracker->ReleaseAllParked();
+        pimpl->epoch_tracker->ReleaseAllParked();
         // What the arena adds: entries become eligible, but nothing is released.
-        m_descriptor_arena->OnDeviceIdle();
+        pimpl->descriptor_arena->OnDeviceIdle();
     }
 
     void DeviceContext::UpdateDescriptorSets(std::span<const WriteDescriptorSet> writes) {
@@ -202,17 +248,17 @@ namespace Engine::Rhi {
             vk_writes.push_back(vk_write);
         }
 
-        ToVulkanDevice(m_device_interface->GetDevice()).updateDescriptorSets(vk_writes, {});
+        ToVulkanDevice(pimpl->device_interface->GetDevice()).updateDescriptorSets(vk_writes, {});
     }
     bool DeviceContext::WaitForFence(FenceHandle fence, uint64_t timeout_ns) {
         const vk::Result result =
-            ToVulkanDevice(m_device_interface->GetDevice()).waitForFences({ToVulkanFence(fence)}, vk::True, timeout_ns);
+            ToVulkanDevice(pimpl->device_interface->GetDevice()).waitForFences({ToVulkanFence(fence)}, vk::True, timeout_ns);
         return result == vk::Result::eSuccess;
     }
 
     void DeviceContext::SignalSemaphore(const TimelineSignal &signal) {
         const vk::SemaphoreSignalInfo info{ToVulkanSemaphore(signal.semaphore), signal.value};
-        ToVulkanDevice(m_device_interface->GetDevice()).signalSemaphore(info);
+        ToVulkanDevice(pimpl->device_interface->GetDevice()).signalSemaphore(info);
     }
 
     void DeviceContext::Submit(const Submission &submission, FenceHandle fence) {
@@ -246,9 +292,11 @@ namespace Engine::Rhi {
         const vk::SubmitInfo2 info{vk::SubmitFlags{}, waits, command_buffers, signals};
 
         const vk::Fence submit_fence = fence.IsValid() ? ToVulkanFence(fence) : nullptr;
-        m_device_interface->GetQueueInfo().graphicsQueue.submit2(info, submit_fence);
+        pimpl->device_interface->GetQueueInfo().graphicsQueue.submit2(info, submit_fence);
     }
 } // namespace Engine::Rhi
+
+
 
 
 

@@ -33,23 +33,20 @@ namespace Engine::Rhi {
      * @note Movable but non-copyable.
      */
     class RHI_API DeviceContext {
-        std::unique_ptr<DeviceInterface> m_device_interface;
-        std::unique_ptr<AllocatorState> m_allocator_state;
-        DeviceCapabilities m_capabilities{};
-        std::unique_ptr<ImmutableResourceCache> m_immutable_resource_cache;
-        /// @note Declared after the device and the resource cache because its
-        /// pools hold device objects, and before the tracker it reads so that
-        /// the ledger is torn down first.
-        std::unique_ptr<DescriptorArena> m_descriptor_arena;
-        /// @note Declared after the resource cache and the arena because a
-        /// kernel owns a pipeline and a pipeline layout, and names a
-        /// descriptor-set layout the arena resolved and the resource cache
-        /// owns; declaring it here destroys the kernels *before* them.
-        std::unique_ptr<ComputeKernelCache> m_compute_kernel_cache;
-        /// @note Declared last so that it is destroyed *first*: releasing the
-        /// resources still parked in the tracker needs the allocator and the
-        /// device to be alive.
-        std::unique_ptr<EpochTracker> m_epoch_tracker;
+        /**
+         * @brief What this backend hangs off the seam's device.
+         *
+         * Declared here and defined in the backend's own translation unit, so that
+         * this header names no backend object - and so that a member the backend
+         * needs, such as a pending completion keyed on a fence, has somewhere to live
+         * without appearing in the interface.
+         *
+         * The destruction order inside it is load-bearing: the tracker is declared
+         * last so that it goes first, because releasing the resources parked in it
+         * needs the allocator and the device to still be alive.
+         */
+        struct impl;
+        std::unique_ptr<impl> pimpl;
 
     public:
         /**
@@ -198,6 +195,15 @@ namespace Engine::Rhi {
         bool WaitForFence(FenceHandle fence, uint64_t timeout_ns);
 
         /**
+         * @brief Run the completion callbacks whose submissions have finished.
+         *
+         * A backend with completion callbacks runs them itself. This one observes
+         * completion through fences, so it calls this from every place that already
+         * looks at one - which is why a caller never has to schedule it.
+         */
+        void PumpCompletions();
+
+        /**
          * @brief Signal a timeline semaphore from the host.
          *
          * A frame loop that has not submitted anything yet still has to give the
@@ -211,6 +217,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_DEVICECONTEXT_INCLUDED
+
 
 
 
