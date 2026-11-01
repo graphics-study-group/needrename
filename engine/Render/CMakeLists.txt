@@ -1,4 +1,15 @@
-file(GLOB_RECURSE SOURCE "./*.cpp")
+# Only the selected backend is compiled. Everything outside Backend/ is shared.
+file(GLOB_RECURSE RENDER_ALL_SOURCES "./*.cpp")
+set(SOURCE "")
+foreach(_src IN LISTS RENDER_ALL_SOURCES)
+    if (ENGINE_RHI_BACKEND_VULKAN AND _src MATCHES "/Backend/WebGPU/")
+        continue()
+    endif()
+    if (ENGINE_RHI_BACKEND_WEBGPU AND _src MATCHES "/Backend/Vulkan/")
+        continue()
+    endif()
+    list(APPEND SOURCE "${_src}")
+endforeach()
 file(GLOB_RECURSE HEADER_PRIVATE "./*.hpp")
 
 add_library(EngineRender SHARED ${SOURCE})
