@@ -61,9 +61,9 @@ Three kinds of evidence appear below, and they are not interchangeable:
 
 | Scenario | Evidence |
 |---|---|
-| Address is stable while the window is open | **none yet** |
+| Address is stable while the window is open | **test**: `compute_buffer_test` takes the address twice and fails if it moved |
 | Address is invalidated by device use | **none yet** |
-| Explicit flush publishes writes | partially: `model_matrices_initialization_test` writes through the buffer |
+| Explicit flush publishes writes | **partially**: `compute_buffer_test` calls `Flush` over a range and over nothing, so the call is accepted; that a write is *visible* to the device after it is not asserted anywhere |
 | Implicit flush covers forgotten calls | **none yet** |
 | Vulkan keeps the window open | **none yet** |
 | Refresh exposes completed device writes | **test**: `gpu_buffer_retirement_test` |
@@ -97,11 +97,11 @@ unchecked and the whole directory has to exist before any of these can run.
 | `rhi-backend-selection` | 10 | 9 | 1 |
 | `rhi-command-encoder` | 14 | 12 | 2 |
 | `rhi-compute-kernel` | 6 | 6 | 0 |
-| `rhi-mapped-window` | 12 | 5 | 7 |
+| `rhi-mapped-window` | 12 | 6 | 6 |
 | `submission-helper-sync` | 7 | 7 | 0 |
 | `shader-wgsl-artifact` | 9 | 0 | 9 |
 | `webgpu-backend` | 17 | 0 | 17 |
-| **Total** | **75** | **39** | **36** |
+| **Total** | **75** | **40** | **35** |
 
 ## The two kinds of "not verified"
 
@@ -112,11 +112,13 @@ They are worth separating, because they call for different work.
 can check these until group 7 and group 8 exist; writing a test now would test
 nothing.
 
-**Verifiable today but not written (6).** These are the ones that should bother a
+**Verifiable today but not written (5).** These are the ones that should bother a
 reader:
 
 - *Web build contains no runtime shader compiler* - checkable by scanning the wasm
   library's imports for glslang and SPIRV-Cross once the library is non-trivial.
+- Three in `rhi-mapped-window` (invalidation, implicit flush, registration not
+  blocking) - each is a small focused test over an API that exists.
 - Four in `rhi-mapped-window` (address stability, invalidation, implicit flush,
   registration not blocking) - each is a small focused test over an API that exists.
 
@@ -144,3 +146,4 @@ one, because it costs every future run rather than one reader's attention.
 What the next attempt should try first: reproduce the setup from
 `compute_buffer_test` rather than from `buffer_reallocation_test`, because the
 former has a working `GetVMAddress()` call in it and the latter does not.
+

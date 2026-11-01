@@ -59,6 +59,22 @@ int main(int argc, char *argv[]) {
     std::random_device seed_rd{};
     std::mt19937 mt{seed_rd()};
     std::uniform_real_distribution<float> urd{};
+
+    // The mapped window keeps one address while it stays open. A caller holds the
+    // span across a frame; if the address moved per call, every cached pointer
+    // would dangle. Stated as a check rather than assumed, because the contract
+    // says it and nothing was testing it.
+    {
+        float *first = compbuf1->GetVMAddress().data();
+        float *second = compbuf1->GetVMAddress().data();
+        if (first != second) {
+            std::cerr << "Compute buffer test FAILED: the mapped window moved between calls." << std::endl;
+            return 1;
+        }
+        // And an explicit flush over a range is accepted.
+        compbuf1->GetComputeBuffer().Flush(0, sizeof(float));
+    }
+
     for (auto &f : compbuf1->GetVMAddress()) {
         f = urd(mt);
         std::cout << f << " ";
