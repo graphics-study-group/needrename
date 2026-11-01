@@ -278,9 +278,16 @@ Three ways out, and they are not equivalent:
 3. **Keep a `Fence` object** rather than a raw fence, since `Rhi::Fence` already owns one
    and hands out a handle. That is the seam's own type and this is what it is for.
 
-The third is the smallest and the most consistent with the rest of the seam; the first is
-what the class probably wants eventually. Either way it is a decision about
-`DeviceContext`'s shape, which is the same question the port stopped on two rounds ago.
+The third was tried, as `std::unique_ptr<PendingCompletion>` with the entry defined per
+backend. It does not work: `unique_ptr` needs a complete type at destruction, so the
+destructor has to live where the definition is - and that makes a public class member whose
+type each backend defines, which is the same leak in a different form.
+
+So the answer is the first: `DeviceContext` needs a pimpl. That is what the class wants
+anyway - it holds six owning members today and one more is a seventh - and it makes the
+header name no backend object at all, including in the destructor. It is a change to a type
+every backend unit touches, which is why it is a decision rather than a patch.
 
 So the contract is stated and the implementation waits for that decision - stated in the
 type, not hidden in a task list.
+
