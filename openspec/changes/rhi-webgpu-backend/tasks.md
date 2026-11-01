@@ -674,3 +674,34 @@ Three next steps, in the order that costs least:
    group 3's; they should move with it.
 
 After (1) and (2), tasks 3.2 and 3.3 can be checked, which unblocks 5.4.
+
+### Pipeline-layout description: the design is settled, the four call sites are not
+
+The description type compiles on its own and the cache implementation was
+written and built cleanly:
+
+```cpp
+struct PushConstantRange { uint32_t offset{0}; uint32_t size{0}; bool compute{false}; };
+struct PipelineLayoutDescription {
+    std::vector<DescriptorSetLayoutHandle> set_layouts;
+    std::vector<PushConstantRange> push_constant_ranges;
+};
+PipelineLayoutHandle GetPipelineLayout(const PipelineLayoutDescription &, const char *name);
+```
+
+`ImmutableResourceCache::GetPipelineLayout` builds the
+`vk::PipelineLayoutCreateInfo` from it — the same shape as the descriptor-set
+layout conversion that is already in place.
+
+What is left is the four call sites, and they are awkward in one specific way:
+each holds its set layouts as **local `vk::DescriptorSetLayout` values**
+(`scene_descriptors`, `camera_descriptors`, a captured `pimpl->..._layout`), so
+the description has to be assembled from `FromVulkan(...)` conversions of those
+locals *and* from handles that are already portable. Two of them
+(`MaterialLibrary`, both branches) also differ by whether the material set is
+present, so they cannot share one replacement text.
+
+Practical order for the next attempt: convert `CameraManager` first (one site,
+two layouts, no branching), build, then `SceneDataManager` (one site), then the
+two `MaterialLibrary` branches. Each is two or three edits and one build, and the
+type work is already done.
