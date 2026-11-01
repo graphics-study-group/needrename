@@ -957,3 +957,36 @@ One thing learned the hard way: `FullRenderSystem.h` is both the public interfac
 header and the module's precompiled header. Removing its Vulkan includes makes
 every unit in the module fail at once, because it was the only thing bringing
 them in. It is the last header to change, not the first.
+### What is left in engine/Render is four decisions, not 306 substitutions
+
+The migration has reached the point where the remaining sites stop being
+replaceable. Measured now: 306 in the shared layer, 139 already behind
+`Render/Backend/Vulkan`, and each remaining file needs one of four things the
+seam does not have yet. Doing them as type swaps would produce code that
+compiles and renders differently - the pipeline-description step already proved
+that, when a dropped `gpci.layout` cost twelve tests.
+
+1. **Resource-state transitions** — `RenderGraphBuilder`, `RenderGraph` and
+   `RenderGraphPass` (83 sites together) record `vk::ImageMemoryBarrier2` with
+   stage and access masks chosen from a dependency graph. `Barrier()` says only
+   *that* ordering is needed, which is enough for compute and not enough for a
+   graph that rewrites a resource's layout. The seam needs a transition in
+   portable terms: which image, from which state, to which state. `ResourceState`
+   already names the states; what is missing is the call that takes two of them.
+2. **Synchronization objects** — `FrameManager` (49) owns timeline semaphores,
+   fences and per-frame reuse. `TimelineSignal` describes a signal; there is no
+   portable fence, no portable wait, and no way to say "wait for this before the
+   queue reads that".
+3. **Shader modules** — `MaterialTemplate` (19) and `MaterialLibrary` (7) compile
+   GLSL to a `vk::ShaderModule` and hand it to the pipeline. The seam has no
+   shader object at all. This is the same gap group 7's bake exists to fill: a
+   module is bytes plus an entry point, and both backends take exactly that.
+4. **Rewriting a resident set per frame** — `SceneDataManager` (23) patches the
+   same descriptor set every frame because the buffer it points at can grow. The
+   arena's `Acquire` interns by content and never rewrites a resident entry, so
+   this path needs a decision: either the buffer stops moving, or the seam gains
+   an explicit "repoint this binding" operation.
+
+`CommandBuffer.cpp` (66) and `GUISystem.cpp` (22) are not on that list: both are
+recording surfaces that will be rewritten once (1) exists, because every barrier
+they record is a transition.
