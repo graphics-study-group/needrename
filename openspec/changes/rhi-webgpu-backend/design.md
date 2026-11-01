@@ -152,6 +152,54 @@ Two consequences worth stating before the work starts:
   producers of portable vertex descriptions. That is the first thing to migrate,
   because the pipeline state description depends on it and nothing else does.
 
+### D12. The converter is Tint, chosen after naga failed on three shader shapes
+
+The spike started with naga and moved to Tint (`tint.exe`, prebuilt from Dawn). The
+reason is recorded in `spike-notes.md`: naga 30 cannot convert a combined image
+sampler, cannot spell a `std140` scalar array, and rejects the `OpSpecConstantOp`
+that glslang emits for a specialization constant. Tint handles the first, and the
+other two are removed before conversion rather than after.
+
+The input contract that came out of this is part of the decision, not an
+implementation detail: the SPIR-V handed to Tint is **at most version 1.3 and
+carries no debug information**, and **every pointer with the `PushConstant` storage
+class is rewritten to `Uniform`** before conversion. Tint rejected the rewrite until
+*all* of them moved, not just the one the caller meant.
+
+- *Alternative: naga plus per-shader patches.* Rejected: three of the engine's own
+  shaders would need hand-written WGSL, and the physics tree shares the same shapes.
+- *Alternative: write WGSL by hand for the whole corpus.* Rejected: the bake exists
+  so that one asset set serves both runtimes (D9).
+
+### D13. The desktop validation build is wgpu-native v29, and its limits are the ones the backend is written against
+
+The spike measured the desktop runtime rather than assuming browser numbers:
+
+| Limit | wgpu-native | Browser (Dawn) |
+|---|---|---|
+| `maxBindGroups` | 8 | 4 (default) |
+| `minUniformBufferOffsetAlignment` | 64 | 256 |
+
+The backend therefore requests the *browser's* numbers and aligns the constant ring
+to 256 everywhere, so the desktop build exercises the same code path the browser
+will. A runtime that reports fewer bind groups fails loudly at device creation
+rather than silently shrinking.
+
+- *Alternative: depend on the desktop numbers.* Rejected: the desktop build is the
+  validation target, not the product; if it is more permissive it validates nothing.
+- *Alternative: honour whatever the runtime reports.* Rejected: two code paths, and
+  the browser one is the one that ships.
+
+### D14. A per-dispatch compute scope costs 22-26 us, and that is accepted
+
+Measured: 2.1-2.6 us per dispatch inside one scope, 25-28 us with one scope per
+dispatch. The design keeps one scope per dispatch anyway, because the seam's ordering
+contract has to be satisfiable by a backend with no transitions. The cost is bounded
+by the number of *barriers* the caller records, not by the number of dispatches, so a
+step with three ordering points pays three scopes.
+
+- *Alternative: coalesce unordered dispatches.* Not rejected - deferred. It needs no
+  contract change if a profile says the cost matters, which is what task 9.3 measures.
 ## Risks / Trade-offs
 
 - [Converter fidelity: SPIR-V constant blocks, combined samplers, layout edge cases] → Spike (a) measures it before design is frozen; the bake falls back to a pre-conversion SPIR-V rewrite of the constant block, and layout validation fails the bake rather than shipping a mismatch.
@@ -178,5 +226,6 @@ Two consequences worth stating before the work starts:
 - Converter choice (naga vs Tint) can be revisited if the spike shows fidelity gaps; both are host-side bake tools and neither affects the specs.
 - Which desktop WebGPU implementation stays (wgpu-native vs Dawn) is a validation-harness detail.
 - Whether browser-side tests run under a headless browser harness, and when that harness is worth building, is deferred until the Emscripten build exists.
+
 
 
