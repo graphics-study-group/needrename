@@ -25,6 +25,7 @@
 #include "Rhi/Pipeline/ComputeKernel.h"
 #include "Rhi/Pipeline/InterfaceBindingResolver.h"
 #include "Rhi/Pipeline/PipelineEnums.h"
+#include "Rhi/Pipeline/PipelineDescription.h"
 #include "Rhi/Pipeline/ShaderInterface.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Pipeline/ShaderResourceBinding.h"
