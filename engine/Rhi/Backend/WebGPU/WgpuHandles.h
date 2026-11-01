@@ -127,3 +127,11 @@ namespace Engine::Rhi {
         return ToWgpu<WGPUBindGroupLayout>(handle);
     }
 } // namespace Engine::Rhi
+namespace Engine::Rhi {
+    inline DescriptorSetHandle FromWgpuBindGroup(WGPUBindGroup group) noexcept {
+        return FromWgpu<DescriptorSetHandle>(group);
+    }
+    inline WGPUBindGroup ToWgpuBindGroup(DescriptorSetHandle handle) noexcept {
+        return ToWgpu<WGPUBindGroup>(handle);
+    }
+} // namespace Engine::Rhi
