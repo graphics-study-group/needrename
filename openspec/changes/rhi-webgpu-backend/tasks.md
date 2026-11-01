@@ -1041,3 +1041,42 @@ Order for the next attempt:
 3. Only then is `WrapRenderPass` worth rewriting onto `BeginRenderPass`.
 
 Trying (2) before (1) is what cost these two rounds.
+### The windowed tests draw nothing, and no test was ever going to say so
+
+Captured `pbr_test` under RenderDoc (`build/capture_pbr_frame5284.rdc`) after the
+barrier wiring. What the capture shows:
+
+| event | what happens |
+|---|---|
+| 14 | `vkCmdBeginRendering(C=Clear, D=Clear)` - the first pass does bind and clear depth |
+| 24 | one indexed draw, 2880 indices, into image 249 |
+| 25 | `vkCmdEndRendering(C=Store, D=Don't Care)` - **depth is not kept** |
+| 29 | a compute dispatch |
+| 31 | `vkCmdBeginRendering(Load)` - a second pass, no depth attachment |
+| 40, 42 | two more draws, 114 and 852 indices |
+| 48 | resolve, then present |
+
+Image 249 is entirely black and the final target is too, apart from the ImGui
+panel, which draws in its own pass. `pixel_history` on the first draw's centre
+says the fragment shader wrote `(0, 0, 0, 0)` - so the geometry ran and produced
+nothing, it was not culled.
+
+The second pass loads colour but has **no depth attachment**, because the first
+pass ended with `D=Don't Care` for depth. Anything depth-tested there fails. That
+`Don't Care` comes from the pass's own `store_op`, which is engine code this
+change has not touched, so this looks pre-existing rather than a regression -
+but it cannot be confirmed by the suite, because:
+
+**None of the eleven windowed tests asserts anything about pixels.** They check
+that a frame completes, not that anything was drawn. That is why black frames and
+a green suite are compatible, and why this went unnoticed until someone watched
+the window.
+
+Two things to do, in order:
+
+1. Establish whether this predates the change: build the tree at the commit
+   before the render-graph wiring and capture the same frame. That is the only
+   way to tell a regression from a long-standing gap.
+2. Either way, the tests need one pixel assertion each - at minimum "the centre
+   of the frame is not the clear colour" - because a renderer with no pixel
+   assertions can regress into anything and still be green.
