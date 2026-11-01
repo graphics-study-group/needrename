@@ -82,7 +82,7 @@
 ## 12. Documentation and closure
 
 - [x] 12.1 Write the portable-subset capability matrix (what the seam guarantees, what each backend maps, what is forbidden inside a render scope) into the change and verify it matches the implemented behavior
-- [ ] 12.2 Record the spike findings and the chosen converter and desktop implementation as decisions in the change
+- [x] 12.2 Record the spike findings and the chosen converter and desktop implementation as decisions in the change
 - [x] 12.3 Verify `openspec validate` passes and every requirement scenario in the delta specs has a corresponding test or documented verification
   - `openspec validate --strict` passes. `verification-map.md` maps all 75 scenarios
     to their evidence: 36 verified, 39 not - 30 blocked on groups 7 and 8, and 9
