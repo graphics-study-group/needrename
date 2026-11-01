@@ -34,7 +34,7 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Vulkan backend records a real barrier | **test**: `gpu_sum_by_key_test` (a wrong barrier changes the sum) |
 | WebGPU backend carries ordering by scope boundary | **none yet** |
 | The kernel adds no synchronization | **test**: `compute_kernel_test` |
-| Mark inside a render scope is rejected | **none yet** — the Vulkan encoder does not reject it |
+| Mark inside a render scope is rejected | **enforced, not tested**: `CommandEncoder` now tracks whether a pass is open and throws `std::logic_error` from both `Barrier` overloads. No test builds a pass and calls it, so the guard has never fired. |
 | Constants reach the shader on both backends | **test** on Vulkan: `headless_compute_test`; WebGPU: **none yet** |
 | Oversized constant block is caught | **test**: `compute_kernel_oversize_test` |
 | Backend maps constants to its own mechanism | **test** on Vulkan (push constants); WebGPU: **none yet** |
@@ -127,4 +127,5 @@ reader:
 That second group is what a reviewer should look at first: it is the difference
 between "the design is not finished" and "the design says something the code does
 not do".
+
 

@@ -4,6 +4,7 @@
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
+#include <stdexcept>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine::Rhi {
@@ -84,6 +85,8 @@ namespace Engine::Rhi {
         vk::CommandBuffer command_buffer{};
         /// @brief Layout the last bound compute pipeline reads its constants from.
         vk::PipelineLayout pipeline_layout{};
+        /// @brief Whether a render pass is open, which forbids transitions.
+        bool in_render_pass{false};
     };
 
     CommandEncoder::CommandEncoder(CommandBufferHandle handle) : pimpl(std::make_unique<impl>()) {
@@ -95,6 +98,11 @@ namespace Engine::Rhi {
     CommandEncoder &CommandEncoder::operator=(CommandEncoder &&) noexcept = default;
 
     void CommandEncoder::Barrier() {
+        if (pimpl->in_render_pass) {
+            throw std::logic_error(
+                "Barrier() inside a render pass: a backend that has no transitions cannot honour it"
+            );
+        }
         const vk::MemoryBarrier2 barrier{
             vk::PipelineStageFlagBits2::eComputeShader,
             vk::AccessFlagBits2::eShaderStorageWrite,
@@ -110,6 +118,11 @@ namespace Engine::Rhi {
     }
 
     void CommandEncoder::Barrier(std::span<const ImageBarrier> barriers) {
+        if (pimpl->in_render_pass) {
+            throw std::logic_error(
+                "Barrier(image) inside a render pass: transition before the pass instead"
+            );
+        }
         std::vector<vk::ImageMemoryBarrier2> image_barriers;
         image_barriers.reserve(barriers.size());
         for (const ImageBarrier &barrier : barriers) {
@@ -207,9 +220,11 @@ namespace Engine::Rhi {
         rendering_info.pDepthAttachment = has_depth ? &depth_attachment : nullptr;
 
         pimpl->command_buffer.beginRendering(rendering_info);
+        pimpl->in_render_pass = true;
     }
 
     void CommandEncoder::EndRenderPass() {
+        pimpl->in_render_pass = false;
         pimpl->command_buffer.endRendering();
     }
 
@@ -347,6 +362,7 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
 
 
 
