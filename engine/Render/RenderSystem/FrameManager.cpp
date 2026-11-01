@@ -246,8 +246,10 @@ namespace Engine::RenderSystemState {
         auto cb = GetRawMainCommandBuffer();
         cb.begin(vk::CommandBufferBeginInfo{});
         const uint32_t frame = GetFrameInFlight();
-        pimpl->main_encoders[frame] = std::make_unique<Rhi::CommandEncoder>(Rhi::FromVulkan(cb));
-        return CommandBuffer(pimpl->m_system, *pimpl->main_encoders[frame], frame);
+        // Reuse the frame slot's encoder rather than building a fresh one: a later
+        // RecordIntoMainCommandBuffer borrows the same object.
+        Rhi::CommandEncoder &encoder = GetMainEncoder();
+        return CommandBuffer(pimpl->m_system, encoder, frame);
     }
 
     Rhi::CommandEncoder &FrameManager::GetMainEncoder() {

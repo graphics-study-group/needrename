@@ -17,27 +17,24 @@ namespace Engine {
             std::tuple<const RenderTargetTexture *, Rhi::MemoryAccessTypeImageBits, Rhi::MemoryAccessTypeImageBits>>
             pre_barrier_info{}, post_barrier_info{};
 
-        vk::ImageMemoryBarrier2 GetImageBarrier(
+        Rhi::ImageBarrier GetImageBarrier(
             const RenderTargetTexture &t, Rhi::MemoryAccessTypeImageBits src, Rhi::MemoryAccessTypeImageBits dst
         ) {
-            return vk::ImageMemoryBarrier2{
-                vk::PipelineStageFlagBits2::eAllCommands,
-                GetAccessFlags({src}),
-                vk::PipelineStageFlagBits2::eAllCommands,
-                GetAccessFlags({dst}),
-                GetImageLayout({src}),
-                GetImageLayout({dst}),
-                vk::QueueFamilyIgnored,
-                vk::QueueFamilyIgnored,
-                Engine::Rhi::ToVulkanImage(t.GetImage()),
-                vk::ImageSubresourceRange{
-                    Rhi::GetVkAspect(t.GetTextureDescription().format),
-                    0,
-                    vk::RemainingMipLevels,
-                    0,
-                    vk::RemainingArrayLayers
-                }
-            };
+            Rhi::ImageBarrier barrier{};
+            barrier.image = t.GetImage();
+            // A depth or stencil attachment transitions through its own aspect; the
+            // colour aspect leaves it in a layout the pass cannot read.
+            const Rhi::ImageFormat format = t.GetTextureDescription().format;
+            barrier.aspect = Rhi::HasDepthAspect(format) ? Rhi::ImageAspect::Depth : Rhi::ImageAspect::Color;
+            barrier.base_mip = 0;
+            // Zero in the description means "every level", so the barrier names the
+            // remaining range rather than a count of zero.
+            barrier.mip_count = std::numeric_limits<uint32_t>::max();
+            barrier.base_layer = 0;
+            barrier.layer_count = std::numeric_limits<uint32_t>::max();
+            barrier.from = {src};
+            barrier.to = {dst};
+            return barrier;
         }
     };
 
@@ -136,24 +133,16 @@ namespace Engine {
     }
 
     void RenderGraph::RecordPrePass(Rhi::CommandEncoder &encoder) {
-        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
-        std::vector<vk::ImageMemoryBarrier2> barriers{pimpl->pre_barrier_info.size()};
-        for (size_t i = 0; i < pimpl->pre_barrier_info.size(); i++) {
-            auto [t, a1, a2] = pimpl->pre_barrier_info[i];
-            barriers[i] = pimpl->GetImageBarrier(*t, a1, a2);
+        for (const auto &[texture, from, to] : pimpl->pre_barrier_info) {
+            encoder.Barrier(pimpl->GetImageBarrier(*texture, from, to));
         }
-        cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, {}, {}, barriers});
         pimpl->pre_barrier_info.clear();
     }
 
     void RenderGraph::RecordPostPass(Rhi::CommandEncoder &encoder) {
-        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
-        std::vector<vk::ImageMemoryBarrier2> barriers{pimpl->post_barrier_info.size()};
-        for (size_t i = 0; i < pimpl->post_barrier_info.size(); i++) {
-            auto [t, a1, a2] = pimpl->post_barrier_info[i];
-            barriers[i] = pimpl->GetImageBarrier(*t, a1, a2);
+        for (const auto &[texture, from, to] : pimpl->post_barrier_info) {
+            encoder.Barrier(pimpl->GetImageBarrier(*texture, from, to));
         }
-        cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, {}, {}, barriers});
         pimpl->post_barrier_info.clear();
     }
 
@@ -204,6 +193,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 
