@@ -1,26 +1,15 @@
 #include "RadixSort.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
-#include <vulkan/vulkan.hpp>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include "ParallelScan.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsDispatch.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Physics/PhysicsSpirvLoader.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <cassert>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <utility>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace {
     /// @brief Number of bits needed to represent @p value; zero for zero.
