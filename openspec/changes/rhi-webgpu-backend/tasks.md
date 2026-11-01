@@ -1333,3 +1333,37 @@ every 3D path, a barrier naming the wrong aspect and subresource range, and a fr
 encoder replaced while a command buffer still held it), and two pixel assertions -
 one of which has been verified in both directions - in a suite where eleven
 windowed tests used to pass while drawing nothing.
+### What stopped the last conversion, so nobody repeats the search
+
+The remaining 27 sites were `MaterialTemplate`'s construction: it takes
+`std::vector<vk::ShaderModule>` and `vk::PipelineLayout`, and `MaterialLibrary`
+creates those modules through a raw device. Two attempts to convert the chain were
+reverted, both ending at the same place:
+
+```
+xmemory(730,14): error C2672: "std::construct_at": 未找到匹配的重载函数
+```
+
+The second attempt had every parameter in the constructor matching - header and
+definition were both changed - and the error did not move. That means it is not a
+parameter mismatch in the signature; it is something the compiler sees when
+instantiating `std::make_unique<MaterialTemplate>`, and MSVC reported no
+"cannot convert argument N" note to say which.
+
+What the next attempt should do, in this order, is **isolate before converting**:
+
+1. Change only `MaterialLibrary::CompileShaderModules` to fill a
+   `std::vector<Rhi::ShaderModule>` while `MaterialTemplate` still takes
+   `vk::ShaderModule` handles, and see whether the bundle stays movable. That
+   isolates "the container of non-copyable objects" from "the constructor".
+2. Only then change the constructor's parameter type, one parameter at a time.
+3. If `construct_at` still appears with a single-parameter change, read the full
+   template instantiation stack (`/Zc:templateScope` off, or the "see reference to
+   function template instantiation" lines) rather than guessing - the answer is in
+   there and the two attempts spent on guessing did not find it.
+
+Also worth checking first: `MaterialTemplate` has a protected constructor for the
+base case and a public one for the real build. If `make_unique` is resolving the
+protected overload, the failure would look exactly like this - a deletion of the
+copy of the argument inside `construct_at`, reported against one of the arguments
+rather than the call.
