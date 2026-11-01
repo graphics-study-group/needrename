@@ -112,11 +112,9 @@ They are worth separating, because they call for different work.
 can check these until group 7 and group 8 exist; writing a test now would test
 nothing.
 
-**Verifiable today but not written (9).** These are the ones that should bother a
+**Verifiable today but not written (8).** These are the ones that should bother a
 reader:
 
-- *Mark inside a render scope is rejected* - the Vulkan encoder accepts the call and
-  does something undefined. A guard is one `if` and would turn a rule into an error.
 - *Draws are confined to the render scope*, *Dispatch is confined outside it* - the
   same shape: the seam states a rule it does not enforce.
 - *Web build contains no runtime shader compiler* - checkable by scanning the wasm
@@ -127,6 +125,7 @@ reader:
 That second group is what a reviewer should look at first: it is the difference
 between "the design is not finished" and "the design says something the code does
 not do".
+
 
 
 
