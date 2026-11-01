@@ -25,6 +25,15 @@ namespace sch = std::chrono;
 
 constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
 
+namespace {
+    /// @brief Whether any frame produced a non-zero pixel in the read-back target.
+    ///
+    /// Every other windowed test asserts nothing about what was drawn, so a
+    /// pipeline that writes no colour - which a zero colour write mask does
+    /// silently - passes them all. This one looks.
+    bool g_frame_has_colour = false;
+} // namespace
+
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 
     constexpr static std::array<float, 12> REPLACEMENT_POSITION = {
@@ -222,7 +231,6 @@ int main(int argc, char **argv) {
         max_frame_count = std::atoll(argv[1]);
         if (max_frame_count == 0) return -1;
     }
-
     SDL_Init(SDL_INIT_VIDEO);
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
@@ -337,6 +345,18 @@ int main(int argc, char **argv) {
                 }
                 std::cout << "\n";
             }
+
+            // The mesh drew into four colour targets and this is the first one,
+            // read back. A cleared target reads as all zeros; anything the
+            // pipeline wrote makes at least one channel non-zero. Without this
+            // check the test passes on a frame that drew nothing at all, which is
+            // exactly what a zero colour write mask produces.
+            for (size_t i = 0; i < 16 * 16 * 4; i++) {
+                if (std::to_integer<uint8_t>(byte[i]) != 0) {
+                    g_frame_has_colour = true;
+                    break;
+                }
+            }
         });
 
         rsys->GetFrameManager().BeginMainCommandBuffer();
@@ -355,6 +375,15 @@ int main(int argc, char **argv) {
 
     rsys->WaitForIdle();
 
+    if (!g_frame_has_colour) {
+        std::cerr << "MRT test FAILED: the read-back colour target is uniformly zero, "
+                     "so the mesh drew nothing. A pipeline whose colour write mask is "
+                     "zero produces exactly this."
+                  << std::endl;
+        return 1;
+    }
+
+    std::cout << "MRT test PASSED: the read-back colour target contains drawn pixels." << std::endl;
     return 0;
 }
 
