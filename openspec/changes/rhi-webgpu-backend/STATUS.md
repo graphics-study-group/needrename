@@ -231,10 +231,9 @@ attempt at it was written and reverted rather than committed half-working.
 
 What it needs that does not exist:
 
-- **`DeviceCapabilities` has four fields and none of them is `max_bind_groups`.** The
-  header says push constants, uniform offsets, storage range and compute invocations.
-  A backend whose real limit is bind groups has nowhere to put it, which is a seam gap
-  rather than a porting problem.
+- **`DeviceCapabilities` has four fields and none of them is `max_bind_groups`.**
+  **Solved**: the field exists now, Vulkan fills it from `maxBoundDescriptorSets`, and
+  the WebGPU device interface reads the whole `WGPULimits` block at creation.
 - **`RequestComputeKernel` takes a `std::vector<uint32_t>` of SPIR-V.** That is the
   Vulkan shape. A WebGPU backend needs a `ShaderModule` and a compute entry point, and
   the seam's signature assumes the other one.
@@ -253,3 +252,4 @@ is group 10's work (frame completion as callbacks, task 10.1), not a porting det
 
 So the honest reading of the remaining ~16 units is: **roughly a third are mechanical,
 and the rest wait on three design decisions this change lists but has not taken.**
+
