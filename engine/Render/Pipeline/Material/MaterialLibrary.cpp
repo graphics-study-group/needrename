@@ -7,6 +7,7 @@
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
+#include "Rhi/Pipeline/ShaderModule.h"
 #include "Rhi/Resource/DescriptorArena.h"
 
 #include <SDL3/SDL.h>
@@ -22,7 +23,7 @@ namespace Engine {
 
         struct PipelineBundle {
             /// Shader modules for the pipeline.
-            std::vector<vk::UniqueShaderModule> shader_modules{};
+            std::vector<Rhi::ShaderModule> shader_modules{};
             /// Reflected pipeline info.
             Rhi::SPLayout reflected{};
 
@@ -51,12 +52,12 @@ namespace Engine {
             return *pipeline_table[tag].materials[pri];
         }
 
-        void CompileShaderModules(PipelineBundle &b, vk::Device d, std::vector<AssetRef> &shader_refs) {
+        void CompileShaderModules(PipelineBundle &b, const RenderSystem &system, std::vector<AssetRef> &shader_refs) {
             b.reflected.interfaces.clear();
             b.reflected.interface_name_mapping.clear();
 
             b.shader_modules.clear();
-            b.shader_modules.resize(shader_refs.size());
+            b.shader_modules.reserve(shader_refs.size());
 
             for (size_t i = 0; i < shader_refs.size(); i++) {
                 assert(shader_refs[i].IsValid() && "Invalid shader asset.");
@@ -64,14 +65,11 @@ namespace Engine {
                 auto shader_asset = shader_refs[i].as<ShaderAsset>();
                 auto code = shader_asset->binary;
                 b.reflected.Merge(Engine::Rhi::SPLayout::Reflect(code, true));
-                vk::ShaderModuleCreateInfo ci{
-                    {}, code.size() * sizeof(uint32_t), reinterpret_cast<const uint32_t *>(code.data())
-                };
-
-                b.shader_modules[i] = d.createShaderModuleUnique(ci);
-                DEBUG_SET_NAME_TEMPLATE(
-                    d, b.shader_modules[i].get(), std::format("Shader Module - {}", shader_asset->m_name)
-                );
+                b.shader_modules.push_back(Rhi::ShaderModule::Create(
+                    system.GetDeviceInterface(),
+                    std::as_bytes(std::span{code.data(), code.size()}),
+                    std::format("Shader Module - {}", shader_asset->m_name)
+                ));
             }
         }
 
@@ -140,7 +138,7 @@ namespace Engine {
             auto asset = itr->second.material_template_asset.as<MaterialTemplateAsset>();
 
             if (pipeline_table[tag].shader_modules.empty()) {
-                CompileShaderModules(pipeline_table[tag], system.GetDevice(), asset->properties.shaders.shaders);
+                CompileShaderModules(pipeline_table[tag], system, asset->properties.shaders.shaders);
                 GenerateDescriptorSetAndPipelineLayout(
                     pipeline_table[tag],
                     system,
@@ -157,7 +155,7 @@ namespace Engine {
                 b.shader_modules.begin(),
                 b.shader_modules.end(),
                 std::back_inserter(shader_modules),
-                [](const vk::UniqueShaderModule &usm) { return usm.get(); }
+                [](const Rhi::ShaderModule &sm) { return Rhi::ToVulkanShaderModule(sm.GetHandle()); }
             );
             pipeline_table[tag].materials[pri] = std::make_unique<MaterialTemplate>(
                 system,
