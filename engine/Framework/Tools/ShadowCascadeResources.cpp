@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <string>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     using RenderSystemState::RendererManager;
@@ -127,4 +126,5 @@ namespace Engine {
         return shadow_ids;
     }
 } // namespace Engine
+
 
