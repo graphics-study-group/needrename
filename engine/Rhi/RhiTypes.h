@@ -4,6 +4,8 @@
 #include "Rhi/rhi_export.h"
 
 #include <cstddef>
+#include "Rhi/Device/MemoryAccessTypes.h"
+
 #include <cstdint>
 #include <vector>
 
@@ -323,6 +325,31 @@ namespace Engine::Rhi {
     };
 
     /**
+     * @brief One image's transition between two access descriptions.
+     *
+     * The part of the image is named explicitly because a pass may write one mip
+     * or one array layer while leaving the rest alone; Vulkan takes a subresource
+     * range and WebGPU takes the subresource the transition applies to.
+     */
+    struct ImageBarrier {
+        /// @brief The image being transitioned.
+        ImageHandle image{};
+        /// @brief Which aspects of the image the transition covers.
+        ImageAspect aspect{ImageAspect::Color};
+        /// @brief First mip level covered.
+        uint32_t base_mip{0};
+        /// @brief Number of mip levels covered.
+        uint32_t mip_count{1};
+        /// @brief First array layer covered.
+        uint32_t base_layer{0};
+        /// @brief Number of array layers covered.
+        uint32_t layer_count{1};
+        /// @brief How the image was accessed before this point.
+        MemoryAccessTypeImage from{};
+        /// @brief How the image is accessed after this point.
+        MemoryAccessTypeImage to{};
+    };
+    /**
      * @brief A capability a format may or may not have on the current device.
      *
      * The set is what the engine asks about: whether a format can back a vertex
@@ -339,6 +366,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_RHITYPES_INCLUDED
+
 
 
 

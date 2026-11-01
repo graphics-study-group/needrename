@@ -1,5 +1,7 @@
 #include "Rhi/Command/CommandEncoder.h"
 
+#include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 #include <vulkan/vulkan.hpp>
@@ -37,6 +39,30 @@ namespace Engine::Rhi {
         pimpl->command_buffer.pipelineBarrier2(vk::DependencyInfo{{}, {barrier}, {}, {}});
     }
 
+    void CommandEncoder::Barrier(const ImageBarrier &barrier) {
+        vk::ImageMemoryBarrier2 image_barrier{};
+        // The graph names accesses, not stages: every barrier it records separates
+        // whole passes, so the widest stage that can be affected is the correct one
+        // for both sides.
+        image_barrier.srcStageMask = vk::PipelineStageFlagBits2::eAllCommands;
+        image_barrier.srcAccessMask = GetAccessFlags(barrier.from);
+        image_barrier.dstStageMask = vk::PipelineStageFlagBits2::eAllCommands;
+        image_barrier.dstAccessMask = GetAccessFlags(barrier.to);
+        image_barrier.oldLayout = GetImageLayout(barrier.from);
+        image_barrier.newLayout = GetImageLayout(barrier.to);
+        image_barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
+        image_barrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
+        image_barrier.image = ToVulkanImage(barrier.image);
+        image_barrier.subresourceRange = vk::ImageSubresourceRange{
+            GetVkAspect(barrier.aspect),
+            barrier.base_mip,
+            barrier.mip_count,
+            barrier.base_layer,
+            barrier.layer_count
+        };
+        pimpl->command_buffer.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, {image_barrier}});
+    }
+
     void CommandEncoder::BindComputePipeline(PipelineHandle pipeline, PipelineLayoutHandle layout) {
         pimpl->pipeline_layout = ToVulkanPipelineLayout(layout);
         pimpl->command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, ToVulkanPipeline(pipeline));
@@ -71,3 +97,6 @@ namespace Engine::Rhi {
         return FromVulkan(pimpl->command_buffer);
     }
 } // namespace Engine::Rhi
+
+
+

@@ -41,6 +41,21 @@ namespace Engine::Rhi {
         return format == ImageFormat::R8G8B8A8UNorm || format == ImageFormat::R8G8B8A8SRGB;
     }
 
+    /// @brief Convert a portable image aspect to the Vulkan flag it names.
+    constexpr vk::ImageAspectFlags GetVkAspect(ImageAspect aspect) {
+        vk::ImageAspectFlags flags{};
+        if ((static_cast<uint8_t>(aspect) & static_cast<uint8_t>(ImageAspect::Color)) != 0) {
+            flags |= vk::ImageAspectFlagBits::eColor;
+        }
+        if ((static_cast<uint8_t>(aspect) & static_cast<uint8_t>(ImageAspect::Depth)) != 0) {
+            flags |= vk::ImageAspectFlagBits::eDepth;
+        }
+        if ((static_cast<uint8_t>(aspect) & static_cast<uint8_t>(ImageAspect::Stencil)) != 0) {
+            flags |= vk::ImageAspectFlagBits::eStencil;
+        }
+        return flags;
+    }
+
     constexpr vk::ImageAspectFlags GetVkAspect(ImageFormat format) {
         return (HasColorAspect(format) ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone)
                | (HasDepthAspect(format) ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eNone)
@@ -333,6 +348,7 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
+
 
 
 

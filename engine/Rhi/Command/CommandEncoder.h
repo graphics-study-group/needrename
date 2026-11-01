@@ -58,6 +58,19 @@ namespace Engine::Rhi {
         void Barrier();
 
         /**
+         * @brief Transition an image from one access to another.
+         *
+         * A mark states that ordering is needed; this states what the ordering is
+         * *for*: work recorded after it reads this image the way `to` describes,
+         * and whatever wrote it did so the way `from` describes. A render graph
+         * that rewrites a resource's layout between passes records one of these,
+         * because a mark alone cannot say which layout to move to.
+         *
+         * @param barrier The image, the part of it, and the two access descriptions.
+         */
+        void Barrier(const ImageBarrier &barrier);
+
+        /**
          * @brief Bind a compute pipeline and the layout its constants are read from.
          *
          * @param pipeline The compute pipeline to record with.
@@ -109,4 +122,5 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_COMMANDENCODER_INCLUDED
+
 
