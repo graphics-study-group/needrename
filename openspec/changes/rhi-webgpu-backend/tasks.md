@@ -1250,3 +1250,44 @@ another round of guessing.
 
 Nothing else in the change depends on it: groups 6, 8, 9, 10 and 12 remain, and
 the render layer's shared surface stays at 291 sites.
+## Where the shared render layer stands
+
+The render layer's shared surface has gone from 513 sites that name a Vulkan type
+to 170, measured by counting `vk::` in everything under `engine/Render` that is not
+in `Backend/Vulkan`:
+
+```
+513 → 456 → 334 → 306 → 291 → 282 → 260 → 247 → 232 → 213 → 204 → 198 → 187 → 176 → 170
+```
+
+What is done and verified:
+
+| area | state |
+|---|---|
+| `engine/Rhi` public headers | zero `vk::`, enforced by `rhi_public_headers_test` |
+| render recording (`CommandBuffer.cpp`) | **zero** `vk::` - passes, bindings, draws, viewport, blit, readback all record through the encoder |
+| `GUISystem.cpp`, present providers | moved behind `Backend/Vulkan/` |
+| texture loaders | take `ImageFormat`; the one conversion is where KTX2 stores a VkFormat |
+| material pipeline accessors | return `PipelineHandle` / `PipelineLayoutHandle` |
+
+What is left, and why each is not a substitution:
+
+| sites | area | what it needs first |
+|---|---|---|
+| 49 | `FrameManager.cpp` | a portable submission description: waits, signals, a fence. Changing this wrongly deadlocks rather than fails, so it wants a full round. |
+| 67 | `RenderGraph*` | **abandoned** - eight attempts, every barrier field proven identical, still red. See above. |
+| ~18 | `SceneDataManager.cpp` | a portable `WriteDescriptorSet` and `UpdateDescriptorSets`; the descriptor *layout* work landed, the *write* did not. |
+| ~19 | `MaterialTemplate.cpp` | a `ShaderModuleHandle`, so the constructor stops taking `vk::ShaderModule`. |
+| ~17 | scattered | one-off conversions. |
+
+## The two things this stretch bought beyond the count
+
+**Three real rendering bugs**, all found by capturing a frame rather than by
+running the suite: a zero colour write mask that blanked every 3D path, a barrier
+that named the wrong aspect and subresource range, and a frame encoder that was
+replaced while a command buffer still held it.
+
+**Two pixel assertions**, because eleven windowed tests passed while drawing
+nothing. `mrt_test` fails when its read-back target is uniformly zero; `skybox_test`
+fails when the frame is black, and that one has been verified in both directions -
+with the zero write mask restored it exits 1 and says so.
