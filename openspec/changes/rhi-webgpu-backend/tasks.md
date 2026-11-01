@@ -1392,3 +1392,35 @@ So task 11.2 ("verify the web build links neither the Vulkan SDK, VMA, glslang n
 SPIRV-Cross") **cannot be checked yet**: the condition is satisfied by absence, and
 absence is the thing the task is supposed to prove is not happening. It becomes a
 real check once the WebGPU backend exists and the link is non-trivial.
+## A requirement the implementation does not meet
+
+`rhi-mapped-window` says, as a SHALL:
+
+> When the caller reads the window while a readback is still in flight, it observes
+> the previous completed contents rather than a mix of old and new bytes.
+
+`FrameManager::CompleteFrame` pumps readbacks by polling each registry's fence and
+invoking its callbacks only when it has signalled, so **the callback path cannot see a
+half-written buffer**. The scenario is not about that path, though - it is about
+reading the window directly while the copy is still running, and in that state
+`GetVMAddress` returns the mapped pointer without blocking or refusing. Whatever the
+copy has written so far is what the caller reads.
+
+So the guarantee exists for callers that consume through the callback, and not for
+callers that read the window themselves. Nothing in the code distinguishes the two.
+
+This is not a test that is missing - it is a promise the code does not keep. Fixing it
+is a design decision, and the options are not equivalent:
+
+1. **Refuse while in flight.** `GetVMAddress` returns null or throws when the buffer
+   has a pending readback. Correct, but it breaks every existing direct read,
+   including the ones in the headless tests.
+2. **Double-buffer the readback target.** The callback gets the filled copy while the
+   caller's window keeps pointing at the previous contents. Keeps both paths working,
+   costs one buffer per in-flight readback.
+3. **Document the restriction.** The scenario becomes "callers consume through the
+   callback"; the direct read becomes undefined, said out loud rather than implied.
+
+The third is the cheapest and the first is the most honest; the second is what a
+product path would want. The choice belongs with whoever owns the mapped-window
+design, which is not a decision to make at the end of a session.

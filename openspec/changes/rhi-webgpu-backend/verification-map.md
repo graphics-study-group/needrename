@@ -69,7 +69,7 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Implicit flush covers forgotten calls | **partially**: `compute_buffer_test` writes through the window without flushing every element and the dispatch reads the result correctly. That is weaker than it sounds - on host-coherent memory a flush is a no-op, so this shows the path works rather than that the implicit-flush step does anything. |
 | Vulkan keeps the window open | **test**: `compute_buffer_test` calls `GetVMAddress` twice and requires the same pointer, which is exactly "no mapping or unmapping and the address remains the same" |
 | Refresh exposes completed device writes | **test**: `gpu_buffer_retirement_test` |
-| No torn state is observable | **none yet** |
+| No torn state is observable | **does not hold for direct reads**: `FrameManager::CompleteFrame` invokes a readback callback only after its fence signals, so the callback path cannot see a half-written buffer. But the scenario describes *reading the window while a readback is in flight*, and `GetVMAddress` neither blocks nor refuses in that state - a caller that reads directly sees whatever the copy has written so far. The requirement says SHALL; the implementation guarantees it only for callers that consume through the callback. |
 | Callback fires on completion | **test**: `mrt_test` (its readback callback runs) |
 | Registration does not block | **test**: `mrt_test` times the call and fails above 100 ms; a blocking implementation waits for the frame's work, which is milliseconds |
 | Test reads results synchronously | **test**: `mrt_test`, `headless_offscreen_test` |
@@ -121,7 +121,9 @@ slice semantics and the WebGPU side of constants reaching the shader.
 for the reason given in its row.
 
 **Verifiable today but not written (4).** These are the ones that should bother a
-reader:
+reader. `No torn state is observable` is counted here too: it is verifiable in the
+sense that a test would show it failing, which is the point - see "a requirement the
+implementation does not meet" in `tasks.md`.
 
 - *Web build contains no runtime shader compiler* - checkable by scanning the wasm
   library's imports once it is non-trivial.
@@ -130,8 +132,7 @@ reader:
   host-coherent memory a flush is a no-op, so neither shows the flush step doing
   anything. Proving it needs memory that is not coherent, or a deliberate fault
   injected into the flush path.
-- *No torn state is observable* - needs a frame loop whose timing is asserted, which is
-  a different kind of test from everything above.
+- *Web build contains no runtime shader compiler* - see above.
 
 That second group is what a reviewer should look at first: it is the difference
 between "the design is not finished" and "the design says something the code does
@@ -157,6 +158,8 @@ one, because it costs every future run rather than one reader's attention.
 What the next attempt should try first: reproduce the setup from
 `compute_buffer_test` rather than from `buffer_reallocation_test`, because the
 former has a working `GetVMAddress()` call in it and the latter does not.
+
+
 
 
 
