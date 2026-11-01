@@ -286,6 +286,17 @@
     turns a red suite into a hang.
     state worse than blocked.
 - [ ] 10.3 Implement presentation through the host surface and verify the frame ring's per-frame windows stay distinct when the host exposes a single surface image
+  - **Presentation is the one layer that is still backend-specific by directory.** `IPresentProvider`
+    is shared, and every implementation of it lives under
+    `engine/Render/Backend/Vulkan/RenderSystem/` - `SwapchainPresentProvider` and
+    `OffscreenPresentProvider`. There is no WebGPU present provider, so 10.3 needs a new backend unit
+    rather than a port: `wgpuInstanceCreateSurface` against the window handle,
+    `wgpuSurfaceConfigure` with the device's preferred format, and
+    `wgpuSurfaceGetCurrentTexture` in place of acquire-next-image.
+  - The per-frame-window clause is worth reading against that: the standard interface gives one
+    surface texture per frame and takes it back at `wgpuSurfacePresent`, so a ring of per-frame windows
+    has to be built on top of one image rather than beside it. That is the same shape 8.5 needs, which
+    is why 10.3 is grouped with it rather than with presentation cosmetics.
 - [ ] 10.4 Port the UI backend to the WebGPU backend and verify the editor UI renders
 
 ## 11. Emscripten product build
