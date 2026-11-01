@@ -204,6 +204,16 @@
 ## 9. WebGPU compute path and cross-backend comparison
 
 - [ ] 9.1 Run the physics compute pipeline on the WebGPU backend and verify its buffers match the Vulkan backend's for the same scene
+  - **The loader names one artifact format, and that is the obstacle.** `LoadPhysicsKernel` in
+    `engine/Physics/PhysicsSpirvLoader.cpp` is three lines: `FindComputeKernel`, else
+    `RequestComputeKernel(relative_path, LoadPhysicsSpirv(relative_path), debug_name)`. It reads
+    `.spv` off disk and hands over SPIR-V words.
+  - On this backend that call throws, by design - the message says to use
+    `RequestComputeKernelFromModule`, which wants a `ShaderModule` and a `ShaderInterfaceDescription`.
+    Both exist as types and the bake produces the description; what does not exist is a loader that
+    picks between them. So 9.1 needs the physics tree to carry its artifacts and the loader to know
+    which backend it is compiling for - the same fork at the same place as D9 describes for the
+    render shaders, applied to physics.
 - [ ] 9.2 Add headless golden-image comparison between the desktop WebGPU build and the Vulkan build and verify a fixed scene matches within the agreed tolerance
 - [ ] 9.3 Verify the per-dispatch-scope overhead measured in spike 1.3 is within the recorded expectation for one physics step
 

@@ -549,4 +549,21 @@ Open:
   defined, which is necessary and not sufficient.
 - Do not look for the two modules Tint refuses under debug info. The bake strips it before invoking
   the converter, so `sum_by_key.comp` and `sum_by_key_push.comp` fail for another reason.
+### A pattern in the last three findings
 
+Three tasks turned out to be blocked by the same thing seen from three sides, and it is worth naming
+once:
+
+- **7.4's second clause** needs a physics kernel created without reflection.
+- **9.1** needs the physics pipeline running on this backend.
+- **8.4 and 8.5** are what the kernel needs: a constant window and a mapped window that a submission
+  may read.
+
+And underneath all four is a loader that only knows SPIR-V. `LoadPhysicsKernel` is three lines long
+and hands `RequestComputeKernel` a vector of words; on this backend that call throws with a message
+naming `RequestComputeKernelFromModule`. The types for the other path exist and the bake produces the
+description they need.
+
+So the next session's highest-value move is not any single task on the list. It is **a physics kernel
+created from a baked module and dispatched once**, because that one test would move 7.4, 8.4, 8.5 and
+9.1 at the same time - and it is the only thing in this change that four open tasks share.
