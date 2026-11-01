@@ -2,6 +2,7 @@
 #define RENDERSYSTEM_CAMERAMANAGER
 
 #include "Render/render_export.h"
+#include "Rhi/RhiTypes.h"
 #include <memory>
 // GLM forward declarations.
 #include <fwd.hpp>
@@ -74,12 +75,12 @@ namespace Engine {
             /**
              * @brief Get the descriptor set containing camera information.
              */
-            vk::DescriptorSet GetDescriptorSet(uint32_t frame_in_flight) const noexcept;
+            Rhi::DescriptorSetHandle GetDescriptorSet(uint32_t frame_in_flight) const noexcept;
 
             /**
              * @brief Get the descriptor set layout for camera information.
              */
-            vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
+            Rhi::DescriptorSetLayoutHandle GetDescriptorSetLayout() const noexcept;
 
             /**
              * @brief Acquire a pipeline layout that has descriptor set 0 & 1
@@ -88,7 +89,7 @@ namespace Engine {
              * All graphics pipelines should therefore be compatible to
              * this common pipeline layout.
              */
-            vk::PipelineLayout GetCommonPipelineLayout() const noexcept;
+            Rhi::PipelineLayoutHandle GetCommonPipelineLayout() const noexcept;
 
             void SetActiveCameraIndex(uint32_t index) noexcept;
             uint32_t GetActiveCameraIndex() const noexcept;
@@ -103,3 +104,4 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDERSYSTEM_CAMERAMANAGER
+

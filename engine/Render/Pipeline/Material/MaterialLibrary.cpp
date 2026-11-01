@@ -83,8 +83,8 @@ namespace Engine {
             PipelineBundle &b,
             RenderSystem &system,
             vk::Device d,
-            vk::DescriptorSetLayout scene_descriptors,
-            vk::DescriptorSetLayout camera_descriptors,
+            Rhi::DescriptorSetLayoutHandle scene_descriptors,
+            Rhi::DescriptorSetLayoutHandle camera_descriptors,
             const std::string &name
         ) {
             auto desc_bindings = b.reflected.GenerateLayoutBindings(2, true, false);
@@ -109,7 +109,7 @@ namespace Engine {
                     system.GetDeviceContext().GetDescriptorArena().ResolveLayout(desc_bindings, nullptr);
 
                 const Rhi::PipelineLayoutDescription material_pipeline_description{
-                    {Rhi::FromVulkan(scene_descriptors), Rhi::FromVulkan(camera_descriptors), b.descriptor_set_layout.handle},
+                    {scene_descriptors, camera_descriptors, b.descriptor_set_layout.handle},
                     {{0, RenderSystemState::RendererManager::GetPushConstantRange().size, false}}
                 };
                 b.pipeline_layout = Rhi::ToVulkanPipelineLayout(
@@ -119,7 +119,7 @@ namespace Engine {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material %s pipeline has no material descriptors.", name.c_str());
 
                 const Rhi::PipelineLayoutDescription plain_pipeline_description{
-                    {Rhi::FromVulkan(scene_descriptors), Rhi::FromVulkan(camera_descriptors)},
+                    {scene_descriptors, camera_descriptors},
                     {{0, RenderSystemState::RendererManager::GetPushConstantRange().size, false}}
                 };
                 b.pipeline_layout = Rhi::ToVulkanPipelineLayout(
@@ -145,7 +145,7 @@ namespace Engine {
                     pipeline_table[tag],
                     system,
                     system.GetDevice(),
-                    system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                    Rhi::FromVulkan(system.GetSceneDataManager().GetLightDescriptorSetLayout()),
                     system.GetCameraManager().GetDescriptorSetLayout(),
                     asset->name
                 );
@@ -219,6 +219,8 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+
 
 
 

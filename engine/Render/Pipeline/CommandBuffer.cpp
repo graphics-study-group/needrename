@@ -245,13 +245,9 @@ namespace Engine {
     }
 
     void CommandBuffer::BindCameraResources(const RenderSystemState::CameraManager &cm) {
-        cb.bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics,
-            cm.GetCommonPipelineLayout(),
-            1,
-            {cm.GetDescriptorSet(m_inflight_frame_index)},
-            {}
-        );
+        const vk::PipelineLayout layout = Rhi::ToVulkanPipelineLayout(cm.GetCommonPipelineLayout());
+        const vk::DescriptorSet camera_set = Rhi::ToVulkanDescriptorSet(cm.GetDescriptorSet(m_inflight_frame_index));
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, 1, {camera_set}, {});
     }
 
     void CommandBuffer::BindMaterial(MaterialInstance &material, MaterialTemplate &tpl) {
@@ -389,6 +385,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 

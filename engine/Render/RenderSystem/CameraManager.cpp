@@ -28,7 +28,7 @@ namespace Engine::RenderSystemState {
         Rhi::DescriptorSetLayoutRef camera_descriptor_set_layout{};
 
         // Common pipeline layout for scene & camera.
-        vk::PipelineLayout camera_common_pipeline_layout{};
+        Rhi::PipelineLayoutHandle camera_common_pipeline_layout{};
 
         // A front buffer storing all camera data on the CPU side.
         std::array<CameraData, MAX_CAMERAS> front_buffer{};
@@ -37,7 +37,7 @@ namespace Engine::RenderSystemState {
         std::unique_ptr<Rhi::IndexedBuffer> back_buffer{};
 
         // Descriptors for each frame in flight
-        std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
+        std::array<Rhi::DescriptorSetHandle, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
 
         // Registered cameras
         std::array<std::weak_ptr<Camera>, MAX_CAMERAS> registered_cameras;
@@ -63,10 +63,8 @@ namespace Engine::RenderSystemState {
                  pimpl->camera_descriptor_set_layout.handle},
                 {{0, RendererManager::GetPushConstantRange().size, false}}
             };
-            pimpl->camera_common_pipeline_layout = Rhi::ToVulkanPipelineLayout(
-                m_system.GetIRCache().GetPipelineLayout(
-                    camera_pipeline_description, "Camera Common Pipeline Layout"
-                )
+            pimpl->camera_common_pipeline_layout = m_system.GetIRCache().GetPipelineLayout(
+                camera_pipeline_description, "Camera Common Pipeline Layout"
             );
         }
 
@@ -74,9 +72,8 @@ namespace Engine::RenderSystemState {
         // caller must not rewrite one while a command buffer that binds it may
         // still be executing.
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
-            pimpl->descriptors[i] = Rhi::ToVulkanDescriptorSet(
-                arena.AcquireRawSet(pimpl->camera_descriptor_set_layout, std::format("Desc Set - Camera FIF {}", i))
-            );
+            pimpl->descriptors[i] =
+                arena.AcquireRawSet(pimpl->camera_descriptor_set_layout, std::format("Desc Set - Camera FIF {}", i));
         }
 
         // Allocate the back buffer.
@@ -104,7 +101,7 @@ namespace Engine::RenderSystemState {
         );
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
             buffers[i].offset = pimpl->back_buffer->GetSliceOffset(i);
-            writes[i].dstSet = pimpl->descriptors[i];
+            writes[i].dstSet = Rhi::ToVulkanDescriptorSet(pimpl->descriptors[i]);
             writes[i].descriptorCount = 1;
             writes[i].pBufferInfo = &buffers[i];
         }
@@ -146,15 +143,15 @@ namespace Engine::RenderSystemState {
             }
         }
     }
-    vk::DescriptorSet CameraManager::GetDescriptorSet(uint32_t frame_in_flight) const noexcept {
+    Rhi::DescriptorSetHandle CameraManager::GetDescriptorSet(uint32_t frame_in_flight) const noexcept {
         assert(frame_in_flight < pimpl->descriptors.size());
         return pimpl->descriptors[frame_in_flight];
     }
-    vk::DescriptorSetLayout CameraManager::GetDescriptorSetLayout() const noexcept {
+    Rhi::DescriptorSetLayoutHandle CameraManager::GetDescriptorSetLayout() const noexcept {
         assert(pimpl->camera_descriptor_set_layout.handle.IsValid());
-        return Engine::Rhi::ToVulkanDescriptorSetLayout(pimpl->camera_descriptor_set_layout.handle);
+        return pimpl->camera_descriptor_set_layout.handle;
     }
-    vk::PipelineLayout CameraManager::GetCommonPipelineLayout() const noexcept {
+    Rhi::PipelineLayoutHandle CameraManager::GetCommonPipelineLayout() const noexcept {
         return pimpl->camera_common_pipeline_layout;
     }
     void CameraManager::SetActiveCameraIndex(uint32_t index) noexcept {
@@ -189,6 +186,11 @@ namespace Engine::RenderSystemState {
         return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
+
+
+
+
+
 
 
 
