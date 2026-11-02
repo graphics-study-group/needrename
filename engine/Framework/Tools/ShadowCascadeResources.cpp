@@ -17,7 +17,7 @@ namespace Engine {
     using RenderSystemState::SceneDataManager;
 
     std::vector<RGTextureHandle> AddShadowCascadePasses(
-        RenderGraphBuilder &builder, RenderSystem &system, RGBufferHandle model_matrices
+        RenderGraphBuilder &builder, RenderSystem &system, RGBufferHandle model_matrices, bool add_passes
     ) {
         auto &scene_data = system.GetSceneDataManager();
 
@@ -39,7 +39,7 @@ namespace Engine {
          * Shadowmap passes — one per budgeted slot, each rendering all of its
          * light's cascades into their own array layer.
          */
-        for (size_t light = 0; light < shadow_ids.size(); light++) {
+        for (size_t light = 0; light < shadow_ids.size() && add_passes; light++) {
             auto pass_builder = RenderGraphPassBuilder{system}.SetName("Shadowmap Pass " + std::to_string(light));
             pass_builder.UseBuffer(
                 model_matrices, Rhi::MemoryAccessTypeBuffer(Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)

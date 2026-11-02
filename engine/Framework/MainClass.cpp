@@ -255,6 +255,14 @@ namespace Engine {
         this->m_final_color_attachment_id = final_color_attachment_id;
     }
 
+    void MainClass::SetDiagnosticSkip(DiagnosticSkip skip) noexcept {
+        diagnostic_skip = static_cast<uint32_t>(skip);
+    }
+
+    MainClass::DiagnosticSkip MainClass::GetDiagnosticSkip() noexcept {
+        return static_cast<DiagnosticSkip>(diagnostic_skip);
+    }
+
     void MainClass::RunOneFrame() {
         // TODO: asynchronous execution
         this->asset_manager->LoadAssetsInQueue();
@@ -319,19 +327,26 @@ namespace Engine {
         // Physics prepares itself inside GPUStep, then records its compute passes;
         // physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
-        // A diagnosis switch: the browser's first frame is where a heap bug shows, and this is
-        // the largest thing it records. Set NEEDRENAME_SKIP_PHYSICS to leave it out.
-        if (SDL_getenv("NEEDRENAME_SKIP_PHYSICS") == nullptr) {
+        // A diagnosis switch: the browser's first frame is where a heap bug shows, and the work
+        // below is what it records. Set NEEDRENAME_SKIP_* (desktop) or state the same skip
+        // through SetDiagnosticSkip (any runtime) to leave a part of it out.
+        const auto skip = static_cast<uint32_t>(GetDiagnosticSkip());
+        const bool skip_physics = (skip & static_cast<uint32_t>(DiagnosticSkip::Physics)) != 0
+                                  || SDL_getenv("NEEDRENAME_SKIP_PHYSICS") != nullptr;
+        const bool skip_matrices = (skip & static_cast<uint32_t>(DiagnosticSkip::ModelMatrices)) != 0
+                                   || SDL_getenv("NEEDRENAME_SKIP_MODEL_MATRICES") != nullptr;
+        const bool skip_passes = (skip & static_cast<uint32_t>(DiagnosticSkip::Passes)) != 0
+                                 || SDL_getenv("NEEDRENAME_SKIP_PASSES") != nullptr;
+        if (!skip_physics) {
             this->physics->GPUStep(cb.GetEncoder()); // physics solvers record their compute passes
         }
         // Calculate model matrices for main scene
-        if (phys_scene != nullptr && SDL_getenv("NEEDRENAME_SKIP_MODEL_MATRICES") == nullptr) {
+        if (phys_scene != nullptr && !skip_matrices) {
             this->physics->GPUCalcModelMatrices(
                 *phys_scene, cb.GetEncoder(), this->renderer->GetSceneDataManager().GetModelMatricesBuffer()
             );
         }
-        if (SDL_getenv("NEEDRENAME_SKIP_PASSES") == nullptr && this->render_graph
-            && this->render_graph->GetNumPasses() > 0) {
+        if (!skip_passes && this->render_graph && this->render_graph->GetNumPasses() > 0) {
             this->render_graph->RecordAllPasses(cb.GetEncoder());
         }
 

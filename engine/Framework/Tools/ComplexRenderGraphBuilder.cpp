@@ -67,7 +67,15 @@ namespace Engine {
         // budgeted slot is imported into the graph, so lights can come and go at
         // runtime without this graph being rebuilt. Shared with the editor's
         // graph builder so both applications stay in step.
-        const std::vector<RGTextureHandle> shadow_ids = AddShadowCascadePasses(rgb, m_system, mm_handle);
+        // The shadow slots are imported either way: a graph with its passes left out still names
+        // every resource the frame would have used.
+        const uint32_t diagnostic_skip = static_cast<uint32_t>(MainClass::GetDiagnosticSkip());
+        const bool skip_shadow_passes =
+            (diagnostic_skip & static_cast<uint32_t>(MainClass::DiagnosticSkip::ShadowPasses)) != 0;
+        const bool skip_compute_passes =
+            (diagnostic_skip & static_cast<uint32_t>(MainClass::DiagnosticSkip::ComputePasses)) != 0;
+        const std::vector<RGTextureHandle> shadow_ids =
+            AddShadowCascadePasses(rgb, m_system, mm_handle, !skip_shadow_passes);
 
         // Set up the bloom kernel: one kernel exists per shader asset on the
         // device, no matter how many builders request it.
@@ -136,6 +144,9 @@ namespace Engine {
         /**
          * Bloom FX compute pass.
          */
+        if (skip_compute_passes) {
+            return rgb.BuildRenderGraph();
+        }
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Bloom FX pass")

@@ -59,6 +59,28 @@ int RunExample(int argc, char **argv) {
         max_frame_count = std::atoll(argv[1]);
         if (max_frame_count == 0) return -1;
     }
+    // A diagnostic run may leave part of the frame out, which is how a fault that only one
+    // runtime shows is narrowed down. The browser states these through `Module.arguments`,
+    // because it has no environment to set before the page starts.
+    uint32_t diagnostic_skip = 0;
+    for (int index = 1; index < argc; index++) {
+        const std::string_view argument{argv[index]};
+        if (argument == "--skip-physics") {
+            diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::Physics);
+        } else if (argument == "--skip-matrices") {
+            diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::ModelMatrices);
+        } else if (argument == "--skip-passes") {
+            diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::Passes);
+        } else if (argument == "--skip-shadow-passes") {
+            diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::ShadowPasses);
+        } else if (argument == "--skip-compute-passes") {
+            diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::ComputePasses);
+        }
+    }
+    if (diagnostic_skip != 0) {
+        MainClass::SetDiagnosticSkip(static_cast<MainClass::DiagnosticSkip>(diagnostic_skip));
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "diagnostic skips: 0x%x", diagnostic_skip);
+    }
 
     // Runtime scratch: materialise the working project in the current working
     // directory, never in the source tree or the (read-only) data root.

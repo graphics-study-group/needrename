@@ -67,6 +67,35 @@ namespace Engine {
 
         void SetRenderGraph(std::unique_ptr<RenderGraph> render_graph, RGTextureHandle final_color_attachment_id);
 
+        /// @brief Parts of the frame a diagnostic run may leave out.
+        enum class DiagnosticSkip : uint32_t {
+            None = 0,
+            /// @brief Skip the physics solvers' compute passes.
+            Physics = 1u << 0,
+            /// @brief Skip the model-matrix compute dispatch.
+            ModelMatrices = 1u << 1,
+            /// @brief Skip the render graph's passes.
+            Passes = 1u << 2,
+            /// @brief Skip the shadow map passes only.
+            ShadowPasses = 1u << 3,
+            /// @brief Skip the compute passes only.
+            ComputePasses = 1u << 4
+        };
+
+        /**
+         * @brief Leave part of the frame out, for bisecting a fault that only one runtime shows.
+         *
+         * The browser has no environment to set before the page starts, so the switches are
+         * stated here rather than read from `getenv` alone: an example parses them from its
+         * arguments, and a desktop run can also set the matching `NEEDRENAME_SKIP_*` variable.
+         *
+         * @param skip The parts to leave out, or `None` to record everything.
+         */
+        static void SetDiagnosticSkip(DiagnosticSkip skip) noexcept;
+
+        /// @brief What the last @ref SetDiagnosticSkip left out.
+        static DiagnosticSkip GetDiagnosticSkip() noexcept;
+
     protected:
         std::unique_ptr<Rhi::DeviceContext> m_device_context{};
         std::shared_ptr<RenderSystem> renderer{};
@@ -92,6 +121,10 @@ namespace Engine {
         uint32_t m_last_present_height{0};
 
         void RunOneFrame();
+
+        /// @brief The skips stated through @ref SetDiagnosticSkip, as a bit mask.
+        static inline uint32_t diagnostic_skip{0};
+
     };
 } // namespace Engine
 

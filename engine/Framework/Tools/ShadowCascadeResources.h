@@ -33,7 +33,8 @@ namespace Engine {
      *         order.
      */
     FRAMEWORK_API std::vector<RGTextureHandle> AddShadowCascadePasses(
-        RenderGraphBuilder &builder, RenderSystem &system, RGBufferHandle model_matrices
+        RenderGraphBuilder &builder, RenderSystem &system, RGBufferHandle model_matrices,
+        bool add_passes = true
     );
 } // namespace Engine
 
