@@ -1,6 +1,8 @@
-> **Start at the handover.** The section "Handover: what is done, what is not, and what the next
-> session should not redo" near the end of this file is the shortest accurate description of where
-> the change stands. Everything above it is the record of how it got there.
+> **Start at `HANDOVER.md`.** It is the shortest accurate description of where the change stands:
+> what is real, what is not, what to do next, and the dozen things not to redo. This file is the
+> longer record of how it got there, and the section
+> "Handover: what is done, what is not, and what the next session should not redo" near the end is
+> an earlier version of the same material.
 # Where this change stands
 
 Written to be read before the code, by someone deciding what to do next. It says
