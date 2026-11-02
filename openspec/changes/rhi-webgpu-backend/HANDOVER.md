@@ -141,15 +141,24 @@ wait for assets that are not where the process looks - worth knowing before a nu
 while timing out inside the suite, which is the readback/serialisation problem below rather than
 a rendering one.
 
-### 0c. `mrt_test` hangs in its transfer pass, on both backends
+### 0c. `mrt_test` hangs allocating its read-back buffer, on both backends
 
-A run of `mrt_test` stops right after the transfer subpass is recorded - the read-back copy that
-brings the frame back to the CPU - on the Vulkan build and the WebGPU build alike, so it is not
-this backend's doing. It is the subject of task 11.3 (the test suite's synchronous readback wants
-a blocking pump with test-only yield support). It passed earlier in the session and started
-hanging later; the machine had been running hundreds of headless browser and test processes by
-then, which may matter, but the identical behaviour on both backends says the cause is in the
-shared readback path.
+Instrumented: the frame is recorded, `RegisterReadbackCallback` opens its registry, and then the
+process stops inside the **first `vmaCreateBuffer`** - an 8,294,400-byte buffer of type
+`ReadbackFromDevice`, which is `CopyTo | HostRandomAccess`, mapped on creation. Nothing after that
+call is reached, on the Vulkan build and the WebGPU build alike, so it is the shared read-back
+allocator rather than either backend.
+
+Two things make it plausible and both are already known in the code: the test registers a read-back
+**every frame**, each one a fresh 8 MB allocation (the registry carries the comment "TODO: reuse
+fences and command buffers to avoid frequent reallocation"), and a callback only runs once the
+previous frame's fence has signalled, so allocations outrun the frees under memory pressure. The
+driver then sits in `vkAllocateMemory`, which is where the process is observed to be.
+
+The shape of the fix is what task 11.3 describes: a pool of read-back buffers reused across
+registrations (which needs the callback to hand its buffer back rather than destroy it) and the
+test's synchronous wait moved onto the blocking pump. Not attempted here; recorded so the next
+run starts from the call, not from the symptom.
 
 ### 0b. Two headless paths still fail on WebGPU
 
