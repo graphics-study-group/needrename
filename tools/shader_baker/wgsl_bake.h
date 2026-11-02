@@ -65,6 +65,7 @@ namespace Engine::ShaderBake {
      * @param spirv The module; reflected here.
      * @param shader_name The name to record.
      * @param stage The stage to record.
+     * @param wgsl The converted text, which decides each storage binding's access.
      * @param json Receives the description.
      * @return Whether reflection succeeded.
      */
@@ -72,6 +73,7 @@ namespace Engine::ShaderBake {
         const std::vector<uint32_t> &spirv,
         const std::string &shader_name,
         const std::string &stage,
+        const std::string &wgsl,
         std::string &json
     );
 } // namespace Engine::ShaderBake

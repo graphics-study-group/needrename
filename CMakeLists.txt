@@ -305,6 +305,22 @@ if (ENGINE_RHI_BACKEND_WEBGPU AND NOT EMSCRIPTEN AND ENGINE_SHADER_BAKER_EXECUTA
     )
     add_custom_target(physics_shader_wgsl ALL DEPENDS "${PHYSICS_WGSL_STAMP}")
     set_target_properties(physics_shader_wgsl PROPERTIES FOLDER build)
+
+    # The staged data root is what a run points at, and the physics kernels are resolved
+    # through it. Copying the baked tree there is what makes the staged root complete: without
+    # it a run falls back to the build tree's developer path, and a run from anywhere else
+    # cannot find the kernels at all.
+    set(PHYSICS_STAGE_DIR "${ENGINE_DATA_STAGE_DIR}/spirv")
+    add_custom_target(physics_shader_stage ALL
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${PHYSICS_STAGE_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${CMAKE_BINARY_DIR}/engine/Physics/spirv/$<IF:$<CONFIG:Debug>,debug,release>"
+                "${PHYSICS_STAGE_DIR}"
+        DEPENDS "${PHYSICS_WGSL_STAMP}"
+        COMMENT "Staging the baked physics shaders into the data root"
+        VERBATIM
+    )
+    set_target_properties(physics_shader_stage PROPERTIES FOLDER build)
 endif()
 
 # --- Built-in asset staging ------------------------------------------------

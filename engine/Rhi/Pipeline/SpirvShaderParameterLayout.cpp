@@ -265,9 +265,9 @@ namespace Engine::Rhi {
                         DescriptorBinding{ptr->layout_binding, DescriptorType::UniformBuffer, 1}
                     );
                 } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
-                    sets[ptr->layout_set].push_back(
-                        DescriptorBinding{ptr->layout_binding, DescriptorType::StorageBuffer, 1}
-                    );
+                    DescriptorBinding entry{ptr->layout_binding, DescriptorType::StorageBuffer, 1};
+                    entry.storage_read_only = ptr->read_only;
+                    sets[ptr->layout_set].push_back(entry);
                 } else {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring buffer with unknown type.");
                 }
@@ -301,14 +301,14 @@ namespace Engine::Rhi {
                         }
                     );
                 } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
-                    bindings.push_back(
-                        DescriptorBinding{
-                            ptr->layout_binding,
-                            enforce_dynamic_storage_buffer ? DescriptorType::StorageBufferDynamic
-                                                           : DescriptorType::StorageBuffer,
-                            1
-                        }
-                    );
+                    DescriptorBinding entry{
+                        ptr->layout_binding,
+                        enforce_dynamic_storage_buffer ? DescriptorType::StorageBufferDynamic
+                                                       : DescriptorType::StorageBuffer,
+                        1
+                    };
+                    entry.storage_read_only = ptr->read_only;
+                    bindings.push_back(entry);
                 } else {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring buffer with unknown type.");
                 }
@@ -469,6 +469,11 @@ namespace Engine::Rhi {
 
             buffer_interface_ptr->layout_set = desc_set;
             buffer_interface_ptr->layout_binding = compiler.get_decoration(ssbo.id, spv::DecorationBinding);
+            // `readonly buffer` arrives as `NonWritable` on the variable, and the layout has to
+            // declare the same access the shader does.
+            buffer_interface_ptr->read_only =
+                compiler.has_decoration(ssbo.id, spv::DecorationNonWritable)
+                && !compiler.has_decoration(ssbo.id, spv::DecorationNonReadable);
 
             if (layout.interface_name_mapping.contains(ssbo.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", ssbo.name.c_str());

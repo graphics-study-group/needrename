@@ -87,6 +87,12 @@ namespace Engine::Rhi {
             // SSBOs (`buffer StructName`)
             StorageBuffer
         } type{Type::Unknown};
+        /// @brief Whether a storage buffer is declared `readonly`.
+        ///
+        /// A backend whose layout states the access cannot derive it from the buffer a caller
+        /// binds: the shader's declaration decides, and a layout that declares the wrong access
+        /// is a pipeline that does not build.
+        bool read_only{false};
     };
 
     /// @brief Structured buffer. Generally uniform buffer for materials.

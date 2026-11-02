@@ -118,8 +118,22 @@ namespace Engine::Rhi {
             throw std::runtime_error("WebGPU: no adapter available.");
         }
 
+        // What this device has to be able to do, above the defaults. The engine's own physics
+        // kernel binds eleven storage buffers in one group, which is past the default of eight,
+        // so the adapter's own maximum is requested. A limit the adapter does not offer cannot be
+        // asked for, so this reads what it has rather than assuming.
+        WGPULimits adapter_limits{};
+        if (!wgpuAdapterGetLimits(pimpl->adapter, &adapter_limits)) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: the adapter did not report its limits.");
+        }
+        WGPULimits requested_limits = WGPU_LIMITS_INIT;
+        requested_limits.maxStorageBuffersPerShaderStage = adapter_limits.maxStorageBuffersPerShaderStage;
+        requested_limits.maxStorageTexturesPerShaderStage = adapter_limits.maxStorageTexturesPerShaderStage;
+        requested_limits.maxBindGroups = adapter_limits.maxBindGroups;
+
         Request<WGPUDevice> device_request{};
         WGPUDeviceDescriptor device_desc{};
+        device_desc.requiredLimits = &requested_limits;
         device_desc.uncapturedErrorCallbackInfo.callback = OnUncapturedError;
         WGPURequestDeviceCallbackInfo device_callback{};
         device_callback.mode = WGPUCallbackMode_AllowProcessEvents;

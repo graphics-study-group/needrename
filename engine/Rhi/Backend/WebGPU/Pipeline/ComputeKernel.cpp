@@ -107,8 +107,18 @@ namespace Engine::Rhi {
             }
         }
 
+        // A kernel that declares a constant block reads it from the group the bake moved it to,
+        // so its pipeline layout has to declare that group. The seam spells "this pipeline has a
+        // constant block" as a push-constant range, which is where the backend learns the size -
+        // the block itself is a uniform buffer here.
+        std::vector<Rhi::PushConstantRange> constant_ranges;
+        if (description.has_constant_block) {
+            constant_ranges.push_back(
+                Rhi::PushConstantRange{0, description.constant_block.size, true}
+            );
+        }
         const PipelineLayoutDescription layout_description{
-            .set_layouts = set_layouts, .push_constant_ranges = {}
+            .set_layouts = set_layouts, .push_constant_ranges = constant_ranges
         };
         pimpl->pipeline_layout = cache.GetPipelineLayout(layout_description, name.data());
 

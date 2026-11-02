@@ -2,6 +2,8 @@
 
 #include <cmake_config.h>
 
+#include <SDL3/SDL.h>
+
 #include <Core/FileSystem/DataRoot.h>
 #include <Rhi/Device/DeviceContext.h>
 #include <Rhi/Pipeline/ComputeKernel.h>

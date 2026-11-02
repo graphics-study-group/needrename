@@ -6,6 +6,9 @@
 #include <Rhi/Pipeline/ShaderParameterLayout.h>
 
 #include <algorithm>
+#include <map>
+#include <regex>
+#include <utility>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -196,13 +199,43 @@ namespace Engine::ShaderBake {
          * description names both. A shader whose next binding is already taken fails the
          * agreement check below, which is where that collision should be caught.
          */
+        /// @brief The access each storage binding declares in the converted WGSL.
+        ///
+        /// The converter infers read versus read-write from how the module uses a binding, which
+        /// is not the same thing as the SPIR-V decoration: a GLSL buffer declared without
+        /// `readonly` but only read becomes `var<storage, read>`. The layout has to match what the
+        /// runtime compiles, so the description takes the access from the WGSL text.
+        std::map<std::pair<uint32_t, uint32_t>, bool> StorageAccessFromWgsl(const std::string &wgsl) {
+            std::map<std::pair<uint32_t, uint32_t>, bool> access;
+            std::istringstream lines{wgsl};
+            std::string line;
+            std::regex binding_pattern(
+                R"(@group\((\d+)u\)\s*@binding\((\d+)u\)\s*var<storage,\s*(read|read_write)>)"
+            );
+            std::regex storage_texture_pattern(
+                R"(@group\((\d+)u\)\s*@binding\((\d+)u\)\s*var\s+\w+\s*:\s*texture_storage_\w+<[^,]+,\s*(read|write|read_write)>)"
+            );
+            std::smatch match;
+            while (std::getline(lines, line)) {
+                if (std::regex_search(line, match, binding_pattern)) {
+                    access[{static_cast<uint32_t>(std::stoul(match[1])), static_cast<uint32_t>(std::stoul(match[2]))}] =
+                        match[3] == "read";
+                } else if (std::regex_search(line, match, storage_texture_pattern)) {
+                    access[{static_cast<uint32_t>(std::stoul(match[1])), static_cast<uint32_t>(std::stoul(match[2]))}] =
+                        match[3] == "read";
+                }
+            }
+            return access;
+        }
+
         bool WriteInterfaceDescriptionJson(
             std::ostringstream &json,
             const std::string &shader_name,
             const std::string &stage,
             const std::string &entry_point,
             const Engine::Rhi::SPLayout &layout,
-            const ConstantBlockLayout &constant_block
+            const ConstantBlockLayout &constant_block,
+            const std::map<std::pair<uint32_t, uint32_t>, bool> &access_from_wgsl = {}
         ) {
             struct Entry {
                 uint32_t set;
@@ -234,6 +267,11 @@ namespace Engine::ShaderBake {
                         storage_read_only
                     }
                 );
+                const auto override_entry =
+                    access_from_wgsl.find({interface->layout_set, interface->layout_binding});
+                if (override_entry != access_from_wgsl.end()) {
+                    entries.back().storage_read_only = override_entry->second;
+                }
             }
 
             json << "{\n";
@@ -252,6 +290,9 @@ namespace Engine::ShaderBake {
                 const Entry &entry = entries[index];
                 json << "    { \"set\": " << entry.set << ", \"binding\": " << entry.binding << ", \"kind\": \""
                      << entry.kind << "\", \"name\": \"" << entry.name << "\"";
+                if (std::string_view{entry.kind} == "storage-buffer") {
+                    json << ", \"read_only\": " << (entry.storage_read_only ? "true" : "false");
+                }
                 if (std::string_view{entry.kind} == "storage-image") {
                     json << ", \"format\": " << entry.storage_format
                          << ", \"read_only\": " << (entry.storage_read_only ? "true" : "false");
@@ -273,10 +314,13 @@ namespace Engine::ShaderBake {
             const std::string &stage,
             const std::string &entry_point,
             const Engine::Rhi::SPLayout &layout,
-            const ConstantBlockLayout &constant_block
+            const ConstantBlockLayout &constant_block,
+            const std::map<std::pair<uint32_t, uint32_t>, bool> &access_from_wgsl = {}
         ) {
             std::ostringstream json;
-            if (!WriteInterfaceDescriptionJson(json, shader_name, stage, entry_point, layout, constant_block)) {
+            if (!WriteInterfaceDescriptionJson(
+                    json, shader_name, stage, entry_point, layout, constant_block, access_from_wgsl
+                )) {
                 return false;
             }
 
@@ -468,13 +512,21 @@ namespace Engine::ShaderBake {
 
             const std::filesystem::path description_path =
                 module_path.parent_path() / (module_path.stem().string() + ".iface.json");
+            std::string converted_text;
+            {
+                std::ifstream converted_file(wgsl_path);
+                std::ostringstream converted_stream;
+                converted_stream << converted_file.rdbuf();
+                converted_text = converted_stream.str();
+            }
             if (!WriteInterfaceDescription(
                     description_path,
                     ShaderNameOf(module_path),
                     StageOf(module_path),
                     "main",
                     layout,
-                    constant_block
+                    constant_block,
+                    StorageAccessFromWgsl(converted_text)
                 )) {
                 error = "cannot write the interface description";
                 return false;
@@ -573,7 +625,11 @@ namespace Engine::ShaderBake {
     }
 
     bool WriteInterfaceDescriptionForModule(
-        const std::vector<uint32_t> &spirv, const std::string &shader_name, const std::string &stage, std::string &json
+        const std::vector<uint32_t> &spirv,
+        const std::string &shader_name,
+        const std::string &stage,
+        const std::string &wgsl,
+        std::string &json
     ) {
         const Engine::Rhi::SPLayout layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
         ConstantBlockLayout constant_block{};
@@ -582,7 +638,9 @@ namespace Engine::ShaderBake {
         constant_block.binding = 0;
         constant_block.size_bytes = layout.push_constant_size;
         std::ostringstream out;
-        if (!WriteInterfaceDescriptionJson(out, shader_name, stage, "main", layout, constant_block)) {
+        if (!WriteInterfaceDescriptionJson(
+                out, shader_name, stage, "main", layout, constant_block, StorageAccessFromWgsl(wgsl)
+            )) {
             return false;
         }
         json = out.str();

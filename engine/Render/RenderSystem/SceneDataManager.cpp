@@ -161,7 +161,15 @@ namespace Engine::RenderSystemState {
                             .view_dimension = Rhi::TextureViewDimension::D2Array
                         },
                         // 2 is the sampler the split rule gives binding 1, so the buffer follows.
-                        Rhi::DescriptorBinding{3, Rhi::DescriptorType::StorageBuffer, 1}
+                        // The shader declares it `readonly buffer`, so the layout says the same:
+                        // a writable storage binding is not legal in the vertex stage without an
+                        // optional feature, and the skybox and lit shaders both read it there.
+                        Rhi::DescriptorBinding{
+                            .binding = 3,
+                            .type = Rhi::DescriptorType::StorageBuffer,
+                            .count = 1,
+                            .storage_read_only = true
+                        }
                     };
                 }
                 scene_descriptor_set_layout = arena.ResolveLayout(descriptor_bindings, "Scene Descriptor Set Layout");

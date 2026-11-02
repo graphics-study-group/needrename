@@ -1,5 +1,7 @@
 #include "XPBDGpuSolver.h"
 
+#include <SDL3/SDL.h>
+
 
 #include <Physics/Collision/ConvexCollisionDetector.h>
 #include <Physics/Collision/SpatialHashBroadDetector.h>
@@ -926,7 +928,5 @@ namespace Engine {
         );
     }
 } // namespace Engine
-
-
 
 

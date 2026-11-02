@@ -226,7 +226,7 @@ namespace {
             std::string description;
             const std::string shader_stage = main_data.value(k_shader_type_key, std::string{"Unknown"});
             if (Engine::ShaderBake::WriteInterfaceDescriptionForModule(
-                    spirv, asset_path.stem().string(), LowerCase(shader_stage), description
+                    spirv, asset_path.stem().string(), LowerCase(shader_stage), wgsl, description
                 )) {
                 size_t description_extra_data_id =
                     main_data.value("iface_extra_data_id", std::numeric_limits<size_t>::max());

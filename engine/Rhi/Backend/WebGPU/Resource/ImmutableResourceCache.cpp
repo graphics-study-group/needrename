@@ -291,7 +291,18 @@ namespace Engine::Rhi {
                 break;
             case DescriptorType::StorageBuffer:
             case DescriptorType::StorageBufferDynamic:
-                entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+                // A storage buffer the shader declares `readonly` needs the read-only binding
+                // type, and one it writes needs the writable one: the declaration decides, and
+                // the wrong one is a pipeline that does not build.
+                entry.buffer.type = binding.storage_read_only ? WGPUBufferBindingType_ReadOnlyStorage
+                                                             : WGPUBufferBindingType_Storage;
+                if (!binding.storage_read_only) {
+                    // A *written* storage buffer is not legal in the vertex stage of the standard
+                    // interface without an optional feature, and a layout entry that claims vertex
+                    // visibility for one is rejected. Read-only storage is fine there, which is
+                    // what the engine's vertex shaders use.
+                    entry.visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
+                }
                 break;
             case DescriptorType::CombinedImageSampler:
                 // Unreachable: a combined binding took the two-entry path above. The case is
