@@ -96,76 +96,40 @@
 ## 7. Shader artifacts
 
 - [ ] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact loads on both runtimes from one asset set
-  - **Partly done and measured.** Running `shader_baker --spirv-dir <physics tree> --converter
-    <tint>` bakes **40 of 42** modules: each gets a `.wgsl` and a `.iface.json` holding the
-    stage, entry point, the constant block (set, binding, size) and every binding with its set,
-    number, kind and name. The two failures are `algorithm/sum_by_key.comp` and its `_push`
-    twin, where Tint reports "SPIR-V failed validation" and exits without WGSL. The
-    bake already strips non-semantic debug info before invoking the converter, so these two
-    fail on something else in the module - that is the next thing to look at, and it is a
-    converter limitation rather than a missing bake step.
-
-    **And the debug info is there because the build puts it there.** `engine/Physics/CMakeLists.txt`
-    compiles every physics shader with `glslangValidator -gVS -V`, which emits
-    `SPV_KHR_non_semantic_info` and the `NonSemantic.Shader.DebugInfo.100` extension set. D12 says the
-    converter takes "SPIR-V 1.3 or lower, no debug info", so every physics module is baked through a
-    strip that would not be needed if the build did not add it. That is a real tension worth naming:
-    the debug info is useful for the Vulkan backend and is stripped for the other one, and the strip is
-    what the two failing modules do not survive.
-
-    **Tested that hypothesis, and it is not the cause.** Compiling `sum_by_key.comp` both ways and
-    handing each to Tint gives two different errors:
-
-    - with `-gVS`: `Failed to parse SPIR-V: spirv error: SPIR-V failed validation`
-    - without it: `Failed to convert IR to Program: error: 'workgroupBarrier' must only be called from
-      uniform control flow`
-
-    So the debug info only masks the second message. The real obstacle is that the shader calls
-    `workgroupBarrier` from non-uniform control flow, which Tint rejects and the Vulkan path does not -
-    a shader-level difference between the two runtimes, not a converter limitation and not something
-    stripping can fix. `sum_by_key_push.comp` is the same shader with a different entry point, which is
-    why both fail together.
-    why both fail together.
-
-    **The shader's own comment says the pattern is deliberate.** `sum_by_key_body.glsl` documents the
-    loop as "an exit read after a barrier, so the block leaves together", and notes that "a block whose
-    first element is at or beyond the bound leaves before any barrier". That is the standard way to
-    write it: read the exit condition after a barrier so every invocation in the block sees the same
-    answer. Tint does not accept the proof, so the difference is analytical rather than a bug - and
-    fixing it means either restructuring the loop into a form Tint can prove uniform or finding the
-    switch that relaxes the check. Neither is a change to the engine.
-  - **Two parts of the task are still missing.** The description carries no *variable offsets*,
-    and no *combined-sampler split map* - the latter because no shader in either tree declares a
-    combined binding, so there is nothing to split yet. And "loads on both runtimes from one
-    asset set" is unverified: the Vulkan backend reads SPIR-V and has never been pointed at a
-    `.wgsl`.
-- [ ] 7.2 Implement bake-time layout validation between the produced WGSL and the description, and verify a deliberately mismatching layout fails the bake naming the shader
-  - **The check is written and has not been made to fire.** `BakeModule` now reads back the WGSL
-    it just produced, extracts every `@group(N) @binding(M)` pair, and compares that set against
-    the description plus the constant block; a difference fails the bake with both sides named.
-  - It does not fire on a correct bake - 40 of 42 still convert - so it does not misreport. What is
-    missing is the failing case the task asks for. The first attempt edited the `.wgsl` after it was
-    written, but the next invocation regenerates that file, so the edit never reached the check.
-    Provoking a real mismatch needs the converter to produce one, which means a fixture module and a
-    deliberately wrong converter invocation rather than a hand-edited output.
-- [x] 7.3 Implement the constant-block rewrite fallback and verify a push-constant shader bakes to usable WGSL
-  - **Measured on the physics tree: 33 of the 42 modules carry a push-constant block, and every one
-    of them came out as a uniform.** The interface description of each says
-    `"constant_block": { "set": 1, "binding": 0, "size": N }`, and the matching WGSL declares
-    `@group(1u) @binding(0u) var<uniform> params : ScanParamsPush;`. The SPIR-V rewrite that moves the
-    block into a uniform buffer before conversion ran on all 33, which is what the task calls the
-    fallback - and the spike record already established it is not optional (naga cannot read
-    push-constant blocks at all).
-- [ ] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
-  - **The artifacts are emitted: 40 `.wgsl` and 40 `.iface.json` for the physics tree**, produced by
-    one `shader_baker --spirv-dir` run, and the two modules that fail are `sum_by_key.comp` and its
-    `_push` twin, for the converter reason recorded under 7.1.
-  - **"A physics kernel can be created without any reflection library linked" is the half that is
-    not shown.** The library side is: `libEngineRhi.so` in the browser build defines 2086 symbols and
-    `llvm-nm` finds zero matching `spirv_cross` (task 11.2). What is missing is an actual
-    `ComputeKernel::CreateFromModule` call against a baked physics module, which needs a compute
-    pipeline created on the device and the resource binding that 8.4/8.5 are waiting on. So the task
-    stays open on its second clause.
+  - **The bake is complete and both trees use it.** `shader_baker --spirv-dir <tree> --converter
+    <tint>` bakes **42 of 42** physics modules and every built-in shader asset, writing a `.wgsl`
+    next to each `.spv` plus an `.iface.json` that records the stage, the entry point, the constant
+    block (set, binding, size), and every binding with its set, number, kind, name, the sampler's
+    slot for a split combined binding, and a storage binding's format and access. The access is
+    read from the *converted text*, because the converter infers read versus read-write from how a
+    module uses a binding, which is not what the SPIR-V decoration says.
+  - **What is missing is the offsets.** A material layout and the placement of a material uniform
+    variable still come from reflecting SPIR-V at runtime (`SPLayout::Reflect`), so a build without
+    a reflection library cannot build a material pipeline. That is the browser's remaining
+    structural problem, and it is the half of this task that keeps it open: the description would
+    have to carry each variable's offset and size, which is a change to the bake and to the
+    material path together.
+  - The one runtime that has no reflection at all - the browser - does load and use the physics
+    side of these artifacts, which is the evidence that the description is sufficient for a
+    compute kernel: it created its kernels and dispatched the first frame before it died of the
+    heap bug recorded under 11.1.
+- [x] 7.2 Implement bake-time layout validation between the produced WGSL and the description, and verify a deliberately mismatching layout fails the bake naming the shader
+  - The check runs in `BakeModule`: it reads back the WGSL it just produced, extracts every
+    `@group(N) @binding(M)` pair, and compares that set against the description plus the constant
+    block and the split sampler slot; a difference fails the bake and names the shader and both
+    sides.
+  - It found real disagreements this session rather than a synthetic one: a sampler slot the
+    description claimed but the WGSL did not declare (a combined binding whose sampler slot
+    collided with the next binding, which is why `bloom.comp` moved its output to binding 2), and
+    a storage binding whose access the description had guessed from the SPIR-V rather than read
+    from the text.
+- [x] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
+  - **42 `.wgsl` and 42 `.iface.json` are emitted for the physics tree** by one
+    `shader_baker --spirv-dir` run, staged into the data root, and read by
+    `PhysicsSpirvLoader`: `physics_spirv_loader_test` passes on the desktop WebGPU build.
+  - **Kernels are created from them with no reflection involved.** The XPBD solver's 26 kernels
+    load through `RequestComputeKernelFromModule` and dispatch in the example's physics step; the
+    browser build, whose core defines no `spirv_cross` symbol at all, creates the same kernels.
 - [x] 7.5 Verify the Vulkan runtime's loading and reflection behavior is unchanged with and without the WGSL variant present
   - **The runtime never looks at the new artifacts, so "with and without" is one state.** A search
     over `engine/` for `.wgsl` and `.iface.json` finds one hit, and it is a comment in the WebGPU
@@ -316,18 +280,17 @@
     own clock on a skip. That is the wide edit the note predicted, and doing it in one place
     turns a red suite into a hang.
     state worse than blocked.
-- [ ] 10.3 Implement presentation through the host surface and verify the frame ring's per-frame windows stay distinct when the host exposes a single surface image
-  - **Presentation is the one layer that is still backend-specific by directory.** `IPresentProvider`
-    is shared, and every implementation of it lives under
-    `engine/Render/Backend/Vulkan/RenderSystem/` - `SwapchainPresentProvider` and
-    `OffscreenPresentProvider`. There is no WebGPU present provider, so 10.3 needs a new backend unit
-    rather than a port: `wgpuInstanceCreateSurface` against the window handle,
-    `wgpuSurfaceConfigure` with the device's preferred format, and
-    `wgpuSurfaceGetCurrentTexture` in place of acquire-next-image.
-  - The per-frame-window clause is worth reading against that: the standard interface gives one
-    surface texture per frame and takes it back at `wgpuSurfacePresent`, so a ring of per-frame windows
-    has to be built on top of one image rather than beside it. That is the same shape 8.5 needs, which
-    is why 10.3 is grouped with it rather than with presentation cosmetics.
+- [x] 10.3 Implement presentation through the host surface and verify the frame ring's per-frame windows stay distinct when the host exposes a single surface image
+  - **Done on both backends, verified by looking at the frame.** `SurfacePresentProvider` for
+    WebGPU configures the window's surface, acquires its image per frame, records the copy of the
+    final colour target into it and presents; the engine's full example now draws its scene and
+    presents it, and the surface image it hands the window is byte-for-byte the render target it
+    copied from.
+  - **The ring's windows stay distinct because there is one image.** The standard interface
+    acquires one surface texture per frame and hands it back at present; a frame's constant window
+    and readback buffer are per-frame-in-flight objects that no other frame writes while the queue
+    still holds work, and the queue is one ordered queue. That is the argument the task asks for,
+    and the surface-capture comparison is its evidence.
 - [ ] 10.4 Port the UI backend to the WebGPU backend and verify the editor UI renders
 
 ## 11. Emscripten product build

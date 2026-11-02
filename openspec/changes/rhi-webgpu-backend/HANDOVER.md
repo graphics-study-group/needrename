@@ -13,10 +13,10 @@ Verified at `a0ca69fe` (branch `feature/wgpu`).
 
 ## Where it stands in one sentence
 
-The engine's own scene draws and presents through the WebGPU backend on desktop - two windowed
-tests pass with captured frames - the full scene example compiles and runs but stalls while
-creating the first physics kernel, and the browser build runs to the first frame before a
-JavaScript assertion in the browser's WebGPU layer stops it.
+The engine's own scene draws and presents through the WebGPU backend on desktop - the full
+windowed example runs to its last frame and the surface image it presents is the frame it
+rendered - the skybox test's WebGPU frame is byte-for-byte the frame Vulkan produces, and the
+browser build runs to its first frame before a wasm heap bug stops it.
 
 ---
 
@@ -26,14 +26,11 @@ JavaScript assertion in the browser's WebGPU layer stops it.
 |---|---|
 | `msvc-debug`: build exit 0, 76/76 tests pass | the Vulkan backend is unchanged (`asset_path_test` and `data_root_test` are the two known environment failures, excluded here) |
 | `webgpu-desktop`: build exit 0 | the whole engine compiles and links against the second backend |
-| `mrt_test` on WebGPU: **PASSED**, and its frame dumped | the engine records four render passes, draws, reads the colour target back and presents |
-| `skybox_test` on WebGPU: **PASSED** (640000/640000 pixels), and its frame dumped | a textured material pipeline, a cube map, depth and the present copy all work |
-| `build/webgpu/mrt_frame.png`, `build/webgpu/skybox.png`, `build/webgpu/presented.png` | the frames themselves; `presented.png` is the surface image, not the render target |
-| `build/emscripten`: build exit 0, and the page reaches "Entering main loop" in Edge | the browser build compiles, links, creates its device and surface, loads the model and starts a frame |
-
-The two tests' own assertions are the evidence: `mrt_test` fails when the colour target is
-uniformly zero, and `skybox_test` fails when the frame is entirely black. Both pass.
-
+| `external_resource_loading_example` on WebGPU: **exit 0**, 30 frames, frame captured | shadow cascades, the lit pass, the bloom compute pass and the present copy all run in the engine's own render graph |
+| `skybox_test` on WebGPU and on Vulkan: both PASS, and the two dumps are **the same bytes** | the second backend draws this scene identically, not merely plausibly |
+| `mrt_test` on WebGPU: PASSED | geometry with four render passes, plus a readback |
+| `build/webgpu/scene3.png`, `build/webgpu/skybox2.png`, `build/skybox_vulkan.png`, `build/webgpu/presented.png` | the frames themselves |
+| `build/emscripten`: build exit 0, page reaches "Entering main loop" in Edge | the browser build compiles, links, creates its device and surface, loads the model and starts a frame |
 ### How to look at a frame
 
 ```powershell
@@ -110,7 +107,18 @@ capture nothing the shell does not.
 
 ## What is not real, and the order to take it
 
-### 1. The scene example stalls while creating its first physics kernel
+### 0. Two headless paths still fail on WebGPU
+
+Found at the end of the session, both on the headless (no window) path:
+
+- `pbr_test` draws its four subpasses and then takes an access violation around the frame
+  readback. The windowed readback works, so the difference is the headless present provider and
+  the readback pump's completion path.
+- `compute_shader_test` asserts in `ShaderAsset.cpp` because the asset it wants is not in the
+  staged data root; that is a staging gap rather than a backend fault, and it hangs on the
+  assertion dialog.
+
+### 1. The scene example no longer stalls; the earlier note is kept for the record
 
 `external_resource_loading_example` gets through its frame's CPU work, acquires the surface
 image, and stops inside `physics->GPUStep(...)`: the solver's `EnsureShadersLoaded` loads its
