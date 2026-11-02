@@ -97,23 +97,19 @@ capture nothing the shell does not.
 
 ## What is not real, and the order to take it
 
-### 0a. The example presents a black frame on WebGPU, and the tests do not
+### 0a. The example's black frame was a silently skipped kernel, and it is fixed
 
-`skybox_test` on the same build, the same staged assets and the same window renders a real
-picture (dumped frame's brightest pixel is 157), so the backend, the present copy and the
-material path all work. `external_resource_loading_example` presents a frame whose every pixel is
-zero, with no validation error and no `MeshAsset` guard message, which means its geometry parsed
-and its draws were recorded. The open question is which of the two is lost, and the way to
-answer it is to read the *final colour target* back (not the surface) in the example and compare
-that with the surface copy - if the target is black the recording is wrong, if it is not, the
-copy or the present is.
+A dispatch consults an `available` flag that a device refusal sets to false. That flag was
+initialised false and only ever set by `CreateFromModule`, so a kernel reaching a dispatch by any
+other path was treated as refused and its work was skipped - the bloom pass and the model-matrix
+compute became no-ops and the window went black with no error anywhere. The default is true now,
+and a refusal still lands on the no-op branch because creation sets the flag explicitly.
 
-The stash `browser material work in progress` holds the next step of the browser work: a portable
-`SPLayout` split (the merge/restate/place half compiled everywhere, only `Reflect` per backend),
-an opaque canvas composite mode, and a material pipeline layout that always has its third group.
-It was stashed because the example went black while it was in the tree, and that has to be
-understood first - the run with the stash applied and the run without it are black alike, so the
-split is not the cause and the stash can go back in.
+Found by bisecting with a build-and-measure script (`build/bisect_run.ps1`): the frame is good up
+to `ee689e6b`, black from `8f32eca7`, and reverting only `ComputeKernel.cpp` restored it. The
+example presents a real frame again - 404 of a 40x23 sample grid lit, brightest pixel 161 - and
+the capture can read the render target instead of the surface
+(`NEEDRENAME_CAPTURE_SOURCE=target`) when the two have to be compared.
 
 ### 0. The example's composition has no Vulkan reference yet
 
