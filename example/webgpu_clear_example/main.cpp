@@ -160,7 +160,9 @@ int main(int, char **) {
     surface_config.usage = WGPUTextureUsage_RenderAttachment;
     surface_config.width = state.width;
     surface_config.height = state.height;
-    surface_config.presentMode = WGPUPresentMode_Fifo;
+    // Fifo waits for a vertical blank, and a headless browser has none to give: the acquire
+    // would block. Immediate is what a page that only needs to prove it presented wants.
+    surface_config.presentMode = WGPUPresentMode_Immediate;
     // Opaque, not Auto: an auto alpha lets the compositor decide, and a window whose
     // contents are blended with nothing underneath is exactly where a black result comes from.
     surface_config.alphaMode = WGPUCompositeAlphaMode_Opaque;
@@ -221,7 +223,7 @@ int main(int, char **) {
             SDL_Log("webgpu_clear: first frame presented");
         }
         // A fixed number of frames so a headless run finishes; a desktop run closes its window.
-        if (frames >= 600) {
+        if (frames >= 30) {
             SDL_Log("webgpu_clear: %llu frames presented, done", static_cast<unsigned long long>(frames));
             running = false;
         }
@@ -230,6 +232,7 @@ int main(int, char **) {
 
     return 0;
 }
+
 
 
 
