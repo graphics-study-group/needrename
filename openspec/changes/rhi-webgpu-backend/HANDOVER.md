@@ -1,22 +1,12 @@
 # Handover
-
-Written at the end of a session that took the engine's own path from "cannot encode" to
-"encodes, submits and presents". It says what is real, what is not, and what to do next.
-
-**Read this before the other documents.** `STATUS.md` is the longer record of how the change
-got here; `tasks.md` tracks the 51 tasks; this file is the shortest accurate description of the
-state.
-
-Verified at `a0ca69fe` (branch `feature/wgpu`).
-
----
+has to be passed once because the Dawn build is not on `PATH`.
 
 ## Where it stands in one sentence
 
 The engine's own scene draws and presents through the WebGPU backend on desktop - the full
 windowed example runs to its last frame and the surface image it presents is the frame it
 rendered - the skybox test's WebGPU frame is byte-for-byte the frame Vulkan produces, and the
-browser build runs to its first frame before a wasm heap bug stops it.
+browser build runs to its first frame and stops there because its material path still reflects SPIR-V, which that build has no library for.
 
 ---
 
@@ -144,49 +134,50 @@ so what is left to find is which kernel and why - the last one reached was
   modules without this stall, so a build with `-O2`/`RelWithDebInfo` (where naga is not in
   debug) is the cheapest way to tell the two apart.
 
-### 2. The browser aborts in the wasm heap during its first frame
+### 2. The browser runs to its first frame and needs the material path to stop reflecting
 
-The page runs: device, surface, model, camera, main loop, and the first frame's cascade fit. It
-then aborts with
+The page creates its device and surface, loads the model, enters its main loop, records its first
+frame - and then throws
 
 ```
-Aborted(Assertion failed: region_is_in_use(region), at: /emsdk/emscripten/system/lib/emmalloc.c,892,emmalloc_free)
+SPLayout::Reflect: this backend has no reflection. Shaders arrive as WGSL with a
+ShaderInterfaceDescription.
 ```
 
-which is emmalloc refusing to free a region it believes is in use: a double free, or a heap
-write that corrupted emmalloc's bookkeeping. That is a memory bug in the wasm path, not a
-missing WebGPU call, and nothing in the desktop build shows it.
+which is the half of task 7.1 recorded as missing. `MaterialLibrary::CompileShaderModules`
+reflects each shader's SPIR-V to build the material layouts and to place a material uniform
+variable by name, and a build with no reflection library cannot do either. What the bake
+description carries today - the binding table, the sampler slots, the storage formats and access -
+is enough for a *kernel*, which is why the physics side runs; a material also needs each uniform
+buffer member's offset and size.
 
-The abort happens inside the first frame's recording. The engine now has skip switches that
-work in the page - `MainClass::SetDiagnosticSkip` plus example arguments `--skip-physics`,
-`--skip-matrices`, `--skip-passes`, `--skip-shadow-passes` and `--skip-compute-passes` (the
-`NEEDRENAME_SKIP_*` variables still work on the desktop). What they say:
+Three real faults were in the way of getting this far:
 
-| Run | Result |
-|---|---|
-| everything recorded | emmalloc double free |
-| `--skip-physics --skip-matrices --skip-passes` | survives |
-| `--skip-physics --skip-matrices` | double free |
-| `--skip-compute-passes` | double free |
-| `--skip-shadow-passes` | a *different*, bare assertion - so the shadow passes are one fault and something behind them is another |
+- libktx's `DEBUG`-guarded offset check wrote eight bytes into a four-byte `ktx_size_t` on a
+  32-bit target. That stack write is what emmalloc later reported as a double free.
+- The mesh archive wrote `size_t` and whole structs, so a file written by a 64-bit build read as
+  "vertex buffer 0 bytes" in the browser. The format states its widths now, and an older file is
+  read by recovering the writer's width.
+- `WriteVertexAttributeBuffer` copied from an attribute offset added to an empty buffer's data
+  pointer, one past null. It checks the range and names the disagreement now.
 
-Four experiments are already spent, and recording them is cheaper than repeating them:
+Experiments already spent, recorded so they are not repeated:
 
-- `-sSAFE_HEAP=1` reports an alignment fault in the glTF loader instead, which is that loader
-  doing unaligned reads on purpose; it says nothing about this bug.
-- `-sASSERTIONS=2` prints no stack for this abort: the generated `abort()` prints the message
-  only. The source line has to come from bisecting.
-- `-sASYNCIFY_STACK_SIZE=2097152` (now in the example's link options) changes nothing, but the
-  4 KB default was worth ruling out - Asyncify copies the stack of the frame that sleeps.
-- AddressSanitizer is the tool that would name the bad free outright, and a separate ASAN
-  configure is not free: a fresh build directory fails in the reflection parser, which needs the
-  SDL include path the default tree already has. The next attempt should add the sanitizer flags
-  to the *existing* `build/emscripten` configure (or fix the parser's include path for a new
-  one) rather than start a second tree.
-
-The likeliest places remain the ones written for the wasm build and sized by hand:
-`SubmissionHelper::EnqueueTextureBufferSubmission`'s padded row copy, `BuildClearData`,
-`CommandEncoder`'s constant window, and the readback staging's row loop.
+- `-sSAFE_HEAP=1` reports an unrelated alignment fault in the glTF loader, which reads unaligned
+  on purpose where it may.
+- `-sASSERTIONS=2` prints no stack for these aborts: the generated `abort()` prints the message
+  only.
+- `-sASYNCIFY_STACK_SIZE=2097152` (now in the example's link options) changes nothing but was
+  worth ruling out.
+- **AddressSanitizer is what found the two memory bugs.** It belongs in the existing
+  `build/emscripten` configure -
+  `cmake --preset emscripten -DCMAKE_CXX_FLAGS="-fsanitize=address -g" -DCMAKE_C_FLAGS="-fsanitize=address -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -sALLOW_MEMORY_GROWTH=1"`
+  - because a separate build directory cannot get past its reflection parser. Every ASAN line
+  reaches the browser log as `console.error`.
+- `Module.ENV` does not reach `SDL_getenv` in the page. The skip switches are
+  `MainClass::SetDiagnosticSkip` plus example arguments (`--skip-physics`, `--skip-matrices`,
+  `--skip-passes`, `--skip-shadow-passes`, `--skip-compute-passes`, `--skip-shadow-draws`,
+  `--skip-lit-pass`); the `NEEDRENAME_SKIP_*` variables work on the desktop only.
 
 ### 3. Physics on WebGPU
 
