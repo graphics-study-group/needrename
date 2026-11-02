@@ -17,3 +17,9 @@ subdirlist(subdirs ${CMAKE_CURRENT_SOURCE_DIR})
 # endforeach()
 add_subdirectory(external_resource_loading_example)
 add_subdirectory(editor_run_game_example)
+# A browser-only example: it exists to answer whether a canvas can be presented to at all, so it
+# is built only when the target has a browser to run in.
+if (EMSCRIPTEN)
+    add_subdirectory(webgpu_clear_example)
+endif()
+
