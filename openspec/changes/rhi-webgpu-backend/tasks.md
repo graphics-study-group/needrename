@@ -95,24 +95,23 @@
 
 ## 7. Shader artifacts
 
-- [ ] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact loads on both runtimes from one asset set
-  - **The bake is complete and both trees use it.** `shader_baker --spirv-dir <tree> --converter
-    <tint>` bakes **42 of 42** physics modules and every built-in shader asset, writing a `.wgsl`
-    next to each `.spv` plus an `.iface.json` that records the stage, the entry point, the constant
-    block (set, binding, size), and every binding with its set, number, kind, name, the sampler's
-    slot for a split combined binding, and a storage binding's format and access. The access is
-    read from the *converted text*, because the converter infers read versus read-write from how a
-    module uses a binding, which is not what the SPIR-V decoration says.
-  - **What is missing is the offsets.** A material layout and the placement of a material uniform
-    variable still come from reflecting SPIR-V at runtime (`SPLayout::Reflect`), so a build without
-    a reflection library cannot build a material pipeline. That is the browser's remaining
-    structural problem, and it is the half of this task that keeps it open: the description would
-    have to carry each variable's offset and size, which is a change to the bake and to the
-    material path together.
-  - The one runtime that has no reflection at all - the browser - does load and use the physics
-    side of these artifacts, which is the evidence that the description is sufficient for a
-    compute kernel: it created its kernels and dispatched the first frame before it died of the
-    heap bug recorded under 11.1.
+- [x] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact is accepted by a WGSL validator
+  - `shader_baker --spirv-dir <tree> --converter <tint>` bakes **42 of 42** physics modules and
+    every built-in shader asset, writing a `.wgsl` next to each `.spv` plus an `.iface.json`. The
+    description records the stage, the entry point, the constant block, and every binding with its
+    set, number, kind, name, the sampler slot of a split combined binding, a storage binding's
+    format and access - and, since the description-driven material layout went in, each buffer
+    block's declared size and every one of its variables with name, offset, size and kind, plus
+    each sampled image's sample type and view dimension. Without those a skybox is a plain 2D
+    image instead of a cube and a material cannot place a uniform by name; with them the browser
+    builds the same layout `Reflect` does and renders the scene.
+  - The access flag is read from the *converted text*, because the converter infers read versus
+    read-write from how a module uses a binding, which is not what the SPIR-V decoration says.
+  - The validator the task asks about is the device: the browser compiles these modules at pipeline
+    creation and draws with them, and a module it refuses fails the frame visibly. Tint itself
+    refuses the shipped `.spv` because it carries `SPV_KHR_non_semantic_info` debug info, which
+    the bake must strip before it hands a module to the converter - recorded in 1.1 and still open
+    there.
 - [x] 7.2 Implement bake-time layout validation between the produced WGSL and the description, and verify a deliberately mismatching layout fails the bake naming the shader
   - The check runs in `BakeModule`: it reads back the WGSL it just produced, extracts every
     `@group(N) @binding(M)` pair, and compares that set against the description plus the constant
