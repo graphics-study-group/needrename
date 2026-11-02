@@ -73,6 +73,12 @@ namespace Engine::Rhi {
     ) {
         pimpl->name = std::string{name};
         pimpl->description = description;
+        // A dispatch names its resources, so each declared interface needs to be findable by
+        // name. The map's values point into the description the kernel now owns, which does not
+        // move again.
+        for (const ShaderInterfaceBinding &declared : pimpl->description.bindings) {
+            pimpl->interface_by_name[declared.name] = &declared;
+        }
         // One set layout per set the description names. Grouping by set is the shape the
         // Vulkan kernel produces from its reflected table, so a shader that bakes the same
         // way binds the same way.

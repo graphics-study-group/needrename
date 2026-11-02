@@ -4,6 +4,10 @@
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
 
 #include <SDL3/SDL.h>
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 #include <webgpu/webgpu.h>
 
 namespace Engine::Rhi {

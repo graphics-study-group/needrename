@@ -25,6 +25,7 @@ if (EMSCRIPTEN)
     target_link_options(${ProjectId} PRIVATE
         "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/assets@/assets"
         "SHELL:--preload-file ${CMAKE_BINARY_DIR}/stage/$<CONFIG>/builtin_assets@/builtin_assets"
+        "SHELL:--preload-file ${CMAKE_BINARY_DIR}/stage/$<CONFIG>/spirv@/spirv"
         "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/projects@/projects"
         "SHELL:-sEXPORTED_RUNTIME_METHODS=FS"
     )

@@ -284,7 +284,7 @@ endif()
 # instead of reflecting SPIR-V at runtime, so a WebGPU build bakes them next to
 # the SPIR-V tree. This lives at the top level because it needs both the physics
 # shader target (defined under engine/) and the baker (defined under tools/).
-if (ENGINE_RHI_BACKEND_WEBGPU AND NOT EMSCRIPTEN AND ENGINE_SHADER_BAKER_EXECUTABLE AND TARGET physics_shader)
+if (ENGINE_RHI_BACKEND_WEBGPU AND ENGINE_SHADER_BAKER_EXECUTABLE AND TARGET physics_shader)
     set(PHYSICS_SPIRV_DIR "${CMAKE_BINARY_DIR}/engine/Physics/spirv/$<IF:$<CONFIG:Debug>,debug,release>")
     set(PHYSICS_WGSL_STAMP "${PHYSICS_SPIRV_DIR}/.wgsl_stamp")
     set(PHYSICS_WGSL_CONVERTER_ARGUMENTS)
