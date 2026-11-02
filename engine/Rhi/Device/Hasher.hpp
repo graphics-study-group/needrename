@@ -70,6 +70,19 @@ namespace Engine::Rhi {
         }
 
         /**
+         * @brief Hash a flag set or an enumeration by its underlying value.
+         *
+         * The Vulkan caches hash their create-info structures field by field, and almost every
+         * field is a flag set (`vk::Flags<...>`) or an enumeration. Both convert to their mask
+         * type, which is what lets one overload serve them.
+         */
+        template <typename T>
+            requires requires(const T &value) { static_cast<uint32_t>(value); }
+        inline void f(const T &value) noexcept {
+            u32(static_cast<uint32_t>(value));
+        }
+
+        /**
          * @brief Convert any type by bit to `uint32_t` or `uint64_t` and hash
          * the converted integer.
          */
