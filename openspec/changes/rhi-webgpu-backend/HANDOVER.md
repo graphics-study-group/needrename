@@ -122,6 +122,16 @@ colour target into a host-visible buffer inside the Vulkan `SwapchainPresentProv
 it out under the same `NEEDRENAME_PRESENT_CAPTURE`. Until then the difference is a question, not
 a conclusion.
 
+### 0c. `mrt_test` hangs in its transfer pass, on both backends
+
+A run of `mrt_test` stops right after the transfer subpass is recorded - the read-back copy that
+brings the frame back to the CPU - on the Vulkan build and the WebGPU build alike, so it is not
+this backend's doing. It is the subject of task 11.3 (the test suite's synchronous readback wants
+a blocking pump with test-only yield support). It passed earlier in the session and started
+hanging later; the machine had been running hundreds of headless browser and test processes by
+then, which may matter, but the identical behaviour on both backends says the cause is in the
+shared readback path.
+
 ### 0b. Two headless paths still fail on WebGPU
 
 Found at the end of the session, both on the headless (no window) path:
