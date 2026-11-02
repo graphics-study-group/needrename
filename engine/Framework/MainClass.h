@@ -79,7 +79,11 @@ namespace Engine {
             /// @brief Skip the shadow map passes only.
             ShadowPasses = 1u << 3,
             /// @brief Skip the compute passes only.
-            ComputePasses = 1u << 4
+            ComputePasses = 1u << 4,
+            /// @brief Skip the draws inside the shadow map passes, keeping their clears.
+            ShadowDraws = 1u << 5,
+            /// @brief Skip the main lit pass.
+            LitPass = 1u << 6
         };
 
         /**

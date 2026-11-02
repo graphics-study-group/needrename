@@ -74,8 +74,13 @@ namespace Engine {
             (diagnostic_skip & static_cast<uint32_t>(MainClass::DiagnosticSkip::ShadowPasses)) != 0;
         const bool skip_compute_passes =
             (diagnostic_skip & static_cast<uint32_t>(MainClass::DiagnosticSkip::ComputePasses)) != 0;
-        const std::vector<RGTextureHandle> shadow_ids =
-            AddShadowCascadePasses(rgb, m_system, mm_handle, !skip_shadow_passes);
+        const bool skip_shadow_draws =
+            (diagnostic_skip & static_cast<uint32_t>(MainClass::DiagnosticSkip::ShadowDraws)) != 0;
+        const bool skip_lit_pass =
+            (diagnostic_skip & static_cast<uint32_t>(MainClass::DiagnosticSkip::LitPass)) != 0;
+        const std::vector<RGTextureHandle> shadow_ids = AddShadowCascadePasses(
+            rgb, m_system, mm_handle, !skip_shadow_passes, !skip_shadow_draws
+        );
 
         // Set up the bloom kernel: one kernel exists per shader asset on the
         // device, no matter how many builders request it.

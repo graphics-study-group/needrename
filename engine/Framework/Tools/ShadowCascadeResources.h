@@ -29,12 +29,14 @@ namespace Engine {
      * @param builder        Render graph builder receiving the passes.
      * @param system         Render system the graph belongs to.
      * @param model_matrices Model matrices buffer the shadow pass reads.
+     * @param add_passes     Whether to add the passes at all; the slots are imported either way.
+     * @param add_draws      Whether the passes draw; a pass that clears only is a diagnostic form.
      * @return One texture handle per budgeted shadow-casting light slot, in slot
      *         order.
      */
     FRAMEWORK_API std::vector<RGTextureHandle> AddShadowCascadePasses(
         RenderGraphBuilder &builder, RenderSystem &system, RGBufferHandle model_matrices,
-        bool add_passes = true
+        bool add_passes = true, bool add_draws = true
     );
 } // namespace Engine
 

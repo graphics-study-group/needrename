@@ -75,6 +75,10 @@ int RunExample(int argc, char **argv) {
             diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::ShadowPasses);
         } else if (argument == "--skip-compute-passes") {
             diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::ComputePasses);
+        } else if (argument == "--skip-shadow-draws") {
+            diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::ShadowDraws);
+        } else if (argument == "--skip-lit-pass") {
+            diagnostic_skip |= static_cast<uint32_t>(MainClass::DiagnosticSkip::LitPass);
         }
     }
     if (diagnostic_skip != 0) {

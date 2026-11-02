@@ -108,6 +108,18 @@ namespace Engine {
 
         std::string m_name{};
         std::vector<Submesh> m_submeshes{};
+
+        /**
+         * @brief Read an archive written before the mesh format had stated field widths.
+         *
+         * That form wrote `size_t` and whole attribute structs, so the width of every field is the
+         * writer's. Both widths are tried and the one whose payload ends exactly at the end of the
+         * buffer is taken as the writer's; anything else is rejected and leaves the mesh empty.
+         *
+         * @param data The archive's extra-data buffer.
+         * @return Whether a consistent layout was found and read.
+         */
+        bool LoadLegacyMesh(const std::vector<std::byte> &data);
     };
 } // namespace Engine
 

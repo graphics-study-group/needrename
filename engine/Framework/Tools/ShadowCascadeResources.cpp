@@ -17,7 +17,8 @@ namespace Engine {
     using RenderSystemState::SceneDataManager;
 
     std::vector<RGTextureHandle> AddShadowCascadePasses(
-        RenderGraphBuilder &builder, RenderSystem &system, RGBufferHandle model_matrices, bool add_passes
+        RenderGraphBuilder &builder, RenderSystem &system, RGBufferHandle model_matrices, bool add_passes,
+        bool add_draws
     ) {
         auto &scene_data = system.GetSceneDataManager();
 
@@ -53,7 +54,7 @@ namespace Engine {
                          AttachmentUtils::StoreOperation::Store,
                          AttachmentUtils::DepthClearValue{1.0f, 0U}}
                     )
-                    .SetPassFunction([&system, light, shadow_caster_filter, shadow_id = shadow_ids[light]](
+                    .SetPassFunction([&system, light, shadow_caster_filter, add_draws, shadow_id = shadow_ids[light]](
                                          CommandBuffer &cb, const RenderGraph &rg
                                      ) {
                         const auto &scene_data = system.GetSceneDataManager();
@@ -121,12 +122,14 @@ namespace Engine {
                                 static_cast<float>(shadow_map_extent.height),
                                 shadow_map_scissor
                             );
-                            cb.DrawRenderers(
-                                "Shadowmap",
-                                renderers,
-                                static_cast<int32_t>(light * SceneDataManager::MAX_SHADOW_CASCADES + cascade),
-                                shadow_map_extent
-                            );
+                            if (add_draws) {
+                                cb.DrawRenderers(
+                                    "Shadowmap",
+                                    renderers,
+                                    static_cast<int32_t>(light * SceneDataManager::MAX_SHADOW_CASCADES + cascade),
+                                    shadow_map_extent
+                                );
+                            }
                             cb.EndRendering();
                         }
                     })
