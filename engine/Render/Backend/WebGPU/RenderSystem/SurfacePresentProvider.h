@@ -30,6 +30,9 @@ namespace Engine {
             std::unique_ptr<impl> pimpl;
 
         public:
+            /// @brief Read a finished capture back and write it out, when one was requested.
+            void CaptureFinishedFrame();
+
             SurfacePresentProvider(
                 const Rhi::DeviceInterface &device_interface, SDL_Window *window, Rhi::Extent2D extent
             );

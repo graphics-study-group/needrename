@@ -147,7 +147,11 @@ namespace Engine::Rhi {
             }
         };
         info.userdata1 = &state;
-        wgpuBufferMapAsync(pimpl->buffer, WGPUMapMode_Read, 0, WGPU_WHOLE_MAP_SIZE, info);
+        // `WGPU_WHOLE_MAP_SIZE` is not a size the validation accepts: a map range must be a
+        // multiple of four, and the sentinel is `SIZE_MAX`. The buffer's own size, rounded down
+        // to a whole number of words, is what "all of it" means here.
+        const uint64_t mapped_size = wgpuBufferGetSize(pimpl->buffer) & ~uint64_t{0x3};
+        wgpuBufferMapAsync(pimpl->buffer, WGPUMapMode_Read, 0, mapped_size, info);
 
         const WGPUInstance instance = RegisteredWgpuInstance();
         while (!done) {
@@ -159,7 +163,7 @@ namespace Engine::Rhi {
 #endif
         }
         if (mapped_ok) {
-            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, WGPU_WHOLE_MAP_SIZE);
+            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, mapped_size);
         }
     }
 
@@ -196,7 +200,8 @@ namespace Engine::Rhi {
                 }
             };
             info.userdata1 = &state;
-            wgpuBufferMapAsync(pimpl->buffer, WGPUMapMode_Read, 0, WGPU_WHOLE_MAP_SIZE, info);
+            const uint64_t mapped_size = wgpuBufferGetSize(pimpl->buffer) & ~uint64_t{0x3};
+            wgpuBufferMapAsync(pimpl->buffer, WGPUMapMode_Read, 0, mapped_size, info);
 
             const WGPUInstance instance = RegisteredWgpuInstance();
             while (!done) {
@@ -211,7 +216,7 @@ namespace Engine::Rhi {
                 SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: mapping a readback buffer failed.");
                 return nullptr;
             }
-            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, WGPU_WHOLE_MAP_SIZE);
+            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, mapped_size);
             return static_cast<std::byte *>(pimpl->mapped);
         }
         SDL_LogError(

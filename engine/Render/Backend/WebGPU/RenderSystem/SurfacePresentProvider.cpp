@@ -8,7 +8,10 @@
 #include <windows.h>
 #endif
 
+#include <cstdint>
+#include <fstream>
 #include <stdexcept>
+#include <string>
 
 #include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
@@ -22,6 +25,16 @@ namespace Engine::RenderSystemState {
         WGPUSurface surface{nullptr};
         WGPUDevice device{nullptr};
         WGPUTextureFormat format{WGPUTextureFormat_BGRA8Unorm};
+        /// The finished copy of the final colour target into the surface image. Kept until the
+        /// next acquire, which is when the present that waited on it has completed.
+        WGPUCommandBuffer copy_buffer{nullptr};
+        /// A read-back copy of the surface image itself, so a run can be looked at rather than
+        /// described. Only created when the capture environment variable names a file.
+        WGPUBuffer capture{nullptr};
+        uint64_t capture_size{0};
+        uint32_t capture_row_pitch{0};
+        std::string capture_path{};
+        bool capture_pending{false};
         WGPUPresentMode present_mode{WGPUPresentMode_Fifo};
         WGPUCompositeAlphaMode alpha_mode{WGPUCompositeAlphaMode_Opaque};
         Rhi::Extent2D extent{};
@@ -90,6 +103,16 @@ namespace Engine::RenderSystemState {
         wgpuSurfaceGetCapabilities(pimpl->surface, pimpl->adapter, &capabilities);
         if (capabilities.formatCount > 0) {
             pimpl->format = capabilities.formats[0];
+            // Prefer the format the render targets can be copied into without a channel
+            // conversion: a copy between an RGBA target and a BGRA surface is not copy-compatible,
+            // and a surface that offers both costs nothing to choose the matching one.
+            for (size_t index = 0; index < capabilities.formatCount; index++) {
+                const WGPUTextureFormat offered = capabilities.formats[index];
+                if (offered == WGPUTextureFormat_RGBA8Unorm || offered == WGPUTextureFormat_RGBA8UnormSrgb) {
+                    pimpl->format = offered;
+                    break;
+                }
+            }
         }
         if (capabilities.presentModeCount > 0) {
             pimpl->present_mode = capabilities.presentModes[0];
@@ -101,13 +124,33 @@ namespace Engine::RenderSystemState {
         WGPUSurfaceConfiguration configuration{};
         configuration.device = pimpl->device;
         configuration.format = pimpl->format;
-        configuration.usage = WGPUTextureUsage_RenderAttachment;
+        // CopySrc is what the optional frame capture reads the presented image through; a surface
+        // texture that offers neither copy direction would also be one this backend could not draw
+        // into twice, so both are requested.
+        configuration.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc;
         configuration.width = pimpl->extent.width;
         configuration.height = pimpl->extent.height;
         configuration.presentMode = pimpl->present_mode;
         configuration.alphaMode = pimpl->alpha_mode;
 
         wgpuSurfaceConfigure(pimpl->surface, &configuration);
+
+        // A frame dump on request: the surface image is copied out with the frame's own copy,
+        // and written once the present that read it has completed. The environment variable names
+        // the file; without it nothing here costs anything.
+        if (const char *capture = SDL_getenv("NEEDRENAME_PRESENT_CAPTURE"); capture != nullptr && capture[0] != '\0') {
+            pimpl->capture_path = capture;
+            pimpl->capture_row_pitch = (pimpl->extent.width * 4u + 255u) / 256u * 256u;
+            pimpl->capture_size = static_cast<uint64_t>(pimpl->capture_row_pitch) * pimpl->extent.height;
+            WGPUBufferDescriptor capture_desc{};
+            capture_desc.size = pimpl->capture_size;
+            capture_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
+            capture_desc.label = WGPUStringView{"Present capture", 16};
+            pimpl->capture = wgpuDeviceCreateBuffer(pimpl->device, &capture_desc);
+            if (pimpl->capture == nullptr) {
+                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU surface: the frame capture buffer could not be created.");
+            }
+        }
 
         SDL_LogInfo(
             SDL_LOG_CATEGORY_RENDER,
@@ -121,7 +164,62 @@ namespace Engine::RenderSystemState {
         );
     }
 
+    namespace {
+        /// @brief Write a tight 24-bit BMP, converting the surface's channel order.
+        void WriteBmp(
+            const std::string &path, const std::byte *pixels, uint32_t width, uint32_t height, uint32_t row_pitch,
+            bool bgra
+        ) {
+            const uint32_t row_bytes = width * 3u;
+            const uint32_t padding = (4u - (row_bytes % 4u)) % 4u;
+            const uint32_t image_bytes = (row_bytes + padding) * height;
+            std::ofstream file(path, std::ios::binary);
+            if (!file.is_open()) {
+                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU surface: cannot open %s", path.c_str());
+                return;
+            }
+            const uint32_t file_size = 54u + image_bytes;
+            const auto byte_at = [](uint32_t value, int shift) {
+                return static_cast<uint8_t>((value >> shift) & 0xFFu);
+            };
+            const uint8_t header[54] = {
+                'B', 'M', byte_at(file_size, 0), byte_at(file_size, 8), byte_at(file_size, 16), byte_at(file_size, 24),
+                0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0,
+                byte_at(width, 0), byte_at(width, 8), byte_at(width, 16), byte_at(width, 24),
+                byte_at(height, 0), byte_at(height, 8), byte_at(height, 16), byte_at(height, 24),
+                1, 0, 24, 0, 0, 0, 0, 0,
+                byte_at(image_bytes, 0), byte_at(image_bytes, 8), byte_at(image_bytes, 16), byte_at(image_bytes, 24),
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            };
+            file.write(reinterpret_cast<const char *>(header), sizeof(header));
+            for (uint32_t y = 0; y < height; y++) {
+                const uint32_t source_row = height - 1u - y;
+                const std::byte *row = pixels + static_cast<size_t>(source_row) * row_pitch;
+                for (uint32_t x = 0; x < width; x++) {
+                    const size_t at = static_cast<size_t>(x) * 4u;
+                    const char red = static_cast<char>(std::to_integer<uint8_t>(row[at + (bgra ? 2u : 0u)]));
+                    const char green = static_cast<char>(std::to_integer<uint8_t>(row[at + 1u]));
+                    const char blue = static_cast<char>(std::to_integer<uint8_t>(row[at + (bgra ? 0u : 2u)]));
+                    const char bgr[3] = {blue, green, red};
+                    file.write(bgr, 3);
+                }
+                for (uint32_t pad = 0; pad < padding; pad++) {
+                    file.put('\0');
+                }
+            }
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "WebGPU surface: frame captured to %s", path.c_str());
+        }
+    } // namespace
+
     SurfacePresentProvider::~SurfacePresentProvider() {
+        if (pimpl->capture != nullptr) {
+            wgpuBufferRelease(pimpl->capture);
+            pimpl->capture = nullptr;
+        }
+        if (pimpl->copy_buffer != nullptr) {
+            wgpuCommandBufferRelease(pimpl->copy_buffer);
+            pimpl->copy_buffer = nullptr;
+        }
         if (pimpl->current != nullptr) {
             wgpuTextureRelease(pimpl->current);
         }
@@ -179,14 +277,101 @@ namespace Engine::RenderSystemState {
         return 0;
     }
 
+    /// @brief Read a finished capture back and write it out, before it is reused.
+    void SurfacePresentProvider::CaptureFinishedFrame() {
+        if (!pimpl->capture_pending || pimpl->capture == nullptr) {
+            return;
+        }
+        pimpl->capture_pending = false;
+
+        bool done = false;
+        bool mapped_ok = false;
+        struct State {
+            bool *done;
+            bool *ok;
+        } state{&done, &mapped_ok};
+        WGPUBufferMapCallbackInfo info{};
+        info.mode = WGPUCallbackMode_AllowProcessEvents;
+        info.callback = [](WGPUMapAsyncStatus status, WGPUStringView, void *userdata1, void *) {
+            auto *result = static_cast<State *>(userdata1);
+            *result->done = true;
+            *result->ok = status == WGPUMapAsyncStatus_Success;
+        };
+        info.userdata1 = &state;
+        wgpuBufferMapAsync(pimpl->capture, WGPUMapMode_Read, 0, pimpl->capture_size, info);
+
+        const WGPUInstance instance = pimpl->instance;
+        while (!done) {
+            if (instance != nullptr) {
+                wgpuInstanceProcessEvents(instance);
+            }
+        }
+        if (!mapped_ok) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU surface: the frame capture could not be read back.");
+            return;
+        }
+        const auto *pixels = static_cast<const std::byte *>(
+            wgpuBufferGetMappedRange(pimpl->capture, 0, pimpl->capture_size)
+        );
+        const bool bgra = pimpl->format == WGPUTextureFormat_BGRA8Unorm
+                          || pimpl->format == WGPUTextureFormat_BGRA8UnormSrgb;
+        WriteBmp(pimpl->capture_path, pixels, pimpl->extent.width, pimpl->extent.height, pimpl->capture_row_pitch, bgra);
+        wgpuBufferUnmap(pimpl->capture);
+    }
+
     Rhi::CommandBufferHandle SurfacePresentProvider::PrepareCopy(
-        Rhi::DeviceHandle, const RenderTargetTexture &, uint32_t, Rhi::MemoryAccessTypeImageBits
+        Rhi::DeviceHandle,
+        const RenderTargetTexture &final_rtt,
+        uint32_t,
+        Rhi::MemoryAccessTypeImageBits
     ) {
-        // The copy is recorded by FrameManager through the seam once the destination texture is
-        // reachable as a seam handle. Until the backend can hand a surface texture out as one, this
-        // provider reports that it has no copy to contribute instead of returning a buffer that
-        // records nothing.
-        return {};
+        // The frame this provider copied out on its previous call has been presented by now, so
+        // the surface image it was taken from is free to be read back.
+        CaptureFinishedFrame();
+        // One surface image, acquired per frame, so the copy of the previous frame has completed
+        // by the time the next acquire returns it: this is where it is released.
+        if (pimpl->copy_buffer != nullptr) {
+            wgpuCommandBufferRelease(pimpl->copy_buffer);
+            pimpl->copy_buffer = nullptr;
+        }
+        if (pimpl->current == nullptr) {
+            return {};
+        }
+
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(pimpl->device, nullptr);
+        if (encoder == nullptr) {
+            return {};
+        }
+
+        WGPUTexelCopyTextureInfo source{};
+        source.texture = Rhi::ToWgpuTexture(final_rtt.GetImage());
+        source.aspect = WGPUTextureAspect_All;
+
+        WGPUTexelCopyTextureInfo destination{};
+        destination.texture = pimpl->current;
+        destination.aspect = WGPUTextureAspect_All;
+
+        const WGPUExtent3D extent{pimpl->extent.width, pimpl->extent.height, 1};
+        wgpuCommandEncoderCopyTextureToTexture(encoder, &source, &destination, &extent);
+
+        if (pimpl->capture != nullptr) {
+            // The frame the window is about to show, read back: a surface image is not a
+            // permanent resource, so the copy of it has to be recorded here, before present.
+            WGPUTexelCopyBufferInfo capture_destination{};
+            capture_destination.buffer = pimpl->capture;
+            capture_destination.layout.bytesPerRow = pimpl->capture_row_pitch;
+            capture_destination.layout.rowsPerImage = pimpl->extent.height;
+            wgpuCommandEncoderCopyTextureToBuffer(encoder, &destination, &capture_destination, &extent);
+            pimpl->capture_pending = true;
+        }
+
+        pimpl->copy_buffer = wgpuCommandEncoderFinish(encoder, nullptr);
+        wgpuCommandEncoderRelease(encoder);
+        if (pimpl->copy_buffer == nullptr) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU surface: the present copy could not be finished.");
+            return {};
+        }
+        return Rhi::FromWgpuFinishedBuffer(pimpl->copy_buffer);
     }
 
     bool SurfacePresentProvider::Present(Rhi::DeviceHandle, uint32_t, Rhi::SemaphoreHandle) {
@@ -212,7 +397,10 @@ namespace Engine::RenderSystemState {
         WGPUSurfaceConfiguration configuration{};
         configuration.device = pimpl->device;
         configuration.format = pimpl->format;
-        configuration.usage = WGPUTextureUsage_RenderAttachment;
+        // CopySrc is what the optional frame capture reads the presented image through; a surface
+        // texture that offers neither copy direction would also be one this backend could not draw
+        // into twice, so both are requested.
+        configuration.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc;
         configuration.width = pimpl->extent.width;
         configuration.height = pimpl->extent.height;
         configuration.presentMode = pimpl->present_mode;

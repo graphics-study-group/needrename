@@ -2,6 +2,7 @@
 
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
 #include "Rhi/Backend/WebGPU/WgpuStructs.h"
+#include "Rhi/Backend/WebGPU/WgpuNativeLog.h"
 
 #include <SDL3/SDL.h>
 #if defined(__EMSCRIPTEN__)
@@ -91,6 +92,10 @@ namespace Engine::Rhi {
     };
 
     DeviceInterface::DeviceInterface(DeviceConfiguration cfg) : pimpl(std::make_unique<impl>()) {
+        // Before anything asks the device to do work: the implementation's own log is where a
+        // status of "Validation Error" gets its reason.
+        ConfigureWgpuLoggingFromEnvironment();
+
         WGPUInstanceDescriptor instance_desc{};
         // wgpu-native reads the backend selection from the environment; the browser
         // ignores this field entirely.

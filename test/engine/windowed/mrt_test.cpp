@@ -34,6 +34,65 @@ namespace {
     bool g_frame_has_colour = false;
 } // namespace
 
+namespace {
+    /// @brief Write a tight 24-bit BMP of a read-back colour target.
+    ///
+    /// The dump exists so a frame rendered on one backend can be looked at rather than
+    /// described: the same test on another backend produces a file that can be compared with
+    /// this one.
+    void DumpReadbackAsBmp(const char *path, const std::byte *pixels, uint32_t width, uint32_t height) {
+        if (pixels == nullptr) {
+            std::cerr << "MRT dump: the read-back buffer has no address." << std::endl;
+            return;
+        }
+        const uint32_t row_bytes = width * 3u;
+        const uint32_t padding = (4u - (row_bytes % 4u)) % 4u;
+        const uint32_t image_bytes = (row_bytes + padding) * height;
+        std::ofstream file(path, std::ios::binary);
+        if (!file.is_open()) {
+            std::cerr << "MRT dump: cannot open " << path << std::endl;
+            return;
+        }
+        const uint32_t file_size = 54u + image_bytes;
+        const uint8_t header[54] = {
+            'B', 'M',
+            static_cast<uint8_t>(file_size), static_cast<uint8_t>(file_size >> 8),
+            static_cast<uint8_t>(file_size >> 16), static_cast<uint8_t>(file_size >> 24),
+            0, 0, 0, 0,
+            54, 0, 0, 0,
+            40, 0, 0, 0,
+            static_cast<uint8_t>(width), static_cast<uint8_t>(width >> 8),
+            static_cast<uint8_t>(width >> 16), static_cast<uint8_t>(width >> 24),
+            static_cast<uint8_t>(height), static_cast<uint8_t>(height >> 8),
+            static_cast<uint8_t>(height >> 16), static_cast<uint8_t>(height >> 24),
+            1, 0,
+            24, 0,
+            0, 0, 0, 0,
+            static_cast<uint8_t>(image_bytes), static_cast<uint8_t>(image_bytes >> 8),
+            static_cast<uint8_t>(image_bytes >> 16), static_cast<uint8_t>(image_bytes >> 24),
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        file.write(reinterpret_cast<const char *>(header), sizeof(header));
+        // Bottom-up, as BMP stores it.
+        for (uint32_t y = 0; y < height; y++) {
+            const uint32_t source_row = height - 1u - y;
+            for (uint32_t x = 0; x < width; x++) {
+                const size_t at = (static_cast<size_t>(source_row) * width + x) * 4u;
+                const char bgr[3] = {
+                    static_cast<char>(std::to_integer<uint8_t>(pixels[at + 2])),
+                    static_cast<char>(std::to_integer<uint8_t>(pixels[at + 1])),
+                    static_cast<char>(std::to_integer<uint8_t>(pixels[at + 0]))
+                };
+                file.write(bgr, 3);
+            }
+            for (uint32_t pad = 0; pad < padding; pad++) {
+                file.put('\0');
+            }
+        }
+        std::cout << "MRT dump written to " << path << std::endl;
+    }
+} // namespace
+
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 
     constexpr static std::array<float, 12> REPLACEMENT_POSITION = {
@@ -325,6 +384,13 @@ int main(int argc, char **argv) {
 
         rsys->GetFrameManager().RegisterReadbackCallback(*readback_buffer, [](std::unique_ptr<Rhi::DeviceBuffer> in) {
             auto byte = in->GetVMAddress();
+
+            // A whole-frame dump on request: this is what lets a run of the same test on
+            // another backend be looked at rather than described. The read-back target is the
+            // first of the four MRT attachments, so the image is that attachment.
+            if (const char *dump_path = SDL_getenv("MRT_DUMP"); dump_path != nullptr && dump_path[0] != '\0') {
+                DumpReadbackAsBmp(dump_path, byte, 1920u, 1080u);
+            }
 
             for (int i = 0; i < 16; i++) {
                 for (int j = 0; j < 16; j++) {
