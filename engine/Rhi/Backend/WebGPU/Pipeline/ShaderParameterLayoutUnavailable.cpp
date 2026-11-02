@@ -5,34 +5,10 @@
 namespace Engine::Rhi {
     // The shape that has no reflection.
     //
-    // SPLayout is the result of parsing SPIR-V: it records the binding table, the variable
-    // offsets and the constant block. This backend never parses a module - the bake did, and its
-    // answers arrive as a ShaderInterfaceDescription. So the class exists to keep the interface
-    // intact and to report, once and clearly, that a caller asking to reflect has taken a path
-    // this backend does not have.
-    //
-    // ShaderParameterLayout.cpp is not built here for the same reason: it links SPIRV-Cross.
-
-    std::unordered_map<uint32_t, DescriptorSetLayout> SPLayout::GenerateAllLayoutBindings() const {
-        // No interfaces were reflected, so there are no bindings to generate. An empty map is the
-        // honest answer: a caller that gets one and builds a pipeline from it is asking a backend
-        // without reflection to describe a shader.
-        return {};
-    }
-
-    DescriptorSetLayout SPLayout::GenerateLayoutBindings(uint32_t, bool, bool) const {
-        return {};
-    }
-
-    void SPLayout::Merge(SPLayout &&) {
-        // Nothing reflected, nothing to merge.
-    }
-
-    void SPLayout::PlaceBufferVariable(
-        std::vector<std::byte> &, const SPInterfaceStructuredBuffer &, const StructuredBuffer &
-    ) const noexcept {
-        // Nothing was reflected, so there are no variable offsets to place through.
-    }
+    // A layout is filled by parsing SPIR-V, which this backend never does: the bake parsed it and
+    // its answers arrive as a ShaderInterfaceDescription. Everything a layout *does* - merging a
+    // shader's stages, restating itself as descriptor set layouts, placing a variable into a block
+    // - lives in `SPLayoutCore.cpp` and is compiled here too. Only the parsing is missing.
 
     SPLayout SPLayout::Reflect(const std::vector<uint32_t> &, bool) {
         throw std::logic_error(
@@ -41,4 +17,3 @@ namespace Engine::Rhi {
         );
     }
 } // namespace Engine::Rhi
-

@@ -1,6 +1,9 @@
 #include "Render/Backend/WebGPU/RenderSystem/SurfacePresentProvider.h"
 
 #include <SDL3/SDL.h>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 #include <webgpu/webgpu.h>
 
 #if !defined(__EMSCRIPTEN__)
@@ -141,15 +144,7 @@ namespace Engine::RenderSystemState {
         // and written once the present that read it has completed. The environment variable names
         // the file; without it nothing here costs anything.
         const char *capture_request = SDL_getenv("NEEDRENAME_PRESENT_CAPTURE");
-#if defined(__EMSCRIPTEN__)
-        // A page has no environment to set, and no file to hand back, but it can still answer the
-        // one question a black canvas asks: does the frame it copied out have any colour in it?
-        if (capture_request == nullptr || capture_request[0] == '\0') {
-            capture_request = "";
-            pimpl->capture_probe = true;
-        }
-#endif
-        if (capture_request != nullptr && (capture_request[0] != '\0' || pimpl->capture_probe)) {
+        if (capture_request != nullptr && capture_request[0] != '\0') {
             pimpl->capture_path = capture_request;
             pimpl->capture_row_pitch = (pimpl->extent.width * 4u + 255u) / 256u * 256u;
             pimpl->capture_size = static_cast<uint64_t>(pimpl->capture_row_pitch) * pimpl->extent.height;
@@ -313,6 +308,12 @@ namespace Engine::RenderSystemState {
 
         const WGPUInstance instance = pimpl->instance;
         while (!done) {
+#if defined(__EMSCRIPTEN__)
+            // A page answers a map on its own schedule, and a loop that only pumps events never
+            // lets that schedule run: the sleep yields to the browser, which is what delivers the
+            // callback.
+            emscripten_sleep(0);
+#endif
             if (instance != nullptr) {
                 wgpuInstanceProcessEvents(instance);
             }
@@ -366,6 +367,21 @@ namespace Engine::RenderSystemState {
     ) {
         // The frame this provider copied out on its previous call has been presented by now, so
         // the surface image it was taken from is free to be read back.
+#if defined(__EMSCRIPTEN__)
+        {
+            static bool logged_capture_state = false;
+            if (!logged_capture_state) {
+                logged_capture_state = true;
+                SDL_LogInfo(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "WebGPU surface (web): capture %s, %llu byte(s), pitch %u",
+                    pimpl->capture != nullptr ? "present" : "absent",
+                    static_cast<unsigned long long>(pimpl->capture_size),
+                    pimpl->capture_row_pitch
+                );
+            }
+        }
+#endif
         CaptureFinishedFrame();
         // One surface image, acquired per frame, so the copy of the previous frame has completed
         // by the time the next acquire returns it: this is where it is released.
