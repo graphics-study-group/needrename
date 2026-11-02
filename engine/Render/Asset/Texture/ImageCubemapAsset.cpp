@@ -58,10 +58,9 @@ namespace {
     #if defined(ENGINE_RHI_BACKEND_VULKAN)
     create_info.vkFormat = static_cast<ktx_uint32_t>(Engine::Rhi::GetVkFormat(format));
 #else
-    // ktx identifies a texture by its Vulkan format number. This backend has no such mapping
-    // because it never creates a Vulkan image; a cubemap loaded here reports the gap rather
-    // than guessing a number that would silently describe a different format.
-    create_info.vkFormat = 0;
+    // ktx identifies a texture by its Vulkan format number. The number is the specification's,
+    // not this backend's: the container asks for it whichever API fills the texture in.
+    create_info.vkFormat = Engine::Rhi::GetVkFormatValue(format);
 #endif
         create_info.baseWidth = static_cast<ktx_uint32_t>(width);
         create_info.baseHeight = static_cast<ktx_uint32_t>(height);
@@ -242,5 +241,6 @@ namespace Engine {
 } // namespace Engine
 
 #include "__generated__/ImageCubemapAsset.h.inc"
+
 
 

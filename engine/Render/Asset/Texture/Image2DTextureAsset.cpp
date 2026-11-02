@@ -51,9 +51,9 @@ namespace {
 #if defined(ENGINE_RHI_BACKEND_VULKAN)
         const vk::Format vk_format = Engine::Rhi::GetVkFormat(format);
 #else
-        // ktx identifies a texture by Vulkan's format number and this backend has no mapping
-        // for it; a texture created here reports that rather than guessing a number.
-        const uint32_t vk_format = 0;
+        // ktx identifies a texture by Vulkan's format number. The number is the specification's,
+        // not this backend's: the container asks for it whichever API fills the texture in.
+        const uint32_t vk_format = Engine::Rhi::GetVkFormatValue(format);
 #endif
         ktxTextureCreateInfo create_info{};
         create_info.vkFormat = static_cast<ktx_uint32_t>(vk_format);
@@ -221,6 +221,7 @@ namespace Engine {
 } // namespace Engine
 
 #include "__generated__/Image2DTextureAsset.h.inc"
+
 
 
 

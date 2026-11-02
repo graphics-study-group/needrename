@@ -150,6 +150,38 @@ namespace Engine::Rhi {
         return format == ImageFormat::R8G8B8A8UNorm || format == ImageFormat::R8G8B8A8SRGB;
     }
 
+
+    /**
+     * @brief The VkFormat number of a format, for APIs that speak Vulkan's numbering.
+     *
+     * libktx identifies a texture by a `vkFormat` field because that is the vocabulary its
+     * container uses. The numbers are the specification's, not this backend's: nothing here
+     * creates a Vulkan image, and the only consumer is the ktx asset loaders.
+     */
+    constexpr uint32_t GetVkFormatValue(ImageFormat format) {
+        switch (format) {
+        case ImageFormat::R8G8B8A8UNorm:
+            return 37; // VK_FORMAT_R8G8B8A8_UNORM
+        case ImageFormat::R8G8B8A8SNorm:
+            return 38; // VK_FORMAT_R8G8B8A8_SNORM
+        case ImageFormat::R8G8B8A8SRGB:
+            return 43; // VK_FORMAT_R8G8B8A8_SRGB
+        case ImageFormat::B8G8R8A8UNorm:
+            return 44; // VK_FORMAT_B8G8R8A8_UNORM
+        case ImageFormat::B8G8R8A8SRGB:
+            return 50; // VK_FORMAT_B8G8R8A8_SRGB
+        case ImageFormat::R32SFloat:
+            return 100; // VK_FORMAT_R32_SFLOAT
+        case ImageFormat::R32G32SFloat:
+            return 103; // VK_FORMAT_R32G32_SFLOAT
+        case ImageFormat::R32G32B32A32SFloat:
+            return 109; // VK_FORMAT_R32G32B32A32_SFLOAT
+        case ImageFormat::D32SFLOAT:
+            return 126; // VK_FORMAT_D32_SFLOAT
+        default:
+            return 0; // VK_FORMAT_UNDEFINED
+        }
+    }
 } // namespace Engine::Rhi
 
 namespace Engine::Rhi {
@@ -202,3 +234,4 @@ namespace Engine::Rhi {
     }
 } // namespace Engine::Rhi
 #endif // ENGINE_RHI_IMAGEUTILS_INCLUDED
+

@@ -47,7 +47,10 @@ namespace Engine::Rhi {
                 usage |= WGPUBufferUsage_Indirect;
             }
             if (type.Test(BufferTypeBits::HostRandomAccess) || type.Test(BufferTypeBits::HostSequentialAccess)) {
-                usage |= WGPUBufferUsage_MapRead | WGPUBufferUsage_MapWrite;
+                // MapRead may only be combined with CopyDst, so a host-visible buffer that is
+                // also a uniform or storage binding cannot carry it. This side writes and the
+                // device reads, which is MapWrite; a readback buffer is a separate type.
+                usage |= WGPUBufferUsage_MapWrite;
                 // A mapped write is still a write: the device reads it, so the
                 // buffer has to be a legal copy destination too.
                 usage |= WGPUBufferUsage_CopyDst;
@@ -159,7 +162,10 @@ namespace Engine::Rhi {
         texture_desc.dimension = desc.dimension == ImageType::D1   ? WGPUTextureDimension_1D
                                  : desc.dimension == ImageType::D2 ? WGPUTextureDimension_2D
                                                                    : WGPUTextureDimension_3D;
-        texture_desc.size = WGPUExtent3D{desc.extent.width, desc.extent.height, desc.extent.depth};
+        // A 3D image counts slices in depth; a 2D image counts them in array layers. The seam
+        // keeps the two apart, and the descriptor has one field for both.
+        const uint32_t layers_or_depth = desc.dimension == ImageType::D3 ? desc.extent.depth : desc.array_layers;
+        texture_desc.size = WGPUExtent3D{desc.extent.width, desc.extent.height, layers_or_depth};
         texture_desc.format = ToWgpuTextureFormat(desc.format);
         texture_desc.mipLevelCount = desc.miplevel;
         texture_desc.sampleCount = static_cast<uint32_t>(desc.samples == SampleCountBits::C1 ? 1 : 4);
