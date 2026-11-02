@@ -1,5 +1,7 @@
 #include "spirv_edit.h"
 
+#include <unordered_map>
+
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -234,6 +236,23 @@ namespace Engine::ShaderBake {
         rewritten.reserve(spirv.size());
         rewritten.insert(rewritten.end(), spirv.begin(), spirv.begin() + 5);
 
+        // A `NonReadable` decoration means "write-only" on both a storage buffer and a storage
+        // image, and the two want opposite treatment: WGSL has no write-only buffer, so the
+        // decoration goes - but a *write-only image* is expressible and must keep it, because
+        // the alternative WGSL form (`read_write`) needs an optional feature that a browser
+        // build may not have. The variable's storage class says which one this is:
+        // `UniformConstant` is an opaque image, `StorageBuffer` is a buffer.
+        std::unordered_map<uint32_t, uint32_t> storage_class_of_variable;
+        for (const Instruction &instruction : instructions) {
+            constexpr uint16_t op_variable = 59;
+            if (instruction.opcode == op_variable && instruction.word_count >= 4) {
+                storage_class_of_variable.emplace(
+                    spirv[instruction.word_index + 2], spirv[instruction.word_index + 3]
+                );
+            }
+        }
+        constexpr uint32_t k_uniform_constant_storage_class = 0;
+
         size_t removed = 0;
         for (const Instruction &instruction : instructions) {
             const bool is_variable_decoration = instruction.opcode == OpDecorate;
@@ -245,6 +264,21 @@ namespace Engine::ShaderBake {
                 // puts it in the third, after the member index.
                 const size_t decoration_operand = is_variable_decoration ? 1 : 2;
                 if (spirv[instruction.word_index + 1 + decoration_operand] == DecorationNonReadable) {
+                    if (is_variable_decoration) {
+                        const auto found =
+                            storage_class_of_variable.find(spirv[instruction.word_index + 1]);
+                        if (found != storage_class_of_variable.end()
+                            && found->second == k_uniform_constant_storage_class) {
+                            // A write-only image: keep the decoration.
+                            rewritten.insert(
+                                rewritten.end(),
+                                spirv.begin() + static_cast<std::ptrdiff_t>(instruction.word_index),
+                                spirv.begin()
+                                    + static_cast<std::ptrdiff_t>(instruction.word_index + instruction.word_count)
+                            );
+                            continue;
+                        }
+                    }
                     ++removed;
                     continue;
                 }

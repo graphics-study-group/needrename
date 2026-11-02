@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <limits>
 #include <sstream>
 
 namespace Engine::Rhi {
@@ -73,6 +74,10 @@ namespace Engine::Rhi {
                 binding.binding = entry.value("binding", 0u);
                 binding.kind = entry.value("kind", std::string{});
                 binding.name = entry.value("name", std::string{});
+                binding.storage_format = entry.value("format", 0u);
+                binding.storage_read_only = entry.value("read_only", false);
+                binding.sampler_binding =
+                    entry.value("sampler_binding", std::numeric_limits<uint32_t>::max());
                 description.bindings.push_back(std::move(binding));
             }
         }

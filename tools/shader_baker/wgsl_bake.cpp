@@ -209,19 +209,31 @@ namespace Engine::ShaderBake {
                 uint32_t binding;
                 const char *kind;
                 std::string name;
+                uint32_t storage_format;
+                bool storage_read_only;
             };
             std::vector<Entry> entries;
             for (const auto &interface : layout.interfaces) {
                 const char *kind = DescribeKind(*interface);
-                entries.push_back(Entry{interface->layout_set, interface->layout_binding, kind, interface->name});
-                if (std::string_view{kind} == "combined-image-sampler") {
-                    entries.push_back(
-                        Entry{interface->layout_set,
-                              Engine::Rhi::SplitSamplerBinding(interface->layout_binding),
-                              "sampler",
-                              interface->name + "_sampler"}
-                    );
+                uint32_t storage_format = 0;
+                bool storage_read_only = false;
+                if (const auto *storage = dynamic_cast<const Engine::Rhi::SPInterfaceOpaqueStorageImage *>(interface.get())) {
+                    // A storage image's format and access are part of its declaration, and the
+                    // runtime's layout has to state both: a binding whose format disagrees with
+                    // the shader's is a pipeline that does not build.
+                    storage_format = storage->format;
+                    storage_read_only = storage->read_only;
                 }
+                entries.push_back(
+                    Entry{
+                        interface->layout_set,
+                        interface->layout_binding,
+                        kind,
+                        interface->name,
+                        storage_format,
+                        storage_read_only
+                    }
+                );
             }
 
             json << "{\n";
@@ -239,7 +251,15 @@ namespace Engine::ShaderBake {
             for (size_t index = 0; index < entries.size(); ++index) {
                 const Entry &entry = entries[index];
                 json << "    { \"set\": " << entry.set << ", \"binding\": " << entry.binding << ", \"kind\": \""
-                     << entry.kind << "\", \"name\": \"" << entry.name << "\" }";
+                     << entry.kind << "\", \"name\": \"" << entry.name << "\"";
+                if (std::string_view{entry.kind} == "storage-image") {
+                    json << ", \"format\": " << entry.storage_format
+                         << ", \"read_only\": " << (entry.storage_read_only ? "true" : "false");
+                }
+                if (std::string_view{entry.kind} == "combined-image-sampler") {
+                    json << ", \"sampler_binding\": " << Engine::Rhi::SplitSamplerBinding(entry.binding);
+                }
+                json << " }";
                 json << (index + 1 == entries.size() ? "\n" : ",\n");
             }
             json << "  ]\n";
@@ -396,6 +416,14 @@ namespace Engine::ShaderBake {
                 std::set<std::pair<uint32_t, uint32_t>> described;
                 for (const auto &interface : layout.interfaces) {
                     described.emplace(interface->layout_set, interface->layout_binding);
+                    if (dynamic_cast<const Engine::Rhi::SPInterfaceOpaqueImage *>(interface.get()) != nullptr) {
+                        // The converter declares the sampler of a combined binding as its own
+                        // binding, one slot after the texture, so the WGSL has a slot the
+                        // description does not list as an interface.
+                        described.emplace(
+                            interface->layout_set, Engine::Rhi::SplitSamplerBinding(interface->layout_binding)
+                        );
+                    }
                 }
                 if (constant_block.has_block) {
                     described.emplace(constant_block.set, constant_block.binding);

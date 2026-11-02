@@ -313,6 +313,16 @@ namespace Engine::Rhi {
         /// - the next binding after the texture - and a caller that needs a different slot
         /// says so here.
         uint32_t sampler_binding{std::numeric_limits<uint32_t>::max()};
+        /// @brief The format a storage image binding is declared with, as `ImageFormat`'s value.
+        ///
+        /// A storage image's format and access are part of the shader's declaration, and a
+        /// backend whose layout states them cannot derive either from the texture a caller
+        /// binds: a view whose format disagrees with the shader's is a pipeline that does not
+        /// build. The value is held as an integer because `ImageFormat` is declared in the
+        /// texture header, which includes this one; zero is its `UNDEFINED`.
+        uint32_t storage_format{0};
+        /// @brief Whether a storage image binding is read-only in the shader.
+        bool storage_read_only{false};
 
         bool operator==(const DescriptorBinding &) const = default;
     };

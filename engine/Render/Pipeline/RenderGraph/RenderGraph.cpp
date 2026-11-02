@@ -1,5 +1,7 @@
 #include "RenderGraph.h"
 
+#include <SDL3/SDL.h>
+
 #if defined(ENGINE_RHI_BACKEND_VULKAN)
 // The graph records its own barriers as Vulkan transitions on the Vulkan backend. On the other
 // one the same lists are built and used for ordering, but there is no transition to emit.

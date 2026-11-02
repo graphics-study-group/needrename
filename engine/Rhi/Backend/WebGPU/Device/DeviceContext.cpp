@@ -77,6 +77,10 @@ namespace Engine::Rhi {
         /// There is no fence to key a completion on. The queue's own callback is what
         /// this backend will use once submissions exist; until then nothing is pending.
         std::size_t pending_completions{0};
+        /// Submissions handed to the queue since the last completion this backend observed.
+        /// A wait with nothing outstanding is already satisfied - the queue executes in order,
+        /// so everything before it has finished.
+        std::size_t submissions_since_completion{0};
         /// Compute kernels by module identity, owned here so a caller gets the same one back.
         std::map<std::string, std::unique_ptr<ComputeKernel>> compute_kernels{};
     };
@@ -250,6 +254,7 @@ namespace Engine::Rhi {
         // The standard interface has one queue and no dependencies: a submission is an
         // ordered list of finished command buffers, and "wait for this semaphore" has no
         // meaning because nothing else can be in flight on a different queue.
+        pimpl->submissions_since_completion++;
         std::vector<WGPUCommandBuffer> commands;
         commands.reserve(submission.command_buffers.size());
         for (const CommandBufferHandle &handle : submission.command_buffers) {
@@ -304,6 +309,14 @@ namespace Engine::Rhi {
         if (queue == nullptr) {
             return true;
         }
+        if (pimpl->submissions_since_completion == 0) {
+            // Nothing has been handed to the queue since the last completion this backend
+            // observed, and a queue executes in order, so everything before this point has
+            // finished. Asking the device would be correct but is the one case where its
+            // answer is never delivered: a work-done callback on an idle queue has been seen
+            // not to fire, and every frame would begin by waiting for it.
+            return true;
+        }
         bool done = false;
         WGPUQueueWorkDoneCallbackInfo info{};
         info.mode = WGPUCallbackMode_AllowProcessEvents;
@@ -340,6 +353,9 @@ namespace Engine::Rhi {
 #else
             std::this_thread::sleep_for(std::chrono::microseconds(50));
 #endif
+        }
+        if (done) {
+            pimpl->submissions_since_completion = 0;
         }
         return done;
     }

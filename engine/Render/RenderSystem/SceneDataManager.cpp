@@ -621,6 +621,13 @@ namespace Engine::RenderSystemState {
         auto material_binding = material->UpdateGPUInfo(*tpl, frame_in_flight);
 
         auto &encoder = cb.GetEncoder();
+        SDL_LogInfo(
+            SDL_LOG_CATEGORY_RENDER,
+            "DrawSkybox: pipeline valid %d, material set valid %d, push sizes %zu",
+            tpl->GetPipeline().IsValid() ? 1 : 0,
+            material_binding.set.IsValid() ? 1 : 0,
+            material_binding.dynamic_offsets.size()
+        );
         encoder.BindGraphicsPipeline(tpl->GetPipeline(), tpl->GetPipelineLayout());
         // Every group the pipeline layout declares is bound, including the ones this draw does
         // not read: a backend whose bind groups are all part of the pipeline's interface

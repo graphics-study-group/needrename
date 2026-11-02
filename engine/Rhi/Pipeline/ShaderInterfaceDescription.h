@@ -5,6 +5,7 @@
 #include "Rhi/rhi_export.h"
 
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -27,6 +28,15 @@ namespace Engine::Rhi {
         std::string kind{};
         /// @brief The name the shader declares it with.
         std::string name{};
+        /// @brief For a storage image, the format it is declared with, as `ImageFormat`'s value.
+        uint32_t storage_format{0};
+        /// @brief For a storage image, whether the shader only reads it.
+        bool storage_read_only{false};
+        /// @brief For a combined binding, the slot its sampler occupies on a splitting backend.
+        ///
+        /// `UINT32_MAX` means the bake recorded no split, which is what a backend that accepts a
+        /// combined binding reads as "not applicable".
+        uint32_t sampler_binding{std::numeric_limits<uint32_t>::max()};
     };
 
     /**

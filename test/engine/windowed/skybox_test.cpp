@@ -304,6 +304,44 @@ int main(int argc, char **argv) {
         }
     }
 
+    // A whole-frame dump on request, so a run of this test on one backend can be looked at
+    // beside another rather than described.
+    if (const char *dump_path = SDL_getenv("SKYBOX_DUMP"); dump_path != nullptr && dump_path[0] != '\0') {
+        std::ofstream file(dump_path, std::ios::binary);
+        const uint32_t row_bytes = 800u * 3u;
+        const uint32_t padding = (4u - (row_bytes % 4u)) % 4u;
+        const uint32_t image_bytes = (row_bytes + padding) * 800u;
+        const uint32_t file_size = 54u + image_bytes;
+        const auto byte_at = [](uint32_t value, int shift) {
+            return static_cast<uint8_t>((value >> shift) & 0xFFu);
+        };
+        const uint8_t header[54] = {
+            'B', 'M', byte_at(file_size, 0), byte_at(file_size, 8), byte_at(file_size, 16), byte_at(file_size, 24),
+            0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0,
+            byte_at(800u, 0), byte_at(800u, 8), byte_at(800u, 16), byte_at(800u, 24),
+            byte_at(800u, 0), byte_at(800u, 8), byte_at(800u, 16), byte_at(800u, 24),
+            1, 0, 24, 0, 0, 0, 0, 0,
+            byte_at(image_bytes, 0), byte_at(image_bytes, 8), byte_at(image_bytes, 16), byte_at(image_bytes, 24),
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        file.write(reinterpret_cast<const char *>(header), sizeof(header));
+        for (uint32_t y = 0; y < 800u; y++) {
+            const uint32_t source_row = 799u - y;
+            for (uint32_t x = 0; x < 800u; x++) {
+                const size_t at = (static_cast<size_t>(source_row) * 800u + x) * 4u;
+                const char bgr[3] = {
+                    static_cast<char>(pixels[at + 2]), static_cast<char>(pixels[at + 1]),
+                    static_cast<char>(pixels[at + 0])
+                };
+                file.write(bgr, 3);
+            }
+            for (uint32_t pad = 0; pad < padding; pad++) {
+                file.put('\0');
+            }
+        }
+        std::cout << "Skybox dump written to " << dump_path << std::endl;
+    }
+
     if (non_black == 0) {
         std::cerr << "Skybox test FAILED: the rendered frame is entirely black, so "
                      "the skybox pipeline wrote no colour."

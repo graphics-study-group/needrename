@@ -73,11 +73,6 @@ namespace Engine::Rhi {
     ) {
         pimpl->name = std::string{name};
         pimpl->description = description;
-        pimpl->interface_by_name.clear();
-        for (const ShaderInterfaceBinding &binding : pimpl->description.bindings) {
-            pimpl->interface_by_name.emplace(binding.name, &binding);
-        }
-
         // One set layout per set the description names. Grouping by set is the shape the
         // Vulkan kernel produces from its reflected table, so a shader that bakes the same
         // way binds the same way.
@@ -87,6 +82,13 @@ namespace Engine::Rhi {
             entry.binding = binding.binding;
             entry.type = ShaderInterfaceDescription::ToDescriptorType(binding.kind);
             entry.count = 1;
+            // A storage image's format and access are what the shader declared them as; the
+            // bind group can only satisfy them if the layout names the same pair.
+            entry.storage_format = binding.storage_format;
+            entry.storage_read_only = binding.storage_read_only;
+            // A combined binding's sampler goes in the slot the bake recorded: the layout this
+            // builds expands the pair into the two bindings the shader declares.
+            entry.sampler_binding = binding.sampler_binding;
             sets[binding.set].push_back(entry);
         }
 

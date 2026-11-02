@@ -241,6 +241,8 @@ namespace Engine::Rhi {
                 h.u32(static_cast<uint32_t>(binding.sample_type));
                 h.u32(static_cast<uint32_t>(binding.view_dimension));
                 h.u32(SamplerSlotOf(binding));
+                h.u32(static_cast<uint32_t>(binding.storage_format));
+                h.u32(binding.storage_read_only ? 1u : 0u);
             }
             return h.get();
         }
@@ -308,8 +310,21 @@ namespace Engine::Rhi {
                                          : WGPUSamplerBindingType_Filtering;
                 break;
             case DescriptorType::StorageImage:
-                entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-                entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+                entry.storageTexture.access = binding.storage_read_only ? WGPUStorageTextureAccess_ReadOnly
+                                                                        : WGPUStorageTextureAccess_WriteOnly;
+                entry.storageTexture.format = ToWgpuTextureFormat(static_cast<ImageFormat>(binding.storage_format));
+                if (entry.storageTexture.format == WGPUTextureFormat_Undefined) {
+                    // The shader declared no format the seam knows; the interface requires one, so
+                    // the entry names the colour format the engine's own storage images use and
+                    // says so rather than letting the device reject an undefined format.
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "WebGPU: storage image binding %u declares a format the seam does not name; "
+                        "using RGBA8Unorm.",
+                        binding.binding
+                    );
+                    entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+                }
                 entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
                 // A written storage texture is not legal in the vertex stage of the standard
                 // interface, and a layout entry that claims vertex visibility is rejected.
@@ -390,5 +405,4 @@ namespace Engine::Rhi {
         return FromWgpuPipelineLayout(pipeline_layout);
     }
 } // namespace Engine::Rhi
-
 

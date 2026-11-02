@@ -1,6 +1,7 @@
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 
 #include "Rhi/Buffer/StructuredBuffer.h"
+#include "Rhi/Texture/ImageUtils.h"
 #include "Rhi/Buffer/StructuredBufferPlacer.h"
 
 // CMake is messing with the SPIRV-Cross in Vulkan SDK
@@ -157,6 +158,41 @@ namespace {
         }
     }
 
+    /// @brief Translate the image format a storage image declares.
+    Engine::Rhi::ImageFormat StorageImageFormat(spv::ImageFormat format) {
+        using namespace Engine::Rhi;
+        switch (format) {
+        case spv::ImageFormatRgba8:
+            return ImageFormat::R8G8B8A8UNorm;
+        case spv::ImageFormatRgba8Snorm:
+            return ImageFormat::R8G8B8A8SNorm;
+        case spv::ImageFormatRgba32f:
+            return ImageFormat::R32G32B32A32SFloat;
+        case spv::ImageFormatR32f:
+            return ImageFormat::R32SFloat;
+        case spv::ImageFormatR11fG11fB10f:
+            return ImageFormat::R11G11B10UFloat;
+        case spv::ImageFormatR32ui:
+            return ImageFormat::R32UInt;
+        case spv::ImageFormatRg32ui:
+            return ImageFormat::R16G16UInt;
+        default:
+            return ImageFormat::UNDEFINED;
+        }
+    }
+
+    /// @brief Translate a reflected storage image into the portable terms a layout states.
+    Engine::Rhi::DescriptorBinding MakeStorageImageBinding(const Engine::Rhi::SPInterfaceOpaqueStorageImage &image) {
+        using namespace Engine::Rhi;
+        DescriptorBinding binding{};
+        binding.binding = image.layout_binding;
+        binding.type = DescriptorType::StorageImage;
+        binding.count = static_cast<uint32_t>(std::max(image.array_size, 1u));
+        binding.storage_format = image.format;
+        binding.storage_read_only = image.read_only;
+        return binding;
+    }
+
     /// @brief Translate a reflected image's flags into the portable terms a layout states.
     Engine::Rhi::DescriptorBinding MakeImageBinding(
         const Engine::Rhi::SPInterfaceOpaqueImage &image, Engine::Rhi::DescriptorType type
@@ -238,11 +274,7 @@ namespace Engine::Rhi {
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
                 sets[ptr->layout_set].push_back(MakeImageBinding(*ptr, DescriptorType::CombinedImageSampler));
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
-                sets[ptr->layout_set].push_back(
-                    DescriptorBinding{
-                        ptr->layout_binding, DescriptorType::StorageImage, static_cast<uint32_t>(std::max(ptr->array_size, 1u))
-                    }
-                );
+                sets[ptr->layout_set].push_back(MakeStorageImageBinding(*ptr));
             } else {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring interface with unknown type.");
             }
@@ -283,11 +315,7 @@ namespace Engine::Rhi {
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
                 bindings.push_back(MakeImageBinding(*ptr, DescriptorType::CombinedImageSampler));
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
-                bindings.push_back(
-                    DescriptorBinding{
-                        ptr->layout_binding, DescriptorType::StorageImage, static_cast<uint32_t>(std::max(ptr->array_size, 1u))
-                    }
-                );
+                bindings.push_back(MakeStorageImageBinding(*ptr));
             } else {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring interface with unknown type.");
             }
@@ -381,6 +409,15 @@ namespace Engine::Rhi {
             ptr->name = image.name;
             ptr->layout_set = desc_set;
             ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
+
+            // A storage image's format and access are part of its declaration in GLSL, and a
+            // backend whose binding description names them cannot derive either from the
+            // texture. `readonly` arrives as `NonWritable` on the variable; `writeonly` as
+            // `NonReadable`, and a declaration with neither is read-write.
+            const auto &storage_type = compiler.get_type(image.type_id);
+            ptr->format = static_cast<uint32_t>(StorageImageFormat(storage_type.image.format));
+            ptr->read_only = compiler.has_decoration(image.id, spv::DecorationNonWritable)
+                             && !compiler.has_decoration(image.id, spv::DecorationNonReadable);
 
             if (layout.interface_name_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());

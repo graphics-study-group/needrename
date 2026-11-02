@@ -263,9 +263,6 @@ namespace Engine::Rhi {
         pass_desc.colorAttachmentCount = color_attachments.size();
         pass_desc.colorAttachments = color_attachments.data();
         pass_desc.depthStencilAttachment = has_depth ? &depth : nullptr;
-        for (const WGPURenderPassColorAttachment &color : color_attachments) {
-        }
-
         pimpl->render_pass = wgpuCommandEncoderBeginRenderPass(pimpl->encoder, &pass_desc);
         pimpl->in_render_pass = true;
         // The constant group is part of every pipeline layout that declares a constant range,
@@ -327,7 +324,6 @@ namespace Engine::Rhi {
     }
 
     void CommandEncoder::PushConstants(std::span<const std::byte> data) {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "WebGPU: PushConstants %zu bytes", data.size());
         RecordConstantWindow(pimpl->render_pass, pimpl->compute_pass, pimpl->constant_cursor, data);
     }
 
@@ -491,8 +487,5 @@ namespace Engine::Rhi {
         return {};
     }
 } // namespace Engine::Rhi
-
-
-
 
 

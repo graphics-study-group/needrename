@@ -2,6 +2,7 @@
 #define ENGINE_RHI_SHADERINTERFACE_INCLUDED
 
 #include "Core/flagbits.h"
+#include "Rhi/RhiTypes.h"
 #include <cstdint>
 #include <string>
 #include <variant>
@@ -56,6 +57,14 @@ namespace Engine::Rhi {
      * binds, not of the interface, so there is nothing to record here.
      */
     struct SPInterfaceOpaqueStorageImage : SPInterfaceOpaque {
+        /// @brief The format the shader declares the image with.
+        ///
+        /// A storage image's format is part of its declaration in GLSL, and a backend whose
+        /// binding description names it cannot derive it from the texture the caller binds - the
+        /// view must match what the shader says or the pipeline is rejected.
+        uint32_t format{0};
+        /// @brief Whether the shader only reads it (`readonly`).
+        bool read_only{false};
     };
 
     /// @brief Other opaque interfaces such as samplers.
