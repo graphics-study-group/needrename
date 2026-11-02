@@ -281,6 +281,13 @@
     none - and then abandons the epoch it opened, because it never submits. So it would catch a
     reporting point that fires at the wrong time and would not catch one that never fires at all, which
     is exactly the failure a callback-based report introduces. A second assertion is needed before 10.1
+
+    **Attempted and reverted.** The report was moved onto `submission.on_complete` with the epoch
+    captured by value and the slot cleared at capture, and `StartFrame`'s report deleted. It compiles
+    and 77 of the 78 tests pass - `project_loading_test` times out at 300 s under ctest while passing
+    when run alone with 30 frames, which means the change stretched that test past its budget rather
+    than breaking it outright. That is not something that can be diagnosed with the context left in
+    this session, so it was reverted rather than left red.
     can be ticked: submit, pump, and check that the outstanding count dropped without an intervening
     `StartFrame`.
 - [ ] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the frame instead of blocking
