@@ -14,8 +14,9 @@ Verified at `a0ca69fe` (branch `feature/wgpu`).
 ## Where it stands in one sentence
 
 The engine's own scene draws and presents through the WebGPU backend on desktop - two windowed
-tests pass with captured frames - and **the full scene example stalls inside its first frame in
-the physics step**, while the browser build has not been run since the bake work landed.
+tests pass with captured frames - the full scene example compiles and runs but stalls while
+creating the first physics kernel, and the browser build runs to the first frame before a
+JavaScript assertion in the browser's WebGPU layer stops it.
 
 ---
 
@@ -27,7 +28,8 @@ the physics step**, while the browser build has not been run since the bake work
 | `webgpu-desktop`: build exit 0 | the whole engine compiles and links against the second backend |
 | `mrt_test` on WebGPU: **PASSED**, and its frame dumped | the engine records four render passes, draws, reads the colour target back and presents |
 | `skybox_test` on WebGPU: **PASSED** (640000/640000 pixels), and its frame dumped | a textured material pipeline, a cube map, depth and the present copy all work |
-| `build/webgpu/mrt_frame.png`, `build/webgpu/skybox.png` | the frames themselves |
+| `build/webgpu/mrt_frame.png`, `build/webgpu/skybox.png`, `build/webgpu/presented.png` | the frames themselves; `presented.png` is the surface image, not the render target |
+| `build/emscripten`: build exit 0, and the page reaches "Entering main loop" in Edge | the browser build compiles, links, creates its device and surface, loads the model and starts a frame |
 
 The two tests' own assertions are the evidence: `mrt_test` fails when the colour target is
 uniformly zero, and `skybox_test` fails when the frame is entirely black. Both pass.
@@ -44,6 +46,32 @@ build\webgpu\bin\Debug\mrt_test.exe 6
 
 `SKYBOX_DUMP`/`MRT_DUMP` write what the render target holds; `NEEDRENAME_PRESENT_CAPTURE`
 writes what the surface received, which is the stronger of the two.
+
+The BMPs are written bottom-up; convert and flip them, or open them as they are, to see the
+frame the window showed.
+
+### How to run the browser build
+
+```powershell
+cmake --preset emscripten -DSHADER_WGSL_CONVERTER=D:/tools/dawn/<build>/bin/tint.exe
+cmake --build build/emscripten
+# serve build/emscripten/bin, then open external_resource_loading_example.html
+.venv\Scripts\python.exe -m http.server 8099 --bind 127.0.0.1   # from that directory
+```
+
+A headless run that shows the page's own log:
+
+```powershell
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new `
+  --enable-unsafe-webgpu --user-data-dir=<scratch> --window-size=1280,720 `
+  --virtual-time-budget=120000 --enable-logging=stderr --v=0 `
+  --screenshot=shot.png "http://127.0.0.1:8099/external_resource_loading_example.html" 2> edge.log
+```
+
+`edge.log` carries every `console.log` the page makes, which is where the engine's `SDL_Log`
+output goes. `build/emscripten/bin/capture*.html` are wrappers that route stdout, stderr and
+`console.error`/`console.warn` through `console.log`; they reproduce the abort and, so far,
+capture nothing the shell does not.
 
 
 ---
@@ -82,52 +110,50 @@ writes what the surface received, which is the stronger of the two.
 
 ## What is not real, and the order to take it
 
-### 1. The scene example stalls in its first frame (the first thing to fix)
+### 1. The scene example stalls while creating its first physics kernel
 
-`external_resource_loading_example` reaches the end of its frame's CPU work and then stops
-inside the frame: cascades are fitted, the surface image is acquired, and nothing after that.
-The render section is
+`external_resource_loading_example` gets through its frame's CPU work, acquires the surface
+image, and stops inside `physics->GPUStep(...)`: the solver's `EnsureShadersLoaded` loads its
+kernels one at a time, each printed by name in a log build, and the run never comes back from
+one of them. Kernel creation is `wgpuDeviceCreateComputePipeline` on a synchronous device call,
+so what is left to find is which kernel and why - the last one reached was
+`XPBD AccumFixedPos` (a 15 KB WGSL module). Two things to try, in this order:
 
-```
-renderer->StartFrame()
-cb = BeginMainCommandBuffer()
-physics->GPUStep(cb.GetEncoder())          // physics compute passes
-physics->GPUCalcModelMatrices(...)         // compute
-renderGraph->RecordAllPasses(cb.GetEncoder())
-renderer->CompleteFrame(final_color, ShaderRandomWrite)
-```
+- Log around `ComputeKernel::CreateFromModule` (module creation, set layouts, pipeline layout,
+  pipeline) rather than around the loader, to see the last call that returns.
+- Check whether it is slow rather than stuck: the browser's own web build compiles the same
+  modules without this stall, so a build with `-O2`/`RelWithDebInfo` (where naga is not in
+  debug) is the cheapest way to tell the two apart.
 
-Both windowed tests take the same path *without* the physics calls and pass, so **the physics
-step is the first suspect**: `GPUStep` loads its kernels through `PhysicsSpirvLoader` (now the
-baked-module path) and dispatches them through the constant ring. Instrument those two calls
-first; every stall this session was one call deep and found that way.
+### 2. The browser stops on an assertion in its WebGPU layer
 
-### 2. The browser build has not been run since the bake work
+The page runs: device, surface, model, camera, main loop, and the first frame's cascade fit. It
+then aborts with nothing but `Aborted(Assertion failed)` - an assertion in the JavaScript glue
+of the browser's WebGPU implementation, not in the engine. The message carries no condition, so
+the next step is to make the assertion report itself:
 
-The Emscripten preset points at a host baker through `ENGINE_HOST_SHADER_BAKER`, and the staged
-tree now carries WGSL for every built-in shader, so a browser run is the next thing to attempt
-once the desktop example draws. Two things are expected to block it:
-
-- **The material path uses runtime reflection** (`SPLayout::Reflect`) to build material layouts
-  and to place material uniform variables. The browser build has no SPIRV-Cross by design
-  (task 11.2), so either that reflection has to be replaced by the baked interface description
-  - which needs variable offsets, the part of task 7.1 that is still missing - or SPIRV-Cross
-  has to be linked into the wasm module and task 11.2 recorded as not met.
-- **The readback pump waits by yielding.** `PrepareReadback` loops on `emscripten_sleep(0)`,
-  which needs `-sASYNCIFY` in the link flags. Check that before concluding the readback is
-  broken in the browser.
-
+- Build the page with `-sASSERTIONS=2` (add it to the example's link options) and read the
+  stack trace it prints; `capture3.html` already routes `console.error`/`console.warn` through
+  `console.log`, which is where that trace lands.
+- A strong candidate worth checking first: the engine binds one descriptor set per group it
+  uses, while a kernel pipeline's layout can have padded groups (the constant block lives at
+  group 3, so groups 1 and 2 exist and are never bound). wgpu reports an unbound group as a
+  validation error, and this layer turns an uncaught validation error into an abort, which is
+  exactly the shape of what is seen.
 ### 3. Physics on WebGPU
 
-`RequestComputeKernelFromModule` is implemented, the loader takes it, and kernel layouts now
-carry their storage image formats. Nothing has dispatched a physics kernel yet - the example
-stalls before it says which one, which is what item 1 is for.
+Kernels now build: the loader takes the baked module and description, the layouts state each
+binding's access and format, the constant block's group is declared, and the device asks for
+enough storage bindings per stage. Nothing has *dispatched* one yet on desktop - the example
+stalls in kernel creation (item 1) - and the browser reaches the first frame's physics before
+the assertion in item 2.
 
 ### 4. The windowed tests that still skip this backend
 
 `mrt_test` and `skybox_test` were ported to the seam and now pass on WebGPU. `imgui_test` is
 still Vulkan-only: the ImGui WebGPU back-end does not compile against wgpu-native 29, which is
 task 10.4 and unchanged.
+
 ---
 
 ## Things not to redo
