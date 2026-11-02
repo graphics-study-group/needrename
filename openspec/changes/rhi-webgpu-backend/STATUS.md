@@ -548,7 +548,14 @@ Open:
   header whose shader descriptor had a `source` field. `IMGUI_IMPL_WEBGPU_BACKEND_WGPU` is now
   defined, which is necessary and not sufficient.
 - Do not look for the two modules Tint refuses under debug info. The bake strips it before invoking
-  the converter, so `sum_by_key.comp` and `sum_by_key_push.comp` fail for another reason.
+  the converter; they fail because the shader calls `workgroupBarrier` from non-uniform control flow,
+  which Tint will not accept even though the shader documents the pattern as deliberate.
+- Do not move the frame epoch report onto `submission.on_complete` without reading `10.1` first. It was
+  tried: the report is three lines, it compiles, and it stretches `project_loading_test` from 1.6 s to
+  over the 300 s CTest budget. The task entry records what was changed and what the test said.
+- Do not assume `PumpCompletions` runs where its comment says. It now does, because `WaitForFence` was
+  not calling it, but the comment was the only place that claimed so - a comment promising a call is not
+  a call.
 ### A pattern in the last three findings
 
 Three tasks turned out to be blocked by the same thing seen from three sides, and it is worth naming
@@ -590,3 +597,4 @@ together is probably cheaper than treating them apart.
 
 **Start with the first row.** It is the only one that moves four tasks, the types for it all exist, and
 the bake already produces the description they need.
+
