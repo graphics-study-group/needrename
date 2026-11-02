@@ -658,3 +658,18 @@ and emit whatever it needs. That is the change to make, and it is a change to
 `RenderGraphBuilder`, `RenderGraphStruct` and `RenderGraph::Record` together rather than to one
 file.
 
+
+## Known environment failure: two data-root tests cannot create their scratch directory
+
+`data_root_test` and `asset_path_test` fail in this environment with
+`create_directories(...): Access is denied` (error 5) on
+`%TEMP%\needrename_data_root_test\<name>`. The tests report it themselves: with the directory made
+by hand beforehand the checks pass, and an independent `std::filesystem` probe built with the same
+compiler creates that exact path without complaint.
+
+So the directory is fine, the code is fine, and the process is refused. It is worth recording
+because it looks like a regression and is not: the failure reproduces on a clean tree at
+`22384388`, and `git status` there is empty.
+
+The WebGPU and browser work in this change does not touch data-root resolution.
+
