@@ -9,25 +9,30 @@
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Render/Backend/Vulkan/RenderSystem/OffscreenPresentProvider.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+#include "Render/Backend/Vulkan/RenderSystem/OffscreenPresentProvider.h"
 #include "Render/Backend/Vulkan/RenderSystem/SwapchainPresentProvider.h"
+#else
+#include "Render/Backend/WebGPU/RenderSystem/OffscreenPresentProvider.h"
+#endif
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
-#if defined(ENGINE_RHI_BACKEND_VULKAN)
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
-#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
 
 #include <Core/Functional/SDLWindow.h>
 
 #include <iostream>
 #include <stdexcept>
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include <vulkan/vulkan.hpp>
+#endif
 
 namespace Engine {
     struct RenderSystem::impl {
@@ -102,9 +107,20 @@ namespace Engine {
                 expected_extent.height = static_cast<uint32_t>(h);
             }
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
             auto spp = std::make_unique<RenderSystemState::SwapchainPresentProvider>();
             spp->Initialize(device_interface, expected_extent);
             pimpl->m_present_provider = std::move(spp);
+#else
+            // A windowed run needs a surface, and this backend has no surface provider yet: it
+            // needs wgpuSurfaceConfigure and wgpuSurfaceGetCurrentTexture against the window
+            // handle. Reporting that beats opening a window and presenting nothing.
+            static_cast<void>(expected_extent);
+            throw std::logic_error(
+                "RenderSystem: this backend has no windowed present provider yet. Run headless, or "
+                "build with ENGINE_RHI_BACKEND=vulkan."
+            );
+#endif
             pimpl->m_resizable_rtt_manger.SetReferenceSize(expected_extent.width, expected_extent.height);
         }
 
@@ -230,4 +246,3 @@ namespace Engine {
 
 
 
-#endif
