@@ -32,6 +32,11 @@ namespace Engine::Rhi {
         BufferType type{};
         EpochTracker *retire_sink{nullptr};
         VulkanIdentity identity{MintVulkanIdentity()};
+        /// The host-side copy a mapped-window allocation writes into. A buffer that is
+        /// bound in a shader cannot be mapped on this backend, so the address the caller
+        /// writes through is this, and FlushMemory copies it to the device.
+        std::vector<std::byte> shadow{};
+        WGPUQueue queue{nullptr};
     };
 
     BufferAllocation::BufferAllocation(
@@ -50,6 +55,12 @@ namespace Engine::Rhi {
                                   || type.Test(BufferTypeBits::HostSequentialAccess);
         if (pimpl->buffer != nullptr && host_visible) {
             pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, WGPU_WHOLE_MAP_SIZE);
+            if (pimpl->mapped == nullptr) {
+                // Not created mapped: the buffer is bound in a shader, so the write goes into a
+                // host copy and reaches the device on flush.
+                pimpl->shadow.resize(static_cast<size_t>(wgpuBufferGetSize(pimpl->buffer)));
+                pimpl->queue = wgpuDeviceGetQueue(static_cast<WGPUDevice>(allocator));
+            }
         }
     }
 
@@ -98,12 +109,17 @@ namespace Engine::Rhi {
             );
             return nullptr;
         }
+        if (pimpl->mapped == nullptr && !pimpl->shadow.empty()) {
+            return pimpl->shadow.data();
+        }
         return static_cast<std::byte *>(pimpl->mapped);
     }
 
     void BufferAllocation::FlushMemory(size_t, size_t) const {
-        // No flush exists in the standard interface; remaining writes are published
-        // by the unmap this backend performs when the allocation is destroyed.
+        if (pimpl->mapped != nullptr || pimpl->shadow.empty() || pimpl->queue == nullptr) {
+            return;
+        }
+        wgpuQueueWriteBuffer(pimpl->queue, pimpl->buffer, 0, pimpl->shadow.data(), pimpl->shadow.size());
     }
 
     void BufferAllocation::InvalidateMemory(size_t, size_t) const {

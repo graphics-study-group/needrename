@@ -47,12 +47,14 @@ namespace Engine::Rhi {
                 usage |= WGPUBufferUsage_Indirect;
             }
             if (type.Test(BufferTypeBits::HostRandomAccess) || type.Test(BufferTypeBits::HostSequentialAccess)) {
-                // MapRead may only be combined with CopyDst, so a host-visible buffer that is
-                // also a uniform or storage binding cannot carry it. This side writes and the
-                // device reads, which is MapWrite; a readback buffer is a separate type.
-                usage |= WGPUBufferUsage_MapWrite;
-                // A mapped write is still a write: the device reads it, so the
-                // buffer has to be a legal copy destination too.
+                // This side does not map: WebGPU allows MapWrite only with CopySrc, and a buffer
+                // that is also a uniform or storage binding cannot carry it. Writes go through
+                // QueueWriteBuffer into a CopyDst buffer instead, which is what the mapped-window
+                // contract is emulated with on this backend.
+                if (!(usage & (WGPUBufferUsage_Uniform | WGPUBufferUsage_Storage))) {
+                    // MapWrite is still legal where nothing binds the buffer in a shader.
+                    usage |= WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
+                }
                 usage |= WGPUBufferUsage_CopyDst;
             }
             return usage;
