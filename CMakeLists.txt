@@ -86,6 +86,15 @@ if (UNIX)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
 endif()
 
+# Emscripten links every translation unit into one module, and a static archive built
+# without position-independent code cannot be relocated into it. Third-party targets that
+# do not set this themselves - libktx - fail at link time without it.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Every engine module is a shared object in this shape, and a final link has to find its
+# siblings. The side-module link does not search the output directory by default, so
+# the directory every module lands in is on the link path.
+link_directories(${CMAKE_BINARY_DIR}/bin)
 include(CTest)
 # Supplies CMAKE_INSTALL_INCLUDEDIR/LIBDIR, used by the SDK layout.
 include(GNUInstallDirs)

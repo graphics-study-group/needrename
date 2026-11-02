@@ -24,7 +24,6 @@
 #include <cassert>
 #include <exception>
 #include <fstream>
-#include <glslang/Public/ShaderLang.h>
 #include <nlohmann/json.hpp>
 
 extern "C"
