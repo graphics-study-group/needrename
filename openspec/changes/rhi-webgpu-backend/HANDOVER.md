@@ -107,7 +107,18 @@ capture nothing the shell does not.
 
 ## What is not real, and the order to take it
 
-### 0. Two headless paths still fail on WebGPU
+### 0. The example's composition has no Vulkan reference yet
+
+The example's frame is stable and it draws its scene, but its framing looks wrong in a way the
+two windowed tests cannot confirm or deny: the skybox's ground half sits at the top of the
+image, which is what an inverted view-projection would produce, while `skybox_test` - same
+shader, same camera class - produces a frame byte-identical to Vulkan's. The way to settle it is
+to capture the Vulkan example the way the WebGPU one is captured: record a copy of the final
+colour target into a host-visible buffer inside the Vulkan `SwapchainPresentProvider` and write
+it out under the same `NEEDRENAME_PRESENT_CAPTURE`. Until then the difference is a question, not
+a conclusion.
+
+### 0b. Two headless paths still fail on WebGPU
 
 Found at the end of the session, both on the headless (no window) path:
 
