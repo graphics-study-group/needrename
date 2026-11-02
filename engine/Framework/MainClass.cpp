@@ -132,8 +132,15 @@ namespace Engine {
         SDL_SetLogPriorities(sdl_logPrior);
         this->window = nullptr;
 
-        if (sdl_window_flags == 0)
-            sdl_window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        if (sdl_window_flags == 0) {
+            // The window flag names the presentation API the window is for. Asking
+            // for a Vulkan window on a backend that does not use Vulkan is what makes
+            // SDL_CreateWindow fail with "Vulkan support is not configured".
+            sdl_window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+            sdl_window_flags |= SDL_WINDOW_VULKAN;
+#endif
+        }
         if (opt->instantQuit) return;
 
         const bool is_headless = opt->headless;

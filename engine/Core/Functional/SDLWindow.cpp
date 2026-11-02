@@ -1,11 +1,15 @@
 #include "SDLWindow.h"
 
 #include <stdexcept>
+#include <string>
 
 namespace Engine {
     SDLWindow::SDLWindow(const char *title, int width, int height, Uint32 flags) {
         m_window = SDL_CreateWindow(title, width, height, flags);
-        if (!m_window) throw std::runtime_error("Cannot create SDL window.");
+        if (!m_window) {
+            // SDL knows why, and a caller that only sees "cannot create" has no next step.
+            throw std::runtime_error(std::string{"Cannot create SDL window: "} + SDL_GetError());
+        }
     }
 
     SDLWindow::~SDLWindow() {
@@ -25,3 +29,4 @@ namespace Engine {
         return m_window;
     }
 } // namespace Engine
+

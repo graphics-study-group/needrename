@@ -4,6 +4,9 @@
 #include "Rhi/Backend/WebGPU/WgpuStructs.h"
 
 #include <SDL3/SDL.h>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 #include <atomic>
 #include <chrono>
 #include <stdexcept>
@@ -66,7 +69,14 @@ namespace Engine::Rhi {
             // request is in flight.
             while (!done.load()) {
                 wgpuInstanceProcessEvents(instance);
+                // A sleep that blocks the page keeps the callback from ever running: the browser
+                // answers this request on the event loop the caller is occupying. emscripten_sleep
+                // is the one that yields to it, and Asyncify is what turns it into a pause.
+#if defined(__EMSCRIPTEN__)
+                emscripten_sleep(1);
+#else
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
+#endif
             }
             static_cast<void>(what);
         }
@@ -198,6 +208,7 @@ namespace Engine::Rhi {
         return SwapchainSupport{};
     }
 } // namespace Engine::Rhi
+
 
 
 
