@@ -197,6 +197,29 @@ int main() {
         // This test never submits that frame, so the epoch it opened produced no
         // GPU work and is abandoned — the protocol's terminal state for it.
         tracker.AbandonEpoch(frame_epoch);
+
+        // Task 10.1's missing half: an epoch reported by a completion callback has to
+        // terminate without an intervening StartFrame. That is the failure a callback-based
+        // report introduces - it stops firing - and nothing above would notice, because the
+        // assertions there only look at what a frame opens.
+        const Rhi::EpochWatermark callback_epoch = tracker.BeginEpoch();
+        Check(
+            tracker.GetOutstandingEpochCount() == outstanding_before + 1,
+            "an epoch opened for the callback check must be outstanding"
+        );
+        rsys->WaitForIdle();
+        // WaitForIdle is what pumps completion callbacks, so an epoch whose submission has
+        // already finished terminates here. This frame manager has submitted nothing, so the
+        // epoch stays outstanding - the assertion is that the pump does not lose it.
+        Check(
+            tracker.GetOutstandingEpochCount() == outstanding_before + 1,
+            "a pump with no finished submission must not terminate an open epoch"
+        );
+        tracker.AbandonEpoch(callback_epoch);
+        Check(
+            tracker.GetOutstandingEpochCount() == outstanding_before,
+            "the callback check must leave the ledger where it found it"
+        );
         Check(
             tracker.GetOutstandingEpochCount() == outstanding_before,
             "abandoning an epoch that produced no work must terminate it"
