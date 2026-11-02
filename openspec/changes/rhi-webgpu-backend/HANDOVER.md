@@ -75,15 +75,18 @@ So: the plumbing is proven end to end; **the picture is not**.
 Both windowed runs present a black frame with no validation error, so the fault is in what the
 shaders compute or in what reaches the surface. The fastest way to separate the two:
 
-- `mrt_test` reads its colour target back through `RecordCopyImageToBuffer`, and that readback
-  now completes; **but its callback prints nothing**, which means the readback pump never hands
-  the buffer over. Fixing that turns "the test says zero" into "here are the bytes", and the
-  bytes say whether the draw happened.
-  - The pump lives in `FrameManager::impl::CompleteFrame`: it polls each registry's fence with
-    `WaitForFence(handle, 0)`. On this backend a poll registers a queue-work-done callback and
-    dispatches the instance's events once. That call has not been observed to fire; a poll that
-    drives `wgpuInstanceProcessEvents` **and** waits for the callback (the way
-    `DeviceContext::WaitForIdle` does) is the obvious next attempt.
+- `mrt_test` reads its colour target back through `RecordCopyImageToBuffer`. That copy now
+  completes - the row-alignment staging works - and the pump now fires, so the callback runs.
+  **But the map of the staging buffer fails**: `wgpuBufferMapAsync` answers
+  `WGPUMapAsyncStatus_Error` with only "Validation Error" as its message, so the callback
+  receives a buffer whose `GetVMAddress` is null and the test faults on it.
+  - The buffer is created as `CopyTo | HostRandomAccess`, which the allocator turns into
+    `MapRead | CopyDst`; the map is requested with `WGPU_WHOLE_MAP_SIZE` after the work is done
+    and outside the device's event dispatch (`BufferAllocation::PrepareReadback`). What is left
+    to check is the buffer *this* map names: the readback registry's staging buffer, not the
+    caller's. Printing `wgpuBufferGetSize` and the descriptor's usage at creation, or turning on
+    wgpu-native's log level (`wgpuSetLogLevel`, in `wgpu.h`), is the next step - the summary
+    status carries no detail.
 - If the readback bytes are non-zero, the draw is fine and the fault is in the present path:
   `SurfacePresentProvider` on this backend, which copies the final colour target into the
   surface texture and presents it. That copy is the other half of the same question and has
