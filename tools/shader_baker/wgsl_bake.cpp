@@ -1,5 +1,9 @@
 #include "wgsl_bake.h"
 
+#include "Rhi/Buffer/StructuredBufferPlacer.h"
+
+#include <cstdio>
+
 #include "spirv_edit.h"
 
 #include <Rhi/Pipeline/ShaderInterface.h>
@@ -244,6 +248,10 @@ namespace Engine::ShaderBake {
                 std::string name;
                 uint32_t storage_format;
                 bool storage_read_only;
+                std::vector<Engine::Rhi::StructuredBufferPlacer::Entry> members{};
+                uint32_t block_size{0};
+                uint32_t sample_type{0};
+                uint32_t view_dimension{1};
             };
             std::vector<Entry> entries;
             for (const auto &interface : layout.interfaces) {
@@ -267,6 +275,38 @@ namespace Engine::ShaderBake {
                         storage_read_only
                     }
                 );
+                if (const auto *image = dynamic_cast<const Engine::Rhi::SPInterfaceOpaqueImage *>(interface.get());
+                    image != nullptr) {
+                    using Flags = Engine::Rhi::SPInterfaceOpaqueImage::ImageFlagBits;
+                    entries.back().sample_type = image->flags.Test(Flags::Depth) ? 1u : 0u;
+                    if (image->flags.Test(Flags::d1D)) {
+                        entries.back().view_dimension = 0u;
+                    } else if (image->flags.Test(Flags::d3D)) {
+                        entries.back().view_dimension = 2u;
+                    } else if (image->flags.Test(Flags::CubeMap)) {
+                        entries.back().view_dimension = image->flags.Test(Flags::Arrayed) ? 5u : 3u;
+                    } else if (image->flags.Test(Flags::Arrayed)) {
+                        entries.back().view_dimension = 4u;
+                    } else {
+                        entries.back().view_dimension = 1u;
+                    }
+                }
+                if (const auto *structured =
+                        dynamic_cast<const Engine::Rhi::SPInterfaceStructuredBuffer *>(interface.get());
+                    structured != nullptr && structured->buffer_placer != nullptr) {
+                    std::fprintf(
+                        stderr,
+                        "bake: block '%s' set %u binding %u has %zu member(s), %zu bytes\n",
+                        interface->name.c_str(),
+                        interface->layout_set,
+                        interface->layout_binding,
+                        structured->buffer_placer->Enumerate().size(),
+                        structured->buffer_placer->GetBlockSize()
+                    );
+                    // The block's variables, so a runtime without reflection can place them.
+                    entries.back().members = structured->buffer_placer->Enumerate();
+                    entries.back().block_size = static_cast<uint32_t>(structured->buffer_placer->GetBlockSize());
+                }
                 const auto override_entry =
                     access_from_wgsl.find({interface->layout_set, interface->layout_binding});
                 if (override_entry != access_from_wgsl.end()) {
@@ -290,8 +330,30 @@ namespace Engine::ShaderBake {
                 const Entry &entry = entries[index];
                 json << "    { \"set\": " << entry.set << ", \"binding\": " << entry.binding << ", \"kind\": \""
                      << entry.kind << "\", \"name\": \"" << entry.name << "\"";
+                if (std::string_view{entry.kind} == "combined-image-sampler"
+                    || std::string_view{entry.kind} == "sampled-image") {
+                    // How the binding is declared: a skybox is a cube, a shadow map an array, and a
+                    // layout that says otherwise is a pipeline the device refuses.
+                    json << ", \"sample_type\": " << static_cast<uint32_t>(entry.sample_type)
+                         << ", \"view_dimension\": " << static_cast<uint32_t>(entry.view_dimension);
+                }
                 if (std::string_view{entry.kind} == "storage-buffer") {
                     json << ", \"read_only\": " << (entry.storage_read_only ? "true" : "false");
+                }
+                if (!entry.members.empty()) {
+                    // The variables a material places by name. A runtime with no reflection library
+                    // rebuilds the block from these offsets instead of reading the module.
+                    json << ", \"block_size\": " << entry.block_size << ", \"members\": [";
+                    for (size_t member_index = 0; member_index < entry.members.size(); member_index++) {
+                        const auto &member = entry.members[member_index];
+                        if (member_index != 0) {
+                            json << ", ";
+                        }
+                        json << "{ \"name\": \"" << member.name << "\", \"offset\": " << member.offset
+                             << ", \"size\": " << member.size << ", \"kind\": "
+                             << static_cast<uint32_t>(member.kind) << " }";
+                    }
+                    json << "]";
                 }
                 if (std::string_view{entry.kind} == "storage-image") {
                     json << ", \"format\": " << entry.storage_format

@@ -70,7 +70,7 @@ namespace Engine::Rhi {
          * identity; the identity is what a descriptor set is keyed on.
          */
         DescriptorSetLayoutRef GetDescriptorSetLayoutRef(
-            const DescriptorSetLayout &, const char *name = nullptr
+            const DescriptorSetLayout &, const char *name = nullptr, bool compute_only = false
         );
 
         /**
@@ -85,7 +85,6 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_IMMUTABLERESOURCECACHE_INCLUDED
-
 
 
 

@@ -4,6 +4,7 @@
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Rhi/Device/DeviceContext.h"
+#include "Rhi/Pipeline/ShaderInterfaceDescription.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Pipeline/ShaderModule.h"
 #include "Rhi/Resource/DescriptorArena.h"
@@ -62,7 +63,32 @@ namespace Engine {
 
                 auto shader_asset = shader_refs[i].as<ShaderAsset>();
                 auto code = shader_asset->binary;
+                // The baked description is preferred whenever the asset carries one: it is what a
+                // build with no reflection library has, and reading it here on every backend keeps
+                // the two paths the same one. Reflection remains the fallback for an asset that
+                // predates the description.
+                const std::optional<Engine::Rhi::ShaderInterfaceDescription> description =
+                    shader_asset->interface_description.empty()
+                        ? std::nullopt
+                        : Engine::Rhi::ShaderInterfaceDescription::FromString(
+                              shader_asset->interface_description
+                          );
+#    if defined(ENGINE_RHI_BAKE_REFLECTION)
+                // This build can reflect, and reflection is what its pictures were validated
+                // against, so it stays the path here. The description is used where reflection is
+                // not linked - the browser - and the two are compared from there.
                 b.reflected.Merge(Engine::Rhi::SPLayout::Reflect(code, true));
+#    else
+                if (description.has_value() && !description->bindings.empty()) {
+                    b.reflected.Merge(Engine::Rhi::SPLayout::FromDescription(description.value(), true));
+                } else {
+                    throw std::runtime_error(
+                        "Shader asset '" + shader_asset->m_name
+                        + "' has no interface description, and this build has no reflection library "
+                          "to derive one from."
+                    );
+                }
+#    endif
 #if defined(ENGINE_RHI_BACKEND_WEBGPU)
                 // This backend's shader language is WGSL, which the bake wrote next to the
                 // SPIR-V form. The reflection above still describes the same bindings: the

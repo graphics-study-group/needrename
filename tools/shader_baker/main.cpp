@@ -29,6 +29,10 @@ namespace {
         /// @brief Directory of SPIR-V modules to bake the WGSL variant for.
         std::filesystem::path spirv_directory{};
         bool emit_debug_info = false;
+        /// Bake an archive that already stores SPIR-V again, from its GLSL source. The stored form
+        /// carries the interface description, and a description written by an older baker stays
+        /// stale until the asset is baked again.
+        bool force = false;
         /// @brief Converter invoked per module; the WGSL bake is skipped when empty.
         std::string converter_executable{};
     };
@@ -49,6 +53,10 @@ namespace {
         Options options{};
         for (int index = 1; index < argc; ++index) {
             const std::string_view argument(argv[index]);
+            if (argument == "--force") {
+                options.force = true;
+                continue;
+            }
             if (argument == "--debug-info") {
                 options.emit_debug_info = true;
             } else if (argument == "--spirv-dir") {
@@ -147,6 +155,7 @@ namespace {
     bool BakeShaderAsset(
         const std::filesystem::path &asset_path,
         bool emit_debug_info,
+        bool force,
         Engine::ShaderCompiler &compiler,
         const std::string &converter_executable
     ) {
@@ -161,11 +170,11 @@ namespace {
 
         nlohmann::json &main_data = archive_json["%main_data"];
         const std::string store_type = main_data.value(k_store_type_key, std::string{"GLSL"});
-        if (store_type == "SPIRV") {
+        if (store_type == "SPIRV" && !force) {
             std::cout << "  skip (already SPIR-V): " << asset_path.filename().string() << '\n';
             return true;
         }
-        if (store_type != "GLSL") {
+        if (store_type != "SPIRV" && store_type != "GLSL") {
             throw std::runtime_error("Unknown store type '" + store_type + "' in " + asset_path.string());
         }
 
@@ -288,7 +297,7 @@ int main(int argc, char **argv) {
             if (!entry.is_regular_file() || entry.path().extension() != ".asset") {
                 continue;
             }
-            if (BakeShaderAsset(entry.path(), options.emit_debug_info, compiler, options.converter_executable)) {
+            if (BakeShaderAsset(entry.path(), options.emit_debug_info, options.force, compiler, options.converter_executable)) {
                 ++baked_count;
             }
         }

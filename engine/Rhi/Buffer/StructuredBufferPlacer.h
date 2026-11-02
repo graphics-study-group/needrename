@@ -53,6 +53,44 @@ namespace Engine::Rhi {
          */
         void AddStructuredBuffer(const std::string &name, size_t offset, const StructuredBufferPlacer &buffer);
 
+        /// @brief The kinds of variable a placer can place.
+        ///
+        /// A description written by the bake records the kind rather than the C++ type, so that a
+        /// runtime which cannot reflect the module can rebuild a placer whose type checks admit the
+        /// same writes: the check compares type identity, and two builds do not share one.
+        enum class Kind : uint32_t {
+            Unknown = 0,
+            Float = 1,
+            Float4 = 2,
+            Matrix4 = 3,
+            Int32 = 4,
+            UInt32 = 5
+        };
+
+        /// @brief One variable as the placer holds it.
+        struct Entry {
+            /// @brief Name the variable is placed by.
+            std::string name{};
+            /// @brief Offset of the variable inside the block.
+            size_t offset{0};
+            /// @brief Size of the variable in bytes.
+            size_t size{0};
+            /// @brief What kind of variable it is.
+            Kind kind{Kind::Unknown};
+        };
+
+        /**
+         * @brief List every variable this placer holds, in the order they were added.
+         *
+         * A bake writes this list into the interface description so that a runtime without a
+         * reflection library can build the same placer back up: the offsets are the ones the
+         * shader's block declares, and the runtime reproduces them by name and number rather than
+         * by reading the module.
+         *
+         * @return The variables, outermost block first for a nested placer.
+         */
+        std::vector<Entry> Enumerate() const;
+
         /**
          * @brief Get the buffer size required to hold every member write.
          *

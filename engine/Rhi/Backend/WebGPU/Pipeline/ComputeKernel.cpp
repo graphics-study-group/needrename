@@ -45,6 +45,8 @@ namespace Engine::Rhi {
         /// interface requires every group of a layout to be bound before a dispatch. This is
         /// what those groups get.
         DescriptorSetLayoutHandle empty_set_layout{};
+        /// @brief Whether the device built this kernel's pipeline.
+        bool available{false};
     };
 
     ComputeKernelResource::ComputeKernelResource(const DeviceBuffer &buffer) {
@@ -113,7 +115,10 @@ namespace Engine::Rhi {
         set_layouts.reserve(sets.size());
         for (auto &[set_index, layout] : sets) {
             static_cast<void>(set_index);
-            const DescriptorSetLayoutRef resolved = cache.GetDescriptorSetLayoutRef(layout, name.data());
+            // One stage: these bindings belong to a compute pipeline, and a layout that also claims
+            // the fragment stage is one the device may refuse for the number of storage buffers.
+            const DescriptorSetLayoutRef resolved =
+                cache.GetDescriptorSetLayoutRef(layout, name.data(), true);
             set_layouts.push_back(resolved.handle);
             if (!pimpl->set_layout_ref.handle.IsValid()) {
                 pimpl->set_layout_ref = resolved;
@@ -219,6 +224,12 @@ namespace Engine::Rhi {
         if (!pimpl->pipeline.IsValid()) {
             throw std::logic_error("WebGPU: dispatching a kernel that was never created.");
         }
+        if (!pimpl->available) {
+            // The device refused this kernel, so there is nothing to record. The refusal was
+            // logged when the pipeline came back empty, so this path is silent.
+            return;
+        }
+
 
         // Match every supplied name against the description, then order by binding number:
         // the arena keys a bind group on its content, so the caller's dictionary order must

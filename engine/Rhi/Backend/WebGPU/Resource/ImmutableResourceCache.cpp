@@ -249,7 +249,7 @@ namespace Engine::Rhi {
     } // namespace
 
     DescriptorSetLayoutRef ImmutableResourceCache::GetDescriptorSetLayoutRef(
-        const DescriptorSetLayout &layout, const char *name
+        const DescriptorSetLayout &layout, const char *name, bool compute_only
     ) {
         const size_t key = HashLayout(layout);
         if (auto itr = pimpl->layout_refs.find(key); itr != pimpl->layout_refs.end()) {
@@ -345,6 +345,15 @@ namespace Engine::Rhi {
             entries.push_back(entry);
         }
 
+        // A layout for one stage says so: a compute kernel's bindings are compute bindings, and a
+        // layout that also claims the fragment or vertex stage is one this device may refuse for
+        // the number of storage buffers alone.
+        if (compute_only) {
+            for (WGPUBindGroupLayoutEntry &entry : entries) {
+                entry.visibility = WGPUShaderStage_Compute;
+            }
+        }
+
         WGPUBindGroupLayoutDescriptor desc{};
         desc.entryCount = entries.size();
         desc.entries = entries.data();
@@ -416,4 +425,3 @@ namespace Engine::Rhi {
         return FromWgpuPipelineLayout(pipeline_layout);
     }
 } // namespace Engine::Rhi
-

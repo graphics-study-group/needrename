@@ -3,8 +3,10 @@
 #include "Rhi/Buffer/StructuredBuffer.h"
 
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <any>
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <unordered_map>
 
@@ -33,6 +35,8 @@ namespace Engine::Rhi {
         struct TypeInfo {
             // type info is used for type checking only.
             const std::type_info *info{nullptr};
+            /// The portable spelling of the same thing, for a description.
+            Kind kind{Kind::Unknown};
             size_t offset{};
             // Size of the variable. If the variable is a buffer,
             // then is the maximal size of the buffer.
@@ -60,12 +64,47 @@ namespace Engine::Rhi {
 
     StructuredBufferPlacer::~StructuredBufferPlacer() noexcept = default;
 
+    std::vector<StructuredBufferPlacer::Entry> StructuredBufferPlacer::Enumerate() const {
+        std::vector<Entry> entries;
+        entries.reserve(pimpl->mapping.size());
+        for (const auto &[name, info] : pimpl->mapping) {
+            if (info.subbuffer != nullptr) {
+                for (const Entry &inner : info.subbuffer->Enumerate()) {
+                    entries.push_back(Entry{inner.name, info.offset + inner.offset, inner.size, inner.kind});
+                }
+                continue;
+            }
+            entries.push_back(Entry{name, info.offset, info.size, info.kind});
+        }
+        // A map has no order of its own; offsets are what a writer cares about, so the list is in
+        // them.
+        std::sort(entries.begin(), entries.end(), [](const Entry &lhs, const Entry &rhs) {
+            return lhs.offset < rhs.offset;
+        });
+        return entries;
+    }
+
     void StructuredBufferPlacer::AddVariable(
         const std::string &name, size_t offset, size_t size, const std::type_info *type
     ) {
         pimpl->size.max_size_dirty = true;
 
-        pimpl->mapping[name] = impl::TypeInfo{.info = type, .offset = offset, .size = size, .subbuffer = nullptr};
+        Kind kind = Kind::Unknown;
+        if (type != nullptr) {
+            if (*type == typeid(float)) {
+                kind = Kind::Float;
+            } else if (*type == typeid(float[4])) {
+                kind = Kind::Float4;
+            } else if (*type == typeid(float[16])) {
+                kind = Kind::Matrix4;
+            } else if (*type == typeid(int32_t)) {
+                kind = Kind::Int32;
+            } else if (*type == typeid(uint32_t)) {
+                kind = Kind::UInt32;
+            }
+        }
+        pimpl->mapping[name] =
+            impl::TypeInfo{.info = type, .kind = kind, .offset = offset, .size = size, .subbuffer = nullptr};
     }
 
     void StructuredBufferPlacer::AddStructuredBuffer(

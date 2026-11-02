@@ -2,6 +2,7 @@
 #define ENGINE_RHI_SHADERPARAMETERLAYOUT_INCLUDED
 
 #include "Rhi/Pipeline/ShaderInterface.h"
+#include "Rhi/Pipeline/ShaderInterfaceDescription.h"
 #include "Rhi/RhiTypes.h"
 #include "Rhi/rhi_export.h"
 
@@ -93,6 +94,21 @@ namespace Engine::Rhi {
          * is lower than 2. Useful when processing material shaders.
          */
         static SPLayout Reflect(const std::vector<uint32_t> &spirv_code, bool filter_out_low_descriptors = true);
+
+        /**
+         * @brief Acquire a SPLayout from a baked interface description.
+         *
+         * A runtime with no reflection library cannot read a module, so the table it would have
+         * derived comes from the bake: the bindings a set declares, and for a uniform block the
+         * offset of every variable a caller may place into it. The result is the same shape
+         * @ref Reflect produces, so the code that consumes a layout does not care which one it got.
+         *
+         * @param description The description the bake wrote for this module.
+         * @param filter_out_low_descriptors Ignore descriptors whose set is lower than 2.
+         */
+        static SPLayout FromDescription(
+            const ShaderInterfaceDescription &description, bool filter_out_low_descriptors = true
+        );
     };
 } // namespace Engine::Rhi
 

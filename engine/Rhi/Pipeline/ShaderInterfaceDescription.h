@@ -32,6 +32,34 @@ namespace Engine::Rhi {
         uint32_t storage_format{0};
         /// @brief For a storage image, whether the shader only reads it.
         bool storage_read_only{false};
+        /// @brief For a sampled image, what a texel holds, as `TextureSampleType`'s value.
+        uint32_t sample_type{0};
+        /// @brief For a sampled image, how the binding is declared, as `TextureViewDimension`'s value.
+        uint32_t view_dimension{1};
+        /// @brief One variable of a buffer binding's block, as the shader declares it.
+        ///
+        /// A material places a uniform variable by name into its block, and the offset it needs
+        /// for that is the one the shader's layout states. A runtime that reflects the module reads
+        /// it from the module; one that does not reads it from here.
+        struct Member {
+            /// @brief Name of the variable.
+            std::string name{};
+            /// @brief Offset of the variable inside the block.
+            uint32_t offset{0};
+            /// @brief Size of the variable in bytes.
+            uint32_t size{0};
+            /// @brief What kind of variable it is, as `StructuredBufferPlacer::Kind`.
+            ///
+            /// A runtime that rebuilds the block from this description has no C++ type for the
+            /// variable, and the placer checks one; the kind is the portable spelling it maps back.
+            uint32_t kind{0};
+        };
+
+        /// @brief The variables of a buffer binding, outermost block first.
+        std::vector<Member> members{};
+        /// @brief The declared size of a buffer binding's block, trailing padding included.
+        uint32_t block_size{0};
+
         /// @brief For a combined binding, the slot its sampler occupies on a splitting backend.
         ///
         /// `UINT32_MAX` means the bake recorded no split, which is what a backend that accepts a

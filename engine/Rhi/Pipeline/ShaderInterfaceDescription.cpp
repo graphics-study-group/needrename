@@ -73,11 +73,22 @@ namespace Engine::Rhi {
                 binding.set = entry.value("set", 0u);
                 binding.binding = entry.value("binding", 0u);
                 binding.kind = entry.value("kind", std::string{});
+                binding.sample_type = entry.value("sample_type", 0u);
+                binding.view_dimension = entry.value("view_dimension", 1u);
                 binding.name = entry.value("name", std::string{});
                 binding.storage_format = entry.value("format", 0u);
                 binding.storage_read_only = entry.value("read_only", false);
                 binding.sampler_binding =
                     entry.value("sampler_binding", std::numeric_limits<uint32_t>::max());
+                binding.block_size = entry.value("block_size", 0u);
+                for (const auto &member : entry.value("members", nlohmann::json::array())) {
+                    ShaderInterfaceBinding::Member parsed{};
+                    parsed.name = member.value("name", std::string{});
+                    parsed.offset = member.value("offset", 0u);
+                    parsed.size = member.value("size", 0u);
+                    parsed.kind = member.value("kind", 0u);
+                    binding.members.push_back(std::move(parsed));
+                }
                 description.bindings.push_back(std::move(binding));
             }
         }

@@ -165,8 +165,11 @@ namespace Engine::Rhi {
         return GetDescriptorSetLayoutRef(layout, name).handle;
     }
     DescriptorSetLayoutRef ImmutableResourceCache::GetDescriptorSetLayoutRef(
-        const DescriptorSetLayout &layout, const char *name
+        const DescriptorSetLayout &layout, const char *name, bool compute_only
     ) {
+        // Vulkan states a stage per pipeline stage flag, and this backend's bindings are visible to
+        // every stage it uses; the request is the WebGPU backend's business.
+        static_cast<void>(compute_only);
         std::vector<vk::Sampler> immutable_samplers;
         const auto bindings = ToVulkanBindings(layout, &immutable_samplers);
         vk::DescriptorSetLayoutCreateInfo dlci{vk::DescriptorSetLayoutCreateFlags{}, bindings};
