@@ -1,6 +1,6 @@
 file(GLOB_RECURSE ANROREFL_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
-add_library(AnnoRefl SHARED ${ANROREFL_SOURCE})
+add_library(AnnoRefl ${ANROREFL_SOURCE})
 target_compile_definitions(AnnoRefl PRIVATE ANROREFL_DLL_EXPORTS)
 target_include_directories(AnnoRefl
     PUBLIC
@@ -22,3 +22,4 @@ if (ENGINE_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+

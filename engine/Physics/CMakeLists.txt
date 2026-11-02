@@ -1,6 +1,6 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
 
-add_library(EnginePhysics SHARED ${SOURCE})
+add_library(EnginePhysics ${SOURCE})
 target_compile_definitions(EnginePhysics PRIVATE PHYSICS_DLL_EXPORTS)
 target_link_libraries(EnginePhysics
     PUBLIC
@@ -112,3 +112,4 @@ add_reflection_parser(
 )
 add_dependencies(EnginePhysics meta_physics)
 target_link_libraries(EnginePhysics PRIVATE meta_physics)
+

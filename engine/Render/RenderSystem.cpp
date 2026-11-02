@@ -16,6 +16,7 @@
 #include "Render/Backend/Vulkan/RenderSystem/SwapchainPresentProvider.h"
 #else
 #include "Render/Backend/WebGPU/RenderSystem/OffscreenPresentProvider.h"
+#include "Render/Backend/WebGPU/RenderSystem/SurfacePresentProvider.h"
 #endif
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Rhi/Device/AllocatorState.h"
@@ -112,13 +113,10 @@ namespace Engine {
             spp->Initialize(device_interface, expected_extent);
             pimpl->m_present_provider = std::move(spp);
 #else
-            // A windowed run needs a surface, and this backend has no surface provider yet: it
-            // needs wgpuSurfaceConfigure and wgpuSurfaceGetCurrentTexture against the window
-            // handle. Reporting that beats opening a window and presenting nothing.
-            static_cast<void>(expected_extent);
-            throw std::logic_error(
-                "RenderSystem: this backend has no windowed present provider yet. Run headless, or "
-                "build with ENGINE_RHI_BACKEND=vulkan."
+            // The surface comes from the window the engine already made: its HWND on desktop, the
+            // shell's canvas on the web. Both are things a WebGPU surface can be built from.
+            pimpl->m_present_provider = std::make_unique<RenderSystemState::SurfacePresentProvider>(
+                device_interface, sdl_window, expected_extent
             );
 #endif
             pimpl->m_resizable_rtt_manger.SetReferenceSize(expected_extent.width, expected_extent.height);
@@ -237,6 +235,7 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 
 

@@ -66,7 +66,7 @@ file(GLOB IMGUI_SOURCE
     "${THIRD_PARTY_DIR}/imgui/backends/*_sdl3.cpp"
 )
 message(DEBUG "Found ImGUI files: ${IMGUI_SOURCE}")
-add_library(imgui SHARED EXCLUDE_FROM_ALL ${IMGUI_SOURCE})
+add_library(imgui EXCLUDE_FROM_ALL ${IMGUI_SOURCE})
 set_target_properties(imgui PROPERTIES FOLDER third_party)
 # imgui has no dllexport annotations, so on Windows it must be made to export
 # its symbols explicitly (Linux .so exports by default).
@@ -149,4 +149,5 @@ if (TARGET vma)
     list(APPEND _anro_system_reset_targets vma)
 endif()
 set_target_properties(${_anro_system_reset_targets} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")
+
 

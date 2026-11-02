@@ -1,6 +1,6 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
 
-add_library(EngineFramework SHARED ${SOURCE})
+add_library(EngineFramework ${SOURCE})
 target_compile_definitions(EngineFramework PRIVATE FRAMEWORK_DLL_EXPORTS)
 target_link_libraries(EngineFramework
     PUBLIC
@@ -62,3 +62,4 @@ if (NOT EMSCRIPTEN)
     COMMENT "Copying SDL3, libktx, and engine DLLs to output directory"
 )
 endif()
+

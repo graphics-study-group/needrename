@@ -1,7 +1,7 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
 file(GLOB_RECURSE ASSET_CORE_HEADERS "./*.h")
 
-add_library(EngineAssetCore SHARED ${SOURCE})
+add_library(EngineAssetCore ${SOURCE})
 target_compile_definitions(EngineAssetCore PRIVATE ASSET_CORE_DLL_EXPORTS)
 target_link_libraries(EngineAssetCore
     PUBLIC
@@ -26,3 +26,4 @@ add_reflection_parser(
 )
 add_dependencies(EngineAssetCore meta_asset_core)
 target_link_libraries(EngineAssetCore PRIVATE meta_asset_core)
+
