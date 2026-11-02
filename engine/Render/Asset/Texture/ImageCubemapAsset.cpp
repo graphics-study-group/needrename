@@ -1,6 +1,8 @@
 #include "ImageCubemapAsset.h"
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include <Rhi/Backend/Vulkan/VulkanImageUtils.h>
+#endif
 #include <SDL3/SDL_log.h>
 #include <algorithm>
 #include <cstdlib>
@@ -53,7 +55,14 @@ namespace {
         }
 
         ktxTextureCreateInfo create_info{};
-        create_info.vkFormat = static_cast<ktx_uint32_t>(Engine::Rhi::GetVkFormat(format));
+    #if defined(ENGINE_RHI_BACKEND_VULKAN)
+    create_info.vkFormat = static_cast<ktx_uint32_t>(Engine::Rhi::GetVkFormat(format));
+#else
+    // ktx identifies a texture by its Vulkan format number. This backend has no such mapping
+    // because it never creates a Vulkan image; a cubemap loaded here reports the gap rather
+    // than guessing a number that would silently describe a different format.
+    create_info.vkFormat = 0;
+#endif
         create_info.baseWidth = static_cast<ktx_uint32_t>(width);
         create_info.baseHeight = static_cast<ktx_uint32_t>(height);
         create_info.baseDepth = 1;
@@ -233,4 +242,5 @@ namespace Engine {
 } // namespace Engine
 
 #include "__generated__/ImageCubemapAsset.h.inc"
+
 

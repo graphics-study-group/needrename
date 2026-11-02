@@ -50,7 +50,8 @@
                 "ENGINE_BUILD_APPS": "OFF",
                 "ENGINE_BUILD_DOCS": "OFF",
                 "ENGINE_BUILD_TESTS": "OFF",
-                "ENGINE_SHADER_MODE": "glsl",
+                "ENGINE_SHADER_MODE": "spv",
+                "ENGINE_BUILD_TOOLS": "ON",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
             }
         },
@@ -119,4 +120,5 @@
         }
     ]
 }
+
 
