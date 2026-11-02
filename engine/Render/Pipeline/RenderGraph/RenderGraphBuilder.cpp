@@ -11,8 +11,43 @@
 #if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#endif
 
 namespace {
+    // These four are properties of the seam's access bits, not of any backend: the graph uses
+    // them to decide whether two passes conflict. They lived in the Vulkan memory helper because
+    // that is where the transition code needed them first.
+    constexpr bool HasReadAccess(Engine::Rhi::MemoryAccessTypeBuffer a) noexcept {
+        return a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::IndirectDrawRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::IndexRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::VertexRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::ShaderRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::ShaderSampled)
+            || a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::ShaderRandomRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::TransferRead);
+    }
+
+    constexpr bool HasWriteAccess(Engine::Rhi::MemoryAccessTypeBuffer a) noexcept {
+        return a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::ShaderRandomWrite)
+            || a.Test(Engine::Rhi::MemoryAccessTypeBufferBits::TransferWrite);
+    }
+
+    constexpr bool HasReadAccess(Engine::Rhi::MemoryAccessTypeImage a) noexcept {
+        return a.Test(Engine::Rhi::MemoryAccessTypeImageBits::ColorAttachmentRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeImageBits::DepthStencilAttachmentRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeImageBits::TransferRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeImageBits::ShaderSampledRead)
+            || a.Test(Engine::Rhi::MemoryAccessTypeImageBits::ShaderRandomRead);
+    }
+
+    constexpr bool HasWriteAccess(Engine::Rhi::MemoryAccessTypeImage a) noexcept {
+        return a.Test(Engine::Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite)
+            || a.Test(Engine::Rhi::MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)
+            || a.Test(Engine::Rhi::MemoryAccessTypeImageBits::TransferWrite)
+            || a.Test(Engine::Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite);
+    }
+
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
     constexpr vk::PipelineStageFlagBits2 AffinityToPipelineStage(Engine::RenderGraphPassAffinity affinity) {
         switch (affinity) {
             using enum Engine::RenderGraphPassAffinity;
@@ -69,6 +104,7 @@ namespace {
         }
     }
 
+#endif // ENGINE_RHI_BACKEND_VULKAN
     struct UsageCache {
         std::
             unordered_map<Engine::RGBufferHandle, std::vector<std::pair<uint32_t, Engine::Rhi::MemoryAccessTypeBuffer>>>
@@ -421,6 +457,7 @@ namespace Engine {
         }
         reordered_usage.SortByPassIndex();
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         // Find cross-queue dependencies for textures.
         // These dependencies require semaphores to correctly synchronize.
         std::unordered_map<
@@ -455,6 +492,7 @@ namespace Engine {
         };
         AnalysisCrossQueueDependency(reordered_usage.image_usages);
         AnalysisCrossQueueDependency(reordered_usage.buffer_usages);
+#endif // ENGINE_RHI_BACKEND_VULKAN
 
         /**
          * Merge passes that do not have cross-queue dependencies.
@@ -476,12 +514,14 @@ namespace Engine {
         std::vector<std::vector<uint32_t>> merged_passes{};
         std::unordered_map<uint32_t, uint32_t> merged_pass_lut{};
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         for (const auto &[p1, v] : cross_queue_dep) {
             affected_passes.insert(p1);
             for (const auto &[p2, _] : v) {
                 affected_passes.insert(p2);
             }
         }
+#endif // ENGINE_RHI_BACKEND_VULKAN
         merged_passes.push_back({});
         for (size_t i = 0; i < pass_order.size(); i++) {
             if (affected_passes.contains(i)) {
@@ -492,6 +532,7 @@ namespace Engine {
             merged_pass_lut[i] = merged_passes.size() - 1;
         }
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         // Rescan merged passes to obtain stages
         std::vector<vk::PipelineStageFlags2> signal_stage{}, wait_stage{};
         signal_stage.resize(merged_passes.size());
@@ -507,13 +548,17 @@ namespace Engine {
             }
         }
 
+#endif // ENGINE_RHI_BACKEND_VULKAN
         // Construct compiled passes
         std::vector<RenderGraphCompiledPass> p{};
         p.resize(merged_passes.size());
         for (size_t i = 0; i < p.size(); i++) {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
             p[i].wait_stage = wait_stage[i];
             p[i].signal_stage = signal_stage[i];
+#endif // ENGINE_RHI_BACKEND_VULKAN
             p[i].subpasses = {};
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #ifndef NDEBUG
             SDL_LogDebug(
                 SDL_LOG_CATEGORY_RENDER,
@@ -523,6 +568,7 @@ namespace Engine {
                 vk::to_string(signal_stage[i]).c_str()
             );
 #endif
+#endif // ENGINE_RHI_BACKEND_VULKAN
             for (auto subpass_id : merged_passes[i]) {
                 RenderGraphCompiledPass::Subpass subpass;
                 const auto &old_p = pimpl->passes[pass_order[subpass_id]];
@@ -535,6 +581,7 @@ namespace Engine {
                     static_cast<int32_t>(i)
                 );
 #endif
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
                 // Build barriers for textures.
                 for (auto [r, a] : old_p.image_access) {
                     const auto &u = reordered_usage.image_usages[r];
@@ -682,6 +729,7 @@ namespace Engine {
                     );
                 }
 
+#endif // ENGINE_RHI_BACKEND_VULKAN
                 // Prepare attachment information
                 subpass.per_rendering_info = pimpl->GetPerRenderingInfo(old_p);
                 p[i].subpasses.push_back(std::move(subpass));
@@ -716,4 +764,3 @@ namespace Engine {
 
 
 
-#endif

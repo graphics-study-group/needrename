@@ -1,5 +1,8 @@
 #include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
+#if defined(__EMSCRIPTEN__)
+#include <cstdlib>
+#endif
 #include <cassert>
 #include <chrono>
 #include <fstream>
@@ -23,6 +26,19 @@
 #include <Render/FullRenderSystem.h>
 
 using namespace Engine;
+
+#if defined(__EMSCRIPTEN__)
+namespace {
+    /// Point the data root at where the preloaded tree lands. In a browser there is no directory
+    /// next to the executable to look in, so the resolution cannot succeed by itself.
+    struct DataRootForBrowser {
+        DataRootForBrowser() {
+            setenv("NEEDRENAME_DATA_ROOT", "/", 0);
+        }
+    };
+    const DataRootForBrowser g_data_root_for_browser{};
+} // namespace
+#endif
 
 int RunExample(int argc, char **argv);
 
@@ -115,3 +131,5 @@ int RunExample(int argc, char **argv) {
 
     return 0;
 }
+
+

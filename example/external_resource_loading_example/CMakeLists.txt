@@ -9,3 +9,21 @@ set_target_properties(${ProjectId} PROPERTIES FOLDER engine_examples)
 if (EMSCRIPTEN)
     set_target_properties(${ProjectId} PROPERTIES SUFFIX ".html")
 endif()
+if (EMSCRIPTEN)
+    # The engine reports missing data by throwing, and Emscripten disables exception catching by
+    # default; without this the page aborts on the first thing it cannot find instead of saying so.
+    target_compile_options(${ProjectId} PRIVATE -fexceptions)
+    target_link_options(${ProjectId} PRIVATE -fexceptions -sNO_DISABLE_EXCEPTION_CATCHING=1)
+
+    # The engine resolves its data root by looking for directories next to the executable. In a
+    # browser there is no such place, so the tree it needs is packed into the module's virtual
+    # filesystem and the root is pointed at where it lands.
+    target_link_options(${ProjectId} PRIVATE
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/assets@/assets"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/builtin_assets@/builtin_assets"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/projects@/projects"
+        "SHELL:-sEXPORTED_RUNTIME_METHODS=FS"
+    )
+    target_compile_definitions(${ProjectId} PRIVATE ENGINE_DEV_DATA_ROOT_DIR="/")
+endif()
+
