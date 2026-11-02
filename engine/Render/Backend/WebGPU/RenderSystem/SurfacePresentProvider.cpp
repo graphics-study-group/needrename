@@ -355,13 +355,19 @@ namespace Engine::RenderSystemState {
         wgpuCommandEncoderCopyTextureToTexture(encoder, &source, &destination, &extent);
 
         if (pimpl->capture != nullptr) {
-            // The frame the window is about to show, read back: a surface image is not a
-            // permanent resource, so the copy of it has to be recorded here, before present.
+            // What is read back is normally the surface image - the frame the window shows. A
+            // diagnosis can ask for the render target instead, which says whether a black window
+            // is a recording that drew nothing or a copy that lost what was drawn.
+            const bool capture_target =
+                SDL_getenv("NEEDRENAME_CAPTURE_SOURCE") != nullptr
+                && std::string_view{SDL_getenv("NEEDRENAME_CAPTURE_SOURCE")} == "target";
             WGPUTexelCopyBufferInfo capture_destination{};
             capture_destination.buffer = pimpl->capture;
             capture_destination.layout.bytesPerRow = pimpl->capture_row_pitch;
             capture_destination.layout.rowsPerImage = pimpl->extent.height;
-            wgpuCommandEncoderCopyTextureToBuffer(encoder, &destination, &capture_destination, &extent);
+            wgpuCommandEncoderCopyTextureToBuffer(
+                encoder, capture_target ? &source : &destination, &capture_destination, &extent
+            );
             pimpl->capture_pending = true;
         }
 

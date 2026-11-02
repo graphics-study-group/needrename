@@ -129,6 +129,21 @@ namespace Engine {
                         return;
                     }
                     system.GetCameraManager().SetActiveCameraIndex(active_camera->m_display_id);
+                    {
+                        static bool logged_lit = false;
+                        if (!logged_lit) {
+                            logged_lit = true;
+                            const auto counted = system.GetRendererManager().FilterAndSortRenderers({});
+                            SDL_LogInfo(
+                                SDL_LOG_CATEGORY_RENDER,
+                                "lit pass: %zu renderer(s), camera %d, %ux%u",
+                                counted.size(),
+                                active_camera->m_display_id,
+                                extent.width,
+                                extent.height
+                            );
+                        }
+                    }
                     cb.DrawRenderers(
                         "Lit",
                         system.GetRendererManager().FilterAndSortRenderers({}),
@@ -183,7 +198,6 @@ namespace Engine {
         return rgb.BuildRenderGraph();
     }
 } // namespace Engine
-
 
 
 
