@@ -35,6 +35,8 @@ namespace Engine::RenderSystemState {
         uint32_t capture_row_pitch{0};
         std::string capture_path{};
         bool capture_pending{false};
+        /// @brief Whether the capture exists only to report whether the frame has any colour.
+        bool capture_probe{false};
         WGPUPresentMode present_mode{WGPUPresentMode_Fifo};
         WGPUCompositeAlphaMode alpha_mode{WGPUCompositeAlphaMode_Opaque};
         Rhi::Extent2D extent{};
@@ -138,8 +140,17 @@ namespace Engine::RenderSystemState {
         // A frame dump on request: the surface image is copied out with the frame's own copy,
         // and written once the present that read it has completed. The environment variable names
         // the file; without it nothing here costs anything.
-        if (const char *capture = SDL_getenv("NEEDRENAME_PRESENT_CAPTURE"); capture != nullptr && capture[0] != '\0') {
-            pimpl->capture_path = capture;
+        const char *capture_request = SDL_getenv("NEEDRENAME_PRESENT_CAPTURE");
+#if defined(__EMSCRIPTEN__)
+        // A page has no environment to set, and no file to hand back, but it can still answer the
+        // one question a black canvas asks: does the frame it copied out have any colour in it?
+        if (capture_request == nullptr || capture_request[0] == '\0') {
+            capture_request = "";
+            pimpl->capture_probe = true;
+        }
+#endif
+        if (capture_request != nullptr && (capture_request[0] != '\0' || pimpl->capture_probe)) {
+            pimpl->capture_path = capture_request;
             pimpl->capture_row_pitch = (pimpl->extent.width * 4u + 255u) / 256u * 256u;
             pimpl->capture_size = static_cast<uint64_t>(pimpl->capture_row_pitch) * pimpl->extent.height;
             WGPUBufferDescriptor capture_desc{};
@@ -315,7 +326,35 @@ namespace Engine::RenderSystemState {
         );
         const bool bgra = pimpl->format == WGPUTextureFormat_BGRA8Unorm
                           || pimpl->format == WGPUTextureFormat_BGRA8UnormSrgb;
-        WriteBmp(pimpl->capture_path, pixels, pimpl->extent.width, pimpl->extent.height, pimpl->capture_row_pitch, bgra);
+#if defined(__EMSCRIPTEN__)
+        // A page cannot hand a file back, so what it can say is whether the captured frame has any
+        // colour in it at all: a black canvas that is black in the capture is a recording that drew
+        // nothing, and one that is not is a presentation problem.
+        {
+            static size_t reported = 0;
+            if (reported < 4) {
+                reported++;
+                uint8_t brightest = 0;
+                for (size_t index = 0; index < pimpl->capture_size; index++) {
+                    const uint8_t value = std::to_integer<uint8_t>(pixels[index]);
+                    if (value > brightest) {
+                        brightest = value;
+                    }
+                }
+                SDL_LogInfo(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "WebGPU surface (web): captured frame %zu, brightest byte %u",
+                    reported,
+                    static_cast<unsigned>(brightest)
+                );
+            }
+        }
+#endif
+        if (!pimpl->capture_path.empty()) {
+            WriteBmp(
+                pimpl->capture_path, pixels, pimpl->extent.width, pimpl->extent.height, pimpl->capture_row_pitch, bgra
+            );
+        }
         wgpuBufferUnmap(pimpl->capture);
     }
 
@@ -415,4 +454,3 @@ namespace Engine::RenderSystemState {
         wgpuSurfaceConfigure(pimpl->surface, &configuration);
     }
 } // namespace Engine::RenderSystemState
-
