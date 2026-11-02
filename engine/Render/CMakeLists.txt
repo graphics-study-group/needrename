@@ -18,6 +18,15 @@ foreach(_src IN LISTS RENDER_ALL_SOURCES)
     if (ENGINE_RHI_BACKEND_VULKAN AND _src MATCHES "/Asset/Shader/ShaderCompilerUnavailable\\.cpp$")
         continue()
     endif()
+    # The render graph records its ordering as Vulkan transitions. Until the barrier work
+    # lands, this backend has no graph builder to compile - the alternative would be 47
+    # translations that emit nothing.
+    if (ENGINE_RHI_BACKEND_WEBGPU AND _src MATCHES "/Pipeline/RenderGraph/RenderGraphBuilder\\.cpp$")
+        continue()
+    endif()
+    if (ENGINE_RHI_BACKEND_VULKAN AND _src MATCHES "/Backend/WebGPU/Pipeline/RenderGraphBuilderUnavailable\\.cpp$")
+        continue()
+    endif()
     list(APPEND SOURCE "${_src}")
 endforeach()
 file(GLOB_RECURSE HEADER_PRIVATE "./*.hpp")

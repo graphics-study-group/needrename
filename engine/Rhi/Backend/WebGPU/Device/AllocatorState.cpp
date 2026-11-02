@@ -1,6 +1,7 @@
 #include "Rhi/Device/AllocatorState.h"
 
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
+#include "Rhi/Texture/ImageUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/MemoryAllocation.h"
 #include "Rhi/Submission/EpochTracker.h"
@@ -188,3 +189,25 @@ namespace Engine::Rhi {
         return std::make_unique<ImageAllocation>(AllocateImage(desc, name));
     }
 } // namespace Engine::Rhi
+namespace Engine::Rhi {
+    bool AllocatorState::QueryFormatFeatures(ImageFormat format, FormatFeature feature) const noexcept {
+        // There is no per-format feature query in the standard interface: a format either exists
+        // for the usage asked of it or the device rejects the texture at creation. The two answers
+        // a caller acts on here are whether the format can be sampled and whether it can be
+        // written, and both follow from the format list this backend maps.
+        switch (feature) {
+        case FormatFeature::VertexBuffer:
+            // Any mapped format can feed vertex attributes; the pipeline describes how.
+            return ToWgpuTextureFormat(format) != WGPUTextureFormat_Undefined;
+        case FormatFeature::StorageImage:
+            // Only formats the standard interface lists as storage-capable can be written from a
+            // shader; this backend has no storage-texture format configured yet.
+            return false;
+        case FormatFeature::StorageImageAtomic:
+            return false;
+        }
+        return false;
+    }
+} // namespace Engine::Rhi
+
+
