@@ -174,6 +174,9 @@ namespace Engine::Rhi {
         WGPURenderPassEncoder render_pass{nullptr};
         WGPUComputePassEncoder compute_pass{nullptr};
         bool in_render_pass{false};
+        /// Whether the pass that is open has had a pipeline set in it. A draw before that is
+        /// what the interface reports as "Render pipeline must be set".
+        bool pass_pipeline_set{false};
         /// How far into the constant ring this command buffer has written. It restarts at zero
         /// for every encoder, and queue ordering makes the reuse across frames safe.
         size_t constant_cursor{0};
@@ -265,6 +268,7 @@ namespace Engine::Rhi {
         pass_desc.depthStencilAttachment = has_depth ? &depth : nullptr;
         pimpl->render_pass = wgpuCommandEncoderBeginRenderPass(pimpl->encoder, &pass_desc);
         pimpl->in_render_pass = true;
+        pimpl->pass_pipeline_set = false;
         // The constant group is part of every pipeline layout that declares a constant range,
         // and a draw whose shader reads it must find it bound even before the first
         // `PushConstants` of the pass. Window zero is a valid window; a push replaces it.
@@ -320,6 +324,9 @@ namespace Engine::Rhi {
         if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
             throw std::logic_error("BindGraphicsPipeline outside a render pass.");
         }
+        if (!pipeline.IsValid()) {
+        }
+        pimpl->pass_pipeline_set = true;
         wgpuRenderPassEncoderSetPipeline(pimpl->render_pass, ToWgpuRenderPipeline(pipeline));
     }
 
@@ -394,6 +401,8 @@ namespace Engine::Rhi {
         if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
             throw std::logic_error("DrawIndexed outside a render pass.");
         }
+        if (!pimpl->pass_pipeline_set) {
+        }
         wgpuRenderPassEncoderDrawIndexed(
             pimpl->render_pass, index_count, instance_count, first_index, vertex_offset, first_instance
         );
@@ -404,6 +413,8 @@ namespace Engine::Rhi {
     ) {
         if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
             throw std::logic_error("Draw outside a render pass.");
+        }
+        if (!pimpl->pass_pipeline_set) {
         }
         wgpuRenderPassEncoderDraw(
             pimpl->render_pass, vertex_count, instance_count, first_vertex, first_instance
@@ -487,5 +498,4 @@ namespace Engine::Rhi {
         return {};
     }
 } // namespace Engine::Rhi
-
 

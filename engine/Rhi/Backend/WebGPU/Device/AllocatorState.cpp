@@ -158,6 +158,39 @@ namespace Engine::Rhi {
          * The seam splits attachment usage into colour and depth-stencil; the
          * standard interface has one flag for both.
          */
+        /**
+         * @brief Whether a texture format can be bound as a storage texture.
+         *
+         * The seam's default colour-attachment usage includes random access, because a Vulkan
+         * render target may also be written as a storage image. The standard interface has a
+         * short list of storage formats and refuses the usage on anything else - R11G11B10UFloat,
+         * which the engine's HDR target uses, is not on it - so the flag is dropped rather than
+         * the allocation being rejected.
+         */
+        bool IsStorageCapable(WGPUTextureFormat format) {
+            switch (format) {
+            case WGPUTextureFormat_R32Uint:
+            case WGPUTextureFormat_R32Sint:
+            case WGPUTextureFormat_R32Float:
+            case WGPUTextureFormat_RG32Uint:
+            case WGPUTextureFormat_RG32Sint:
+            case WGPUTextureFormat_RG32Float:
+            case WGPUTextureFormat_RGBA8Unorm:
+            case WGPUTextureFormat_RGBA8Snorm:
+            case WGPUTextureFormat_RGBA8Uint:
+            case WGPUTextureFormat_RGBA8Sint:
+            case WGPUTextureFormat_RGBA16Uint:
+            case WGPUTextureFormat_RGBA16Sint:
+            case WGPUTextureFormat_RGBA16Float:
+            case WGPUTextureFormat_RGBA32Uint:
+            case WGPUTextureFormat_RGBA32Sint:
+            case WGPUTextureFormat_RGBA32Float:
+                return true;
+            default:
+                return false;
+            }
+        }
+
         WGPUTextureUsage ToWgpuTextureUsage(ImageMemoryType type) {
             WGPUTextureUsage usage = WGPUTextureUsage_None;
             if (type.Test(ImageMemoryTypeBits::CopyFrom)) {
@@ -198,6 +231,9 @@ namespace Engine::Rhi {
         }
         texture_desc.label = WGPUStringView{name.data(), name.size()};
 
+        if (!IsStorageCapable(texture_desc.format)) {
+            texture_desc.usage &= ~static_cast<WGPUTextureUsage>(WGPUTextureUsage_StorageBinding);
+        }
         WGPUTexture texture = wgpuDeviceCreateTexture(pimpl->device, &texture_desc);
         if (texture == nullptr) {
             SDL_LogError(

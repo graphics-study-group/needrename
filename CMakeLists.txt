@@ -273,7 +273,12 @@ if (TARGET shader_baker)
     set(ENGINE_SHADER_BAKER_DEPENDENCY shader_baker)
 elseif (ENGINE_HOST_SHADER_BAKER AND EXISTS "${ENGINE_HOST_SHADER_BAKER}")
     set(ENGINE_SHADER_BAKER_EXECUTABLE "${ENGINE_HOST_SHADER_BAKER}")
-    set(ENGINE_SHADER_BAKER_DEPENDENCY)
+    # The host baker is a file, not a target, so it has to be named as a dependency: without
+    # that a rebuilt baker does not invalidate a bake, and a cross build keeps artifacts from
+    # whatever the baker was when the stamp was written. That is exactly how the browser and the
+    # desktop trees came to hold interface descriptions from before the bake learned to record a
+    # storage binding's access.
+    set(ENGINE_SHADER_BAKER_DEPENDENCY "${ENGINE_HOST_SHADER_BAKER}")
 else()
     set(ENGINE_SHADER_BAKER_EXECUTABLE)
     set(ENGINE_SHADER_BAKER_DEPENDENCY)
@@ -321,6 +326,13 @@ if (ENGINE_RHI_BACKEND_WEBGPU AND ENGINE_SHADER_BAKER_EXECUTABLE AND TARGET phys
         VERBATIM
     )
     set_target_properties(physics_shader_stage PROPERTIES FOLDER build)
+
+    # The physics library is what reads these at runtime, so building it has to be what brings
+    # the baked tree into the data root: a build that names one target should not leave a
+    # half-populated data root behind.
+    if (TARGET EnginePhysics)
+        add_dependencies(EnginePhysics physics_shader_stage)
+    endif()
 endif()
 
 # --- Built-in asset staging ------------------------------------------------

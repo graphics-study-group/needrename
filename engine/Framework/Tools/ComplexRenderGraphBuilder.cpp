@@ -139,7 +139,10 @@ namespace Engine {
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Bloom FX pass")
-                .UseImage(hdr_color_id, IAT::ShaderRandomRead)
+                // The bloom kernel samples its input through a sampler, so this is a sampled
+                // read rather than a storage-image read: the latter would ask the allocator for
+                // a storage binding on a format that cannot have one.
+                .UseImage(hdr_color_id, IAT::ShaderSampledRead)
                 .UseImage(final_color_target_id, IAT::ShaderRandomWrite)
                 .SetAffinity(RenderGraphPassAffinity::Compute)
                 .SetPassFunction([&bloom_kernel,

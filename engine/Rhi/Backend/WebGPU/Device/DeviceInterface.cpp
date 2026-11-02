@@ -11,6 +11,7 @@
 #include <atomic>
 #include <chrono>
 #include <stdexcept>
+#include <vector>
 #include <cstdio>
 #include <thread>
 #include <webgpu/webgpu.h>
@@ -126,6 +127,19 @@ namespace Engine::Rhi {
         if (!wgpuAdapterGetLimits(pimpl->adapter, &adapter_limits)) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: the adapter did not report its limits.");
         }
+        // A format opt-in this backend needs: the engine renders into an R11G11B10UFloat HDR
+        // target, and the standard interface does not make that format renderable - the device
+        // has to be asked for it, and only if the adapter offers it.
+        std::vector<WGPUFeatureName> requested_features;
+        if (wgpuAdapterHasFeature(pimpl->adapter, WGPUFeatureName_RG11B10UfloatRenderable)) {
+            requested_features.push_back(WGPUFeatureName_RG11B10UfloatRenderable);
+        } else {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "WebGPU: this adapter cannot render to R11G11B10UFloat, which the engine's HDR "
+                "target uses."
+            );
+        }
         WGPULimits requested_limits = WGPU_LIMITS_INIT;
         requested_limits.maxStorageBuffersPerShaderStage = adapter_limits.maxStorageBuffersPerShaderStage;
         requested_limits.maxStorageTexturesPerShaderStage = adapter_limits.maxStorageTexturesPerShaderStage;
@@ -134,6 +148,8 @@ namespace Engine::Rhi {
         Request<WGPUDevice> device_request{};
         WGPUDeviceDescriptor device_desc{};
         device_desc.requiredLimits = &requested_limits;
+        device_desc.requiredFeatureCount = requested_features.size();
+        device_desc.requiredFeatures = requested_features.empty() ? nullptr : requested_features.data();
         device_desc.uncapturedErrorCallbackInfo.callback = OnUncapturedError;
         WGPURequestDeviceCallbackInfo device_callback{};
         device_callback.mode = WGPUCallbackMode_AllowProcessEvents;
@@ -147,6 +163,10 @@ namespace Engine::Rhi {
         }
 
         pimpl->queue_info.graphicsQueue = wgpuDeviceGetQueue(pimpl->device);
+        SDL_LogInfo(
+            SDL_LOG_CATEGORY_RENDER,
+            wgpuDeviceHasFeature(pimpl->device, WGPUFeatureName_RG11B10UfloatRenderable) ? "yes" : "no"
+        );
 
         // What the device says it can do. The seam exposes four of these through
         // DeviceCapabilities; the rest are here so that a consumer that outgrows the
@@ -227,7 +247,6 @@ namespace Engine::Rhi {
         return SwapchainSupport{};
     }
 } // namespace Engine::Rhi
-
 
 
 

@@ -112,6 +112,11 @@ namespace Engine::RenderSystemState {
             Rhi::DescriptorSetLayoutRef scene_descriptor_set_layout{};
             Rhi::PipelineLayoutHandle scene_common_pipeline_layout{};
             std::array<Rhi::DescriptorSetHandle, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
+            /// The same set with the fallback light map in place of every shadow map, bound while
+            /// a shadow map is the pass's depth attachment.
+            std::array<Rhi::DescriptorSetHandle, FrameManager::FRAMES_IN_FLIGHT> scene_sets_without_shadow_maps{};
+            /// Whether the frame is recording a pass that writes a shadow map.
+            bool shadow_pass_active{false};
 
             // The layout description, kept alive so the arena can allocate the
             // per-in-flight sets against the same cached layout object.
@@ -603,6 +608,19 @@ namespace Engine::RenderSystemState {
         pimpl->scene.scene_descriptor_sets[frame_in_flight] = pimpl->device_context->GetDescriptorArena().Acquire(
             pimpl->scene.scene_descriptor_set_layout, 0, false, false, bindings
         );
+
+        // The variant a shadow pass binds: the same set, with the fallback map where a shadow
+        // map would be. Those maps are the pass's attachments there, and a pass may not name one
+        // of its own attachments as a resource.
+        for (Rhi::ResolvedBinding &binding : bindings) {
+            if (binding.type == Rhi::DescriptorType::CombinedImageSampler) {
+                binding.image_view = pimpl->scene.default_light_map->GetViewRef({});
+            }
+        }
+        pimpl->scene.scene_sets_without_shadow_maps[frame_in_flight] =
+            pimpl->device_context->GetDescriptorArena().Acquire(
+                pimpl->scene.scene_descriptor_set_layout, 0, false, false, bindings
+            );
 #endif
     }
 
@@ -629,13 +647,6 @@ namespace Engine::RenderSystemState {
         auto material_binding = material->UpdateGPUInfo(*tpl, frame_in_flight);
 
         auto &encoder = cb.GetEncoder();
-        SDL_LogInfo(
-            SDL_LOG_CATEGORY_RENDER,
-            "DrawSkybox: pipeline valid %d, material set valid %d, push sizes %zu",
-            tpl->GetPipeline().IsValid() ? 1 : 0,
-            material_binding.set.IsValid() ? 1 : 0,
-            material_binding.dynamic_offsets.size()
-        );
         encoder.BindGraphicsPipeline(tpl->GetPipeline(), tpl->GetPipelineLayout());
         // Every group the pipeline layout declares is bound, including the ones this draw does
         // not read: a backend whose bind groups are all part of the pipeline's interface
@@ -654,7 +665,16 @@ namespace Engine::RenderSystemState {
         encoder.Draw(36, 1, 0, 0);
     }
 
+    void SceneDataManager::SetShadowPassActive(bool active) noexcept {
+        pimpl->scene.shadow_pass_active = active;
+    }
+
     Rhi::DescriptorSetHandle SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {
+#if !defined(ENGINE_RHI_BACKEND_VULKAN)
+        if (pimpl->scene.shadow_pass_active) {
+            return pimpl->scene.scene_sets_without_shadow_maps[frame_in_flight];
+        }
+#endif
         assert(frame_in_flight < pimpl->scene.scene_descriptor_sets.size());
         return pimpl->scene.scene_descriptor_sets[frame_in_flight];
     }

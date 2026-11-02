@@ -50,7 +50,13 @@ namespace Engine {
         assert(abs(m_aspect_ratio) > 1e-3);
         m_projection_matrix =
             glm::perspectiveRH(glm::radians(m_fov_vertical), m_aspect_ratio, m_clipping_near, m_clipping_far);
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+        // Vulkan's clip space has Y pointing down and its framebuffer origin at the top left, so
+        // the projection is flipped to match. The standard WebGPU interface points Y up with the
+        // same origin, which means the flip belongs to one backend and not to the engine: applied
+        // to both, a scene renders upside down on one of them.
         m_projection_matrix[1][1] *= -1.0f;
+#endif
         m_is_proj_dirty = false;
     }
 

@@ -57,6 +57,11 @@ namespace Engine {
                                          CommandBuffer &cb, const RenderGraph &rg
                                      ) {
                         const auto &scene_data = system.GetSceneDataManager();
+                        // Every draw in this pass binds the scene set, and that set names the
+                        // shadow maps. They are this pass's attachments, so the set is switched to
+                        // the variant that names the fallback map for its duration - a pass may not
+                        // list one of its own attachments as a resource.
+                        SceneDataManager::ShadowPassScope shadow_pass_scope{scene_data};
                         auto *shadow_map_target = rg.GetInternalTextureResource(shadow_id);
                         const Rhi::Extent2D shadow_map_extent{
                             SceneDataManager::SHADOWMAP_SIZE, SceneDataManager::SHADOWMAP_SIZE

@@ -284,5 +284,3 @@ namespace Engine::Rhi {
         encoder.EndComputePass();
     }
 } // namespace Engine::Rhi
-
-

@@ -196,6 +196,10 @@ namespace Engine {
 #if defined(ENGINE_RHI_BACKEND_VULKAN)
         DEBUG_CMD_START_LABEL(Rhi::ToVulkanCommandBuffer(cb), name.c_str());
 #endif
+        // A render pass starts with no pipeline, whichever backend records it: the interface
+        // requires one to be set inside every pass, so the cached "already bound" state from
+        // the previous pass has to be forgotten here.
+        m_bound_material_pipeline.reset();
         m_encoder->BeginRenderPass(description);
     }
 
@@ -221,17 +225,13 @@ namespace Engine {
         const auto &pipeline = tpl.GetPipeline();
         const auto &pipeline_layout = tpl.GetPipelineLayout();
 
-        bool bind_new_pipeline = false;
-        if (!m_bound_material_pipeline.has_value()) {
-            bind_new_pipeline = true;
-        } else if (pipeline != m_bound_material_pipeline.value().first
-                   || pipeline_layout != m_bound_material_pipeline.value().second) {
-            bind_new_pipeline = true;
-        }
-        if (bind_new_pipeline) {
-            m_encoder->BindGraphicsPipeline(pipeline, pipeline_layout);
-            m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
-        }
+        // Bound unconditionally. A pipeline is state of the pass it was set in, not of the
+        // command buffer: the standard interface requires one to be set inside every pass, and a
+        // pass may begin anywhere - the render graph wraps some of them, a shadow pass begins
+        // several of its own - so a cache here remembers something that expires without notice.
+        // Binding again costs one call per draw.
+        m_encoder->BindGraphicsPipeline(pipeline, pipeline_layout);
+        m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
 
         if (!tpl.HasMaterialData()) return;
 

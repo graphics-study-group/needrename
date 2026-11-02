@@ -301,6 +301,41 @@ namespace Engine {
             Rhi::DescriptorSetHandle GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
 
             /**
+             * @brief Say whether the frame is recording a pass that writes a shadow map.
+             *
+             * A pass that draws into a shadow map also binds the scene set, and that set names
+             * the shadow maps as sampled textures. Vulkan reads only what a shader uses; the
+             * standard WebGPU interface refuses a pass whose attachment is also bound as a
+             * resource, whether or not the shader reads it. While this is set, the scene set
+             * names the fallback map instead, so the pass and its attachment do not overlap.
+             *
+             * @param active Whether a shadow map is currently an attachment.
+             */
+            void SetShadowPassActive(bool active) noexcept;
+
+            /**
+             * @brief Keep the shadow-pass flag set for as long as this object lives.
+             *
+             * A pass that throws or returns early still has to put the flag back, and a scope
+             * object is what says that without repeating the call on every path.
+             */
+            class ShadowPassScope {
+                const SceneDataManager *m_manager{nullptr};
+
+            public:
+                explicit ShadowPassScope(const SceneDataManager &manager) : m_manager(&manager) {
+                    const_cast<SceneDataManager &>(manager).SetShadowPassActive(true);
+                }
+                ~ShadowPassScope() {
+                    if (m_manager != nullptr) {
+                        const_cast<SceneDataManager *>(m_manager)->SetShadowPassActive(false);
+                    }
+                }
+                ShadowPassScope(const ShadowPassScope &) = delete;
+                ShadowPassScope &operator=(const ShadowPassScope &) = delete;
+            };
+
+            /**
              * @brief Get the descriptor set layout containing lighting
              * information.
              */
