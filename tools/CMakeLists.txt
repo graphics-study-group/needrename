@@ -4,8 +4,11 @@
 # embedded-SPIR-V form using the engine's own shader compiler, so the baked
 # binaries match what runtime compilation would produce.
 # Host-side helper: it compiles GLSL to SPIR-V and converts it to WGSL at
-# build time, which a browser target has no use for and cannot link.
-if (NOT EMSCRIPTEN)
+# build time, which a browser target has no use for and cannot link. It is also
+# only buildable where a GLSL compiler is linked, which is the Vulkan backend;
+# another backend names this executable through ENGINE_HOST_SHADER_BAKER
+# instead of building one.
+if (NOT EMSCRIPTEN AND ENGINE_RHI_BACKEND_VULKAN)
 add_executable(shader_baker
     shader_baker/main.cpp
     shader_baker/spirv_edit.cpp

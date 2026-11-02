@@ -1,5 +1,3 @@
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
@@ -198,21 +196,9 @@ auto BuildRenderGraph(
             .SetAffinity(RenderGraphPassAffinity::Transfer)
             .SetPassFunction([readback, c1](CommandBuffer &cb, const RenderGraph &rg) {
                 auto rt = rg.GetInternalTextureResource(c1);
-                std::array image_copies = {vk::BufferImageCopy{
-                    0,
-                    0,
-                    0,
-                    vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                    vk::Offset3D{0, 0, 0},
-                    vk::Extent3D{
-                        rt->GetTextureDescription().width,
-                        rt->GetTextureDescription().height,
-                        rt->GetTextureDescription().depth
-                    }
-                }};
-                Rhi::ToVulkanCommandBuffer(cb.GetHandle()).copyImageToBuffer(
-                    Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferSrcOptimal, Rhi::ToVulkanBuffer(readback->GetBuffer()), image_copies
-                );
+                // The seam's readback: one call that records the transition, the copy and
+                // the transition back, so the pass says what it wants rather than how.
+                cb.RecordCopyImageToBuffer(*rt, *readback, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
             })
             .Get()
     );

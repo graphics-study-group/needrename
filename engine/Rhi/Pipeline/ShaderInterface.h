@@ -40,7 +40,9 @@ namespace Engine::Rhi {
             d1D = 1 << 3,
             d2D = 1 << 4,
             d3D = 1 << 5,
-            CubeMap = 1 << 6
+            CubeMap = 1 << 6,
+            /// The image holds depth data and is sampled through a comparison sampler.
+            Depth = 1 << 7
         };
         using ImageFlags = Flags<ImageFlagBits>;
         ImageFlags flags{};

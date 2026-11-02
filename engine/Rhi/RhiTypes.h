@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <vector>
 
 namespace Engine::Rhi {
@@ -248,6 +249,37 @@ namespace Engine::Rhi {
     };
 
     /**
+     * @brief What a sampled texture binding holds, in portable terms.
+     *
+     * A backend that binds a texture to a shader has to know how the shader declared it: a
+     * depth texture and a colour texture are different binding kinds on WebGPU, and a
+     * validation error rather than a silent mismatch when they are confused. Vulkan derives
+     * the same fact from the shader itself.
+     */
+    enum class TextureSampleType : uint8_t {
+        /// Filterable floating-point colour data.
+        Float,
+        /// Floating-point data the pipeline cannot filter.
+        UnfilterableFloat,
+        /// A depth texture, sampled through a comparison sampler.
+        Depth,
+        /// Signed integer data.
+        Sint,
+        /// Unsigned integer data.
+        Uint
+    };
+
+    /// @brief How many dimensions a sampled texture binding is declared with.
+    enum class TextureViewDimension : uint8_t {
+        D1,
+        D2,
+        D2Array,
+        D3,
+        Cube,
+        CubeArray
+    };
+
+    /**
      * @brief One entry of a descriptor-set layout.
      *
      * A layout is a list of these: what each binding slot accepts and how many
@@ -268,12 +300,37 @@ namespace Engine::Rhi {
         /// caller can substitute another. Both backends express it, so it is part
         /// of the portable description and not a Vulkan detail.
         SamplerHandle immutable_sampler{};
+        /// @brief What a sampled texture binding holds.
+        TextureSampleType sample_type{TextureSampleType::Float};
+        /// @brief How a sampled texture binding is declared.
+        TextureViewDimension view_dimension{TextureViewDimension::D2};
+        /// @brief Where the sampler of a combined binding lands on a backend that splits it.
+        ///
+        /// Vulkan accepts one descriptor for the pair. The standard WebGPU interface has no
+        /// combined binding at all: its shader language declares the texture and its sampler
+        /// as two bindings, and the converter that produces the shader decides the second
+        /// number. `UINT32_MAX` means "follow the split rule the backend and the bake share"
+        /// - the next binding after the texture - and a caller that needs a different slot
+        /// says so here.
+        uint32_t sampler_binding{std::numeric_limits<uint32_t>::max()};
 
         bool operator==(const DescriptorBinding &) const = default;
     };
 
     /// @brief The portable description of a descriptor-set layout.
     using DescriptorSetLayout = std::vector<DescriptorBinding>;
+
+    /**
+     * @brief Where the sampler of a combined binding lands on a backend that splits it.
+     *
+     * The WebGPU shader language has no combined image sampler: a converter that turns a
+     * Vulkan shader into it declares the texture at the binding the shader names and the
+     * sampler at the next one. This is that rule, in the one place both the bake and the
+     * runtime read it, so a shader and the layout built for it cannot disagree about it.
+     */
+    inline constexpr uint32_t SplitSamplerBinding(uint32_t binding) noexcept {
+        return binding + 1u;
+    }
 
     /// @brief One push-constant range of a pipeline layout.
     struct PushConstantRange {

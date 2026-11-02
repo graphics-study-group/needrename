@@ -75,17 +75,25 @@ namespace Engine {
                             // array texture is cleared: the slot must never keep
                             // contents from an earlier frame, whichever cascade the
                             // shading ends up reading.
-                            cb.BeginRendering(
-                                {nullptr},
-                                {shadow_map_target,
-                                 {},
-                                 AttachmentUtils::LoadOperation::Clear,
-                                 AttachmentUtils::StoreOperation::Store,
-                                 AttachmentUtils::DepthClearValue{1.0f, 0U}},
-                                shadow_map_extent,
-                                "Shadowmap Pass"
-                            );
-                            cb.EndRendering();
+                            //
+                            // One layer at a time, because a render pass attachment is a
+                            // single layer on every backend the seam targets: a view that
+                            // spans the array is not an attachment, and asking for one is
+                            // what a backend reports as "multiview required".
+                            const auto &description = shadow_map_target->GetTextureDescription();
+                            for (uint32_t layer = 0; layer < description.array_layers; layer++) {
+                                cb.BeginRendering(
+                                    {nullptr},
+                                    {shadow_map_target,
+                                     Rhi::TextureSubresourceRange{layer, 1, 0, 1},
+                                     AttachmentUtils::LoadOperation::Clear,
+                                     AttachmentUtils::StoreOperation::Store,
+                                     AttachmentUtils::DepthClearValue{1.0f, 0U}},
+                                    shadow_map_extent,
+                                    "Shadowmap Pass"
+                                );
+                                cb.EndRendering();
+                            }
                             return;
                         }
 

@@ -55,6 +55,20 @@ namespace Engine::Rhi {
     inline WGPUTexture ToWgpuTexture(ImageHandle handle) noexcept {
         return ToWgpu<WGPUTexture>(handle);
     }
+
+    /**
+     * @brief The device and queue this process records against.
+     *
+     * A command encoder on this interface is not a child of a device - the standard interface
+     * creates it from the device but never reads the device back - so a unit that records
+     * without owning a `DeviceContext` (the encoder, for its constant ring) needs a way to
+     * reach them. The device context registers itself here when it is created, which is the
+     * one place a device exists.
+     */
+    void RegisterWgpuDevice(WGPUDevice device, WGPUQueue queue, WGPUInstance instance) noexcept;
+    WGPUDevice RegisteredWgpuDevice() noexcept;
+    WGPUQueue RegisteredWgpuQueue() noexcept;
+    WGPUInstance RegisteredWgpuInstance() noexcept;
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_BACKEND_WEBGPU_WGPUHANDLES_INCLUDED

@@ -7,6 +7,7 @@
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Texture/Texture.h"
+#include "Rhi/Texture/TextureSubresourceView.h"
 
 #include <SDL3/SDL.h>
 #include <stdexcept>
@@ -99,21 +100,32 @@ namespace Engine::Rhi {
         }
         // No queue-level clear exists for a texture, so this records the smallest pass that
         // does it: one colour attachment, load operation Clear, store.
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(pimpl->device, nullptr);
-        WGPURenderPassColorAttachment attachment{};
-        attachment.view = ToWgpuTextureView(texture.GetImageView());
-        attachment.loadOp = WGPULoadOp_Clear;
-        attachment.storeOp = WGPUStoreOp_Store;
-        attachment.clearValue = WGPUColor{
-            std::get<0>(color), std::get<1>(color), std::get<2>(color), std::get<3>(color)
-        };
+        //
+        // One pass per array layer, because an attachment is a single layer on this
+        // interface: a view spanning an array is not a render target, and a pass that uses one
+        // is rejected as needing the MULTIVIEW feature.
+        const Texture::TextureDesc &desc = texture.GetTextureDescription();
+        const uint32_t layer_count = desc.array_layers == 0 ? 1 : desc.array_layers;
 
-        WGPURenderPassDescriptor pass_desc{};
-        pass_desc.colorAttachmentCount = 1;
-        pass_desc.colorAttachments = &attachment;
-        WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &pass_desc);
-        wgpuRenderPassEncoderEnd(pass);
-        wgpuRenderPassEncoderRelease(pass);
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(pimpl->device, nullptr);
+        for (uint32_t layer = 0; layer < layer_count; layer++) {
+            WGPURenderPassColorAttachment attachment{};
+            attachment.view = ToWgpuTextureView(
+                texture.GetImageView(TextureSubresourceRange{layer, 1, 0, desc.mipmap_levels})
+            );
+            attachment.loadOp = WGPULoadOp_Clear;
+            attachment.storeOp = WGPUStoreOp_Store;
+            attachment.clearValue = WGPUColor{
+                std::get<0>(color), std::get<1>(color), std::get<2>(color), std::get<3>(color)
+            };
+
+            WGPURenderPassDescriptor pass_desc{};
+            pass_desc.colorAttachmentCount = 1;
+            pass_desc.colorAttachments = &attachment;
+            WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &pass_desc);
+            wgpuRenderPassEncoderEnd(pass);
+            wgpuRenderPassEncoderRelease(pass);
+        }
 
         WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, nullptr);
         wgpuQueueSubmit(pimpl->queue, 1, &commands);
@@ -130,17 +142,23 @@ namespace Engine::Rhi {
             );
         }
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(pimpl->device, nullptr);
-        WGPURenderPassDepthStencilAttachment attachment{};
-        attachment.view = ToWgpuTextureView(texture.GetImageView());
-        attachment.depthLoadOp = WGPULoadOp_Clear;
-        attachment.depthStoreOp = WGPUStoreOp_Store;
-        attachment.depthClearValue = depth;
+        const Texture::TextureDesc &desc = texture.GetTextureDescription();
+        const uint32_t layer_count = desc.array_layers == 0 ? 1 : desc.array_layers;
+        for (uint32_t layer = 0; layer < layer_count; layer++) {
+            WGPURenderPassDepthStencilAttachment attachment{};
+            attachment.view = ToWgpuTextureView(
+                texture.GetImageView(TextureSubresourceRange{layer, 1, 0, desc.mipmap_levels})
+            );
+            attachment.depthLoadOp = WGPULoadOp_Clear;
+            attachment.depthStoreOp = WGPUStoreOp_Store;
+            attachment.depthClearValue = depth;
 
-        WGPURenderPassDescriptor pass_desc{};
-        pass_desc.depthStencilAttachment = &attachment;
-        WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &pass_desc);
-        wgpuRenderPassEncoderEnd(pass);
-        wgpuRenderPassEncoderRelease(pass);
+            WGPURenderPassDescriptor pass_desc{};
+            pass_desc.depthStencilAttachment = &attachment;
+            WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &pass_desc);
+            wgpuRenderPassEncoderEnd(pass);
+            wgpuRenderPassEncoderRelease(pass);
+        }
 
         WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, nullptr);
         wgpuQueueSubmit(pimpl->queue, 1, &commands);

@@ -35,8 +35,9 @@
 // shared memory by segmented pairwise doubling: in the round for spacing `d`
 // (1, 2, 4, ... 128) an invocation adds the value at `tid - d` to its own when
 // that element exists and carries the same key.  Every invocation joins every
-// executed round, and the rounds stop once no run's last element still needs to
-// merge — an exit read after a barrier, so the block leaves together.
+// round, and every round runs: a round past a run's length compares keys,
+// finds no equal partner and adds nothing, so the trip count is a constant and
+// the barriers sit in uniform control flow — which is what WGSL requires.
 //
 // Settlement.  Each run's last element writes the run's in-block sum: straight
 // to `OutValues` when the run lies inside the block, otherwise as a record at
@@ -70,9 +71,6 @@ shared uint s_key[256];
 // Channel-major, like the value and output buffers: the merge walks one channel
 // at a time with a stride-1 access across invocations.
 shared float s_val[8][256];
-// One exit flag per merge round.  A round's slot is never reused, so no round
-// needs to reset it.
-shared uint s_pending[8];
 
 // Runs one level of the reduction for one 256-element block of the dispatch.
 //
@@ -155,8 +153,6 @@ void SumByKeyRun(
     for (uint c = 0u; c < num_channels; ++c) {
         s_val[c][tid] = real ? values_in.v[c * input_count + value_index] : 0.0f;
     }
-    // One flag per round, published inside the round it belongs to.
-    if (tid < 8u) s_pending[tid] = 0u;
     barrier();
 
     // The run's last element is the only writer, but every invocation joins the
@@ -166,11 +162,16 @@ void SumByKeyRun(
 
     // ---- Segmented pairwise doubling: ceil(log2(run length)) rounds ----
     //
-    // A run-last invocation keeps the block in the loop only while it may still
-    // be incomplete: its window was unclamped (reaches past index 0) and its
-    // merge succeeded.  The flag is read after a barrier, so the block leaves
-    // together.
-    for (uint r = 0u, d = 1u; d < 256u; d <<= 1u, ++r) {
+    // Every round runs.  A round past the point where a run stopped growing
+    // finds no partner with the same key (`s_key[tid] != s_key[tid - d]` for
+    // every `d` beyond the run length), so it adds nothing: the trip count is
+    // the block's `ceil(log2(256))` rounds no matter what the data says, which
+    // is what makes this loop's control flow uniform.  An early exit was tried
+    // in its place and rejected by Tint, whose uniformity analysis cannot prove
+    // that a value read after a barrier is the same in every invocation; a
+    // workgroup barrier under a data-dependent loop bound is not representable
+    // in WGSL.
+    for (uint d = 1u; d < 256u; d <<= 1u) {
         // Clamped so the predicated load below cannot form an out-of-range
         // shared address.
         const uint partner = (tid >= d) ? (tid - d) : tid;
@@ -182,9 +183,6 @@ void SumByKeyRun(
             partner_val[c] =
                 (merge && c < num_channels) ? s_val[c][partner] : 0.0f;
         }
-        if (merge && is_run_last && (tid >= (d << 1))) {
-            s_pending[r] = 1u;
-        }
         barrier();
 
         if (merge) {
@@ -193,10 +191,6 @@ void SumByKeyRun(
             }
         }
         barrier();
-
-        if (s_pending[r] == 0u) {
-            break;
-        }
     }
 
     if (!is_run_last) {

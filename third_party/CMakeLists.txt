@@ -35,9 +35,10 @@ set_target_properties(fastgltf PROPERTIES FOLDER third_party)
 set_target_properties(fastgltf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # For some reasons the SPIRV-Cross in Vulkan SDK cannot be found by CMake...
-# SPIRV-Cross reflects SPIR-V modules at runtime, which is a Vulkan-backend
-# concern: the WebGPU backend reads the baked interface description instead.
-if (ENGINE_RHI_BACKEND_VULKAN)
+# SPIRV-Cross reflects SPIR-V modules. The Vulkan backend does that at runtime; the
+# WebGPU backend does not, but the build-time shader baker does, so a desktop WebGPU
+# build that includes the tools builds it too.
+if (ENGINE_RHI_BACKEND_VULKAN OR ENGINE_RHI_BAKE_REFLECTION)
     set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
     set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)
     set(SPIRV_CROSS_ENABLE_HLSL OFF CACHE BOOL "Enable HLSL target support." FORCE)

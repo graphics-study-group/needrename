@@ -34,6 +34,36 @@ namespace Engine::Rhi {
             return mode == SamplerDesc::FilterMode::Linear ? WGPUFilterMode_Linear : WGPUFilterMode_Nearest;
         }
 
+        /**
+         * @brief The comparison a sampler performs, or Undefined when it is not a comparator.
+         *
+         * A shadow sampler is a comparison sampler: the shader asks whether the fragment is
+         * nearer than what the map holds and the sampler answers with a filtered 0 or 1. A
+         * sampler created without a comparison cannot be bound where the shader declares one,
+         * and the device reports it as a validation error rather than falling back quietly.
+         */
+        WGPUCompareFunction ToWgpuCompare(DSComparator comparator) {
+            switch (comparator) {
+            case DSComparator::Never:
+                return WGPUCompareFunction_Undefined;
+            case DSComparator::Less:
+                return WGPUCompareFunction_Less;
+            case DSComparator::Equal:
+                return WGPUCompareFunction_Equal;
+            case DSComparator::LEqual:
+                return WGPUCompareFunction_LessEqual;
+            case DSComparator::Greater:
+                return WGPUCompareFunction_Greater;
+            case DSComparator::NEqual:
+                return WGPUCompareFunction_NotEqual;
+            case DSComparator::GEqual:
+                return WGPUCompareFunction_GreaterEqual;
+            case DSComparator::Always:
+                return WGPUCompareFunction_Always;
+            }
+            return WGPUCompareFunction_Undefined;
+        }
+
         /// @brief A key that is stable for one description and different for another.
         ///
         /// The seam's SamplerDesc compares field by field, so the hash does too; there
@@ -62,6 +92,34 @@ namespace Engine::Rhi {
         std::unordered_map<size_t, DescriptorSetLayoutRef> layout_refs{};
         std::unordered_map<size_t, WGPUBindGroupLayout> layout_handles{};
         std::unordered_map<size_t, WGPUPipelineLayout> pipeline_layouts{};
+        /// @brief Cached layouts for the groups a pipeline layout pads or appends.
+        WGPUBindGroupLayout empty_group_layout{nullptr};
+        WGPUBindGroupLayout constant_group_layout{nullptr};
+
+        WGPUBindGroupLayout EmptyGroupLayout() {
+            if (empty_group_layout != nullptr) {
+                return empty_group_layout;
+            }
+            WGPUBindGroupLayoutDescriptor desc{};
+            desc.entryCount = 0;
+            desc.entries = nullptr;
+            desc.label = WGPUStringView{"Empty Bind Group Layout", 25};
+            empty_group_layout = wgpuDeviceCreateBindGroupLayout(device, &desc);
+            return empty_group_layout;
+        }
+
+        WGPUBindGroupLayout ConstantGroupLayout() {
+            if (constant_group_layout != nullptr) {
+                return constant_group_layout;
+            }
+            const WGPUBindGroupLayoutEntry entry = ConstantBlockLayoutEntry();
+            WGPUBindGroupLayoutDescriptor desc{};
+            desc.entryCount = 1;
+            desc.entries = &entry;
+            desc.label = WGPUStringView{"Constant Block Layout", 23};
+            constant_group_layout = wgpuDeviceCreateBindGroupLayout(device, &desc);
+            return constant_group_layout;
+        }
 
         ~impl() {
             for (auto &[key, sampler] : samplers) {
@@ -101,6 +159,9 @@ namespace Engine::Rhi {
         // interface rejects zero and wants at least one, so a disabled clamp becomes one.
         sampler_desc.maxAnisotropy =
             desc.max_anisotropy < 1.0f ? 1 : static_cast<uint16_t>(desc.max_anisotropy);
+        // A comparator sampler is what a shadow lookup binds; `Never` is the seam's "not a
+        // comparator" and becomes the undefined function, which is a plain filtering sampler.
+        sampler_desc.compare = ToWgpuCompare(desc.comparator);
 
         WGPUSampler sampler = wgpuDeviceCreateSampler(pimpl->device, &sampler_desc);
         if (sampler == nullptr) {
@@ -125,6 +186,47 @@ namespace Engine::Rhi {
             return WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
         }
 
+        WGPUTextureSampleType ToWgpuSampleType(TextureSampleType type) {
+            switch (type) {
+            case TextureSampleType::Depth:
+                return WGPUTextureSampleType_Depth;
+            case TextureSampleType::UnfilterableFloat:
+                return WGPUTextureSampleType_UnfilterableFloat;
+            case TextureSampleType::Sint:
+                return WGPUTextureSampleType_Sint;
+            case TextureSampleType::Uint:
+                return WGPUTextureSampleType_Uint;
+            case TextureSampleType::Float:
+            default:
+                return WGPUTextureSampleType_Float;
+            }
+        }
+
+        WGPUTextureViewDimension ToWgpuViewDimension(TextureViewDimension dimension) {
+            switch (dimension) {
+            case TextureViewDimension::D1:
+                return WGPUTextureViewDimension_1D;
+            case TextureViewDimension::D2Array:
+                return WGPUTextureViewDimension_2DArray;
+            case TextureViewDimension::D3:
+                return WGPUTextureViewDimension_3D;
+            case TextureViewDimension::Cube:
+                return WGPUTextureViewDimension_Cube;
+            case TextureViewDimension::CubeArray:
+                return WGPUTextureViewDimension_CubeArray;
+            case TextureViewDimension::D2:
+            default:
+                return WGPUTextureViewDimension_2D;
+            }
+        }
+
+        /// @brief Where the sampler of a combined binding goes, honouring an explicit slot.
+        uint32_t SamplerSlotOf(const DescriptorBinding &binding) noexcept {
+            return binding.sampler_binding == std::numeric_limits<uint32_t>::max()
+                       ? SplitSamplerBinding(binding.binding)
+                       : binding.sampler_binding;
+        }
+
         size_t HashLayout(const DescriptorSetLayout &layout) noexcept {
             RenderResourceHasher h;
             for (const DescriptorBinding &binding : layout) {
@@ -133,6 +235,11 @@ namespace Engine::Rhi {
                 // `count` is part of the layout: an array binding declares its length with
                 // bindingArraySize, so two layouts differing in it are different layouts.
                 h.u32(binding.count);
+                // So is how a texture is declared: a depth array and a colour 2D texture are
+                // different binding kinds here, not just different resources.
+                h.u32(static_cast<uint32_t>(binding.sample_type));
+                h.u32(static_cast<uint32_t>(binding.view_dimension));
+                h.u32(SamplerSlotOf(binding));
             }
             return h.get();
         }
@@ -156,6 +263,24 @@ namespace Engine::Rhi {
             // say how long it is: an array the shader indexes into is a different declaration
             // from a single binding, not a detail of the set.
             entry.bindingArraySize = binding.count;
+            if (binding.type == DescriptorType::CombinedImageSampler) {
+                // The standard interface has no combined binding: the shader language declares
+                // the texture and its sampler separately, so the layout has two entries. The
+                // texture keeps the binding the shader names and the sampler goes to the slot
+                // the split rule names - see `Rhi::SplitSamplerBinding`.
+                entry.texture.sampleType = ToWgpuSampleType(binding.sample_type);
+                entry.texture.viewDimension = ToWgpuViewDimension(binding.view_dimension);
+                entries.push_back(entry);
+
+                WGPUBindGroupLayoutEntry sampler_entry{};
+                sampler_entry.binding = SamplerSlotOf(binding);
+                sampler_entry.visibility = entry.visibility;
+                sampler_entry.sampler.type = binding.sample_type == TextureSampleType::Depth
+                                                 ? WGPUSamplerBindingType_Comparison
+                                                 : WGPUSamplerBindingType_Filtering;
+                entries.push_back(sampler_entry);
+                continue;
+            }
             switch (binding.type) {
             case DescriptorType::UniformBuffer:
             case DescriptorType::UniformBufferDynamic:
@@ -166,25 +291,28 @@ namespace Engine::Rhi {
                 entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
                 break;
             case DescriptorType::CombinedImageSampler:
-                // A texture entry carries its sampler by construction on this backend: the
-                // layout field is the texture, and the pair is one binding rather than two.
-                entry.texture.sampleType = WGPUTextureSampleType_Float;
-                entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-                // A texture entry carries its sampler by construction on this backend, so one
-                // seam binding is one entry here. The array length still has to be declared.
-                entry.bindingArraySize = binding.count;
+                // Unreachable: a combined binding took the two-entry path above. The case is
+                // kept so the enumeration stays fully handled, and it states the texture's
+                // shape rather than the sampler's.
+                entry.texture.sampleType = ToWgpuSampleType(binding.sample_type);
+                entry.texture.viewDimension = ToWgpuViewDimension(binding.view_dimension);
                 break;
             case DescriptorType::SampledImage:
-                entry.texture.sampleType = WGPUTextureSampleType_Float;
-                entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+                entry.texture.sampleType = ToWgpuSampleType(binding.sample_type);
+                entry.texture.viewDimension = ToWgpuViewDimension(binding.view_dimension);
                 break;
             case DescriptorType::Sampler:
-                entry.sampler.type = WGPUSamplerBindingType_Filtering;
+                entry.sampler.type = binding.sample_type == TextureSampleType::Depth
+                                         ? WGPUSamplerBindingType_Comparison
+                                         : WGPUSamplerBindingType_Filtering;
                 break;
             case DescriptorType::StorageImage:
                 entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
                 entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
                 entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+                // A written storage texture is not legal in the vertex stage of the standard
+                // interface, and a layout entry that claims vertex visibility is rejected.
+                entry.visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
                 break;
             }
             entries.push_back(entry);
@@ -229,9 +357,21 @@ namespace Engine::Rhi {
         }
 
         std::vector<WGPUBindGroupLayout> group_layouts;
-        group_layouts.reserve(description.set_layouts.size());
+        group_layouts.reserve(description.set_layouts.size() + 1);
         for (const DescriptorSetLayoutHandle &layout : description.set_layouts) {
             group_layouts.push_back(ToWgpuBindGroupLayout(layout));
+        }
+
+        if (!description.push_constant_ranges.empty()) {
+            // The shader's push-constant block is a uniform buffer in group 3 (see
+            // `k_constant_bind_group`), so the pipeline layout has to declare four groups. A
+            // description with fewer set layouts is padded with empty groups up to that index:
+            // a group the shader does not read still has to exist in the layout it was built
+            // against, and an empty layout is what "the caller binds nothing here" means.
+            while (group_layouts.size() < k_constant_bind_group) {
+                group_layouts.push_back(pimpl->EmptyGroupLayout());
+            }
+            group_layouts.push_back(pimpl->ConstantGroupLayout());
         }
 
         WGPUPipelineLayoutDescriptor desc{};

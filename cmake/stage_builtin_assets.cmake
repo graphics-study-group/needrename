@@ -41,6 +41,11 @@ elseif (SHADER_MODE STREQUAL "spv")
     if (DEBUG_INFO)
         list(APPEND baker_arguments --debug-info)
     endif()
+    if (BAKE_WGSL AND WGSL_CONVERTER)
+        # The WebGPU runtime loads the WGSL variant and cannot compile GLSL at all; the
+        # converter is a host tool, so its path is passed through rather than searched for.
+        list(APPEND baker_arguments --converter "${WGSL_CONVERTER}")
+    endif()
 
     execute_process(
         COMMAND "${SHADER_BAKER}" ${baker_arguments}
@@ -62,6 +67,18 @@ elseif (SHADER_MODE STREQUAL "spv")
 else()
     message(FATAL_ERROR "stage_builtin_assets: unexpected shader mode '${SHADER_MODE}'.")
 endif()
+
+# A data root is more than the built-in assets: a runtime that resolves its data through
+# NEEDRENAME_DATA_ROOT reads the project and artist assets from the same root. The staged tree
+# therefore mirrors the developer root's sibling directories, so a run can point at it and
+# still load everything it needs. They are copies, not links, because a link to the source tree
+# would defeat the point of staging the assets into a fresh root.
+get_filename_component(source_root "${SOURCE_BUILTIN_ASSETS}" DIRECTORY)
+foreach(sibling assets projects)
+    if (IS_DIRECTORY "${source_root}/${sibling}")
+        file(COPY "${source_root}/${sibling}/" DESTINATION "${STAGE_ROOT}/${sibling}")
+    endif()
+endforeach()
 
 # Stamp last: a failed staging run must not look up to date.
 file(TOUCH "${staged_builtin_assets}/.staged")

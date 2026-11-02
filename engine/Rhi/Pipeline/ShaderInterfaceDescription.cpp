@@ -39,10 +39,16 @@ namespace Engine::Rhi {
         }
         std::stringstream buffer;
         buffer << file.rdbuf();
+        return FromString(buffer.str());
+    }
 
+    std::optional<ShaderInterfaceDescription> ShaderInterfaceDescription::FromString(const std::string &text) {
+        if (text.empty()) {
+            return std::nullopt;
+        }
         nlohmann::json json;
         try {
-            json = nlohmann::json::parse(buffer.str());
+            json = nlohmann::json::parse(text);
         } catch (const nlohmann::json::exception &) {
             return std::nullopt;
         }

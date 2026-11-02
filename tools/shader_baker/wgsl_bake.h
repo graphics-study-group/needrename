@@ -3,6 +3,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace Engine::ShaderBake {
     /// @brief What to bake, and with which converter.
@@ -35,6 +36,44 @@ namespace Engine::ShaderBake {
 
     /// @brief Get the default converter path: `$NAGA` when set, otherwise `naga`.
     std::string DefaultConverterExecutable();
+
+    /**
+     * @brief Convert one SPIR-V module to WGSL text, with the rewrites WGSL requires.
+     *
+     * The tree bake and the shader-archive bake differ only in where the module comes from and
+     * where the text goes; the rewrites - stripped write-only qualifiers, stripped non-semantic
+     * debug info, the push-constant block moved to a uniform buffer - are the same for both, so
+     * they live here once.
+     *
+     * @param spirv The module, as read from a `.spv` file.
+     * @param converter_executable SPIR-V to WGSL converter to invoke.
+     * @param wgsl Receives the converted text.
+     * @param error Receives a diagnostic when the conversion fails.
+     * @return Whether WGSL was produced.
+     */
+    bool ConvertSpirvToWgsl(
+        const std::vector<uint32_t> &spirv,
+        const std::string &converter_executable,
+        std::string &wgsl,
+        std::string &error,
+        const std::filesystem::path &scratch_directory
+    );
+
+    /**
+     * @brief Write the interface description for one SPIR-V module to a stream.
+     *
+     * @param spirv The module; reflected here.
+     * @param shader_name The name to record.
+     * @param stage The stage to record.
+     * @param json Receives the description.
+     * @return Whether reflection succeeded.
+     */
+    bool WriteInterfaceDescriptionForModule(
+        const std::vector<uint32_t> &spirv,
+        const std::string &shader_name,
+        const std::string &stage,
+        std::string &json
+    );
 } // namespace Engine::ShaderBake
 
 #endif // ENGINE_SHADERBAKER_WGSL_BAKE_INCLUDED

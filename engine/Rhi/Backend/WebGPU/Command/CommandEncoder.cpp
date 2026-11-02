@@ -1,10 +1,14 @@
 #include "Rhi/Command/CommandEncoder.h"
 
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
+#include "Rhi/Backend/WebGPU/WgpuStructs.h"
 #include "Rhi/RhiTypes.h"
 
 #include <SDL3/SDL.h>
+#include <format>
+#include <span>
 #include <stdexcept>
+#include <string>
 #include <webgpu/webgpu.h>
 
 namespace Engine::Rhi {
@@ -13,6 +17,119 @@ namespace Engine::Rhi {
         [[noreturn]] void Unsupported(const char *what, const char *why) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: %s is not implemented. %s", what, why);
             throw std::logic_error(std::string{"WebGPU: "} + what + " is not implemented. " + why);
+        }
+
+        /**
+         * @brief The host-visible buffer that carries every push-constant block.
+         *
+         * One buffer, one window per record, and a dynamic offset chosen when the bind group is
+         * bound. Two facts make this safe rather than a guess:
+         *
+         * - a queue write is ordered against submissions on the same queue, so a write a later
+         *   frame makes cannot be observed by an earlier frame's commands;
+         * - every window is `k_constant_window` bytes and the cursor restarts at zero for each
+         *   command encoder, so the whole frame fits in the buffer as long as it records at most
+         *   `capacity / k_constant_window` of them.
+         */
+        struct ConstantRing {
+            WGPUBuffer buffer{nullptr};
+            WGPUBindGroupLayout layout{nullptr};
+            WGPUBindGroup group{nullptr};
+            size_t capacity{0};
+
+            bool Ready() const noexcept {
+                return buffer != nullptr && group != nullptr;
+            }
+        };
+
+        ConstantRing &Ring() {
+            static ConstantRing ring{};
+            if (ring.Ready()) {
+                return ring;
+            }            WGPUDevice device = RegisteredWgpuDevice();
+            if (device == nullptr) {
+                return ring;
+            }
+
+            const WGPUBindGroupLayoutEntry entry = ConstantBlockLayoutEntry();
+            WGPUBindGroupLayoutDescriptor layout_desc{};
+            layout_desc.entryCount = 1;
+            layout_desc.entries = &entry;
+            layout_desc.label = WGPUStringView{"Constant Block Layout", 23};
+            ring.layout = wgpuDeviceCreateBindGroupLayout(device, &layout_desc);
+
+            ring.capacity = 1u << 20; // 1 MiB: 4096 records per frame.
+            WGPUBufferDescriptor buffer_desc{};
+            buffer_desc.size = ring.capacity;
+            buffer_desc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+            buffer_desc.mappedAtCreation = false;
+            buffer_desc.label = WGPUStringView{"Constant Ring", 13};
+            ring.buffer = wgpuDeviceCreateBuffer(device, &buffer_desc);
+
+            WGPUBindGroupEntry group_entry{};
+            group_entry.binding = 0;
+            group_entry.buffer = ring.buffer;
+            group_entry.offset = 0;
+            group_entry.size = k_constant_window;
+
+            WGPUBindGroupDescriptor group_desc{};
+            group_desc.layout = ring.layout;
+            group_desc.entryCount = 1;
+            group_desc.entries = &group_entry;
+            group_desc.label = WGPUStringView{"Constant Block Bind Group", 25};
+            ring.group = wgpuDeviceCreateBindGroup(device, &group_desc);
+            return ring;
+        }
+
+        /// @brief Publish one push-constant block and select its window for the current pass.
+        void RecordConstantWindow(
+            WGPURenderPassEncoder render_pass,
+            WGPUComputePassEncoder compute_pass,
+            size_t &cursor,
+            std::span<const std::byte> data
+        ) {
+            if (render_pass == nullptr && compute_pass == nullptr) {
+                throw std::logic_error("A constant block can only be set inside a pass.");
+            }
+            if (data.size() > k_constant_window) {
+                throw std::length_error(
+                    std::format(
+                        "WebGPU: a constant block of {} bytes exceeds the {} byte window this "
+                        "backend reserves for one.",
+                        data.size(),
+                        k_constant_window
+                    )
+                );
+            }
+            ConstantRing &ring = Ring();
+            if (!ring.Ready()) {
+                Unsupported("PushConstants", "the constant ring could not be created on this device.");
+            }
+            if (cursor + k_constant_window > ring.capacity) {
+                throw std::length_error(
+                    std::format(
+                        "WebGPU: the frame recorded more constant blocks than the {} byte ring holds.",
+                        ring.capacity
+                    )
+                );
+            }
+
+            const size_t offset = cursor;
+            cursor += k_constant_window;
+
+            // Published before the submission that reads it: a queue write is ordered against
+            // the submissions on the same queue, so the window is visible to the draws that
+            // follow in this frame's command buffer.
+            wgpuQueueWriteBuffer(RegisteredWgpuQueue(), ring.buffer, offset, data.data(), data.size());
+
+            const uint32_t dynamic_offset = static_cast<uint32_t>(offset);
+            if (render_pass != nullptr) {
+                wgpuRenderPassEncoderSetBindGroup(render_pass, k_constant_bind_group, ring.group, 1, &dynamic_offset);
+            } else {
+                wgpuComputePassEncoderSetBindGroup(
+                    compute_pass, k_constant_bind_group, ring.group, 1, &dynamic_offset
+                );
+            }
         }
     } // namespace
 
@@ -46,6 +163,9 @@ namespace Engine::Rhi {
         WGPURenderPassEncoder render_pass{nullptr};
         WGPUComputePassEncoder compute_pass{nullptr};
         bool in_render_pass{false};
+        /// How far into the constant ring this command buffer has written. It restarts at zero
+        /// for every encoder, and queue ordering makes the reuse across frames safe.
+        size_t constant_cursor{0};
     };
 
     CommandEncoder::CommandEncoder(CommandBufferHandle handle) : pimpl(std::make_unique<impl>()) {
@@ -101,7 +221,10 @@ namespace Engine::Rhi {
         std::vector<WGPURenderPassColorAttachment> color_attachments;
         color_attachments.reserve(description.color_attachments.size());
         for (const ColorAttachmentDescription &attachment : description.color_attachments) {
-            WGPURenderPassColorAttachment color{};
+            // The INIT macro rather than `{}`: the structure's defaults are not all zero, and one
+            // of them - `depthSlice` - means "layer zero of a 3D view" when it is, which is a
+            // validation error against a colour attachment that is not 3D.
+            WGPURenderPassColorAttachment color = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
             color.view = ToWgpuTextureView(attachment.view);
             color.loadOp = attachment.load == LoadOperation::Clear ? WGPULoadOp_Clear : WGPULoadOp_Load;
             color.storeOp = attachment.store == StoreOperation::Store ? WGPUStoreOp_Store : WGPUStoreOp_Discard;
@@ -114,7 +237,7 @@ namespace Engine::Rhi {
             color_attachments.push_back(color);
         }
 
-        WGPURenderPassDepthStencilAttachment depth{};
+        WGPURenderPassDepthStencilAttachment depth = WGPU_RENDER_PASS_DEPTH_STENCIL_ATTACHMENT_INIT;
         const bool has_depth = description.depth_attachment.view.IsValid();
         if (has_depth) {
             depth.view = ToWgpuTextureView(description.depth_attachment.view);
@@ -129,9 +252,19 @@ namespace Engine::Rhi {
         pass_desc.colorAttachmentCount = color_attachments.size();
         pass_desc.colorAttachments = color_attachments.data();
         pass_desc.depthStencilAttachment = has_depth ? &depth : nullptr;
+        for (const WGPURenderPassColorAttachment &color : color_attachments) {
+        }
 
         pimpl->render_pass = wgpuCommandEncoderBeginRenderPass(pimpl->encoder, &pass_desc);
         pimpl->in_render_pass = true;
+        // The constant group is part of every pipeline layout that declares a constant range,
+        // and a draw whose shader reads it must find it bound even before the first
+        // `PushConstants` of the pass. Window zero is a valid window; a push replaces it.
+        ConstantRing &ring = Ring();
+        if (ring.Ready()) {
+            const uint32_t offset = 0;
+            wgpuRenderPassEncoderSetBindGroup(pimpl->render_pass, k_constant_bind_group, ring.group, 1, &offset);
+        }
     }
 
     void CommandEncoder::EndRenderPass() {
@@ -154,6 +287,13 @@ namespace Engine::Rhi {
         // the destructor.
         if (pimpl->compute_pass == nullptr) {
             pimpl->compute_pass = wgpuCommandEncoderBeginComputePass(pimpl->encoder, nullptr);
+            ConstantRing &ring = Ring();
+            if (ring.Ready()) {
+                const uint32_t offset = 0;
+                wgpuComputePassEncoderSetBindGroup(
+                    pimpl->compute_pass, k_constant_bind_group, ring.group, 1, &offset
+                );
+            }
         }
         wgpuComputePassEncoderSetPipeline(pimpl->compute_pass, ToWgpuComputePipeline(pipeline));
     }
@@ -175,21 +315,13 @@ namespace Engine::Rhi {
         wgpuRenderPassEncoderSetPipeline(pimpl->render_pass, ToWgpuRenderPipeline(pipeline));
     }
 
-    void CommandEncoder::PushConstants(std::span<const std::byte>) {
-        Unsupported(
-            "PushConstants",
-            "There is no push-constant block here. A graphics parameter block becomes a "
-            "uniform buffer at the slot the bake records, and the ring that holds those "
-            "windows is not built yet."
-        );
+    void CommandEncoder::PushConstants(std::span<const std::byte> data) {
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "WebGPU: PushConstants %zu bytes", data.size());
+        RecordConstantWindow(pimpl->render_pass, pimpl->compute_pass, pimpl->constant_cursor, data);
     }
 
-    void CommandEncoder::SetKernelParams(std::span<const std::byte>) {
-        Unsupported(
-            "SetKernelParams",
-            "Kernel parameters are a uniform buffer bound at the slot the bake records under "
-            "constant_block; the ring that holds one window per dispatch is not built yet."
-        );
+    void CommandEncoder::SetKernelParams(std::span<const std::byte> data) {
+        RecordConstantWindow(pimpl->render_pass, pimpl->compute_pass, pimpl->constant_cursor, data);
     }
 
     void CommandEncoder::BindGraphicsDescriptorSet(
@@ -312,7 +444,6 @@ namespace Engine::Rhi {
         return {};
     }
 } // namespace Engine::Rhi
-
 
 
 

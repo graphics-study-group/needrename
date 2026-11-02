@@ -60,6 +60,9 @@ namespace Engine::Rhi {
         WGPUDevice device{nullptr};
         ImmutableResourceCache *cache{nullptr};
         std::unordered_map<uint64_t, DescriptorRequirements> requirements_by_layout{};
+        /// The layout description each resolved layout was built from, so a bind group can be
+        /// assembled from content with the same shape the layout declares.
+        std::unordered_map<uint64_t, DescriptorSetLayout> layout_by_id{};
         /// Bind groups by (layout identity, set id, content hash).
         std::unordered_map<size_t, WGPUBindGroup> bind_groups{};
         std::unordered_map<size_t, uint64_t> bind_group_ids{};
@@ -83,6 +86,7 @@ namespace Engine::Rhi {
     DescriptorSetLayoutRef DescriptorArena::ResolveLayout(const DescriptorSetLayout &layout, const char *name) {
         const auto resolved = pimpl->cache->GetDescriptorSetLayoutRef(layout, name);
         pimpl->requirements_by_layout[resolved.id.GetValue()] = RequirementsOf(layout);
+        pimpl->layout_by_id[resolved.id.GetValue()] = layout;
         return resolved;
     }
 
@@ -113,6 +117,10 @@ namespace Engine::Rhi {
 
         std::vector<WGPUBindGroupEntry> entries;
         entries.reserve(content.size());
+        const DescriptorSetLayout *description = nullptr;
+        if (auto itr = pimpl->layout_by_id.find(layout.id.GetValue()); itr != pimpl->layout_by_id.end()) {
+            description = &itr->second;
+        }
         for (const ResolvedBinding &binding : content) {
             WGPUBindGroupEntry entry{};
             entry.binding = binding.binding;
@@ -121,6 +129,15 @@ namespace Engine::Rhi {
             case DescriptorType::UniformBufferDynamic:
             case DescriptorType::StorageBuffer:
             case DescriptorType::StorageBufferDynamic:
+                if (binding.buffer.handle.IsValid() == false) {
+                    SDL_LogError(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "WebGPU: binding %u of set %u has no buffer.",
+                        binding.binding,
+                        set_id
+                    );
+                    return {};
+                }
                 entry.buffer = ToWgpuBuffer(binding.buffer.handle);
                 entry.offset = binding.offset;
                 // The seam's "maximum size means all of it" is the standard interface's
@@ -128,10 +145,32 @@ namespace Engine::Rhi {
                 entry.size = binding.range == std::numeric_limits<size_t>::max() ? WGPU_WHOLE_SIZE
                                                                                 : binding.range;
                 break;
-            case DescriptorType::CombinedImageSampler:
+            case DescriptorType::CombinedImageSampler: {
+                // One seam binding is two entries here: the texture at the binding the shader
+                // names, and its sampler at the split slot the layout reserved. The sampler
+                // comes from the bound texture; a layout with an immutable sampler uses that
+                // instead, which is the closest thing this interface has to one.
+                uint32_t sampler_slot = SplitSamplerBinding(binding.binding);
+                SamplerHandle sampler = binding.sampler.handle;
+                if (description != nullptr) {
+                    for (const DescriptorBinding &declared : *description) {
+                        if (declared.binding != binding.binding) continue;
+                        if (declared.sampler_binding != std::numeric_limits<uint32_t>::max()) {
+                            sampler_slot = declared.sampler_binding;
+                        }
+                        if (!sampler.IsValid()) sampler = declared.immutable_sampler;
+                        break;
+                    }
+                }
                 entry.textureView = ToWgpuTextureView(binding.image_view.handle);
-                entry.sampler = ToWgpuSampler(binding.sampler.handle);
-                break;
+                entries.push_back(entry);
+
+                WGPUBindGroupEntry sampler_entry{};
+                sampler_entry.binding = sampler_slot;
+                sampler_entry.sampler = ToWgpuSampler(sampler);
+                entries.push_back(sampler_entry);
+                continue;
+            }
             case DescriptorType::SampledImage:
                 entry.textureView = ToWgpuTextureView(binding.image_view.handle);
                 break;
@@ -149,10 +188,11 @@ namespace Engine::Rhi {
         desc.layout = ToWgpuBindGroupLayout(layout.handle);
         desc.entryCount = entries.size();
         desc.entries = entries.data();
+        for (const WGPUBindGroupEntry &entry : entries) {
+        }
 
         WGPUBindGroup group = wgpuDeviceCreateBindGroup(pimpl->device, &desc);
         if (group == nullptr) {
-            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: bind group creation failed.");
             return {};
         }
         pimpl->bind_groups.emplace(key, group);

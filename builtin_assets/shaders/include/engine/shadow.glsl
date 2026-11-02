@@ -114,7 +114,9 @@ float sampleShadowCascade(
     float shadow = 0.0;
     for (int i = 0; i < SHADOW_PCF_TAPS; ++i) {
         const vec2 offset = rotateOffset(SHADOW_POISSON_DISK[i], rotation) * radius;
-        shadow += texture(light_shadowmaps[lightIndex], vec4(uv + offset, float(cascade), projected.z));
+        // One binding covers every casting light: `MAX_SHADOW_CASTING_LIGHTS` is 1, so the
+        // light index selects nothing and the map holds that light's cascades.
+        shadow += texture(light_shadowmaps, vec4(uv + offset, float(cascade), projected.z));
     }
     return shadow / float(SHADOW_PCF_TAPS);
 }

@@ -63,11 +63,29 @@ namespace Engine {
                 auto shader_asset = shader_refs[i].as<ShaderAsset>();
                 auto code = shader_asset->binary;
                 b.reflected.Merge(Engine::Rhi::SPLayout::Reflect(code, true));
+#if defined(ENGINE_RHI_BACKEND_WEBGPU)
+                // This backend's shader language is WGSL, which the bake wrote next to the
+                // SPIR-V form. The reflection above still describes the same bindings: the
+                // bake renumbers a combined sampler's sampler slot, and this backend expands
+                // one combined binding into the two entries the shader declares.
+                if (shader_asset->wgsl.empty()) {
+                    throw std::runtime_error(
+                        "Shader asset '" + shader_asset->m_name + "' has no WGSL variant: a WebGPU "
+                        "build stages its built-in shaders in baked form."
+                    );
+                }
+                b.shader_modules.push_back(Rhi::ShaderModule::Create(
+                    system.GetDeviceInterface(),
+                    std::as_bytes(std::span{shader_asset->wgsl.data(), shader_asset->wgsl.size()}),
+                    std::format("Shader Module - {}", shader_asset->m_name)
+                ));
+#else
                 b.shader_modules.push_back(Rhi::ShaderModule::Create(
                     system.GetDeviceInterface(),
                     std::as_bytes(std::span{code.data(), code.size()}),
                     std::format("Shader Module - {}", shader_asset->m_name)
                 ));
+#endif
             }
         }
 
@@ -209,7 +227,6 @@ namespace Engine {
         }
     }
 } // namespace Engine
-
 
 
 

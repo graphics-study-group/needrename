@@ -3,6 +3,7 @@
 
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Pipeline/PipelineBuilder.h"
+#include "Rhi/Pipeline/ShaderInterfaceDescription.h"
 
 #include <cstdint>
 #include <span>
@@ -111,20 +112,22 @@ namespace Engine::Rhi {
          *
          * The overload above takes SPIR-V words, which is what a backend that reflects
          * at runtime needs. A backend that receives WGSL - or whatever form its own
-         * bake produced - has no use for the words: it needs the module and the entry
-         * point, which is what this takes.
+         * bake produced - has no use for the words: it needs the module, the entry point
+         * and the binding table the bake recorded, which is what this takes.
          *
          * A backend implements the one it can and reports the other as unsupported.
          * Neither is a stub that silently returns something.
          *
          * @param module_id Identity of the module, unique per module on this device.
          * @param module The compiled code.
+         * @param description The binding table and constant block the module declares.
          * @param entry_point The function to dispatch.
          * @param debug_name Debug name applied to the kernel and its objects.
          */
         ComputeKernel &RequestComputeKernelFromModule(
             std::string_view module_id,
             ShaderModuleHandle module,
+            const ShaderInterfaceDescription &description,
             std::string_view entry_point,
             std::string_view debug_name = {}
         );

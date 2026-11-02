@@ -11,9 +11,43 @@
 #include "Rhi/Submission/EpochTracker.h"
 
 #include <SDL3/SDL.h>
+#include <chrono>
+#include <map>
+#include <memory>
+#include <string>
+#include <thread>
+#include <limits>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 #include <webgpu/webgpu.h>
 
 namespace Engine::Rhi {
+    namespace {
+        /// @brief The process's device, queue and instance, registered by the device context.
+        WGPUDevice g_device = nullptr;
+        WGPUQueue g_queue = nullptr;
+        WGPUInstance g_instance = nullptr;
+    } // namespace
+
+    void RegisterWgpuDevice(WGPUDevice device, WGPUQueue queue, WGPUInstance instance) noexcept {
+        g_device = device;
+        g_queue = queue;
+        g_instance = instance;
+    }
+
+    WGPUDevice RegisteredWgpuDevice() noexcept {
+        return g_device;
+    }
+
+    WGPUQueue RegisteredWgpuQueue() noexcept {
+        return g_queue;
+    }
+
+    WGPUInstance RegisteredWgpuInstance() noexcept {
+        return g_instance;
+    }
+
     /**
      * @brief The seam's device on a backend with one queue and no fences.
      *
@@ -43,11 +77,20 @@ namespace Engine::Rhi {
         /// There is no fence to key a completion on. The queue's own callback is what
         /// this backend will use once submissions exist; until then nothing is pending.
         std::size_t pending_completions{0};
+        /// Compute kernels by module identity, owned here so a caller gets the same one back.
+        std::map<std::string, std::unique_ptr<ComputeKernel>> compute_kernels{};
     };
 
     DeviceContext::DeviceContext(DeviceInterface::DeviceConfiguration cfg) : pimpl(std::make_unique<impl>()) {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: creating DeviceInterface");
         pimpl->device_interface = std::make_unique<DeviceInterface>(std::move(cfg));
+        // The encoder records against the device without owning one, so the device and its
+        // queue are registered here, where the process's only device is created.
+        RegisterWgpuDevice(
+            ToWgpuDevice(pimpl->device_interface->GetDevice()),
+            wgpuDeviceGetQueue(ToWgpuDevice(pimpl->device_interface->GetDevice())),
+            ToWgpuInstance(pimpl->device_interface->GetInstance())
+        );
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: DeviceInterface ready");
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "webgpu: creating cache");
         pimpl->immutable_resource_cache =
@@ -141,18 +184,33 @@ namespace Engine::Rhi {
     }
 
     ComputeKernel &DeviceContext::RequestComputeKernelFromModule(
-        std::string_view, ShaderModuleHandle, std::string_view, std::string_view
+        std::string_view module_id,
+        ShaderModuleHandle module,
+        const ShaderInterfaceDescription &description,
+        std::string_view entry_point,
+        std::string_view debug_name
     ) {
-        SDL_LogError(
-            SDL_LOG_CATEGORY_RENDER,
-            "WebGPU: RequestComputeKernelFromModule is not implemented yet. It needs a "
-            "compute pipeline, which is the unit after the buffers and textures."
-        );
-        std::terminate();
+        const std::string key{module_id};
+        if (auto itr = pimpl->compute_kernels.find(key); itr != pimpl->compute_kernels.end()) {
+            return *itr->second;
+        }
+        // `new` rather than `make_unique`: the constructor is private, and only the friend
+        // context here can call it.
+        auto kernel = std::unique_ptr<ComputeKernel>(new ComputeKernel(*this));
+        // The description is what the bake wrote; the entry point this device was asked for
+        // wins when the two name different functions.
+        ShaderInterfaceDescription effective = description;
+        if (!entry_point.empty()) {
+            effective.entry_point = std::string{entry_point};
+        }
+        kernel->CreateFromModule(module, effective, debug_name);
+        ComputeKernel &result = *pimpl->compute_kernels.emplace(key, std::move(kernel)).first->second;
+        return result;
     }
 
-    ComputeKernel *DeviceContext::FindComputeKernel(std::string_view) noexcept {
-        return nullptr;
+    ComputeKernel *DeviceContext::FindComputeKernel(std::string_view module_id) noexcept {
+        auto itr = pimpl->compute_kernels.find(std::string{module_id});
+        return itr == pimpl->compute_kernels.end() ? nullptr : itr->second.get();
     }
 
     EpochTracker &DeviceContext::GetEpochTracker() noexcept {
@@ -237,13 +295,54 @@ namespace Engine::Rhi {
         }
     }
 
-    bool DeviceContext::WaitForFence(FenceHandle, uint64_t) {
-        SDL_LogError(
-            SDL_LOG_CATEGORY_RENDER,
-            "WebGPU: WaitForFence is not implemented. The standard interface has no "
-            "host-waitable fence; completion arrives as a callback."
-        );
-        return false;
+    bool DeviceContext::WaitForFence(FenceHandle, uint64_t timeout) {
+        // Completion arrives as a callback rather than through a fence, so waiting is: ask the
+        // queue to call back when the work handed over so far is done, then dispatch events
+        // until it does. `timeout == 0` is the poll form a caller uses to ask "can I reuse this
+        // slot yet", and it dispatches once and answers.
+        WGPUQueue queue = wgpuDeviceGetQueue(ToWgpuDevice(pimpl->device_interface->GetDevice()));
+        if (queue == nullptr) {
+            return true;
+        }
+        bool done = false;
+        WGPUQueueWorkDoneCallbackInfo info{};
+        info.mode = WGPUCallbackMode_AllowProcessEvents;
+        info.callback = [](WGPUQueueWorkDoneStatus, WGPUStringView, void *userdata1, void *) {
+            *static_cast<bool *>(userdata1) = true;
+        };
+        info.userdata1 = &done;
+        wgpuQueueOnSubmittedWorkDone(queue, info);
+
+        WGPUInstance instance = ToWgpuInstance(pimpl->device_interface->GetInstance());
+        const auto begin = std::chrono::steady_clock::now();
+        while (!done) {
+            if (instance != nullptr) {
+                wgpuInstanceProcessEvents(instance);
+            }
+            if (timeout == 0) {
+                break;
+            }
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                     std::chrono::steady_clock::now() - begin
+            )
+                                     .count();
+            if (timeout != std::numeric_limits<uint64_t>::max() && static_cast<uint64_t>(elapsed) > timeout) {
+                break;
+            }
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_RENDER,
+                "WebGPU: waiting for the queue (%lld ms so far)",
+                static_cast<long long>(elapsed / 1000000)
+            );
+#if defined(__EMSCRIPTEN__)
+            // The browser answers on the event loop the caller is occupying, so the wait has to
+            // yield to it; without this the callback can never be delivered.
+            emscripten_sleep(0);
+#else
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+#endif
+        }
+        return done;
     }
 
     void DeviceContext::SignalSemaphore(const TimelineSignal &) {
@@ -254,6 +353,5 @@ namespace Engine::Rhi {
         );
     }
 } // namespace Engine::Rhi
-
 
 

@@ -50,7 +50,10 @@ namespace Engine {
         glslang::TShader shader(shader_type);
         shader.setEnvInput(glslang::EShSourceGlsl, shader_type, glslang::EShClientVulkan, 100);
         shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-        shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
+        // SPIR-V 1.3 rather than the newest version glslang knows: the same module is the input
+        // to the SPIR-V-to-WGSL bake, and the reference converter reads up to 1.3. Nothing here
+        // uses a later feature, and a Vulkan 1.3 device accepts 1.3 modules.
+        shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
         shader.setDebugInfo(false);
         shader.setStringsWithLengths(shaderStrings, nullptr, 1);
 
@@ -123,7 +126,7 @@ namespace Engine {
         glslang::TShader shader(shader_type);
         shader.setEnvInput(glslang::EShSourceGlsl, shader_type, glslang::EShClientVulkan, 100);
         shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-        shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
+        shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
         shader.setDebugInfo(emit_debug_info);
         shader.setStringsWithLengthsAndNames(shader_codes.data(), nullptr, shader_filename.data(), 1);
 

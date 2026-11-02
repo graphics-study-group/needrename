@@ -23,6 +23,10 @@ namespace Engine::Rhi {
          * mapped, so `HostRandomAccess` and `HostSequentialAccess` add both map
          * flags and the caller creates the buffer mapped at creation.
          */
+        bool HostVisible(BufferType type) {
+            return type.Test(BufferTypeBits::HostRandomAccess) || type.Test(BufferTypeBits::HostSequentialAccess);
+        }
+
         WGPUBufferUsage ToWgpuUsage(BufferType type) {
             WGPUBufferUsage usage = WGPUBufferUsage_None;
             if (type.Test(BufferTypeBits::CopyFrom)) {
@@ -46,22 +50,39 @@ namespace Engine::Rhi {
             if (type.Test(BufferTypeBits::IndirectDrawCommand)) {
                 usage |= WGPUBufferUsage_Indirect;
             }
-            if (type.Test(BufferTypeBits::HostRandomAccess) || type.Test(BufferTypeBits::HostSequentialAccess)) {
-                // This side does not map: WebGPU allows MapWrite only with CopySrc, and a buffer
-                // that is also a uniform or storage binding cannot carry it. Writes go through
-                // QueueWriteBuffer into a CopyDst buffer instead, which is what the mapped-window
-                // contract is emulated with on this backend.
-                if (!(usage & (WGPUBufferUsage_Uniform | WGPUBufferUsage_Storage))) {
-                    // MapWrite is still legal where nothing binds the buffer in a shader.
-                    usage |= WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
-                }
-                usage |= WGPUBufferUsage_CopyDst;
+            if (!HostVisible(type)) {
+                return usage;
             }
+            // A host-visible buffer has to choose one of two shapes, because the interface
+            // allows `MapWrite` only with `CopySrc` and `MapRead` only with `CopyDst`:
+            //
+            // - a readback target is written by the device and read by the host, so it is
+            //   `MapRead | CopyDst` and is mapped when the caller first asks for its address;
+            // - anything else is written by the host, so it is `MapWrite | CopySrc` where it is
+            //   not also bound in a shader, and a plain `CopyDst` buffer written through the
+            //   queue where it is.
+            constexpr WGPUBufferUsage k_bound_in_shader = WGPUBufferUsage_Uniform | WGPUBufferUsage_Storage
+                                                         | WGPUBufferUsage_Index | WGPUBufferUsage_Vertex
+                                                         | WGPUBufferUsage_Indirect;
+            if ((usage & k_bound_in_shader) == 0) {
+                if (type.Test(BufferTypeBits::CopyTo)) {
+                    return (usage & ~WGPUBufferUsage_CopySrc) | WGPUBufferUsage_CopyDst
+                           | WGPUBufferUsage_MapRead;
+                }
+                return (usage | WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc)
+                       & ~WGPUBufferUsage_CopyDst;
+            }
+            usage |= WGPUBufferUsage_CopyDst;
             return usage;
         }
 
-        bool HostVisible(BufferType type) {
-            return type.Test(BufferTypeBits::HostRandomAccess) || type.Test(BufferTypeBits::HostSequentialAccess);
+        /// @brief Whether the buffer is created mapped, which requires a MapWrite usage.
+        bool MapsAtCreation(BufferType type) {
+            if (!HostVisible(type)) {
+                return false;
+            }
+            const WGPUBufferUsage usage = ToWgpuUsage(type);
+            return (usage & WGPUBufferUsage_MapWrite) != 0;
         }
     } // namespace
 
@@ -91,7 +112,7 @@ namespace Engine::Rhi {
         // A host-writable buffer is mapped from the moment it exists. There is no
         // synchronous map afterwards, and the mapped-window contract wants one
         // address for the buffer's whole life anyway.
-        desc.mappedAtCreation = HostVisible(type) ? WGPU_TRUE : WGPU_FALSE;
+        desc.mappedAtCreation = MapsAtCreation(type) ? WGPU_TRUE : WGPU_FALSE;
         desc.label = WGPUStringView{name.data(), name.size()};
 
         WGPUBuffer buffer = wgpuDeviceCreateBuffer(pimpl->device, &desc);

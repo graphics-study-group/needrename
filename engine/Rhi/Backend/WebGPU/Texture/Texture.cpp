@@ -52,6 +52,9 @@ namespace Engine::Rhi {
     struct Texture::impl {
         WGPUTexture texture{nullptr};
         WGPUTextureView default_view{nullptr};
+        /// The identity the default view is bound under; minted with it so a full-range binding
+        /// resolves to a ref rather than to an empty one.
+        VulkanIdentity default_view_id{};
         TextureDesc tdesc{};
         SamplerDesc sdesc{};
         SamplerRef sampler_ref{};
@@ -116,6 +119,7 @@ namespace Engine::Rhi {
         if (pimpl->default_view == nullptr) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: default texture view creation failed.");
         }
+        pimpl->default_view_id = MintVulkanIdentity();
 
         pimpl->sdesc = sampler;
         pimpl->sampler_ref = device_context.GetIRCache().GetSamplerRef(sampler);
@@ -212,6 +216,14 @@ namespace Engine::Rhi {
     }
 
     ViewRef Texture::GetViewRef(const TextureSubresourceRange &tsr) const {
+        if (tsr.array_layer_base == 0 && tsr.array_layer_size == ALL && tsr.mip_level_base == 0
+            && tsr.mip_level_size == ALL) {
+            // The whole texture is the default view, which has its own identity: the common
+            // binding path asks for exactly this range, so it must not fall through to the
+            // per-range cache, which never holds the default view.
+            return ViewRef{FromWgpuTextureView(pimpl->default_view), pimpl->default_view_id};
+        }
+
         RenderResourceHasher h;
         h.u32(tsr.array_layer_base);
         h.u32(tsr.array_layer_size);

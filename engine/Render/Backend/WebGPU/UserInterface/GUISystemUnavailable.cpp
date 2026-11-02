@@ -40,6 +40,10 @@ namespace Engine {
     void GUISystem::DrawGUI(Rhi::CommandEncoder &) const noexcept {
     }
 
+    void GUISystem::DrawGUI(const AttachmentUtils::AttachmentDescription &, Rhi::Extent2D, CommandBuffer &) const {
+        // No UI backend, so nothing to record into the frame.
+    }
+
 void GUISystem::Create(SDL_Window *) {
         // No UI to create. An editor needs ImGui to draw its panels; an example does not,
         // and refusing here would stop the engine before it ever draws a frame.

@@ -44,6 +44,61 @@ add_compile_definitions($<$<BOOL:${ENGINE_RHI_BACKEND_VULKAN}>:ENGINE_RHI_BACKEN
 add_compile_definitions($<$<BOOL:${ENGINE_RHI_BACKEND_WEBGPU}>:ENGINE_RHI_BACKEND_WEBGPU=1>)
 message(STATUS "RHI backend: ${ENGINE_RHI_BACKEND}")
 
+# SPIR-V reflection is a runtime concern of the Vulkan backend and a build-time concern of
+# the WebGPU one: the WGSL bake reads the module's binding table and constant block through
+# the same reflection code, and the host tool that runs it links EngineRhi. So a desktop
+# WebGPU build - which builds the tools - compiles the reflection unit, and the browser
+# build, which builds no tools, does not. This is why the unit lives in the shared layer
+# even though only one backend reflects at runtime.
+set(ENGINE_RHI_BAKE_REFLECTION OFF)
+if (ENGINE_RHI_BACKEND_WEBGPU AND ENGINE_BUILD_TOOLS AND NOT EMSCRIPTEN)
+    set(ENGINE_RHI_BAKE_REFLECTION ON)
+endif()
+message(STATUS "RHI bake-time reflection: ${ENGINE_RHI_BAKE_REFLECTION}")
+
+# The SPIR-V to WGSL converter is a host tool the build invokes; it is never linked. Its path
+# is a cache variable so a machine can point at its own Tint or naga, and it is discovered
+# rather than assumed to be on PATH: a bare `tint` that is not found turns every module into a
+# failure that reads like a converter limitation.
+set(SHADER_WGSL_CONVERTER "" CACHE FILEPATH "SPIR-V to WGSL converter (tint or naga)")
+if (NOT SHADER_WGSL_CONVERTER)
+    find_program(SHADER_WGSL_CONVERTER_DISCOVERED NAMES tint tint.exe
+        HINTS "$ENV{TINT}" "$ENV{DAWN_ROOT}" PATH_SUFFIXES bin)
+    if (SHADER_WGSL_CONVERTER_DISCOVERED)
+        set(SHADER_WGSL_CONVERTER "${SHADER_WGSL_CONVERTER_DISCOVERED}" CACHE FILEPATH
+            "SPIR-V to WGSL converter (tint or naga)" FORCE)
+    endif()
+endif()
+if (SHADER_WGSL_CONVERTER)
+    message(STATUS "WGSL converter: ${SHADER_WGSL_CONVERTER}")
+else()
+    message(WARNING
+        "No SPIR-V to WGSL converter was found: set SHADER_WGSL_CONVERTER to tint's path, or the "
+        "WGSL bake will fail.")
+endif()
+
+# A cross build cannot run a baker it built for the target, and a build without a runtime GLSL
+# compiler cannot build one at all, so both name a host baker built by a native Vulkan configure
+# of the same tree.
+set(ENGINE_HOST_SHADER_BAKER "" CACHE FILEPATH "Host shader_baker executable for a cross build")
+if (NOT ENGINE_HOST_SHADER_BAKER AND NOT TARGET shader_baker)
+    if (NOT ENGINE_RHI_BACKEND_VULKAN)
+        foreach(_candidate
+            "${CMAKE_SOURCE_DIR}/build/msvc/bin/Debug/shader_baker.exe"
+            "${CMAKE_SOURCE_DIR}/build/msvc/bin/Release/shader_baker.exe"
+            "${CMAKE_SOURCE_DIR}/build/msvc/bin/shader_baker")
+            if (EXISTS "${_candidate}")
+                set(ENGINE_HOST_SHADER_BAKER "${_candidate}" CACHE FILEPATH
+                    "Host shader_baker executable for a cross build" FORCE)
+                break()
+            endif()
+        endforeach()
+    endif()
+endif()
+if (ENGINE_HOST_SHADER_BAKER)
+    message(STATUS "Host shader_baker: ${ENGINE_HOST_SHADER_BAKER}")
+endif()
+
 # Built-in shader storage form:
 #   auto - glsl for Debug builds, spv for every other configuration
 #   glsl - ship the GLSL sources plus the shader include tree, compiled at runtime
@@ -180,7 +235,13 @@ add_subdirectory(engine)
 # Resolve the effective built-in shader form for the configuration being built.
 # Baking needs the shader_baker helper, so disabling the tools falls back to GLSL.
 if (ENGINE_SHADER_MODE STREQUAL "auto")
-    set(ENGINE_SHADER_EFFECTIVE_MODE "$<IF:$<CONFIG:Debug>,glsl,spv>")
+    # A WebGPU build has no runtime GLSL compiler at all, so its built-in shaders are baked
+    # whatever the configuration is. The Vulkan back-end keeps the Debug-compiles-GLSL split.
+    if (ENGINE_RHI_BACKEND_WEBGPU)
+        set(ENGINE_SHADER_EFFECTIVE_MODE "spv")
+    else()
+        set(ENGINE_SHADER_EFFECTIVE_MODE "$<IF:$<CONFIG:Debug>,glsl,spv>")
+    endif()
 else()
     set(ENGINE_SHADER_EFFECTIVE_MODE "${ENGINE_SHADER_MODE}")
 endif()
@@ -205,27 +266,40 @@ if (ENGINE_BUILD_TOOLS OR ENGINE_BUILD_WEBGPU_SPIKE)
     add_subdirectory(tools)
 endif()
 
+# The baker is a host tool: a build that has one builds it, and a build that cannot (a cross
+# build, or a backend with no GLSL compiler) names the one a Vulkan configure produced.
+if (TARGET shader_baker)
+    set(ENGINE_SHADER_BAKER_EXECUTABLE "$<TARGET_FILE:shader_baker>")
+    set(ENGINE_SHADER_BAKER_DEPENDENCY shader_baker)
+elseif (ENGINE_HOST_SHADER_BAKER AND EXISTS "${ENGINE_HOST_SHADER_BAKER}")
+    set(ENGINE_SHADER_BAKER_EXECUTABLE "${ENGINE_HOST_SHADER_BAKER}")
+    set(ENGINE_SHADER_BAKER_DEPENDENCY)
+else()
+    set(ENGINE_SHADER_BAKER_EXECUTABLE)
+    set(ENGINE_SHADER_BAKER_DEPENDENCY)
+endif()
+
 # --- Physics shader WGSL side artifacts ------------------------------------
 # The WebGPU backend loads a WGSL variant plus a baked interface description
 # instead of reflecting SPIR-V at runtime, so a WebGPU build bakes them next to
 # the SPIR-V tree. This lives at the top level because it needs both the physics
 # shader target (defined under engine/) and the baker (defined under tools/).
-# A cross build cannot run a baker it just built for the target, so the bake is
-# skipped under Emscripten: the artifacts then come from a native configure of
-# the same tree.
-if (ENGINE_RHI_BACKEND_WEBGPU AND NOT EMSCRIPTEN AND TARGET shader_baker AND TARGET physics_shader)
+if (ENGINE_RHI_BACKEND_WEBGPU AND NOT EMSCRIPTEN AND ENGINE_SHADER_BAKER_EXECUTABLE AND TARGET physics_shader)
     set(PHYSICS_SPIRV_DIR "${CMAKE_BINARY_DIR}/engine/Physics/spirv/$<IF:$<CONFIG:Debug>,debug,release>")
-    # The converter is a host tool; its path is a cache variable so a machine can
-    # point at its own Tint or naga without touching the build files.
-    set(SHADER_WGSL_CONVERTER "" CACHE FILEPATH "SPIR-V to WGSL converter (tint or naga)")
     set(PHYSICS_WGSL_STAMP "${PHYSICS_SPIRV_DIR}/.wgsl_stamp")
-    set(PHYSICS_WGSL_CONVERTER_ARGUMENT)
+    set(PHYSICS_WGSL_CONVERTER_ARGUMENTS)
+    if (SHADER_WGSL_CONVERTER)
+        # Two arguments, not one string: `add_custom_command` re-parses a single
+        # argument's contents, and a generator expression that joins them with a
+        # semicolon arrives at the tool as `--converter;C:/...`.
+        list(APPEND PHYSICS_WGSL_CONVERTER_ARGUMENTS --converter "${SHADER_WGSL_CONVERTER}")
+    endif()
     add_custom_command(
         OUTPUT "${PHYSICS_WGSL_STAMP}"
-        COMMAND "$<TARGET_FILE:shader_baker>" --spirv-dir "${PHYSICS_SPIRV_DIR}"
-                $<$<BOOL:${SHADER_WGSL_CONVERTER}>:--converter$<SEMICOLON>${SHADER_WGSL_CONVERTER}>
+        COMMAND "${ENGINE_SHADER_BAKER_EXECUTABLE}" --spirv-dir "${PHYSICS_SPIRV_DIR}"
+                ${PHYSICS_WGSL_CONVERTER_ARGUMENTS}
         COMMAND ${CMAKE_COMMAND} -E touch "${PHYSICS_WGSL_STAMP}"
-        DEPENDS physics_shader shader_baker
+        DEPENDS physics_shader ${ENGINE_SHADER_BAKER_DEPENDENCY}
         COMMENT "Baking WGSL variants for the physics shaders"
         VERBATIM
     )
@@ -243,12 +317,16 @@ file(GLOB_RECURSE ENGINE_BUILTIN_ASSET_FILES
 )
 list(FILTER ENGINE_BUILTIN_ASSET_FILES EXCLUDE REGEX "\\.spv$")
 
-if (TARGET shader_baker)
-    set(ENGINE_SHADER_BAKER_ARGUMENT "-DSHADER_BAKER=$<TARGET_FILE:shader_baker>")
-    set(ENGINE_SHADER_BAKER_DEPENDENCY shader_baker)
+if (ENGINE_SHADER_BAKER_EXECUTABLE)
+    set(ENGINE_SHADER_BAKER_ARGUMENT "-DSHADER_BAKER=${ENGINE_SHADER_BAKER_EXECUTABLE}")
 else()
     set(ENGINE_SHADER_BAKER_ARGUMENT)
-    set(ENGINE_SHADER_BAKER_DEPENDENCY)
+endif()
+# The WGSL variant is what the WebGPU runtime loads, so a WebGPU build bakes it alongside the
+# SPIR-V form. It costs a converter invocation per shader, which a Vulkan build has no use for.
+set(ENGINE_SHADER_BAKE_WGSL OFF)
+if (ENGINE_RHI_BACKEND_WEBGPU)
+    set(ENGINE_SHADER_BAKE_WGSL ON)
 endif()
 
 set(ENGINE_STAGED_BUILTIN_ASSETS_STAMP "${ENGINE_DATA_STAGE_DIR}/builtin_assets/.staged")
@@ -259,6 +337,8 @@ add_custom_command(
         "-DSOURCE_BUILTIN_ASSETS=${BUILTIN_ASSETS_DIR}"
         "-DSHADER_MODE=${ENGINE_SHADER_EFFECTIVE_MODE}"
         "${ENGINE_SHADER_BAKER_ARGUMENT}"
+        "-DBAKE_WGSL=${ENGINE_SHADER_BAKE_WGSL}"
+        "-DWGSL_CONVERTER=${SHADER_WGSL_CONVERTER}"
         "-DDEBUG_INFO=$<IF:$<CONFIG:Debug>,ON,OFF>"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/stage_builtin_assets.cmake"
     DEPENDS

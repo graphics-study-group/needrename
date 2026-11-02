@@ -3,7 +3,12 @@ anro_add_test(physics_registration_test WINDOWED TIMEOUT 300 FOLDER tests/engine
 anro_add_test(complex_mesh_test WINDOWED FRAMES 120 LINK "Engine;stb" TIMEOUT 300 FOLDER tests/engine/windowed)
 anro_add_test(shadow_map_test WINDOWED FRAMES 300 TIMEOUT 300 FOLDER tests/engine/windowed)
 anro_add_test(skybox_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)
-anro_add_test(imgui_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)
+# The ImGui WebGPU back-end (task 10.4) does not build against wgpu-native 29, so the UI
+# test is the Vulkan backend's until that port lands. The windowed tests above and below
+# it are backend-neutral and run on either.
+if (ENGINE_RHI_BACKEND_VULKAN)
+    anro_add_test(imgui_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)
+endif()
 anro_add_test(new_material_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)
 anro_add_test(input_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)
 anro_add_test(compute_shader_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)

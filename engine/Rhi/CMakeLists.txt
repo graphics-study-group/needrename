@@ -11,6 +11,17 @@ foreach(_src IN LISTS RHI_ALL_SOURCES)
     if (ENGINE_RHI_BACKEND_WEBGPU AND _src MATCHES "/Backend/Vulkan/")
         continue()
     endif()
+    # SPLayout's two implementations are the one place where what this build contains,
+    # rather than which backend it targets, decides: the reflection unit is needed by a
+    # backend that reflects at runtime and by a build that contains the shader baker, and
+    # the stub is what is left. See ENGINE_RHI_BAKE_REFLECTION in the top-level file.
+    if (_src MATCHES "Pipeline/SpirvShaderParameterLayout\\.cpp" AND NOT ENGINE_RHI_BAKE_REFLECTION
+        AND NOT ENGINE_RHI_BACKEND_VULKAN)
+        continue()
+    endif()
+    if (_src MATCHES "ShaderParameterLayoutUnavailable\\.cpp" AND ENGINE_RHI_BAKE_REFLECTION)
+        continue()
+    endif()
     list(APPEND SOURCE "${_src}")
 endforeach()
 foreach(_hdr IN LISTS RHI_ALL_HEADERS)
@@ -47,9 +58,14 @@ if (ENGINE_RHI_BACKEND_VULKAN)
     endif()
 else()
     # The WebGPU backend reaches the standard WebGPU C interface only. It has no
-    # Vulkan SDK, VMA, glslang or SPIRV-Cross dependency, and reflects nothing at
-    # runtime: the shader interface description is baked alongside the WGSL.
+    # Vulkan SDK, VMA or glslang dependency, and reflects nothing at runtime: the
+    # shader interface description is baked alongside the WGSL. A desktop build that
+    # contains the baker compiles the reflection unit for the baker's sake, and that
+    # is the one case where SPIRV-Cross is linked here.
     target_link_libraries(EngineRhi PUBLIC EngineDepWebgpu)
+    if (ENGINE_RHI_BAKE_REFLECTION)
+        target_link_libraries(EngineRhi PRIVATE spirv-cross-cpp)
+    endif()
 endif()
 target_compile_definitions(EngineRhi PRIVATE RHI_DLL_EXPORTS)
 

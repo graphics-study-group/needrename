@@ -256,7 +256,11 @@ namespace Engine::Rhi {
         const RasterizationState &raster = description.pipeline.rasterization;
         WGPUPrimitiveState primitive{};
         primitive.topology = WGPUPrimitiveTopology_TriangleList;
-        primitive.frontFace = raster.front_face == FrontFace::Clockwise ? WGPUFrontFace_CW : WGPUFrontFace_CCW;
+        // The seam states the winding in Vulkan's clip space, whose Y axis points down; this
+        // interface's points up. The same triangle therefore winds the other way here, so the
+        // front face is the opposite one - without this every front-facing triangle is culled,
+        // which draws nothing rather than drawing wrongly.
+        primitive.frontFace = raster.front_face == FrontFace::Clockwise ? WGPUFrontFace_CCW : WGPUFrontFace_CW;
         switch (raster.cull) {
         case CullingMode::Front:
             primitive.cullMode = WGPUCullMode_Front;

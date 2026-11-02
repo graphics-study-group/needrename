@@ -24,10 +24,13 @@ layout(std140, set = 2, binding = 0) uniform Material {
     vec4 emissiveFactor;
     vec4 albedoFactor;
 } material;
+// One binding per texture, with the next slot left free for its sampler: a runtime whose
+// shader language has no combined image sampler declares the sampler there (see
+// `Rhi::SplitSamplerBinding`), so two adjacent textures would otherwise claim the same slot.
 layout (set=2, binding=1) uniform sampler2D albedoSampler;
-layout (set=2, binding=2) uniform sampler2D MRAOSampler;
-layout (set=2, binding=3) uniform sampler2D normalSampler;
-layout (set=2, binding=4) uniform sampler2D emissiveSampler;
+layout (set=2, binding=3) uniform sampler2D MRAOSampler;
+layout (set=2, binding=5) uniform sampler2D normalSampler;
+layout (set=2, binding=7) uniform sampler2D emissiveSampler;
 
 vec3 sampleWorldNormal()
 {

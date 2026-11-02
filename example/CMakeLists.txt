@@ -16,7 +16,10 @@ subdirlist(subdirs ${CMAKE_CURRENT_SOURCE_DIR})
 #     add_subdirectory(${dir})
 # endforeach()
 add_subdirectory(external_resource_loading_example)
-add_subdirectory(editor_run_game_example)
+# The editor example hosts the editor, so it needs the apps to be built.
+if (ENGINE_BUILD_APPS)
+    add_subdirectory(editor_run_game_example)
+endif()
 # An example that presents through WebGPU directly: it exists to answer whether a surface can be
 # acquired and presented at all, on either a canvas or a window, so it is built only where the
 # WebGPU backend is the one selected.

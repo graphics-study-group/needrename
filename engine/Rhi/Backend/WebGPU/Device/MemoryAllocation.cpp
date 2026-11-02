@@ -37,6 +37,8 @@ namespace Engine::Rhi {
         /// writes through is this, and FlushMemory copies it to the device.
         std::vector<std::byte> shadow{};
         WGPUQueue queue{nullptr};
+        /// Whether the buffer is a readback target, mapped on demand rather than at creation.
+        bool readable{false};
     };
 
     BufferAllocation::BufferAllocation(
@@ -54,12 +56,30 @@ namespace Engine::Rhi {
         const bool host_visible = type.Test(BufferTypeBits::HostRandomAccess)
                                   || type.Test(BufferTypeBits::HostSequentialAccess);
         if (pimpl->buffer != nullptr && host_visible) {
-            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, WGPU_WHOLE_MAP_SIZE);
-            if (pimpl->mapped == nullptr) {
-                // Not created mapped: the buffer is bound in a shader, so the write goes into a
-                // host copy and reaches the device on flush.
+            // The three shapes an allocation can have, mirroring the usage flags the allocator
+            // built: a readback target is mapped on demand, a host-written buffer that nothing
+            // binds in a shader is mapped at creation, and a host-written buffer that is bound
+            // in a shader gets a host copy published on flush.
+            const bool readback = type.Test(BufferTypeBits::CopyTo) && !type.Test(BufferTypeBits::ShaderReadOnly)
+                                  && !type.Test(BufferTypeBits::ShaderWrite)
+                                  && !type.Test(BufferTypeBits::Index)
+                                  && !type.Test(BufferTypeBits::Vertex)
+                                  && !type.Test(BufferTypeBits::IndirectDrawCommand);
+            const bool bound_in_shader = type.Test(BufferTypeBits::ShaderReadOnly)
+                                         || type.Test(BufferTypeBits::ShaderWrite) || type.Test(BufferTypeBits::Index)
+                                         || type.Test(BufferTypeBits::Vertex)
+                                         || type.Test(BufferTypeBits::IndirectDrawCommand);
+            if (readback) {
+                pimpl->readable = true;
+            } else if (bound_in_shader) {
                 pimpl->shadow.resize(static_cast<size_t>(wgpuBufferGetSize(pimpl->buffer)));
                 pimpl->queue = wgpuDeviceGetQueue(static_cast<WGPUDevice>(allocator));
+            } else {
+                pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, WGPU_WHOLE_MAP_SIZE);
+                if (pimpl->mapped == nullptr) {
+                    pimpl->shadow.resize(static_cast<size_t>(wgpuBufferGetSize(pimpl->buffer)));
+                    pimpl->queue = wgpuDeviceGetQueue(static_cast<WGPUDevice>(allocator));
+                }
             }
         }
     }
@@ -101,18 +121,52 @@ namespace Engine::Rhi {
     }
 
     std::byte *BufferAllocation::GetVMAddress() {
-        if (pimpl->mapped == nullptr) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_RENDER,
-                "WebGPU: GetVMAddress on a buffer that was not created mapped. The mapped-window "
-                "contract requires WGPUBufferDescriptor::mappedAtCreation."
-            );
-            return nullptr;
+        if (pimpl->mapped != nullptr) {
+            return static_cast<std::byte *>(pimpl->mapped);
         }
-        if (pimpl->mapped == nullptr && !pimpl->shadow.empty()) {
+        if (!pimpl->shadow.empty()) {
+            // The buffer is bound in a shader, so the address is a host copy that
+            // `FlushMemory` publishes. That is the mapped window on this backend.
             return pimpl->shadow.data();
         }
-        return static_cast<std::byte *>(pimpl->mapped);
+        if (pimpl->readable) {
+            // A readback target: map now, which dispatches the device's events until the map
+            // completes. The caller reaches this after the copy by way of the completion
+            // callback, so the wait is short.
+            bool done = false;
+            bool mapped_ok = false;
+            std::pair<bool *, bool *> state{&done, &mapped_ok};
+            WGPUBufferMapCallbackInfo info{};
+            info.mode = WGPUCallbackMode_AllowProcessEvents;
+            info.callback = [](WGPUMapAsyncStatus status, WGPUStringView, void *userdata1, void *) {
+                auto *result = static_cast<std::pair<bool *, bool *> *>(userdata1);
+                *result->first = true;
+                *result->second = status == WGPUMapAsyncStatus_Success;
+            };
+            info.userdata1 = &state;
+            wgpuBufferMapAsync(pimpl->buffer, WGPUMapMode_Read, 0, WGPU_WHOLE_MAP_SIZE, info);
+
+            const WGPUInstance instance = RegisteredWgpuInstance();
+            while (!done) {
+                if (instance != nullptr) {
+                    wgpuInstanceProcessEvents(instance);
+                }
+#if defined(__EMSCRIPTEN__)
+                emscripten_sleep(0);
+#endif
+            }
+            if (!mapped_ok) {
+                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: mapping a readback buffer failed.");
+                return nullptr;
+            }
+            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, WGPU_WHOLE_MAP_SIZE);
+            return static_cast<std::byte *>(pimpl->mapped);
+        }
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "WebGPU: GetVMAddress on a buffer that has no host mapping."
+        );
+        return nullptr;
     }
 
     void BufferAllocation::FlushMemory(size_t, size_t) const {

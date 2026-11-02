@@ -35,9 +35,15 @@ layout(std140, set = 0, binding = 0) uniform PerSceneUniform {
     LightAttributeStruct casting_lights;
     NonCastingLightAttributeStruct noncasting_lights;
 } scene;
-layout(set = 0, binding = 1) uniform sampler2DArrayShadow light_shadowmaps[MAX_SHADOW_CASTING_LIGHTS];
+// One shadow map per casting light, each an array of cascades. A single binding rather than
+// an array of them: a backend whose shader language has no combined image sampler cannot
+// express an array of handles, and MAX_SHADOW_CASTING_LIGHTS is 1.
+//
+// Binding 1 is the texture and binding 2 is its sampler: a runtime that splits the pair
+// declares them as two bindings, and the split slot is the one after the texture.
+layout(set = 0, binding = 1) uniform sampler2DArrayShadow light_shadowmaps;
 
-layout(set = 0, binding = 2) readonly buffer ModelMatrices {
+layout(set = 0, binding = 3) readonly buffer ModelMatrices {
     mat4 m[];
 } model_matrices;
 

@@ -42,6 +42,23 @@ namespace Engine {
         std::vector<uint32_t> binary{};
         std::string glsl_code{};
 
+        /**
+         * @brief The shader in WGSL, when the bake produced one.
+         *
+         * A backend whose shader language is not SPIR-V consumes this instead of `binary`.
+         * Both forms are baked into the same archive, so one asset set serves both backends:
+         * a Vulkan build reads `binary`, a WebGPU build reads `wgsl`.
+         */
+        std::string wgsl{};
+
+        /**
+         * @brief The binding table the baked WGSL declares, as JSON text.
+         *
+         * Written by the bake next to the WGSL. A runtime that cannot reflect a module reads
+         * it instead; see `Rhi::ShaderInterfaceDescription`.
+         */
+        std::string interface_description{};
+
         virtual void save_asset_to_archive(AnnoRefl::Archive &archive) const override;
         virtual void load_asset_from_archive(AnnoRefl::Archive &archive) override;
 

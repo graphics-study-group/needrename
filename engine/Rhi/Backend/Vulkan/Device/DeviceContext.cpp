@@ -135,7 +135,7 @@ namespace Engine::Rhi {
     }
 
     ComputeKernel &DeviceContext::RequestComputeKernelFromModule(
-        std::string_view, ShaderModuleHandle, std::string_view, std::string_view
+        std::string_view, ShaderModuleHandle, const ShaderInterfaceDescription &, std::string_view, std::string_view
     ) {
         // This backend reflects from SPIR-V words; a caller that already has a module
         // has skipped the step this backend needs. Reported rather than approximated.

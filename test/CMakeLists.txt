@@ -59,4 +59,7 @@ endfunction()
 
 add_subdirectory(unit)
 add_subdirectory(engine)
-add_subdirectory(app)
+# The app tests drive PhysicsApp, which is built only when the apps are.
+if (ENGINE_BUILD_APPS)
+    add_subdirectory(app)
+endif()

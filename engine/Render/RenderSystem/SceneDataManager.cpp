@@ -150,12 +150,18 @@ namespace Engine::RenderSystemState {
                     descriptor_bindings = Rhi::DescriptorSetLayout{
                         Rhi::DescriptorBinding{0, Rhi::DescriptorType::UniformBuffer, 1},
                         Rhi::DescriptorBinding{
-                            1,
-                            Rhi::DescriptorType::CombinedImageSampler,
-                            MAX_SHADOW_CASTING_LIGHTS,
-                            immutable_samplers[0]
+                            .binding = 1,
+                            .type = Rhi::DescriptorType::CombinedImageSampler,
+                            .count = MAX_SHADOW_CASTING_LIGHTS,
+                            .immutable_sampler = immutable_samplers[0],
+                            // A shadow map is a depth array: a backend that states the binding
+                            // kind has to say so, or the shader's depth-comparison sampler is
+                            // bound against a colour texture declaration.
+                            .sample_type = Rhi::TextureSampleType::Depth,
+                            .view_dimension = Rhi::TextureViewDimension::D2Array
                         },
-                        Rhi::DescriptorBinding{2, Rhi::DescriptorType::StorageBuffer, 1}
+                        // 2 is the sampler the split rule gives binding 1, so the buffer follows.
+                        Rhi::DescriptorBinding{3, Rhi::DescriptorType::StorageBuffer, 1}
                     };
                 }
                 scene_descriptor_set_layout = arena.ResolveLayout(descriptor_bindings, "Scene Descriptor Set Layout");
@@ -292,7 +298,7 @@ namespace Engine::RenderSystemState {
                             .image_view = default_light_map->GetViewRef({})
                         },
                         Rhi::ResolvedBinding{
-                            .binding = 2,
+                            .binding = 3,
                             .type = Rhi::DescriptorType::StorageBuffer,
                             .buffer = model_matrices_buffer->GetBufferRef(),
                             .offset = 0,
@@ -305,12 +311,12 @@ namespace Engine::RenderSystemState {
                 }
 #endif
 
-                // Write model matrices buffer descriptor (binding 2)
+                // Write model matrices buffer descriptor (binding 3)
                 {
                     std::vector<Rhi::WriteDescriptorSet> mm_writes(scene_descriptor_sets.size());
                     for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
                         mm_writes[i].set = scene_descriptor_sets[i];
-                        mm_writes[i].binding = 2;
+                        mm_writes[i].binding = 3;
                         mm_writes[i].type = Rhi::DescriptorType::StorageBuffer;
                         mm_writes[i].buffer = model_matrices_buffer->GetBuffer();
                         mm_writes[i].offset = 0;
@@ -542,7 +548,7 @@ namespace Engine::RenderSystemState {
             const auto &current_buffer = *pimpl->scene.model_matrices_buffer;
             Rhi::WriteDescriptorSet write{};
             write.set = pimpl->scene.scene_descriptor_sets[frame_in_flight];
-            write.binding = 2;
+            write.binding = 3;
             write.type = Rhi::DescriptorType::StorageBuffer;
             write.buffer = current_buffer.GetBuffer();
             write.offset = 0;
@@ -579,7 +585,7 @@ namespace Engine::RenderSystemState {
         {
             const auto &current_buffer = *pimpl->scene.model_matrices_buffer;
             bindings.push_back(Rhi::ResolvedBinding{
-                .binding = 2,
+                .binding = 3,
                 .type = Rhi::DescriptorType::StorageBuffer,
                 .buffer = current_buffer.GetBufferRef(),
                 .offset = 0,

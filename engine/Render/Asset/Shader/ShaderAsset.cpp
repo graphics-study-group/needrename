@@ -28,7 +28,39 @@ namespace Engine {
             throw std::runtime_error("Unknown shader store type");
         }
 
+        // The form a non-SPIR-V backend consumes travels in the same archive, so saving a
+        // shader that has one keeps it.
+        if (!wgsl.empty()) {
+            size_t wgsl_extra_data_id = archive.create_new_extra_data_buffer(".wgsl");
+            json["wgsl_extra_data_id"] = wgsl_extra_data_id;
+            auto &data = archive.m_context->extra_data[wgsl_extra_data_id];
+            data.assign(reinterpret_cast<const std::byte *>(wgsl.data()),
+                        reinterpret_cast<const std::byte *>(wgsl.data()) + wgsl.size());
+        }
+        if (!interface_description.empty()) {
+            size_t description_extra_data_id = archive.create_new_extra_data_buffer(".iface.json");
+            json["iface_extra_data_id"] = description_extra_data_id;
+            auto &data = archive.m_context->extra_data[description_extra_data_id];
+            data.assign(
+                reinterpret_cast<const std::byte *>(interface_description.data()),
+                reinterpret_cast<const std::byte *>(interface_description.data()) + interface_description.size()
+            );
+        }
+
         Asset::save_asset_to_archive(archive);
+    }
+
+    /// @brief Load one extra-data buffer as text, when the archive names it.
+    static std::string ReadExtraDataText(AnnoRefl::Archive &archive, const nlohmann::json &json, const char *key) {
+        if (!json.contains(key)) {
+            return {};
+        }
+        const size_t id = json[key].get<size_t>();
+        if (id >= archive.m_context->extra_data.size()) {
+            return {};
+        }
+        const auto &data = archive.m_context->extra_data[id];
+        return std::string(reinterpret_cast<const char *>(data.data()), data.size());
     }
 
     void ShaderAsset::load_asset_from_archive(AnnoRefl::Archive &archive) {
@@ -48,6 +80,9 @@ namespace Engine {
         } else {
             throw std::runtime_error("Unknown shader store type");
         }
+
+        wgsl = ReadExtraDataText(archive, json, "wgsl_extra_data_id");
+        interface_description = ReadExtraDataText(archive, json, "iface_extra_data_id");
     }
 
     void ShaderAsset::LoadFromFile(

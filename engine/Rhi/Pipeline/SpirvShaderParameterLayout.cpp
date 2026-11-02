@@ -6,10 +6,9 @@
 // CMake is messing with the SPIRV-Cross in Vulkan SDK
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
-#include "../../third_party/SPIRV-Cross/spirv_cross.hpp"
+#include "../../../third_party/SPIRV-Cross/spirv_cross.hpp"
 #pragma GCC diagnostic pop
 #include <SDL3/SDL.h>
-#include <vulkan/vulkan.hpp>
 
 #include <algorithm>
 #include <string>
@@ -46,52 +45,64 @@ namespace {
         // For every member
         for (unsigned i = 0; i < member_count; i++) {
             auto &member_type = compiler.get_type(type.member_types[i]);
-            assert(
-                (member_type.basetype == spirv_cross::SPIRType::Float
-                 || member_type.basetype == spirv_cross::SPIRType::Int
-                 || member_type.basetype == spirv_cross::SPIRType::UInt)
-                && "Unsupported member type."
-            );
-
-            // Get member offset within this struct.
-            const size_t offset = compiler.type_struct_member_offset(type, i);
             const auto &name = compiler.get_member_name(type.self, i);
+            const size_t offset = compiler.type_struct_member_offset(type, i);
 
-            // Simple array
-            if (!member_type.array.empty()) {
-                assert(!"Support for array variables is unimplemented.");
+            // A member the placer cannot describe is reported and left out rather than
+            // asserting: a block reached through the reflection of a whole module can hold
+            // members the engine never writes (nested structs and arrays in the scene block,
+            // for instance), and refusing to reflect the module at all would make the bake of
+            // a shader depend on which other shaders happen to share its include tree.
+            if (member_type.basetype == spirv_cross::SPIRType::Struct
+                || !member_type.array.empty()) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "SPLayout: member '%s' of the block '%s' is a %s, which the CPU-side placer does "
+                    "not describe; a caller writing it gets nothing placed.",
+                    name.c_str(),
+                    root.name.c_str(),
+                    member_type.basetype == spirv_cross::SPIRType::Struct ? "nested structure" : "array"
+                );
+                continue;
+            }
+            if (member_type.basetype != spirv_cross::SPIRType::Float
+                && member_type.basetype != spirv_cross::SPIRType::Int
+                && member_type.basetype != spirv_cross::SPIRType::UInt) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "SPLayout: member '%s' of the block '%s' has a base type the placer does not "
+                    "handle; it is left out.",
+                    name.c_str(),
+                    root.name.c_str()
+                );
+                continue;
+            }
+
+            if (member_type.columns > 1) {
+                // This is a matrix
+                assert(member_type.vecsize == 4 && member_type.columns == 4);
+                has_non_scalar_member = true;
+                placer->AddVariable<float[16]>(root.name + "::" + name, offset);
+            } else if (member_type.vecsize > 1) {
+                // This is a vector
+                assert(member_type.vecsize == 4);
+                has_non_scalar_member = true;
+                placer->AddVariable<float[4]>(root.name + "::" + name, offset);
             } else {
+                // This is a scalar
                 const auto qualified_name = root.name + "::" + name;
-                if (member_type.basetype == spirv_cross::SPIRType::Struct) {
-                    // Recursive structure...
-                    assert(!"Recursive struct not supported.");
-                } else if (member_type.columns > 1) {
-                    // This is a matrix
-                    assert(member_type.vecsize == 4 && member_type.columns == 4);
-                    assert(member_type.basetype == spirv_cross::SPIRType::Float);
-                    has_non_scalar_member = true;
-                    placer->AddVariable<float[16]>(qualified_name, offset);
-                } else if (member_type.vecsize > 1) {
-                    // This is a vector
-                    assert(member_type.vecsize == 4);
-                    assert(member_type.basetype == spirv_cross::SPIRType::Float);
-                    has_non_scalar_member = true;
-                    placer->AddVariable<float[4]>(qualified_name, offset);
-                } else {
-                    // This is a scalar
-                    switch (member_type.basetype) {
-                    case spirv_cross::SPIRType::Float:
-                        placer->AddVariable<float>(qualified_name, offset);
-                        break;
-                    case spirv_cross::SPIRType::Int:
-                        placer->AddVariable<int32_t>(qualified_name, offset);
-                        break;
-                    case spirv_cross::SPIRType::UInt:
-                        placer->AddVariable<uint32_t>(qualified_name, offset);
-                        break;
-                    default:
-                        assert(!"Unimplemented type.");
-                    }
+                switch (member_type.basetype) {
+                case spirv_cross::SPIRType::Float:
+                    placer->AddVariable<float>(qualified_name, offset);
+                    break;
+                case spirv_cross::SPIRType::Int:
+                    placer->AddVariable<int32_t>(qualified_name, offset);
+                    break;
+                case spirv_cross::SPIRType::UInt:
+                    placer->AddVariable<uint32_t>(qualified_name, offset);
+                    break;
+                default:
+                    assert(!"Unimplemented type.");
                 }
             }
         }
@@ -121,6 +132,10 @@ namespace {
         using enum Engine::Rhi::SPInterfaceOpaqueImage::ImageFlagBits;
         if (type.image.arrayed) image.flags.Set(Arrayed);
         if (type.image.ms) image.flags.Set(Multisampled);
+        // A depth image is declared with a comparison sampler in the shader. A backend that
+        // states the binding kind has to distinguish it from colour data, so the reflection
+        // records it rather than letting the layout guess.
+        if (type.image.depth) image.flags.Set(Depth);
         switch (type.image.dim) {
         case spv::Dim1D:
             image.flags.Set(d1D);
@@ -140,6 +155,34 @@ namespace {
         default:
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unidentified image dimension.");
         }
+    }
+
+    /// @brief Translate a reflected image's flags into the portable terms a layout states.
+    Engine::Rhi::DescriptorBinding MakeImageBinding(
+        const Engine::Rhi::SPInterfaceOpaqueImage &image, Engine::Rhi::DescriptorType type
+    ) {
+        using namespace Engine::Rhi;
+        using enum SPInterfaceOpaqueImage::ImageFlagBits;
+
+        DescriptorBinding binding{};
+        binding.binding = image.layout_binding;
+        binding.type = type;
+        binding.count = static_cast<uint32_t>(std::max(image.array_size, 1u));
+        if (image.flags.Test(Depth)) {
+            binding.sample_type = TextureSampleType::Depth;
+        }
+        if (image.flags.Test(CubeMap)) {
+            binding.view_dimension =
+                image.flags.Test(Arrayed) ? TextureViewDimension::CubeArray : TextureViewDimension::Cube;
+        } else if (image.flags.Test(d3D)) {
+            binding.view_dimension = TextureViewDimension::D3;
+        } else if (image.flags.Test(d1D)) {
+            binding.view_dimension = TextureViewDimension::D1;
+        } else {
+            binding.view_dimension =
+                image.flags.Test(Arrayed) ? TextureViewDimension::D2Array : TextureViewDimension::D2;
+        }
+        return binding;
     }
 } // namespace
 
@@ -190,13 +233,7 @@ namespace Engine::Rhi {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring buffer with unknown type.");
                 }
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
-                sets[ptr->layout_set].push_back(
-                    DescriptorBinding{
-                        ptr->layout_binding,
-                        DescriptorType::CombinedImageSampler,
-                        static_cast<uint32_t>(std::max(ptr->array_size, 1u))
-                    }
-                );
+                sets[ptr->layout_set].push_back(MakeImageBinding(*ptr, DescriptorType::CombinedImageSampler));
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
                 sets[ptr->layout_set].push_back(
                     DescriptorBinding{
@@ -241,13 +278,7 @@ namespace Engine::Rhi {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring buffer with unknown type.");
                 }
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
-                bindings.push_back(
-                    DescriptorBinding{
-                        ptr->layout_binding,
-                        DescriptorType::CombinedImageSampler,
-                        static_cast<uint32_t>(std::max(ptr->array_size, 1u))
-                    }
-                );
+                bindings.push_back(MakeImageBinding(*ptr, DescriptorType::CombinedImageSampler));
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
                 bindings.push_back(
                     DescriptorBinding{

@@ -166,6 +166,9 @@ namespace Engine::Rhi {
 
     private:
         friend class ComputeKernelCache;
+        /// A backend whose kernels are created from baked code owns them itself, because the
+        /// cache above reflects SPIR-V and that backend does not.
+        friend class DeviceContext;
 
         explicit ComputeKernel(DeviceContext &device_context);
 

@@ -50,6 +50,50 @@ namespace Engine::ShaderBake {
             return "\"" + path.string() + "\"";
         }
 
+        /**
+         * @brief Pin every combined sampler's split slot in the converter's output.
+         *
+         * A converter is free to choose where the sampler of a combined binding lands, and the
+         * reference one chooses the binding after the texture only when that slot is free - it
+         * has been observed to place one past the set's highest binding instead. The runtime
+         * builds its layouts from `SplitSamplerBinding`, so the bake has to state the same
+         * answer rather than let the converter pick: `--sampler-mapping` is how.
+         *
+         * The converter reads a single digit for the destination binding, so a slot above nine
+         * is not expressible and the bake says so instead of producing a shader whose sampler
+         * nothing binds.
+         */
+        bool SamplerMappingArgument(
+            const Engine::Rhi::SPLayout &layout, std::string &argument, std::string &error
+        ) {
+            using namespace Engine::Rhi;
+            std::string mapping;
+            for (const auto &interface : layout.interfaces) {
+                const auto *image = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get());
+                if (image == nullptr) {
+                    continue;
+                }
+                if (!image->flags.Test(SPInterfaceOpaqueImage::ImageFlagBits::HasSampler)) {
+                    continue;
+                }
+                const uint32_t slot = SplitSamplerBinding(interface->layout_binding);
+                if (slot > 9u) {
+                    error = "the sampler of '" + interface->name + "' would land at binding "
+                            + std::to_string(slot)
+                            + ", which the converter cannot express; renumber the shader so the"
+                              " slot after the texture is free and below ten.";
+                    return false;
+                }
+                if (!mapping.empty()) {
+                    mapping += " ";
+                }
+                mapping += std::to_string(interface->layout_set) + "," + std::to_string(interface->layout_binding)
+                           + ":" + std::to_string(interface->layout_set) + "," + std::to_string(slot);
+            }
+            argument = mapping.empty() ? std::string{} : " --sampler-mapping \"" + mapping + "\"";
+            return true;
+        }
+
         /// @brief The shell's way of discarding a program's output.
         constexpr const char *k_silence =
 #ifdef _WIN32
@@ -58,21 +102,50 @@ namespace Engine::ShaderBake {
             " > /dev/null 2>&1";
 #endif
 
+        /**
+         * @brief Extra arguments the reference converter needs for this corpus.
+         *
+         * `--allow-non-uniform-derivatives` turns off the WGSL uniformity diagnostic for implicit
+         * derivatives, which is the one a shadow lookup trips: `textureSampleCompare` derives its
+         * LOD, and the shadow function is entered from a cascade branch whose condition is a
+         * per-fragment distance. The branch is uniform within a draw in practice (a cascade is
+         * selected for a whole surface region), and the directive the flag inserts is WGSL's own
+         * way of stating that the diagnostic is not being relied upon - it is not a validation
+         * bypass.
+         */
+        constexpr const char *k_tint_flags = " --allow-non-uniform-derivatives";
+
+        /// @brief Lower-case copy of a string, for case-insensitive matching.
+        std::string LowerCaseCopy(std::string text) {
+            std::transform(text.begin(), text.end(), text.begin(), [](unsigned char character) {
+                return static_cast<char>(std::tolower(character));
+            });
+            return text;
+        }
+
         /// @brief Get the first diagnostic line of a log file, for quoting back in an error.
         std::string FirstLogLine(const std::filesystem::path &log_path) {
             std::ifstream log_file(log_path);
             if (!log_file.is_open()) {
                 return "no diagnostic was produced";
             }
+            std::string first_error;
             std::string first_non_empty;
             std::string line;
             while (std::getline(log_file, line)) {
                 if (line.empty() || line.find_first_not_of(" \t\r") == std::string::npos) {
                     continue;
                 }
-                // A converter usually prints a summary line and then the actual
-                // reason, so prefer the line that names an error.
-                first_non_empty = line;
+                if (first_non_empty.empty()) {
+                    first_non_empty = line;
+                }
+                const std::string lowered = LowerCaseCopy(line);
+                if (first_error.empty() && lowered.find("error") != std::string::npos) {
+                    first_error = line;
+                }
+            }
+            if (!first_error.empty()) {
+                return first_error;
             }
             return first_non_empty.empty() ? "the converter reported no reason" : first_non_empty;
         }
@@ -117,16 +190,40 @@ namespace Engine::ShaderBake {
          *
          * Everything the runtime needs to build a bind group and to size a
          * constant window is here, so the runtime never reflects a module.
+         *
+         * A combined image sampler has no single binding on this interface: the converter
+         * declares the texture at the shader's binding and its sampler at the next one, so the
+         * description names both. A shader whose next binding is already taken fails the
+         * agreement check below, which is where that collision should be caught.
          */
-        bool WriteInterfaceDescription(
-            const std::filesystem::path &path,
+        bool WriteInterfaceDescriptionJson(
+            std::ostringstream &json,
             const std::string &shader_name,
             const std::string &stage,
             const std::string &entry_point,
             const Engine::Rhi::SPLayout &layout,
             const ConstantBlockLayout &constant_block
         ) {
-            std::ostringstream json;
+            struct Entry {
+                uint32_t set;
+                uint32_t binding;
+                const char *kind;
+                std::string name;
+            };
+            std::vector<Entry> entries;
+            for (const auto &interface : layout.interfaces) {
+                const char *kind = DescribeKind(*interface);
+                entries.push_back(Entry{interface->layout_set, interface->layout_binding, kind, interface->name});
+                if (std::string_view{kind} == "combined-image-sampler") {
+                    entries.push_back(
+                        Entry{interface->layout_set,
+                              Engine::Rhi::SplitSamplerBinding(interface->layout_binding),
+                              "sampler",
+                              interface->name + "_sampler"}
+                    );
+                }
+            }
+
             json << "{\n";
             json << "  \"version\": 1,\n";
             json << "  \"shader\": \"" << shader_name << "\",\n";
@@ -139,14 +236,29 @@ namespace Engine::ShaderBake {
                 json << "  \"constant_block\": null,\n";
             }
             json << "  \"bindings\": [\n";
-            for (size_t index = 0; index < layout.interfaces.size(); ++index) {
-                const Engine::Rhi::SPInterface &interface = *layout.interfaces[index];
-                json << "    { \"set\": " << interface.layout_set << ", \"binding\": " << interface.layout_binding
-                     << ", \"kind\": \"" << DescribeKind(interface) << "\", \"name\": \"" << interface.name << "\" }";
-                json << (index + 1 == layout.interfaces.size() ? "\n" : ",\n");
+            for (size_t index = 0; index < entries.size(); ++index) {
+                const Entry &entry = entries[index];
+                json << "    { \"set\": " << entry.set << ", \"binding\": " << entry.binding << ", \"kind\": \""
+                     << entry.kind << "\", \"name\": \"" << entry.name << "\" }";
+                json << (index + 1 == entries.size() ? "\n" : ",\n");
             }
             json << "  ]\n";
             json << "}\n";
+            return true;
+        }
+
+        bool WriteInterfaceDescription(
+            const std::filesystem::path &path,
+            const std::string &shader_name,
+            const std::string &stage,
+            const std::string &entry_point,
+            const Engine::Rhi::SPLayout &layout,
+            const ConstantBlockLayout &constant_block
+        ) {
+            std::ostringstream json;
+            if (!WriteInterfaceDescriptionJson(json, shader_name, stage, entry_point, layout, constant_block)) {
+                return false;
+            }
 
             std::ofstream file(path, std::ios::trunc);
             if (!file.is_open()) {
@@ -190,12 +302,14 @@ namespace Engine::ShaderBake {
             // ever reflected for the WebGPU runtime.
             Engine::Rhi::SPLayout layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
 
-            uint32_t highest_set = 0;
-            for (const auto &interface : layout.interfaces) {
-                highest_set = std::max(highest_set, interface->layout_set);
-            }
-            const uint32_t reserved_set = layout.interfaces.empty() ? 0 : highest_set + 1;
+            // Where a push-constant block lands. It is the whole block, so the number is a
+            // convention rather than a computation: the engine's material pipelines use groups
+            // 0, 1 and 2 and the standard interface allows four, which leaves 3 for the block
+            // and makes it the same group for every shader - a per-shader choice here would
+            // give a vertex and a fragment stage different groups for the same pipeline.
+            constexpr uint32_t k_constant_set = 3;
             constexpr uint32_t k_reserved_binding = 0;
+            const uint32_t reserved_set = k_constant_set;
 
             // Three rewrites make the module expressible in WGSL: the access
             // qualifiers WGSL does not have, the debug information WGSL cannot
@@ -234,6 +348,10 @@ namespace Engine::ShaderBake {
             // different command lines: naga infers the direction from the file
             // extensions, Tint asks for the output format explicitly.
             const bool is_tint = options.converter_executable.find("tint") != std::string::npos;
+            std::string sampler_mapping;
+            if (is_tint && !SamplerMappingArgument(layout, sampler_mapping, error)) {
+                return false;
+            }
             const std::filesystem::path log_path =
                 module_path.parent_path() / (module_path.stem().string() + ".convert.log");
             // The converter's own diagnostic is what makes a failure actionable,
@@ -242,7 +360,8 @@ namespace Engine::ShaderBake {
             const std::string redirect = " > " + Quote(log_path) + " 2>&1";
             const std::string convert = is_tint
                                             ? Quote(options.converter_executable) + " -f wgsl -o " + Quote(wgsl_path)
-                                                  + " " + Quote(intermediate) + redirect
+                                                  + " " + Quote(intermediate) + k_tint_flags + sampler_mapping
+                                                  + redirect
                                             : Quote(options.converter_executable) + " " + Quote(intermediate) + " "
                                                   + Quote(wgsl_path) + redirect;
             const bool converted = Run(convert) == 0 && std::filesystem::is_regular_file(wgsl_path);
@@ -349,8 +468,100 @@ namespace Engine::ShaderBake {
         return "tint";
     }
 
-    int BakeWgslTree(const WgslBakeOptions &options) {
-        if (!std::filesystem::is_directory(options.spirv_directory)) {
+    bool ConvertSpirvToWgsl(
+        const std::vector<uint32_t> &spirv,
+        const std::string &converter_executable,
+        std::string &wgsl,
+        std::string &error,
+        const std::filesystem::path &scratch_directory
+    ) {
+        std::vector<uint32_t> widened = StripWriteOnlyDecorations(spirv, error);
+        if (widened.empty()) {
+            return false;
+        }
+        std::vector<uint32_t> undebugged = StripNonSemanticDebugInfo(widened, error);
+        if (undebugged.empty()) {
+            return false;
+        }
+        uint32_t push_constant_size = 0;
+        std::string sampler_mapping;
+        {
+            // The rewrite needs the block's size, which is the one thing the caller of this
+            // helper does not have; reflecting here is cheap and keeps the signature honest.
+            const Engine::Rhi::SPLayout layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
+            push_constant_size = layout.push_constant_size;
+            if (converter_executable.find("tint") != std::string::npos
+                && !SamplerMappingArgument(layout, sampler_mapping, error)) {
+                return false;
+            }
+        }
+        // The same set the tree bake uses: see k_constant_set in BakeModule.
+        const std::vector<uint32_t> rewritten =
+            FreezePushConstantsToUniform(undebugged, 3u, 0u, push_constant_size, error);
+        if (rewritten.empty()) {
+            return false;
+        }
+
+        std::error_code remove_error;
+        // The scratch files go next to the module rather than in the system temporary
+        // directory: a build step may run in an environment that refuses writes there, and the
+        // module's own directory is known to be writable because the bake writes beside it.
+        const std::filesystem::path scratch =
+            scratch_directory / ("needrename_wgsl_" + std::to_string(std::rand()));
+        const std::filesystem::path intermediate = scratch.string() + ".spv";
+        const std::filesystem::path output = scratch.string() + ".wgsl";
+        const std::filesystem::path log_path = scratch.string() + ".log";
+        if (!WriteSpirv(intermediate, rewritten)) {
+            error = "cannot write the intermediate module: " + intermediate.string();
+            return false;
+        }
+
+        const bool is_tint = converter_executable.find("tint") != std::string::npos;
+        const std::string redirect = " > " + Quote(log_path) + " 2>&1";
+        const std::string command = is_tint
+                                        ? Quote(converter_executable) + " -f wgsl -o " + Quote(output) + " "
+                                              + Quote(intermediate) + k_tint_flags + sampler_mapping + redirect
+                                        : Quote(converter_executable) + " " + Quote(intermediate) + " "
+                                              + Quote(output) + redirect;
+        const bool converted = Run(command) == 0 && std::filesystem::is_regular_file(output);
+        std::filesystem::remove(intermediate, remove_error);
+        if (!converted) {
+            error = "the converter did not produce WGSL: " + FirstLogLine(log_path);
+            std::filesystem::remove(log_path, remove_error);
+            return false;
+        }
+        std::filesystem::remove(log_path, remove_error);
+
+        std::ifstream wgsl_file(output);
+        std::stringstream wgsl_text;
+        wgsl_text << wgsl_file.rdbuf();
+        wgsl = wgsl_text.str();
+        std::filesystem::remove(output, remove_error);
+        if (wgsl.empty()) {
+            error = "the converter wrote an empty module";
+            return false;
+        }
+        return true;
+    }
+
+    bool WriteInterfaceDescriptionForModule(
+        const std::vector<uint32_t> &spirv, const std::string &shader_name, const std::string &stage, std::string &json
+    ) {
+        const Engine::Rhi::SPLayout layout = Engine::Rhi::SPLayout::Reflect(spirv, false);
+        ConstantBlockLayout constant_block{};
+        constant_block.has_block = layout.push_constant_size != 0;
+        constant_block.set = 3;
+        constant_block.binding = 0;
+        constant_block.size_bytes = layout.push_constant_size;
+        std::ostringstream out;
+        if (!WriteInterfaceDescriptionJson(out, shader_name, stage, "main", layout, constant_block)) {
+            return false;
+        }
+        json = out.str();
+        return true;
+    }
+
+    int BakeWgslTree(const WgslBakeOptions &options) {        if (!std::filesystem::is_directory(options.spirv_directory)) {
             std::cerr << "shader_baker: not a directory: " << options.spirv_directory.string() << '\n';
             return 1;
         }

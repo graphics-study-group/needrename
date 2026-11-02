@@ -1,5 +1,3 @@
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
@@ -222,20 +220,7 @@ int main(int argc, char **argv) {
             .SetAffinity(RenderGraphPassAffinity::Transfer)
             .SetPassFunction([crt, readback_raw](CommandBuffer &cb, const RenderGraph &rg) {
                 auto rt = rg.GetInternalTextureResource(crt);
-                std::array image_copies = {vk::BufferImageCopy{
-                    0,
-                    0,
-                    0,
-                    vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                    vk::Offset3D{0, 0, 0},
-                    vk::Extent3D{rt->GetTextureDescription().width, rt->GetTextureDescription().height, 1}
-                }};
-                Rhi::ToVulkanCommandBuffer(cb.GetHandle()).copyImageToBuffer(
-                    Engine::Rhi::ToVulkanImage(rt->GetImage()),
-                    vk::ImageLayout::eTransferSrcOptimal,
-                    Rhi::ToVulkanBuffer(readback_raw->GetBuffer()),
-                    image_copies
-                );
+                cb.RecordCopyImageToBuffer(*rt, *readback_raw, Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite);
             })
             .Get()
     );

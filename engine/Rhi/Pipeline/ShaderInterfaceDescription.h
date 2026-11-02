@@ -67,6 +67,17 @@ namespace Engine::Rhi {
          */
         static std::optional<ShaderInterfaceDescription> FromFile(const std::filesystem::path &path);
 
+        /**
+         * @brief Read a description from the JSON text an archive carries.
+         *
+         * A baked shader asset stores its description as text rather than as a file of its own,
+         * so a runtime that only has the asset still gets the binding table.
+         *
+         * @param text The JSON text.
+         * @return The description, or nothing when the text cannot be parsed.
+         */
+        static std::optional<ShaderInterfaceDescription> FromString(const std::string &text);
+
         /// @brief The descriptor type a `kind` string names, or a value with `UNDEFINED`
         /// placeholder when it is not recognised.
         static DescriptorType ToDescriptorType(const std::string &kind);

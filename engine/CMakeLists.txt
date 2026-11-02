@@ -80,6 +80,12 @@ target_link_libraries(Engine
     EngineFramework
 )
 
+# Tests, examples and apps include <cmake_config.h> for the developer fallback paths, and they
+# link `Engine` rather than any one module. Adding the directory itself rather than linking
+# EngineConfigHeader keeps the aggregate target exportable: a target the SDK exports may not
+# depend on one that is not in the export set, and the directory is build-tree only anyway.
+target_include_directories(Engine INTERFACE "$<BUILD_INTERFACE:${ENGINE_GENERATED_INCLUDE_DIR}>")
+
 ###########################################
 # Build-tree configuration                #
 ###########################################

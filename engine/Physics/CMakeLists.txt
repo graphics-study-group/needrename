@@ -56,6 +56,12 @@ file(GLOB_RECURSE PHYSICS_GLSL_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/shader/*.geom"
 )
 
+# The `.comp` files `#include` bodies and helpers, and glslangValidator reads them
+# through the include path. Without them as dependencies, editing a shared body left
+# every module that includes it stale - which is exactly what a shader fix looks like
+# when it "does not take".
+file(GLOB_RECURSE PHYSICS_GLSL_INCLUDES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shader/*.glsl")
+
 set(PHYSICS_SPIRV_OUTPUTS "")
 foreach(SRC ${PHYSICS_GLSL_SOURCES})
     cmake_path(RELATIVE_PATH SRC
@@ -68,7 +74,7 @@ foreach(SRC ${PHYSICS_GLSL_SOURCES})
         OUTPUT "${OUT}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${OUT_DIR}"
         COMMAND "${PHYSICS_GLSLANG_VALIDATOR}" $<$<CONFIG:Debug>:-gVS> -V "${SRC}" -o "${OUT}"
-        DEPENDS "${SRC}"
+        DEPENDS "${SRC}" ${PHYSICS_GLSL_INCLUDES}
     )
     list(APPEND PHYSICS_SPIRV_OUTPUTS "${OUT}")
 endforeach()

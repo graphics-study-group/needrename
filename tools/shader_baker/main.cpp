@@ -8,10 +8,13 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <algorithm>
+#include <cctype>
 
 namespace {
     constexpr const char *k_shader_asset_type = "Engine::ShaderAsset";
@@ -29,7 +32,6 @@ namespace {
         /// @brief Converter invoked per module; the WGSL bake is skipped when empty.
         std::string converter_executable{};
     };
-
     [[noreturn]] void ThrowUsage(const std::string &message) {
         throw std::runtime_error(
             message
@@ -103,6 +105,14 @@ namespace {
         return base;
     }
 
+    /// @brief Lower-case spelling of a shader-type name, as the interface description records it.
+    std::string LowerCase(std::string text) {
+        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char character) {
+            return static_cast<char>(std::tolower(character));
+        });
+        return text;
+    }
+
     /// @brief Validate the shader-type spelling against the file name the runtime compiler infers from.
     void CheckShaderTypeMatchesFileName(const std::string &shader_type, const std::filesystem::path &glsl_path) {
         struct TypeToken {
@@ -135,7 +145,10 @@ namespace {
 
     /// @brief Bake one `.asset` archive in place. Returns false when the file is not a shader asset.
     bool BakeShaderAsset(
-        const std::filesystem::path &asset_path, bool emit_debug_info, Engine::ShaderCompiler &compiler
+        const std::filesystem::path &asset_path,
+        bool emit_debug_info,
+        Engine::ShaderCompiler &compiler,
+        const std::string &converter_executable
     ) {
         const std::filesystem::path base_path = ArchiveBasePath(asset_path);
         const std::string archive_text = ReadFile(asset_path);
@@ -184,6 +197,50 @@ namespace {
             base_path.string() + "." + std::to_string(binary_extra_data_id) + ".spv";
         WriteFile(binary_path, spirv.data(), spirv.size() * sizeof(uint32_t));
 
+        // The WebGPU runtime consumes WGSL text, not SPIR-V, and cannot reflect a module whose
+        // bindings a converter had to restate. Both facts are produced here and stored in the
+        // same archive as the SPIR-V form, so one asset set serves both backends.
+        if (!converter_executable.empty()) {
+            std::string wgsl;
+            std::string wgsl_error;
+            if (!Engine::ShaderBake::ConvertSpirvToWgsl(
+                    spirv, converter_executable, wgsl, wgsl_error, asset_path.parent_path()
+                )) {
+                throw std::runtime_error(
+                    "Failed to convert " + asset_path.filename().string() + " to WGSL: " + wgsl_error
+                );
+            }
+            size_t wgsl_extra_data_id = main_data.value("wgsl_extra_data_id", std::numeric_limits<size_t>::max());
+            if (wgsl_extra_data_id == std::numeric_limits<size_t>::max()) {
+                archive_json["%extra_data"].push_back({{"%extension", std::string{".wgsl"}}});
+                wgsl_extra_data_id = archive_json["%extra_data"].size() - 1;
+                main_data["wgsl_extra_data_id"] = wgsl_extra_data_id;
+            }
+            const std::filesystem::path wgsl_path =
+                base_path.string() + "." + std::to_string(wgsl_extra_data_id) + ".wgsl";
+            WriteFile(wgsl_path, wgsl.data(), wgsl.size());
+
+            // The description is what a runtime that cannot reflect binds against; it records
+            // the binding table after the bake's rewrites, including where a combined sampler's
+            // sampler landed and where the constant block was moved to.
+            std::string description;
+            const std::string shader_stage = main_data.value(k_shader_type_key, std::string{"Unknown"});
+            if (Engine::ShaderBake::WriteInterfaceDescriptionForModule(
+                    spirv, asset_path.stem().string(), LowerCase(shader_stage), description
+                )) {
+                size_t description_extra_data_id =
+                    main_data.value("iface_extra_data_id", std::numeric_limits<size_t>::max());
+                if (description_extra_data_id == std::numeric_limits<size_t>::max()) {
+                    archive_json["%extra_data"].push_back({{"%extension", std::string{".iface.json"}}});
+                    description_extra_data_id = archive_json["%extra_data"].size() - 1;
+                    main_data["iface_extra_data_id"] = description_extra_data_id;
+                }
+                const std::filesystem::path description_path =
+                    base_path.string() + "." + std::to_string(description_extra_data_id) + ".iface.json";
+                WriteFile(description_path, description.data(), description.size());
+            }
+        }
+
         // The GLSL source is no longer part of the baked archive.
         std::error_code ec;
         std::filesystem::remove(glsl_path, ec);
@@ -231,7 +288,7 @@ int main(int argc, char **argv) {
             if (!entry.is_regular_file() || entry.path().extension() != ".asset") {
                 continue;
             }
-            if (BakeShaderAsset(entry.path(), options.emit_debug_info, compiler)) {
+            if (BakeShaderAsset(entry.path(), options.emit_debug_info, compiler, options.converter_executable)) {
                 ++baked_count;
             }
         }

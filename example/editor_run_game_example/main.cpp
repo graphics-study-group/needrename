@@ -7,7 +7,6 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <vulkan/vulkan.hpp>
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
