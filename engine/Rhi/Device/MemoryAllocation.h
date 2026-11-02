@@ -206,6 +206,19 @@ namespace Engine::Rhi {
         std::byte *GetVMAddress();
 
         /**
+         * @brief Make a readback buffer's contents addressable, before a caller reads them.
+         *
+         * On a backend whose mapping is asynchronous, the map has to be requested and waited
+         * for somewhere that is not already dispatching the device's events. The frame pump
+         * calls this for every buffer it is about to hand to a readback callback, which is the
+         * one place that is true.
+         *
+         * A backend whose mapping is synchronous - or which keeps the window open - has nothing
+         * to do here.
+         */
+        void PrepareReadback();
+
+        /**
          * @brief Flush the memory so that host writes are visible on the device
          *
          * @exception std::runtime_error Rethrows all exception if the underlying Vulkan call fails

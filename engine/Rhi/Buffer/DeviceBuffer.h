@@ -88,6 +88,13 @@ namespace Engine::Rhi {
          */
         std::byte *GetVMAddress();
 
+        /// @brief Make a readback buffer's contents addressable before they are read.
+        ///
+        /// A backend whose mapping is asynchronous needs this called from a place that is not
+        /// already dispatching the device's events; the frame pump calls it before it invokes a
+        /// readback callback.
+        void PrepareReadback();
+
         /**
          * @brief Flush the memory write to be visible on device.
          *

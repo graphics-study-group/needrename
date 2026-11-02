@@ -120,6 +120,49 @@ namespace Engine::Rhi {
         }
     }
 
+    void BufferAllocation::PrepareReadback() {
+        if (!pimpl->readable || pimpl->mapped != nullptr) {
+            return;
+        }
+        // Mapping is asynchronous here, and this is the one place it can be awaited: the frame
+        // pump calls it before it invokes a readback callback, which is outside the device's own
+        // event dispatch - a map requested from inside that dispatch is rejected.
+        bool done = false;
+        bool mapped_ok = false;
+        std::pair<bool *, bool *> state{&done, &mapped_ok};
+        WGPUBufferMapCallbackInfo info{};
+        info.mode = WGPUCallbackMode_AllowProcessEvents;
+        info.callback = [](WGPUMapAsyncStatus status, WGPUStringView message, void *userdata1, void *) {
+            auto *result = static_cast<std::pair<bool *, bool *> *>(userdata1);
+            *result->first = true;
+            *result->second = status == WGPUMapAsyncStatus_Success;
+            if (status != WGPUMapAsyncStatus_Success) {
+                SDL_LogError(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "WebGPU: a readback buffer failed to map (status %d): %.*s",
+                    static_cast<int>(status),
+                    static_cast<int>(message.length),
+                    message.data != nullptr ? message.data : ""
+                );
+            }
+        };
+        info.userdata1 = &state;
+        wgpuBufferMapAsync(pimpl->buffer, WGPUMapMode_Read, 0, WGPU_WHOLE_MAP_SIZE, info);
+
+        const WGPUInstance instance = RegisteredWgpuInstance();
+        while (!done) {
+            if (instance != nullptr) {
+                wgpuInstanceProcessEvents(instance);
+            }
+#if defined(__EMSCRIPTEN__)
+            emscripten_sleep(0);
+#endif
+        }
+        if (mapped_ok) {
+            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, WGPU_WHOLE_MAP_SIZE);
+        }
+    }
+
     std::byte *BufferAllocation::GetVMAddress() {
         if (pimpl->mapped != nullptr) {
             return static_cast<std::byte *>(pimpl->mapped);
@@ -138,10 +181,19 @@ namespace Engine::Rhi {
             std::pair<bool *, bool *> state{&done, &mapped_ok};
             WGPUBufferMapCallbackInfo info{};
             info.mode = WGPUCallbackMode_AllowProcessEvents;
-            info.callback = [](WGPUMapAsyncStatus status, WGPUStringView, void *userdata1, void *) {
+            info.callback = [](WGPUMapAsyncStatus status, WGPUStringView message, void *userdata1, void *) {
                 auto *result = static_cast<std::pair<bool *, bool *> *>(userdata1);
                 *result->first = true;
                 *result->second = status == WGPUMapAsyncStatus_Success;
+                if (status != WGPUMapAsyncStatus_Success) {
+                    SDL_LogError(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "WebGPU: a readback buffer failed to map (status %d): %.*s",
+                        static_cast<int>(status),
+                        static_cast<int>(message.length),
+                        message.data != nullptr ? message.data : ""
+                    );
+                }
             };
             info.userdata1 = &state;
             wgpuBufferMapAsync(pimpl->buffer, WGPUMapMode_Read, 0, WGPU_WHOLE_MAP_SIZE, info);

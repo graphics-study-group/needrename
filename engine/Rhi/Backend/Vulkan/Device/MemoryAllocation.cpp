@@ -132,6 +132,10 @@ namespace Engine::Rhi {
         pimpl->mapped_ptr = reinterpret_cast<std::byte *>(ptr);
         return pimpl->mapped_ptr;
     }
+    void BufferAllocation::PrepareReadback() {
+        // The mapping here is synchronous and permanent: the address is established on first
+        // access and released only at destruction, so there is nothing to prepare.
+    }
     void BufferAllocation::FlushMemory(size_t offset, size_t size) const {
         assert(pimpl);
 

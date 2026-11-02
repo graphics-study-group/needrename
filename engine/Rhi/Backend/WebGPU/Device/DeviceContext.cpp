@@ -315,31 +315,30 @@ namespace Engine::Rhi {
 
         WGPUInstance instance = ToWgpuInstance(pimpl->device_interface->GetInstance());
         const auto begin = std::chrono::steady_clock::now();
+        // A poll still dispatches the device's events for a moment: the callback that answers
+        // this question is delivered by that dispatch, and one pass over the event queue often
+        // returns before the queue has reported the work. The deadline keeps the call a poll -
+        // two milliseconds is far below a frame - while making it an answer rather than a coin
+        // flip.
+        constexpr uint64_t k_poll_budget_ns = 2'000'000;
         while (!done) {
             if (instance != nullptr) {
                 wgpuInstanceProcessEvents(instance);
-            }
-            if (timeout == 0) {
-                break;
             }
             const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
                                      std::chrono::steady_clock::now() - begin
             )
                                      .count();
-            if (timeout != std::numeric_limits<uint64_t>::max() && static_cast<uint64_t>(elapsed) > timeout) {
+            const uint64_t budget = timeout == 0 ? k_poll_budget_ns : timeout;
+            if (budget != std::numeric_limits<uint64_t>::max() && static_cast<uint64_t>(elapsed) > budget) {
                 break;
             }
-            SDL_LogInfo(
-                SDL_LOG_CATEGORY_RENDER,
-                "WebGPU: waiting for the queue (%lld ms so far)",
-                static_cast<long long>(elapsed / 1000000)
-            );
 #if defined(__EMSCRIPTEN__)
             // The browser answers on the event loop the caller is occupying, so the wait has to
             // yield to it; without this the callback can never be delivered.
             emscripten_sleep(0);
 #else
-            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            std::this_thread::sleep_for(std::chrono::microseconds(50));
 #endif
         }
         return done;

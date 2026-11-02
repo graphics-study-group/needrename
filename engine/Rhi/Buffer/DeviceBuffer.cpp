@@ -35,6 +35,10 @@ namespace Engine::Rhi {
         return allocation.GetVMAddress();
     }
 
+    void DeviceBuffer::PrepareReadback() {
+        allocation.PrepareReadback();
+    }
+
     void DeviceBuffer::Flush(size_t offset, size_t size) const {
         allocation.FlushMemory(offset, size);
     }

@@ -465,6 +465,10 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
             if (!signaled) break;
 
             for (auto &itr : fnt.callbacks) {
+                // The buffer has to be addressable before its callback reads it, and this is the
+                // one point where that can be waited for: the pump is not inside the device's
+                // own event dispatch here.
+                itr.second->PrepareReadback();
                 std::invoke(itr.first, std::move(itr.second));
             }
 
