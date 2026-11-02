@@ -161,7 +161,9 @@ int main(int, char **) {
     surface_config.width = state.width;
     surface_config.height = state.height;
     surface_config.presentMode = WGPUPresentMode_Fifo;
-    surface_config.alphaMode = WGPUCompositeAlphaMode_Auto;
+    // Opaque, not Auto: an auto alpha lets the compositor decide, and a window whose
+    // contents are blended with nothing underneath is exactly where a black result comes from.
+    surface_config.alphaMode = WGPUCompositeAlphaMode_Opaque;
     wgpuSurfaceConfigure(state.surface, &surface_config);
     SDL_Log("webgpu_clear: surface configured %ux%u", state.width, state.height);
 
@@ -176,7 +178,12 @@ int main(int, char **) {
         }
 
         WGPUSurfaceTexture acquired{};
+        static int logged = 0;
         wgpuSurfaceGetCurrentTexture(state.surface, &acquired);
+        if (logged < 3) {
+            SDL_Log("webgpu_clear: acquire status %d texture %p", static_cast<int>(acquired.status), (void*)acquired.texture);
+            ++logged;
+        }
         if (acquired.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal
             && acquired.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
             SDL_Log("webgpu_clear: acquire status %d", static_cast<int>(acquired.status));
@@ -191,7 +198,7 @@ int main(int, char **) {
         color.loadOp = WGPULoadOp_Clear;
         color.storeOp = WGPUStoreOp_Store;
         // A deep blue: anything but the black a page that never presented shows.
-        color.clearValue = WGPUColor{0.05, 0.15, 0.45, 1.0};
+        color.clearValue = WGPUColor{0.25, 0.45, 0.85, 1.0};
         // A 2D attachment names no slice. Zero is a slice, and the validator says so.
         color.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
@@ -223,6 +230,8 @@ int main(int, char **) {
 
     return 0;
 }
+
+
 
 
 
