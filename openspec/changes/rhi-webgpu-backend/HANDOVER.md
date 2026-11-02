@@ -97,6 +97,24 @@ capture nothing the shell does not.
 
 ## What is not real, and the order to take it
 
+### 0a. The example presents a black frame on WebGPU, and the tests do not
+
+`skybox_test` on the same build, the same staged assets and the same window renders a real
+picture (dumped frame's brightest pixel is 157), so the backend, the present copy and the
+material path all work. `external_resource_loading_example` presents a frame whose every pixel is
+zero, with no validation error and no `MeshAsset` guard message, which means its geometry parsed
+and its draws were recorded. The open question is which of the two is lost, and the way to
+answer it is to read the *final colour target* back (not the surface) in the example and compare
+that with the surface copy - if the target is black the recording is wrong, if it is not, the
+copy or the present is.
+
+The stash `browser material work in progress` holds the next step of the browser work: a portable
+`SPLayout` split (the merge/restate/place half compiled everywhere, only `Reflect` per backend),
+an opaque canvas composite mode, and a material pipeline layout that always has its third group.
+It was stashed because the example went black while it was in the tree, and that has to be
+understood first - the run with the stash applied and the run without it are black alike, so the
+split is not the cause and the stash can go back in.
+
 ### 0. The example's composition has no Vulkan reference yet
 
 The example's frame is stable and it draws its scene, but its framing looks wrong in a way the
