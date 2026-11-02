@@ -125,21 +125,26 @@ so what is left to find is which kernel and why - the last one reached was
   modules without this stall, so a build with `-O2`/`RelWithDebInfo` (where naga is not in
   debug) is the cheapest way to tell the two apart.
 
-### 2. The browser stops on an assertion in its WebGPU layer
+### 2. The browser aborts in the wasm heap during its first frame
 
 The page runs: device, surface, model, camera, main loop, and the first frame's cascade fit. It
-then aborts with nothing but `Aborted(Assertion failed)` - an assertion in the JavaScript glue
-of the browser's WebGPU implementation, not in the engine. The message carries no condition, so
-the next step is to make the assertion report itself:
+then aborts with
 
-- Build the page with `-sASSERTIONS=2` (add it to the example's link options) and read the
-  stack trace it prints; `capture3.html` already routes `console.error`/`console.warn` through
-  `console.log`, which is where that trace lands.
-- A strong candidate worth checking first: the engine binds one descriptor set per group it
-  uses, while a kernel pipeline's layout can have padded groups (the constant block lives at
-  group 3, so groups 1 and 2 exist and are never bound). wgpu reports an unbound group as a
-  validation error, and this layer turns an uncaught validation error into an abort, which is
-  exactly the shape of what is seen.
+```
+Aborted(Assertion failed: region_is_in_use(region), at: /emsdk/emscripten/system/lib/emmalloc.c,892,emmalloc_free)
+```
+
+which is emmalloc refusing to free a region it believes is in use: a double free, or a heap
+write that corrupted emmalloc's bookkeeping. That is a memory bug in the wasm path, not a
+missing WebGPU call, and nothing in the desktop build shows it.
+
+How to catch it: build the page with `-sASSERTIONS=2 -sSAFE_HEAP=1`, which reports the first bad
+access rather than the corruption it causes later, and read the stack it prints -
+`capture3.html` routes `console.error`/`console.warn` through `console.log`, and the page's own
+`SDL_Log` output already reaches the browser log. The likeliest places are the ones written for
+the wasm build: `SubmissionHelper::EnqueueTextureBufferSubmission`'s padded row copy,
+`BuildClearData`, and the constant ring's window bookkeeping - each sizes a buffer by hand.
+
 ### 3. Physics on WebGPU
 
 Kernels now build: the loader takes the baked module and description, the layouts state each
