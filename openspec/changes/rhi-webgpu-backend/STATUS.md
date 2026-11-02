@@ -9,7 +9,8 @@ refers to.
 
 ## The sentence that matters
 
-**The seam exists and is enforced; the second backend does not exist.**
+**The seam exists and is enforced; the second backend exists and presents, and the engine's own
+frame loop does not run on it yet.**
 
 `engine/Rhi` is a portable interface: its public headers contain zero Vulkan names,
 they compile and link without the Vulkan SDK (enforced by `rhi_public_headers_test`),
@@ -17,7 +18,12 @@ and every object a caller touches - buffers, textures, pipelines, command buffer
 fences, semaphores, submissions - is a portable type. The render layer records its
 work through that interface and draws a frame.
 
-`engine/Rhi/Backend/WebGPU/` is **empty**. Nothing in this change runs on WebGPU yet.
+`engine/Rhi/Backend/WebGPU/` is no longer empty: 16 units, 31 objects, and it links into the
+desktop and the Emscripten build. The surface path is proven twice over - a browser page and a
+desktop window both show a cleared frame, captured in `evidence/`. What is *not* proven is the
+engine drawing through it: `ComplexRenderGraphBuilder::BuildDefaultRenderGraph` is what every
+example and every windowed test goes through, and `RenderGraphBuilder` is a stub on this backend
+that throws from every method that would build one.
 
 ## Numbers, and what they mean
 
@@ -597,4 +603,58 @@ together is probably cheaper than treating them apart.
 
 **Start with the first row.** It is the only one that moves four tasks, the types for it all exist, and
 the bake already produces the description they need.
+
+
+## Handover: the surface path is done, the render graph is the whole of what is left
+
+Two frames are captured and both are real:
+
+| Evidence | What it shows |
+|---|---|
+| `evidence/desktop-webgpu-frame.png` | a desktop window, cleared by this backend through a Win32 surface |
+| `evidence/browser-webgpu-frame.png` | a browser canvas, cleared by the same code compiled to wasm |
+
+`example/webgpu_clear_example` is that code. It does not use the RHI, deliberately: it answers
+whether a surface can be acquired and presented at all, and it now says yes on both targets.
+
+### What made the difference, in the order it was found
+
+1. **Asyncify.** `-sASYNCIFY` on the wasm link. The adapter and device are answered by the browser
+   on its own schedule, and a page that spins on them never yields to the event loop that would
+   answer; without it `requestAdapter` timed out every time.
+2. **Configuration from capabilities.** A canvas offers three formats, one present mode and two
+   alpha modes. Configuring with an assumed format aborts inside `wgpuSurfaceConfigure`.
+3. **No present call on a canvas.** `wgpuSurfacePresent` aborts with "use requestAnimationFrame via
+   html5.h instead". The windowed path still calls it.
+4. **Framework capture through the DevTools protocol.** `--screenshot` decides for itself when a
+   page is finished and a page with a frame loop never is. `tools/dsh/cdp_shot.mjs` asks for a
+   capture at the moment it chooses and carries the page console and exceptions back, which is how
+   the first three findings surfaced at all.
+5. **A readable clear colour.** The first version cleared to `(0.05, 0.15, 0.45)` - a deep blue
+   that reads as black on a dark desktop - and two rounds of captures looked like nothing had been
+   presented. An example whose result cannot be seen is not evidence of anything.
+
+### Why guarding `RenderGraphBuilder` does not work, and what would
+
+The obvious move is to put the Vulkan parts behind `ENGINE_RHI_BACKEND_VULKAN`. Four attempts did
+that and all four failed, and the reason is structural rather than mechanical:
+
+`BuildRenderGraph` interleaves three things that the guard would have to separate.
+
+- the **topological order** (`pass_order`, `reordered_usage`) - portable
+- **`cross_queue_dep` and `merged_passes`** - the merge exists to place queue-family barriers,
+  and everything downstream reads it
+- the **compiled passes** (`std::vector<RenderGraphCompiledPass> p`) - built inside the same loops
+  that emit the barriers, reading `old_p.actual_type` and the previous access to decide a
+  transition
+
+So `p` cannot move outside a guard that wraps the barrier code, because it is constructed by it.
+A guard that wraps only the barrier statements cuts declarations in half; one that wraps the whole
+region removes `p`. Both were tried.
+
+What would work is a **restructure, not a guard**: compute the compiled passes and their ordering
+in one pass that knows nothing about transitions, then let a backend-specific pass walk the result
+and emit whatever it needs. That is the change to make, and it is a change to
+`RenderGraphBuilder`, `RenderGraphStruct` and `RenderGraph::Record` together rather than to one
+file.
 
