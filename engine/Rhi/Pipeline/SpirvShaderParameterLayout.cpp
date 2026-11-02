@@ -172,8 +172,11 @@ namespace {
             binding.sample_type = TextureSampleType::Depth;
         }
         if (image.flags.Test(CubeMap)) {
+            // A cube map is arrayed in Vulkan terms - six faces - so the array flag alone does
+            // not make it an array *of* cubes on an interface that has both dimensions. Only a
+            // texture holding more than one cube is the array form.
             binding.view_dimension =
-                image.flags.Test(Arrayed) ? TextureViewDimension::CubeArray : TextureViewDimension::Cube;
+                image.array_size > 1 ? TextureViewDimension::CubeArray : TextureViewDimension::Cube;
         } else if (image.flags.Test(d3D)) {
             binding.view_dimension = TextureViewDimension::D3;
         } else if (image.flags.Test(d1D)) {

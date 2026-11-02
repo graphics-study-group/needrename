@@ -45,6 +45,9 @@ namespace Engine::Rhi {
         WGPUCompareFunction ToWgpuCompare(DSComparator comparator) {
             switch (comparator) {
             case DSComparator::Never:
+            case DSComparator::Always:
+                // The seam spells "no comparison" as a comparison that always passes; a
+                // comparison sampler cannot be bound where the shader declared a plain one.
                 return WGPUCompareFunction_Undefined;
             case DSComparator::Less:
                 return WGPUCompareFunction_Less;
@@ -58,8 +61,6 @@ namespace Engine::Rhi {
                 return WGPUCompareFunction_NotEqual;
             case DSComparator::GEqual:
                 return WGPUCompareFunction_GreaterEqual;
-            case DSComparator::Always:
-                return WGPUCompareFunction_Always;
             }
             return WGPUCompareFunction_Undefined;
         }

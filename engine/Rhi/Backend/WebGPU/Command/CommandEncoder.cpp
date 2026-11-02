@@ -5,6 +5,8 @@
 #include "Rhi/RhiTypes.h"
 
 #include <SDL3/SDL.h>
+#include <array>
+#include <algorithm>
 #include <format>
 #include <span>
 #include <stdexcept>
@@ -117,10 +119,19 @@ namespace Engine::Rhi {
             const size_t offset = cursor;
             cursor += k_constant_window;
 
+            // The window is zero-filled before the block is copied into it: a shader reads its
+            // whole declared struct, and a caller that pushes fewer bytes than the block is -
+            // which every draw in this engine does, it pushes the model matrix and leaves the
+            // two indices out - would otherwise read whatever the ring held there before.
+            std::array<std::byte, k_constant_window> window{};
+            std::copy(data.begin(), data.end(), window.begin());
+
             // Published before the submission that reads it: a queue write is ordered against
             // the submissions on the same queue, so the window is visible to the draws that
             // follow in this frame's command buffer.
-            wgpuQueueWriteBuffer(RegisteredWgpuQueue(), ring.buffer, offset, data.data(), data.size());
+            wgpuQueueWriteBuffer(
+                RegisteredWgpuQueue(), ring.buffer, offset, window.data(), window.size()
+            );
 
             const uint32_t dynamic_offset = static_cast<uint32_t>(offset);
             if (render_pass != nullptr) {
@@ -413,17 +424,53 @@ namespace Engine::Rhi {
         ImageHandle image, BufferHandle buffer, const Extent3D &extent, ImageAspect aspect
     ) {
         static_cast<void>(aspect);
-        WGPUTexelCopyBufferInfo destination{};
-        destination.buffer = ToWgpuBuffer(buffer);
-        destination.layout.bytesPerRow = extent.width * 4;
-        destination.layout.rowsPerImage = extent.height;
+        // The interface requires every copied row to start at a multiple of 256 bytes, while
+        // the seam's readback size is the image's tight size. Widening the pitch would write past
+        // the destination, so the copy is staged: one texture-to-buffer copy with padded rows,
+        // then one buffer-to-buffer copy per row that removes the padding again.
+        constexpr uint32_t k_row_alignment = 256;
+        const uint32_t tight_row = extent.width * 4;
+        const uint32_t padded_row = (tight_row + k_row_alignment - 1) / k_row_alignment * k_row_alignment;
 
         WGPUTexelCopyTextureInfo source{};
         source.texture = ToWgpuTexture(image);
         source.aspect = WGPUTextureAspect_All;
 
         const WGPUExtent3D copy_extent{extent.width, extent.height, extent.depth};
+        WGPUBuffer destination_buffer = ToWgpuBuffer(buffer);
+
+        if (padded_row == tight_row) {
+            WGPUTexelCopyBufferInfo destination{};
+            destination.buffer = destination_buffer;
+            destination.layout.bytesPerRow = tight_row;
+            destination.layout.rowsPerImage = extent.height;
+            wgpuCommandEncoderCopyTextureToBuffer(pimpl->encoder, &source, &destination, &copy_extent);
+            return;
+        }
+
+        WGPUBufferDescriptor staging_desc{};
+        staging_desc.size = static_cast<uint64_t>(padded_row) * extent.height * extent.depth;
+        staging_desc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst;
+        staging_desc.label = WGPUStringView{"Readback staging", 16};
+        WGPUBuffer staging = wgpuDeviceCreateBuffer(RegisteredWgpuDevice(), &staging_desc);
+
+        WGPUTexelCopyBufferInfo destination{};
+        destination.buffer = staging;
+        destination.layout.bytesPerRow = padded_row;
+        destination.layout.rowsPerImage = extent.height;
         wgpuCommandEncoderCopyTextureToBuffer(pimpl->encoder, &source, &destination, &copy_extent);
+
+        for (uint32_t row = 0; row < extent.height; row++) {
+            wgpuCommandEncoderCopyBufferToBuffer(
+                pimpl->encoder,
+                staging,
+                static_cast<uint64_t>(row) * padded_row,
+                destination_buffer,
+                static_cast<uint64_t>(row) * tight_row,
+                tight_row
+            );
+        }
+        wgpuBufferRelease(staging);
     }
 
     void CommandEncoder::DispatchCompute(

@@ -622,6 +622,14 @@ namespace Engine::RenderSystemState {
 
         auto &encoder = cb.GetEncoder();
         encoder.BindGraphicsPipeline(tpl->GetPipeline(), tpl->GetPipelineLayout());
+        // Every group the pipeline layout declares is bound, including the ones this draw does
+        // not read: a backend whose bind groups are all part of the pipeline's interface
+        // rejects a draw with a group left unset, while Vulkan reads only the groups the shader
+        // uses. Binding them costs two calls and makes the same scene draw on both.
+        encoder.BindGraphicsDescriptorSet(0, GetLightDescriptorSet(frame_in_flight), tpl->GetPipelineLayout());
+        encoder.BindGraphicsDescriptorSet(
+            1, m_system.GetCameraManager().GetDescriptorSet(frame_in_flight), tpl->GetPipelineLayout()
+        );
         encoder.BindGraphicsDescriptorSet(
             2, material_binding.set, tpl->GetPipelineLayout(), material_binding.dynamic_offsets
         );
