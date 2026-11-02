@@ -1,7 +1,9 @@
 #ifndef RENDER_PIPELINE_PIPELINEUTILS
 #define RENDER_PIPELINE_PIPELINEUTILS
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include <vulkan/vulkan.hpp>
+#endif
 
 #include <limits>
 
@@ -13,6 +15,7 @@
 #include "Rhi/Backend/Vulkan/VulkanPipelineEnums.h"
 
 namespace Engine::PipelineUtils {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
     constexpr vk::PolygonMode ToVkPolygonMode(Rhi::FillingMode mode) {
         switch (mode) {
         case Rhi::FillingMode::Fill:
@@ -121,6 +124,7 @@ namespace Engine::PipelineUtils {
     /**
      * @brief Hasher for `PipelineRuntimeInfo` struct.
      */
+#endif // ENGINE_RHI_BACKEND_VULKAN
     struct pipeline_runtime_info_hasher {
         size_t operator()(const Engine::PipelineRuntimeInfo &pri) const noexcept {
             Engine::Rhi::RenderResourceHasher h;
@@ -299,6 +303,7 @@ namespace Engine::PipelineUtils {
      * @param buf Buffer containing actual data of all spec vars. Referenced
      * by `sme`.
      */
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
     inline vk::SpecializationInfo FillSpecializationInfo(
         const std::unordered_map<uint32_t, int32_t> &spec_vars,
         std::vector<vk::SpecializationMapEntry> &sme,
@@ -400,6 +405,7 @@ namespace Engine::PipelineUtils {
         ret.shrink_to_fit();
         return ret;
     }
+#endif // ENGINE_RHI_BACKEND_VULKAN
 } // namespace Engine::PipelineUtils
 
 #endif // RENDER_PIPELINE_PIPELINEUTILS
