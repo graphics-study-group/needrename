@@ -122,6 +122,25 @@ colour target into a host-visible buffer inside the Vulkan `SwapchainPresentProv
 it out under the same `NEEDRENAME_PRESENT_CAPTURE`. Until then the difference is a question, not
 a conclusion.
 
+### 0d. The suite, measured on both backends
+
+`ctest --preset msvc-debug -E "asset_path_test|data_root_test"` (Vulkan): **76 of 76 passed.**
+`ctest --test-dir build/webgpu -C Debug` with `NEEDRENAME_DATA_ROOT` pointing at its stage:
+**40 of 46 passed.** The six are accounted for:
+
+- `shadow_constants_test` reads `interface.glsl` and `shadow.glsl` from the data root, and the
+  WebGPU staging stores shaders in baked form, so there is no `.glsl` there to read. The Vulkan
+  stage keeps them (12 files). An environment difference, not a backend one.
+- `complex_mesh_test` and `pbr_test` segfault; `compute_shader_test`, `mrt_test` and
+  `mrt_test_staged_builtin_assets` time out in the readback (0c).
+
+Without `NEEDRENAME_DATA_ROOT` the same suite reports 36 of 46, because the windowed tests then
+wait for assets that are not where the process looks - worth knowing before a number is believed.
+
+`skybox_test` passes three times in a row standalone on WebGPU (640000/640000 pixels not black)
+while timing out inside the suite, which is the readback/serialisation problem below rather than
+a rendering one.
+
 ### 0c. `mrt_test` hangs in its transfer pass, on both backends
 
 A run of `mrt_test` stops right after the transfer subpass is recorded - the read-back copy that
