@@ -297,6 +297,11 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         // `waitIdle` does not signal them).
         pimpl->command_buffers[fif]->Reset();
         pimpl->command_executed_fences[fif]->Reset();
+        // The reset replaced the recording object this slot records into - a new encoder on a
+        // backend that finishes one into a command buffer - so the cached encoder is stale from
+        // here on. Rebuilding it is part of the reset rather than a separate concern: recording
+        // into the previous one targets an encoder that no longer exists.
+        pimpl->main_encoders[fif] = std::make_unique<Rhi::CommandEncoder>(pimpl->command_buffers[fif]->GetHandle());
 
         // Kickstart of this frame
         // Prevent validation layer from complaining
