@@ -154,18 +154,40 @@ int main(int, char **) {
     }
     state.queue = wgpuDeviceGetQueue(state.device);
 
+    // Ask the surface what it can do instead of assuming a format. A canvas and a window do
+    // not offer the same list, and configure asserts on a format it does not have.
+    WGPUSurfaceCapabilities capabilities{};
+    wgpuSurfaceGetCapabilities(state.surface, state.adapter, &capabilities);
+    SDL_Log("webgpu_clear: %zu formats, %zu present modes, %zu alpha modes", capabilities.formatCount, capabilities.presentModeCount, capabilities.alphaModeCount);
+    for (size_t i = 0; i < capabilities.formatCount && i < 6; ++i) {
+        SDL_Log("webgpu_clear:   format %d", static_cast<int>(capabilities.formats[i]));
+    }
+    WGPUTextureFormat chosen_format = SURFACE_FORMAT;
+    if (capabilities.formatCount > 0) {
+        chosen_format = capabilities.formats[0];
+    }
+    SDL_Log("webgpu_clear: using format %d", static_cast<int>(chosen_format));
+    WGPUPresentMode chosen_present = WGPUPresentMode_Fifo;
+    if (capabilities.presentModeCount > 0) {
+        chosen_present = capabilities.presentModes[0];
+    }
+    WGPUCompositeAlphaMode chosen_alpha = WGPUCompositeAlphaMode_Opaque;
+    if (capabilities.alphaModeCount > 0) {
+        chosen_alpha = capabilities.alphaModes[0];
+    }
+    SDL_Log("webgpu_clear: using present mode %d, alpha mode %d", static_cast<int>(chosen_present), static_cast<int>(chosen_alpha));
     WGPUSurfaceConfiguration surface_config{};
     surface_config.device = state.device;
-    surface_config.format = SURFACE_FORMAT;
+    surface_config.format = chosen_format;
     surface_config.usage = WGPUTextureUsage_RenderAttachment;
     surface_config.width = state.width;
     surface_config.height = state.height;
     // Fifo waits for a vertical blank, and a headless browser has none to give: the acquire
     // would block. Immediate is what a page that only needs to prove it presented wants.
-    surface_config.presentMode = WGPUPresentMode_Immediate;
+    surface_config.presentMode = chosen_present;
     // Opaque, not Auto: an auto alpha lets the compositor decide, and a window whose
     // contents are blended with nothing underneath is exactly where a black result comes from.
-    surface_config.alphaMode = WGPUCompositeAlphaMode_Opaque;
+    surface_config.alphaMode = chosen_alpha;
     wgpuSurfaceConfigure(state.surface, &surface_config);
     SDL_Log("webgpu_clear: surface configured %ux%u", state.width, state.height);
 
@@ -214,7 +236,12 @@ int main(int, char **) {
         WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, nullptr);
         wgpuQueueSubmit(state.queue, 1, &commands);
 
+#if defined(__EMSCRIPTEN__)
+        // A canvas is composited by the page on its next animation frame; there is no present
+        // call to make, and the port rejects one that is.
+#else
         wgpuSurfacePresent(state.surface);
+#endif
         // The window contents are delivered by the event loop, not by the present call alone.
         wgpuInstanceProcessEvents(state.instance);
 
