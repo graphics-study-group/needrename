@@ -38,6 +38,13 @@ namespace Engine::Rhi {
         ShaderInterfaceDescription description{};
         /// Name to the description entry that declares it, for matching a dispatch.
         std::map<std::string, const ShaderInterfaceBinding *> interface_by_name{};
+        /// A set with nothing bound, used for the groups a padded pipeline layout declares.
+        ///
+        /// The constant block lives at group 3, so groups 1 and 2 exist in every kernel's
+        /// pipeline layout whether or not the kernel has anything to put there - and the
+        /// interface requires every group of a layout to be bound before a dispatch. This is
+        /// what those groups get.
+        DescriptorSetLayoutHandle empty_set_layout{};
     };
 
     ComputeKernelResource::ComputeKernelResource(const DeviceBuffer &buffer) {
@@ -79,6 +86,9 @@ namespace Engine::Rhi {
         for (const ShaderInterfaceBinding &declared : pimpl->description.bindings) {
             pimpl->interface_by_name[declared.name] = &declared;
         }
+        pimpl->empty_set_layout = pimpl->device_context->GetIRCache().GetDescriptorSetLayout(
+            DescriptorSetLayout{}, "Empty Descriptor Set Layout"
+        );
         // One set layout per set the description names. Grouping by set is the shape the
         // Vulkan kernel produces from its reflected table, so a shader that bakes the same
         // way binds the same way.
