@@ -28,7 +28,11 @@ namespace Engine::Rhi {
             case 3:
                 return WGPUTextureViewDimension_3D;
             default:
-                return WGPUTextureViewDimension_2D;
+                // A layered texture is sampled as an array view, but an attachment has to be a
+                // single layer: the validator rejects a layered view used as a render target.
+                // The subresource path below picks per view; this is the whole-texture default.
+                return desc.array_layers > 1 ? WGPUTextureViewDimension_2DArray
+                                            : WGPUTextureViewDimension_2D;
             }
         }
     } // namespace
@@ -191,6 +195,12 @@ namespace Engine::Rhi {
                                         ? pimpl->tdesc.array_layers - tsr.array_layer_base
                                         : tsr.array_layer_size;
         view_desc.aspect = WGPUTextureAspect_All;
+        // A one-layer view is a plain 2D view even on a layered texture. The dimension was
+        // chosen from the texture, so it has to be corrected to what the range actually
+        // covers - which is what an attachment of a single layer needs.
+        if (view_desc.arrayLayerCount == 1 && view_desc.dimension == WGPUTextureViewDimension_2DArray) {
+            view_desc.dimension = WGPUTextureViewDimension_2D;
+        }
 
         WGPUTextureView view = wgpuTextureCreateView(pimpl->texture, &view_desc);
         if (view == nullptr) {

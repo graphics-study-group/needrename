@@ -130,9 +130,9 @@ namespace Engine::Rhi {
             for (const DescriptorBinding &binding : layout) {
                 h.u32(binding.binding);
                 h.u32(static_cast<uint32_t>(binding.type));
-                // `count` is deliberately absent: WGPUBindGroupLayoutEntry has no
-                // array-length field, so a binding is one entry whatever the seam says.
-                h.u32(static_cast<uint32_t>(binding.immutable_sampler.GetValue()));
+                // `count` is part of the layout: an array binding declares its length with
+                // bindingArraySize, so two layouts differing in it are different layouts.
+                h.u32(binding.count);
             }
             return h.get();
         }
@@ -152,6 +152,10 @@ namespace Engine::Rhi {
             WGPUBindGroupLayoutEntry entry{};
             entry.binding = binding.binding;
             entry.visibility = ToWgpuVisibility();
+            // A binding that holds more than one descriptor is an array, and the layout has to
+            // say how long it is: an array the shader indexes into is a different declaration
+            // from a single binding, not a detail of the set.
+            entry.bindingArraySize = binding.count;
             switch (binding.type) {
             case DescriptorType::UniformBuffer:
             case DescriptorType::UniformBufferDynamic:
@@ -162,9 +166,13 @@ namespace Engine::Rhi {
                 entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
                 break;
             case DescriptorType::CombinedImageSampler:
+                // A texture entry carries its sampler by construction on this backend: the
+                // layout field is the texture, and the pair is one binding rather than two.
                 entry.texture.sampleType = WGPUTextureSampleType_Float;
                 entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-                entry.sampler.type = WGPUSamplerBindingType_Filtering;
+                // A texture entry carries its sampler by construction on this backend, so one
+                // seam binding is one entry here. The array length still has to be declared.
+                entry.bindingArraySize = binding.count;
                 break;
             case DescriptorType::SampledImage:
                 entry.texture.sampleType = WGPUTextureSampleType_Float;

@@ -278,13 +278,18 @@ namespace Engine::RenderSystemState {
                 // This backend creates the set with its contents, so both bindings are named here and
                 // the shadow array is filled per frame in UploadSceneData.
                 for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
-                    const Rhi::ResolvedBinding bindings[2] = {
+                    const Rhi::ResolvedBinding bindings[3] = {
                         Rhi::ResolvedBinding{
                             .binding = 0,
                             .type = Rhi::DescriptorType::UniformBuffer,
                             .buffer = light_back_buffer->GetBufferRef(),
                             .offset = static_cast<size_t>(light_back_buffer->GetSliceOffset(i)),
                             .range = static_cast<size_t>(light_back_buffer->GetSliceSize())
+                        },
+                        Rhi::ResolvedBinding{
+                            .binding = 1,
+                            .type = Rhi::DescriptorType::CombinedImageSampler,
+                            .image_view = default_light_map->GetViewRef({})
                         },
                         Rhi::ResolvedBinding{
                             .binding = 2,
