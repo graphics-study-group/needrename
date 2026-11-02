@@ -13,9 +13,9 @@ Verified at `a0ca69fe` (branch `feature/wgpu`).
 
 ## Where it stands in one sentence
 
-The engine now builds a scene, records it, submits it and presents it through the WebGPU
-backend **without a validation error**, on desktop; **the frame is still black**, and the
-browser build has not been run since the bake work landed.
+The engine's own scene draws and presents through the WebGPU backend on desktop - two windowed
+tests pass with captured frames - and **the full scene example stalls inside its first frame in
+the physics step**, while the browser build has not been run since the bake work landed.
 
 ---
 
@@ -23,16 +23,28 @@ browser build has not been run since the bake work landed.
 
 | Evidence | What it proves |
 |---|---|
-| `msvc-debug`: build exit 0, 54 tests pass | the Vulkan backend is unchanged (`asset_path_test` and `data_root_test` are the two known environment failures, excluded here) |
+| `msvc-debug`: build exit 0, 76/76 tests pass | the Vulkan backend is unchanged (`asset_path_test` and `data_root_test` are the two known environment failures, excluded here) |
 | `webgpu-desktop`: build exit 0 | the whole engine compiles and links against the second backend |
-| `mrt_test`, `skybox_test` on WebGPU | the engine creates its device, surface, descriptor sets and material pipelines, records four render passes, submits them and presents - with **no uncaptured validation error and no panic** |
+| `mrt_test` on WebGPU: **PASSED**, and its frame dumped | the engine records four render passes, draws, reads the colour target back and presents |
+| `skybox_test` on WebGPU: **PASSED** (640000/640000 pixels), and its frame dumped | a textured material pipeline, a cube map, depth and the present copy all work |
+| `build/webgpu/mrt_frame.png`, `build/webgpu/skybox.png` | the frames themselves |
 
-The two tests still **fail**, with their own assertions:
+The two tests' own assertions are the evidence: `mrt_test` fails when the colour target is
+uniformly zero, and `skybox_test` fails when the frame is entirely black. Both pass.
 
-- `mrt_test`: "the read-back colour target is uniformly zero".
-- `skybox_test`: the frame is black.
+### How to look at a frame
 
-So: the plumbing is proven end to end; **the picture is not**.
+```powershell
+$env:NEEDRENAME_DATA_ROOT = (Resolve-Path build\webgpu\stage\Debug).Path
+$env:SKYBOX_DUMP = "C:\tmp\skybox.bmp"           # or MRT_DUMP for mrt_test
+build\webgpu\bin\Debug\skybox_test.exe 10
+$env:NEEDRENAME_PRESENT_CAPTURE = "C:\tmp\presented.bmp"   # any windowed run
+build\webgpu\bin\Debug\mrt_test.exe 6
+```
+
+`SKYBOX_DUMP`/`MRT_DUMP` write what the render target holds; `NEEDRENAME_PRESENT_CAPTURE`
+writes what the surface received, which is the stronger of the two.
+
 
 ---
 
@@ -70,58 +82,52 @@ So: the plumbing is proven end to end; **the picture is not**.
 
 ## What is not real, and the order to take it
 
-### 1. The frame is black (the first thing to fix)
+### 1. The scene example stalls in its first frame (the first thing to fix)
 
-Both windowed runs present a black frame with no validation error, so the fault is in what the
-shaders compute or in what reaches the surface. The fastest way to separate the two:
+`external_resource_loading_example` reaches the end of its frame's CPU work and then stops
+inside the frame: cascades are fitted, the surface image is acquired, and nothing after that.
+The render section is
 
-- `mrt_test` reads its colour target back through `RecordCopyImageToBuffer`. That copy now
-  completes - the row-alignment staging works - and the pump now fires, so the callback runs.
-  **But the map of the staging buffer fails**: `wgpuBufferMapAsync` answers
-  `WGPUMapAsyncStatus_Error` with only "Validation Error" as its message, so the callback
-  receives a buffer whose `GetVMAddress` is null and the test faults on it.
-  - The buffer is created as `CopyTo | HostRandomAccess`, which the allocator turns into
-    `MapRead | CopyDst`; the map is requested with `WGPU_WHOLE_MAP_SIZE` after the work is done
-    and outside the device's event dispatch (`BufferAllocation::PrepareReadback`). What is left
-    to check is the buffer *this* map names: the readback registry's staging buffer, not the
-    caller's. Printing `wgpuBufferGetSize` and the descriptor's usage at creation, or turning on
-    wgpu-native's log level (`wgpuSetLogLevel`, in `wgpu.h`), is the next step - the summary
-    status carries no detail.
-- If the readback bytes are non-zero, the draw is fine and the fault is in the present path:
-  `SurfacePresentProvider` on this backend, which copies the final colour target into the
-  surface texture and presents it. That copy is the other half of the same question and has
-  never been observed producing a picture.
+```
+renderer->StartFrame()
+cb = BeginMainCommandBuffer()
+physics->GPUStep(cb.GetEncoder())          // physics compute passes
+physics->GPUCalcModelMatrices(...)         // compute
+renderGraph->RecordAllPasses(cb.GetEncoder())
+renderer->CompleteFrame(final_color, ShaderRandomWrite)
+```
+
+Both windowed tests take the same path *without* the physics calls and pass, so **the physics
+step is the first suspect**: `GPUStep` loads its kernels through `PhysicsSpirvLoader` (now the
+baked-module path) and dispatches them through the constant ring. Instrument those two calls
+first; every stall this session was one call deep and found that way.
 
 ### 2. The browser build has not been run since the bake work
 
-The Emscripten preset still points at a host baker through `ENGINE_HOST_SHADER_BAKER`, and the
-staged tree now carries WGSL for every built-in shader, so a browser run is the next thing to
-attempt after the desktop frame. Two things are expected to block it:
+The Emscripten preset points at a host baker through `ENGINE_HOST_SHADER_BAKER`, and the staged
+tree now carries WGSL for every built-in shader, so a browser run is the next thing to attempt
+once the desktop example draws. Two things are expected to block it:
 
-- **The render path uses runtime reflection** (`SPLayout::Reflect`) to build material layouts
+- **The material path uses runtime reflection** (`SPLayout::Reflect`) to build material layouts
   and to place material uniform variables. The browser build has no SPIRV-Cross by design
   (task 11.2), so either that reflection has to be replaced by the baked interface description
   - which needs variable offsets, the part of task 7.1 that is still missing - or SPIRV-Cross
   has to be linked into the wasm module and task 11.2 recorded as not met.
-- **`RequestComputeKernel` throws** on this backend by design; the physics loader now takes the
-  baked-module path (`PhysicsSpirvLoader`), which the browser build can use as soon as its
-  physics artifacts are staged.
+- **The readback pump waits by yielding.** `PrepareReadback` loops on `emscripten_sleep(0)`,
+  which needs `-sASYNCIFY` in the link flags. Check that before concluding the readback is
+  broken in the browser.
 
 ### 3. Physics on WebGPU
 
-`PhysicsSpirvLoader` now loads `<module>.wgsl` and `<module>.iface.json` and creates the kernel
-through `RequestComputeKernelFromModule`, and the desktop build implements that. It has not been
-run: the render graph's compute passes fail first on a storage-image format mismatch
-(`bloom.comp` wants an `Rg11b10Ufloat` read-only storage texture, the seam's binding description
-carries no format). The honest fix is to record the storage image's format in
-`DescriptorBinding` from the reflection, which is a small addition.
+`RequestComputeKernelFromModule` is implemented, the loader takes it, and kernel layouts now
+carry their storage image formats. Nothing has dispatched a physics kernel yet - the example
+stalls before it says which one, which is what item 1 is for.
 
-### 4. The two windowed tests that used to skip this backend
+### 4. The windowed tests that still skip this backend
 
-`mrt_test` and `skybox_test` were ported to the seam this session (`RecordCopyImageToBuffer`
-instead of a raw Vulkan copy). `imgui_test` is still Vulkan-only: the ImGui WebGPU back-end does
-not compile against wgpu-native 29, which is task 10.4 and unchanged.
-
+`mrt_test` and `skybox_test` were ported to the seam and now pass on WebGPU. `imgui_test` is
+still Vulkan-only: the ImGui WebGPU back-end does not compile against wgpu-native 29, which is
+task 10.4 and unchanged.
 ---
 
 ## Things not to redo
