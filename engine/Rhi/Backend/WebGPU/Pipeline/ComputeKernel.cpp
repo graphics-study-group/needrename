@@ -46,7 +46,11 @@ namespace Engine::Rhi {
         /// what those groups get.
         DescriptorSetLayoutHandle empty_set_layout{};
         /// @brief Whether the device built this kernel's pipeline.
-        bool available{false};
+        ///
+        /// True until a creation says otherwise: a kernel that reaches a dispatch without having
+        /// gone through `CreateFromModule` has not been refused by anything, and silently skipping
+        /// its work would turn a missing call into a black frame.
+        bool available{true};
     };
 
     ComputeKernelResource::ComputeKernelResource(const DeviceBuffer &buffer) {
