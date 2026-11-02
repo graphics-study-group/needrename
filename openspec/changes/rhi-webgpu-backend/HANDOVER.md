@@ -1,134 +1,140 @@
 # Handover
 
-Written at the end of a long session, for whoever picks this up next. It says what is real, what
-is not, and what not to spend time on. Everything here is verified against the tree at `33bf07e8`.
+Written at the end of a session that took the engine's own path from "cannot encode" to
+"encodes, submits and presents". It says what is real, what is not, and what to do next.
 
-**Read this before the other documents.** `STATUS.md` is the longer record of how the change got
-here; `tasks.md` tracks the 51 tasks; this file is the shortest accurate description of the state.
+**Read this before the other documents.** `STATUS.md` is the longer record of how the change
+got here; `tasks.md` tracks the 51 tasks; this file is the shortest accurate description of the
+state.
+
+Verified at `a0ca69fe` (branch `feature/wgpu`).
 
 ---
 
 ## Where it stands in one sentence
 
-The seam exists and is enforced, the WebGPU backend exists and **presents a frame on both desktop
-and in a browser through a standalone example**, and the **engine's own frame loop still does not
-draw** - it now gets as far as encoding a command buffer and is rejected there.
+The engine now builds a scene, records it, submits it and presents it through the WebGPU
+backend **without a validation error**, on desktop; **the frame is still black**, and the
+browser build has not been run since the bake work landed.
 
 ---
 
-## What is real
-
-### Two captured frames
+## What is real, and how it was checked
 
 | Evidence | What it proves |
 |---|---|
-| `evidence/desktop-webgpu-frame.png` | a desktop window cleared through a WebGPU Win32 surface |
-| `evidence/browser-webgpu-frame.png` | a browser canvas cleared through the same code compiled to wasm |
+| `msvc-debug`: build exit 0, 54 tests pass | the Vulkan backend is unchanged (`asset_path_test` and `data_root_test` are the two known environment failures, excluded here) |
+| `webgpu-desktop`: build exit 0 | the whole engine compiles and links against the second backend |
+| `mrt_test`, `skybox_test` on WebGPU | the engine creates its device, surface, descriptor sets and material pipelines, records four render passes, submits them and presents - with **no uncaptured validation error and no panic** |
 
-`example/webgpu_clear_example` is that code. It does **not** use the RHI, deliberately: it answers
-whether a surface can be acquired and presented at all, and it says yes on both targets. It is a
-platform probe, not a renderer.
+The two tests still **fail**, with their own assertions:
 
-### The backend
+- `mrt_test`: "the read-back colour target is uniformly zero".
+- `skybox_test`: the frame is black.
 
-`engine/Rhi/Backend/WebGPU/` - 16 units, 31 objects, links into all three builds. It runs the
-engine's own device and context creation, creates a surface from the window, configures it from its
-capabilities, creates the frame manager's semaphores, and builds camera and scene descriptor sets.
-
-### The build
-
-| Preset | State |
-|---|---|
-| `msvc-debug` | builds, **76 / 78 tests** (the two failures are environmental - see below) |
-| `emscripten` | builds and links; the example page runs in a browser |
-| `webgpu-desktop` | builds; the clear example presents |
-
-### The render graph builder compiles on both backends
-
-`RenderGraphBuilder` was a stub for a long time. It now compiles for WebGPU by guarding four small
-regions rather than one large one, and `ComplexRenderGraphBuilder::BuildDefaultRenderGraph` runs.
+So: the plumbing is proven end to end; **the picture is not**.
 
 ---
 
-## What is not real
+## What made the difference this session, in order
 
-### The engine does not draw a frame
-
-The browser example runs the engine's initialization, loads its baked shaders, creates its textures
-and descriptor sets - and then hands WebGPU a command buffer that fails validation. The message at
-the end of the session was:
-
-```
-The layer count (4) of [TextureView of Texture "Default shadow map"] used as attachment is greater than 1.
-... [Invalid CommandBuffer] is invalid due to a previous error.
-```
-
-A correction for exactly that was written and built (`33bf07e8`) but **not verified in a browser**
-before the session ended. Start there: re-run the example and read the first uncaptured error.
-
-### No graphical test runs on WebGPU
-
-The only test exercising this backend is `webgpu_device_test` (device creation, a buffer, a
-texture, layout caching). Nothing draws.
-
----
-
-## Environment failure that looks like a regression
-
-`data_root_test` and `asset_path_test` fail with:
-
-```
-create_directories(...\needrename_data_root_test\override): Access is denied.  (error 5)
-```
-
-Established by experiment:
-
-- making the directory by hand first makes the checks pass
-- a standalone `std::filesystem` probe built with the same compiler creates that exact path
-- it reproduces on a clean tree, and `git status` is empty there
-- renaming the executable changes nothing
-
-So it is the process being refused, not the code. **Do not chase it.**
+1. **The build could not be produced from clean.** `RenderResourceHasher` had no `f` overload,
+   which the Vulkan resource caches call on every flag set. An incremental build hid it: the
+   translation unit kept an object file from before the header was last edited, so a partial
+   build mixed objects compiled against two different `DescriptorBinding` layouts - which
+   surfaced as an access violation in an RHI test rather than as a link error. Fixed, and the
+   lesson is in the commit: **when a shared header changes shape, check that a clean build
+   works.**
+2. **The bake covers the built-in shaders**, not just the physics tree. `shader_baker` now
+   writes the WGSL variant and the interface description into the same archive as the SPIR-V,
+   so one asset set serves both backends. It pins each combined sampler's split slot with
+   `--sampler-mapping` (the converter otherwise chooses, and has been seen to choose one past
+   the set's highest binding), and a shader that would need a slot above nine fails the bake
+   instead of binding nothing.
+3. **Push constants became a uniform buffer in group 3.** The bake moves the block there, the
+   pipeline layout appends the group (padding with empty layouts when a pipeline declares
+   fewer sets), and the command encoder publishes one zero-filled 256-byte window per recorded
+   block into a ring the queue orders against submission.
+4. **The seam states what a texture binding holds** - sample type, view dimension, and where a
+   combined binding's sampler lands - because the standard interface has neither a combined
+   binding nor a Vulkan layout to derive the shape from.
+5. **The frame encoder is rebuilt when a frame slot is reset.** The frame manager cached one
+   encoder per slot for the process's lifetime; the second frame recorded into an encoder that
+   had already been released, which the device reported as a panic.
+6. **Five defects the first real draws exposed**, each of which only a frame could show: a
+   cube map read as a cube array, a "no comparison" sampler created as a comparison sampler, a
+   readback row that has to be 256-byte aligned, a pipeline layout group left unbound, and a
+   constant window whose tail was reading the previous frame.
 
 ---
 
-## What to do next, in order
+## What is not real, and the order to take it
 
-1. **Re-run the browser example and read the first uncaptured error.** Everything below the first
-   one is a consequence. The loop is: run, read the sentence the validator wrote, fix that
-   sentence, repeat. This has been the only method that works.
+### 1. The frame is black (the first thing to fix)
 
-2. **Whatever that error is, it is probably the attachment/view or the pipeline.** The engine's
-   clear example already proves present works; what fails now is command encoding, so the fault is
-   in bind groups, pipeline layouts or render pass attachments.
+Both windowed runs present a black frame with no validation error, so the fault is in what the
+shaders compute or in what reaches the surface. The fastest way to separate the two:
 
-3. **Then the desktop windowed path.** `RenderSystem` picks `SurfacePresentProvider` for a windowed
-   run on this backend and it constructs, but no windowed example has been run to a frame yet.
+- `mrt_test` reads its colour target back through `RecordCopyImageToBuffer`, and that readback
+  now completes; **but its callback prints nothing**, which means the readback pump never hands
+  the buffer over. Fixing that turns "the test says zero" into "here are the bytes", and the
+  bytes say whether the draw happened.
+  - The pump lives in `FrameManager::impl::CompleteFrame`: it polls each registry's fence with
+    `WaitForFence(handle, 0)`. On this backend a poll registers a queue-work-done callback and
+    dispatches the instance's events once. That call has not been observed to fire; a poll that
+    drives `wgpuInstanceProcessEvents` **and** waits for the callback (the way
+    `DeviceContext::WaitForIdle` does) is the obvious next attempt.
+- If the readback bytes are non-zero, the draw is fine and the fault is in the present path:
+  `SurfacePresentProvider` on this backend, which copies the final colour target into the
+  surface texture and presents it. That copy is the other half of the same question and has
+  never been observed producing a picture.
 
-4. **Then the graphical tests.** `mrt_test` and `skybox_test` are the smallest that exercise
-   windowed rendering on Vulkan; they are the natural first two to port.
+### 2. The browser build has not been run since the bake work
+
+The Emscripten preset still points at a host baker through `ENGINE_HOST_SHADER_BAKER`, and the
+staged tree now carries WGSL for every built-in shader, so a browser run is the next thing to
+attempt after the desktop frame. Two things are expected to block it:
+
+- **The render path uses runtime reflection** (`SPLayout::Reflect`) to build material layouts
+  and to place material uniform variables. The browser build has no SPIRV-Cross by design
+  (task 11.2), so either that reflection has to be replaced by the baked interface description
+  - which needs variable offsets, the part of task 7.1 that is still missing - or SPIRV-Cross
+  has to be linked into the wasm module and task 11.2 recorded as not met.
+- **`RequestComputeKernel` throws** on this backend by design; the physics loader now takes the
+  baked-module path (`PhysicsSpirvLoader`), which the browser build can use as soon as its
+  physics artifacts are staged.
+
+### 3. Physics on WebGPU
+
+`PhysicsSpirvLoader` now loads `<module>.wgsl` and `<module>.iface.json` and creates the kernel
+through `RequestComputeKernelFromModule`, and the desktop build implements that. It has not been
+run: the render graph's compute passes fail first on a storage-image format mismatch
+(`bloom.comp` wants an `Rg11b10Ufloat` read-only storage texture, the seam's binding description
+carries no format). The honest fix is to record the storage image's format in
+`DescriptorBinding` from the reflection, which is a small addition.
+
+### 4. The two windowed tests that used to skip this backend
+
+`mrt_test` and `skybox_test` were ported to the seam this session (`RecordCopyImageToBuffer`
+instead of a raw Vulkan copy). `imgui_test` is still Vulkan-only: the ImGui WebGPU back-end does
+not compile against wgpu-native 29, which is task 10.4 and unchanged.
 
 ---
 
-## What not to redo
-
-Each of these cost real time and is settled.
+## Things not to redo
 
 | Do not | Why |
 |---|---|
-| Call `wgpuBufferGetMapState` | wgpu-native panics with `unimplemented!()`. Decide mapped-ness from `BufferTypeBits` instead. |
-| Pass `maxAnisotropy 0` to `wgpuDeviceCreateSampler` | Rejected; clamp to 1. |
-| Expect `imgui_impl_wgpu.cpp` to compile against wgpu-native 29 | It targets an older header. `GUISystem` is a stub here on purpose. |
-| Use `MapRead` with `Uniform`/`Storage` | Only `CopyDst` may accompany `MapRead`. And `MapWrite` only with `CopySrc`. |
-| Give ktx `vkFormat = 0` | ktx identifies textures by the specification's Vulkan format number. `Rhi::GetVkFormatValue` answers it; read the values from `vulkan_core.h`, do not recall them. |
-| Guard `RenderGraphBuilder` as one region | It interleaves ordering, the cross-queue merge and the compiled passes. Four small guards work; one large one does not. Details in `STATUS.md`. |
-| Assume `--screenshot` will capture a page with a frame loop | It decides for itself when a page is finished. Use `tools/dsh/cdp_shot.mjs`, which asks for the capture when it chooses and returns the page's console and exceptions. |
-| Judge a frame by whether the canvas is black | The first clear colour was a deep blue that reads as black. A mid blue makes the result visible; an example whose result cannot be seen is not evidence. |
-| Build the wasm engine as side modules | Emscripten side modules killed the first allocation with "null function". The engine is one module; `BUILD_SHARED_LIBS` answers the library type and `bin/` must hold no stale `.so`. |
-| Expect `SDL_CreateWindow` to succeed with `SDL_WINDOW_VULKAN` on this backend | It fails with a message that only appears if you add `SDL_GetError()` - which is why that was added. |
-| Spin on `requestAdapter` without Asyncify | The browser answers on the event loop the caller is occupying. `-sASYNCIFY` plus `emscripten_sleep` in the wait is what makes it resolve. |
-| Assume `wgpuSurfacePresent` works on a canvas | It aborts: "use requestAnimationFrame via html5.h instead". The windowed path still presents. |
-| Configure a surface with an assumed format | Read `wgpuSurfaceGetCapabilities` first; a canvas and a window offer different lists and configuring with the wrong one asserts. |
+| Chase a fault as a code regression before checking that a clean build works | a stale object file cost this session several hours; the symptom was an access violation at device creation |
+| Expect the converter to place a combined sampler's split slot predictably | it picks per module; the bake pins the slot with `--sampler-mapping`, and the mapping's destination is a single digit |
+| Bind a Vulkan-style partial set of groups | a draw must bind every group the pipeline layout declares, even unused ones |
+| Compare a sampler's `DSComparator::Always` to "comparison enabled" | the seam uses `Always` for "no comparison" |
+| Copy an image to a buffer with a tight row pitch | rows must start every 256 bytes; stage through a padded buffer |
+| Use `{}` for a `WGPU*` structure with an `_INIT` macro | their defaults are not all zero (`WGPURenderPassColorAttachment::depthSlice` is the one that bites) |
+| Call `wgpuBufferGetMapState` | wgpu-native panics with `unimplemented!()` |
+| Pass `maxAnisotropy 0` | rejected; clamp to 1 |
+| Expect `imgui_impl_wgpu.cpp` to compile against wgpu-native 29 | it targets an older header; `GUISystem` is a stub here on purpose |
+| Judge a frame by whether the canvas is black | the clear colour and the scene colour have to be distinguishable; an example whose result cannot be seen is not evidence |
 
 ---
 
@@ -137,30 +143,24 @@ Each of these cost real time and is settled.
 ```sh
 cmake --preset msvc
 cmake --build --preset msvc-debug
-ctest --preset msvc-debug                     # 76/78; the two are environmental
+ctest --preset msvc-debug -E "asset_path_test|data_root_test"
 
-cmake --preset emscripten
-cmake --build build/emscripten --config Debug --target external_resource_loading_example
-
-cmake --preset webgpu-desktop
-cmake --build build/webgpu --config Debug --target webgpu_clear_example
+cmake --preset webgpu-desktop \
+  -DSHADER_WGSL_CONVERTER=D:/tools/dawn/<dawn>/bin/tint.exe
+cmake --build build/webgpu --config Debug
 ```
 
-To see a browser frame: serve `build/emscripten/bin` over HTTP (the module loader needs `fetch`,
-which `file://` blocks), start Edge with `--remote-debugging-port=9222 --enable-unsafe-webgpu`, then
+The WebGPU build runs against the **staged** data root, because that is where the baked shader
+archives are:
 
-```sh
-node tools/dsh/cdp_shot.mjs http://127.0.0.1:9222 http://127.0.0.1:8931/<page>.html out.png 90000 1000 760
+```powershell
+$env:NEEDRENAME_DATA_ROOT = (Resolve-Path build\webgpu\stage\Debug).Path
+build\webgpu\bin\Debug\mrt_test.exe 3
 ```
 
-**Baking the built-in shaders** is a separate step the Emscripten configure skips (a cross build
-cannot run a baker built for the target):
-
-```sh
-build/msvc/bin/Debug/shader_baker.exe build/emscripten/stage/Debug/builtin_assets/shaders
-```
-
-Run it after the native build exists. The example preloads that staged tree.
+`shader_baker` is a host tool: a Vulkan configure builds it, and a WebGPU or cross configure
+finds it automatically at `build/msvc/bin/Debug/shader_baker.exe` (or by setting
+`ENGINE_HOST_SHADER_BAKER`). A cross build cannot build one itself - it has no GLSL compiler.
 
 ---
 
@@ -171,19 +171,10 @@ Run it after the native build exists. The example preloads that staged tree.
 | MSVC / VS 2026 | `C:\Program Files\Microsoft Visual Studio\18\Community` |
 | Vulkan SDK 1.4.313.2 | `C:\VulkanSDK\1.4.313.2` |
 | SDL3 3.4.16 | `C:\SDL3_SDK\SDL3-3.4.16` |
-| wgpu-native | `D:\tools\wgpu-native` (`include/webgpu/webgpu.h`, `lib/wgpu_native.dll`) |
-| Tint | `D:\tools\dawn\...\bin\tint.exe` |
+| wgpu-native | `D:\tools\wgpu-native` |
+| Tint | `D:\tools\dawn\Dawn-97ae1b10ac9d579f7e6b790ce7fc4faa1041f820-windows-latest-Release\bin\tint.exe` |
 | emsdk | `C:\emsdk` |
 | Python | `.venv` in the repo root |
 
----
-
-## The honest summary
-
-**Two frames by a probe; no frame by the engine.** The probe proves the surface path on both
-targets, which was the largest unknown a few rounds ago. The engine's own path is one validation
-error away from encoding a command buffer, and that error has been narrowed three times this
-session (`bindingArraySize`, combined-sampler entries, single-layer views).
-
-The remaining work is not a design problem any more. It is the same loop that produced every fix
-listed above: run it, read the one sentence the validator wrote, and fix that sentence.
+`SHADER_WGSL_CONVERTER` is a cache variable, discovered when it is not set; on this machine it
+has to be passed once because the Dawn build is not on `PATH`.
