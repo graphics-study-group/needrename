@@ -146,10 +146,20 @@ which is emmalloc refusing to free a region it believes is in use: a double free
 write that corrupted emmalloc's bookkeeping. That is a memory bug in the wasm path, not a
 missing WebGPU call, and nothing in the desktop build shows it.
 
-The abort happens inside the first frame's recording: it prints after `BeginMainCommandBuffer`
-returns and before `CompleteFrame`, so the work in between - the physics step, the model-matrix
-compute and the render graph's passes - is where to look. Four experiments are already spent,
-and recording them is cheaper than repeating them:
+The abort happens inside the first frame's recording. The engine now has skip switches that
+work in the page - `MainClass::SetDiagnosticSkip` plus example arguments `--skip-physics`,
+`--skip-matrices`, `--skip-passes`, `--skip-shadow-passes` and `--skip-compute-passes` (the
+`NEEDRENAME_SKIP_*` variables still work on the desktop). What they say:
+
+| Run | Result |
+|---|---|
+| everything recorded | emmalloc double free |
+| `--skip-physics --skip-matrices --skip-passes` | survives |
+| `--skip-physics --skip-matrices` | double free |
+| `--skip-compute-passes` | double free |
+| `--skip-shadow-passes` | a *different*, bare assertion - so the shadow passes are one fault and something behind them is another |
+
+Four experiments are already spent, and recording them is cheaper than repeating them:
 
 - `-sSAFE_HEAP=1` reports an alignment fault in the glTF loader instead, which is that loader
   doing unaligned reads on purpose; it says nothing about this bug.
@@ -157,10 +167,11 @@ and recording them is cheaper than repeating them:
   only. The source line has to come from bisecting.
 - `-sASYNCIFY_STACK_SIZE=2097152` (now in the example's link options) changes nothing, but the
   4 KB default was worth ruling out - Asyncify copies the stack of the frame that sleeps.
-- `Module.ENV` does **not** reach `SDL_getenv` in the page, so an environment variable is not a
-  bisect tool in the browser. `MainClass::RunOneFrame` grew `NEEDRENAME_SKIP_PHYSICS`,
-  `NEEDRENAME_SKIP_MODEL_MATRICES` and `NEEDRENAME_SKIP_PASSES` for the desktop; the browser
-  needs the same three as `Module.arguments` or a compile-time define.
+- AddressSanitizer is the tool that would name the bad free outright, and a separate ASAN
+  configure is not free: a fresh build directory fails in the reflection parser, which needs the
+  SDL include path the default tree already has. The next attempt should add the sanitizer flags
+  to the *existing* `build/emscripten` configure (or fix the parser's include path for a new
+  one) rather than start a second tree.
 
 The likeliest places remain the ones written for the wasm build and sized by hand:
 `SubmissionHelper::EnqueueTextureBufferSubmission`'s padded row copy, `BuildClearData`,
