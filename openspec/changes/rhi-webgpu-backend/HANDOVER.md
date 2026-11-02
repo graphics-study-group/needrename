@@ -6,7 +6,7 @@ has to be passed once because the Dawn build is not on `PATH`.
 The engine's own scene draws and presents through the WebGPU backend on desktop - the full
 windowed example runs to its last frame and the surface image it presents is the frame it
 rendered - the skybox test's WebGPU frame is byte-for-byte the frame Vulkan produces, and the
-browser build runs to its frames with the material path reading the bake's description instead of reflecting, and its canvas is still black.
+browser page draws the same scene into its canvas with the material path reading the bake's description where a build has no reflection library.
 
 ---
 
@@ -148,33 +148,26 @@ so what is left to find is which kernel and why - the last one reached was
   modules without this stall, so a build with `-O2`/`RelWithDebInfo` (where naga is not in
   debug) is the cheapest way to tell the two apart.
 
-### 2. The browser runs to its frames; its canvas is still black
+### 2. The browser renders the scene
 
-The page creates its device and surface, loads the model, enters its main loop and records
-frames with no exception. Its canvas is black, and the reasons left are on the physics and
-device-limit side rather than the material side:
+The page draws the same frame the desktop does - the brick sphere over the ground, skybox behind
+it - after sixty-odd frames, in the canvas. Two things were in the way:
 
-- The material path no longer reflects: the bake records each buffer block's variables and each
-  image's shape, `SPLayout::FromDescription` rebuilds the layout from them, and the browser uses
-  that path while a build with reflection keeps reflecting. That was the structural blocker and
-  it is gone.
-- The engine's physics kernels bind twenty storage buffers in one group; a browser caps that at
-  sixteen. The layouts are compute-only now and a kernel the device refuses is dispatched as a
-  no-op, so the frame records - but the solver produces nothing, which is worth knowing before
-  the black canvas is blamed on the render path.
-- What to check next: whether the frames that are recorded are submitted and presented (the
-  headless capture shows the shell's canvas, so a `console.log` in `Present` or a present-side
-  readback would say), and whether the scene's draws run at all with the physics kernels empty.
+- **A layout's non-reflective half was absent.** `SPLayout::Merge`, `GenerateLayoutBindings`,
+  `GenerateAllLayoutBindings` and `PlaceBufferVariable` are arithmetic on the binding table, but
+  they lived in the unit only a build with SPIRV-Cross compiles, and the browser replaced that
+  unit with a stub that made all four no-ops. A material's layout was always empty there, its
+  pipeline was built without the group its shaders use, and every draw of it was rejected. They
+  are in `SPLayoutCore.cpp` now, which every build compiles; only `Reflect` is per-backend.
+- **The diagnostic capture blocked the page.** Its map wait loop only pumped events, which never
+  lets the browser deliver the map callback, so the second frame waited forever. It yields with
+  `emscripten_sleep(0)` now, and the automatic probe the previous round added is gone - it was
+  the thing being waited on.
 
-Three real faults were in the way of getting this far:
-
-- libktx's `DEBUG`-guarded offset check wrote eight bytes into a four-byte `ktx_size_t` on a
-  32-bit target. That stack write is what emmalloc later reported as a double free.
-- The mesh archive wrote `size_t` and whole structs, so a file written by a 64-bit build read as
-  "vertex buffer 0 bytes" in the browser. The format states its widths now, and an older file is
-  read by recovering the writer's width.
-- `WriteVertexAttributeBuffer` copied from an attribute offset added to an empty buffer's data
-  pointer, one past null. It checks the range and names the disagreement now.
+Faults the browser surfaced on the way, all fixed and all real: libktx wrote eight bytes into a
+four-byte `ktx_size_t` on a 32-bit target; the mesh archive wrote `size_t` and whole structs, so a
+file written by a 64-bit build read as garbage in the browser; and `WriteVertexAttributeBuffer`
+copied from an attribute offset added to an empty buffer's data pointer.
 
 Experiments already spent, recorded so they are not repeated:
 
@@ -182,17 +175,15 @@ Experiments already spent, recorded so they are not repeated:
   on purpose where it may.
 - `-sASSERTIONS=2` prints no stack for these aborts: the generated `abort()` prints the message
   only.
-- `-sASYNCIFY_STACK_SIZE=2097152` (now in the example's link options) changes nothing but was
-  worth ruling out.
-- **AddressSanitizer is what found the two memory bugs.** It belongs in the existing
+- **AddressSanitizer is what found the memory bugs.** It belongs in the existing
   `build/emscripten` configure -
   `cmake --preset emscripten -DCMAKE_CXX_FLAGS="-fsanitize=address -g" -DCMAKE_C_FLAGS="-fsanitize=address -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -sALLOW_MEMORY_GROWTH=1"`
-  - because a separate build directory cannot get past its reflection parser. Every ASAN line
-  reaches the browser log as `console.error`.
+  - because a separate build directory cannot get past its reflection parser.
 - `Module.ENV` does not reach `SDL_getenv` in the page. The skip switches are
-  `MainClass::SetDiagnosticSkip` plus example arguments (`--skip-physics`, `--skip-matrices`,
-  `--skip-passes`, `--skip-shadow-passes`, `--skip-compute-passes`, `--skip-shadow-draws`,
-  `--skip-lit-pass`); the `NEEDRENAME_SKIP_*` variables work on the desktop only.
+  `MainClass::SetDiagnosticSkip` plus example arguments; the `NEEDRENAME_SKIP_*` variables work on
+  the desktop only.
+- The page's map callbacks need a yielding wait (`emscripten_sleep(0)`), and a wait loop that only
+  pumps events hangs the frame it runs in.
 
 ### 3. Physics on WebGPU
 
