@@ -17,9 +17,11 @@ subdirlist(subdirs ${CMAKE_CURRENT_SOURCE_DIR})
 # endforeach()
 add_subdirectory(external_resource_loading_example)
 add_subdirectory(editor_run_game_example)
-# A browser-only example: it exists to answer whether a canvas can be presented to at all, so it
-# is built only when the target has a browser to run in.
-if (EMSCRIPTEN)
+# An example that presents through WebGPU directly: it exists to answer whether a surface can be
+# acquired and presented at all, on either a canvas or a window, so it is built only where the
+# WebGPU backend is the one selected.
+if (ENGINE_RHI_BACKEND_WEBGPU)
     add_subdirectory(webgpu_clear_example)
 endif()
+
 

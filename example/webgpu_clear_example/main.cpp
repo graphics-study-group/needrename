@@ -11,6 +11,11 @@
 #include <SDL3/SDL.h>
 #include <webgpu/webgpu.h>
 
+#if !defined(__EMSCRIPTEN__)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 
@@ -48,11 +53,17 @@ namespace {
         device_done = true;
     }
 
-    void Pump(State &state) {
-        // The browser resolves adapter and device requests on its own schedule; processEvents is
-        // what lets the callbacks run.
+    void Pump(State &state, const char *what) {
+        // Adapter and device requests resolve on the implementation's schedule; processEvents is
+        // what lets the callbacks run. The bound is here so a request that never resolves reports
+        // itself instead of hanging with no output.
+        const uint64_t deadline = SDL_GetTicks() + 10000;
         while (!adapter_done || !device_done) {
             wgpuInstanceProcessEvents(state.instance);
+            if (SDL_GetTicks() > deadline) {
+                SDL_Log("webgpu_clear: %s did not resolve within 10s", what);
+                return;
+            }
             SDL_Delay(1);
         }
     }
@@ -77,6 +88,7 @@ int main(int, char **) {
         return 1;
     }
 
+#if defined(__EMSCRIPTEN__)
     // The canvas the shell page provides. Emscripten's SDL builds it with this id.
     WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvas_source{};
     canvas_source.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
@@ -87,9 +99,27 @@ int main(int, char **) {
 
     WGPUSurfaceDescriptor surface_desc{};
     surface_desc.nextInChain = &canvas_source.chain;
+#else
+    // A desktop surface names the window SDL created. The instance handle is the module's, which
+    // is what the wrapper asks for.
+    SDL_PropertiesID props = SDL_GetWindowProperties(window);
+    void *hwnd = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+    if (hwnd == nullptr) {
+        SDL_Log("webgpu_clear: the window has no HWND");
+        return 1;
+    }
+
+    WGPUSurfaceSourceWindowsHWND hwnd_source{};
+    hwnd_source.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
+    hwnd_source.hinstance = GetModuleHandle(nullptr);
+    hwnd_source.hwnd = hwnd;
+
+    WGPUSurfaceDescriptor surface_desc{};
+    surface_desc.nextInChain = &hwnd_source.chain;
+#endif
     state.surface = wgpuInstanceCreateSurface(state.instance, &surface_desc);
     if (state.surface == nullptr) {
-        SDL_Log("webgpu_clear: no surface - the canvas selector was not found");
+        SDL_Log("webgpu_clear: no surface");
         return 1;
     }
     SDL_Log("webgpu_clear: surface created");
@@ -103,7 +133,7 @@ int main(int, char **) {
     adapter_cb.callback = on_adapter;
     adapter_cb.userdata1 = &state;
     wgpuInstanceRequestAdapter(state.instance, &adapter_options, adapter_cb);
-    Pump(state);
+    Pump(state, "requestAdapter/requestDevice");
 
     if (state.adapter == nullptr) {
         SDL_Log("webgpu_clear: no adapter");
@@ -116,7 +146,7 @@ int main(int, char **) {
     device_cb.callback = on_device;
     device_cb.userdata1 = &state;
     wgpuAdapterRequestDevice(state.adapter, &device_desc, device_cb);
-    Pump(state);
+    Pump(state, "requestAdapter/requestDevice");
 
     if (state.device == nullptr) {
         SDL_Log("webgpu_clear: no device");
@@ -162,6 +192,8 @@ int main(int, char **) {
         color.storeOp = WGPUStoreOp_Store;
         // A deep blue: anything but the black a page that never presented shows.
         color.clearValue = WGPUColor{0.05, 0.15, 0.45, 1.0};
+        // A 2D attachment names no slice. Zero is a slice, and the validator says so.
+        color.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
         WGPURenderPassDescriptor pass_desc{};
         pass_desc.colorAttachmentCount = 1;
@@ -174,15 +206,26 @@ int main(int, char **) {
         wgpuQueueSubmit(state.queue, 1, &commands);
 
         wgpuSurfacePresent(state.surface);
+        // The window contents are delivered by the event loop, not by the present call alone.
+        wgpuInstanceProcessEvents(state.instance);
 
 
         if (++frames == 1) {
             SDL_Log("webgpu_clear: first frame presented");
+        }
+        // A fixed number of frames so a headless run finishes; a desktop run closes its window.
+        if (frames >= 600) {
+            SDL_Log("webgpu_clear: %llu frames presented, done", static_cast<unsigned long long>(frames));
+            running = false;
         }
         SDL_Delay(16);
     }
 
     return 0;
 }
+
+
+
+
 
 
