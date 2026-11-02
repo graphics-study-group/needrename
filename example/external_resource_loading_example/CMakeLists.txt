@@ -17,7 +17,10 @@ if (EMSCRIPTEN)
     # The WebGPU device and adapter are answered by the browser on its own schedule, and the wait
     # for them is a sleep loop. Asyncify is what makes that sleep yield to the event loop that
     # would answer; without it the page hangs at "creating DeviceInterface".
-    target_link_options(${ProjectId} PRIVATE -sASYNCIFY)
+    # The wait loops sleep from deep inside the engine, and Asyncify copies the C stack of the
+    # frame that sleeps onto its own stack: the 4 KB default is far below what a render-graph
+    # pass function uses.
+    target_link_options(${ProjectId} PRIVATE -sASYNCIFY -sASYNCIFY_STACK_SIZE=2097152)
 
     # The engine resolves its data root by looking for directories next to the executable. In a
     # browser there is no such place, so the tree it needs is packed into the module's virtual

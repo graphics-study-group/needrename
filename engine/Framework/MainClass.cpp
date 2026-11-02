@@ -319,14 +319,19 @@ namespace Engine {
         // Physics prepares itself inside GPUStep, then records its compute passes;
         // physics + rendering share one CB.
         auto cb = this->renderer->GetFrameManager().BeginMainCommandBuffer();
-        this->physics->GPUStep(cb.GetEncoder()); // physics solvers record their compute passes
+        // A diagnosis switch: the browser's first frame is where a heap bug shows, and this is
+        // the largest thing it records. Set NEEDRENAME_SKIP_PHYSICS to leave it out.
+        if (SDL_getenv("NEEDRENAME_SKIP_PHYSICS") == nullptr) {
+            this->physics->GPUStep(cb.GetEncoder()); // physics solvers record their compute passes
+        }
         // Calculate model matrices for main scene
-        if (phys_scene != nullptr) {
+        if (phys_scene != nullptr && SDL_getenv("NEEDRENAME_SKIP_MODEL_MATRICES") == nullptr) {
             this->physics->GPUCalcModelMatrices(
                 *phys_scene, cb.GetEncoder(), this->renderer->GetSceneDataManager().GetModelMatricesBuffer()
             );
         }
-        if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
+        if (SDL_getenv("NEEDRENAME_SKIP_PASSES") == nullptr && this->render_graph
+            && this->render_graph->GetNumPasses() > 0) {
             this->render_graph->RecordAllPasses(cb.GetEncoder());
         }
 

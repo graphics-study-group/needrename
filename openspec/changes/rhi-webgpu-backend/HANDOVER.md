@@ -146,12 +146,25 @@ which is emmalloc refusing to free a region it believes is in use: a double free
 write that corrupted emmalloc's bookkeeping. That is a memory bug in the wasm path, not a
 missing WebGPU call, and nothing in the desktop build shows it.
 
-How to catch it: build the page with `-sASSERTIONS=2 -sSAFE_HEAP=1`, which reports the first bad
-access rather than the corruption it causes later, and read the stack it prints -
-`capture3.html` routes `console.error`/`console.warn` through `console.log`, and the page's own
-`SDL_Log` output already reaches the browser log. The likeliest places are the ones written for
-the wasm build: `SubmissionHelper::EnqueueTextureBufferSubmission`'s padded row copy,
-`BuildClearData`, and the constant ring's window bookkeeping - each sizes a buffer by hand.
+The abort happens inside the first frame's recording: it prints after `BeginMainCommandBuffer`
+returns and before `CompleteFrame`, so the work in between - the physics step, the model-matrix
+compute and the render graph's passes - is where to look. Four experiments are already spent,
+and recording them is cheaper than repeating them:
+
+- `-sSAFE_HEAP=1` reports an alignment fault in the glTF loader instead, which is that loader
+  doing unaligned reads on purpose; it says nothing about this bug.
+- `-sASSERTIONS=2` prints no stack for this abort: the generated `abort()` prints the message
+  only. The source line has to come from bisecting.
+- `-sASYNCIFY_STACK_SIZE=2097152` (now in the example's link options) changes nothing, but the
+  4 KB default was worth ruling out - Asyncify copies the stack of the frame that sleeps.
+- `Module.ENV` does **not** reach `SDL_getenv` in the page, so an environment variable is not a
+  bisect tool in the browser. `MainClass::RunOneFrame` grew `NEEDRENAME_SKIP_PHYSICS`,
+  `NEEDRENAME_SKIP_MODEL_MATRICES` and `NEEDRENAME_SKIP_PASSES` for the desktop; the browser
+  needs the same three as `Module.arguments` or a compile-time define.
+
+The likeliest places remain the ones written for the wasm build and sized by hand:
+`SubmissionHelper::EnqueueTextureBufferSubmission`'s padded row copy, `BuildClearData`,
+`CommandEncoder`'s constant window, and the readback staging's row loop.
 
 ### 3. Physics on WebGPU
 
