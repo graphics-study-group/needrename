@@ -6,7 +6,7 @@ has to be passed once because the Dawn build is not on `PATH`.
 The engine's own scene draws and presents through the WebGPU backend on desktop - the full
 windowed example runs to its last frame and the surface image it presents is the frame it
 rendered - the skybox test's WebGPU frame is byte-for-byte the frame Vulkan produces, and the
-browser build runs to its first frame and stops there because its material path still reflects SPIR-V, which that build has no library for.
+browser build runs to its frames with the material path reading the bake's description instead of reflecting, and its canvas is still black.
 
 ---
 
@@ -134,22 +134,23 @@ so what is left to find is which kernel and why - the last one reached was
   modules without this stall, so a build with `-O2`/`RelWithDebInfo` (where naga is not in
   debug) is the cheapest way to tell the two apart.
 
-### 2. The browser runs to its first frame and needs the material path to stop reflecting
+### 2. The browser runs to its frames; its canvas is still black
 
-The page creates its device and surface, loads the model, enters its main loop, records its first
-frame - and then throws
+The page creates its device and surface, loads the model, enters its main loop and records
+frames with no exception. Its canvas is black, and the reasons left are on the physics and
+device-limit side rather than the material side:
 
-```
-SPLayout::Reflect: this backend has no reflection. Shaders arrive as WGSL with a
-ShaderInterfaceDescription.
-```
-
-which is the half of task 7.1 recorded as missing. `MaterialLibrary::CompileShaderModules`
-reflects each shader's SPIR-V to build the material layouts and to place a material uniform
-variable by name, and a build with no reflection library cannot do either. What the bake
-description carries today - the binding table, the sampler slots, the storage formats and access -
-is enough for a *kernel*, which is why the physics side runs; a material also needs each uniform
-buffer member's offset and size.
+- The material path no longer reflects: the bake records each buffer block's variables and each
+  image's shape, `SPLayout::FromDescription` rebuilds the layout from them, and the browser uses
+  that path while a build with reflection keeps reflecting. That was the structural blocker and
+  it is gone.
+- The engine's physics kernels bind twenty storage buffers in one group; a browser caps that at
+  sixteen. The layouts are compute-only now and a kernel the device refuses is dispatched as a
+  no-op, so the frame records - but the solver produces nothing, which is worth knowing before
+  the black canvas is blamed on the render path.
+- What to check next: whether the frames that are recorded are submitted and presented (the
+  headless capture shows the shell's canvas, so a `console.log` in `Present` or a present-side
+  readback would say), and whether the scene's draws run at all with the physics kernels empty.
 
 Three real faults were in the way of getting this far:
 
