@@ -11,8 +11,10 @@
 #include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Pipeline/PipelineBuilder.h"
 #include "Rhi/Pipeline/PipelineEnums.h"
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanPipelineEnums.h"
+#endif
 
 namespace Engine::PipelineUtils {
 #if defined(ENGINE_RHI_BACKEND_VULKAN)
@@ -151,6 +153,7 @@ namespace Engine::PipelineUtils {
      * @param type The shader type to convert.
      * @return The corresponding Vulkan shader stage flag bits.
      */
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
     constexpr vk::ShaderStageFlagBits ToVulkanShaderStageFlagBits(ShaderAsset::ShaderType type) {
         using Type = ShaderAsset::ShaderType;
         switch (type) {
@@ -248,6 +251,7 @@ namespace Engine::PipelineUtils {
      *
      * @param type The shader type to convert.
      */
+#endif // ENGINE_RHI_BACKEND_VULKAN
     constexpr Rhi::ShaderStage ToShaderStage(ShaderAsset::ShaderType type) {
         using Type = ShaderAsset::ShaderType;
         switch (type) {
@@ -409,6 +413,7 @@ namespace Engine::PipelineUtils {
 } // namespace Engine::PipelineUtils
 
 #endif // RENDER_PIPELINE_PIPELINEUTILS
+
 
 
 

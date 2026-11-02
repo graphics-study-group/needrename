@@ -15,7 +15,7 @@ else()
     include_directories(${UUID_INCLUDE_DIRS})
 endif()
 
-add_library(EngineCore SHARED ${SOURCE})
+add_library(EngineCore ${SOURCE})
 target_compile_definitions(EngineCore PRIVATE CORE_DLL_EXPORTS)
 target_link_libraries(EngineCore
     PUBLIC
@@ -43,4 +43,5 @@ add_reflection_parser(
 )
 add_dependencies(EngineCore meta_core)
 target_link_libraries(EngineCore PRIVATE meta_core)
+
 

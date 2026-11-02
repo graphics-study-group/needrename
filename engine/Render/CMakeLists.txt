@@ -8,11 +8,27 @@ foreach(_src IN LISTS RENDER_ALL_SOURCES)
     if (ENGINE_RHI_BACKEND_WEBGPU AND _src MATCHES "/Backend/Vulkan/")
         continue()
     endif()
+    # Runtime GLSL compilation is Vulkan's path. The other backend ships baked SPIR-V, so the
+    # compiler and its glslang includer are not built there at all - which is what lets the
+    # browser link without glslang. The stub that keeps ShaderCompiler's interface exists is
+    # the mirror case and is not built on Vulkan.
+    if (ENGINE_RHI_BACKEND_WEBGPU AND _src MATCHES "/Asset/Shader/(ShaderCompiler|ShaderIncluder)\\.cpp$")
+        continue()
+    endif()
+    if (ENGINE_RHI_BACKEND_VULKAN AND _src MATCHES "/Asset/Shader/ShaderCompilerUnavailable\\.cpp$")
+        continue()
+    endif()
     list(APPEND SOURCE "${_src}")
 endforeach()
 file(GLOB_RECURSE HEADER_PRIVATE "./*.hpp")
 
-add_library(EngineRender SHARED ${SOURCE})
+# glslang is only needed where shaders are compiled at run time.
+set(GLSLANG_DEP "")
+if (ENGINE_RHI_BACKEND_VULKAN)
+    set(GLSLANG_DEP glslang)
+endif()
+
+add_library(EngineRender ${SOURCE})
 target_compile_definitions(EngineRender PRIVATE RENDER_DLL_EXPORTS)
 target_link_libraries(EngineRender
     PUBLIC
@@ -27,7 +43,7 @@ target_link_libraries(EngineRender
     EngineDepRhiBackend
     EngineDepSdl
     EngineDepImgui
-    glslang
+    ${GLSLANG_DEP}
     ktx
     stb
 )
@@ -54,3 +70,5 @@ add_reflection_parser(
 )
 add_dependencies(EngineRender meta_render)
 target_link_libraries(EngineRender PRIVATE meta_render)
+
+

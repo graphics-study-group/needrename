@@ -2,12 +2,21 @@
 #define RENDER_ASSET_SHADER_SHADERCOMPILER_INCLUDED
 
 #include "Render/render_export.h"
-#include "ShaderIncluder.h"
 #include <cstdint>
 #include <filesystem>
-#include <glslang/Public/ShaderLang.h>
 #include <string>
 #include <vector>
+
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+// Compiling GLSL at run time is Vulkan's path. The other backend ships baked SPIR-V and has no
+// compiler at all, so the includer and glslang sit behind the backend switch rather than always
+// present - that is what keeps glslang out of the browser build.
+#include "ShaderIncluder.h"
+#include <glslang/Public/ShaderLang.h>
+#else
+/// The stage selector this header names; glslang's EShLanguage on the shapes that have it.
+using EShLanguage = int;
+#endif
 
 namespace Engine {
 
@@ -45,6 +54,7 @@ namespace Engine {
     protected:
         /// @brief Project assets include path, registered as a system include path during compilation.
         std::filesystem::path m_project_assets_path;
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         TBuiltInResource m_built_in_resource = {
             .maxLights = 32,
             .maxClipPlanes = 6,
@@ -161,6 +171,7 @@ namespace Engine {
                 .generalConstantMatrixVectorIndexing = 1,
             }
         };
+#endif // ENGINE_RHI_BACKEND_VULKAN
     };
 } // namespace Engine
 

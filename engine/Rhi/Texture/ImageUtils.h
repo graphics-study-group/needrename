@@ -145,6 +145,11 @@ namespace Engine::Rhi {
         /// Default elementwise equality operator
         bool operator==(const SamplerDesc &) const = default;
     };
+    /// @brief Whether ktx can transcode this format to Basis.
+    constexpr bool CanCompressToBasis(ImageFormat format) {
+        return format == ImageFormat::R8G8B8A8UNorm || format == ImageFormat::R8G8B8A8SRGB;
+    }
+
 } // namespace Engine::Rhi
 
 namespace Engine::Rhi {
@@ -185,7 +190,15 @@ namespace Engine::Rhi {
             return 0;
         }
     }
+
+
+    /// @brief Whether a format carries a depth aspect.
+    ///
+    /// It lived in the Vulkan image utilities while Vulkan was the only backend that had to
+    /// pick an aspect for a transition. It is a property of the format, and the render graph
+    /// asks it on both backends.
+    constexpr bool HasDepthAspect(ImageFormat format) {
+        return format == ImageFormat::D32SFLOAT;
+    }
 } // namespace Engine::Rhi
-
 #endif // ENGINE_RHI_IMAGEUTILS_INCLUDED
-

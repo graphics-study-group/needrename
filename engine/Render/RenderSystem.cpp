@@ -17,6 +17,7 @@
 #include "Rhi/Device/AllocatorState.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
@@ -228,3 +229,5 @@ namespace Engine {
 
 
 
+
+#endif

@@ -4,8 +4,11 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#endif
 
 
 namespace Engine {
@@ -55,7 +58,9 @@ namespace Engine {
                      da = pass.depth_attachment,
                      name = pass.name,
                      wrapped = pass.pass_function](Rhi::CommandEncoder &encoder, const RenderGraph &rg) {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
             vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
+#endif
 
             Rhi::RenderPassDescription description{};
             // A pass covers everything its attachments can cover; the smaller of
@@ -87,16 +92,22 @@ namespace Engine {
                 description.depth_attachment.clear_depth = ToRhiClearDepth(da.clear_value);
             }
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Rasterizer)", name).c_str());
+#endif
             encoder.BeginRenderPass(description);
             wrapped(encoder, rg);
             encoder.EndRenderPass();
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
             DEBUG_CMD_END_LABEL(cb);
+#endif
         };
         pass.pass_function = f;
         return *this;
     }
 } // namespace Engine
+
+
 
 
 

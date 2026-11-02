@@ -4,6 +4,7 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/IPresentProvider.h"
 #include "Rhi/Device/DeviceInterface.h"
@@ -191,3 +192,5 @@ namespace Engine {
 
 
 
+
+#endif

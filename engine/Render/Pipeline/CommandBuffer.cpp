@@ -1,26 +1,17 @@
-#include "CommandBuffer.h"
+#include "Render/Pipeline/CommandBuffer.h"
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+// Recording a render command buffer reaches Vulkan for the parts the seam does not cover yet:
+// the debug label region and the attachment utilities. Both are no-ops or absent on the other
+// backend, which is why they sit behind the switch.
+#include "Render/Backend/Vulkan/AttachmentUtilsFunc.h"
+#include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
+#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#endif
 
-#include "Render/Backend/Vulkan/AttachmentUtilsFunc.h"
-#include "Render/Pipeline/Material/MaterialInstance.h"
-#include "Render/Pipeline/Material/MaterialLibrary.h"
-#include "Render/Pipeline/Renderer/Camera.h"
-#include "Render/Pipeline/Renderer/IVertexBasedRenderer.h"
-#include "Render/Pipeline/Renderer/VertexAttribute.h"
-#include "Render/RenderSystem.h"
-#include "Render/RenderSystem/CameraManager.h"
-#include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Render/RenderSystem/RendererManager.h"
-#include "Render/Resource/MaterialInstanceManager.h"
-#include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
-#include "Render/Resource/RenderTargetTexture.h"
-#include "Rhi/Buffer/DeviceBuffer.h"
-#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
-#include "Rhi/Texture/Texture.h"
-
 #include <SDL3/SDL.h>
 #include <glm.hpp>
 
@@ -162,7 +153,9 @@ namespace Engine {
             m_pripr.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
         }
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         DEBUG_CMD_START_LABEL(Rhi::ToVulkanCommandBuffer(cb), name.c_str());
+#endif
         m_encoder->BeginRenderPass(description);
     }
 
@@ -200,13 +193,17 @@ namespace Engine {
             m_pripr.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
         }
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         DEBUG_CMD_START_LABEL(Rhi::ToVulkanCommandBuffer(cb), name.c_str());
+#endif
         m_encoder->BeginRenderPass(description);
     }
 
     void CommandBuffer::EndRendering() {
         m_encoder->EndRenderPass();
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         DEBUG_CMD_END_LABEL(Rhi::ToVulkanCommandBuffer(cb));
+#endif
         m_pripr = {};
     }
 
@@ -330,11 +327,15 @@ namespace Engine {
     // ── Reset ───────────────────────────────────────────────────────────────
 
     void CommandBuffer::Reset() noexcept {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         Rhi::ToVulkanCommandBuffer(cb).reset();
+#endif
         m_bound_material_pipeline.reset();
     }
 
 } // namespace Engine
+
+
 
 
 

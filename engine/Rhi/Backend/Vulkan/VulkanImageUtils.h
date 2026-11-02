@@ -21,14 +21,7 @@ namespace Engine::Rhi {
         }
     }
 
-    constexpr bool HasDepthAspect(ImageFormat format) {
-        switch (format) {
-        case ImageFormat::D32SFLOAT:
-            return true;
-        default:
-            return false;
-        }
-    }
+// HasDepthAspect moved to Rhi/Texture/ImageUtils.h: the render graph asks it on both backends.
 
     constexpr bool HasStencilAspect(ImageFormat format) {
         switch (format) {
@@ -37,9 +30,7 @@ namespace Engine::Rhi {
         }
     }
 
-    constexpr bool CanCompressToBasis(ImageFormat format) {
-        return format == ImageFormat::R8G8B8A8UNorm || format == ImageFormat::R8G8B8A8SRGB;
-    }
+// CanCompressToBasis moved to Rhi/Texture/ImageUtils.h: it is a property of the format.
 
     /// @brief Convert a portable image aspect to the Vulkan flag it names.
     constexpr vk::ImageAspectFlags GetVkAspect(ImageAspect aspect) {
@@ -338,6 +329,8 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_VULKANIMAGEUTILS_INCLUDED
+
+
 
 
 

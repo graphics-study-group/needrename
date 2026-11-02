@@ -1,14 +1,15 @@
 #include "RenderGraph.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+// The graph records its own barriers as Vulkan transitions on the Vulkan backend. On the other
+// one the same lists are built and used for ordering, but there is no transition to emit.
 #include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
-#include "RenderGraphStruct.hpp"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#endif
 
+#include "RenderGraphStruct.hpp"
+#include "Rhi/Texture/ImageUtils.h"
 namespace Engine {
     struct RenderGraph::impl {
         std::vector<RenderGraphCompiledPass> passes{};
@@ -99,12 +100,16 @@ namespace Engine {
     }
 
     void RenderGraph::Record(uint32_t pass, Rhi::CommandEncoder &encoder) const {
-        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
         assert(pass < pimpl->passes.size());
+
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
 
         std::vector<vk::ImageMemoryBarrier2> imb{};
         std::vector<vk::MemoryBarrier2> bmb{};
+#endif
         for (const auto &subpass : pimpl->passes[pass].subpasses) {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
             // Construct barriers.
             imb.clear();
             imb.reserve(subpass.image_barriers.size());
@@ -122,6 +127,12 @@ namespace Engine {
             }
 
             cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, bmb, {}, imb});
+#else
+            // No transitions to record: the standard interface derives them from how each pass
+            // uses its resources. The subpass's barrier lists are still built by the graph and
+            // are still what ordering is derived from; there is no command to emit for them.
+            static_cast<void>(encoder);
+#endif
 
             // Invoke pass function.
 
@@ -150,7 +161,6 @@ namespace Engine {
     }
 
     void RenderGraph::RecordAllPasses(Rhi::CommandEncoder &encoder) {
-        const vk::CommandBuffer cb = Rhi::ToVulkanCommandBuffer(encoder.GetHandle());
         RecordPrePass(encoder);
         for (size_t i = 0; i < pimpl->passes.size(); i++) {
             this->Record(static_cast<uint32_t>(i), encoder);
@@ -196,6 +206,9 @@ namespace Engine {
     }
 
 } // namespace Engine
+
+
+
 
 
 

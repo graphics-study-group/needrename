@@ -1,4 +1,5 @@
 #include "SwapchainPresentProvider.h"
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
@@ -331,3 +332,5 @@ namespace Engine::RenderSystemState {
 
 
 
+
+#endif

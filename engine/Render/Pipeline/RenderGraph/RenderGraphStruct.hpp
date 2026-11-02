@@ -4,7 +4,9 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include <vulkan/vulkan.hpp>
+#endif
 
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
@@ -38,12 +40,19 @@ namespace Engine {
      * render passes may be merged into one render graph pass after compilation.
      */
     struct RENDER_API RenderGraphCompiledPass {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         vk::PipelineStageFlags2 wait_stage{}, signal_stage{};
+#endif
 
         struct RENDER_API Subpass {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+            // Barrier state is what the Vulkan backend records. The graph still computes ordering
+            // on the other backend - the lists below are simply not part of it there, because the
+            // standard interface derives transitions from how each pass uses its resources.
             std::vector<std::pair<RGTextureHandle, vk::ImageMemoryBarrier2>> image_barriers{};
             std::vector<std::pair<RGBufferHandle, vk::BufferMemoryBarrier2>> buffer_barriers{};
             vk::MemoryBarrier2 global_memory_barrier{};
+#endif
 
             PipelineRuntimeInfoPerRendering per_rendering_info{};
 

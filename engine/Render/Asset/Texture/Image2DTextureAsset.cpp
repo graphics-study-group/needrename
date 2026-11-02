@@ -1,7 +1,9 @@
 #include "Image2DTextureAsset.h"
 
 #include <AnnoRefl/serialization.h>
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include <Rhi/Backend/Vulkan/VulkanImageUtils.h>
+#endif
 #include <SDL3/SDL_log.h>
 #include <ktx.h>
 
@@ -46,7 +48,13 @@ namespace {
     ktxTexture2 *Create2DTextureFromData(
         int width, int height, Engine::Rhi::ImageFormat format, const std::byte *data, size_t size
     ) {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         const vk::Format vk_format = Engine::Rhi::GetVkFormat(format);
+#else
+        // ktx identifies a texture by Vulkan's format number and this backend has no mapping
+        // for it; a texture created here reports that rather than guessing a number.
+        const uint32_t vk_format = 0;
+#endif
         ktxTextureCreateInfo create_info{};
         create_info.vkFormat = static_cast<ktx_uint32_t>(vk_format);
         create_info.baseWidth = static_cast<ktx_uint32_t>(width);
@@ -213,4 +221,6 @@ namespace Engine {
 } // namespace Engine
 
 #include "__generated__/Image2DTextureAsset.h.inc"
+
+
 

@@ -21,7 +21,7 @@ foreach(_hdr IN LISTS RHI_ALL_HEADERS)
 endforeach()
 
 # EngineRhi is the engine's generic GPU infrastructure layer, built as its own DLL
-add_library(EngineRhi SHARED ${SOURCE})
+add_library(EngineRhi ${SOURCE})
 target_link_libraries(EngineRhi
     PUBLIC
     EngineLibHeaderInterface
@@ -68,4 +68,5 @@ add_reflection_parser(
 )
 add_dependencies(EngineRhi meta_rhi)
 target_link_libraries(EngineRhi PRIVATE meta_rhi)
+
 

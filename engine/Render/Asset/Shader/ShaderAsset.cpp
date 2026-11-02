@@ -89,6 +89,7 @@ namespace Engine {
         }
     }
 
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
     bool ShaderAsset::Compile(std::filesystem::path shader_path_abs) {
         if (binary.size() > 0) {
             // Already compiled
@@ -140,6 +141,15 @@ namespace Engine {
         }
         return compiler->CompileGLSLtoSPV(binary, shader_path_abs);
     }
+#else
+    bool ShaderAsset::Compile(std::filesystem::path) {
+        // No runtime GLSL compiler on this backend. A shader that reached here carries GLSL
+        // source where a baked .spv was expected, and saying so beats a shader that binds nothing.
+        throw std::logic_error(
+            "ShaderAsset::Compile: this build has no runtime GLSL compiler. Shaders ship as SPIR-V."
+        );
+    }
+#endif
 } // namespace Engine
 
 #include "__generated__/ShaderAsset.h.inc"

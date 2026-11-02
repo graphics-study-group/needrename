@@ -1,4 +1,5 @@
 #include "OffscreenPresentProvider.h"
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
@@ -198,3 +199,5 @@ namespace Engine::RenderSystemState {
 
 
 
+
+#endif
