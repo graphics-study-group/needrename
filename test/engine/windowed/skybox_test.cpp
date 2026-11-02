@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
@@ -228,7 +230,7 @@ int main(int argc, char **argv) {
                     vk::Offset3D{0, 0, 0},
                     vk::Extent3D{rt->GetTextureDescription().width, rt->GetTextureDescription().height, 1}
                 }};
-                cb.GetCommandBuffer().copyImageToBuffer(
+                Rhi::ToVulkanCommandBuffer(cb.GetHandle()).copyImageToBuffer(
                     Engine::Rhi::ToVulkanImage(rt->GetImage()),
                     vk::ImageLayout::eTransferSrcOptimal,
                     Rhi::ToVulkanBuffer(readback_raw->GetBuffer()),
@@ -327,3 +329,6 @@ int main(int argc, char **argv) {
     std::cout << "Skybox test PASSED: " << non_black << " of 640000 pixels are not black." << std::endl;
     return 0;
 }
+
+
+

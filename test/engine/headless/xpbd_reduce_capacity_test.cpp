@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 // xpbd_reduce_capacity_test.cpp — Capacity-change coverage for the XPBD GPU
 // solver's entry-count-driven reduction.
 //
@@ -234,7 +236,7 @@ namespace {
         void Step(uint32_t steps) {
             for (uint32_t i = 0; i < steps; ++i) {
                 const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
-                auto cb = rsys.GetDevice().allocateCommandBuffers(
+                auto cb = ToVulkanDevice(rsys.GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                     vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
                 )[0];
                 cb.begin(vk::CommandBufferBeginInfo{});
@@ -284,7 +286,7 @@ namespace {
     void StepAll(RenderSystem &rsys, PhysicsSystem &physics, const std::vector<Fixture *> &fixtures, uint32_t steps) {
         for (uint32_t s = 0; s < steps; ++s) {
             const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
-            auto cb = rsys.GetDevice().allocateCommandBuffers(
+            auto cb = ToVulkanDevice(rsys.GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             cb.begin(vk::CommandBufferBeginInfo{});
@@ -545,4 +547,6 @@ int main() {
     std::cerr << "xpbd_reduce_capacity_test FAILED (" << g_failures << " failures)." << std::endl;
     return 1;
 }
+
+
 

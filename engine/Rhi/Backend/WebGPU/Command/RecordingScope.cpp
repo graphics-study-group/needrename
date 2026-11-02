@@ -3,6 +3,7 @@
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
 #include "Rhi/Command/CommandBuffer.h"
 #include "Rhi/Command/CommandEncoder.h"
+#include "Rhi/RhiTypes.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 
@@ -86,5 +87,7 @@ namespace Engine::Rhi {
 
     }
 } // namespace Engine::Rhi
+
+
 
 

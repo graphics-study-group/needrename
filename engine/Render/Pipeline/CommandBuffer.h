@@ -8,10 +8,10 @@
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 #include <optional>
-#include <vulkan/vulkan.hpp>
 
 // GLM forward declaration.
-#include <fwd.hpp>
+#include <cstdint>
+#include <string>
 
 namespace Engine {
     namespace Rhi {
@@ -75,15 +75,6 @@ namespace Engine {
         CommandBuffer(const CommandBuffer &) = delete;
         CommandBuffer(CommandBuffer &&) = default;
         CommandBuffer &operator=(const CommandBuffer &) = delete;
-
-        /**
-         * @brief Get the raw Vulkan command buffer handle.
-         *
-         * @return The wrapped vk::CommandBuffer (non-owning).
-         */
-        vk::CommandBuffer GetCommandBuffer() const noexcept {
-            return cb;
-        }
 
         /**
          * @brief Get the seam's encoder over this recording.
@@ -379,9 +370,15 @@ namespace Engine {
          */
         void Reset() noexcept;
 
+        /// @brief The seam handle the backend records through.
+
+        Rhi::CommandBufferHandle GetHandle() const noexcept {
+            return cb;
+        }
+
     private:
         RenderSystem &m_system;          ///< Service locator for all rendering subsystems.
-        vk::CommandBuffer cb;            ///< Raw Vulkan command buffer handle (non-owning).
+        Rhi::CommandBufferHandle cb;    ///< The seam handle; a backend converts it to its own object.
         /// @brief Encoder over `cb`, for recording that uses the seam.
         /// @brief Encoder this buffer records through, owned by whoever opened the
         /// recording. Two encoders over one command buffer would disagree about the
@@ -396,6 +393,9 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_COMMANDBUFFER_INCLUDED
+
+
+
 
 
 

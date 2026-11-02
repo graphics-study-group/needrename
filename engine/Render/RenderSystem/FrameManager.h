@@ -6,7 +6,6 @@
 #include "Rhi/Device/MemoryAccessTypes.h"
 
 // May be safe to include here as this header is not included in other headers.
-#include <vulkan/vulkan.hpp>
 
 #include <functional>
 

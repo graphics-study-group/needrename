@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 // gpu_sum_by_key_bench - isolated timing for SumByKey's block-internal
 // reduction.
 //
@@ -165,7 +167,7 @@ namespace {
 
     Result RunCase(RenderSystem &rsys, SumByKey &reducer, BenchCtx &ctx, uint32_t iterations) {
         const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
-        auto cb = rsys.GetDevice().allocateCommandBuffers(
+        auto cb = ToVulkanDevice(rsys.GetDeviceInterface().GetDevice()).allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
         Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
@@ -255,3 +257,5 @@ int main(int argc, char **argv) {
     rsys->WaitForIdle();
     return 0;
 }
+
+

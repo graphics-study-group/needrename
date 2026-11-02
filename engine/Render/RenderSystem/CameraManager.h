@@ -5,13 +5,7 @@
 #include "Rhi/RhiTypes.h"
 #include <memory>
 // GLM forward declarations.
-#include <fwd.hpp>
-
-namespace vk {
-    class DescriptorSet;
-    class DescriptorSetLayout;
-    class PipelineLayout;
-} // namespace vk
+#include <glm.hpp>
 
 namespace Engine {
     class RenderSystem;
@@ -104,4 +98,6 @@ namespace Engine {
 } // namespace Engine
 
 #endif // RENDERSYSTEM_CAMERAMANAGER
+
+
 

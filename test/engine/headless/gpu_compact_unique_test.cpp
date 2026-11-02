@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Rhi/Pipeline/ComputeKernel.h"
@@ -74,7 +76,7 @@ namespace {
 
     vk::CommandBuffer BeginCommandBuffer(RenderSystem &rsys) {
         const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
-        auto cb = rsys.GetDevice().allocateCommandBuffers(
+        auto cb = ToVulkanDevice(rsys.GetDeviceInterface().GetDevice()).allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
         cb.begin(vk::CommandBufferBeginInfo{});
@@ -370,6 +372,8 @@ int main() try {
     std::cerr << "gpu_compact_unique_test ABORTED: unknown exception" << std::endl;
     return 1;
 }
+
+
 
 
 

@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include <Core/FileSystem/DataRoot.h>
 #include <SDL3/SDL.h>
 #include <cassert>
@@ -208,7 +210,7 @@ auto BuildRenderGraph(
                         rt->GetTextureDescription().depth
                     }
                 }};
-                cb.GetCommandBuffer().copyImageToBuffer(
+                Rhi::ToVulkanCommandBuffer(cb.GetHandle()).copyImageToBuffer(
                     Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferSrcOptimal, Rhi::ToVulkanBuffer(readback->GetBuffer()), image_copies
                 );
             })
@@ -393,6 +395,9 @@ int main(int argc, char **argv) {
     std::cout << "MRT test PASSED: the read-back colour target contains drawn pixels." << std::endl;
     return 0;
 }
+
+
+
 
 
 

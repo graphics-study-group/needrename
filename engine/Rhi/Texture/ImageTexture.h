@@ -49,6 +49,13 @@ namespace Engine::Rhi {
             ImageTextureFormat format;
             /// Whether the texture is a cubemap.
             bool is_cube_map;
+            /// @brief What the texture may be used for.
+            ///
+            /// Defaults to `DefaultTexture` - copy-to and sampled - which is what an image
+            /// asset needs. A render target asks for `DefaultColorAttachment` instead, and
+            /// this field exists so that a caller can say so through the seam rather than
+            /// reaching past it.
+            ImageMemoryType memory_type{ImageMemoryTypeBits::DefaultTexture};
         };
         using ITFormat = ImageTextureDesc::ImageTextureFormat;
 

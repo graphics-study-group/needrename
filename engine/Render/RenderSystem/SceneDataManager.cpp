@@ -4,8 +4,6 @@
 #include "Render/Resource/RenderResourceHandle.h"
 #include "Render/Shadow/ShadowCascadeFit.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Resource/DescriptorArena.h"
 #include <Rhi/Buffer/IndexedBuffer.h>
@@ -19,7 +17,6 @@
 #include <span>
 #include <string>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
 namespace {
     /// Smallest shadow distance accepted from a light component.

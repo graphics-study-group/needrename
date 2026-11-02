@@ -4,7 +4,6 @@
 #include "Render/render_export.h"
 #include "Rhi/Device/MemoryAccessTypes.h"
 
-#include <vulkan/vulkan.hpp>
 
 #include <cstdint>
 

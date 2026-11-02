@@ -1,3 +1,4 @@
+#include <glm.hpp>
 #ifndef PIPELINE_MATERIAL_MATERIALINSTANCE
 #define PIPELINE_MATERIAL_MATERIALINSTANCE
 
@@ -9,7 +10,6 @@
 #include "Rhi/Resource/DescriptorArena.h"
 
 #include <any>
-#include <fwd.hpp>
 
 namespace Engine {
     namespace Rhi {
@@ -99,3 +99,5 @@ namespace Engine {
 } // namespace Engine
 
 #endif // PIPELINE_MATERIAL_MATERIALINSTANCE
+
+

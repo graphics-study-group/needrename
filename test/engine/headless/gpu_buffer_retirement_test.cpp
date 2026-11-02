@@ -1,3 +1,6 @@
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 // GPU buffer retirement under a real frame loop (tasks 2.2, 4.1, 4.2).
 //
 // Drives the engine's actual frame loop headlessly with a live XPBD GPU solver
@@ -259,7 +262,7 @@ int main() {
             .SetAffinity(RenderGraphPassAffinity::Transfer)
             .SetPassFunction([present_handle](CommandBuffer &cb, const RenderGraph &rg) {
                 auto *target = rg.GetInternalTextureResource(present_handle);
-                cb.GetCommandBuffer().clearColorImage(
+                Rhi::ToVulkanCommandBuffer(cb.GetHandle()).clearColorImage(
                     Engine::Rhi::ToVulkanImage(target->GetImage()),
                     vk::ImageLayout::eTransferDstOptimal,
                     vk::ClearColorValue{0.1f, 0.1f, 0.2f, 1.0f},
@@ -371,6 +374,10 @@ int main() {
     std::cout << "Gpu buffer retirement test PASSED." << std::endl;
     return 0;
 }
+
+
+
+
 
 
 

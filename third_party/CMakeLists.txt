@@ -80,7 +80,10 @@ else()
     # imgui's WebGPU back-end has to be told which implementation it talks to: the
     # standard interface and wgpu-native's header differ enough that it asks rather than
     # guessing, and a build naming neither fails with an #error naming both.
-    target_compile_definitions(imgui PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_WGPU=1)
+    # The headers this build uses are Dawn's WebGPU headers - the bundled wgpu-native 29
+    # tracks the same naming, with WGPUComputeState and WGPUShaderSourceWGSL. imgui branches on
+    # which backend it is talking to, and the Dawn branch is the one those names belong to.
+    target_compile_definitions(imgui PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_DAWN=1)
 endif()
 target_include_directories(
     imgui 

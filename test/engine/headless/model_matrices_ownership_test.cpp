@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 // Stable model matrix identity and per-frame production (tasks 6.1, 6.2).
 //
 // The model matrices buffer is render-owned and its object is never replaced:
@@ -290,6 +292,7 @@ int main() {
     std::cout << "Model matrices ownership test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

@@ -9,7 +9,6 @@
 #include "Rhi/Device/MemoryAccessTypes.h"
 #include "Rhi/RhiTypes.h"
 
-#include <vulkan/vulkan.hpp>
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -141,9 +140,7 @@ namespace Engine {
          * @brief Get a handle to the Vulkan logical device that the current Render
          * System runs on.
          *
-         * Shorthand for `ToVulkanDevice(GetDeviceInterface().GetDevice())`
          */
-        vk::Device GetDevice() const;
 
         /**
          * @brief Get interfaces to all unique Vulkan low-level objects managed by the

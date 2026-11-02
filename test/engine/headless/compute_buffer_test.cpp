@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Framework/MainClass.h"
 #include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Render/FullRenderSystem.h"
@@ -115,7 +117,7 @@ int main(int argc, char *argv[]) {
 
     const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
     auto cbai = vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
-    auto cb = rsys->GetDevice().allocateCommandBuffers(cbai);
+    auto cb = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(cbai);
     cb[0].begin(vk::CommandBufferBeginInfo{});
     Rhi::CommandEncoder graph_encoder{Rhi::FromVulkan(cb[0])};
     rg->RecordAllPasses(graph_encoder);
@@ -143,6 +145,8 @@ int main(int argc, char *argv[]) {
     }
     std::cout << std::endl;
 }
+
+
 
 
 

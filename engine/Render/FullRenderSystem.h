@@ -4,10 +4,7 @@
 /** THIS FILE IS USED AS INTERFACE ONLY, DO NOT INCLUDE IT IN THE INTERNAL ENGINE LIBRARY. **/
 
 #include "Render/render_export.h"
-#include <vulkan/vulkan.hpp>
 
-#include "Render/Backend/Vulkan/AttachmentUtilsFunc.h"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
@@ -17,7 +14,6 @@
 #include "Render/Resource/AllRenderResourceManagers.h"
 #include "Render/Resource/StaticMeshResource.h"
 #include "Rhi/Device/DeviceInterface.h"
-#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Resource/ImmutableResourceCache.h"
 #include "Rhi/Submission/SubmissionHelper.h"
 

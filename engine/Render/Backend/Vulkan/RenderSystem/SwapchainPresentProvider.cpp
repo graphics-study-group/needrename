@@ -2,18 +2,13 @@
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Render/Resource/RenderTargetTexture.h"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Device/DeviceInterface.h"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 
 #include <SDL3/SDL.h>
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include <vulkan/vulkan.hpp>
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 namespace {
     static constexpr std::array PREFERED_COLOR_FORMATS = {

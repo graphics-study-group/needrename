@@ -1,7 +1,6 @@
 #include "VertexAttribute.h"
 
 #include "Rhi/Device/AllocatorState.h"
-#include <vulkan/vulkan.hpp>
 
 namespace {
     constexpr Engine::Rhi::VertexFormat ToVertexFormat(Engine::VertexAttributeType type) {

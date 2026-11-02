@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Framework/MainClass.h"
 #include "Render/Asset/Shader/ShaderCompiler.h"
 #include "Render/FullRenderSystem.h"
@@ -151,7 +153,7 @@ int main() {
 
     const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
     auto cbai = vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
-    auto cb = rsys->GetDevice().allocateCommandBuffers(cbai);
+    auto cb = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(cbai);
     cb[0].begin(vk::CommandBufferBeginInfo{});
     Rhi::CommandEncoder graph_encoder{Rhi::FromVulkan(cb[0])};
     rg->RecordAllPasses(graph_encoder);
@@ -162,7 +164,7 @@ int main() {
     rsys->WaitForIdle();
 
     // Record and submit the push-constant pass.
-    auto cb2 = rsys->GetDevice().allocateCommandBuffers(cbai);
+    auto cb2 = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(cbai);
     cb2[0].begin(vk::CommandBufferBeginInfo{});
     Rhi::CommandEncoder push_encoder{Rhi::FromVulkan(cb2[0])};
     rg_push->RecordAllPasses(push_encoder);
@@ -201,6 +203,8 @@ int main() {
     std::cout << "Headless compute test PASSED." << std::endl;
     return 0;
 }
+
+
 
 
 

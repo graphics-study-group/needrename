@@ -9,6 +9,7 @@
 #include "Render/Pipeline/RenderGraph/RenderGraphStruct.hpp"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 namespace {
     constexpr vk::PipelineStageFlagBits2 AffinityToPipelineStage(Engine::RenderGraphPassAffinity affinity) {
@@ -710,5 +711,6 @@ namespace Engine {
     }
 
 } // namespace Engine
+
 
 

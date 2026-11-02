@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 // xpbd_contact_friction_test.cpp — Contact friction coverage for the XPBD GPU
 // solver: the analytic per-substep tangential velocity reduction, the
 // mass / velocity-iteration / sliding-direction invariances, the stick-slip
@@ -197,7 +199,7 @@ namespace {
             // the first measurement is a real displacement rather than whatever
             // the freshly allocated staging buffer held.
             const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
-            auto cb = rsys.GetDevice().allocateCommandBuffers(
+            auto cb = ToVulkanDevice(rsys.GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
@@ -231,7 +233,7 @@ namespace {
         void Step(uint32_t steps) {
             for (uint32_t i = 0; i < steps; ++i) {
                 const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
-                auto cb = rsys.GetDevice().allocateCommandBuffers(
+                auto cb = ToVulkanDevice(rsys.GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                     vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
                 )[0];
                 Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
@@ -380,7 +382,7 @@ int main() {
 
         for (uint32_t step = 0u; step < 15u; ++step) {
             const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
-            auto cb = rsys->GetDevice().allocateCommandBuffers(
+            auto cb = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
@@ -431,7 +433,7 @@ int main() {
 
         for (uint32_t step = 0u; step < 15u; ++step) {
             const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
-            auto cb = rsys->GetDevice().allocateCommandBuffers(
+            auto cb = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
@@ -482,7 +484,7 @@ int main() {
         float reduction_y = 0.0f;
         for (uint32_t step = 0u; step < 10u; ++step) {
             const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
-            auto cb = rsys->GetDevice().allocateCommandBuffers(
+            auto cb = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
@@ -660,7 +662,7 @@ int main() {
         auto published_count = [&](uint32_t capacity) -> uint32_t {
             narrow.BindToScene(f.scene, broad, capacity, config.contact_margin);
 
-            auto detect_cb = rsys->GetDevice().allocateCommandBuffers(
+            auto detect_cb = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(detect_cb)};
@@ -678,7 +680,7 @@ int main() {
             if (count_buffer == nullptr) {
                 return 0u;
             }
-            auto copy_cb = rsys->GetDevice().allocateCommandBuffers(
+            auto copy_cb = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(
                 vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
             )[0];
             copy_cb.begin(vk::CommandBufferBeginInfo{});
@@ -763,5 +765,7 @@ int main() {
     std::cerr << "xpbd_contact_friction_test FAILED (" << g_failures << " failures)." << std::endl;
     return 1;
 }
+
+
 
 

@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Framework/MainClass.h"
 #include "Render/FullRenderSystem.h"
 
@@ -116,7 +118,7 @@ namespace {
     void RunSumByKeyWith(RenderSystem &rsys, RunCtx &ctx, SumByKey &reducer) {
         FlushAll(ctx);
         const auto &queues = rsys.GetDeviceInterface().GetQueueInfo();
-        auto cb = rsys.GetDevice().allocateCommandBuffers(
+        auto cb = ToVulkanDevice(rsys.GetDeviceInterface().GetDevice()).allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
         Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
@@ -493,7 +495,7 @@ int main() {
         FlushAll(ctx);
         SumByKey reducer{rsys->GetDeviceContext()};
         const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
-        auto cb = rsys->GetDevice().allocateCommandBuffers(
+        auto cb = ToVulkanDevice(rsys->GetDeviceInterface().GetDevice()).allocateCommandBuffers(
             vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1}
         )[0];
         Rhi::CommandEncoder record_encoder{Rhi::FromVulkan(cb)};
@@ -860,3 +862,5 @@ int main() {
     std::cerr << "gpu_sum_by_key_test FAILED (" << g_failures << " failures)." << std::endl;
     return 1;
 }
+
+

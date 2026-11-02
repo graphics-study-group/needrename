@@ -131,9 +131,6 @@ namespace Engine {
         pimpl->m_static_mesh_resource_provider.TickFrame();
     }
 
-    vk::Device RenderSystem::GetDevice() const {
-        return ToVulkanDevice(pimpl->m_device_context.GetDevice());
-    }
     const Rhi::DeviceInterface &RenderSystem::GetDeviceInterface() const {
         return pimpl->m_device_context.GetDeviceInterface();
     }

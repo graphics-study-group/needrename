@@ -3,8 +3,6 @@
 #include "Render/Asset/Material/MaterialTemplateAsset.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
-#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
 #include "Rhi/Pipeline/ShaderModule.h"

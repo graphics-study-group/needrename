@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <stdexcept>
@@ -76,7 +78,7 @@ int main() {
                     CLEAR_COLOR[0] / 255.0f, CLEAR_COLOR[1] / 255.0f, CLEAR_COLOR[2] / 255.0f, CLEAR_COLOR[3] / 255.0f
                 };
                 vk::ImageSubresourceRange range{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
-                cb.GetCommandBuffer().clearColorImage(
+                Rhi::ToVulkanCommandBuffer(cb.GetHandle()).clearColorImage(
                     Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferDstOptimal, clear_color, range
                 );
             })
@@ -102,7 +104,7 @@ int main() {
                         rt->GetTextureDescription().depth
                     }
                 }};
-                cb.GetCommandBuffer().copyImageToBuffer(
+                Rhi::ToVulkanCommandBuffer(cb.GetHandle()).copyImageToBuffer(
                     Engine::Rhi::ToVulkanImage(rt->GetImage()), vk::ImageLayout::eTransferSrcOptimal, Rhi::ToVulkanBuffer(readback_raw->GetBuffer()), image_copies
                 );
             })
@@ -203,6 +205,9 @@ int main() {
     std::cout << "Headless offscreen test PASSED." << std::endl;
     return 0;
 }
+
+
+
 
 
 

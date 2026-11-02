@@ -83,7 +83,7 @@ namespace Engine {
         cb.BeginRendering(att, {}, extent, "GUI rendering pass");
         ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(
-            ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.GetCommandBuffer()), nullptr
+            ImGui::GetDrawData(), static_cast<VkCommandBuffer>(Rhi::ToVulkanCommandBuffer(cb.GetHandle())), nullptr
         );
         cb.EndRendering();
     }
@@ -122,14 +122,14 @@ namespace Engine {
             vk::DescriptorPoolCreateInfo dpci{
                 vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1000, pimpl->vkr.DESCRIPTOR_POOL_SIZES
             };
-            pimpl->vkr.descriptor_pool = render_system.GetDevice().createDescriptorPoolUnique(dpci);
+            pimpl->vkr.descriptor_pool = ToVulkanDevice(render_system.GetDeviceInterface().GetDevice()).createDescriptorPoolUnique(dpci);
         }
 
         const auto &present_provider = render_system.GetPresentProvider();
         ImGui_ImplVulkan_InitInfo info{};
         info.Instance = ToVulkanInstance(render_system.GetDeviceInterface().GetInstance());
         info.PhysicalDevice = ToVulkanPhysicalDevice(render_system.GetDeviceInterface().GetPhysicalDevice());
-        info.Device = render_system.GetDevice();
+        info.Device = ToVulkanDevice(render_system.GetDeviceInterface().GetDevice());
         info.Queue = render_system.GetDeviceInterface().GetQueueInfo().graphicsQueue;
         info.DescriptorPool = pimpl->vkr.descriptor_pool.get();
         info.ImageCount = present_provider.GetImageCount();
@@ -180,6 +180,8 @@ namespace Engine {
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }
 } // namespace Engine
+
+
 
 
 

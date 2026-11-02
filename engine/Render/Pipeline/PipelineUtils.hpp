@@ -9,6 +9,7 @@
 #include "Rhi/Device/Hasher.hpp"
 #include "Rhi/Pipeline/PipelineBuilder.h"
 #include "Rhi/Pipeline/PipelineEnums.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 #include "Rhi/Backend/Vulkan/VulkanPipelineEnums.h"
 
 namespace Engine::PipelineUtils {
@@ -402,6 +403,7 @@ namespace Engine::PipelineUtils {
 } // namespace Engine::PipelineUtils
 
 #endif // RENDER_PIPELINE_PIPELINEUTILS
+
 
 
 

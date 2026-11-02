@@ -1,3 +1,5 @@
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 // Model matrices initialization order (fix-model-matrices-init-order).
 //
 // Two writers reach the model matrices buffer before the first frame:
@@ -266,6 +268,7 @@ int main() {
     std::cout << "Model matrices initialization test PASSED." << std::endl;
     return 0;
 }
+
 
 
 

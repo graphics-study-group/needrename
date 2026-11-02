@@ -4,22 +4,16 @@
 #include "Render/Asset/Material/MaterialTemplateAsset.h"
 
 #include "MaterialInstance.h"
-#include "Render/Backend/Vulkan/AttachmentUtilsFunc.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/CameraManager.h"
-#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Pipeline/ShaderParameterLayout.h"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
-#include "Rhi/Backend/Vulkan/VulkanPipelineState.h"
 #include "Rhi/Pipeline/Pipeline.h"
 
 #include <SDL3/SDL.h>
 #include <fstream>
 #include <glm.hpp>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine {
 

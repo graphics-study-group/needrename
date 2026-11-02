@@ -6,9 +6,9 @@
 #include "Rhi/rhi_export.h"
 
 // GLM forward declarations.
-#include <fwd.hpp>
 
 #include <memory>
+#include <glm.hpp>
 #include <string>
 
 namespace Engine::Rhi {
@@ -108,6 +108,8 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_SHADERRESOURCEBINDING_INCLUDED
+
+
 
 
 

@@ -1,6 +1,7 @@
 #include "CommandBuffer.h"
 
 #include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Render/Backend/Vulkan/AttachmentUtilsFunc.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
@@ -22,13 +23,12 @@
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine {
 
     CommandBuffer::CommandBuffer(RenderSystem &system, Rhi::CommandEncoder &encoder, uint32_t frame_in_flight) :
         m_system(system),
-        cb(Rhi::ToVulkanCommandBuffer(encoder.GetHandle())),
+        cb(encoder.GetHandle()),
         m_encoder(&encoder),
         m_inflight_frame_index(frame_in_flight) {
     }
@@ -162,7 +162,7 @@ namespace Engine {
             m_pripr.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
         }
 
-        DEBUG_CMD_START_LABEL(cb, name.c_str());
+        DEBUG_CMD_START_LABEL(Rhi::ToVulkanCommandBuffer(cb), name.c_str());
         m_encoder->BeginRenderPass(description);
     }
 
@@ -200,13 +200,13 @@ namespace Engine {
             m_pripr.depth_stencil_attachment_format = Rhi::ImageFormat::UNDEFINED;
         }
 
-        DEBUG_CMD_START_LABEL(cb, name.c_str());
+        DEBUG_CMD_START_LABEL(Rhi::ToVulkanCommandBuffer(cb), name.c_str());
         m_encoder->BeginRenderPass(description);
     }
 
     void CommandBuffer::EndRendering() {
         m_encoder->EndRenderPass();
-        DEBUG_CMD_END_LABEL(cb);
+        DEBUG_CMD_END_LABEL(Rhi::ToVulkanCommandBuffer(cb));
         m_pripr = {};
     }
 
@@ -330,11 +330,13 @@ namespace Engine {
     // ── Reset ───────────────────────────────────────────────────────────────
 
     void CommandBuffer::Reset() noexcept {
-        cb.reset();
+        Rhi::ToVulkanCommandBuffer(cb).reset();
         m_bound_material_pipeline.reset();
     }
 
 } // namespace Engine
+
+
 
 
 

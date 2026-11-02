@@ -3,15 +3,12 @@
 #include "Render/Pipeline/Renderer/Camera.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/SceneDataManager.h"
-#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Resource/DescriptorArena.h"
 #include <Rhi/Buffer/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <glm.hpp>
-#include <vulkan/vulkan.h>
 
 namespace Engine::RenderSystemState {
     struct CameraManager::impl {

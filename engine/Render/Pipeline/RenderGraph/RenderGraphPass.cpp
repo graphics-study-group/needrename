@@ -4,6 +4,7 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 
 
@@ -96,5 +97,6 @@ namespace Engine {
         return *this;
     }
 } // namespace Engine
+
 
 

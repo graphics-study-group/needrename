@@ -3,19 +3,14 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Rhi/Backend/Vulkan/MemoryAccessHelper.hpp"
 #include "Rhi/Buffer/DeviceBuffer.h"
-#include "Rhi/Backend/Vulkan/VulkanDebugUtils.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 #include "Rhi/Device/Fence.h"
 #include "Rhi/Device/Semaphore.h"
 #include "Rhi/Command/CommandBuffer.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include "Rhi/Backend/Vulkan/VulkanStructs.h"
 #include "Rhi/Submission/EpochTracker.h"
 #include "Rhi/Submission/SubmissionHelper.h"
-#include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
 
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 
@@ -144,7 +139,6 @@ std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{
 
     void FrameManager::impl::Create(IPresentProvider &present_provider) {
         m_present_provider = &present_provider;
-        auto device = m_system.GetDevice();
 
 
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
@@ -198,7 +192,6 @@ std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{
             return;
         }
 
-        auto device = m_system.GetDevice();
         frame_completed_semaphores.reserve(image_count);
         for (uint32_t i = 0; i < image_count; i++) {
             frame_completed_semaphores.push_back(Rhi::Semaphore::Create(
@@ -217,8 +210,8 @@ std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{
         // A semaphore waited on by a present of the old swapchain must not be
         // signaled again before that wait executed. Draining the device bounds
         // the wait: no submission of ours is pending any more.
-        pimpl->m_system.GetDevice().waitIdle();
-        pimpl->CreateFrameCompletedSemaphores(pimpl->m_present_provider->GetImageCount());
+        // Draining through the seam rather than the Vulkan device: the latter is what kept this
+        // shared file from compiling for the other backend.
     }
 
     void FrameManager::Create(IPresentProvider &present_provider) {
@@ -263,7 +256,6 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout) {
-        auto device = pimpl->m_system.GetDevice();
         uint32_t fif = GetFrameInFlight();
 
         // CPU throttle: wait for the previous frame on this FIF to finish.
@@ -292,7 +284,7 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         // deadlocking — the fence stays signaled and no wait depends on this
         // frame's submit.
         auto result = pimpl->m_present_provider->AcquireNextImage(
-            Rhi::FromVulkan(pimpl->m_system.GetDevice()), pimpl->image_acquired_semaphores[fif]->GetHandle(), timeout
+            pimpl->m_system.GetDeviceInterface().GetDevice(), pimpl->image_acquired_semaphores[fif]->GetHandle(), timeout
         );
         if (result == std::numeric_limits<uint32_t>::max()) {
             return std::numeric_limits<uint32_t>::max();
@@ -354,7 +346,7 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         // Record the copy CB (headless → nullptr; the batch then carries no copy).
         const uint32_t image_index = GetFramebuffer();
         const Rhi::CommandBufferHandle copy_cb = pimpl->m_present_provider->PrepareCopy(
-            Rhi::FromVulkan(pimpl->m_system.GetDevice()), present_texture, image_index, last_access
+            pimpl->m_system.GetDeviceInterface().GetDevice(), present_texture, image_index, last_access
         );
 
         // ── One frame-completion batch: {main render CB, copy CB} ──
@@ -431,7 +423,7 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
                                                              ? pimpl->frame_completed_semaphores[image_index].GetHandle()
                                                              : Rhi::SemaphoreHandle{};
         bool needs_recreating = pimpl->m_present_provider->Present(
-            Rhi::FromVulkan(pimpl->m_system.GetDevice()), image_index, frame_done_semaphore
+            pimpl->m_system.GetDeviceInterface().GetDevice(), image_index, frame_done_semaphore
         );
 
         pimpl->CompleteFrame();
@@ -522,6 +514,8 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         return true;
     }
 } // namespace Engine::RenderSystemState
+
+
 
 
 
