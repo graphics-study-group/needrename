@@ -40,15 +40,13 @@ namespace Engine {
     void GUISystem::DrawGUI(Rhi::CommandEncoder &) const noexcept {
     }
 
-    void GUISystem::Create(SDL_Window *) {
-        throw std::logic_error(
-            "GUISystem::Create: this build has no UI. ImGui's WebGPU backend does not compile "
-            "against wgpu-native 29, so the editor cannot be brought up here."
-        );
+void GUISystem::Create(SDL_Window *) {
+        // No UI to create. An editor needs ImGui to draw its panels; an example does not,
+        // and refusing here would stop the engine before it ever draws a frame.
     }
 
     void GUISystem::CreateBackend(RenderSystem &, Rhi::ImageFormat, uint8_t) {
-        throw std::logic_error("GUISystem::CreateBackend: this build has no UI.");
+        // Nothing to prepare without a context to draw with.
     }
 
     ImGuiContext *GUISystem::GetCurrentContext() const {

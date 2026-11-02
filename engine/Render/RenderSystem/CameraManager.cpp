@@ -64,13 +64,19 @@ namespace Engine::RenderSystemState {
             );
         }
 
+
         // The arena owns the pool. These sets live until it is destroyed, and the
         // caller must not rewrite one while a command buffer that binds it may
         // still be executing.
+#if !defined(ENGINE_RHI_BACKEND_VULKAN)
+        // This backend cannot hand out an empty set and fill it later: a bind group is created
+        // with its contents. So the sets are made after the buffer they name exists, in one pass.
+#else
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
             pimpl->descriptors[i] =
                 arena.AcquireRawSet(pimpl->camera_descriptor_set_layout, std::format("Desc Set - Camera FIF {}", i));
         }
+#endif
 
         // Allocate the back buffer.
         static_assert(sizeof(impl::CameraData) * MAX_CAMERAS == sizeof(impl::front_buffer));
@@ -87,7 +93,7 @@ namespace Engine::RenderSystemState {
         assert(pimpl->back_buffer);
 
         // Write out descriptors
-        // Write out descriptors
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         std::vector<Rhi::WriteDescriptorSet> writes(pimpl->descriptors.size());
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
             writes[i].set = pimpl->descriptors[i];
@@ -98,6 +104,20 @@ namespace Engine::RenderSystemState {
             writes[i].range = pimpl->back_buffer->GetSliceSize();
         }
         m_system.GetDeviceContext().UpdateDescriptorSets(writes);
+#else
+        for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
+            const Rhi::ResolvedBinding binding{
+                .binding = 0,
+                .type = Rhi::DescriptorType::UniformBuffer,
+                .buffer = pimpl->back_buffer->GetBufferRef(),
+                .offset = static_cast<size_t>(pimpl->back_buffer->GetSliceOffset(i)),
+                .range = static_cast<size_t>(pimpl->back_buffer->GetSliceSize())
+            };
+            pimpl->descriptors[i] = arena.Acquire(
+                pimpl->camera_descriptor_set_layout, 0, false, false, std::span<const Rhi::ResolvedBinding>{&binding, 1}
+            );
+        }
+#endif
     }
     void CameraManager::WriteCameraMatrices(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix) {
         this->WriteCameraMatrices(this->GetActiveCameraIndex(), view_matrix, projection_matrix);
@@ -178,6 +198,8 @@ namespace Engine::RenderSystemState {
         return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
+
+
 
 
 

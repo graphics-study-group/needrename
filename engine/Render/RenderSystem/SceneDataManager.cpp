@@ -177,10 +177,12 @@ namespace Engine::RenderSystemState {
                 // binds it may still be executing — which the per-in-flight fence
                 // FrameManager waits before resetting a slot's command buffer
                 // already establishes.
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
                 for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
                     scene_descriptor_sets[i] =
                         arena.AcquireRawSet(scene_descriptor_set_layout, std::format("Desc Set - Scene FIF {}", i));
                 }
+#endif // ENGINE_RHI_BACKEND_VULKAN
                 // Allocate the back buffer for lights.
                 light_back_buffer = Rhi::IndexedBuffer::CreateUnique(
                     allocator,
@@ -270,7 +272,33 @@ namespace Engine::RenderSystemState {
                     writes[i].offset = light_back_buffer->GetSliceOffset(i);
                     writes[i].range = light_back_buffer->GetSliceSize();
                 }
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
                 device_context->UpdateDescriptorSets(writes);
+#else
+                // This backend creates the set with its contents, so both bindings are named here and
+                // the shadow array is filled per frame in UploadSceneData.
+                for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
+                    const Rhi::ResolvedBinding bindings[2] = {
+                        Rhi::ResolvedBinding{
+                            .binding = 0,
+                            .type = Rhi::DescriptorType::UniformBuffer,
+                            .buffer = light_back_buffer->GetBufferRef(),
+                            .offset = static_cast<size_t>(light_back_buffer->GetSliceOffset(i)),
+                            .range = static_cast<size_t>(light_back_buffer->GetSliceSize())
+                        },
+                        Rhi::ResolvedBinding{
+                            .binding = 2,
+                            .type = Rhi::DescriptorType::StorageBuffer,
+                            .buffer = model_matrices_buffer->GetBufferRef(),
+                            .offset = 0,
+                            .range = static_cast<size_t>(model_matrices_buffer->GetSize())
+                        }
+                    };
+                    scene_descriptor_sets[i] = arena.Acquire(
+                        scene_descriptor_set_layout, 0, false, false, bindings
+                    );
+                }
+#endif
 
                 // Write model matrices buffer descriptor (binding 2)
                 {
@@ -283,7 +311,9 @@ namespace Engine::RenderSystemState {
                         mm_writes[i].offset = 0;
                         mm_writes[i].range = model_matrices_buffer->GetSize();
                     }
-                    device_context->UpdateDescriptorSets(mm_writes);
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+                device_context->UpdateDescriptorSets(mm_writes);
+#endif
                 }
             }
         } scene{};
@@ -515,7 +545,46 @@ namespace Engine::RenderSystemState {
             writes.push_back(write);
         }
 
+
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         pimpl->device_context->UpdateDescriptorSets(writes);
+#else
+        // This backend has no set to write into: a bind group is created with its contents. All
+        // three bindings are named here because the one that changes still has to be part of the
+        // creation, and Acquire caches on the set of resources, so a frame where nothing changed
+        // reuses the group.
+        std::vector<Rhi::ResolvedBinding> bindings;
+        bindings.reserve(MAX_SHADOW_CASTING_LIGHTS + 2);
+        bindings.push_back(Rhi::ResolvedBinding{
+            .binding = 0,
+            .type = Rhi::DescriptorType::UniformBuffer,
+            .buffer = pimpl->scene.light_back_buffer->GetBufferRef(),
+            .offset = static_cast<size_t>(pimpl->scene.light_back_buffer->GetSliceOffset(frame_in_flight)),
+            .range = static_cast<size_t>(pimpl->scene.light_back_buffer->GetSliceSize())
+        });
+        for (uint32_t i = 0; i < MAX_SHADOW_CASTING_LIGHTS; i++) {
+            bindings.push_back(Rhi::ResolvedBinding{
+                .binding = 1,
+                .type = Rhi::DescriptorType::CombinedImageSampler,
+                .image_view = i < shadow_casting_light_count
+                                  ? pimpl->scene.shadow_maps[i]->GetViewRef({})
+                                  : pimpl->scene.default_light_map->GetViewRef({})
+            });
+        }
+        {
+            const auto &current_buffer = *pimpl->scene.model_matrices_buffer;
+            bindings.push_back(Rhi::ResolvedBinding{
+                .binding = 2,
+                .type = Rhi::DescriptorType::StorageBuffer,
+                .buffer = current_buffer.GetBufferRef(),
+                .offset = 0,
+                .range = static_cast<size_t>(current_buffer.GetSize())
+            });
+        }
+        pimpl->scene.scene_descriptor_sets[frame_in_flight] = pimpl->device_context->GetDescriptorArena().Acquire(
+            pimpl->scene.scene_descriptor_set_layout, 0, false, false, bindings
+        );
+#endif
     }
 
     void SceneDataManager::FetchLightData() noexcept {
@@ -572,6 +641,8 @@ namespace Engine::RenderSystemState {
         return *pimpl->scene.model_matrices_buffer;
     }
 } // namespace Engine::RenderSystemState
+
+
 
 
 
