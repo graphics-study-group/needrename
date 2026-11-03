@@ -254,6 +254,11 @@ namespace Engine::Rhi {
         // The standard interface has one queue and no dependencies: a submission is an
         // ordered list of finished command buffers, and "wait for this semaphore" has no
         // meaning because nothing else can be in flight on a different queue.
+        //
+        // Host writes that no caller flushed are published here, before the queue sees the
+        // commands that read them. That is the whole of the rule design D8 states: a caller writes
+        // through the window, and the submission is what makes the write visible.
+        pimpl->allocator_state->FlushPendingHostWrites();
         pimpl->submissions_since_completion++;
         std::vector<WGPUCommandBuffer> commands;
         commands.reserve(submission.command_buffers.size());

@@ -135,6 +135,9 @@ namespace Engine::Rhi {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
+        /// @brief The slot that points back at this allocation, or null when nothing tracks it.
+        std::shared_ptr<BufferAllocation *> m_track_slot{};
+
         /// @brief Destory the resource stored inside the pimpl pointer, and reset the pointer.
         void Destroy() noexcept;
 
@@ -206,6 +209,23 @@ namespace Engine::Rhi {
         std::byte *GetVMAddress();
 
         /**
+         * @brief Whether the host has written through the window since the last flush.
+         *
+         * A submission that reads the buffer has to publish those writes first, and the
+         * submission is the only party that knows it is about to. The flag is what lets it
+         * publish only what changed without the caller having to remember.
+         */
+        bool IsHostWritePending() const noexcept;
+
+        /**
+         * @brief Point this allocation at the slot a pending-write list uses to find it.
+         *
+         * The slot is cleared when the allocation is destroyed, which is how a list that only
+         * holds raw pointers stays correct without owning anything.
+         */
+        void SetTrackSlot(std::shared_ptr<BufferAllocation *> slot) noexcept;
+
+        /**
          * @brief Make a readback buffer's contents addressable, before a caller reads them.
          *
          * On a backend whose mapping is asynchronous, the map has to be requested and waited
@@ -249,5 +269,4 @@ namespace Engine::Rhi {
 } // namespace Engine::Rhi
 
 #endif // ENGINE_RHI_MEMORYALLOCATION_INCLUDED
-
 

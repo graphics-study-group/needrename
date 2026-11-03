@@ -113,6 +113,15 @@ namespace Engine::Rhi {
         ) const noexcept;
 
         /**
+         * @brief Publish every host write a submission has not seen yet.
+         *
+         * A caller writes a buffer through its mapped window and is not required to flush: the
+         * submission that reads the buffer publishes first. This is that call, and it is a no-op
+         * on a backend whose window is device memory.
+         */
+        void FlushPendingHostWrites() const;
+
+        /**
          * @brief Query whether a given format supports intended usage feature.
          */
         bool QueryFormatFeatures(ImageFormat format, FormatFeature feature) const noexcept;

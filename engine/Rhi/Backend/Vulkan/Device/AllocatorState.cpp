@@ -120,6 +120,9 @@ namespace Engine::Rhi {
         /// @brief Tracker that receives retired buffer allocations, or null.
         EpochTracker *m_retire_sink{nullptr};
 
+        /// @brief Host-write slots, so a submission can flush mapped memory a caller did not.
+        mutable std::vector<std::shared_ptr<BufferAllocation *>> host_write_slots;
+
         std::unordered_map<vk::Format, vk::FormatProperties2> m_format_properties{};
         std::unordered_map<vk::PhysicalDeviceImageFormatInfo2, vk::ImageFormatProperties2> m_image_format_properties{};
 
@@ -277,6 +280,25 @@ namespace Engine::Rhi {
         return pimpl->m_retire_sink;
     }
 
+    void AllocatorState::FlushPendingHostWrites() const {
+        // Mapped memory is not necessarily coherent, so every live allocation that a caller could
+        // have written is flushed. On coherent memory the flush is a no-op inside the driver.
+        auto &slots = pimpl->host_write_slots;
+        for (auto itr = slots.begin(); itr != slots.end();) {
+            BufferAllocation *allocation = **itr;
+            if (allocation == nullptr) {
+                itr = slots.erase(itr);
+                continue;
+            }
+            allocation->FlushMemory();
+            ++itr;
+        }
+        return;
+        // The rest of this function is the note that used to be here.
+        // Every host write on this backend is either coherent or explicitly flushed by the caller;
+        // there is no host copy a submission has to publish.
+    }
+
     BufferAllocation AllocatorState::AllocateBuffer(BufferType type, size_t size, const std::string &name) const {
         assert(pimpl->m_allocator && "Allocated not initalized.");
         auto [busage, flags, musage] = pimpl->GetBufferFlags(type);
@@ -386,7 +408,6 @@ namespace Engine::Rhi {
         return ImageAllocation(FromVulkan(vk::Image(image)), allocation, pimpl->m_allocator, desc.type);
     }
 } // namespace Engine::Rhi
-
 
 
 

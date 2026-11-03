@@ -7,6 +7,9 @@
 #include "Rhi/Submission/EpochTracker.h"
 
 #include <SDL3/SDL.h>
+
+#include <memory>
+#include <vector>
 #include <webgpu/webgpu.h>
 
 namespace Engine::Rhi {
@@ -92,6 +95,8 @@ namespace Engine::Rhi {
     struct AllocatorState::impl {
         WGPUDevice device{nullptr};
         EpochTracker *retire_sink{nullptr};
+        /// Host-write slots, so a submission publishes what a caller wrote without being asked.
+        mutable std::vector<std::shared_ptr<BufferAllocation *>> host_write_slots;
     };
 
     AllocatorState::AllocatorState(DeviceInterface &device_interface) :
@@ -138,9 +143,32 @@ namespace Engine::Rhi {
     std::unique_ptr<BufferAllocation> AllocatorState::AllocateBufferUnique(
         BufferType type, size_t size, const std::string &name
     ) const noexcept {
-        // A unique allocation is built from the value form; the move is what makes
-        // it unique.
-        return std::make_unique<BufferAllocation>(AllocateBuffer(type, size, name));
+        // A unique allocation is built from the value form; the move is what makes it unique,
+        // and the unique pointer's address is stable - which is what makes it possible to keep
+        // the address in the pending-write list.
+        auto allocation = std::make_unique<BufferAllocation>(AllocateBuffer(type, size, name));
+        if (allocation != nullptr) {
+            auto slot = std::make_shared<BufferAllocation *>(allocation.get());
+            allocation->SetTrackSlot(slot);
+            pimpl->host_write_slots.push_back(std::move(slot));
+        }
+        return allocation;
+    }
+
+    void AllocatorState::FlushPendingHostWrites() const {
+        auto &slots = pimpl->host_write_slots;
+        for (auto itr = slots.begin(); itr != slots.end();) {
+            BufferAllocation *allocation = **itr;
+            if (allocation == nullptr) {
+                // The allocation is gone; the slot said so by clearing itself.
+                itr = slots.erase(itr);
+                continue;
+            }
+            if (allocation->IsHostWritePending()) {
+                allocation->FlushMemory();
+            }
+            ++itr;
+        }
     }
 
     size_t AllocatorState::GetLiveAllocationCount() const noexcept {
@@ -277,4 +305,3 @@ namespace Engine::Rhi {
         return false;
     }
 } // namespace Engine::Rhi
-

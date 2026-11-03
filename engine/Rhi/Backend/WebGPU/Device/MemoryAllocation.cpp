@@ -43,6 +43,8 @@ namespace Engine::Rhi {
         WGPUQueue queue{nullptr};
         /// Whether the buffer is a readback target, mapped on demand rather than at creation.
         bool readable{false};
+        /// Whether the host has written through the window since the last flush.
+        bool host_write_pending{false};
     };
 
     BufferAllocation::BufferAllocation(
@@ -189,13 +191,23 @@ namespace Engine::Rhi {
         pimpl->mapped = nullptr;
     }
 
+    void BufferAllocation::SetTrackSlot(std::shared_ptr<BufferAllocation *> slot) noexcept {
+        m_track_slot = std::move(slot);
+    }
+
+    bool BufferAllocation::IsHostWritePending() const noexcept {
+        return pimpl != nullptr && pimpl->host_write_pending;
+    }
+
     std::byte *BufferAllocation::GetVMAddress() {
         if (pimpl->mapped != nullptr) {
             return static_cast<std::byte *>(pimpl->mapped);
         }
         if (!pimpl->shadow.empty()) {
-            // The buffer is bound in a shader, so the address is a host copy that
-            // `FlushMemory` publishes. That is the mapped window on this backend.
+            // The buffer is bound in a shader, so the address is a host copy that `FlushMemory`
+            // publishes. That is the mapped window on this backend, and asking for the address is
+            // the only way a caller writes through it - so it is where the write is recorded.
+            pimpl->host_write_pending = true;
             return pimpl->shadow.data();
         }
         if (pimpl->readable) {
@@ -253,6 +265,7 @@ namespace Engine::Rhi {
             return;
         }
         wgpuQueueWriteBuffer(pimpl->queue, pimpl->buffer, 0, pimpl->shadow.data(), pimpl->shadow.size());
+        pimpl->host_write_pending = false;
     }
 
     void BufferAllocation::InvalidateMemory(size_t, size_t) const {

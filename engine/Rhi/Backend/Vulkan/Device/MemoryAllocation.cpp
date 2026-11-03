@@ -94,6 +94,9 @@ namespace Engine::Rhi {
         pimpl(std::make_unique<impl>(ToVulkanBuffer(buffer), type, nullptr, sink)) {
     }
     BufferAllocation::~BufferAllocation() {
+        if (m_track_slot) {
+            *m_track_slot = nullptr;
+        }
         Destroy();
     }
     BufferAllocation::BufferAllocation(BufferAllocation &&other) noexcept :
@@ -132,6 +135,16 @@ namespace Engine::Rhi {
         pimpl->mapped_ptr = reinterpret_cast<std::byte *>(ptr);
         return pimpl->mapped_ptr;
     }
+    void BufferAllocation::SetTrackSlot(std::shared_ptr<BufferAllocation *> slot) noexcept {
+        m_track_slot = std::move(slot);
+    }
+
+    bool BufferAllocation::IsHostWritePending() const noexcept {
+        // Every host write on this backend is either coherent or explicitly flushed; there is no
+        // host copy that a submission has to publish, so nothing is ever pending.
+        return false;
+    }
+
     void BufferAllocation::PrepareReadback() {
         // The mapping here is synchronous and permanent: the address is established on first
         // access and released only at destruction, so there is nothing to prepare.
@@ -141,6 +154,7 @@ namespace Engine::Rhi {
         // buffer this side can read is perfectly legal.
     }
     void BufferAllocation::FlushMemory(size_t offset, size_t size) const {
+        // The write is published here, so nothing is pending any more.
         assert(pimpl);
 
         if (size == 0) {
@@ -168,7 +182,6 @@ namespace Engine::Rhi {
         return pimpl->type;
     }
 } // namespace Engine::Rhi
-
 
 
 
