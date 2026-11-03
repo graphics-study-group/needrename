@@ -138,6 +138,9 @@ namespace Engine::Rhi {
         // the block itself is a uniform buffer here.
         std::vector<Rhi::PushConstantRange> constant_ranges;
         if (description.has_constant_block) {
+            // The size the caller is held to is the block the bake recorded: a kernel's `Dispatch`
+            // asserts that what it pushes fits, and a size of zero would refuse every push.
+            pimpl->parameter_block_size = description.constant_block.size;
             constant_ranges.push_back(
                 Rhi::PushConstantRange{0, description.constant_block.size, true}
             );

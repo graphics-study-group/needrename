@@ -1,6 +1,5 @@
 #include "PhysicsApp.h"
 
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #include <Core/FileSystem/DataRoot.h>
 
 #include "CameraControllerComponent.h"
@@ -30,16 +29,18 @@
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Resource/RenderTargetTexture.h>
+#include <Rhi/Command/CommandEncoder.h>
+#include <Rhi/Command/CommandBuffer.h>
 #include <Rhi/Buffer/ComputeBuffer.h>
 #include <Rhi/Buffer/DeviceBuffer.h>
+#include <Rhi/Device/DeviceContext.h>
 #include <Rhi/Device/MemoryAccessTypes.h>
 #include <Rhi/Device/MemoryTypes.h>
-#include <Rhi/Backend/Vulkan/VulkanStructs.h>
 #include <Rhi/Submission/EpochTracker.h>
+#include <Rhi/Device/Fence.h>
 #include <SDL3/SDL.h>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
-#include <vulkan/vulkan.hpp>
 
 #include <cstring>
 
@@ -173,15 +174,15 @@ namespace AppPhysics {
         std::unique_ptr<Rhi::DeviceBuffer> render_staging{};
 
         /// @brief Record the physics SoA -> staging copies into a command buffer.
-        void RecordBodyStateCopy(vk::CommandBuffer cb) {
+        void RecordBodyStateCopy(Rhi::CommandEncoder &encoder) {
             if (slot_count == 0) {
                 return;
             }
             const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
-            cb.copyBuffer(Rhi::ToVulkanBuffer(pos_src->GetBuffer()), Rhi::ToVulkanBuffer(pos_staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(Rhi::ToVulkanBuffer(rot_src->GetBuffer()), Rhi::ToVulkanBuffer(rot_staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(Rhi::ToVulkanBuffer(linvel_src->GetBuffer()), Rhi::ToVulkanBuffer(linvel_staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
-            cb.copyBuffer(Rhi::ToVulkanBuffer(angvel_src->GetBuffer()), Rhi::ToVulkanBuffer(angvel_staging->GetBuffer()), vk::BufferCopy{0, 0, bytes});
+            encoder.CopyBuffer(pos_src->GetBuffer(), pos_staging->GetBuffer(), bytes);
+            encoder.CopyBuffer(rot_src->GetBuffer(), rot_staging->GetBuffer(), bytes);
+            encoder.CopyBuffer(linvel_src->GetBuffer(), linvel_staging->GetBuffer(), bytes);
+            encoder.CopyBuffer(angvel_src->GetBuffer(), angvel_staging->GetBuffer(), bytes);
         }
 
         /// @brief Map a BodyField to the write-path slot index (declaration order).
@@ -191,7 +192,7 @@ namespace AppPhysics {
 
         /// @brief Record the dirty write staging -> GPU buffer copies into a command buffer.
         /// Called before GPUStep so the solver reads the overridden values.
-        void RecordBodyStateUpload(vk::CommandBuffer cb) {
+        void RecordBodyStateUpload(Rhi::CommandEncoder &encoder) {
             if (slot_count == 0) {
                 return;
             }
@@ -200,11 +201,7 @@ namespace AppPhysics {
                 if (!any_dirty[i] || !write_src[i] || !write_staging[i]) {
                     continue;
                 }
-                cb.copyBuffer(
-                    Rhi::ToVulkanBuffer(write_staging[i]->GetBuffer()),
-                    Rhi::ToVulkanBuffer(write_src[i]->GetBuffer()),
-                    vk::BufferCopy{0, 0, bytes}
-                );
+                encoder.CopyBuffer(write_staging[i]->GetBuffer(), write_src[i]->GetBuffer(), bytes);
             }
         }
 
@@ -365,24 +362,21 @@ namespace AppPhysics {
             // One-time seed copy so state reads are legal before the first Step.
             auto &dc = renderer->GetDeviceContext();
             const auto &dev_iface = dc.GetDeviceInterface();
-            auto device = Rhi::ToVulkanDevice(dev_iface.GetDevice());
-            auto cbs = device.allocateCommandBuffersUnique(
-                vk::CommandBufferAllocateInfo{
-                    dev_iface.GetQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
-                }
-            );
-            auto cb = std::move(cbs[0]);
-            cb->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-            RecordBodyStateCopy(cb.get());
-            cb->end();
+            {
+                auto buffers = Rhi::CommandBuffer::Create(dc, Rhi::CommandBufferPool::GraphicsOneTime, 1);
+                Rhi::CommandBuffer &cb = buffers[0];
+                cb.Begin();
+                Rhi::CommandEncoder encoder{cb.GetHandle()};
+                RecordBodyStateCopy(encoder);
+                cb.End();
 
-            vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
-            vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
-            vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {}};
-            dev_iface.GetQueueInfo().graphicsQueue.submit2(sinfo, fence.get());
-            auto wait_result = device.waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
-            if (wait_result != vk::Result::eSuccess) {
-                throw std::runtime_error("PhysicsApp: physics readback seed copy wait failed");
+                const Rhi::Fence fence = Rhi::Fence::Create(dev_iface, false);
+                Rhi::Submission submission{};
+                submission.command_buffers.push_back(cb.GetHandle());
+                dc.Submit(submission, fence.GetHandle());
+                if (!dc.WaitForFence(fence.GetHandle(), std::numeric_limits<uint64_t>::max())) {
+                    throw std::runtime_error("PhysicsApp: physics readback seed copy wait failed");
+                }
             }
 
             physics_readback_built = true;
@@ -763,24 +757,18 @@ namespace AppPhysics {
 
             auto &dc = impl.renderer->GetDeviceContext();
             const auto &dev_iface = dc.GetDeviceInterface();
-            auto device = Rhi::ToVulkanDevice(dev_iface.GetDevice());
-            auto cbs = device.allocateCommandBuffersUnique(
-                vk::CommandBufferAllocateInfo{
-                    dev_iface.GetQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
-                }
-            );
-            auto cb = std::move(cbs[0]);
-            cb->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-            Rhi::CommandEncoder model_matrix_encoder{Rhi::FromVulkan(static_cast<VkCommandBuffer>(cb.get()))};
+            auto buffers = Rhi::CommandBuffer::Create(dc, Rhi::CommandBufferPool::GraphicsOneTime, 1);
+            Rhi::CommandBuffer &cb = buffers[0];
+            cb.Begin();
+            Rhi::CommandEncoder model_matrix_encoder{cb.GetHandle()};
             impl.physics->GPUCalcModelMatrices(*phys_scene, model_matrix_encoder, scene_data.GetModelMatricesBuffer());
-            cb->end();
+            cb.End();
 
-            vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
-            vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
-            vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {}};
-            dev_iface.GetQueueInfo().graphicsQueue.submit2(sinfo, fence.get());
-            auto wait_result = device.waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
-            if (wait_result != vk::Result::eSuccess) {
+            const Rhi::Fence fence = Rhi::Fence::Create(dev_iface, false);
+            Rhi::Submission submission{};
+            submission.command_buffers.push_back(cb.GetHandle());
+            dc.Submit(submission, fence.GetHandle());
+            if (!dc.WaitForFence(fence.GetHandle(), std::numeric_limits<uint64_t>::max())) {
                 throw std::runtime_error("PhysicsApp: physics model-matrix seed wait failed");
             }
         }
@@ -823,24 +811,20 @@ namespace AppPhysics {
         // DeviceInterface, replacing the SubmissionHelper in this design.
         auto &dc = impl.renderer->GetDeviceContext();
         const auto &dev_iface = dc.GetDeviceInterface();
-        auto device = Rhi::ToVulkanDevice(dev_iface.GetDevice());
-        const auto &queue_info = dev_iface.GetQueueInfo();
 
-        vk::CommandBufferAllocateInfo cbainfo{queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
-        auto cbs = device.allocateCommandBuffersUnique(cbainfo);
-        auto cb = std::move(cbs[0]);
+        auto buffers = Rhi::CommandBuffer::Create(dc, Rhi::CommandBufferPool::GraphicsOneTime, 1);
+        Rhi::CommandBuffer &cb = buffers[0];
         // Open the epoch this step's submission belongs to before recording
         auto &epoch_tracker = dc.GetEpochTracker();
         const Rhi::EpochWatermark step_epoch = epoch_tracker.BeginEpoch();
-        vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
-        cb->begin(cbbinfo);
-        Rhi::CommandEncoder step_encoder{Rhi::FromVulkan(static_cast<VkCommandBuffer>(cb.get()))};
+        cb.Begin();
+        Rhi::CommandEncoder step_encoder{cb.GetHandle()};
         try {
             // Measure joint state from the last readback and write actuator torques
             // into the ExternalTorque write staging before the solver reads them.
             impl.RunActuators();
             // Write staging -> GPU uploads first so the solver reads overridden values.
-            impl.RecordBodyStateUpload(cb.get());
+            impl.RecordBodyStateUpload(step_encoder);
             impl.physics->GPUStep(step_encoder);
             // Produce model matrices on the same command buffer, after the step, so
             // that a render frame following this step observes the new poses.
@@ -853,8 +837,8 @@ namespace AppPhysics {
             }
             // Physics readback: copy the SoA into resident staging in the same CB,
             // so the existing fence wait makes the state CPU-visible on return.
-            impl.RecordBodyStateCopy(cb.get());
-            cb->end();
+            impl.RecordBodyStateCopy(step_encoder);
+            cb.End();
         } catch (...) {
             // Nothing reached the queue, so the epoch produced no GPU work and
             // must not be left to stall the completed prefix.
@@ -862,12 +846,11 @@ namespace AppPhysics {
             throw;
         }
 
-        vk::UniqueFence fence = device.createFenceUnique(vk::FenceCreateInfo{});
-        vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
-        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {}};
-        queue_info.graphicsQueue.submit2(sinfo, fence.get());
-        auto wait_result = device.waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
-        if (wait_result != vk::Result::eSuccess) {
+        const Rhi::Fence fence = Rhi::Fence::Create(dev_iface, false);
+        Rhi::Submission submission{};
+        submission.command_buffers.push_back(cb.GetHandle());
+        dc.Submit(submission, fence.GetHandle());
+        if (!dc.WaitForFence(fence.GetHandle(), std::numeric_limits<uint64_t>::max())) {
             throw std::runtime_error("PhysicsApp: physics submission wait failed");
         }
         // The completion signal of this step's own submission has been observed
@@ -1138,7 +1121,6 @@ namespace AppPhysics {
         impl.any_dirty[idx] = true;
     }
 } // namespace AppPhysics
-
 
 
 
