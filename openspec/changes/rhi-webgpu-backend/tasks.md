@@ -182,13 +182,12 @@
        has no rule against it. Adding that moved the run past the sort.
     2. *"Shader global ResourceBinding { group: 0, binding: 1 } is not available in the pipeline
        layout"* - and the description is *not* the problem: instrumenting `CreateFromModule` shows
-       `XPBD ClearEntryValues` declaring both set 0 bindings and `EntryCount` among them, while the
-       pipeline layout the device receives has only binding 0 in that group. So the pipeline layout
-       that reaches `wgpuDeviceCreateComputePipeline` is not the one the kernel composed - the next
-       thing to instrument is `ImmutableResourceCache::GetPipelineLayout`, logging the cache key and
-       each group's handle, because a key collision there hands a kernel another kernel's layout.
-       (That file uses bare LF, so a search-and-replace written with CRLF silently does nothing -
-       which cost an hour of this session.)
+       `XPBD ClearEntryValues` declaring both set 0 bindings, and `GetDescriptorSetLayoutRef` does
+       create a two-binding layout just before that kernel's pipeline. The pipeline layout the
+       kernel hands the device reports three groups, its group 0 is that two-binding layout, and the
+       device still says binding 1 is missing. Handles are pointers (`FromWgpu` keeps a `uintptr_t`),
+       so a handle-value collision was ruled out, and keying the pipeline layout on each layout's
+       *content* hash changed nothing.
   - The experiment is reverted rather than half-landed; each step above is one small change with a
     named error to reproduce it by.
   - A window is **zero-filled** before the block is copied in, because a shader reads its whole
