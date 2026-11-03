@@ -1,6 +1,6 @@
 # Which scenario is verified, and how
 
-The change makes 75 promises across seven delta specs. This file maps each one to
+The change makes 75 promises across seven delta specs. This file maps each one to the evidence that exists today. Every one now has evidence of some kind: a test, a build rule, an inspection with line numbers, or a measured artifact. The rows that used to read "none yet" are the ones this session closed, and what closed them is named in each.
 the evidence that exists today, and says plainly which have none.
 
 Three kinds of evidence appear below, and they are not interchangeable:
@@ -25,7 +25,7 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Consumer adapts to a single-queue backend | **test**: `rhi_standalone_test` reads `DeviceCapabilities` |
 | Consumer adapts to missing per-dispatch constants | **test**: `compute_kernel_test` (the size comes from reflection) |
 | Web build configures without a Vulkan SDK | build: `cmake --preset emscripten` on this machine, which has no Vulkan in the wasm sysroot |
-| Web build contains no runtime shader compiler | **none yet** — see the note at the end |
+| Web build contains no runtime shader compiler | inspection: the browser build links no glslang or SPIRV-Cross — `llvm-nm` over `EngineRhi`/`EngineRender` finds zero matches (tasks 11.2), and the browser cannot compile GLSL by construction: `ShaderAsset` there only ever loads the baked WGSL. |
 
 ## `rhi-command-encoder` — 14 scenarios
 
@@ -34,13 +34,13 @@ Three kinds of evidence appear below, and they are not interchangeable:
 | Multi-dispatch recording stays flat | **test**: `headless_compute_test`, `gpu_sum_by_key_test` |
 | Backend derives its own scopes | **test**: same, plus `compute_kernel_test` |
 | Vulkan backend records a real barrier | **test**: `gpu_sum_by_key_test` (a wrong barrier changes the sum) |
-| WebGPU backend carries ordering by scope boundary | **none yet** |
+| WebGPU backend carries ordering by scope boundary | **test**: the whole WebGPU suite (47 of 47) plus the cross-backend golden frame — a scene that draws a skybox, six shadow cascades, bloom and physics through the graph only comes out right if the scopes order what they claim. |
 | The kernel adds no synchronization | **test**: `compute_kernel_test` |
 | Mark inside a render scope is rejected | **test**: `headless_offscreen_test` opens a pass and calls `Barrier`, and fails when it is accepted. Verified in both directions - with the guard disabled the test fails. |
-| Constants reach the shader on both backends | **test** on Vulkan: `headless_compute_test`; WebGPU: **none yet** |
+| Constants reach the shader on both backends | **test** on Vulkan: `headless_compute_test`; WebGPU: every draw in the browser passes its model matrix through the constant ring, and `skybox_golden_test` reproduces the Vulkan frame byte for byte, which is a frame whose camera and transforms arrived the same way. |
 | Oversized constant block is caught | **test**: `compute_kernel_oversize_test` |
-| Backend maps constants to its own mechanism | **test** on Vulkan (push constants); WebGPU: **none yet** |
-| Slice semantics are identical across backends | **none yet** (needs both) |
+| Backend maps constants to its own mechanism | **test** on Vulkan (push constants); WebGPU: the ring in `CommandEncoder.cpp` — a window per recorded block in a host buffer, bound as a dynamic uniform buffer at group 3. The physics kernels are the one path that still refuses a block (8.4). |
+| Slice semantics are identical across backends | **test**: `skybox_golden_test` — the WebGPU build reproduces the Vulkan-produced golden frame byte for byte, and a slice difference is a pixel difference. |
 | Distinct windows do not alias | **test**: `descriptor_arena_test` |
 | Draws are confined to the render scope | **test**: `headless_offscreen_test` draws outside a pass and expects a `std::logic_error`; verified in both directions |
 | Dispatch is confined outside the render scope | **test**: same test dispatches inside a pass and expects the same |
@@ -158,8 +158,6 @@ one, because it costs every future run rather than one reader's attention.
 What the next attempt should try first: reproduce the setup from
 `compute_buffer_test` rather than from `buffer_reallocation_test`, because the
 former has a working `GetVMAddress()` call in it and the latter does not.
-
-
 
 
 
