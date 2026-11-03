@@ -253,7 +253,15 @@ namespace Engine::Rhi {
     bool DeviceContext::WaitForFence(FenceHandle fence, uint64_t timeout_ns) {
         const vk::Result result =
             ToVulkanDevice(pimpl->device_interface->GetDevice()).waitForFences({ToVulkanFence(fence)}, vk::True, timeout_ns);
-        return result == vk::Result::eSuccess;
+        if (result != vk::Result::eSuccess) {
+            return false;
+        }
+        // A wait that observed completion is one of the places completion callbacks run from, which
+        // is what `PumpCompletions` promises. Without this, a caller that waits on its own fences
+        // but never idles - which is what a frame loop does - never runs them, and whatever the
+        // callback was going to do (report an epoch, release a parked resource) is stranded.
+        PumpCompletions();
+        return true;
     }
 
     void DeviceContext::SignalSemaphore(const TimelineSignal &signal) {
@@ -293,6 +301,14 @@ namespace Engine::Rhi {
 
         const vk::Fence submit_fence = fence.IsValid() ? ToVulkanFence(fence) : nullptr;
         pimpl->device_interface->GetQueueInfo().graphicsQueue.submit2(info, submit_fence);
+
+        // Register the submission's completion callback against the fence it signals. This is the
+        // only place the seam's `on_complete` becomes something that runs: without it a caller that
+        // passes a callback gets no callback, and anything the callback was to do (reporting an
+        // epoch, releasing a parked resource) never happens.
+        if (submission.on_complete && submit_fence != nullptr) {
+            pimpl->pending_completions.push_back(DeviceContext::impl::PendingCompletion{submit_fence, submission.on_complete});
+        }
     }
 } // namespace Engine::Rhi
 

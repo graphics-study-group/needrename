@@ -130,6 +130,11 @@ std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{
         // slot has no open epoch (nothing submitted yet, or a skipped frame).
         std::array<Rhi::EpochWatermark, FRAMES_IN_FLIGHT> frame_epochs{};
 
+        /// Whether this manager is still alive, for the completion callbacks it registers. A
+        /// callback outlives the frame that registered it - that is the point of one - so it reaches
+        /// its owner through this flag rather than through a raw pointer that may already be gone.
+        std::shared_ptr<std::atomic<bool>> alive{std::make_shared<std::atomic<bool>>(true)};
+
         // Last frame-completion fence, captured at submit time (before
         // CompleteFrame advances the FIF counter). Null until the first submit.
         Rhi::FenceHandle m_last_submitted_fence{};
@@ -159,7 +164,12 @@ std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{
     FrameManager::FrameManager(RenderSystem &sys) : pimpl(std::make_unique<impl>(sys)) {
     }
 
-    FrameManager::~FrameManager() = default;
+    FrameManager::~FrameManager() {
+        // Callbacks registered by this manager check this before touching anything of its: a
+        // completion callback can run on a later pump, including one the device context makes while
+        // it is being torn down.
+        pimpl->alive->store(false);
+    }
 
     void FrameManager::impl::Create(IPresentProvider &present_provider) {
         m_present_provider = &present_provider;
@@ -299,14 +309,9 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
             throw std::runtime_error("Timed out waiting for the frame fence.");
         }
 
-        // The fence of the frame that last used this slot has been observed, so
-        // that frame's epoch can be reported. This is the frame epoch's only
-        // reporting point, and it is why the completed prefix lags by roughly
-        // the in-flight depth.
-        if (pimpl->frame_epochs[fif] != Rhi::INVALID_EPOCH_WATERMARK) {
-            pimpl->m_system.GetDeviceContext().GetEpochTracker().ReportComplete(pimpl->frame_epochs[fif]);
-            pimpl->frame_epochs[fif] = Rhi::INVALID_EPOCH_WATERMARK;
-        }
+        // Nothing is reported here any more. The wait above pumped the completion callbacks, and
+        // one of them reported this slot's previous frame - it holds the epoch that frame opened,
+        // captured when the frame was submitted, which is the only way to name it correctly.
 
         // Acquire (async, never blocks). On failure the frame state is left
         // untouched: `current_framebuffer` keeps its previous value, the fence
@@ -326,6 +331,12 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         // so resetting the command buffer and fence here cannot deadlock a
         // later wait (fences are only signaled by a completed submit, and
         // `waitIdle` does not signal them).
+        // Pumped before the reset, and this is load-bearing: the slot's completion callback rides
+        // that fence, and a wait that finds the fence already signalled does not reach the pump. A
+        // reset then clears the signal a pending callback was waiting for, the epoch it would have
+        // reported stays outstanding for ever, and the tracker's "too many outstanding epochs"
+        // assertion raises a message box - which is why this looked like a stall rather than a leak.
+        pimpl->m_system.GetDeviceContext().PumpCompletions();
         pimpl->command_buffers[fif]->Reset();
         pimpl->command_executed_fences[fif]->Reset();
         // The reset replaced the recording object this slot records into - a new encoder on a
@@ -445,6 +456,31 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
                 Rhi::PipelineScope::Unspecified
             });
         }
+
+        // Frame completion is a callback riding this submission's own completion, and the epoch it
+        // reports is captured by value here rather than read from the slot when it runs. Reading the
+        // slot was the mistake of the first two attempts: by the time a pending callback runs, the
+        // next frame can have opened its own epoch in the same slot, and reporting *that* one leaves
+        // the frame's real epoch outstanding for ever - which the tracker catches as "too many
+        // outstanding epochs" and which presents as a stalled window, because the assertion raises a
+        // message box.
+        const Rhi::EpochWatermark completed_epoch = pimpl->frame_epochs[fif];
+        std::shared_ptr<std::atomic<bool>> alive = pimpl->alive;
+        Rhi::EpochTracker *tracker = &pimpl->m_system.GetDeviceContext().GetEpochTracker();
+        submission.on_complete = [this, fif, completed_epoch, alive, tracker]() {
+            if (!alive->load()) {
+                // The manager is gone; the tracker it would have reported to is going with it.
+                return;
+            }
+            if (completed_epoch != Rhi::INVALID_EPOCH_WATERMARK) {
+                tracker->ReportComplete(completed_epoch);
+            }
+            // The slot only becomes invalid if it still holds the epoch this callback reported; a
+            // frame that has already opened the next one owns the slot.
+            if (pimpl->frame_epochs[fif] == completed_epoch) {
+                pimpl->frame_epochs[fif] = Rhi::INVALID_EPOCH_WATERMARK;
+            }
+        };
 
         pimpl->m_system.GetDeviceContext().Submit(
             submission, pimpl->command_executed_fences[fif]->GetHandle()
