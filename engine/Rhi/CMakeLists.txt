@@ -33,6 +33,13 @@ endforeach()
 
 # EngineRhi is the engine's generic GPU infrastructure layer, built as its own DLL
 add_library(EngineRhi ${SOURCE})
+
+# Whether this build can reflect a module at runtime is decided by which of SPLayout's two
+# implementations it contains, and that is the question a caller wants answered: the bake-only
+# macro means something different (that the shader baker is in the build).
+if (ENGINE_RHI_BAKE_REFLECTION OR ENGINE_RHI_BACKEND_VULKAN)
+    target_compile_definitions(EngineRhi PUBLIC ENGINE_RHI_HAS_REFLECTION=1)
+endif()
 target_link_libraries(EngineRhi
     PUBLIC
     EngineLibHeaderInterface

@@ -73,7 +73,7 @@ namespace Engine {
                         : Engine::Rhi::ShaderInterfaceDescription::FromString(
                               shader_asset->interface_description
                           );
-#    if defined(ENGINE_RHI_BAKE_REFLECTION)
+#    if defined(ENGINE_RHI_HAS_REFLECTION)
                 // This build can reflect, and reflection is what its pictures were validated
                 // against, so it stays the path here. The description is used where reflection is
                 // not linked - the browser - and the two are compared from there.
