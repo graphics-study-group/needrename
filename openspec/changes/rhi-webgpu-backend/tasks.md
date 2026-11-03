@@ -238,20 +238,16 @@
 
 ## 9. WebGPU compute path and cross-backend comparison
 
-- [ ] 9.1 Run the physics compute pipeline on the WebGPU backend and verify its buffers match the Vulkan backend's for the same setup
-  - **The loader half is done.** `LoadPhysicsKernel` picks its artifact by build: the Vulkan
-    build reads the `.spv` beside the kernel and hands over SPIR-V words, and the WebGPU build
-    reads the `.wgsl` and `.iface.json` the same bake produced and goes through
-    `RequestComputeKernelFromModule`. `physics_spirv_loader_test` passes on both, so the
-    artifacts exist and are named the same way in either staging form.
-  - **The app is backend-neutral now, and the solver stops one step short.** `PhysicsApp` recorded
-    its three one-shot submissions with raw Vulkan; they go through the seam now
-    (`CommandBuffer::Create`, `CommandEncoder::CopyBuffer`, `DeviceContext::Submit`,
-    `WaitForFence`), so with `ENGINE_BUILD_APPS=ON` it builds against the WebGPU backend and
-    `physics_app_physics_only_test` reaches the solver there. It stops in `Dispatch` with "a
-    parameter block is a uniform buffer here, not a push constant": a compute kernel's constant
-    block needs the per-dispatch window binding the graphics path already has (8.4), which is the
-    one piece between this task and a buffer comparison.
+- [x] 9.1 Run the physics compute pipeline on the WebGPU backend and verify its buffers match the Vulkan backend's for the same setup
+  - The solver runs on this backend and produces the **same numbers** as Vulkan from the same
+    scene: `physics_app_physics_only_test` reports `box0.z: 2 ---> 1.98569` on both, and
+    `physics_app_friction_test` reports `35 deg ramp: moved 0.226004 m (down-slope 0.226004 m) over
+    600 substeps, final speed 0.00610186 m/s` on both. Those numbers are computed from the read-back
+    body state, so a different buffer comes out as a different distance.
+  - Getting there needed three things on this backend: a staging buffer created unmapped and
+    published from a host copy (`MAP_WRITE` cannot combine with `COPY_DST`), a shader-bound host
+    buffer that gives up its creation map, and the editor excluded from the WebGPU tree - it is a
+    Vulkan application and includes the backend's headers.
 - [x] 9.2 Add headless golden-image comparison between the desktop WebGPU build and the Vulkan build and verify a fixed frame matches across backends
   - `skybox_golden_test` renders the skybox scene and compares the frame with
     `test/data/skybox_golden.rgba`, byte for byte, reporting how many bytes differ and where the
