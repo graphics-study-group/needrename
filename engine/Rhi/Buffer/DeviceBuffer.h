@@ -95,6 +95,12 @@ namespace Engine::Rhi {
         /// readback callback.
         void PrepareReadback();
 
+        /// @brief Give a readback buffer back to the device once its contents have been read.
+        ///
+        /// A buffer that is still mapped cannot be written by the device, so a read-back buffer
+        /// that is reused frame after frame is unmapped here before the next copy targets it.
+        void ReleaseReadback();
+
         /**
          * @brief Flush the memory write to be visible on device.
          *

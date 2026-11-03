@@ -79,7 +79,10 @@ namespace Engine {
                 // not linked - the browser - and the two are compared from there.
                 b.reflected.Merge(Engine::Rhi::SPLayout::Reflect(code, true));
 #    else
-                if (description.has_value() && !description->bindings.empty()) {
+                if (description.has_value()) {
+                    // A shader may legitimately declare no binding at all - the debug
+                    // write-through fragment does - and that is a description of zero bindings,
+                    // not a missing one.
                     b.reflected.Merge(Engine::Rhi::SPLayout::FromDescription(description.value(), true));
                 } else {
                     throw std::runtime_error(

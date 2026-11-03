@@ -39,6 +39,10 @@ namespace Engine::Rhi {
         allocation.PrepareReadback();
     }
 
+    void DeviceBuffer::ReleaseReadback() {
+        allocation.ReleaseReadback();
+    }
+
     void DeviceBuffer::Flush(size_t offset, size_t size) const {
         allocation.FlushMemory(offset, size);
     }

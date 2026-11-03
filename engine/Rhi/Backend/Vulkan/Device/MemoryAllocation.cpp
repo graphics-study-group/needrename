@@ -136,6 +136,10 @@ namespace Engine::Rhi {
         // The mapping here is synchronous and permanent: the address is established on first
         // access and released only at destruction, so there is nothing to prepare.
     }
+    void BufferAllocation::ReleaseReadback() {
+        // Synonymous with PrepareReadback here: the window stays open, and a device write to a
+        // buffer this side can read is perfectly legal.
+    }
     void BufferAllocation::FlushMemory(size_t offset, size_t size) const {
         assert(pimpl);
 

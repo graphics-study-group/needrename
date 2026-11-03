@@ -219,6 +219,16 @@ namespace Engine::Rhi {
         void PrepareReadback();
 
         /**
+         * @brief Give a readback buffer back to the device, after its contents were read.
+         *
+         * A buffer that is still mapped cannot be the destination of a copy: an implementation
+         * rejects the submission rather than the map, and the failure lands frames away from the
+         * read that caused it. The frame pump calls this once the callback has returned, so a
+         * pooled readback buffer goes back to the device in a state it can write.
+         */
+        void ReleaseReadback();
+
+        /**
          * @brief Flush the memory so that host writes are visible on the device
          *
          * @exception std::runtime_error Rethrows all exception if the underlying Vulkan call fails

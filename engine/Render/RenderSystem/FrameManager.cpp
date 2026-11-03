@@ -494,6 +494,9 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
                 // own event dispatch here.
                 itr.second->PrepareReadback();
                 std::invoke(itr.first, *itr.second);
+                // Read, so the device may write it again: the buffer goes back to the pool in a
+                // state the next frame's copy can target.
+                itr.second->ReleaseReadback();
                 // The callback borrowed the buffer; it goes back to the pool for the next frame
                 // rather than being destroyed.
                 readback.ReturnBuffer(std::move(itr.second));

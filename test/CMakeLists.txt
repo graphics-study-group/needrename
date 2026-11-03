@@ -14,6 +14,11 @@
 #   LINK ...            link libraries (default: Engine)
 #   ARGS ...            extra command-line arguments
 #   EXTRA_LABELS ...    extra CTest labels (e.g. "gpu" for GPU-dependent tests)
+# The directory this file lives in. A function body sees its *caller's*
+# CMAKE_CURRENT_SOURCE_DIR, which for a test is the category subdirectory, so the test root has to
+# be captured here.
+set(ANRO_TEST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+
 function(anro_add_test target)
     cmake_parse_arguments(TEST "WINDOWED" "FRAMES;TIMEOUT;WORKING_DIRECTORY;FOLDER"
                           "SOURCES;LINK;ARGS;EXTRA_LABELS" ${ARGN})
@@ -27,6 +32,12 @@ function(anro_add_test target)
 
     add_executable(${target} ${TEST_SOURCES})
     target_link_libraries(${target} PRIVATE ${TEST_LINK})
+    # A failed assertion opens a message box, and nothing in a test run can dismiss it: the test
+    # then hangs instead of failing. Forcing this header into every test sends the report to stderr.
+    if(MSVC)
+        target_include_directories(${target} PRIVATE "${ANRO_TEST_ROOT}")
+        target_compile_options(${target} PRIVATE /FIForcedTestRuntime.h)
+    endif()
     # The install rules collect these when ENGINE_INSTALL_TESTS is ON.
     set_property(GLOBAL APPEND PROPERTY ENGINE_TEST_TARGETS ${target})
 

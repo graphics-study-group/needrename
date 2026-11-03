@@ -171,6 +171,17 @@ namespace Engine::Rhi {
         }
     }
 
+    void BufferAllocation::ReleaseReadback() {
+        if (!pimpl || pimpl->buffer == nullptr || pimpl->mapped == nullptr) {
+            return;
+        }
+        // The map is what made the bytes readable; it is also what stops the device from writing
+        // the buffer again. A pooled readback buffer is unmapped here so the next frame's copy can
+        // target it.
+        wgpuBufferUnmap(pimpl->buffer);
+        pimpl->mapped = nullptr;
+    }
+
     std::byte *BufferAllocation::GetVMAddress() {
         if (pimpl->mapped != nullptr) {
             return static_cast<std::byte *>(pimpl->mapped);
