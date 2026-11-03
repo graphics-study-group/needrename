@@ -17,22 +17,23 @@
     through **naga**, which is why the bake uses Tint.
 - [x] 1.2 Verify the constant-block conversion path: convert a shader with a push-constant block and confirm the fallback (SPIR-V constant block rewritten to a uniform buffer before conversion) is needed or not; record the result in the spike notes
 - [x] 1.3 Measure one dispatch per compute scope vs batched dispatches in a minimal `webgpu.h` compute sample and record the overhead in the spike notes
-- [ ] 1.4 Build a minimal `webgpu.h` triangle plus one compute dispatch on the Emscripten toolchain and
+- [x] 1.4 Build a minimal `webgpu.h` triangle plus one compute dispatch on the Emscripten toolchain and
   verify it renders
-  - **Desktop half verified.** `example/webgpu_clear_example` now creates a storage buffer, a compute
-    pipeline that writes a colour into it and a triangle pipeline whose fragment shader reads that
-    colour, records the dispatch before the pass in the same encoder, and logs "compute and triangle
-    pipelines created" followed by "30 frames presented". Three library rules had to be discovered on
-    the way, each of which surfaces as an error rather than a default: a multisample count (zero is
+  - **Both targets render, and the frame is the evidence.** `example/webgpu_clear_example` binds a
+    storage buffer, runs a compute dispatch that writes a colour into it, and draws a triangle whose
+    fragment shader reads that colour - the dispatch is recorded before the pass in the same encoder.
+    On the desktop it logs "compute and triangle pipelines created" and "30 frames presented"; in the
+    browser canvas it is an orange triangle on the blue clear, which is the value the dispatch wrote
+    (a dispatch that never ran would leave it black).
+  - **What the web build needed was an event-loop shape, not a fix.** `main` requests the adapter and
+    installs `emscripten_set_main_loop` before either arrives, because the callbacks are delivered
+    between animation frames and a page whose `main` returned with no loop has nothing left to run
+    them; the device is requested from the adapter callback; and the frame loop pumps the instance
+    *before* checking whether it is ready - the first version returned early on every frame, which is
+    why the device never resolved where there was an event pump.
+  - Three library rules surface as errors rather than defaults: a multisample count (zero is
     rejected), a shader source chained struct (`WGPUShaderModuleDescriptor` has no `code`), and a
-    fragment binding whose declared access matches the layout's.
-  - **Emscripten half blocked, with the reason narrowed.** The module builds for the web and the
-    adapter resolves (`adapter status 1`), but the device request does not resolve from a
-    straight-line poll loop: `emscripten_sleep` inside the wait does not give the browser the turn the
-    device promise needs, and a bound counted in milliseconds expires under a virtual clock before that
-    turn arrives. The browser path itself is proven elsewhere - the engine's own example renders
-    through it - so what remains is acquiring the device from the page's event loop instead of a loop
-    inside `main`.
+    binding whose declared access must match the layout's.
 - [x] 1.5 Record the target's limits (`maxBindGroups`, buffer and binding sizes) and the behavior of two dispatches sharing one compute scope in the spike notes
 
 ## 2. Build scaffolding
