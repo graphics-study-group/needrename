@@ -169,14 +169,15 @@ it is watching):
   the copy is recorded;
 - `BeginMainCommandBuffer` is never entered, and neither is `SubmitFrame`.
 
-So the stall is between registration returning and the frame's first record - in the test's own
-loop, where nothing should wait. That is where to pick this up: the next step is a stack, not more
-logging, and this session had no debugger to take one with (`cdb`, `windbg`, `procdump` are all
-absent).
+So the stall is inside the frame's first *draw*, not in the read-back: the subpass enters, sets its
+viewport, binds the scene and camera sets, and then stops in
+`material->GetLibrary().FindMaterialTemplate("", pri)` - the call that creates the material's
+graphics pipeline on the spot, from inside an open render pass.
 
-`compute_shader_test` is no longer in this list: it builds its kernel from a GLSL source file, which
-a baked staging tree does not carry, and it now says so and stops.
-
+That is the same shape on both backends, and it is where the next attempt should look: a pipeline
+created while a pass is recording is either too late by contract or waits for something the
+recording thread is holding. `complex_mesh_test` and `pbr_test` create their materials before the
+loop, which is why they pass.
 ### 0e. The staged `spirv` directory can vanish while its stamp survives
 
 `build/msvc/stage/Debug/spirv` was missing while the staging stamp was current, so a build
