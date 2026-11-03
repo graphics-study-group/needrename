@@ -2,7 +2,9 @@
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <chrono>
+#include <cstring>
 #include <fstream>
+#include <vector>
 #include <numbers>
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
@@ -347,6 +349,51 @@ int main(int argc, char **argv) {
                      "the skybox pipeline wrote no colour."
                   << std::endl;
         return 1;
+    }
+
+    // The cross-backend check: the same scene, the same camera, the same shaders, so the frame one
+    // backend produces is the frame the other does. The golden file is committed, produced by the
+    // Vulkan build, and this build is asked to reproduce it byte for byte.
+    if (const char *golden_path = SDL_getenv("SKYBOX_GOLDEN"); golden_path != nullptr && golden_path[0] != '\0') {
+        std::ifstream golden_file(golden_path, std::ios::binary);
+        if (!golden_file.is_open()) {
+            std::cerr << "Skybox test FAILED: the golden frame '" << golden_path << "' could not be opened." << std::endl;
+            return 1;
+        }
+        std::vector<std::byte> golden{};
+        {
+            const std::vector<char> bytes{
+                (std::istreambuf_iterator<char>(golden_file)), std::istreambuf_iterator<char>()
+            };
+            golden.resize(bytes.size());
+            std::memcpy(golden.data(), bytes.data(), bytes.size());
+        }
+        const std::byte *frame = reinterpret_cast<const std::byte *>(pixels);
+        const size_t frame_bytes = 800u * 800u * 4u;
+        if (golden.size() != frame_bytes) {
+            std::cerr << "Skybox test FAILED: the golden frame is " << golden.size() << " bytes, the frame is "
+                      << frame_bytes << '.' << std::endl;
+            return 1;
+        }
+
+        size_t differing = 0;
+        size_t first_difference = 0;
+        for (size_t index = 0; index < frame_bytes; index++) {
+            if (golden[index] != frame[index]) {
+                if (differing == 0) {
+                    first_difference = index;
+                }
+                differing++;
+            }
+        }
+        if (differing != 0) {
+            const size_t pixel = first_difference / 4u;
+            std::cerr << "Skybox test FAILED: " << differing << " of " << frame_bytes
+                      << " bytes differ from the golden frame; the first is pixel ("
+                      << (pixel % 800u) << ", " << (pixel / 800u) << ")." << std::endl;
+            return 1;
+        }
+        std::cout << "Skybox frame matches the golden frame byte for byte." << std::endl;
     }
 
     std::cout << "Skybox test PASSED: " << non_black << " of 640000 pixels are not black." << std::endl;

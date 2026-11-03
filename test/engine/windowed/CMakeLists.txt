@@ -26,3 +26,14 @@ add_test(
 )
 set_tests_properties(mrt_test_staged_builtin_assets PROPERTIES LABELS "windowed" TIMEOUT 300)
 add_dependencies(mrt_test builtin_assets_stage)
+
+# The cross-backend check (task 9.2). The golden frame was produced by the Vulkan build from this
+# same scene and camera; every backend is asked to reproduce it byte for byte, so a change that
+# renders "roughly right" on one backend and differently on the other fails here.
+add_test(
+    NAME skybox_golden_test
+    COMMAND
+        ${CMAKE_COMMAND} -E env "SKYBOX_GOLDEN=${CMAKE_SOURCE_DIR}/test/data/skybox_golden.rgba"
+        $<TARGET_FILE:skybox_test> 5
+)
+set_tests_properties(skybox_golden_test PROPERTIES LABELS "windowed" TIMEOUT 300)
