@@ -324,3 +324,22 @@ finds it automatically at `build/msvc/bin/Debug/shader_baker.exe` (or by setting
 
 `SHADER_WGSL_CONVERTER` is a cache variable, discovered when it is not set; on this machine it
 has to be passed once because the Dawn build is not on `PATH`.
+## 0g. Two self-inflicted detours worth not repeating
+
+Both cost most of a session and neither was a code problem.
+
+- **A cleanup glob deleted `SDL3.dll`.** Removing stray measurement files with `... -Filter`-less
+  wildcards (`sd*`) matched `build/msvc/bin/Debug/SDL3.dll`, and the next suite run reported **54
+  failures** with `0xC0000135` (DLL not found) and no message anywhere saying which DLL. If a whole
+  suite fails at once with that exit code, compare the DLL set in `bin/Debug` against a known-good
+  tree before reading anything into it.
+- **`git stash` + rebuild left one target unlinked.** After stashing an experiment and rebuilding,
+  `SDL_init_test.exe` was never produced (MSBuild: "LINK : ... not found ... or the previous
+  incremental link"), so ctest counted it as a failure. Building the target by name fixed it. A
+  suite run after a stash/pop is not trustworthy until every test binary exists.
+
+- **The msvc suite wants no `NEEDRENAME_DATA_ROOT`.** `shader_compile_test` resolves `test_data`
+  under the data root, and the stage directory has no `test_data` (it is an install-time artifact,
+  `share/needrename/test_data`). Run the msvc suite with the variable **unset**; run the WebGPU
+  suite with it **set** to `build/webgpu/stage/Debug`. Setting it for the msvc suite turns two
+  passing tests red.
