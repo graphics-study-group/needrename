@@ -24,11 +24,15 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 // ---- Collision buffers ----
 layout(set = 0, binding = 0)  readonly buffer CollisionIds       { uvec2 v[]; } collision_ids;
-layout(set = 0, binding = 1)  readonly buffer CollisionNormals   { vec4 v[];  } collision_normals;
-layout(set = 0, binding = 2)  readonly buffer ContactPointA      { vec4 v[];  } contact_point_a;
-layout(set = 0, binding = 3)  readonly buffer ContactPointB      { vec4 v[];  } contact_point_b;
+// One record per contact: the normal with its depth and the contact point on each shape. Read for
+// the same index as a unit, so it is one binding rather than three.
+struct ContactGeometry {
+    vec4 normal;
+    vec4 point_a;
+    vec4 point_b;
+};
+layout(set = 0, binding = 1)  readonly buffer ContactGeometries { ContactGeometry v[]; } contact_geometry;
 layout(set = 0, binding = 4)  readonly buffer CollisionCount     { uint count; } collision_count;
-layout(set = 0, binding = 5)  readonly buffer ShapeBoundRigidBody { uint v[]; } shape_bound_rigid_body;
 
 // ---- Body state ----
 layout(set = 0, binding = 6)  readonly buffer RigidBodyAlive          { uint v[];  } rigid_body_alive;
@@ -37,8 +41,12 @@ layout(set = 0, binding = 8)  buffer      RigidBodyLinearVelocity      { vec4 v[
 layout(set = 0, binding = 9)  buffer      RigidBodyAngularVelocity     { vec4 v[];  } rigid_body_angular_velocity;
 layout(set = 0, binding = 10) readonly buffer RigidBodyMass             { float v[]; } rigid_body_mass;
 layout(set = 0, binding = 11) readonly buffer RigidBodyInverseInertia   { mat4 v[];  } rigid_body_inverse_inertia;
-layout(set = 0, binding = 12) readonly buffer RigidBodyDynamicFriction  { float v[]; } rigid_body_dynamic_friction;
-layout(set = 0, binding = 13) readonly buffer RigidBodyRestitution       { float v[]; } rigid_body_restitution;
+// A body's two friction coefficients, read together for the same index: one record, one binding.
+struct BodyMaterial {
+    float dynamic_friction;
+    float restitution;
+};
+layout(set = 0, binding = 12) readonly buffer RigidBodyMaterials { BodyMaterial v[]; } rigid_body_material;
 layout(set = 0, binding = 14) readonly buffer RigidBodyIsKinematic      { uint v[];  } rigid_body_is_kinematic;
 
 // ---- Pre-contact snapshots ----
@@ -49,14 +57,20 @@ layout(set = 0, binding = 16) readonly buffer PreContactAngularVelocity { vec4 v
 // One record per shape: a local transform is a position and a rotation read together for the same
 // index, so they are one binding rather than two. See 	asks.md / the binding budget in the WebGPU
 // backend: a browser caps storage buffers at 16 per stage.
-struct ShapeLocalTransform { vec4 position; vec4 rotation; };
+struct ShapeLocalTransform { vec4 position; vec4 rotation; uvec4 bound_body; };
 layout(set = 0, binding = 17) readonly buffer ShapeLocalTransforms { ShapeLocalTransform v[]; } shape_local;
 
 // ---- Lagrange (readonly) ----
-layout(set = 0, binding = 19) readonly buffer ContactLagrange { float v[]; } lagrange;
-// One vec4 per contact point; .xyz is the substep's total kinetic friction
-// impulse (kg*m/s), projected into the Coulomb cone.
-layout(set = 0, binding = 20) buffer ContactTangentImpulse { vec4 v[]; } tangent_impulse;
+// Per-contact solver state: the normal multiplier and the kinetic friction impulse. Both are
+// accumulated for the same contact index across the substep, so they are one record and one
+// binding. `tangent_lagrange` is the position phase's field and is not read here, but the record is
+// shared with that phase so the two accumulators keep one layout.
+struct ContactImpulse {
+    float lagrange;
+    vec4 tangent_impulse;
+    vec4 tangent_lagrange;
+};
+layout(set = 0, binding = 19) buffer ContactImpulses { ContactImpulse v[]; } contact_impulse;
 
 // Channel-major value buffer: the real per-entry contribution values,
 // indexed by entry slot. Used in "xpbd_scatter.glsl"
@@ -112,10 +126,10 @@ void main() {
 
     uvec2 pair = collision_ids.v[cidx];
     uint shape_a = pair.x, shape_b = pair.y;
-    if (shape_a >= shape_bound_rigid_body.v.length() || shape_b >= shape_bound_rigid_body.v.length()) return;
+    if (shape_a >= shape_local.v.length() || shape_b >= shape_local.v.length()) return;
 
-    uint body_a = shape_bound_rigid_body.v[shape_a];
-    uint body_b = shape_bound_rigid_body.v[shape_b];
+    uint body_a = shape_local.v[shape_a].bound_body.x;
+    uint body_b = shape_local.v[shape_b].bound_body.x;
     uint body_count = rigid_body_alive.v.length();
     if (body_a >= body_count || body_b >= body_count) return;
     if (rigid_body_alive.v[body_a] == 0u || rigid_body_alive.v[body_b] == 0u) return;
@@ -131,14 +145,14 @@ void main() {
     float inv_mass_b = (!kinematic_b && rigid_body_mass.v[body_b] > 1e-12) ? (1.0 / rigid_body_mass.v[body_b]) : 0.0;
     if (inv_mass_a <= 0.0 && inv_mass_b <= 0.0) return;
 
-    vec3 n = collision_normals.v[cidx].xyz;
+    vec3 n = contact_geometry.v[cidx].normal.xyz;
     float nlen = length(n);
     if (nlen < 1e-8) return;
     n /= nlen;
 
     // Shape-local contact points from collision detection.
-    vec3 local_pt_a = contact_point_a.v[cidx].xyz;
-    vec3 local_pt_b = contact_point_b.v[cidx].xyz;
+    vec3 local_pt_a = contact_geometry.v[cidx].point_a.xyz;
+    vec3 local_pt_b = contact_geometry.v[cidx].point_b.xyz;
 
     // Current body orientations.
     vec4 ori_a = rigid_body_center_rotation.v[body_a];
@@ -185,7 +199,7 @@ void main() {
 
     // The position phase's accumulated normal multiplier: positive exactly for
     // the contacts it actually solved.
-    float normal_lagrange = lagrange.v[cidx];
+    float normal_lagrange = contact_impulse.v[cidx].lagrange;
     vec3 impulse = vec3(0.0);
 
     // ---- Normal part: restitution, converted with its own effective mass ----
@@ -196,7 +210,7 @@ void main() {
         );
         if (w_n <= 1e-8) return;
 
-        float restitution = rigid_body_restitution.v[body_a] * rigid_body_restitution.v[body_b];
+        float restitution = rigid_body_material.v[body_a].restitution * rigid_body_material.v[body_b].restitution;
         float normal_delta_v = -vn + min(-restitution * vn_prev, 0.0);
         impulse = (normal_delta_v / w_n) * n;
     }
@@ -216,12 +230,12 @@ void main() {
         );
         if (w_t > 1e-8) {
             float friction_coef = 0.5 * (
-                rigid_body_dynamic_friction.v[body_a] + rigid_body_dynamic_friction.v[body_b]
+                rigid_body_material.v[body_a].dynamic_friction + rigid_body_material.v[body_b].dynamic_friction
             );
             // lambda_n / dt is an impulse; the Coulomb bound bounds an impulse.
             float normal_impulse_mag = abs(normal_lagrange) / dt;
             float friction_cap = normal_impulse_mag * friction_coef;
-            vec3 friction_used = tangent_impulse.v[cidx].xyz;
+            vec3 friction_used = contact_impulse.v[cidx].tangent_impulse.xyz;
             vec3 friction_ideal = friction_used - (tangent_speed / w_t) * t;
             float ideal_len = length(friction_ideal);
             vec3 friction_new =
@@ -229,7 +243,7 @@ void main() {
             vec3 friction_delta = friction_new - friction_used;
             if (length(friction_delta) > 1e-8) {
                 impulse += friction_delta;
-                tangent_impulse.v[cidx].xyz = friction_new;
+                contact_impulse.v[cidx].tangent_impulse.xyz = friction_new;
             }
         }
     }

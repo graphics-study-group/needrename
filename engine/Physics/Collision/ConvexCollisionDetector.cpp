@@ -48,9 +48,8 @@ namespace Engine {
         Rhi::ComputeKernel *detect_kernel = nullptr;
 
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_ids{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_normals{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_point_a{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_point_b{};
+        /// One record per contact: { normal, point a, point b }, written whole by the kernel.
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_geometry{};
         /// @brief The number of collision points returned in the result array. Never exceed the capacity
         std::unique_ptr<Rhi::ComputeBuffer> gpu_collision_count{};
         /// @brief The actual number of detected collision points may exceed the capacity.
@@ -75,9 +74,8 @@ namespace Engine {
             const size_t result_entries = std::max<uint32_t>(1u, contact_capacity);
 
             EnsureBuffer(gpu_collision_ids, result_entries * sizeof(glm::uvec2), "CollisionIds");
-            EnsureBuffer(gpu_collision_normals, result_entries * sizeof(glm::vec4), "CollisionNormals");
-            EnsureBuffer(gpu_contact_point_a, result_entries * sizeof(glm::vec4), "ContactPointA");
-            EnsureBuffer(gpu_contact_point_b, result_entries * sizeof(glm::vec4), "ContactPointB");
+            // Three vec4 per contact, contiguous: the record the accumulators read whole.
+            EnsureBuffer(gpu_contact_geometry, result_entries * 3u * sizeof(glm::vec4), "ContactGeometry");
             EnsureBuffer(gpu_collision_count, sizeof(uint32_t), "CollisionCount");
             EnsureBuffer(gpu_contact_cursor, sizeof(uint32_t), "ContactCursor");
         }
@@ -130,9 +128,7 @@ namespace Engine {
     CollisionResultBuffers ConvexCollisionDetector::GetResultBuffers() const noexcept {
         CollisionResultBuffers result;
         result.collision_ids = m_impl->gpu_collision_ids.get();
-        result.collision_normals = m_impl->gpu_collision_normals.get();
-        result.contact_point_a = m_impl->gpu_contact_point_a.get();
-        result.contact_point_b = m_impl->gpu_contact_point_b.get();
+        result.contact_geometry = m_impl->gpu_contact_geometry.get();
         result.collision_count = m_impl->gpu_collision_count.get();
         result.contact_capacity = m_impl->contact_capacity;
         return result;
@@ -190,9 +186,7 @@ namespace Engine {
              {"CollisionPairs", *m_impl->pair_buffer},
              {"PairCount", *m_impl->pair_count_buffer},
              {"CollisionIds", *m_impl->gpu_collision_ids},
-             {"CollisionNormals", *m_impl->gpu_collision_normals},
-             {"ContactPointA", *m_impl->gpu_contact_point_a},
-             {"ContactPointB", *m_impl->gpu_contact_point_b},
+             {"ContactGeometries", *m_impl->gpu_contact_geometry},
              {"CollisionCount", *m_impl->gpu_collision_count},
              {"ContactCursor", *m_impl->gpu_contact_cursor}},
             detect_wg,

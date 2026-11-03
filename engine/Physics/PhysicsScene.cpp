@@ -93,8 +93,7 @@ namespace Engine {
         m_gpu_rigid_body_alive.reset();
         m_gpu_rigid_body_mass.reset();
         m_gpu_rigid_body_static_friction.reset();
-        m_gpu_rigid_body_dynamic_friction.reset();
-        m_gpu_rigid_body_restitution.reset();
+    m_gpu_rigid_body_material.reset();
         m_gpu_rigid_body_is_kinematic.reset();
         m_gpu_rigid_body_center_world_position.reset();
         m_gpu_rigid_body_center_world_rotation.reset();
@@ -245,8 +244,7 @@ namespace Engine {
             m_gpu_rigid_body_alive.get(),
             m_gpu_rigid_body_mass.get(),
             m_gpu_rigid_body_static_friction.get(),
-            m_gpu_rigid_body_dynamic_friction.get(),
-            m_gpu_rigid_body_restitution.get(),
+            m_gpu_rigid_body_material.get(),
             m_gpu_rigid_body_is_kinematic.get(),
             m_gpu_rigid_body_center_world_position.get(),
             m_gpu_rigid_body_center_world_rotation.get(),
@@ -301,11 +299,9 @@ namespace Engine {
         EnsureBuffer<float>(
             m_gpu_rigid_body_static_friction, allocator, m_gpu_rigid_body_slot_count, "Physics RB StaticFriction"
         );
-        EnsureBuffer<float>(
-            m_gpu_rigid_body_dynamic_friction, allocator, m_gpu_rigid_body_slot_count, "Physics RB DynamicFriction"
-        );
-        EnsureBuffer<float>(
-            m_gpu_rigid_body_restitution, allocator, m_gpu_rigid_body_slot_count, "Physics RB Restitution"
+        // Two floats per body: the record the velocity accumulator reads whole.
+        EnsureBuffer<glm::vec2>(
+            m_gpu_rigid_body_material, allocator, m_gpu_rigid_body_slot_count, "Physics RB Material"
         );
         EnsureBuffer<uint32_t>(
             m_gpu_rigid_body_is_kinematic, allocator, m_gpu_rigid_body_slot_count, "Physics RB IsKinematic"
@@ -339,10 +335,8 @@ namespace Engine {
             m_gpu_shape_bound_rigid_body, allocator, m_gpu_shape_slot_count, "Physics Shape BoundRB"
         );
         EnsureBuffer<glm::vec4>(m_gpu_shape_feature, allocator, m_gpu_shape_slot_count, "Physics Shape Feature");
-        // Two vec4 per shape: the record the kernels read whole.
-        EnsureBuffer<glm::vec4>(
-            m_gpu_shape_local_transforms, allocator, m_gpu_shape_slot_count * 2u, "Physics Shape LocalTrs"
-        );
+        // One record per shape: { position, rotation, bound body } - the unit the kernels read.
+        EnsureBuffer<ShapeRecordGpu>(m_gpu_shape_local_transforms, allocator, m_gpu_shape_slot_count, "Physics Shape LocalTrs");
         EnsureBuffer<glm::vec4>(
             m_gpu_shape_world_position, allocator, m_gpu_shape_slot_count, "Physics Shape WorldPos"
         );
@@ -365,8 +359,11 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_alive, MakeSpan(m_rigid_body_alive));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_mass, MakeSpan(m_rigid_body_mass));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_static_friction, MakeSpan(m_rigid_body_static_friction));
-        submission.EnqueueBufferSubmission(*m_gpu_rigid_body_dynamic_friction, MakeSpan(m_rigid_body_dynamic_friction));
-        submission.EnqueueBufferSubmission(*m_gpu_rigid_body_restitution, MakeSpan(m_rigid_body_restitution));
+        m_rigid_body_material_scratch.resize(m_gpu_rigid_body_slot_count);
+        for (uint32_t i = 0; i < m_gpu_rigid_body_slot_count; ++i) {
+            m_rigid_body_material_scratch[i] = glm::vec2(m_rigid_body_dynamic_friction[i], m_rigid_body_restitution[i]);
+        }
+        submission.EnqueueBufferSubmission(*m_gpu_rigid_body_material, MakeSpan(m_rigid_body_material_scratch));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_is_kinematic, MakeSpan(m_rigid_body_is_kinematic));
         submission.EnqueueBufferSubmission(
             *m_gpu_rigid_body_center_world_position, MakeSpan(m_rigid_body_center_world_position)
@@ -385,13 +382,13 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_shape_type, MakeSpan(m_shape_type));
         submission.EnqueueBufferSubmission(*m_gpu_shape_bound_rigid_body, MakeSpan(m_shape_to_rigid_body));
         submission.EnqueueBufferSubmission(*m_gpu_shape_feature, MakeSpan(m_shape_feature));
-        m_shape_local_transform_scratch.resize(static_cast<size_t>(m_gpu_shape_slot_count) * 2u);
+        m_shape_record_scratch.resize(m_gpu_shape_slot_count);
         for (uint32_t i = 0; i < m_gpu_shape_slot_count; ++i) {
-            m_shape_local_transform_scratch[static_cast<size_t>(i) * 2u] = m_shape_local_position[i];
-            m_shape_local_transform_scratch[static_cast<size_t>(i) * 2u + 1u] = m_shape_local_rotation[i];
+            m_shape_record_scratch[i].position = m_shape_local_position[i];
+            m_shape_record_scratch[i].rotation = m_shape_local_rotation[i];
+            m_shape_record_scratch[i].bound_body = glm::uvec4(m_shape_to_rigid_body[i], 0u, 0u, 0u);
         }
-        submission.EnqueueBufferSubmission(*m_gpu_shape_local_transforms, MakeSpan(m_shape_local_transform_scratch));
-        submission.EnqueueBufferSubmission(*m_gpu_shape_world_position, MakeSpan(m_shape_world_position));
+        submission.EnqueueBufferSubmission(*m_gpu_shape_local_transforms, MakeSpan(m_shape_record_scratch));
         submission.EnqueueBufferSubmission(*m_gpu_shape_world_rotation, MakeSpan(m_shape_world_rotation));
 
         submission.EnqueueBufferSubmission(*m_gpu_shape_filter_data, MakeSpan(m_shape_filter_data));

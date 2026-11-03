@@ -50,17 +50,17 @@ layout(set = 0, binding = 6) writeonly buffer CollisionIds {
     uvec2 v[];
 } collision_ids;
 
-layout(set = 0, binding = 7) writeonly buffer CollisionNormals {
-    vec4 v[]; // xyz = normal, w = penetration depth
-} collision_normals;
-
-layout(set = 0, binding = 8) writeonly buffer ContactPointA {
-    vec4 v[]; // xyz = contact point on A (shape-local), w = 0
-} contact_point_a;
-
-layout(set = 0, binding = 9) writeonly buffer ContactPointB {
-    vec4 v[]; // xyz = contact point on B (shape-local), w = 0
-} contact_point_b;
+// One record per contact: the normal with its depth, and the contact point on each shape. Three
+// arrays became one because every reader takes all three for the same index, and a browser caps
+// storage buffers at sixteen per stage.
+struct ContactGeometry {
+    vec4 normal;  // xyz = normal, w = penetration depth
+    vec4 point_a; // xyz = contact point on A (shape-local), w = 0
+    vec4 point_b; // xyz = contact point on B (shape-local), w = 0
+};
+layout(set = 0, binding = 7) writeonly buffer ContactGeometries {
+    ContactGeometry v[];
+} contact_geometry;
 
 layout(set = 0, binding = 10) buffer CollisionCount {
     uint v[]; // v[0] = contact points published this substep, never above the budget
@@ -175,8 +175,10 @@ void main() {
         vec3 local_pt_b = quat_inv_rotate(shape_world_rotation.v[shape_b], pts_b[pi] - shape_world_position.v[shape_b].xyz);
 
         collision_ids.v[write_idx]     = uvec2(shape_a, shape_b);
-        collision_normals.v[write_idx] = vec4(base_result.contact_normal, depths[pi]);
-        contact_point_a.v[write_idx]   = vec4(local_pt_a, 0.0);
-        contact_point_b.v[write_idx]   = vec4(local_pt_b, 0.0);
+        contact_geometry.v[write_idx] = ContactGeometry(
+            vec4(base_result.contact_normal, depths[pi]),
+            vec4(local_pt_a, 0.0),
+            vec4(local_pt_b, 0.0)
+        );
     }
 }

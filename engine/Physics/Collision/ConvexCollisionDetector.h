@@ -28,9 +28,10 @@ namespace Engine {
      */
     struct CollisionResultBuffers {
         const Rhi::ComputeBuffer *collision_ids{};
-        const Rhi::ComputeBuffer *collision_normals{};
-        const Rhi::ComputeBuffer *contact_point_a{};
-        const Rhi::ComputeBuffer *contact_point_b{};
+        /// One record per contact: { normal, point a, point b }. Written whole by the detector and
+        /// read whole by the accumulators, so it is one binding rather than three - which is part of
+        /// what keeps those accumulators inside a browser's per-stage storage-buffer budget.
+        const Rhi::ComputeBuffer *contact_geometry{};
         const Rhi::ComputeBuffer *collision_count{};
         /// Contact-point capacity the detector was bound with.  The result buffers
         /// hold at least this many entries, and `collision_count` never exceeds it.

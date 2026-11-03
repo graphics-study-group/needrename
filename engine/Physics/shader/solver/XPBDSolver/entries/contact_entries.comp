@@ -43,7 +43,10 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 // ---- Collision result buffers ----
 layout(set = 0, binding = 0) readonly buffer CollisionIds        { uvec2 v[]; } collision_ids;
 layout(set = 0, binding = 1) readonly buffer CollisionCount      { uint count; } collision_count;
-layout(set = 0, binding = 2) readonly buffer ShapeBoundRigidBody { uint v[]; } shape_bound_rigid_body;
+// The shape record carries the shape's local transform and the body it belongs to: one binding
+// for everything the entry kernel needs to place a contact.
+struct ShapeLocalTransform { vec4 position; vec4 rotation; uvec4 bound_body; };
+layout(set = 0, binding = 2) readonly buffer ShapeLocalTransforms { ShapeLocalTransform v[]; } shape_local;
 
 // ---- Output: the entry key array and its payload (slot id) array ----
 layout(set = 0, binding = 3) buffer EntryKeys    { uint v[]; } entry_keys;
@@ -90,8 +93,8 @@ void main() {
         if (shape_a >= params.shape_slot_count || shape_b >= params.shape_slot_count) {
             // Unresolvable shape pair: both sides stay unowned.
         } else {
-            uint body_a = shape_bound_rigid_body.v[shape_a];
-            uint body_b = shape_bound_rigid_body.v[shape_b];
+            uint body_a = shape_local.v[shape_a].bound_body.x;
+            uint body_b = shape_local.v[shape_b].bound_body.x;
             if (body_a < body_count) key_a = body_a;
             if (body_b < body_count) key_b = body_b;
         }

@@ -129,9 +129,10 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> gpu_pre_contact_angular_vel{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_substep_start_position{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_substep_start_orientation{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_lagrange{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_tangent_lagrange{};
-        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_tangent_impulse{};
+        /// One record per contact: { lagrange, tangent_impulse, tangent_lagrange }. The two
+        /// accumulator phases write different fields of the same record, which is what lets one
+        /// binding serve both of them - and keeps each inside a browser's storage-buffer budget.
+        std::unique_ptr<Rhi::ComputeBuffer> gpu_contact_impulse{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_axis_lagrange{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_hinge_anchor_lagrange{};
         std::unique_ptr<Rhi::ComputeBuffer> gpu_fixed_rotation_lagrange{};
@@ -315,27 +316,17 @@ namespace Engine {
 
         const uint32_t body_count = s.body_count;
 
+        // One record per contact point, holding the normal multiplier and BOTH tangential
+        // accumulators: the position phase's static friction multiplier (`lambda_t`, bounded by
+        // `mu_s * lambda_n`) and the velocity phase's kinetic friction impulse (`p_friction`,
+        // bounded by `mu_d * |lambda_n| / dt`). Both tangentials are VECTORS because each
+        // constraint's direction is recomputed every iteration and rotates, so the accumulated
+        // quantity the Coulomb bound applies to is the vector sum, not the sum of magnitudes.
+        // 48 bytes: float + vec4 + vec4, padded to the vec4 alignment.
         m_impl->EnsureBuffer(
-            m_impl->gpu_contact_lagrange,
-            static_cast<size_t>(m_impl->max_contact_point) * sizeof(float),
-            "XPBD ContactLagrange"
-        );
-        // The two tangential accumulators are per contact point and per substep:
-        // the position phase's static friction multiplier (`lambda_t`, bounded by
-        // `mu_s * lambda_n`) and the velocity phase's kinetic friction impulse
-        // (`p_friction`, bounded by `mu_d * |lambda_n| / dt`).  Both are VECTORS
-        // (vec4 per contact, .xyz used): each constraint's direction is
-        // recomputed every iteration and rotates, so the accumulated quantity the
-        // Coulomb bound applies to is the vector sum, not the sum of magnitudes.
-        m_impl->EnsureBuffer(
-            m_impl->gpu_contact_tangent_lagrange,
-            static_cast<size_t>(m_impl->max_contact_point) * sizeof(glm::vec4),
-            "XPBD ContactTangentLagrange"
-        );
-        m_impl->EnsureBuffer(
-            m_impl->gpu_contact_tangent_impulse,
-            static_cast<size_t>(m_impl->max_contact_point) * sizeof(glm::vec4),
-            "XPBD ContactTangentImpulse"
+            m_impl->gpu_contact_impulse,
+            static_cast<size_t>(m_impl->max_contact_point) * 48u,
+            "XPBD ContactImpulse"
         );
         m_impl->EnsureBuffer(
             m_impl->gpu_pre_contact_linear_vel, static_cast<size_t>(body_count) * sizeof(glm::vec4), "XPBD PreLin"
@@ -547,7 +538,6 @@ namespace Engine {
                 if (shape_count > 1u && gpu.shape_world_position != nullptr) {
                     m_impl->update_shape_world_pose_kernel->Dispatch(encoder,
                         {{"ShapeAlive", *gpu.shape_alive},
-                         {"ShapeBoundRigidBody", *gpu.shape_bound_rigid_body},
                          {"ShapeLocalTransforms", *gpu.shape_local_transforms},
                          {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
                          {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
@@ -584,7 +574,7 @@ namespace Engine {
                     m_impl->contact_entries_kernel->Dispatch(encoder,
                         {{"CollisionIds", *narrow.collision_ids},
                          {"CollisionCount", *narrow.collision_count},
-                         {"ShapeBoundRigidBody", *gpu.shape_bound_rigid_body},
+                         {"ShapeLocalTransforms", *gpu.shape_local_transforms},
                          {"EntryKeys", *m_impl->contact.keys},
                          {"EntryPayload", *m_impl->contact.payload},
                          // The entry pass derives and publishes the substep's entry
@@ -650,16 +640,12 @@ namespace Engine {
                 // The partial-sum outputs are cleared here too (once per substep)
                 // and re-cleared by apply_* as it consumes them, so a body with no
                 // entries always reads zeros.
-                dispatch_clear(*m_impl->gpu_contact_lagrange, m_impl->max_contact_point);
-                barrier();
-                // Both tangential accumulators are substep budgets, so they are
-                // cleared here — once per substep — and never inside either
-                // iteration loop; clearing them per iteration would re-grant the
-                // Coulomb bound every iteration.  Each holds one vec4 per contact
-                // point, and the clear is element-counted in ints.
-                dispatch_clear(*m_impl->gpu_contact_tangent_lagrange, 4u * m_impl->max_contact_point);
-                barrier();
-                dispatch_clear(*m_impl->gpu_contact_tangent_impulse, 4u * m_impl->max_contact_point);
+                // The per-contact solver record is a substep budget, so it is cleared here - once
+                // per substep - and never inside either iteration loop; clearing it per iteration
+                // would re-grant the Coulomb bound every iteration. One clear covers the normal
+                // multiplier and both tangential accumulators because they share the record, and
+                // the clear is element-counted in ints (12 per contact: 48 bytes).
+                dispatch_clear(*m_impl->gpu_contact_impulse, 12u * m_impl->max_contact_point);
                 barrier();
                 dispatch_clear(*m_impl->contact.out, out_elems);
                 barrier();
@@ -704,11 +690,8 @@ namespace Engine {
                     barrier();
                     m_impl->accum_pos_kernel->Dispatch(encoder,
                         {{"CollisionIds", *narrow.collision_ids},
-                         {"CollisionNormals", *narrow.collision_normals},
-                         {"ContactPointA", *narrow.contact_point_a},
-                         {"ContactPointB", *narrow.contact_point_b},
+                         {"ContactGeometries", *narrow.contact_geometry},
                          {"CollisionCount", *narrow.collision_count},
-                         {"ShapeBoundRigidBody", *gpu.shape_bound_rigid_body},
                          {"RigidBodyAlive", *gpu.rigid_body_alive},
                          {"RigidBodyCenterPosition", *gpu.rigid_body_center_world_position},
                          {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
@@ -716,9 +699,8 @@ namespace Engine {
                          {"RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia},
                          {"RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic},
                          {"ShapeLocalTransforms", *gpu.shape_local_transforms},
-                         {"ContactLagrange", *m_impl->gpu_contact_lagrange},
+                         {"ContactImpulses", *m_impl->gpu_contact_impulse},
                          {"RigidBodyStaticFriction", *gpu.rigid_body_static_friction},
-                         {"ContactTangentLagrange", *m_impl->gpu_contact_tangent_lagrange},
                          {"SubstepStartPosition", *m_impl->gpu_substep_start_position},
                          {"SubstepStartOrientation", *m_impl->gpu_substep_start_orientation},
                          {"Values", *m_impl->contact.values}},
@@ -838,25 +820,20 @@ namespace Engine {
                         const AccumVelocityPush push{m_impl->push_gravity_dt, contact_cap};
                         m_impl->accum_vel_kernel->Dispatch(encoder,
                             {{"CollisionIds", *narrow.collision_ids},
-                             {"CollisionNormals", *narrow.collision_normals},
-                             {"ContactPointA", *narrow.contact_point_a},
-                             {"ContactPointB", *narrow.contact_point_b},
+                             {"ContactGeometries", *narrow.contact_geometry},
                              {"CollisionCount", *narrow.collision_count},
-                             {"ShapeBoundRigidBody", *gpu.shape_bound_rigid_body},
                              {"RigidBodyAlive", *gpu.rigid_body_alive},
                              {"RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation},
                              {"RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity},
                              {"RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity},
                              {"RigidBodyMass", *gpu.rigid_body_mass},
                              {"RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia},
-                             {"RigidBodyDynamicFriction", *gpu.rigid_body_dynamic_friction},
-                             {"RigidBodyRestitution", *gpu.rigid_body_restitution},
+                             {"RigidBodyMaterials", *gpu.rigid_body_material},
                              {"RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic},
                              {"PreContactLinearVelocity", *m_impl->gpu_pre_contact_linear_vel},
                              {"PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel},
                              {"ShapeLocalTransforms", *gpu.shape_local_transforms},
-                             {"ContactLagrange", *m_impl->gpu_contact_lagrange},
-                             {"ContactTangentImpulse", *m_impl->gpu_contact_tangent_impulse},
+                             {"ContactImpulses", *m_impl->gpu_contact_impulse},
                              {"Values", *m_impl->contact.values}},
                             contact_pt_wg,
                             1,
@@ -925,5 +902,3 @@ namespace Engine {
         );
     }
 } // namespace Engine
-
-

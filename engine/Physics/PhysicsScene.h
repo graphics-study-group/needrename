@@ -62,8 +62,9 @@ namespace Engine {
             const Rhi::ComputeBuffer *rigid_body_alive{};
             const Rhi::ComputeBuffer *rigid_body_mass{};
             const Rhi::ComputeBuffer *rigid_body_static_friction{};
-            const Rhi::ComputeBuffer *rigid_body_dynamic_friction{};
-            const Rhi::ComputeBuffer *rigid_body_restitution{};
+            /// One record per body: { dynamic_friction, restitution }, read together for the same
+            /// index by the velocity accumulator.
+            const Rhi::ComputeBuffer *rigid_body_material{};
             const Rhi::ComputeBuffer *rigid_body_is_kinematic{};
             const Rhi::ComputeBuffer *rigid_body_center_world_position{};
             const Rhi::ComputeBuffer *rigid_body_center_world_rotation{};
@@ -145,8 +146,9 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_alive{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_mass{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_static_friction{};
-        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_dynamic_friction{};
-        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_restitution{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_material{};
+        /// Interleaved { dynamic_friction, restitution } pairs, rebuilt for each upload.
+        std::vector<glm::vec2> m_rigid_body_material_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_is_kinematic{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_center_world_position{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_rigid_body_center_world_rotation{};
@@ -162,10 +164,15 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_bound_rigid_body{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_feature{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_local_transforms{};
-        /// Interleaved { position, rotation } pairs, rebuilt for each upload from the two host
-        /// vectors. A member rather than a local because the upload may be staged and the copy
-        /// reads it later.
-        std::vector<glm::vec4> m_shape_local_transform_scratch{};
+        /// One GPU record per shape: { position, rotation, bound body }. Rebuilt for each upload
+        /// from the host vectors; a member because the upload may be staged and the copy reads it
+        /// later.
+        struct ShapeRecordGpu {
+            glm::vec4 position;
+            glm::vec4 rotation;
+            glm::uvec4 bound_body;
+        };
+        std::vector<ShapeRecordGpu> m_shape_record_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_position{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_rotation{};
 
