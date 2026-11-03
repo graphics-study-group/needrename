@@ -175,22 +175,17 @@
     kernel binding each set at the index its description declares instead of putting everything in
     group 0, the physics solver **runs on the WebGPU backend**: the group it was refused at is the
     ring's, and the pass binds it.
-  - Two more steps were found, and the first is now understood well enough to be a one-liner:
-    1. *"Buffer 'RadixSort Histogram' with conflicting usages: STORAGE_READ_ONLY and
-       STORAGE_READ_WRITE"* - one kernel reads a buffer another writes. A compute kernel can declare
-       every storage buffer read-write: a writable binding may still be read, and the compute stage
-       has no rule against it. Adding that moved the run past the sort.
-    2. *"Shader global ResourceBinding { group: 0, binding: 1 } is not available in the pipeline
-       layout"* for `XPBD ClearEntryValues` - and every static suspect has been checked and cleared:
-       the baked `.wgsl` declares group 0 bindings 0 and 1, the `.iface.json` beside it lists both,
-       the loader pairs them by the same stem, the kernel is created once per path,
-       `GetDescriptorSetLayoutRef` does create a two-binding layout just before that kernel's
-       pipeline, handles are pointers rather than reused slots, and building the pipeline layout
-       directly instead of through its cache changes nothing. So a two-binding layout exists and the
-       pipeline is handed one that has a single binding - the next instrument has to print the
-       layout's **handle value** both when it is created and when the pipeline layout receives it,
-       and compare; nothing short of that will separate "wrong object" from "wrong entry".
-  - The experiment is reverted rather than half-landed; each step above is one small change with a
+  - **Landed:** a kernel now hands the cache exactly `k_constant_bind_group` set layouts (the cache
+    appends the ring's group at index 3 itself), binds each set at the index its description
+    declares, and writes its parameter block once the compute pass - and with it the ring's group -
+    is open. The physics solver runs on the WebGPU backend until the next honest error:
+  - **Next: one buffer, two access levels.** *"Buffer 'RadixSort Histogram' with conflicting
+    usages: STORAGE_READ_ONLY and STORAGE_READ_WRITE"* - the radix histogram is read by one kernel
+    and written by another, and WebGPU tracks a buffer's usage per submission. Forcing every
+    storage binding in a compute layout to read-write removes the conflict but changes what the
+    layouts say, and an attempt at it broke pipeline creation instead; the honest fix is for the
+    *description* to declare the access the buffer actually has across the frame, which is a bake
+    question, or for the arena to notice that a buffer is already bound writable this frame.
     named error to reproduce it by.
   - A window is **zero-filled** before the block is copied in, because a shader reads its whole
     declared struct while every draw pushes fewer bytes than the block declares (the model matrix,
