@@ -181,13 +181,15 @@
        every storage buffer read-write: a writable binding may still be read, and the compute stage
        has no rule against it. Adding that moved the run past the sort.
     2. *"Shader global ResourceBinding { group: 0, binding: 1 } is not available in the pipeline
-       layout"* - and the description is *not* the problem: instrumenting `CreateFromModule` shows
-       `XPBD ClearEntryValues` declaring both set 0 bindings, and `GetDescriptorSetLayoutRef` does
-       create a two-binding layout just before that kernel's pipeline. The pipeline layout the
-       kernel hands the device reports three groups, its group 0 is that two-binding layout, and the
-       device still says binding 1 is missing. Handles are pointers (`FromWgpu` keeps a `uintptr_t`),
-       so a handle-value collision was ruled out, and keying the pipeline layout on each layout's
-       *content* hash changed nothing.
+       layout"* for `XPBD ClearEntryValues` - and every static suspect has been checked and cleared:
+       the baked `.wgsl` declares group 0 bindings 0 and 1, the `.iface.json` beside it lists both,
+       the loader pairs them by the same stem, the kernel is created once per path,
+       `GetDescriptorSetLayoutRef` does create a two-binding layout just before that kernel's
+       pipeline, handles are pointers rather than reused slots, and building the pipeline layout
+       directly instead of through its cache changes nothing. So a two-binding layout exists and the
+       pipeline is handed one that has a single binding - the next instrument has to print the
+       layout's **handle value** both when it is created and when the pipeline layout receives it,
+       and compare; nothing short of that will separate "wrong object" from "wrong entry".
   - The experiment is reverted rather than half-landed; each step above is one small change with a
     named error to reproduce it by.
   - A window is **zero-filled** before the block is copied in, because a shader reads its whole
