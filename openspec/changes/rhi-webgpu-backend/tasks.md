@@ -297,32 +297,23 @@
     this session, so it was reverted rather than left red.
     can be ticked: submit, pump, and check that the outstanding count dropped without an intervening
     `StartFrame`.
-- [ ] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the frame instead of blocking
-  - **The blocking wait is load-bearing, and its comment says why.** `FrameManager::BeginFrame`
-    waits on `command_executed_fences[fif]` before acquiring, because the acquire semaphore was
-    waited on by the previous frame's submit and reusing it while that wait is pending violates
-    VUID-vkAcquireNextImageKHR-semaphore-01779. Removing the wait therefore needs a per-FIF acquire
-    semaphore or a timeline, not a callback in place of the fence - the ordering that makes
-    skip-and-retry safe has to come from somewhere.
-  - **A correction to the note above, found by reading further:** the acquire semaphore is already
-    one per FIF (`std::array<std::optional<Rhi::Semaphore>, FRAMES_IN_FLIGHT>
-    image_acquired_semaphores`), so the VUID the comment cites is already satisfied by the array.
-    What the wait still guarantees is that the *same slot*'s previous frame finished, because the
-    frame fence and the acquire semaphore are per-slot but the swapchain image behind them is not.
-  - So skip-and-retry is smaller than it first looked: `StartFrame(timeout)` can pass 0 and return
-    "busy" instead of throwing, and the caller retries next frame. The signature is what makes it a
-    decision - `StartFrame` returns a `uint32_t` slot index and has no value to return for "skip" -
-    so it needs an `std::optional<uint32_t>` or an out-parameter, and every call site follows.
-  - **Left here deliberately.** The shape is clear and the edit is mechanical but wide; starting it
-  - **Attempted and reverted, which proves the point above.** `RenderSystem::StartFrame` was
-    changed to pass timeout 0, and `FrameManager::StartFrame` to return `UINT32_MAX` instead of
-    throwing when the slot was busy. `pbr_test` then timed out at 300 s: its loop counts frames
-    that were started, and a skipped frame never advances the count, so it waited forever for a
-    frame that could not start. The suite went red and the change was reverted.
-  - The lesson is specific and worth keeping: skip-and-retry needs *every* caller to advance its
-    own clock on a skip. That is the wide edit the note predicted, and doing it in one place
-    turns a red suite into a hang.
-    state worse than blocked.
+- [ ] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the
+  frame instead of blocking
+  - **The wait is load-bearing.** `FrameManager::StartFrame` waits on `command_executed_fences[fif]`
+    before acquiring. The acquire semaphore is already one per FIF, so the VUID the comment cites is
+    satisfied by the array; what the wait still guarantees is that the *same slot's* previous frame
+    finished, because the fence and the semaphore are per slot while the swapchain image behind them
+    is not.
+  - **Attempted twice, reverted twice, and the two failures say what the fix needs.** Dropping the
+    wait to a zero-timeout poll and returning "busy" instead of throwing makes `pbr_test` time out
+    (its loop counts frames it started, and a skipped frame never advances the count) and makes
+    `skybox_test` segfault (it proceeds to record with no image when `StartFrame` reports one). So the
+    change is not a change to the wait: it is a change to *every* caller, each of which has to
+    advance its own clock and skip its own recording on a skip. That is the wide edit, and doing it
+    in one place turns a red suite into a hang or a crash.
+  - The signature is what makes it a decision - `StartFrame` returns a `uint32_t` slot index and has
+    no value to return for "skip" - so it needs an `std::optional<uint32_t>` or an out-parameter, and
+    every call site follows in the same commit.
 - [x] 10.3 Implement presentation through the host surface and verify the frame ring's per-frame windows stay distinct when the host exposes a single surface image
   - **Done on both backends, verified by looking at the frame.** `SurfacePresentProvider` for
     WebGPU configures the window's surface, acquires its image per frame, records the copy of the
