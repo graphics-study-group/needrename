@@ -97,6 +97,11 @@ glm::vec3 GetCartesian(float zenith, float azimuth) {
 }
 
 void PrepareGui() {
+    // A build with no UI backend has no ImGui context, and every ImGui call dereferences it.
+    // The scene does not need the panel: it is skipped, and the GUI pass draws nothing.
+    if (ImGui::GetCurrentContext() == nullptr) {
+        return;
+    }
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
     ImGui::SetNextWindowPos({10, 10});
     ImGui::SetNextWindowSize(ImVec2{300, 300});
@@ -318,7 +323,6 @@ int main(int argc, char **argv) {
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;
 }
-
 
 
 
