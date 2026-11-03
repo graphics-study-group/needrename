@@ -169,6 +169,17 @@
     exists: a host buffer of `k_constant_window`-sized windows, one per recorded block, written with
     `wgpuQueueWriteBuffer` before the submission that reads it and bound at set 1 with a dynamic
     offset.
+  - **The graphics path has the ring; the compute path does not.** `CommandEncoder::SetKernelParams`
+    and `PushConstants` both write a window and bind it at `k_constant_bind_group` (group 3), and the
+    compute pass learns that group when it opens. What a compute kernel still lacks is a pipeline
+    layout that declares group 3 at all - `ComputeKernel::CreateFromModule` builds its set layouts
+    from `description.bindings`, and the constant block is metadata rather than a binding, so the
+    layout stops before the group the block lives in. The ring's own layout comes from
+    `ConstantBlockLayoutEntry()`, and a kernel's would come from a `DescriptorBinding`; the two are
+    only compatible if their entries match exactly, so the clean fix is to build the ring's layout
+    through `IRCache` as well, from the same binding a kernel declares. Until then a dispatch that
+    carries a value is refused with a message that says so - which is where the physics solver on
+    the WebGPU backend stops (9.1).
   - A window is **zero-filled** before the block is copied in, because a shader reads its whole
     declared struct while every draw pushes fewer bytes than the block declares (the model matrix,
     not the two indices). Without that the tail of the struct is whatever the ring held there.
