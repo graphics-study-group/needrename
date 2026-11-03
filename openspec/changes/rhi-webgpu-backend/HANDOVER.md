@@ -153,31 +153,29 @@ wait for assets that are not where the process looks - worth knowing before a nu
 while timing out inside the suite, which is the readback/serialisation problem below rather than
 a rendering one.
 
-### 0c. `mrt_test` hangs when it registers a read-back every frame, on both backends
+### 0c. What the "hangs" were, and why both suites are green now
 
-**Both backends.** A run of `mrt_test` on the Vulkan build hangs exactly as the WebGPU one does,
-with a frame limit, while `skybox_test`, `complex_mesh_test` and `pbr_test` all complete on both.
-What `mrt_test` does differently is register a read-back **every frame**, which is the frame
-manager's readback machinery - the same ground tasks 10.1, 10.2 and 11.3 cover.
+Every test that looked hung was waiting on a **CRT message box**. A failed `assert`, or an
+exception leaving `main`, is reported by the C runtime through a modal dialog; a test run has no
+desktop to dismiss one from, so the process waited there forever. `cdbX64` attached to the stalled
+process showed it plainly - `USER32!MessageBoxW` under `ucrtbased!abort` under
+`std::terminate` - and no amount of logging from inside the engine would ever have said so.
 
-Where it stops, measured with a watchdog thread that writes a stage number to `stderr` directly (a
-log call takes the logger's lock, and a watchdog that prints through it can hang on the very thing
-it is watching):
+`test/ForcedTestRuntime.h` is force-included into every test target: assertions report to stderr,
+and the terminate handler prints the thrown exception and leaves with code 3 instead of aborting
+into the dialog. That turned three "hangs" into three one-line answers:
 
-- `StartFrame` acquires its image;
-- `RegisterReadbackCallback` runs **to completion** - the watchdog's last stage is the one after
-  the copy is recorded;
-- `BeginMainCommandBuffer` is never entered, and neither is `SubmitFrame`.
+- `MaterialLibrary` threw "has no interface description" for a shader that declares **no bindings**
+  - the debug write-through fragment. An empty table is a description, not a missing one.
+- A pooled read-back buffer stayed **mapped** after its contents were read, and the next frame's
+  copy targeted it. `DeviceBuffer::ReleaseReadback` unmaps it (WebGPU) or does nothing (Vulkan),
+  and the frame pump calls it once the callback has returned.
+- `MaterialLibrary` asked `ENGINE_RHI_BAKE_REFLECTION` whether it could reflect. That macro means
+  the baker is in the build. A Vulkan build reflects at runtime and has no baker, so every material
+  took the description path and threw. `ENGINE_RHI_HAS_REFLECTION` now answers the question, and
+  EngineRhi defines it from the same condition that picks between SPLayout's two implementations.
 
-So the stall is inside the frame's first *draw*, not in the read-back: the subpass enters, sets its
-viewport, binds the scene and camera sets, and then stops in
-`material->GetLibrary().FindMaterialTemplate("", pri)` - the call that creates the material's
-graphics pipeline on the spot, from inside an open render pass.
-
-That is the same shape on both backends, and it is where the next attempt should look: a pipeline
-created while a pass is recording is either too late by contract or waits for something the
-recording thread is holding. `complex_mesh_test` and `pbr_test` create their materials before the
-loop, which is why they pass.
+With those in: **Vulkan 76 of 76 passed, WebGPU 46 of 46 passed.**
 ### 0e. The staged `spirv` directory can vanish while its stamp survives
 
 `build/msvc/stage/Debug/spirv` was missing while the staging stamp was current, so a build
