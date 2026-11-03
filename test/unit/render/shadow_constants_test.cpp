@@ -82,7 +82,15 @@ namespace {
 } // namespace
 
 int main() {
-    const std::filesystem::path include_directory = Engine::BuiltinAssetsDir() / "shaders" / "include" / "engine";
+    std::filesystem::path include_directory = Engine::BuiltinAssetsDir() / "shaders" / "include" / "engine";
+    if (!std::filesystem::exists(include_directory)) {
+        // A build that stages its shaders in baked form ships no headers: the constants are still
+        // written by hand in the source tree, and that is what they are checked against.
+#ifdef NEEDRENAME_SOURCE_DIR
+        include_directory =
+            std::filesystem::path{NEEDRENAME_SOURCE_DIR} / "builtin_assets" / "shaders" / "include" / "engine";
+#endif
+    }
     const std::filesystem::path interface_header = include_directory / "interface.glsl";
     const std::filesystem::path shadow_header = include_directory / "shadow.glsl";
 

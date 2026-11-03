@@ -277,6 +277,11 @@ namespace {
      * says how dense each cascade's texels are.
      */
     void BuildControlWindow(InteractiveState &state, const RenderSystemState::SceneDataManager &scene_data) {
+        // A build with no UI backend has no ImGui context, and every ImGui call dereferences it.
+        // The cascade checks do not need the panel, so the widgets are simply not built.
+        if (ImGui::GetCurrentContext() == nullptr) {
+            return;
+        }
         ImGui::Begin("Cascaded Shadow Maps Test", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         // Fix the widget width so the labels next to the sliders keep their room
         // whatever the window ends up being wide.
@@ -1060,7 +1065,6 @@ int main(int argc, char **argv) {
     }
     return 0;
 }
-
 
 
 
