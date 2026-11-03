@@ -126,7 +126,7 @@ a conclusion.
 
 `ctest --preset msvc-debug -E "asset_path_test|data_root_test"` (Vulkan): **76 of 76 passed.**
 `ctest --test-dir build/webgpu -C Debug` with `NEEDRENAME_DATA_ROOT` pointing at its stage:
-**40 of 46 passed.** The six are accounted for:
+**43 of 46 passed**, after `complex_mesh_test`, `pbr_test` and `shadow_constants_test` were fixed. The three that remain are the read-back stall below (`compute_shader_test`, `mrt_test`, `mrt_test_staged_builtin_assets`). The earlier six were:
 
 - `shadow_constants_test` reads `interface.glsl` and `shadow.glsl` from the data root, and the
   WebGPU staging stores shaders in baked form, so there is no `.glsl` there to read. The Vulkan
@@ -174,39 +174,23 @@ and the same windowed tests passed earlier in this same session.
 reported success and `physics_spirv_loader_test` failed with "Runtime data directory 'spirv' is
 missing". Copying `build/msvc/engine/Physics/spirv/debug` over it restored the stage. The stamp
 should be keyed on the directory existing, not on the bake alone.
-### 0f. `complex_mesh_test` and `pbr_test` crash while recording the read-back copy
+### 0f. `complex_mesh_test` and `pbr_test` crashed in their first frame, and no longer do
 
-Both stop inside their "Frame Readback" pass, in the `CopyImageToBuffer` call itself, before
-anything of the copy has been executed - so the map and the staging path are not reached. The
-graph has already warned `Transient render target 1 has read access before write access` by then,
-which points at the image the pass is handed: the read-back pass asks a *transient* render target
-for its image, and on this backend an image whose lifetime the graph has ended is not something
-`ToWgpuTexture` can turn into a texture.
+Both died before `StartFrame`: their `PrepareGui` calls Dear ImGui directly, a WebGPU build has no
+ImGui context (no UI backend - task 10.4), and the first `SetNextWindowPos` dereferenced it. They
+were never read-back crashes; the read-back was simply the last thing the graph had built, and a
+test's standard output is block buffered, so everything the test printed was lost with the process.
 
-Fixed on the way and worth keeping: the widening copy used to release its staging buffer at the
-end of the recording call, before submission, so the GPU was handed commands that read freed
-memory. It is retired now and released when the command buffer that recorded it is destroyed. A
-copy whose image or buffer the backend cannot resolve is refused by name rather than handed to
-the implementation as a null texture.
+A guard at the top of each panel says what a build without a UI does - skip the panel, draw
+nothing - and both tests now run to completion: `complex_mesh_test` 118270 of 921600 pixels not
+black after 20 frames at 101 fps, `pbr_test` 716164 of 8294400 at 163 fps. `shadow_map_test`'s
+control window is guarded the same way.
 
-What the crash is *not*: it is not in `CopyImageToBuffer`. Instrumenting that call produced no
-line at all, because a test's standard output is **block buffered when it is redirected**, so a run
-that dies takes every `std::cout` line with it; the last thing on stderr is the graph's build log,
-which makes the crash look like it is in the recording. `SDL_Log` (stderr) is the one to trust
-while chasing a crash, and the first thing to check is that the test's own output is not simply
-lost.
-
-### 0b. Two headless paths still fail on WebGPU
-
-Found at the end of the session, both on the headless (no window) path:
-
-- `pbr_test` draws its four subpasses and then takes an access violation around the frame
-  readback. The windowed readback works, so the difference is the headless present provider and
-  the readback pump's completion path.
-- `compute_shader_test` asserts in `ShaderAsset.cpp` because the asset it wants is not in the
-  staged data root; that is a staging gap rather than a backend fault, and it hangs on the
-  assertion dialog.
-
+Fixed on the way and worth keeping: the widening copy released its staging buffer at the end of
+the recording call, before submission, so the GPU was handed commands that read freed memory. It
+is retired now and released when the command buffer that recorded it is destroyed, and a copy
+whose image or buffer the backend cannot resolve is refused by name rather than passed on as a
+null texture.
 ### 1. The scene example no longer stalls; the earlier note is kept for the record
 
 `external_resource_loading_example` gets through its frame's CPU work, acquires the surface
