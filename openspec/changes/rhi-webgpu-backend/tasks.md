@@ -240,14 +240,18 @@
 
 - [x] 9.1 Run the physics compute pipeline on the WebGPU backend and verify its buffers match the Vulkan backend's for the same setup
   - The solver runs on this backend and produces the **same numbers** as Vulkan from the same
-    scene: `physics_app_physics_only_test` reports `box0.z: 2 ---> 1.98569` on both, and
-    `physics_app_friction_test` reports `35 deg ramp: moved 0.226004 m (down-slope 0.226004 m) over
-    600 substeps, final speed 0.00610186 m/s` on both. Those numbers are computed from the read-back
-    body state, so a different buffer comes out as a different distance.
-  - Getting there needed three things on this backend: a staging buffer created unmapped and
-    published from a host copy (`MAP_WRITE` cannot combine with `COPY_DST`), a shader-bound host
-    buffer that gives up its creation map, and the editor excluded from the WebGPU tree - it is a
-    Vulkan application and includes the backend's headers.
+    scene wherever the arithmetic is deterministic: `physics_app_physics_only_test` reports
+    `box0.z: 2 ---> 1.98569` and `physics_app_friction_test`
+    `35 deg ramp: moved 0.226004 m (down-slope 0.226004 m) over 600 substeps, final speed
+    0.00610186 m/s` on both. Those numbers are computed from read-back body state.
+  - `physics_app_stability_test` passes on both with different final `max|v|` (0.5672 against
+    0.4442): a 60-step chaotic pyramid accumulates reduction order, and the test is a threshold for
+    exactly that reason. Recorded so nobody reads it as a mismatch.
+  - Getting there needed: in-place kernels declaring their buffers writable (WebGPU tracks usage per
+    submission, so `readonly` next to a writable binding of one buffer is rejected - four shaders),
+    a staging buffer created unmapped and published from a host copy (`MAP_WRITE` cannot combine
+    with `COPY_DST`), the map/release pairing on every read-back buffer `PhysicsApp` owns, and the
+    editor excluded from the WebGPU tree - it is a Vulkan application.
 - [x] 9.2 Add headless golden-image comparison between the desktop WebGPU build and the Vulkan build and verify a fixed frame matches across backends
   - `skybox_golden_test` renders the skybox scene and compares the frame with
     `test/data/skybox_golden.rgba`, byte for byte, reporting how many bytes differ and where the
