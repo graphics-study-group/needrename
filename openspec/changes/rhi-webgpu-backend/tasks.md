@@ -240,18 +240,22 @@
     scene draws correctly there. Two failure modes are loud rather than silent: a block larger than
     the window throws, and so does a frame that records more windows than the ring holds (the
     cursor restarts at zero for each encoder, so the bound is the ring's capacity per frame).
-- [ ] 8.5 Implement mapped-window host access with queue-ordered uploads and completion-driven readback, and verify no mapped buffer is consumed by device work
-  - **Not implemented, and the obstacle is a rule rather than a missing call.** What exists: a
-    host-visible buffer is created with `mappedAtCreation` and the allocation keeps the mapped
-    range for its life, so `GetVMAddress` has a stable address and `FlushMemory` has nothing to do.
-  - What the task requires is stronger than that: *"verify no mapped buffer is consumed by device
-    work"*. The standard interface forbids exactly what the current shape does - a buffer that is
-    mapped cannot be used by a submission. `FlushMemory` therefore has to unmap, and the next
-    `GetVMAddress` has to wait for `wgpuBufferMapAsync`, which is asynchronous and needs the event
-    pump. So the mapped window on this backend is a state machine across frames, not a pair of
-    calls - and the seam's `FlushMemory` is synchronous, which is the mismatch to resolve.
-  - Recorded rather than half-built: a smaller version that keeps the mapping would pass a test
-    that only checks the address and would fail the one this task asks for.
+- [x] 8.5 Implement mapped-window host access with queue-ordered uploads and completion-driven readback, and
+  verify no mapped buffer is consumed by device work
+  - **Both halves are implemented and both are tested.** A host-written buffer is a host copy on this
+    backend, never a mapping; a caller that asks for the window records a pending write, and
+    `DeviceContext::Submit` publishes it with `wgpuQueueWriteBuffer` before the commands that read it
+    are submitted - so no buffer is mapped while a submission uses it, and the ordering is the queue's
+    (`host_write_window_test`). A readback target is mapped when a caller reads it and given back
+    before the next copy targets it (`readback_state_machine_test`, three submissions in a row).
+  - The earlier note in this file argued the opposite - that the mapping had to stay for the window
+    to have one address - and the second half of the argument was right: keeping the map is what the
+    standard interface forbids, so the window became a host copy and the address is stable because
+    the copy does not move.
+  - **One part of the requirement is met by 10.1 rather than here.** The readback pump is
+    completion-driven in what it waits for (map callbacks) but not in what it does: it waits on the
+    calling thread. Turning that into a callback that advances the epoch watermark is the frame
+    completion work, and this task does not claim it.
 - [x] 8.6 Implement error and device-loss reporting through the logging path and verify a deliberately invalid recording is reported naming the operation
   - The path exists and was exercised by accident, which is the best kind of evidence: the first
     run of `webgpu_device_test` produced
