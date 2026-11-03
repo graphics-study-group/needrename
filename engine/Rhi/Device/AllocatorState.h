@@ -122,6 +122,14 @@ namespace Engine::Rhi {
         void FlushPendingHostWrites() const;
 
         /**
+         * @brief Keep this allocation in the pending-write list a submission flushes.
+         *
+         * Called by DeviceBuffer once the allocation has reached the address it will keep. The
+         * allocation clears its own slot when it is destroyed, so the list holds no ownership.
+         */
+        void TrackHostWrites(BufferAllocation &allocation) const;
+
+        /**
          * @brief Query whether a given format supports intended usage feature.
          */
         bool QueryFormatFeatures(ImageFormat format, FormatFeature feature) const noexcept;

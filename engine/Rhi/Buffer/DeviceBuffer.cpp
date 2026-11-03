@@ -16,7 +16,13 @@ namespace Engine::Rhi {
     std::unique_ptr<DeviceBuffer> DeviceBuffer::CreateUnique(
         const Rhi::AllocatorState &allocator, BufferType type, size_t size, const std::string &name
     ) {
-        return std::unique_ptr<DeviceBuffer>(new DeviceBuffer(allocator.AllocateBuffer(type, size, name), size));
+        auto buffer = std::unique_ptr<DeviceBuffer>(
+            new DeviceBuffer(allocator.AllocateBuffer(type, size, name), size, name)
+        );
+        // Registered here rather than inside the allocator: the allocation has reached the address
+        // it will keep for its life, which is what a pending-write list has to hold.
+        allocator.TrackHostWrites(buffer->allocation);
+        return buffer;
     }
 
     BufferHandle DeviceBuffer::GetBuffer() const {

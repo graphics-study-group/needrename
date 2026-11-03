@@ -74,6 +74,9 @@ int main(int, char **) {
 
     auto buffers = Engine::Rhi::CommandBuffer::Create(dc, Engine::Rhi::CommandBufferPool::GraphicsOneTime, 1);
     Engine::Rhi::CommandBuffer &command_buffer = buffers[0];
+    // Recording starts with `Begin`, which `Create` does not do: without it the copy is recorded
+    // into a buffer that is not recording, `End` has nothing to end, and nothing is submitted.
+    command_buffer.Begin();
     Engine::Rhi::CommandEncoder encoder{command_buffer.GetHandle()};
     encoder.CopyBuffer(source->GetBuffer(), readback->GetBuffer(), bytes);
     command_buffer.End();

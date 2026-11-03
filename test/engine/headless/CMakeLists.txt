@@ -28,9 +28,7 @@ endif()
 
 # Portable: it names only the seam's types, so it registers for every backend.
 anro_add_test(host_write_window_test FOLDER tests/engine/headless)
-# Red by design until 6.2 lands: a caller that never flushes loses the write on both backends, which
-# is the defect the test exists to catch. Kept registered-but-disabled so the failure stays visible.
-set_tests_properties(host_write_window_test PROPERTIES DISABLED TRUE)
+
 
 anro_add_test(new_rendergraph_test FOLDER tests/engine/headless)
 

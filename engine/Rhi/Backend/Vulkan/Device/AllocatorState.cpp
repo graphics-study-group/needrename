@@ -280,6 +280,12 @@ namespace Engine::Rhi {
         return pimpl->m_retire_sink;
     }
 
+    void AllocatorState::TrackHostWrites(BufferAllocation &allocation) const {
+        auto slot = std::make_shared<BufferAllocation *>(&allocation);
+        allocation.SetTrackSlot(slot);
+        pimpl->host_write_slots.push_back(std::move(slot));
+    }
+
     void AllocatorState::FlushPendingHostWrites() const {
         // Mapped memory is not necessarily coherent, so every live allocation that a caller could
         // have written is flushed. On coherent memory the flush is a no-op inside the driver.

@@ -155,6 +155,12 @@ namespace Engine::Rhi {
         return allocation;
     }
 
+    void AllocatorState::TrackHostWrites(BufferAllocation &allocation) const {
+        auto slot = std::make_shared<BufferAllocation *>(&allocation);
+        allocation.SetTrackSlot(slot);
+        pimpl->host_write_slots.push_back(std::move(slot));
+    }
+
     void AllocatorState::FlushPendingHostWrites() const {
         auto &slots = pimpl->host_write_slots;
         for (auto itr = slots.begin(); itr != slots.end();) {
