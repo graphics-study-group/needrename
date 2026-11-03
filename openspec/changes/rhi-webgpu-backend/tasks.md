@@ -184,10 +184,18 @@
     fills it; `parallel_scan.comp` scans a buffer in place, binding it readonly and writable in the
     same dispatch. Both now declare the access the frame uses. `PhysicsApp`'s own read-back
     buffers also follow the map/release rule the frame manager already follows.
-  - **Next:** *"Buffer with 'Physics pos readback' is still mapped"* - the staging buffer is
-    mapped when a copy targets it. The map/release pair is in place (`PrepareReadback` before a read,
-    `ReleaseReadback` before the copy), so what is left is finding which read maps it without a
-    matching release - the prime suspect is a caller that holds a `BodyStatesView` across a step.
+  - **Next: a staging buffer that stays mapped.** *"Buffer with 'Physics pos write staging' is
+    still mapped"* - those buffers are `StagingToDevice`, which this backend creates mapped at
+    creation and never unmaps, and a mapped buffer cannot be the source of a copy. The state
+    machine 8.5 asks for is exactly this: flush unmaps (the write becomes visible there), the next
+    write maps again. An attempt needed `WGPUMapMode_Write`, which the buffer's usage flags do not
+    include yet, and it crashed rather than reporting; that is where the next attempt starts.
+  - **Two operational traps found the hard way.** A `physics_app_*` binary in `build/webgpu` can be
+    *stale* without anything saying so: the preset has `ENGINE_BUILD_APPS=OFF`, so those targets are
+    not part of a default build, and an old executable runs happily against new sources. Rebuild the
+    target by name before believing a run. And with apps turned on, `EngineEditor` does not compile
+    on this backend at all (`EditorRenderGraphBuilder.h` includes `vulkan/vulkan.hpp`), so exercising
+    the physics app here needs a narrower switch than the whole-apps one.
     named error to reproduce it by.
   - A window is **zero-filled** before the block is copied in, because a shader reads its whole
     declared struct while every draw pushes fewer bytes than the block declares (the model matrix,
