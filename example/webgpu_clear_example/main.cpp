@@ -9,6 +9,10 @@
 // like, and the whole question here is whether anything reaches the screen.
 
 #include <SDL3/SDL.h>
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 #include <webgpu/webgpu.h>
 
 #if !defined(__EMSCRIPTEN__)
@@ -17,6 +21,7 @@
 #endif
 
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 
 namespace {
@@ -34,6 +39,38 @@ namespace {
         uint32_t height{WINDOW_HEIGHT};
     };
 
+    // The triangle and the dispatch this example exists to prove, as one source string each. Both
+    // read and write the same storage buffer, so the colour on the screen is the value the compute
+    // stage wrote: a dispatch that never ran leaves a black triangle, not a differently-coloured one.
+    constexpr const char *WGSL = R"(
+struct Colour { value : vec4f };
+@group(0) @binding(0) var<storage, read_write> computed : Colour;
+
+@compute @workgroup_size(1)
+fn main() {
+    computed.value = vec4f(0.95, 0.55, 0.15, 1.0);
+}
+)";
+
+    constexpr const char *TRIANGLE_WGSL = R"(
+struct Colour { value : vec4f };
+@group(0) @binding(0) var<storage, read_write> computed : Colour;
+
+@vertex
+fn vs_main(@builtin(vertex_index) index : u32) -> @builtin(position) vec4f {
+    var positions = array<vec2f, 3>(
+        vec2f( 0.0,  0.7),
+        vec2f(-0.7, -0.5),
+        vec2f( 0.7, -0.5)
+    );
+    return vec4f(positions[index], 0.0, 1.0);
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4f {
+    return computed.value;
+}
+)";
     bool adapter_done = false;
     bool device_done = false;
 
@@ -56,15 +93,24 @@ namespace {
     void Pump(State &state, const char *what) {
         // Adapter and device requests resolve on the implementation's schedule; processEvents is
         // what lets the callbacks run. The bound is here so a request that never resolves reports
-        // itself instead of hanging with no output.
-        const uint64_t deadline = SDL_GetTicks() + 10000;
+        // A deadline in *iterations*, not in milliseconds: under a browser's virtual clock the
+        // wall clock jumps past any deadline before the event loop has had a turn, which is how
+        // this loop first reported "did not resolve" while the device was about to arrive.
+        int iterations = 0;
         while (!adapter_done || !device_done) {
             wgpuInstanceProcessEvents(state.instance);
-            if (SDL_GetTicks() > deadline) {
-                SDL_Log("webgpu_clear: %s did not resolve within 10s", what);
+            if (++iterations > 2000) {
+                SDL_Log("webgpu_clear: %s did not resolve", what);
                 return;
             }
+            // A browser answers the adapter and device promises on its own event loop, so the
+            // wait has to hand control back to it. SDL_Delay does not imply that under Asyncify;
+            // mscripten_sleep does.
+#if defined(__EMSCRIPTEN__)
+            emscripten_sleep(1);
+#else
             SDL_Delay(1);
+#endif
         }
     }
 } // namespace
@@ -191,6 +237,90 @@ int main(int, char **) {
     wgpuSurfaceConfigure(state.surface, &surface_config);
     SDL_Log("webgpu_clear: surface configured %ux%u", state.width, state.height);
 
+    // A storage buffer, a compute pipeline that writes it, and a triangle pipeline that reads it.
+    // The buffer needs the storage usage once and both stages read it; the dispatch runs in the
+    // same command encoder as the pass, so the frame's colour comes from this frame's dispatch.
+    const uint64_t colour_bytes = 16;
+    WGPUBufferDescriptor buffer_desc{};
+    buffer_desc.size = colour_bytes;
+    buffer_desc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst;
+    WGPUBuffer colour_buffer = wgpuDeviceCreateBuffer(state.device, &buffer_desc);
+
+
+    WGPUShaderSourceWGSL compute_source{};
+    compute_source.chain.sType = WGPUSType_ShaderSourceWGSL;
+    compute_source.code = WGPUStringView{WGSL, SDL_strlen(WGSL)};
+    WGPUShaderModuleDescriptor compute_module_desc{};
+    compute_module_desc.nextInChain = &compute_source.chain;
+    compute_module_desc.label = WGPUStringView{"spike compute", 13};
+    WGPUShaderModule compute_module = wgpuDeviceCreateShaderModule(state.device, &compute_module_desc);
+
+    WGPUShaderSourceWGSL triangle_source{};
+    triangle_source.chain.sType = WGPUSType_ShaderSourceWGSL;
+    triangle_source.code = WGPUStringView{TRIANGLE_WGSL, SDL_strlen(TRIANGLE_WGSL)};
+    WGPUShaderModuleDescriptor triangle_module_desc{};
+    triangle_module_desc.nextInChain = &triangle_source.chain;
+    triangle_module_desc.label = WGPUStringView{"spike triangle", 14};
+    WGPUShaderModule triangle_module = wgpuDeviceCreateShaderModule(state.device, &triangle_module_desc);
+    WGPUBindGroupLayoutEntry layout_entry{};
+    layout_entry.binding = 0;
+    layout_entry.visibility = WGPUShaderStage_Compute | WGPUShaderStage_Fragment;
+    layout_entry.buffer.type = WGPUBufferBindingType_Storage;
+
+    WGPUBindGroupLayoutDescriptor layout_desc{};
+    layout_desc.entryCount = 1;
+    layout_desc.entries = &layout_entry;
+    WGPUBindGroupLayout bind_group_layout = wgpuDeviceCreateBindGroupLayout(state.device, &layout_desc);
+
+    WGPUPipelineLayoutDescriptor pipeline_layout_desc{};
+    pipeline_layout_desc.bindGroupLayoutCount = 1;
+    pipeline_layout_desc.bindGroupLayouts = &bind_group_layout;
+    WGPUPipelineLayout pipeline_layout = wgpuDeviceCreatePipelineLayout(state.device, &pipeline_layout_desc);
+
+    WGPUBindGroupEntry bind_entry{};
+    bind_entry.binding = 0;
+    bind_entry.buffer = colour_buffer;
+    bind_entry.offset = 0;
+    bind_entry.size = colour_bytes;
+    WGPUBindGroupDescriptor bind_group_desc{};
+    bind_group_desc.layout = bind_group_layout;
+    bind_group_desc.entryCount = 1;
+    bind_group_desc.entries = &bind_entry;
+    WGPUBindGroup bind_group = wgpuDeviceCreateBindGroup(state.device, &bind_group_desc);
+
+    WGPUComputePipelineDescriptor compute_pipeline_desc{};
+    compute_pipeline_desc.layout = pipeline_layout;
+    compute_pipeline_desc.compute.module = compute_module;
+    compute_pipeline_desc.compute.entryPoint = WGPUStringView{"main", 4};
+    WGPUComputePipeline compute_pipeline = wgpuDeviceCreateComputePipeline(state.device, &compute_pipeline_desc);
+
+    WGPUMultisampleState multisample{};
+    multisample.count = 1;
+    multisample.mask = 0xFFFFFFFFu;
+
+    WGPURenderPipelineDescriptor render_pipeline_desc{};
+    render_pipeline_desc.layout = pipeline_layout;
+    render_pipeline_desc.vertex.module = triangle_module;
+    render_pipeline_desc.vertex.entryPoint = WGPUStringView{"vs_main", 7};
+    WGPUColorTargetState target{};
+    target.format = chosen_format;
+    // A multisample count is required: zero is rejected, and one is the default single-sample path.
+    target.nextInChain = nullptr;
+    target.writeMask = WGPUColorWriteMask_All;
+    WGPUFragmentState fragment{};
+    fragment.module = triangle_module;
+    fragment.entryPoint = WGPUStringView{"fs_main", 7};
+    fragment.targetCount = 1;
+    fragment.targets = &target;
+    render_pipeline_desc.fragment = &fragment;
+    render_pipeline_desc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    render_pipeline_desc.multisample = multisample;
+    WGPURenderPipeline triangle_pipeline = wgpuDeviceCreateRenderPipeline(state.device, &render_pipeline_desc);
+    if (compute_pipeline == nullptr || triangle_pipeline == nullptr) {
+        SDL_Log("webgpu_clear: pipeline creation failed");
+        return 1;
+    }
+    SDL_Log("webgpu_clear: compute and triangle pipelines created");
     bool running = true;
     uint64_t frames = 0;
     while (running) {
@@ -230,7 +360,19 @@ int main(int, char **) {
         pass_desc.colorAttachmentCount = 1;
         pass_desc.colorAttachments = &color;
 
+        // The dispatch runs first, in the same encoder: the pass reads what it wrote, so the
+        // triangle's colour is this frame's computed value and not a constant in the shader.
+        WGPUComputePassDescriptor compute_pass_desc{};
+        WGPUComputePassEncoder compute_pass = wgpuCommandEncoderBeginComputePass(encoder, &compute_pass_desc);
+        wgpuComputePassEncoderSetPipeline(compute_pass, compute_pipeline);
+        wgpuComputePassEncoderSetBindGroup(compute_pass, 0, bind_group, 0, nullptr);
+        wgpuComputePassEncoderDispatchWorkgroups(compute_pass, 1, 1, 1);
+        wgpuComputePassEncoderEnd(compute_pass);
+
         WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &pass_desc);
+        wgpuRenderPassEncoderSetPipeline(pass, triangle_pipeline);
+        wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, nullptr);
+        wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);
         wgpuRenderPassEncoderEnd(pass);
 
         WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, nullptr);
@@ -259,12 +401,5 @@ int main(int, char **) {
 
     return 0;
 }
-
-
-
-
-
-
-
 
 
