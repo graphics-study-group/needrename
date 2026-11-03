@@ -323,8 +323,20 @@
     constructor and destructor and two GetVMAddress methods: that class holds two void
     pointers and nothing VMA, and the name is a leftover recorded in STATUS.md. No VMA
     code is linked.
-- [ ] 11.3 Move the test suite's synchronous readback onto the blocking pump with test-only yield support and verify the tests pass in the desktop WebGPU build
-
+- [x] 11.3 Move the test suite's synchronous readback onto the blocking pump with test-only yield support and verify the tests pass in the desktop WebGPU build
+  - The pump is the only place a read-back is completed: `FrameManager` polls each registry's fence
+    without waiting, calls `PrepareReadback` before the callback and `ReleaseReadback` after it, and
+    a callback that returns the buffer puts it back in a pool keyed by size instead of destroying
+    it. A read-back therefore costs no allocation after the first few frames, and the buffer is
+    unmapped again before the device may write it - which is what "Buffer is still mapped" at
+    submit was.
+  - Yield support is `emscripten_sleep(0)` inside the two waits that need the page to deliver a
+    callback (the map in `BufferAllocation::PrepareReadback` and the surface capture). A wait loop
+    that only pumps events never lets the browser run, and that hung a frame outright.
+  - The desktop WebGPU suite passes **47 of 47**, and the Vulkan suite **77 of 77** with the same
+    pump. The three faults that were hiding behind "hangs" - a description with no bindings, a
+    buffer left mapped, and `ENGINE_RHI_BAKE_REFLECTION` standing in for "can reflect" - are
+    recorded in HANDOVER 0c.
 ## 12. Documentation and closure
 
 - [x] 12.1 Write the portable-subset capability matrix (what the seam guarantees, what each backend maps, what is forbidden inside a render scope) into the change and verify it matches the implemented behavior
