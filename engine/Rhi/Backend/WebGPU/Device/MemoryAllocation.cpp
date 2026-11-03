@@ -76,14 +76,21 @@ namespace Engine::Rhi {
             if (readback) {
                 pimpl->readable = true;
             } else if (bound_in_shader) {
+                // Created mapped (`MapsAtCreation`), and a mapped buffer cannot be the destination
+                // of a queue write: the copy that publishes the host shadow is rejected at submit.
+                // Not mapped at creation: this shape has no MapWrite usage, so there is no map to
+                // give up. The shadow is published with a queue write, which needs CopyDst.
                 pimpl->shadow.resize(static_cast<size_t>(wgpuBufferGetSize(pimpl->buffer)));
                 pimpl->queue = wgpuDeviceGetQueue(static_cast<WGPUDevice>(allocator));
             } else {
-                pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, WGPU_WHOLE_MAP_SIZE);
-                if (pimpl->mapped == nullptr) {
-                    pimpl->shadow.resize(static_cast<size_t>(wgpuBufferGetSize(pimpl->buffer)));
-                    pimpl->queue = wgpuDeviceGetQueue(static_cast<WGPUDevice>(allocator));
-                }
+                // A host-written buffer that nothing binds in a shader still gets a host copy here,
+                // rather than being mapped for its whole life: a mapped buffer cannot be read by a
+                // submission, and the copy that publishes it would be rejected at submit. The copy
+                // costs one memcpy per flush and removes the map from the state machine entirely,
+                // which is the shape 8.5 settles on for a staging buffer. No MapWrite is
+                // requested for this shape, so there is no map to give up.
+                pimpl->shadow.resize(static_cast<size_t>(wgpuBufferGetSize(pimpl->buffer)));
+                pimpl->queue = wgpuDeviceGetQueue(static_cast<WGPUDevice>(allocator));
             }
         }
     }

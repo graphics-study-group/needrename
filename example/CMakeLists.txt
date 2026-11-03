@@ -16,8 +16,9 @@ subdirlist(subdirs ${CMAKE_CURRENT_SOURCE_DIR})
 #     add_subdirectory(${dir})
 # endforeach()
 add_subdirectory(external_resource_loading_example)
-# The editor example hosts the editor, so it needs the apps to be built.
-if (ENGINE_BUILD_APPS)
+# The editor example hosts the editor, which is a Vulkan application, so this is built only where
+# both the apps and that backend are present.
+if (ENGINE_BUILD_APPS AND ENGINE_RHI_BACKEND_VULKAN)
     add_subdirectory(editor_run_game_example)
 endif()
 # An example that presents through WebGPU directly: it exists to answer whether a surface can be

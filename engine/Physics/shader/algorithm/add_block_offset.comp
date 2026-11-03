@@ -39,7 +39,9 @@ layout(push_constant) uniform ScanParamsPush {
     uint block_offset;
 } params;
 
-layout(set = 0, binding = 2) readonly buffer BlockSums {
+// Not readonly: the scan that writes this buffer declares it writable, and WebGPU tracks a
+// buffer's usage per submission - a reader that says "readonly" next to that is a conflict.
+layout(set = 0, binding = 2) buffer BlockSums {
     uint v[];
 } block_sums;
 

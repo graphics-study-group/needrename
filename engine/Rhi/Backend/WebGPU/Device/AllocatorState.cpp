@@ -69,8 +69,11 @@ namespace Engine::Rhi {
                     return (usage & ~WGPUBufferUsage_CopySrc) | WGPUBufferUsage_CopyDst
                            | WGPUBufferUsage_MapRead;
                 }
-                return (usage | WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc)
-                       & ~WGPUBufferUsage_CopyDst;
+                // No MapWrite: this backend publishes a host-written buffer from a host copy with
+                // `wgpuQueueWriteBuffer`, and the interface forbids a MAP usage with the matching
+                // COPY - MapWrite only goes with CopySrc, and a queue write needs CopyDst. The
+                // host copy is the window, so the buffer is never mapped at all.
+                return usage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst;
             }
             usage |= WGPUBufferUsage_CopyDst;
             return usage;
