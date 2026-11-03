@@ -185,7 +185,16 @@ for its image, and on this backend an image whose lifetime the graph has ended i
 
 Fixed on the way and worth keeping: the widening copy used to release its staging buffer at the
 end of the recording call, before submission, so the GPU was handed commands that read freed
-memory. It is retired now and released when the command buffer that recorded it is destroyed.
+memory. It is retired now and released when the command buffer that recorded it is destroyed. A
+copy whose image or buffer the backend cannot resolve is refused by name rather than handed to
+the implementation as a null texture.
+
+What the crash is *not*: it is not in `CopyImageToBuffer`. Instrumenting that call produced no
+line at all, because a test's standard output is **block buffered when it is redirected**, so a run
+that dies takes every `std::cout` line with it; the last thing on stderr is the graph's build log,
+which makes the crash look like it is in the recording. `SDL_Log` (stderr) is the one to trust
+while chasing a crash, and the first thing to check is that the test's own output is not simply
+lost.
 
 ### 0b. Two headless paths still fail on WebGPU
 
