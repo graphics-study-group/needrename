@@ -162,16 +162,21 @@
     ordered results" needs two dispatches over a GPU buffer and a readback, which is what
     `gpu_sum_by_key_test` does indirectly but never with an explicit mark between them. The
     implementation is inspected, not observed.
-- [ ] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded constant block
-  - **The slot is decided; the ring is not built.** The bake already records where the constant
-    block goes: `.iface.json` carries `"constant_block": { "set": 1, "binding": 0, "size": 12 }`
-    for `radix_scatter.comp`, with the SPIR-V push-constant block rewritten into a uniform buffer
-    before conversion. So the open question this task used to have is closed.
-  - What remains is the ring: a host-writable buffer divided into windows, one per dispatch, with
-    the window bound at that set and binding and the write published before the submission that
-    reads it. That is the same shape `SubmissionHelper` uses for uploads, and it needs 8.5's
-    answer first - a buffer that is mapped cannot be handed to a submission, so a window-per-dispatch
-    ring is exactly the case where the two-buffer form is required rather than the lazy one.
+- [x] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded block
+  - The bake records where the constant block goes - `.iface.json` carries
+    `"constant_block": { "set": 1, "binding": 0, "size": 12 }` for `radix_scatter.comp`, with the
+    SPIR-V push-constant block rewritten into a uniform buffer before conversion - and the ring
+    exists: a host buffer of `k_constant_window`-sized windows, one per recorded block, written with
+    `wgpuQueueWriteBuffer` before the submission that reads it and bound at set 1 with a dynamic
+    offset.
+  - A window is **zero-filled** before the block is copied in, because a shader reads its whole
+    declared struct while every draw pushes fewer bytes than the block declares (the model matrix,
+    not the two indices). Without that the tail of the struct is whatever the ring held there.
+  - The evidence that a shader observes the block is the frame itself: every draw in the browser
+    passes its model matrix and every compute dispatch its parameters through this ring, and the
+    scene draws correctly there. Two failure modes are loud rather than silent: a block larger than
+    the window throws, and so does a frame that records more windows than the ring holds (the
+    cursor restarts at zero for each encoder, so the bound is the ring's capacity per frame).
 - [ ] 8.5 Implement mapped-window host access with queue-ordered uploads and completion-driven readback, and verify no mapped buffer is consumed by device work
   - **Not implemented, and the obstacle is a rule rather than a missing call.** What exists: a
     host-visible buffer is created with `mappedAtCreation` and the allocation keeps the mapped
