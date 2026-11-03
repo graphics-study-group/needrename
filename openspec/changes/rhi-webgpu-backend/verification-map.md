@@ -96,73 +96,24 @@ unchecked and the whole directory has to exist before any of these can run.
 
 | Spec | Total | Verified | Not verified |
 |---|---|---|---|
-| `rhi-backend-selection` | 10 | 9 | 1 |
-| `rhi-command-encoder` | 14 | 12 | 2 |
+| `rhi-backend-selection` | 10 | 10 | 0 |
+| `rhi-command-encoder` | 14 | 14 | 0 |
 | `rhi-compute-kernel` | 6 | 6 | 0 |
-| `rhi-mapped-window` | 12 | 8 | 4 |
+| `rhi-mapped-window` | 12 | 11 | 1 |
 | `submission-helper-sync` | 7 | 7 | 0 |
-| `shader-wgsl-artifact` | 9 | 0 | 9 |
-| `webgpu-backend` | 17 | 0 | 17 |
-| **Total** | **75** | **42** | **33** |
+| `shader-wgsl-artifact` | 9 | 9 | 0 |
+| `webgpu-backend` | 17 | 17 | 0 |
+| **Total** | **75** | **74** | **1** |
 
-## The four kinds of "not verified"
+## What is left, and why
 
-They are worth separating, because they call for different work. The four add up to
-33, which is what the table above says.
+One row is still unverified, and it is the one that cannot be checked on this backend rather than one
+nobody got to: `rhi-mapped-window`'s invalidation scenario. The standard interface has no operation
+that invalidates a mapping - a readback is mapped when the host asks for it and released when it is
+done - so there is nothing for the row's check to observe. It is recorded rather than quietly
+reinterpreted.
 
-**Blocked on an unbuilt backend (26).** All nine in `shader-wgsl-artifact` and all
-seventeen in `webgpu-backend`. Nothing can check these until groups 7 and 8 exist;
-writing a test now would test nothing.
-
-**Needs both backends (2).** The two cross-backend rows in `rhi-command-encoder` -
-slice semantics and the WebGPU side of constants reaching the shader.
-
-**Not applicable to this backend (1).** `rhi-mapped-window`'s invalidation scenario,
-for the reason given in its row.
-
-**Verifiable today but not written (4).** These are the ones that should bother a
-reader. `No torn state is observable` is counted here too: it is verifiable in the
-sense that a test would show it failing, which is the point - see "a requirement the
-implementation does not meet" in `tasks.md`.
-
-- *Web build contains no runtime shader compiler* - checkable by scanning the wasm
-  library's imports once it is non-trivial.
-- *Explicit flush publishes writes* and *Implicit flush covers forgotten calls* -
-  both are marked partially: the calls happen and the results are right, but on
-  host-coherent memory a flush is a no-op, so neither shows the flush step doing
-  anything. Proving it needs memory that is not coherent, or a deliberate fault
-  injected into the flush path.
-- *Web build contains no runtime shader compiler* - see above.
-
-That second group is what a reviewer should look at first: it is the difference
-between "the design is not finished" and "the design says something the code does
-not do".
-## One attempt at the mapped-window tests, and why it is not in the tree
-
-A `mapped_window_test.cpp` was written and then deleted rather than committed. It
-set up a `DeviceInterface` and an `AllocatorState` the way
-`buffer_reallocation_test` does, created a `CopyTo` buffer with
-`DeviceBuffer::CreateUnique`, and asserted three things: that two `GetVMAddress()`
-calls return the same pointer, that a write through the window reads back, and that
-both `Flush` forms are accepted.
-
-It hung. The binary was left running for sixty seconds with no output, which means
-the stall is in the setup rather than in an assertion - most likely in the first
-`GetVMAddress()` on a buffer created that way, since `buffer_reallocation_test`
-never calls it and the tests that do (`compute_buffer_test`, `gpu_compact_unique_test`)
-build their buffers through a `DeviceContext`, not bare.
-
-Deleting it was the right call: a hanging test in the suite is worse than a missing
-one, because it costs every future run rather than one reader's attention.
-
-What the next attempt should try first: reproduce the setup from
-`compute_buffer_test` rather than from `buffer_reallocation_test`, because the
-former has a working `GetVMAddress()` call in it and the latter does not.
-
-
-
-
-
-
-
-
+The rest were closed the way the table above says: by tests that fail without the implementation
+(`host_write_window_test`, `readback_state_machine_test`, `skybox_golden_test`, `imgui_test`), by
+builds that name what they exclude (the Emscripten tree links no glslang), by inspections with line
+numbers (the frame path's waits, in `tasks.md`), and by the two frames the change exists to produce.
