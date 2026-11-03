@@ -297,23 +297,17 @@
     this session, so it was reverted rather than left red.
     can be ticked: submit, pump, and check that the outstanding count dropped without an intervening
     `StartFrame`.
-- [ ] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the
+- [x] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the
   frame instead of blocking
-  - **The wait is load-bearing.** `FrameManager::StartFrame` waits on `command_executed_fences[fif]`
-    before acquiring. The acquire semaphore is already one per FIF, so the VUID the comment cites is
-    satisfied by the array; what the wait still guarantees is that the *same slot's* previous frame
-    finished, because the fence and the semaphore are per slot while the swapchain image behind them
-    is not.
-  - **Attempted twice, reverted twice, and the two failures say what the fix needs.** Dropping the
-    wait to a zero-timeout poll and returning "busy" instead of throwing makes `pbr_test` time out
-    (its loop counts frames it started, and a skipped frame never advances the count) and makes
-    `skybox_test` segfault (it proceeds to record with no image when `StartFrame` reports one). So the
-    change is not a change to the wait: it is a change to *every* caller, each of which has to
-    advance its own clock and skip its own recording on a skip. That is the wide edit, and doing it
-    in one place turns a red suite into a hang or a crash.
-  - The signature is what makes it a decision - `StartFrame` returns a `uint32_t` slot index and has
-    no value to return for "skip" - so it needs an `std::optional<uint32_t>` or an out-parameter, and
-    every call site follows in the same commit.
+  - `FrameManager::StartFrame(0)` returns "busy" (`~0u`) instead of throwing when the slot's fence
+    is not signalled, and `RenderSystem::TryStartFrame` is the entry point that asks for that: the
+    physics app's render loop polls each frame, skips a busy slot and retries on the next call. The
+    blocking `StartFrame` stays as it was, which is why no test had to change.
+  - The two earlier attempts to change the *wait* itself (recorded in this file's history) failed
+    because a skipped frame has to advance every caller's clock; giving the choice to the caller
+    instead of taking it from them is what makes it safe. The frame's camera and light uploads moved
+    into `UploadFrameData`, called by both entry points, so a skipped frame cannot leave the next
+    one's uniforms a frame behind.
 - [x] 10.3 Implement presentation through the host surface and verify the frame ring's per-frame windows stay distinct when the host exposes a single surface image
   - **Done on both backends, verified by looking at the frame.** `SurfacePresentProvider` for
     WebGPU configures the window's surface, acquires its image per frame, records the copy of the
