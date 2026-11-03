@@ -122,6 +122,18 @@ colour target into a host-visible buffer inside the Vulkan `SwapchainPresentProv
 it out under the same `NEEDRENAME_PRESENT_CAPTURE`. Until then the difference is a question, not
 a conclusion.
 
+### 0f-bis. Windowed tests stall after a long session, on every backend
+
+Seen three times in one day: windowed tests create their window and device, then stop - `input_test`
+and `skybox_test` included, and on the Vulkan build as readily as the WebGPU one. The same binaries
+ran the same tests to completion an hour earlier, and a rebuild is not involved. Headless tests keep
+passing throughout, and so does the windowed example.
+
+The reading that fits every occurrence: the interactive desktop session this agent runs in loses its
+window or GPU state after enough device creation and destruction, and any test that needs a swapchain
+waits there. It is worth checking `skybox_test` standalone before believing a suite number - when it
+passes, the numbers below are meaningful; when it stalls, the machine is the variable, not the code.
+
 ### 0d. The suite, measured on both backends
 
 `ctest --preset msvc-debug -E "asset_path_test|data_root_test"` (Vulkan): **76 of 76 passed.**
