@@ -297,7 +297,6 @@
     of the render target), which is the strongest form of the check: the same bytes leave the same
     render graph through two different APIs.
 - [x] 9.3 Verify the per-dispatch-scope overhead measured in spike 1.3 is within the recorded expectation for one
-  physics step
   - **The overhead is zero on this backend, so it is within any expectation - and the reason is worth
     writing down.** `CommandEncoder::Barrier()` here records *nothing*: the standard interface derives
     ordering from use, so the "one compute scope per dispatch" the design chose is a Vulkan shape that
