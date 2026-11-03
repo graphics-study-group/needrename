@@ -155,11 +155,25 @@ fences and command buffers to avoid frequent reallocation"), and a callback only
 previous frame's fence has signalled, so allocations outrun the frees under memory pressure. The
 driver then sits in `vkAllocateMemory`, which is where the process is observed to be.
 
-The shape of the fix is what task 11.3 describes: a pool of read-back buffers reused across
-registrations (which needs the callback to hand its buffer back rather than destroy it) and the
-test's synchronous wait moved onto the blocking pump. Not attempted here; recorded so the next
-run starts from the call, not from the symptom.
+The first half is in: `RegisterReadbackCallback` borrows a staging buffer from a pool keyed by
+size and returns it once the callback has run, and the callback takes it by reference instead of
+owning it - it used to be handed a `unique_ptr` and had to destroy the very thing that should have
+been reused. A read-back therefore costs no allocation after the first few frames.
 
+That does not cure the hang, and the instrumentation that narrowed it further says the hang is
+**not** in the read-back: registration completes ("staging ready", "copy recorded") and nothing
+after it runs - no submit is ever reached. A windowed `skybox_test` on the same build, which never
+registers a read-back, stops in the same place, and after a long session of hundreds of device
+creations both stop earlier still, while querying device capabilities. That is a window or
+device-setup stall in this environment rather than the backend: the headless tests keep passing,
+and the same windowed tests passed earlier in this same session.
+
+### 0e. The staged `spirv` directory can vanish while its stamp survives
+
+`build/msvc/stage/Debug/spirv` was missing while the staging stamp was current, so a build
+reported success and `physics_spirv_loader_test` failed with "Runtime data directory 'spirv' is
+missing". Copying `build/msvc/engine/Physics/spirv/debug` over it restored the stage. The stamp
+should be keyed on the directory existing, not on the bake alone.
 ### 0b. Two headless paths still fail on WebGPU
 
 Found at the end of the session, both on the headless (no window) path:
