@@ -179,13 +179,15 @@
     appends the ring's group at index 3 itself), binds each set at the index its description
     declares, and writes its parameter block once the compute pass - and with it the ring's group -
     is open. The physics solver runs on the WebGPU backend until the next honest error:
-  - **Next: one buffer, two access levels.** *"Buffer 'RadixSort Histogram' with conflicting
-    usages: STORAGE_READ_ONLY and STORAGE_READ_WRITE"* - the radix histogram is read by one kernel
-    and written by another, and WebGPU tracks a buffer's usage per submission. Forcing every
-    storage binding in a compute layout to read-write removes the conflict but changes what the
-    layouts say, and an attempt at it broke pipeline creation instead; the honest fix is for the
-    *description* to declare the access the buffer actually has across the frame, which is a bake
-    question, or for the arena to notice that a buffer is already bound writable this frame.
+  - **Landed since:** the two usage conflicts are gone, and neither needed the backend to lie. The
+    radix histogram was `readonly` in the kernel that reads it and writable in the kernel that
+    fills it; `parallel_scan.comp` scans a buffer in place, binding it readonly and writable in the
+    same dispatch. Both now declare the access the frame uses. `PhysicsApp`'s own read-back
+    buffers also follow the map/release rule the frame manager already follows.
+  - **Next:** *"Buffer with 'Physics pos readback' is still mapped"* - the staging buffer is
+    mapped when a copy targets it. The map/release pair is in place (`PrepareReadback` before a read,
+    `ReleaseReadback` before the copy), so what is left is finding which read maps it without a
+    matching release - the prime suspect is a caller that holds a `BodyStatesView` across a step.
     named error to reproduce it by.
   - A window is **zero-filled** before the block is copied in, because a shader reads its whole
     declared struct while every draw pushes fewer bytes than the block declares (the model matrix,
