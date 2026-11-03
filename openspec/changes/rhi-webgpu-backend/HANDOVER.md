@@ -174,6 +174,19 @@ and the same windowed tests passed earlier in this same session.
 reported success and `physics_spirv_loader_test` failed with "Runtime data directory 'spirv' is
 missing". Copying `build/msvc/engine/Physics/spirv/debug` over it restored the stage. The stamp
 should be keyed on the directory existing, not on the bake alone.
+### 0f. `complex_mesh_test` and `pbr_test` crash while recording the read-back copy
+
+Both stop inside their "Frame Readback" pass, in the `CopyImageToBuffer` call itself, before
+anything of the copy has been executed - so the map and the staging path are not reached. The
+graph has already warned `Transient render target 1 has read access before write access` by then,
+which points at the image the pass is handed: the read-back pass asks a *transient* render target
+for its image, and on this backend an image whose lifetime the graph has ended is not something
+`ToWgpuTexture` can turn into a texture.
+
+Fixed on the way and worth keeping: the widening copy used to release its staging buffer at the
+end of the recording call, before submission, so the GPU was handed commands that read freed
+memory. It is retired now and released when the command buffer that recorded it is destroyed.
+
 ### 0b. Two headless paths still fail on WebGPU
 
 Found at the end of the session, both on the headless (no window) path:
