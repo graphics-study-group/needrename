@@ -87,6 +87,10 @@ int main(int, char **) {
         return 1;
     }
 
+    // The readback buffer's memory is host-visible but not necessarily coherent, so the device's
+    // write is made visible before the host reads it. That is the read side of the rule the write
+    // side follows.
+    readback->Invalidate(0, bytes);
     const auto *got = reinterpret_cast<const uint32_t *>(readback->GetVMAddress());
     if (got == nullptr) {
         std::cerr << "Host write window test FAILED: the readback window is null." << std::endl;
