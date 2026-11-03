@@ -17,8 +17,9 @@ layout(set = 0, binding = 0) readonly buffer ShapeAlive          { uint v[]; } s
 layout(set = 0, binding = 1) readonly buffer ShapeBoundRigidBody { uint v[]; } shape_bound_rigid_body;
 
 // ---- Shape local transforms (readonly) ----
-layout(set = 0, binding = 2) readonly buffer ShapeLocalPosition  { vec4 v[]; } shape_local_position;
-layout(set = 0, binding = 3) readonly buffer ShapeLocalRotation  { vec4 v[]; } shape_local_rotation;
+// Position and rotation as one record: the same shape index, always both.
+struct ShapeLocalTransform { vec4 position; vec4 rotation; };
+layout(set = 0, binding = 2) readonly buffer ShapeLocalTransforms { ShapeLocalTransform v[]; } shape_local;
 
 // ---- Rigid body world transforms (readonly) ----
 layout(set = 0, binding = 4) readonly buffer RigidBodyCenterPosition { vec4 v[]; } rigid_body_center_position;
@@ -40,15 +41,15 @@ void main() {
 
     if (body_idx == INVALID_INDEX || body_idx >= rigid_body_center_position.v.length()) {
         // Unbound shape — copy local to world directly.
-        shape_world_position.v[idx] = shape_local_position.v[idx];
-        shape_world_rotation.v[idx] = shape_local_rotation.v[idx];
+        shape_world_position.v[idx] = shape_local.v[idx].position;
+        shape_world_rotation.v[idx] = shape_local.v[idx].rotation;
         return;
     }
 
     vec3 body_pos = rigid_body_center_position.v[body_idx].xyz;
     vec4 body_ori = rigid_body_center_rotation.v[body_idx];
-    vec3 local_pos = shape_local_position.v[idx].xyz;
-    vec4 local_ori = shape_local_rotation.v[idx];
+    vec3 local_pos = shape_local.v[idx].position.xyz;
+    vec4 local_ori = shape_local.v[idx].rotation;
 
     // world_pos = body_pos + rotate(body_ori, local_pos)
     shape_world_position.v[idx] = vec4(body_pos + quat_rotate(body_ori, local_pos), 0.0);

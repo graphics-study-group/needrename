@@ -109,8 +109,7 @@ namespace Engine {
         m_gpu_shape_type.reset();
         m_gpu_shape_bound_rigid_body.reset();
         m_gpu_shape_feature.reset();
-        m_gpu_shape_local_position.reset();
-        m_gpu_shape_local_rotation.reset();
+        m_gpu_shape_local_transforms.reset();
         m_gpu_shape_world_position.reset();
         m_gpu_shape_world_rotation.reset();
 
@@ -261,8 +260,7 @@ namespace Engine {
             m_gpu_shape_type.get(),
             m_gpu_shape_bound_rigid_body.get(),
             m_gpu_shape_feature.get(),
-            m_gpu_shape_local_position.get(),
-            m_gpu_shape_local_rotation.get(),
+            m_gpu_shape_local_transforms.get(),
             m_gpu_shape_world_position.get(),
             m_gpu_shape_world_rotation.get(),
             m_gpu_shape_filter_data.get(),
@@ -341,11 +339,9 @@ namespace Engine {
             m_gpu_shape_bound_rigid_body, allocator, m_gpu_shape_slot_count, "Physics Shape BoundRB"
         );
         EnsureBuffer<glm::vec4>(m_gpu_shape_feature, allocator, m_gpu_shape_slot_count, "Physics Shape Feature");
+        // Two vec4 per shape: the record the kernels read whole.
         EnsureBuffer<glm::vec4>(
-            m_gpu_shape_local_position, allocator, m_gpu_shape_slot_count, "Physics Shape LocalPos"
-        );
-        EnsureBuffer<glm::vec4>(
-            m_gpu_shape_local_rotation, allocator, m_gpu_shape_slot_count, "Physics Shape LocalRot"
+            m_gpu_shape_local_transforms, allocator, m_gpu_shape_slot_count * 2u, "Physics Shape LocalTrs"
         );
         EnsureBuffer<glm::vec4>(
             m_gpu_shape_world_position, allocator, m_gpu_shape_slot_count, "Physics Shape WorldPos"
@@ -389,8 +385,12 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_shape_type, MakeSpan(m_shape_type));
         submission.EnqueueBufferSubmission(*m_gpu_shape_bound_rigid_body, MakeSpan(m_shape_to_rigid_body));
         submission.EnqueueBufferSubmission(*m_gpu_shape_feature, MakeSpan(m_shape_feature));
-        submission.EnqueueBufferSubmission(*m_gpu_shape_local_position, MakeSpan(m_shape_local_position));
-        submission.EnqueueBufferSubmission(*m_gpu_shape_local_rotation, MakeSpan(m_shape_local_rotation));
+        m_shape_local_transform_scratch.resize(static_cast<size_t>(m_gpu_shape_slot_count) * 2u);
+        for (uint32_t i = 0; i < m_gpu_shape_slot_count; ++i) {
+            m_shape_local_transform_scratch[static_cast<size_t>(i) * 2u] = m_shape_local_position[i];
+            m_shape_local_transform_scratch[static_cast<size_t>(i) * 2u + 1u] = m_shape_local_rotation[i];
+        }
+        submission.EnqueueBufferSubmission(*m_gpu_shape_local_transforms, MakeSpan(m_shape_local_transform_scratch));
         submission.EnqueueBufferSubmission(*m_gpu_shape_world_position, MakeSpan(m_shape_world_position));
         submission.EnqueueBufferSubmission(*m_gpu_shape_world_rotation, MakeSpan(m_shape_world_rotation));
 

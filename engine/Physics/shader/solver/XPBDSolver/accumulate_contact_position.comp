@@ -51,8 +51,10 @@ layout(set = 0, binding = 13) readonly buffer SubstepStartPosition    { vec4 v[]
 layout(set = 0, binding = 14) readonly buffer SubstepStartOrientation { vec4 v[]; } substep_start_orientation;
 
 // ---- Shape local transforms ----
-layout(set = 0, binding = 15) readonly buffer ShapeLocalPosition    { vec4 v[]; } shape_local_position;
-layout(set = 0, binding = 16) readonly buffer ShapeLocalRotation    { vec4 v[]; } shape_local_rotation;
+// One record per shape, as in the velocity accumulator: position and rotation are always read for
+// the same index.
+struct ShapeLocalTransform { vec4 position; vec4 rotation; };
+layout(set = 0, binding = 15) readonly buffer ShapeLocalTransforms { ShapeLocalTransform v[]; } shape_local;
 
 // ---- Lagrange multipliers ----
 layout(set = 0, binding = 17) buffer ContactLagrange { float v[]; } lagrange;
@@ -146,10 +148,10 @@ void main() {
     vec4 ori_b = rigid_body_center_rotation.v[body_b];
 
     // Shape local offsets.
-    vec3 shape_local_pos_a = shape_local_position.v[shape_a].xyz;
-    vec3 shape_local_pos_b = shape_local_position.v[shape_b].xyz;
-    vec4 shape_local_rot_a = shape_local_rotation.v[shape_a];
-    vec4 shape_local_rot_b = shape_local_rotation.v[shape_b];
+    vec3 shape_local_pos_a = shape_local.v[shape_a].position.xyz;
+    vec3 shape_local_pos_b = shape_local.v[shape_b].position.xyz;
+    vec4 shape_local_rot_a = shape_local.v[shape_a].rotation;
+    vec4 shape_local_rot_b = shape_local.v[shape_b].rotation;
 
     // Compute world-space contact points from shape-local coords + current body pose.
     vec3 local_in_body_a = quat_rotate(shape_local_rot_a, local_pt_a) + shape_local_pos_a;

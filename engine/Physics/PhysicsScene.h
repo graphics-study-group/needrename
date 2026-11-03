@@ -78,8 +78,10 @@ namespace Engine {
             const Rhi::ComputeBuffer *shape_type{};
             const Rhi::ComputeBuffer *shape_bound_rigid_body{};
             const Rhi::ComputeBuffer *shape_feature{};
-            const Rhi::ComputeBuffer *shape_local_position{};
-            const Rhi::ComputeBuffer *shape_local_rotation{};
+            /// One record per shape: { position, rotation }, read whole by the kernels that place a
+            /// contact. Two bindings became one, which is part of what keeps the contact
+            /// accumulators inside this backend's per-stage storage-buffer budget.
+            const Rhi::ComputeBuffer *shape_local_transforms{};
             const Rhi::ComputeBuffer *shape_world_position{};
             const Rhi::ComputeBuffer *shape_world_rotation{};
 
@@ -159,8 +161,11 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_type{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_bound_rigid_body{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_feature{};
-        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_local_position{};
-        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_local_rotation{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_local_transforms{};
+        /// Interleaved { position, rotation } pairs, rebuilt for each upload from the two host
+        /// vectors. A member rather than a local because the upload may be staged and the copy
+        /// reads it later.
+        std::vector<glm::vec4> m_shape_local_transform_scratch{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_position{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_shape_world_rotation{};
 

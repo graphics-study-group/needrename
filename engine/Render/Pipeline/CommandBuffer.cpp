@@ -265,6 +265,29 @@ namespace Engine {
         const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index, int32_t model_mat_index
     ) {
         auto bindings = mesh.GetVertexAttributeBufferBindings();
+        if (SDL_getenv("NEEDRENAME_DIAG_DRAW") != nullptr) {
+            static int logged = 0;
+            if (logged < 40) {
+                logged++;
+                const glm::vec3 sx{model_matrix[0]};
+                const glm::vec3 sy{model_matrix[1]};
+                const glm::vec3 sz{model_matrix[2]};
+                SDL_LogInfo(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "DIAG draw %d: %u verts, scale %.4f %.4f %.4f, pos %.3f %.3f %.3f, %zu bindings, first offset %llu",
+                    logged,
+                    mesh.GetVertexAttributeCount(),
+                    glm::length(sx),
+                    glm::length(sy),
+                    glm::length(sz),
+                    model_matrix[3][0],
+                    model_matrix[3][1],
+                    model_matrix[3][2],
+                    bindings.size(),
+                    bindings.empty() ? 0ull : static_cast<unsigned long long>(bindings[0].offset)
+                );
+            }
+        }
         std::vector<Rhi::BufferHandle> buffers{};
         std::vector<uint64_t> offsets{};
         buffers.reserve(bindings.size());

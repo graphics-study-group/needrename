@@ -226,8 +226,34 @@ namespace Engine {
     }
 
     void MaterialInstance::Instantiate(MaterialAsset &asset) {
+        SDL_LogInfo(
+            SDL_LOG_CATEGORY_RENDER,
+            "DIAG material '%s': %zu properties",
+            asset.m_name.c_str(),
+            asset.m_properties.size()
+        );
         for (const auto &prop : asset.m_properties) {
             auto p = prop.second;
+            if (SDL_getenv("NEEDRENAME_DIAG_MATERIAL") != nullptr && p.m_type == MaterialProperty::Type::Texture) {
+                auto diag_asset = std::any_cast<AssetRef>(p.m_value).as<Asset>();
+                if (auto *diag_tex = dynamic_cast<Image2DTextureAsset *>(diag_asset)) {
+                    SDL_LogInfo(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "DIAG material '%s': %s = texture %dx%d",
+                        asset.m_name.c_str(),
+                        prop.first.c_str(),
+                        diag_tex->m_width,
+                        diag_tex->m_height
+                    );
+                } else {
+                    SDL_LogInfo(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "DIAG material '%s': %s = a non-Image2D texture asset",
+                        asset.m_name.c_str(),
+                        prop.first.c_str()
+                    );
+                }
+            }
             switch (p.m_type) {
             case MaterialProperty::Type::UBO:
                 break;
