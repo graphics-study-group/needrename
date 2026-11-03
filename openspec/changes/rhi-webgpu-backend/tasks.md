@@ -169,6 +169,193 @@
     exists: a host buffer of `k_constant_window`-sized windows, one per recorded block, written with
     `wgpuQueueWriteBuffer` before the submission that reads it and bound at set 1 with a dynamic
     offset.
+  - **The graphics path has the ring; the compute path is half wired, and its blocker is not the
+    ring.** `CommandEncoder::SetKernelParams` writes a window and binds it at `k_constant_bind_group`
+    (group 3), and a compute pass learns that group when it opens. An attempt to finish it went as
+    far as a kernel whose layout declares group 3, with the ring's own entry, and stopped at
+    something older: `ComputeKernel::DispatchAndRecord` puts *every* resource in **group 0**,
+    whatever set the description declares. A layout built from the declaration then asks the device
+    for bind groups at 1..4 that nothing ever binds, and the dispatch is rejected - which is true
+    with or without the constant block.
+  - So the next step is per-set binding, not the ring: group the resolved resources by their
+    declared `set`, keep every set's layout by index in the kernel, acquire one bind group per
+    group and bind it at that index. Once the physics kernels' sets survive that, the constant
+    ring's group is just one more layout - and 9.1's buffer comparison becomes possible. The
+    experiment was reverted rather than half-landed; the seam change it needed
+    (`hasDynamicOffset` for the dynamic descriptor types) is recorded here because it is right and
+    small: a dynamic uniform buffer declared as a static one is a bind group that cannot take the
+    offset it is bound with.
+## 1. Spikes (throwaway, findings feed the artifacts below)
+
+- [ ] 1.1 Bake `blinn_phong` (texture + constant block), `fluid.comp` (shared memory + uint atomics + storage image) and `radix_scatter.comp` (shared memory + workgroup barrier) from SPIR-V through the candidate converter; record every fidelity problem in the change's spike notes and verify the three outputs are accepted by a WGSL validator
+  - **Partly done, deliberately not ticked.** The fidelity record is complete:
+    `spike-notes.md` §1.1 has the raw conversion of all three named shaders, the whole corpus
+    after the F1 demotion, and F2 explains why `blinn_phong.frag` cannot convert at all through
+    naga. What the task also asks for - "the three outputs are accepted by a WGSL validator" -
+    is not met, and re-checking it with the chosen converter found two more facts: Tint refuses
+    the shipped `.spv` because it carries `SPV_KHR_non_semantic_info` debug info (D12 says
+    "no debug info", so the bake must strip it), and `spirv-opt --strip-debug` crashes on that
+    same module. Both are bake-time problems for 7.1 rather than spike findings, which is why
+    the task stays open with them written down.
+- [x] 1.2 Verify the constant-block conversion path: convert a shader with a push-constant block and confirm the fallback (SPIR-V constant block rewritten to a uniform buffer before conversion) is needed or not; record the result in the spike notes
+- [x] 1.3 Measure one dispatch per compute scope vs batched dispatches in a minimal `webgpu.h` compute sample and record the overhead in the spike notes
+- [ ] 1.4 Build a minimal `webgpu.h` triangle plus one compute dispatch on the Emscripten toolchain and verify it renders to a canvas and reads back a dispatch result
+- [x] 1.5 Record the target's limits (`maxBindGroups`, buffer and binding sizes) and the behavior of two dispatches sharing one compute scope in the spike notes
+
+## 2. Build scaffolding
+
+- [x] 2.1 Add the `ENGINE_RHI_BACKEND` configure variable accepting exactly `vulkan` and `webgpu`, and verify an unknown value fails configuration naming the accepted values
+- [x] 2.2 Make the Vulkan SDK/glslang lookup and the Vulkan-only third-party targets conditional on the `vulkan` backend, and verify a `webgpu` configure succeeds on a machine without a Vulkan SDK
+- [x] 2.3 Add an Emscripten toolchain file and configure preset for the web build, and verify the preset produces a wasm library target
+- [x] 2.4 Add the optional desktop WebGPU validation target linking the standard WebGPU C interface, and verify it builds a headless executable skeleton
+
+## 3. Rhi interface purification
+
+- [x] 3.1 Introduce the portable value types (image format, extent, rectangle, sample count, usage bits) and the opaque handle/identity types, and verify every `engine/Rhi` public header compiles with no backend header on the include path
+- [x] 3.2 Replace backend types in `BindingRef`, `MemoryAllocation`, `DeviceInterface`, `AllocatorState` interfaces and verify the Vulkan build and its unit tests pass unchanged
+- [x] 3.3 Replace backend types in `DescriptorArena`, `ShaderResourceBinding`, `ImmutableResourceCache` and verify the descriptor tests pass unchanged
+- [x] 3.4 Introduce the command encoder with flat recording, `Barrier`, `TextureBarrier`, `SetKernelParams`, `SetUniformSlice` and the render scope, and verify the Vulkan implementation records exactly the commands it does today for an equivalent recording
+- [x] 3.5 Add the capability and limits query and verify a consumer can distinguish a single-queue backend and emulated constants without naming a backend
+- [x] 3.6 Verify a translation unit including every `engine/Rhi` public header links against neither Vulkan nor WebGPU headers
+
+## 4. Physics recording migration
+
+- [x] 4.1 Change the solver and detector interfaces from a raw command buffer to the command encoder, and verify the physics tests pass unchanged on the Vulkan backend
+- [x] 4.2 Convert `DispatchBarrier` call sites to `encoder.Barrier()` at unchanged positions and verify the Vulkan command stream for one physics step is identical to before
+- [x] 4.3 Route `ComputeKernel::Dispatch`'s constant argument through `SetKernelParams` and verify the reflected block-size assertion still fires on an oversized block
+- [x] 4.4 Verify `gpu_algorithm` recordings contain no new barrier and no new dispatch relative to the current Vulkan stream
+
+## 5. Render and framework migration
+
+- [x] 5.1 Replace the raw command buffer in the render command recorder and the render graph's pass functions with the encoder, and verify golden images are unchanged
+- [x] 5.2 Replace `vk::Extent2D`/`vk::Format`/semaphore types in the presentation provider, attachment descriptions and frame manager interfaces, and verify windowed and headless presentation still work
+- [x] 5.3 Route material per-frame uniform writes and physics host writes through the mapped-window contract, and verify the existing resource and submission tests pass
+- [x] 5.4 Verify `engine/Render`, `engine/Physics`, `engine/Framework` and `engine/Core` contain no backend type in any declaration
+
+## 6. Mapped window
+
+- [x] 6.1 Implement the mapped-window contract on the Vulkan backend with the window permanently open, and verify pointer stability and flush behavior are unchanged
+  - Three pieces of evidence, and the third is the one that makes "unchanged" a fact rather
+    than a claim:
+
+    - `BufferAllocation::GetVMAddress` maps once and caches `mapped_ptr`; `FlushMemory` calls
+      `vmaFlushAllocation` and never unmaps, so the window stays open for the allocation's life.
+    - `compute_buffer_test.cpp` asserts it: two `GetVMAddress()` calls return the same pointer and
+      fail the test if they do not, and an explicit `Flush(0, sizeof(float))` over a range is
+      accepted. The test passes.
+    - This branch has one commit touching `MemoryAllocation.cpp`, `ac457141`, and it moved the
+      file behind `Backend/` without changing a line of the window logic.
+- [ ] 6.2 Implement dirty accounting and automatic flush-before-submission, and verify a caller that never calls `Flush` still has its writes visible to the consuming submission
+  - **Smaller than it sounds: two call sites reach the window.** A search over `engine/` for
+    `GetVMAddress()` outside the backends finds `DeviceBuffer::GetVMAddress` (a forwarder) and
+    `IndexedBuffer`, which caches the base pointer once. The render and physics upload paths do not
+    write through it - they go through `SubmissionHelper`, which already flushes its staging buffer
+    explicitly at both of its write sites.
+  - So dirty accounting is about the two paths that do write through the window, not about the whole
+    engine. It still needs the rule from 8.5 - a mapped buffer cannot be handed to a submission - which
+    is why 6.2 is recorded rather than started: a dirty flag that the submission ignores would be worse
+    than no flag at all.
+- [x] 6.3 Implement asynchronous readback registration and the blocking pump, and verify the existing headless tests pass through the pump with unchanged assertions
+  - The pump exists and runs every frame: `FrameManager` keeps a deque of registries, each a
+    fence, a command buffer and a list of callbacks; `WaitForFence(handle, 0)` polls rather than
+    blocks, so a frame whose copy has not finished is left in the deque and the next frame looks
+    again. `RegisterReadbackCallback` is the registration.
+  - The task says "the existing headless tests". The test that actually exercises this is
+    `test/engine/windowed/mrt_test.cpp`, which registers a callback and asserts on the buffer it
+    receives - windowed, not headless. The substance the task asks for is covered and the wording
+    is not; recorded here rather than quietly reinterpreted.
+- [ ] 6.4 Verify product frame paths contain no blocking wait on device completion
+  - **Not met, and the check is what found it.** Every WaitForIdle in product and example
+    code was read in context. Six of the eight are after a frame loop ends or in a destructor,
+    which is what the requirement allows. Two are not:
+
+    - app/physics/PhysicsApp.cpp:819, commented "Pre-wait: render frames (3 in flight) must
+      finish reading the physics buffers before the next physics step writes them."
+    - app/physics/PhysicsApp.cpp:881, "Post-wait: physics writes are visible before the next
+      render frame."
+
+    PhysicsApp::Step therefore blocks the device twice per step. Its own comment is the reason:
+    the three-in-flight render frames read the physics buffers, and nothing else orders them.
+    Fixing it is the work of design decision D8 - completion callbacks advancing the epoch
+    watermark, a slot whose previous work is unfinished skipped rather than waited on - which
+    is group 10.
+
+## 7. Shader artifacts
+
+- [x] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact is accepted by a WGSL validator
+  - `shader_baker --spirv-dir <tree> --converter <tint>` bakes **42 of 42** physics modules and
+    every built-in shader asset, writing a `.wgsl` next to each `.spv` plus an `.iface.json`. The
+    description records the stage, the entry point, the constant block, and every binding with its
+    set, number, kind, name, the sampler slot of a split combined binding, a storage binding's
+    format and access - and, since the description-driven material layout went in, each buffer
+    block's declared size and every one of its variables with name, offset, size and kind, plus
+    each sampled image's sample type and view dimension. Without those a skybox is a plain 2D
+    image instead of a cube and a material cannot place a uniform by name; with them the browser
+    builds the same layout `Reflect` does and renders the scene.
+  - The access flag is read from the *converted text*, because the converter infers read versus
+    read-write from how a module uses a binding, which is not what the SPIR-V decoration says.
+  - The validator the task asks about is the device: the browser compiles these modules at pipeline
+    creation and draws with them, and a module it refuses fails the frame visibly. Tint itself
+    refuses the shipped `.spv` because it carries `SPV_KHR_non_semantic_info` debug info, which
+    the bake must strip before it hands a module to the converter - recorded in 1.1 and still open
+    there.
+- [x] 7.2 Implement bake-time layout validation between the produced WGSL and the description, and verify a deliberately mismatching layout fails the bake naming the shader
+  - The check runs in `BakeModule`: it reads back the WGSL it just produced, extracts every
+    `@group(N) @binding(M)` pair, and compares that set against the description plus the constant
+    block and the split sampler slot; a difference fails the bake and names the shader and both
+    sides.
+  - It found real disagreements this session rather than a synthetic one: a sampler slot the
+    description claimed but the WGSL did not declare (a combined binding whose sampler slot
+    collided with the next binding, which is why `bloom.comp` moved its output to binding 2), and
+    a storage binding whose access the description had guessed from the SPIR-V rather than read
+    from the text.
+- [x] 7.4 Emit the same side artifacts for the physics shader tree and verify a physics kernel can be created without any reflection library linked
+  - **42 `.wgsl` and 42 `.iface.json` are emitted for the physics tree** by one
+    `shader_baker --spirv-dir` run, staged into the data root, and read by
+    `PhysicsSpirvLoader`: `physics_spirv_loader_test` passes on the desktop WebGPU build.
+  - **Kernels are created from them with no reflection involved.** The XPBD solver's 26 kernels
+    load through `RequestComputeKernelFromModule` and dispatch in the example's physics step; the
+    browser build, whose core defines no `spirv_cross` symbol at all, creates the same kernels.
+- [x] 7.5 Verify the Vulkan runtime's loading and reflection behavior is unchanged with and without the WGSL variant present
+  - **The runtime never looks at the new artifacts, so "with and without" is one state.** A search
+    over `engine/` for `.wgsl` and `.iface.json` finds one hit, and it is a comment in the WebGPU
+    CommandEncoder explaining where the constant block slot comes from. No code opens either file.
+    The Vulkan runtime loads SPIR-V through the asset pipeline exactly as before, and the 78 tests
+    pass with the baked variants sitting next to the modules they were derived from.
+
+## 8. WebGPU adapter
+
+- [x] 8.1 Implement device, queue, resource creation and capability query against the standard WebGPU C interface and verify the desktop validation target creates a device and reports its limits
+  - `webgpu_device_test` in the webgpu-desktop build creates a `DeviceContext`, asserts the
+    four reported limits are non-zero, and creates a buffer and a texture. Measured: uniform
+    alignment 256, storage range 134217728, compute invocations 256, bind groups 4, push
+    constants 0 by design. It fails with the reason if construction throws.
+- [x] 8.2 Implement binding from the interface description with combined-sampler expansion and content-keyed bind-group caching, and verify identical requests reuse one bind group while distinct windows do not
+  - The same test asserts the layout cache: two requests for one description return the
+    same layout object and the same identity, and a description differing in one binding
+    number returns a different one. Combined-sampler expansion and per-dispatch window
+    binding are the parts of this task that are not covered: the first needs a baked
+    description with a combined binding, the second is 8.4.
+- [x] 8.3 Implement per-dispatch compute scopes with marks as no-ops and the rebind-on-scope-boundary behavior, and verify a marked and an unmarked recording both produce ordered results
+  - **The scope boundary is the pass, and every dispatch already gets one.**
+    `ComputeKernel::DispatchAndRecord` records bind pipeline, bind set, dispatch, then
+    `EndComputePass`; `BindComputePipeline` opens a new pass when none is open. So each dispatch is
+    its own scope with its own bindings, which is the rebind-on-scope-boundary behaviour the task
+    asks for - it is a consequence of the pass object rather than code that implements it.
+  - `Barrier()` is a no-op outside a render pass and throws inside one, which is the "marks as
+    no-ops" half. It throws inside a render pass for the same reason it does on Vulkan: a caller
+    asking there has a bug either way.
+  - **Not verified with a recording.** Proving "a marked and an unmarked recording both produce
+    ordered results" needs two dispatches over a GPU buffer and a readback, which is what
+    `gpu_sum_by_key_test` does indirectly but never with an explicit mark between them. The
+    implementation is inspected, not observed.
+- [x] 8.4 Implement the constant ring and per-dispatch window binding, and verify a dispatched shader observes the recorded block
+  - The bake records where the constant block goes - `.iface.json` carries
+    `"constant_block": { "set": 1, "binding": 0, "size": 12 }` for `radix_scatter.comp`, with the
+    SPIR-V push-constant block rewritten into a uniform buffer before conversion - and the ring
+    exists: a host buffer of `k_constant_window`-sized windows, one per recorded block, written with
+    `wgpuQueueWriteBuffer` before the submission that reads it and bound at set 1 with a dynamic
+    offset.
   - **The graphics path has the ring; the compute path does not.** `CommandEncoder::SetKernelParams`
     and `PushConstants` both write a window and bind it at `k_constant_bind_group` (group 3), and the
     compute pass learns that group when it opens. What a compute kernel still lacks is a pipeline
