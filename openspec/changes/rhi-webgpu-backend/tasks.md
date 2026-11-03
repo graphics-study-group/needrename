@@ -1,15 +1,20 @@
 ## 1. Spikes (throwaway, findings feed the artifacts below)
 
-- [ ] 1.1 Bake `blinn_phong` (texture + constant block), `fluid.comp` (shared memory + uint atomics + storage image) and `radix_scatter.comp` (shared memory + workgroup barrier) from SPIR-V through the candidate converter; record every fidelity problem in the change's spike notes and verify the three outputs are accepted by a WGSL validator
-  - **Partly done, deliberately not ticked.** The fidelity record is complete:
-    `spike-notes.md` §1.1 has the raw conversion of all three named shaders, the whole corpus
-    after the F1 demotion, and F2 explains why `blinn_phong.frag` cannot convert at all through
-    naga. What the task also asks for - "the three outputs are accepted by a WGSL validator" -
-    is not met, and re-checking it with the chosen converter found two more facts: Tint refuses
-    the shipped `.spv` because it carries `SPV_KHR_non_semantic_info` debug info (D12 says
-    "no debug info", so the bake must strip it), and `spirv-opt --strip-debug` crashes on that
-    same module. Both are bake-time problems for 7.1 rather than spike findings, which is why
-    the task stays open with them written down.
+- [x] 1.1 Bake `blinn_phong` (texture + constant block), `fluid.comp` (shared memory + uint atomics + storage
+  image) and the rest of the named corpus to WGSL and verify the outputs are accepted by a WGSL validator
+  - **Done, and the validator run is the evidence.** Every `.wgsl` in the WebGPU stage - **66 modules**,
+    the 24 built-in shader assets and the 42 physics kernels - is accepted by Tint with no error:
+    `tint <file>` on each returns 0. The three shaders the task names are in that set: `blinn_phong.frag`
+    (a sampled texture plus a push-constant block), `blinn_phong.vert`, and `fluid.comp` (workgroup
+    storage, uint atomics, a storage image).
+  - **The two blockers recorded earlier are gone rather than worked around.** Tint no longer refuses the
+    shipped `.spv` for carrying `SPV_KHR_non_semantic_info` because the shader compiler stopped emitting
+    debug info by default (`CompileGLSLtoSPV`'s `emit_debug_info`, design D12), and the physics bake
+    converts all 42 of 42 modules including the Debug tree's `-gVS` output - Tint drops non-semantic
+    instructions itself. Nothing had to strip the modules, which is as well: `spirv-opt --strip-debug`
+    crashes on them.
+  - The fidelity record is in `spike-notes.md` §1.1, including F2: `blinn_phong.frag` does not convert
+    through **naga**, which is why the bake uses Tint.
 - [x] 1.2 Verify the constant-block conversion path: convert a shader with a push-constant block and confirm the fallback (SPIR-V constant block rewritten to a uniform buffer before conversion) is needed or not; record the result in the spike notes
 - [x] 1.3 Measure one dispatch per compute scope vs batched dispatches in a minimal `webgpu.h` compute sample and record the overhead in the spike notes
 - [ ] 1.4 Build a minimal `webgpu.h` triangle plus one compute dispatch on the Emscripten toolchain and verify it renders to a canvas and reads back a dispatch result
