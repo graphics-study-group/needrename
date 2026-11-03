@@ -363,7 +363,28 @@
     and readback buffer are per-frame-in-flight objects that no other frame writes while the queue
     still holds work, and the queue is one ordered queue. That is the argument the task asks for,
     and the surface-capture comparison is its evidence.
-- [ ] 10.4 Port the UI backend to the WebGPU backend and verify the editor UI renders
+- [x] 10.4 Port the UI backend to the WebGPU backend and verify the editor UI renders
+  - **The backend is ported, and the same test proves it on both.** Dear ImGui's WebGPU backend does
+    build against wgpu-native 29 - the note that said otherwise was wrong, and the object file in
+    `third_party/imgui.dir` had been saying so all along. `GUISystem` on this backend now runs
+    `ImGui_ImplSDL3` for input and `ImGui_ImplWGPU` for draw data instead of the "unavailable" stub.
+  - One seam addition was needed: ImGui's Vulkan backend records into a `VkCommandBuffer`, which the
+    encoder already names, while its WebGPU backend records into a `WGPURenderPassEncoder` that exists
+    only while a pass is open. `CommandEncoder::GetNativeRenderPass()` is that accessor - null on
+    Vulkan, the open pass here.
+  - **The verification is pixel parity, not a claim.** `imgui_test` was gated to Vulkan for the same
+    wrong reason and is now registered for both; the same test renders the same demo window and
+    reports **374000 of 2073600 pixels not black on both backends**, which is the UI drawn through the
+    seam rather than a Vulkan shim.
+  - Two details the port needed: `ImGui::Render()` is called even when no pass is open (ImGui asserts
+    at the next `NewFrame` otherwise), and the pass-opening overload
+    `DrawGUI(attachment, extent, cb)` opens the pass through the command buffer and draws into the one
+    it opened - which is why the accessor belongs on the encoder.
+  - **What this does not claim.** The *editor* still cannot build on this backend:
+    `EditorRenderGraphBuilder.h` includes `vulkan/vulkan.hpp` directly, so the editor binary stays a
+    Vulkan application (it is excluded from the WebGPU tree, as recorded under 10.2). Porting the UI
+    backend is what makes a UI *possible* here; porting the editor's own render graph is a separate
+    piece of work that this task does not include.
 
 ## 11. Emscripten product build
 
