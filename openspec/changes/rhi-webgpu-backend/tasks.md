@@ -175,15 +175,20 @@
     kernel binding each set at the index its description declares instead of putting everything in
     group 0, the physics solver **runs on the WebGPU backend**: the group it was refused at is the
     ring's, and the pass binds it.
-  - Two more steps are known, in the order they appear:
+  - Two more steps were found, and the first is now understood well enough to be a one-liner:
     1. *"Buffer 'RadixSort Histogram' with conflicting usages: STORAGE_READ_ONLY and
-       STORAGE_READ_WRITE"* - one kernel reads a buffer another writes, and the two layouts
-       disagree. A compute kernel can declare every storage buffer read-write: a writable binding
-       may still be read, and the compute stage has no rule against it.
+       STORAGE_READ_WRITE"* - one kernel reads a buffer another writes. A compute kernel can declare
+       every storage buffer read-write: a writable binding may still be read, and the compute stage
+       has no rule against it. Adding that moved the run past the sort.
     2. *"Shader global ResourceBinding { group: 0, binding: 1 } is not available in the pipeline
-       layout"* for `XPBD ClearEntryValues` - the module declares more bindings than the description
-       lists, because the push and non-push variants of a kernel share a name while their
-       descriptions differ. The bake or the loader has to keep those apart.
+       layout"* - and the description is *not* the problem: instrumenting `CreateFromModule` shows
+       `XPBD ClearEntryValues` declaring both set 0 bindings and `EntryCount` among them, while the
+       pipeline layout the device receives has only binding 0 in that group. So the pipeline layout
+       that reaches `wgpuDeviceCreateComputePipeline` is not the one the kernel composed - the next
+       thing to instrument is `ImmutableResourceCache::GetPipelineLayout`, logging the cache key and
+       each group's handle, because a key collision there hands a kernel another kernel's layout.
+       (That file uses bare LF, so a search-and-replace written with CRLF silently does nothing -
+       which cost an hour of this session.)
   - The experiment is reverted rather than half-landed; each step above is one small change with a
     named error to reproduce it by.
   - A window is **zero-filled** before the block is copied in, because a shader reads its whole
