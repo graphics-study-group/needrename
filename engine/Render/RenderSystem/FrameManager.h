@@ -171,7 +171,12 @@ namespace Engine {
              * Data retrieved from the device is stored in the device buffer.
              * This buffer can be mapped to the host VM for reading.
              */
-            using ReadbackCallback = std::function<void(std::unique_ptr<Rhi::DeviceBuffer>)>;
+            /// @brief What runs when a read-back has landed.
+            ///
+            /// The buffer is *borrowed*: it belongs to the frame manager's pool and is returned to
+            /// it once the callback returns, so it can be filled again instead of a fresh
+            /// allocation being made every frame - which is what the test suite does.
+            using ReadbackCallback = std::function<void(Rhi::DeviceBuffer &)>;
             /**
              * @brief Register a callback for buffer or texture readback.
              *

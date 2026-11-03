@@ -15,6 +15,7 @@
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 
 #include <SDL3/SDL.h>
+#include <unordered_map>
 #include <bitset>
 
 namespace {
@@ -84,6 +85,29 @@ std::array<std::optional<Rhi::CommandBuffer>, FRAMES_IN_FLIGHT> command_buffers{
                     Rhi::CommandBuffer::Create(device_context, Rhi::CommandBufferPool::GraphicsOneTime, 1);
                 current_registry.combuf = std::move(onetime_buffers[0]);
                 current_registry.combuf->Begin();
+            }
+
+            /// Staging buffers whose callback has run, ready to be filled again.
+            std::unordered_map<size_t, std::vector<std::unique_ptr<Rhi::DeviceBuffer>>> pool;
+
+            /// Take a buffer of `size` bytes from the pool, or make one.
+            std::unique_ptr<Rhi::DeviceBuffer> TakeBuffer(const Rhi::AllocatorState &allocator, size_t size) {
+                auto found = pool.find(size);
+                if (found != pool.end() && !found->second.empty()) {
+                    std::unique_ptr<Rhi::DeviceBuffer> buffer = std::move(found->second.back());
+                    found->second.pop_back();
+                    return buffer;
+                }
+                return Rhi::DeviceBuffer::CreateUnique(
+                    allocator, Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice}, size
+                );
+            }
+
+            /// Give a buffer back once its callback has run.
+            void ReturnBuffer(std::unique_ptr<Rhi::DeviceBuffer> buffer) {
+                if (buffer != nullptr) {
+                    pool[buffer->GetSize()].push_back(std::move(buffer));
+                }
             }
 
             void AddRegistery() {
@@ -469,7 +493,10 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
                 // one point where that can be waited for: the pump is not inside the device's
                 // own event dispatch here.
                 itr.second->PrepareReadback();
-                std::invoke(itr.first, std::move(itr.second));
+                std::invoke(itr.first, *itr.second);
+                // The callback borrowed the buffer; it goes back to the pool for the next frame
+                // rather than being destroyed.
+                readback.ReturnBuffer(std::move(itr.second));
             }
 
             readback.registry.pop_front();
@@ -512,18 +539,22 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         pimpl->readback.InitializeRegistry(pimpl->m_system.GetDeviceInterface(), pimpl->m_system.GetDeviceContext());
         }
 
-        auto staging_buffer = Rhi::DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(),
-            Rhi::BufferType{Rhi::BufferTypeBits::ReadbackFromDevice},
-            buffer.GetSize()
+        // A read-back staging buffer is borrowed from the pool and returned when its callback has
+        // run. A test that reads a frame back every frame would otherwise allocate (and hold) a
+        // frame-sized buffer per frame, and the allocator is where that ends up spinning.
+        std::unique_ptr<Rhi::DeviceBuffer> staging_buffer = pimpl->readback.TakeBuffer(
+            pimpl->m_system.GetAllocatorState(), buffer.GetSize()
         );
+        if (staging_buffer == nullptr) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU surface: the read-back staging buffer could not be created.");
+            return false;
+        }
 
         ReadbackCommand(pimpl->readback.current_registry.combuf->GetHandle(), buffer, *staging_buffer);
         pimpl->readback.current_registry.callbacks.push_back(std::make_pair(cb, std::move(staging_buffer)));
         return true;
     }
 } // namespace Engine::RenderSystemState
-
 
 
 

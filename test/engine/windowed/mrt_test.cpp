@@ -382,8 +382,8 @@ int main(int argc, char **argv) {
         // magnitude above the threshold below.
         const auto register_start = sch::steady_clock::now();
 
-        rsys->GetFrameManager().RegisterReadbackCallback(*readback_buffer, [](std::unique_ptr<Rhi::DeviceBuffer> in) {
-            auto byte = in->GetVMAddress();
+        rsys->GetFrameManager().RegisterReadbackCallback(*readback_buffer, [](Rhi::DeviceBuffer &in) {
+            auto byte = in.GetVMAddress();
 
             // A whole-frame dump on request: this is what lets a run of the same test on
             // another backend be looked at rather than described. The read-back target is the
@@ -447,7 +447,6 @@ int main(int argc, char **argv) {
     std::cout << "MRT test PASSED: the read-back colour target contains drawn pixels." << std::endl;
     return 0;
 }
-
 
 
 
