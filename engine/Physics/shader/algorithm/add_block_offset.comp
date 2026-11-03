@@ -22,7 +22,10 @@ layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 #define WG_SIZE  256u
 #define BLOCK_N  512u   // 2 * WG_SIZE
 
-layout(set = 0, binding = 0) readonly buffer InputData {
+// Not readonly: the scan that drives this kernel can pass the block-sums region as both the data
+// and the block sums, and WebGPU tracks a buffer's usage per submission - a reader that says
+// "readonly" next to the writable binding of the same buffer is a conflict.
+layout(set = 0, binding = 0) buffer InputData {
     uint v[];
 } input_data;
 

@@ -52,10 +52,13 @@
 //
 // Dispatch: ceil(input_count / 256), 1, 1.
 
-layout(set = 0, binding = 0) readonly  buffer KeysIn     { uint  v[]; } keys_in;
-layout(set = 0, binding = 1) readonly  buffer ValuesIn   { float v[]; } values_in;
+// Not readonly: a level can bind the record arrays it also writes as its inputs, and WebGPU
+// tracks a buffer's usage per submission - a readonly binding next to a writable one of the same
+// buffer is a conflict.
+layout(set = 0, binding = 0) buffer    KeysIn     { uint  v[]; } keys_in;
+layout(set = 0, binding = 1) buffer    ValuesIn   { float v[]; } values_in;
 // The caller's payload-index array, read in gather mode.
-layout(set = 0, binding = 2) readonly  buffer PayloadIn    { uint  v[]; } payload_in;
+layout(set = 0, binding = 2) buffer    PayloadIn    { uint  v[]; } payload_in;
 layout(set = 0, binding = 3) buffer    RecKeys          { uint  v[]; } rec_keys;
 layout(set = 0, binding = 4) buffer    RecValues        { float v[]; } rec_values;
 layout(set = 0, binding = 5) buffer    OutValues        { float v[]; } out_values;

@@ -974,6 +974,9 @@ namespace AppPhysics {
         if (impl.render_readback_enabled && impl.render_graph) {
             auto *final_tex = impl.render_graph->GetInternalTextureResource(impl.final_color_id);
             impl.EnsureRenderStaging(*final_tex);
+            // The previous frame's capture has been read by now; a mapped buffer cannot be the
+            // destination of this frame's copy.
+            impl.render_staging->ReleaseReadback();
             cb.RecordCopyImageToBuffer(*final_tex, *impl.render_staging, final_last_access);
             impl.render_frame_id = impl.has_render_capture ? impl.render_frame_id + 1 : 0;
             impl.has_render_capture = true;
