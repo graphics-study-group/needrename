@@ -873,8 +873,9 @@ namespace AppPhysics {
         // flags so unset fields are not re-uploaded next step.
         impl.any_dirty.fill(false);
 
-        // Post-wait: physics writes are visible before the next render frame.
-        impl.renderer->WaitForIdle();
+        // No wait after the fence: it already proves this step's work has run, and the next render
+        // frame's submission waits on the step's own work through the queue's ordering. A second
+        // device-wide wait here would be exactly the block a frame path is meant not to have.
     }
 
     void PhysicsApp::RenderNextFrame() {
