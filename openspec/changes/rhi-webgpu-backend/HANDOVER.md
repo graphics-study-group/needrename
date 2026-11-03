@@ -160,10 +160,19 @@ with a frame limit, while `skybox_test`, `complex_mesh_test` and `pbr_test` all 
 What `mrt_test` does differently is register a read-back **every frame**, which is the frame
 manager's readback machinery - the same ground tasks 10.1, 10.2 and 11.3 cover.
 
-Instrumentation so far: `StartFrame` acquires its image, then nothing - the process never reaches
-`BeginMainCommandBuffer`, so the stall is inside `RegisterReadbackCallback`. Where inside varies
-between runs (sometimes during the staging allocation, sometimes after the copy is recorded), which
-is what a blocking wait on device progress looks like rather than a single broken call.
+Where it stops, measured with a watchdog thread that writes a stage number to `stderr` directly (a
+log call takes the logger's lock, and a watchdog that prints through it can hang on the very thing
+it is watching):
+
+- `StartFrame` acquires its image;
+- `RegisterReadbackCallback` runs **to completion** - the watchdog's last stage is the one after
+  the copy is recorded;
+- `BeginMainCommandBuffer` is never entered, and neither is `SubmitFrame`.
+
+So the stall is between registration returning and the frame's first record - in the test's own
+loop, where nothing should wait. That is where to pick this up: the next step is a stack, not more
+logging, and this session had no debugger to take one with (`cdb`, `windbg`, `procdump` are all
+absent).
 
 `compute_shader_test` is no longer in this list: it builds its kernel from a GLSL source file, which
 a baked staging tree does not carry, and it now says so and stops.
