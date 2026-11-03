@@ -138,7 +138,7 @@ passes, the numbers below are meaningful; when it stalls, the machine is the var
 
 `ctest --preset msvc-debug -E "asset_path_test|data_root_test"` (Vulkan): **76 of 76 passed.**
 `ctest --test-dir build/webgpu -C Debug` with `NEEDRENAME_DATA_ROOT` pointing at its stage:
-**44 of 46 passed**, after `complex_mesh_test`, `pbr_test`, `shadow_constants_test` and `compute_shader_test` were fixed. The two that remain are `mrt_test` and `mrt_test_staged_builtin_assets`, which hang on a read-back registered every frame - on the Vulkan build as well (0c). The six from before were:
+**46 of 46 passed.** So did the Vulkan suite, **76 of 76**; what the six failures were, and the three faults behind every one of them, is 0c.
 
 - `shadow_constants_test` reads `interface.glsl` and `shadow.glsl` from the data root, and the
   WebGPU staging stores shaders in baked form, so there is no `.glsl` there to read. The Vulkan
