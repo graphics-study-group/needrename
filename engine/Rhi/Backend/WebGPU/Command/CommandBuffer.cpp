@@ -1,6 +1,12 @@
 #include "Rhi/Command/CommandBuffer.h"
 
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
+
+namespace Engine::Rhi {
+    /// @brief Release the staging buffers a finished command buffer recorded against.
+    /// @note Defined in the command encoder unit, which owns the list.
+    void ReleaseRetiredStagingBuffers(WGPUCommandEncoder encoder);
+} // namespace Engine::Rhi
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Device/DeviceInterface.h"
 
@@ -59,6 +65,9 @@ namespace Engine::Rhi {
             wgpuCommandBufferRelease(pimpl->finished);
         }
         if (pimpl->encoder != nullptr) {
+            // The frame manager destroys a command buffer only after the fence that proves its
+            // commands have run, so this is where a read-back's staging buffer can be released.
+            ReleaseRetiredStagingBuffers(pimpl->encoder);
             wgpuCommandEncoderRelease(pimpl->encoder);
         }
     }
@@ -105,5 +114,4 @@ namespace Engine::Rhi {
         pimpl->encoder = wgpuDeviceCreateCommandEncoder(pimpl->device, nullptr);
     }
 } // namespace Engine::Rhi
-
 

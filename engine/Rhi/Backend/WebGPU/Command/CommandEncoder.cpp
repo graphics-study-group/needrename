@@ -11,6 +11,7 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <vector>
 #include <webgpu/webgpu.h>
 
 namespace Engine::Rhi {
@@ -33,6 +34,29 @@ namespace Engine::Rhi {
          *   command encoder, so the whole frame fits in the buffer as long as it records at most
          *   `capacity / k_constant_window` of them.
          */
+        /**
+         * @brief Staging buffers whose copies are still recorded but not yet executed.
+         *
+         * A texture-to-buffer copy whose rows are not already 256-byte aligned is staged through
+         * a buffer of its own. That buffer belongs to the commands, not to the recording call, so
+         * it is kept until the command buffer that recorded it is destroyed - which the frame
+         * manager does after the fence that proves the commands have run.
+         */
+        struct RetiredStaging {
+            WGPUCommandEncoder encoder{nullptr};
+            WGPUBuffer buffer{nullptr};
+        };
+
+        std::vector<RetiredStaging> &RetiredStagingList() {
+            static std::vector<RetiredStaging> list;
+            return list;
+        }
+
+        /// @brief Keep `buffer` alive until `encoder`'s command buffer is gone.
+        void RetireStagingBuffer(WGPUCommandEncoder encoder, WGPUBuffer buffer) {
+            RetiredStagingList().push_back(RetiredStaging{encoder, buffer});
+        }
+
         struct ConstantRing {
             WGPUBuffer buffer{nullptr};
             WGPUBindGroupLayout layout{nullptr};
@@ -477,7 +501,11 @@ namespace Engine::Rhi {
                 tight_row
             );
         }
-        wgpuBufferRelease(staging);
+        // The staging buffer is referenced by the commands recorded into this encoder, which run
+        // when the command buffer is submitted - later than this call. Releasing it here would be
+        // a use-after-free at submit, which is what a read-back that took this path crashed on.
+        // It is retired instead, and released when the command buffer that used it goes away.
+        RetireStagingBuffer(pimpl->encoder, staging);
     }
 
     void CommandEncoder::DispatchCompute(
@@ -499,3 +527,17 @@ namespace Engine::Rhi {
     }
 } // namespace Engine::Rhi
 
+namespace Engine::Rhi {
+    /// @brief Release the staging buffers retired against a command buffer.
+    void ReleaseRetiredStagingBuffers(WGPUCommandEncoder encoder) {
+        std::vector<RetiredStaging> &list = RetiredStagingList();
+        for (auto entry = list.begin(); entry != list.end();) {
+            if (entry->encoder == encoder) {
+                wgpuBufferRelease(entry->buffer);
+                entry = list.erase(entry);
+            } else {
+                ++entry;
+            }
+        }
+    }
+} // namespace Engine::Rhi
