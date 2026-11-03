@@ -290,6 +290,19 @@ namespace Engine::Rhi {
         /// @brief Get the command buffer this encoder records into.
         CommandBufferHandle GetHandle() const noexcept;
 
+        /**
+         * @brief The backend's open render pass object, for a library that records into it itself.
+         *
+         * Dear ImGui's backends record draw commands into a native object rather than through a
+         * seam, and on the WebGPU backend that object is a render pass encoder. A caller that has
+         * opened a pass through this encoder gets it here.
+         *
+         * @return A `WGPURenderPassEncoder` on the WebGPU backend, or null when no render pass is
+         * open or the backend has no such object (Vulkan records into the command buffer, which
+         * `GetHandle` already names).
+         */
+        [[nodiscard]] void *GetNativeRenderPass() const noexcept;
+
     private:
         struct impl;
         std::unique_ptr<impl> pimpl;

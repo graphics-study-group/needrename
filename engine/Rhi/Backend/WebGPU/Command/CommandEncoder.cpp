@@ -226,6 +226,12 @@ namespace Engine::Rhi {
     CommandEncoder::CommandEncoder(CommandEncoder &&) noexcept = default;
     CommandEncoder &CommandEncoder::operator=(CommandEncoder &&) noexcept = default;
 
+    void *CommandEncoder::GetNativeRenderPass() const noexcept {
+        // The pass exists only between BeginRenderPass and EndRenderPass, which is exactly when
+        // a library that records into it itself needs to see it.
+        return pimpl != nullptr && pimpl->in_render_pass ? pimpl->render_pass : nullptr;
+    }
+
     void CommandEncoder::Barrier() {
         if (pimpl->in_render_pass) {
             throw std::logic_error(

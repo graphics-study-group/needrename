@@ -97,6 +97,12 @@ namespace Engine::Rhi {
     CommandEncoder::CommandEncoder(CommandEncoder &&) noexcept = default;
     CommandEncoder &CommandEncoder::operator=(CommandEncoder &&) noexcept = default;
 
+    void *CommandEncoder::GetNativeRenderPass() const noexcept {
+        // This backend records into the command buffer, which GetHandle already names; there is
+        // no separate pass object for a library to draw into.
+        return nullptr;
+    }
+
     void CommandEncoder::Barrier() {
         if (pimpl->in_render_pass) {
             throw std::logic_error(
