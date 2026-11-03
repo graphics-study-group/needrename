@@ -126,7 +126,7 @@ a conclusion.
 
 `ctest --preset msvc-debug -E "asset_path_test|data_root_test"` (Vulkan): **76 of 76 passed.**
 `ctest --test-dir build/webgpu -C Debug` with `NEEDRENAME_DATA_ROOT` pointing at its stage:
-**43 of 46 passed**, after `complex_mesh_test`, `pbr_test` and `shadow_constants_test` were fixed. The three that remain are the read-back stall below (`compute_shader_test`, `mrt_test`, `mrt_test_staged_builtin_assets`). The earlier six were:
+**44 of 46 passed**, after `complex_mesh_test`, `pbr_test`, `shadow_constants_test` and `compute_shader_test` were fixed. The two that remain are `mrt_test` and `mrt_test_staged_builtin_assets`, which hang on a read-back registered every frame - on the Vulkan build as well (0c). The six from before were:
 
 - `shadow_constants_test` reads `interface.glsl` and `shadow.glsl` from the data root, and the
   WebGPU staging stores shaders in baked form, so there is no `.glsl` there to read. The Vulkan
@@ -141,32 +141,20 @@ wait for assets that are not where the process looks - worth knowing before a nu
 while timing out inside the suite, which is the readback/serialisation problem below rather than
 a rendering one.
 
-### 0c. `mrt_test` hangs allocating its read-back buffer, on both backends
+### 0c. `mrt_test` hangs when it registers a read-back every frame, on both backends
 
-Instrumented: the frame is recorded, `RegisterReadbackCallback` opens its registry, and then the
-process stops inside the **first `vmaCreateBuffer`** - an 8,294,400-byte buffer of type
-`ReadbackFromDevice`, which is `CopyTo | HostRandomAccess`, mapped on creation. Nothing after that
-call is reached, on the Vulkan build and the WebGPU build alike, so it is the shared read-back
-allocator rather than either backend.
+**Both backends.** A run of `mrt_test` on the Vulkan build hangs exactly as the WebGPU one does,
+with a frame limit, while `skybox_test`, `complex_mesh_test` and `pbr_test` all complete on both.
+What `mrt_test` does differently is register a read-back **every frame**, which is the frame
+manager's readback machinery - the same ground tasks 10.1, 10.2 and 11.3 cover.
 
-Two things make it plausible and both are already known in the code: the test registers a read-back
-**every frame**, each one a fresh 8 MB allocation (the registry carries the comment "TODO: reuse
-fences and command buffers to avoid frequent reallocation"), and a callback only runs once the
-previous frame's fence has signalled, so allocations outrun the frees under memory pressure. The
-driver then sits in `vkAllocateMemory`, which is where the process is observed to be.
+Instrumentation so far: `StartFrame` acquires its image, then nothing - the process never reaches
+`BeginMainCommandBuffer`, so the stall is inside `RegisterReadbackCallback`. Where inside varies
+between runs (sometimes during the staging allocation, sometimes after the copy is recorded), which
+is what a blocking wait on device progress looks like rather than a single broken call.
 
-The first half is in: `RegisterReadbackCallback` borrows a staging buffer from a pool keyed by
-size and returns it once the callback has run, and the callback takes it by reference instead of
-owning it - it used to be handed a `unique_ptr` and had to destroy the very thing that should have
-been reused. A read-back therefore costs no allocation after the first few frames.
-
-That does not cure the hang, and the instrumentation that narrowed it further says the hang is
-**not** in the read-back: registration completes ("staging ready", "copy recorded") and nothing
-after it runs - no submit is ever reached. A windowed `skybox_test` on the same build, which never
-registers a read-back, stops in the same place, and after a long session of hundreds of device
-creations both stop earlier still, while querying device capabilities. That is a window or
-device-setup stall in this environment rather than the backend: the headless tests keep passing,
-and the same windowed tests passed earlier in this same session.
+`compute_shader_test` is no longer in this list: it builds its kernel from a GLSL source file, which
+a baked staging tree does not carry, and it now says so and stops.
 
 ### 0e. The staged `spirv` directory can vanish while its stamp survives
 
