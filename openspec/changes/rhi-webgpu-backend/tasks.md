@@ -79,22 +79,21 @@
       accepted. The test passes.
     - This branch has one commit touching `MemoryAllocation.cpp`, `ac457141`, and it moved the
       file behind `Backend/` without changing a line of the window logic.
-- [ ] 6.2 Implement dirty accounting and automatic flush-before-submission, and verify a caller that never calls
+- [x] 6.2 Implement dirty accounting and automatic flush-before-submission, and verify a caller that never calls
   `Flush` still renders correctly
-  - **The plumbing is in and the verification is red, which is the honest state.** `BufferAllocation`
-    tracks a pending host write and clears its tracking slot on destruction;
-    `AllocatorState::FlushPendingHostWrites()` publishes them and is called from
-    `DeviceContext::Submit` on the WebGPU backend and flushes every live mapped allocation on Vulkan.
-  - `host_write_window_test` is the verification: it writes a pattern through the mapped window,
-    **never flushes**, copies the buffer on the device and compares the readback. It fails on both
-    backends - 16 of 16 words differ, the copy seeing zeros - so the flush-at-submission wiring is
-    in place and is *not* what is missing.
-  - Three facts narrow it further, each from instrumenting the test rather than guessing: the pattern
-    reaches the mapped window (`window[0]` reads back as the value written), an explicit `Flush`
-    before the submission changes nothing, and the readback is invalidated before it is read and still
-    comes back zero. So neither side of the mapping is at fault - what is left is the copy between
-    them or the two buffers' usage flags.
-  - The test stays registered-but-disabled, which is what makes it a specification for this task
+  - **Done, and the verification is a test that fails without it.** `host_write_window_test` writes a
+    pattern through a buffer's mapped window, never flushes, copies the buffer on the device and
+    compares the readback - it passes on both backends (Vulkan 78 of 78, WebGPU 55 of 55).
+  - The mechanism: `BufferAllocation` marks a pending host write when a caller asks for the window,
+    clears its tracking slot on destruction, and `AllocatorState::FlushPendingHostWrites()` - called
+    from `DeviceContext::Submit` - publishes what is pending. Vulkan flushes the mapped allocation,
+    the WebGPU backend writes its host shadow into the buffer. `DeviceBuffer` registers itself through
+    `TrackHostWrites` once the allocation has its final address, because the allocator's value form
+    hands out a moved object.
+  - Two traps found on the way, both worth knowing: `CommandBuffer::Create` allocates and does *not*
+    start recording - a command buffer without `Begin()` submits nothing, silently - and a tracking
+    hook placed in `AllocateBufferUnique` never sees a `DeviceBuffer`, which is the only caller that
+    matters.
 - [x] 6.3 Implement asynchronous readback registration and the blocking pump, and verify the existing headless tests pass through the pump with unchanged assertions
   - The pump exists and runs every frame: `FrameManager` keeps a deque of registries, each a
     fence, a command buffer and a list of callbacks; `WaitForFence(handle, 0)` polls rather than
