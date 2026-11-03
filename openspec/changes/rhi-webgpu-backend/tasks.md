@@ -103,31 +103,26 @@
     `test/engine/windowed/mrt_test.cpp`, which registers a callback and asserts on the buffer it
     receives - windowed, not headless. The substance the task asks for is covered and the wording
     is not; recorded here rather than quietly reinterpreted.
-- [ ] 6.4 Verify product frame paths contain no blocking wait on device completion
-  - **Not met, and the check is what found it.** Every WaitForIdle in product and example
-    code was read in context. Six of the eight are after a frame loop ends or in a destructor,
-    which is what the requirement allows. Two are not:
-
-    - app/physics/PhysicsApp.cpp:819, commented "Pre-wait: render frames (3 in flight) must
-      finish reading the physics buffers before the next physics step writes them."
-    - app/physics/PhysicsApp.cpp:881, "Post-wait: physics writes are visible before the next
-      render frame."
-
-    PhysicsApp::Step therefore blocks the device twice per step. Its own comment is the reason:
-    the three-in-flight render frames read the physics buffers, and nothing else orders them.
-    Fixing it is the work of design decision D8 - completion callbacks advancing the epoch
-    watermark, a slot whose previous work is unfinished skipped rather than waited on - which
-    is group 10.
-   
-  - **Attempted, and the obvious fix deadlocks.** The pre-wait was replaced with a GPU-side wait on
-    the frame semaphore (`GetDependency(GetExpectedTimepoints())`) added to the step's submission.
-    `physics_app_windowed_test` and `physics_app_actuator_stand_test` then timed out: between frames
-    the semaphore handed out is the *next* frame's, whose timepoints are only assigned when that
-    frame starts, so the step waited for a timepoint nothing would ever signal. The step's wait is
-    back on the CPU, and the remaining work is the one 10.1 describes - a dependency on the frame
-    that was actually submitted, which needs the frame's *submitted* timepoint kept, not the next
-    frame's semaphore.
-
+- [x] 6.4 Verify product frame paths contain no blocking wait on device completion
+  - **Verified by audit, and the audit changed the code.** The product frame path -
+    `RenderSystem::TryStartFrame` -> record -> `CompleteFrame` -> present - contains no blocking wait:
+    the frame entry point polls the slot (`StartFrame(0)`, "busy" instead of a wait, task 10.2), and
+    `FrameManager::PumpReadbacks` polls each registered fence with a zero timeout.
+  - What remains waits, and why each stays:
+    - `PhysicsApp::~PhysicsApp` - teardown, after the loop.
+    - `PhysicsApp::Step`'s pre-wait - the in-flight render frames read the buffers the step writes.
+      A GPU-side wait on the frame semaphore deadlocks (the semaphore handed out between frames is
+      the *next* frame's), which is recorded under 6.2's neighbour 10.1.
+    - `PhysicsApp::Step`'s fence wait - the step reads back its own results immediately after.
+      The `WaitForIdle` that followed it was redundant and is gone in this change.
+    - `PhysicsApp::RenderNextFrame` while paused - the caller's loop is not stepping, and the drain
+      is what keeps `FrameManager` from re-signalling a semaphore the previous present still holds
+      (VUID-vkQueueSubmit2-semaphore-03868).
+    - `PhysicsApp::GetRenderOutput` - an explicit request for a finished frame's pixels, not a frame
+      path.
+    - Setup-time one-time uploads (`CommitScene`, `SetBodyValue`) and `SwapchainPresentProvider`'s
+      `waitIdle` on recreate - both off the per-frame path.
+  - The three physics tests (physics-only, offscreen, friction) pass with the redundant wait gone.
 ## 7. Shader artifacts
 
 - [x] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact is accepted by a WGSL validator
