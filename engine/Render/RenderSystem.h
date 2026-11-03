@@ -120,6 +120,25 @@ namespace Engine {
         uint32_t StartFrame();
 
         /**
+         * @brief Begin a frame only if its slot is free, and skip it otherwise.
+         *
+         * @return The image index to render to, or `~0u` when the frame should be skipped.
+         *
+         * A product frame path uses this rather than `StartFrame`: the slot is polled, so a frame
+         * the GPU has not finished with is skipped and retried instead of blocking the thread that
+         * would present it.
+         */
+        uint32_t TryStartFrame();
+
+    private:
+        /// @brief Fetch the frame's camera and light data and upload it into the frame slot.
+        /// @note Both frame entry points do this; doing it in one place is what keeps a skipped
+        /// frame from leaving the next one's uniforms one frame behind.
+        void UploadFrameData();
+
+    public:
+
+        /**
          * @brief Complete the rendering of the current frame.
          *
          * Ends the main command buffer, records the copy command buffer via

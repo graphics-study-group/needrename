@@ -226,17 +226,37 @@ namespace Engine {
             return fb;
         }
 
-        GetCameraManager().FetchCameraData();
-        GetCameraManager().UploadCameraData(GetFrameManager().GetFrameInFlight());
-
-        GetSceneDataManager().FetchLightData();
-        GetSceneDataManager().UploadSceneData(GetFrameManager().GetFrameInFlight());
+        UploadFrameData();
         return fb;
     }
 
+    uint32_t RenderSystem::TryStartFrame() {
+        // A frame the engine may skip: the slot is polled, not waited for. A busy slot returns
+        // `~0u` and the caller comes back next frame, which is what keeps a product frame path
+        // free of the blocking wait `StartFrame` does.
+        auto fb = pimpl->m_frame_manager.StartFrame(0);
+        if (fb == std::numeric_limits<uint32_t>::max()) {
+            this->UpdateSwapchain();
+            fb = pimpl->m_frame_manager.StartFrame(0);
+        }
+        if (fb == std::numeric_limits<uint32_t>::max()) {
+            return fb;
+        }
+
+        UploadFrameData();
+        return fb;
+    }
+
+    void RenderSystem::UploadFrameData() {
+        const uint32_t frame = GetFrameManager().GetFrameInFlight();
+        GetCameraManager().FetchCameraData();
+        GetCameraManager().UploadCameraData(frame);
+
+        GetSceneDataManager().FetchLightData();
+        GetSceneDataManager().UploadSceneData(frame);
+    }
+
 } // namespace Engine
-
-
 
 
 

@@ -289,6 +289,13 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
         if (!pimpl->m_system.GetDeviceContext().WaitForFence(
                 pimpl->command_executed_fences[fif]->GetHandle(), timeout
             )) {
+            if (timeout == 0) {
+                // A zero budget is a caller saying "do not wait": the slot is still in use, so
+                // this frame is skipped and retried on the next call. Blocking here is what a
+                // product frame path must not do - a busy slot would stall the thread that has
+                // to present it.
+                return std::numeric_limits<uint32_t>::max();
+            }
             throw std::runtime_error("Timed out waiting for the frame fence.");
         }
 

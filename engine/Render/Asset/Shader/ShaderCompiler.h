@@ -47,8 +47,12 @@ namespace Engine {
          * This overload is tested to generate non-semantic debug information
          * correctly if asked to do so.
          */
+        /// @param emit_debug_info Whether to embed non-semantic debug information.
+        /// @note Off by default. The extension it adds (`SPV_KHR_non_semantic_info`) is rejected by
+        /// a validation layer at `vkCreateShaderModule`, so a build that keeps it on cannot be run
+        /// with validation; and a baked archive is meant to carry none (design D12).
         bool CompileGLSLtoSPV(
-            std::vector<uint32_t> &spirv, const std::filesystem::path &shader_abs_path, bool emit_debug_info = true
+            std::vector<uint32_t> &spirv, const std::filesystem::path &shader_abs_path, bool emit_debug_info = false
         );
 
     protected:

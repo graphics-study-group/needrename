@@ -958,7 +958,7 @@ namespace AppPhysics {
             }
         }
 
-        if (impl.renderer->StartFrame() == std::numeric_limits<uint32_t>::max()) {
+        if (impl.renderer->TryStartFrame() == std::numeric_limits<uint32_t>::max()) {
             // Swapchain out of date / minimized: skip this frame and try again
             // next call. A previous render-readback capture remains valid.
             return;
