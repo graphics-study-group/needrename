@@ -467,8 +467,22 @@ namespace Engine::Rhi {
         source.texture = ToWgpuTexture(image);
         source.aspect = WGPUTextureAspect_All;
 
+        const WGPUBuffer destination_buffer = ToWgpuBuffer(buffer);
+        if (source.texture == nullptr || destination_buffer == nullptr) {
+            // Both are handles the backend has to know: a copy of an image or into a buffer it
+            // cannot resolve is dropped with a line saying which, rather than handed to the
+            // implementation as a null texture.
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "WebGPU: a read-back copy names %s%s%s; it is dropped.",
+                source.texture == nullptr ? "an unknown image" : "an image",
+                source.texture == nullptr && destination_buffer == nullptr ? " and " : "",
+                destination_buffer == nullptr ? "an unknown buffer" : "a buffer"
+            );
+            return;
+        }
+
         const WGPUExtent3D copy_extent{extent.width, extent.height, extent.depth};
-        WGPUBuffer destination_buffer = ToWgpuBuffer(buffer);
 
         if (padded_row == tight_row) {
             WGPUTexelCopyBufferInfo destination{};
