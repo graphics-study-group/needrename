@@ -216,11 +216,13 @@
     reads the `.wgsl` and `.iface.json` the same bake produced and goes through
     `RequestComputeKernelFromModule`. `physics_spirv_loader_test` passes on both, so the
     artifacts exist and are named the same way in either staging form.
-  - **What is not done is the comparison.** The physics tests that would compare buffers live in
-    `test/app/physics` and link `PhysicsApp`, and the `webgpu-desktop` preset builds with
-    `ENGINE_BUILD_APPS=OFF` - so nothing exercises the solver on this backend yet. Turning apps on
-    for that tree and running `physics_app_friction_test` / `physics_app_stability_test` there,
-    then comparing the body transforms against the Vulkan run, is what closes this.
+  - **What is not done is the comparison, and switching the apps on is not enough.** The physics
+    tests live in `test/app/physics` and link `PhysicsApp`, which the `webgpu-desktop` preset does
+    not build (`ENGINE_BUILD_APPS=OFF`). Configured with it on, the build stops in `PhysicsApp.cpp`:
+    the app reads body state back with its own `vk::CommandBuffer` and `Rhi::ToVulkanBuffer`, so it
+    is a Vulkan program rather than a backend-neutral one. The comparison needs one of two things -
+    that read-back moved onto the seam, or a small headless parity test that steps the same world
+    on both backends and dumps the body transforms through `Rhi` - and the second is the smaller.
 - [x] 9.2 Add headless golden-image comparison between the desktop WebGPU build and the Vulkan build and verify a fixed frame matches across backends
   - `skybox_golden_test` renders the skybox scene and compares the frame with
     `test/data/skybox_golden.rgba`, byte for byte, reporting how many bytes differ and where the
