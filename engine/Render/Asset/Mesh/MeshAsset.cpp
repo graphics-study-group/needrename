@@ -159,9 +159,16 @@ namespace Engine {
                 }
                 parsed[i].vertex_count = static_cast<uint32_t>(vertex_count);
 
+                // The older writer listed `texcoord0` before `tangent`; the fixed-width format
+                // lists them in `VertexAttributeSemantic` order, which puts `tangent` first. An
+                // archive in the old order has to be read in the old order too, or the UV stream
+                // is taken for a `vec2` tangent and the tangent for a `vec4` UV. That is not a
+                // cosmetic mix-up: the lit pass builds its TBN from the tangent and samples the
+                // normal map through the UV, so a swapped pair shades the surface black with thin
+                // lit slivers, and only on assets archived before the format changed.
                 Submesh::Attributes *const attributes[10] = {
-                    &parsed[i].positions, &parsed[i].color,       &parsed[i].normal,       &parsed[i].tangent,
-                    &parsed[i].texcoord0, &parsed[i].texcoord1,   &parsed[i].texcoord2,    &parsed[i].texcoord3,
+                    &parsed[i].positions, &parsed[i].color,      &parsed[i].normal,       &parsed[i].texcoord0,
+                    &parsed[i].tangent,   &parsed[i].texcoord1,  &parsed[i].texcoord2,    &parsed[i].texcoord3,
                     &parsed[i].bone_indices, &parsed[i].bone_weights
                 };
                 for (Submesh::Attributes *const attribute : attributes) {

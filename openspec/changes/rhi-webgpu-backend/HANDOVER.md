@@ -343,12 +343,50 @@ Both cost most of a session and neither was a code problem.
   `share/needrename/test_data`). Run the msvc suite with the variable **unset**; run the WebGPU
   suite with it **set** to `build/webgpu/stage/Debug`. Setting it for the msvc suite turns two
   passing tests red.
-## 0h. The brick-sphere artifact is not this backend's (open item)
+## 0h. The brick-sphere artifact: a legacy mesh read in the wrong attribute order (fixed)
 
 Reported: the `external_resource_loading_example` scene shows the sphere covered in thin lit
 streaks instead of the brick texture, and the ground shadow looks wrong.
 
-Measured, not argued:
+The streak is fixed. The cause is in `MeshAsset::LoadLegacyMesh`, and it only affects assets
+written before the fixed-width mesh format - which is why the freshly imported sphere next to the
+old one rendered correctly, and why the earlier report read as "the asset that was already in the
+scene broke when the new one loaded".
+
+### What it was
+
+The pre-v2 writer listed the attribute table as `positions, color, normal, texcoord0, tangent, ...`.
+The fixed-width format lists it in `VertexAttributeSemantic` order, which is `... tangent,
+texcoord0, ...`, and the commit that introduced it (`588e47fc`) changed the writer and the reader
+together but left `LoadLegacyMesh` reading the *new* order. An archive written before that commit is
+therefore read with `texcoord0` and `tangent` swapped - every other slot still lines up, so the mesh
+looks structurally fine and only the two streams are wrong.
+
+That is not cosmetic. The pipeline is told `Tangent = SFloat32x2` and `Texcoord0 = SFloat32x4`, so
+the lit pass builds its TBN from the UV stream and samples the normal map through the tangent. The
+result is a surface shaded almost entirely black with thin lit slivers along the meridians, which is
+exactly the reported picture.
+
+Measured, from the two mesh files themselves:
+
+```
+projects/test_project/assets/Sphere.0.mesh        legacy (u32 version 1, 64-bit writer)
+  tangent   type=2 (vec2) offset=77148 size=17144   <- really texcoord0
+  texcoord0 type=4 (vec4) offset=94292 size=34288   <- really tangent
+
+temp_project/assets/imported_resources/Sphere.0.mesh   current format (u32 version 2)
+  tangent   type=4 (vec4) offset=94292 size=34288
+  texcoord0 type=2 (vec2) offset=77148 size=17144
+```
+
+The same swap is in all three shipped meshes - `builtin_assets/mesh/{cube,cylinder,sphere}.0.mesh`
+are all legacy and all put the `vec2` in slot 3 - so this was never specific to the imported
+example: any normal-mapped draw over a builtin mesh was shading through a swapped TBN.
+
+The earlier session's reading of the artifact - "the signature of vertex normals arriving wrong, a
+UV/tangent stream read in the normal's place" - was right about the mechanism, and wrong only about
+where: not the importer or the material's vertex layout, but the legacy archive reader. What that
+session measured, still worth having:
 
 - The **same artifact is on Vulkan**. `evidence/vk-window-brick-scene.png` is an OS screenshot of
   the Vulkan build's own window; the sphere is identically dark with the same meridian-shaped
@@ -360,12 +398,34 @@ Measured, not argued:
   both backends in `pbr_test`, `new_material_test`, `imgui_test` and the skybox golden.
 - The ground's brick *is* correct where the light reaches it (`evidence/vk-window-brick-scene-obj.png`
   shows the brick dome and the brick plane both reading properly), so the texture path is fine and
-  what is wrong is the **sphere's shading**: it is unlit over almost its whole surface, with thin
-  lit slivers along its meridians - the signature of vertex normals arriving wrong (a UV/tangent
-  stream read in the normal's place produces exactly these meridian stripes).
+  what is wrong is the **sphere's shading**.
 
-So the defect is shared code - the imported mesh's vertex attributes or the TBN the lit shader
-builds from them - and it predates this change. It is recorded here so the next session starts from
-the measurement instead of from the screenshot. The natural next probe is the `MeshAsset` vertex
-layout: what `AppendVertexAttribute` writes, and what offsets the material's `VertexAttribute`
-description hands the pipeline.
+### The fix
+
+`LoadLegacyMesh` now reads the legacy order (`texcoord0` before `tangent`), with the reason written
+where the array is. Nothing else changes: the packed GPU buffer is built in semantic order by
+`WriteVertexAttributeBuffer`, and the fixed-width reader already matches the fixed-width writer.
+
+`test/unit/render/mesh_asset_legacy_test.cpp` builds a legacy archive in both writer widths (8-byte
+and 4-byte `size_t`), loads it through `LoadLegacyMesh`, and asserts the two streams land on the
+right semantics. With the old order restored it reports 8 failures, so the next format change cannot
+quietly reintroduce this.
+
+Verified by running the example: both spheres show the brick texture, the old one included
+(`build/cap/verified.png`).
+
+### Still open
+
+The ground shadow is still a large soft black blob, and the unlit side of each sphere is pure black.
+Neither was this defect: they read the same before and after the fix, and the shadow was already
+recorded above as a separate complaint. Nothing here claims either is correct.
+
+### Why the capture detour did not pay off
+
+RenderDoc live capture does not work for this target on this machine: `renderdoc-mcp` bundles
+1.43 and the installed RenderDoc is 1.46, so `capture_frame` and `renderdoc-cli capture` fail to
+inject, the registry-registered 1.46 layer does load but F12 produces no capture, and a 1.46
+capture would not open in the bundled 1.43 replay anyway. The defect was found by parsing the two
+`.mesh` files directly - cheaper than a frame when the suspicion is asset content, which it should
+have been from the start: the two spheres differ only in which asset they were loaded from.
+
