@@ -89,9 +89,12 @@
     **never flushes**, copies the buffer on the device and compares the readback. It fails on both
     backends - 16 of 16 words differ, the copy seeing zeros - so the flush-at-submission wiring is
     in place and is *not* what is missing.
-  - That narrows the defect: the write does not reach the buffer even when published, which points at
-    the copy or at the source buffer's usage flags rather than at dirty accounting. The test is
-    registered-but-disabled so the failure stays visible, and it is what will say when this is fixed.
+  - Three facts narrow it further, each from instrumenting the test rather than guessing: the pattern
+    reaches the mapped window (`window[0]` reads back as the value written), an explicit `Flush`
+    before the submission changes nothing, and the readback is invalidated before it is read and still
+    comes back zero. So neither side of the mapping is at fault - what is left is the copy between
+    them or the two buffers' usage flags.
+  - The test stays registered-but-disabled, which is what makes it a specification for this task
 - [x] 6.3 Implement asynchronous readback registration and the blocking pump, and verify the existing headless tests pass through the pump with unchanged assertions
   - The pump exists and runs every frame: `FrameManager` keeps a deque of registries, each a
     fence, a command buffer and a list of callbacks; `WaitForFence(handle, 0)` polls rather than
