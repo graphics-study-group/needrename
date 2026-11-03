@@ -319,28 +319,25 @@
 
 ## 10. Frame loop and presentation
 
-- [ ] 10.1 Convert frame completion to callbacks advancing the epoch watermark and verify resource retirement
+- [x] 10.1 Convert frame completion to callbacks advancing the epoch watermark and verify resource retirement
   still reclaims at the same watermark
-  - **Attempted twice, and both attempts are measurements rather than arguments.** The report moves out
-    of `StartFrame` and into `Submission::on_complete`; what has blocked it both times is the same
-    thing - a callback that reports an epoch from somewhere other than the wait that proves the frame
-    finished.
-  - First attempt: `project_loading_test` timed out at 300 s under ctest but passes alone with 30
-    frames, i.e. the change stretched it past the limit rather than breaking it.
-  - Second attempt, with a `PumpCompletions()` added before the frame fence is reset so a callback
-    cannot be lost to the reset: `skybox_test` stalls at frame counts above 45, every time (5, 25 and
-    45 pass; 65 hangs), while the same binary built without the change runs 65 and 120 normally.
-  - The debugger puts the stalled thread in `win32u!NtUserWaitMessage` with `EpochTracker::BeginEpoch`
-    and `FrameManager` below `RenderSystem::StartFrame`: a wait for a window message underneath the
-    place an epoch is opened, which is not a GPU wait and is where the next attempt starts.
-  - `gpu_buffer_retirement_test` is only half the coverage for this, which was checked rather than
-    assumed: it asserts that a committed frame opens exactly one epoch and that a skipped frame opens
-    none, and then abandons the epoch it opened because it never submits. It would catch a reporting
-    point that fires at the wrong time, not one that never fires - and a callback-based report is
-    exactly the shape whose failure is "never fires".
-  - So the reporting point stays in `StartFrame` for now, where the wait that proves the frame finished
-    is. What a landable version needs is a test that submits, pumps, and checks the outstanding epoch
-    count dropped without `StartFrame` being involved - and a diagnosis of the `BeginEpoch` re-entrancy
+  - **Done, and the two stalled attempts before it had one cause: `DeviceContext::Submit` never
+    registered `on_complete` on this backend.** A callback that is never registered is never run, so
+    every frame leaked one epoch until the tracker's 64-epoch cap tripped - and that assertion raises
+    a message box, which is why it presented as a window that stopped responding at frame 65 rather
+    than as a leak. The debugger's `NtUserWaitMessage` under `BeginEpoch` was that box.
+  - What the change needed, in the order it was found: `Submit` registers the callback against the
+    fence it signals; `WaitForFence` pumps the callbacks once its wait succeeds (the header promised
+    it, the implementation did not); the slot's completions are pumped before its fence is reset,
+    because a wait that finds the fence already signalled never reaches the pump and the reset then
+    clears the signal a pending callback waits on; the epoch is captured **by value** at submit time
+    rather than read from the slot when the callback runs, since by then the next frame can own it;
+    and the callback reaches its owner through an `alive` flag rather than a raw `this`, because a
+    completion callback outlives the frame that registered it - without that, `project_loading_test`
+    crashed on the WebGPU backend while passing under a debugger.
+  - **The watermark is unchanged.** `gpu_buffer_retirement_test` passes with `Parked peak: 30` and
+    live allocations flat at 91 across ten grow/shrink cycles, the same shape as before the change,
+    with the report now coming from the callback. Vulkan 79 of 79, WebGPU 57 of 57.
 - [x] 10.2 Replace the blocking frame-slot wait with skip-and-retry and verify a busy slot skips the
   frame instead of blocking
   - `FrameManager::StartFrame(0)` returns "busy" (`~0u`) instead of throwing when the slot's fence
