@@ -178,6 +178,13 @@ namespace AppPhysics {
             if (slot_count == 0) {
                 return;
             }
+            // These four were mapped to be read. A mapped buffer cannot be a copy destination on
+            // this backend, so they are given back before the copy that fills them is recorded, and
+            // re-mapped when a caller reads them again.
+            pos_staging->ReleaseReadback();
+            rot_staging->ReleaseReadback();
+            linvel_staging->ReleaseReadback();
+            angvel_staging->ReleaseReadback();
             const size_t bytes = static_cast<size_t>(slot_count) * sizeof(glm::vec4);
             encoder.CopyBuffer(pos_src->GetBuffer(), pos_staging->GetBuffer(), bytes);
             encoder.CopyBuffer(rot_src->GetBuffer(), rot_staging->GetBuffer(), bytes);
@@ -309,6 +316,12 @@ namespace AppPhysics {
 
             write_staging[torque_idx]->Flush(0, static_cast<size_t>(slot_count) * sizeof(glm::vec4));
             any_dirty[torque_idx] = true;
+
+            // The two read-back buffers were mapped so they could be read. A mapped buffer cannot
+            // be the destination of the next step's copy, and this backend says so at submit rather
+            // than at the map, so they go back as soon as the reading is done.
+            rot_staging->ReleaseReadback();
+            angvel_staging->ReleaseReadback();
         }
 
         /// @brief Build the BodyId->slot mapping, allocate staging, and seed it.
@@ -1043,6 +1056,10 @@ namespace AppPhysics {
         if (id == INVALID_BODY_ID || id >= impl.body_to_slot.size()) {
             throw std::out_of_range("PhysicsApp: invalid BodyId");
         }
+        impl.pos_staging->PrepareReadback();
+        impl.rot_staging->PrepareReadback();
+        impl.linvel_staging->PrepareReadback();
+        impl.angvel_staging->PrepareReadback();
         const auto *pos = reinterpret_cast<const glm::vec4 *>(impl.pos_staging->GetVMAddress());
         const auto *rot = reinterpret_cast<const glm::vec4 *>(impl.rot_staging->GetVMAddress());
         const auto *lvel = reinterpret_cast<const glm::vec4 *>(impl.linvel_staging->GetVMAddress());

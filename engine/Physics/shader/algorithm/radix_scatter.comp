@@ -63,7 +63,10 @@ layout(set = 0, binding = 3) writeonly buffer PayloadOut {
 
 // The transposed histogram region of the caller's scratch buffer, already
 // exclusively scanned in place.
-layout(set = 0, binding = 4) readonly buffer Histogram {
+// Not readonly, though this shader only reads it: WebGPU tracks a buffer's usage per
+// submission, and the kernel that fills this one declares it writable. A binding that may be
+// written may still be read, and a reader that says "readonly" makes the two usages conflict.
+layout(set = 0, binding = 4) buffer Histogram {
     uint v[];
 } histogram;
 
