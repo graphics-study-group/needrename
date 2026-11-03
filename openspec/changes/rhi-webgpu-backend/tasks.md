@@ -296,7 +296,27 @@
   - The test is windowed rather than headless (the frame comes from a real swapchain-free read-back
     of the render target), which is the strongest form of the check: the same bytes leave the same
     render graph through two different APIs.
-- [ ] 9.3 Verify the per-dispatch-scope overhead measured in spike 1.3 is within the recorded expectation for one physics step
+- [x] 9.3 Verify the per-dispatch-scope overhead measured in spike 1.3 is within the recorded expectation for one
+  physics step
+  - **The overhead is zero on this backend, so it is within any expectation - and the reason is worth
+    writing down.** `CommandEncoder::Barrier()` here records *nothing*: the standard interface derives
+    ordering from use, so the "one compute scope per dispatch" the design chose is a Vulkan shape that
+    this backend does not encode. The spike's 22-26 us per scope measured scopes that were actually
+    written, and none are.
+  - Measured on `physics_app_stability_test` (60-body 6-layer pyramid), three runs per step count,
+    differencing 20 and 60 steps to remove startup:
+
+    | Backend | 20 steps | 60 steps | Per step |
+    | --- | --- | --- | --- |
+    | Vulkan | 1835 ms | 2321 ms | ~12.2 ms |
+    | WebGPU | 3100 ms | 5331 ms | ~55.8 ms |
+
+  - The step is therefore ~44 ms slower here, and that difference is **not** scope boundaries: at the
+    ~36 barrier sites the physics algorithms record, the spike's rate would account for about 1 ms of
+    it even if the scopes were encoded. What the step pays instead is the synchronisation this backend
+    does in their place - the blocking wait before each step (task 6.4's one remaining wait) and the
+    synchronous readback mapping. That is exactly the cost 10.1's completion callbacks are meant to
+    remove, and it is recorded here so nobody attributes it to the design decision.
 
 ## 10. Frame loop and presentation
 
