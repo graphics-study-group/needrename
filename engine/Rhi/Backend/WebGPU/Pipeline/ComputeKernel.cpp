@@ -1,6 +1,7 @@
 #include "Rhi/Pipeline/ComputeKernel.h"
 
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
+#include "Rhi/Backend/WebGPU/WgpuStructs.h"
 #include "Rhi/Buffer/DeviceBuffer.h"
 #include "Rhi/Device/DeviceContext.h"
 #include "Rhi/Pipeline/ShaderInterfaceDescription.h"
@@ -35,6 +36,7 @@ namespace Engine::Rhi {
         PipelineLayoutHandle pipeline_layout{};
         DescriptorSetLayoutHandle set_layout{};
         DescriptorSetLayoutRef set_layout_ref{};
+        std::map<uint32_t, DescriptorSetLayoutRef> set_layouts_by_index;
         ShaderInterfaceDescription description{};
         /// Name to the description entry that declares it, for matching a dispatch.
         std::map<std::string, const ShaderInterfaceBinding *> interface_by_name{};
@@ -115,19 +117,22 @@ namespace Engine::Rhi {
         }
 
         ImmutableResourceCache &cache = pimpl->device_context->GetIRCache();
-        std::vector<DescriptorSetLayoutHandle> set_layouts;
-        set_layouts.reserve(sets.size());
+        std::vector<DescriptorSetLayoutHandle> set_layouts(k_constant_bind_group);
+        for (auto &slot : set_layouts) {
+            slot = cache.GetDescriptorSetLayoutRef(DescriptorSetLayout{}, "Empty Descriptor Set Layout", true).handle;
+        }
         for (auto &[set_index, layout] : sets) {
-            static_cast<void>(set_index);
+            if (set_index >= k_constant_bind_group) {
+                continue;
+            }
             // One stage: these bindings belong to a compute pipeline, and a layout that also claims
             // the fragment stage is one the device may refuse for the number of storage buffers.
             const DescriptorSetLayoutRef resolved =
                 cache.GetDescriptorSetLayoutRef(layout, name.data(), true);
-            set_layouts.push_back(resolved.handle);
+            set_layouts[set_index] = resolved.handle;
+            pimpl->set_layouts_by_index[set_index] = resolved;
             if (!pimpl->set_layout_ref.handle.IsValid()) {
                 pimpl->set_layout_ref = resolved;
-                // The seam exposes one set layout through the getter; a kernel with several
-                // sets reports the first, which is the set its callers bind today.
                 pimpl->set_layout = resolved.handle;
             }
         }
@@ -222,11 +227,8 @@ namespace Engine::Rhi {
         const void *push,
         size_t push_size
     ) const {
-        if (push != nullptr && push_size != 0) {
-            throw std::logic_error(
-                "WebGPU: a parameter block is a uniform buffer here, not a push constant. "
-                "Dispatch with no value until the block binding is decided."
-            );
+        if (push != nullptr && push_size != 0 && !pimpl->description.has_constant_block) {
+            throw std::logic_error("WebGPU: kernel was dispatched with a parameter block it does not declare.");
         }
         if (!pimpl->pipeline.IsValid()) {
             throw std::logic_error("WebGPU: dispatching a kernel that was never created.");
@@ -293,11 +295,34 @@ namespace Engine::Rhi {
 
         // Re-acquire on every dispatch: the arena keys on content, so an identical dictionary
         // reuses one bind group and a changed one does not.
-        const DescriptorSetHandle set =
-            pimpl->device_context->GetDescriptorArena().Acquire(pimpl->set_layout_ref, 0, false, false, content);
-
         encoder.BindComputePipeline(pimpl->pipeline, pimpl->pipeline_layout);
-        encoder.BindDescriptorSet(0, set);
+        for (const auto &[set_index, layout_ref] : pimpl->set_layouts_by_index) {
+            std::vector<ResolvedBinding> entries;
+            for (const auto &[key, resource] : resources) {
+                static_cast<void>(resource);
+                auto itr = pimpl->interface_by_name.find(std::string{key});
+                if (itr == pimpl->interface_by_name.end() || itr->second->set != set_index) {
+                    continue;
+                }
+                for (const ResolvedBinding &entry : content) {
+                    if (entry.binding == itr->second->binding) {
+                        entries.push_back(entry);
+                        break;
+                    }
+                }
+            }
+            std::sort(entries.begin(), entries.end(), [](const ResolvedBinding &lhs, const ResolvedBinding &rhs) {
+                return lhs.binding < rhs.binding;
+            });
+            const DescriptorSetHandle set =
+                pimpl->device_context->GetDescriptorArena().Acquire(layout_ref, 0, false, false, entries);
+            encoder.BindDescriptorSet(set_index, set);
+        }
+        if (push != nullptr && push_size != 0) {
+            encoder.SetKernelParams(
+                std::span{static_cast<const std::byte *>(push), static_cast<size_t>(push_size)}
+            );
+        }
         encoder.DispatchCompute(group_count_x, group_count_y, group_count_z);
         encoder.EndComputePass();
     }
