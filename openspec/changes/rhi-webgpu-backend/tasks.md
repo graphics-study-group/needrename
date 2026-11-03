@@ -123,6 +123,7 @@
     - Setup-time one-time uploads (`CommitScene`, `SetBodyValue`) and `SwapchainPresentProvider`'s
       `waitIdle` on recreate - both off the per-frame path.
   - The three physics tests (physics-only, offscreen, friction) pass with the redundant wait gone.
+
 ## 7. Shader artifacts
 
 - [x] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact is accepted by a WGSL validator
