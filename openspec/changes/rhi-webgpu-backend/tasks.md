@@ -169,21 +169,23 @@
     exists: a host buffer of `k_constant_window`-sized windows, one per recorded block, written with
     `wgpuQueueWriteBuffer` before the submission that reads it and bound at set 1 with a dynamic
     offset.
-  - **An attempt to finish it stopped one step earlier than the ring.** Wiring the ring into the
-    compute path reached a kernel whose layout declares group 3 with the ring's own entry, and then
-    failed at something older: `ComputeKernel::DispatchAndRecord` puts *every* resource in **group
-    0**, whatever set its description declares. A layout built from the declaration then asks the
-    device for bind groups at 1..4 that nothing ever binds, and the dispatch is rejected - true with
-    or without a constant block.
-  - So the next step is per-set binding: group the resolved resources by declared `set`, keep every
-    set's layout by index in the kernel, acquire one bind group per group and bind it at that index.
-    Once the physics kernels' sets survive that, the constant ring's group is one more layout and
-    9.1's buffer comparison becomes possible. The experiment was reverted rather than half-landed.
-  - Two changes it proved are right and small, and are the first thing to re-apply: a dynamic
-    descriptor type must declare `hasDynamicOffset` (a dynamic uniform buffer laid out as a static
-    one is a bind group that cannot take the offset it is bound with), and the kernel's layout for
-    the constant group must match the ring's visibility exactly (`VERTEX | FRAGMENT | COMPUTE`), not
-    the compute-only visibility the rest of a kernel's groups use.
+  - **The compute path is closer than the earlier note said.** `GetPipelineLayout` already appends
+    the constant ring's group at index 3 whenever a kernel declares a push-constant range, so a
+    kernel hands it exactly three set layouts and lets it append the fourth. With that, and with the
+    kernel binding each set at the index its description declares instead of putting everything in
+    group 0, the physics solver **runs on the WebGPU backend**: the group it was refused at is the
+    ring's, and the pass binds it.
+  - Two more steps are known, in the order they appear:
+    1. *"Buffer 'RadixSort Histogram' with conflicting usages: STORAGE_READ_ONLY and
+       STORAGE_READ_WRITE"* - one kernel reads a buffer another writes, and the two layouts
+       disagree. A compute kernel can declare every storage buffer read-write: a writable binding
+       may still be read, and the compute stage has no rule against it.
+    2. *"Shader global ResourceBinding { group: 0, binding: 1 } is not available in the pipeline
+       layout"* for `XPBD ClearEntryValues` - the module declares more bindings than the description
+       lists, because the push and non-push variants of a kernel share a name while their
+       descriptions differ. The bake or the loader has to keep those apart.
+  - The experiment is reverted rather than half-landed; each step above is one small change with a
+    named error to reproduce it by.
   - A window is **zero-filled** before the block is copied in, because a shader reads its whole
     declared struct while every draw pushes fewer bytes than the block declares (the model matrix,
     not the two indices). Without that the tail of the struct is whatever the ring held there.
