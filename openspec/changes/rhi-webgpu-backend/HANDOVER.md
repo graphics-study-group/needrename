@@ -343,3 +343,29 @@ Both cost most of a session and neither was a code problem.
   `share/needrename/test_data`). Run the msvc suite with the variable **unset**; run the WebGPU
   suite with it **set** to `build/webgpu/stage/Debug`. Setting it for the msvc suite turns two
   passing tests red.
+## 0h. The brick-sphere artifact is not this backend's (open item)
+
+Reported: the `external_resource_loading_example` scene shows the sphere covered in thin lit
+streaks instead of the brick texture, and the ground shadow looks wrong.
+
+Measured, not argued:
+
+- The **same artifact is on Vulkan**. `evidence/vk-window-brick-scene.png` is an OS screenshot of
+  the Vulkan build's own window; the sphere is identically dark with the same meridian-shaped
+  slivers, and the ground shows the same soft blob.
+- It is **not the frame-completion change either**: with `FrameManager.cpp` and the Vulkan
+  `DeviceContext.cpp` reverted to the commit before it, the Vulkan window looks the same.
+- Textures are not the problem at upload time: every uploaded texture logs 512x512, **1 mip**, one
+  layer (plus the 1024x1024 six-layer skybox cubemap), and texture sampling demonstrably works on
+  both backends in `pbr_test`, `new_material_test`, `imgui_test` and the skybox golden.
+- The ground's brick *is* correct where the light reaches it (`evidence/vk-window-brick-scene-obj.png`
+  shows the brick dome and the brick plane both reading properly), so the texture path is fine and
+  what is wrong is the **sphere's shading**: it is unlit over almost its whole surface, with thin
+  lit slivers along its meridians - the signature of vertex normals arriving wrong (a UV/tangent
+  stream read in the normal's place produces exactly these meridian stripes).
+
+So the defect is shared code - the imported mesh's vertex attributes or the TBN the lit shader
+builds from them - and it predates this change. It is recorded here so the next session starts from
+the measurement instead of from the screenshot. The natural next probe is the `MeshAsset` vertex
+layout: what `AppendVertexAttribute` writes, and what offsets the material's `VertexAttribute`
+description hands the pipeline.
