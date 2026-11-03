@@ -28,6 +28,7 @@ endif()
 
 # Portable: it names only the seam's types, so it registers for every backend.
 anro_add_test(host_write_window_test FOLDER tests/engine/headless)
+anro_add_test(readback_state_machine_test FOLDER tests/engine/headless)
 
 
 anro_add_test(new_rendergraph_test FOLDER tests/engine/headless)
