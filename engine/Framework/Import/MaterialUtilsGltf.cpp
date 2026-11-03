@@ -370,6 +370,13 @@ namespace Engine::detail {
                 albedo_prop = MaterialProperty(albedo_ref, MaterialProperty::Type::Texture);
             }
             material_asset->m_properties["albedoSampler"] = albedo_prop;
+            // `baseColorFactor` multiplies the base colour texture, so it belongs in the material
+            // block whether or not the texture was there. It was never written here, and the lit
+            // shader does `texture(albedoSampler) * albedoFactor.rgb` - so a material that carried a
+            // texture had an albedo of zero and rendered black, while the same field was set on the
+            // default material and on the test materials. The warning in the log said so all along:
+            // "Cannot find variable of name Material::albedoFactor in the given structured buffer".
+            material_asset->m_properties["albedoFactor"] = base_color_factor;
 
             MaterialProperty mrao_prop;
             const bool has_mrao = try_load_texture_ref(
