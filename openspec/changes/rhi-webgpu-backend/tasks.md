@@ -92,7 +92,17 @@
     Fixing it is the work of design decision D8 - completion callbacks advancing the epoch
     watermark, a slot whose previous work is unfinished skipped rather than waited on - which
     is group 10.
-
+    Fixing it is the work of design decision D8 - completion callbacks advancing the epoch
+    watermark, a slot whose previous work is unfinished skipped rather than waited on - which
+    is group 10.
+  - **Attempted, and the obvious fix deadlocks.** The pre-wait was replaced with a GPU-side wait on
+    the frame semaphore (`GetDependency(GetExpectedTimepoints())`) added to the step's submission.
+    `physics_app_windowed_test` and `physics_app_actuator_stand_test` then timed out: between frames
+    the semaphore handed out is the *next* frame's, whose timepoints are only assigned when that
+    frame starts, so the step waited for a timepoint nothing would ever signal. The step's wait is
+    back on the CPU, and the remaining work is the one 10.1 describes - a dependency on the frame
+    that was actually submitted, which needs the frame's *submitted* timepoint kept, not the next
+    frame's semaphore.
 ## 7. Shader artifacts
 
 - [x] 7.1 Extend the shader baker with the WGSL variant and the interface description (binding table, variable offsets, constant-block metadata, combined-sampler split map) and verify a baked artifact is accepted by a WGSL validator
