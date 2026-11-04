@@ -460,3 +460,10 @@ image - so the screenshot is the current frame, not a stale compositor one. What
 demonstrated is the bodies moving: an identical image with and without a 240-step warm-up says either
 the solver is not changing anything the renderer reads, or the probe is the only thing that could
 have said so and it aborts. The numeric probe is the next step, not a picture.
+A measurement trap worth repeating: **compare the canvas, not the page.** A whole-page screenshot
+differs whenever the Emscripten status line differs - `Running...` against
+`Exception thrown, see JavaScript console` - so two runs can hash differently while the scene is
+identical, and the opposite conclusion gets drawn. Two runs with 240 and 600 warm-up steps hashed
+differently for exactly that reason while the drawn scene was unchanged, and six hundred steps of
+gravity would have moved the falling sphere if the simulation had been advancing. Crop to the canvas
+rectangle before comparing anything about the picture.
