@@ -18,6 +18,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <cstring>
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
@@ -160,6 +161,21 @@ int main(int argc, char **argv) {
 
     BuildScene(*g_app);
     g_app->CommitScene();
+#if defined(__EMSCRIPTEN__)
+    // A headless capture takes the first presented frame, so a run that has to show a settled scene
+    // steps the solver before rendering once: ?warmup=N in the page URL picks how many.
+    {
+        const char *search = emscripten_run_script_string("window.location.search");
+        const char *marker = search != nullptr ? std::strstr(search, "warmup=") : nullptr;
+        if (marker != nullptr) {
+            const int steps = std::atoi(marker + 7);
+            SDL_Log("physics example: warm-up %d steps before the first frame", steps);
+            for (int i = 0; i < steps; ++i) {
+                g_app->Step();
+            }
+        }
+    }
+#endif
     g_app->Resume();
     SDL_Log("physics example: scene committed, %u frames planned", g_frame_limit);
 
