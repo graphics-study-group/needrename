@@ -811,6 +811,7 @@ namespace AppPhysics {
 
     void PhysicsApp::Step() {
         auto &impl = *m_impl;
+        SDL_Log("step: entered (paused=%d)", impl.paused ? 1 : 0);
         if (impl.phase != Impl::Phase::Committed) {
             throw std::logic_error("PhysicsApp: Step called before CommitScene");
         }
@@ -862,6 +863,7 @@ namespace AppPhysics {
         const Rhi::Fence fence = Rhi::Fence::Create(dev_iface, false);
         Rhi::Submission submission{};
         submission.command_buffers.push_back(cb.GetHandle());
+        SDL_Log("step: submitting %zu command buffer(s)", submission.command_buffers.size());
         dc.Submit(submission, fence.GetHandle());
 #if defined(__EMSCRIPTEN__)
         // A page cannot block on the device: a work-done callback only arrives when the browser
