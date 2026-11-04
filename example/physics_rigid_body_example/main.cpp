@@ -94,8 +94,14 @@ namespace {
 
     /// One frame: advance the simulation and draw it.
     void Frame() {
+        if (g_frames < 3) {
+            SDL_Log("physics example: frame %u begins", g_frames);
+        }
         if (!g_app->IsPaused()) {
             g_app->Step();
+        }
+        if (g_frames < 3) {
+            SDL_Log("physics example: frame %u stepped", g_frames);
         }
         g_app->RenderNextFrame();
 
@@ -128,13 +134,6 @@ namespace {
     };
     const DataRootForBrowser g_data_root_for_browser{};
 
-    void BrowserFrame() {
-        Frame();
-        if (ShouldStop()) {
-            SDL_Log("physics example: %u frames, stopping", g_frames);
-            emscripten_cancel_main_loop();
-        }
-    }
 } // namespace
 #endif
 
@@ -160,16 +159,20 @@ int main(int argc, char **argv) {
     g_app->Resume();
     SDL_Log("physics example: scene committed, %u frames planned", g_frame_limit);
 
-#if defined(__EMSCRIPTEN__)
-    // The page owns the loop: `main` returns to the browser and this runs once per animation frame,
-    // which is what lets the WebGPU device callbacks and the canvas compositor make progress.
-    emscripten_set_main_loop(BrowserFrame, 0, true);
-#else
+    // One loop for both targets, which is the shape the engine's own `MainClass::LoopFinite` uses in
+    // a browser: a plain `while`, with a sleep on the web so each iteration hands control back to
+    // the page. `emscripten_set_main_loop` is not needed for that and was the reason none of the
+    // first attempts rendered a frame - the page returned to the browser and never called back in.
     while (!ShouldStop()) {
         Frame();
+#if defined(__EMSCRIPTEN__)
+        // The waits inside a frame are polls on wgpuInstanceProcessEvents, and this loop is what
+        // lets the browser run the callbacks those polls deliver; without the yield they never
+        // arrive and the first Step() spins for ever.
+        emscripten_sleep(1);
+#endif
     }
     SDL_Log("physics example: %u frames, done", g_frames);
-#endif
 
     return 0;
 }
