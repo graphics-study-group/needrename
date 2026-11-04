@@ -91,6 +91,21 @@ namespace {
 
         // Looking down at the stack from the front, close enough that the boxes fill the frame.
         app.SetCameraPose(glm::vec3(5.5f, -6.5f, 5.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+#if defined(__EMSCRIPTEN__)
+        // ?cam=N shifts the camera by N units: a capture that reflects it is a fresh capture, which
+        // is what separates a stale screenshot from a scene that did not move.
+        {
+            const char *search = emscripten_run_script_string("window.location.search");
+            const char *marker = search != nullptr ? std::strstr(search, "cam=") : nullptr;
+            if (marker != nullptr) {
+                const float offset = static_cast<float>(std::atof(marker + 4));
+                SDL_Log("physics example: camera offset %.2f", offset);
+                app.SetCameraPose(
+                    glm::vec3(5.5f + offset, -6.5f, 5.0f + offset), glm::vec3(0.0f, 0.0f, 1.0f)
+                );
+            }
+        }
+#endif
     }
 
     /// One frame: advance the simulation and draw it.
