@@ -863,9 +863,17 @@ namespace AppPhysics {
         Rhi::Submission submission{};
         submission.command_buffers.push_back(cb.GetHandle());
         dc.Submit(submission, fence.GetHandle());
+#if defined(__EMSCRIPTEN__)
+        // A page cannot block on the device: a work-done callback only arrives when the browser
+        // turns its event loop, and this thread is holding it. The submission is queued and the next
+        // readback waits for it through the map instead - which is what the browser build of
+        // `WaitForFence` does when it is handed a zero budget.
+        dc.WaitForFence(fence.GetHandle(), 0);
+#else
         if (!dc.WaitForFence(fence.GetHandle(), std::numeric_limits<uint64_t>::max())) {
             throw std::runtime_error("PhysicsApp: physics submission wait failed");
         }
+#endif
         // The completion signal of this step's own submission has been observed
         epoch_tracker.ReportComplete(step_epoch);
 
