@@ -29,4 +29,10 @@ if (EMSCRIPTEN)
         "SHELL:-sEXPORTED_RUNTIME_METHODS=FS"
     )
     target_compile_definitions(${ProjectId} PRIVATE ENGINE_DEV_DATA_ROOT_DIR="/")
+
+    # Known browser blocker, recorded here so it is not rediscovered: a bare MainClass target
+    # initialises fine in the browser (device ready, engine up), but once this target links
+    # PhysicsApp the WebGPU adapter callback traps with RuntimeError: null function. The desktop
+    # half of the same source runs and simulates correctly, so the fault is in the wasm link of the
+    # physics app archive, not in the scene or the loop.
 endif()
