@@ -15,10 +15,10 @@
 #include <gtc/quaternion.hpp>
 
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <cstring>
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
@@ -37,6 +37,8 @@ namespace {
     std::unique_ptr<PhysicsApp> g_app{};
     uint32_t g_frames{0};
     uint32_t g_frame_limit{kDefaultFrames};
+    /// True on the web, where the demo runs until the page is closed and `?frames=N` bounds it.
+    bool g_unlimited_frames{false};
     BodyId g_probe_body{INVALID_BODY_ID};
     glm::vec3 g_probe_start{};
 
@@ -100,9 +102,7 @@ namespace {
             if (marker != nullptr) {
                 const float offset = static_cast<float>(std::atof(marker + 4));
                 SDL_Log("physics example: camera offset %.2f", offset);
-                app.SetCameraPose(
-                    glm::vec3(5.5f + offset, -6.5f, 5.0f + offset), glm::vec3(0.0f, 0.0f, 1.0f)
-                );
+                app.SetCameraPose(glm::vec3(5.5f + offset, -6.5f, 5.0f + offset), glm::vec3(0.0f, 0.0f, 1.0f));
             }
         }
 #endif
@@ -110,17 +110,16 @@ namespace {
 
     /// One frame: advance the simulation and draw it.
     void Frame() {
-        SDL_Log("physics example: frame %u begins", g_frames);
         if (!g_app->IsPaused()) {
             g_app->Step();
         }
-        SDL_Log("physics example: frame %u stepped", g_frames);
         g_app->RenderNextFrame();
 
         ++g_frames;
-#if !defined(__EMSCRIPTEN__)
-        // The readback probe is a desktop diagnostic: reading a body's state maps a readback buffer,
-        // and a page cannot block on that map. The browser's evidence is the frame itself.
+        // The probe reads a body's state, which maps a readback buffer. On the web that map is a
+        // yield-and-wait (the GPU-side copy is queue-ordered after the step), so it is affordable
+        // on a log cadence - and it is the only thing that turns "the picture looks different"
+        // into "the bodies moved this far".
         if (g_probe_body != INVALID_BODY_ID && g_frames % kLogEveryFrames == 0) {
             const BodyState state = g_app->GetBodyState(g_probe_body);
             SDL_Log(
@@ -131,15 +130,10 @@ namespace {
                 glm::length(state.position - g_probe_start)
             );
         }
-#else
-        if (g_frames % kLogEveryFrames == 0) {
-            SDL_Log("physics example: frame %u simulated", g_frames);
-        }
-#endif
     }
 
     bool ShouldStop() {
-        return g_app->ShouldQuit() || g_frames >= g_frame_limit;
+        return g_app->ShouldQuit() || (!g_unlimited_frames && g_frames >= g_frame_limit);
     }
 } // namespace
 
@@ -161,6 +155,20 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         g_frame_limit = static_cast<uint32_t>(std::stoul(argv[1]));
     }
+#if defined(__EMSCRIPTEN__)
+    // A demo page keeps running; a headless capture bounds the run with `?frames=N` in the URL.
+    // The argument still wins when the shell supplies one.
+    g_unlimited_frames = argc <= 1;
+    {
+        const char *search = emscripten_run_script_string("window.location.search");
+        const char *marker = search != nullptr ? std::strstr(search, "frames=") : nullptr;
+        if (marker != nullptr) {
+            const uint32_t frames = static_cast<uint32_t>(std::atoi(marker + 7));
+            g_frame_limit = frames;
+            g_unlimited_frames = frames == 0u;
+        }
+    }
+#endif
 
     CreateInfo info{};
     info.mode = AppMode::Windowed;
@@ -192,7 +200,11 @@ int main(int argc, char **argv) {
     }
 #endif
     g_app->Resume();
-    SDL_Log("physics example: scene committed, %u frames planned", g_frame_limit);
+    if (g_unlimited_frames) {
+        SDL_Log("physics example: scene committed, running until the page closes");
+    } else {
+        SDL_Log("physics example: scene committed, %u frames planned", g_frame_limit);
+    }
 
     // One loop for both targets, which is the shape the engine's own `MainClass::LoopFinite` uses in
     // a browser: a plain `while`, with a sleep on the web so each iteration hands control back to

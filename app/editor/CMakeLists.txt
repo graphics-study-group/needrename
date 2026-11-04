@@ -5,7 +5,15 @@ file(GLOB_RECURSE HEADER "./*.h")
 list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
 
-add_library(EngineEditor SHARED ${SOURCE})
+# A browser has no shared libraries: Emscripten builds a SHARED target as a side module, and a
+# side module linked into a wasm image resolves its symbols to null - the first call through one
+# traps with RuntimeError: null function. The archive is what a static link needs, so the browser
+# gets one, exactly as PhysicsApp does.
+if (EMSCRIPTEN)
+    add_library(EngineEditor STATIC ${SOURCE})
+else()
+    add_library(EngineEditor SHARED ${SOURCE})
+endif()
 if(MSVC)
     # The editor code has no dllexport annotations; export all symbols on
     # Windows so an import library is produced (Linux .so exports by default).

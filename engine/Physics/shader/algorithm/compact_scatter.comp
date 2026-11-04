@@ -7,7 +7,7 @@
 // Each thread:
 //   reads original_flags[i]  (1 if this key is the first occurrence, 0 if duplicate)
 //   reads flag_offsets[i]    (compacted write position if unique)
-//   if original_flags[i] == 1, writes sorted_keys[i] to sorted_keys[flag_offsets[i]]
+//   if original_flags[i] == 1, writes its key to sorted_keys[flag_offsets[i]]
 //
 // The last thread writes the total unique count to count_buf[0]:
 //   total = flag_offsets[N-1] + original_flags[N-1]
@@ -16,30 +16,28 @@
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-// Not readonly: the compaction reads and writes the same buffer, and WebGPU tracks a buffer's
-// usage per submission - readonly next to a writable binding of it is a conflict.
+// One binding, read and written in place. WebGPU forbids two storage bindings of the same buffer
+// in one dispatch when either is writable, so "SortedKeys + CompactKeys" pointing at the same
+// buffer is not expressible there. The compaction is in place by construction (a unique key moves
+// to its rank, which is never above its index), so one binding is also the honest shape.
 layout(set = 0, binding = 0) buffer SortedKeys {
     uint v[];
 } sorted_keys;
 
-layout(set = 0, binding = 1) writeonly buffer CompactKeys {
-    uint v[];
-} compact_keys;
-
-layout(set = 0, binding = 2) readonly buffer OriginalFlags {
+layout(set = 0, binding = 1) readonly buffer OriginalFlags {
     uint v[];
 } original_flags;
 
-layout(set = 0, binding = 3) readonly buffer FlagOffsets {
+layout(set = 0, binding = 2) readonly buffer FlagOffsets {
     uint v[];
 } flag_offsets;
 
-layout(set = 0, binding = 4) buffer UniqueCount {
+layout(set = 0, binding = 3) buffer UniqueCount {
     uint v[];
 } unique_count;
 
 // Actual element count, written by an earlier GPU pass — read at execution time.
-layout(set = 0, binding = 5) readonly buffer ElemCount {
+layout(set = 0, binding = 4) readonly buffer ElemCount {
     uint count;
 } elem_count;
 
@@ -51,7 +49,7 @@ void main() {
     uint offset = flag_offsets.v[idx];
 
     if (orig_flag != 0u) {
-        compact_keys.v[offset] = sorted_keys.v[idx];
+        sorted_keys.v[offset] = sorted_keys.v[idx];
     }
 
     // Last thread writes total unique count.

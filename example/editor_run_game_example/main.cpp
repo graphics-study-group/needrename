@@ -2,11 +2,17 @@
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <charconv>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <limits>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
@@ -24,6 +30,7 @@
 #include <Physics/PhysicsScene.h>
 #include <Physics/PhysicsSystem.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/UserInterface/GUISystem.h>
 #include <SDL3/SDL.h>
 
@@ -38,6 +45,26 @@
 #include "meta_editor_run_game_example/reflection_init.inc"
 
 using namespace Engine;
+
+#if defined(__EMSCRIPTEN__)
+namespace {
+    /// The engine resolves its data root by looking next to the executable. A page has no such
+    /// place, so the tree is preloaded at `/` and the root is pointed there.
+    struct DataRootForBrowser {
+        DataRootForBrowser() {
+            setenv("NEEDRENAME_DATA_ROOT", "/", 0);
+        }
+    };
+    const DataRootForBrowser g_data_root_for_browser{};
+
+    /// A frame bound from the page URL, used by a headless capture: `?frames=N`.
+    int64_t BrowserFrameLimit() {
+        const char *search = emscripten_run_script_string("window.location.search");
+        const char *marker = search != nullptr ? std::strstr(search, "frames=") : nullptr;
+        return marker != nullptr ? std::atoll(marker + 7) : 0;
+    }
+} // namespace
+#endif
 
 namespace {
     struct ExampleOptions {
@@ -143,16 +170,24 @@ int RunExample(int argc, char **argv) {
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    int displayIndex = 1;
-    auto displayMode = SDL_GetDesktopDisplayMode(displayIndex);
+    int screenWidth = 1280;
+    int screenHeight = 720;
+#if defined(__EMSCRIPTEN__)
+    // A page has exactly one display, and its reported size is the browser window's; the engine
+    // sizes the canvas from these numbers, so they are the page's viewport rather than a mode.
+#else
+    // Prefer the second monitor when there is one (the editor was written for a dual-head setup),
+    // and fall back to the primary when there is not.
+    auto displayMode = SDL_GetDesktopDisplayMode(1);
     if (displayMode == nullptr) {
-        SDL_Log("Failed to get display mode: %s", SDL_GetError());
-        SDL_Quit();
-        return -1;
+        displayMode = SDL_GetDesktopDisplayMode(0);
     }
-    int screenWidth = displayMode->w;
-    int screenHeight = displayMode->h;
-    SDL_Log("Screen Resolution: %dx%d @ %fHz", screenWidth, screenHeight, displayMode->refresh_rate);
+    if (displayMode != nullptr) {
+        screenWidth = displayMode->w;
+        screenHeight = displayMode->h;
+    }
+    SDL_Log("Screen Resolution: %dx%d", screenWidth, screenHeight);
+#endif
     StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Editor"};
 
     ResetExampleProject(project_template_path, project_path);
@@ -196,8 +231,17 @@ int RunExample(int argc, char **argv) {
 
     auto rgb = std::make_unique<Editor::EditorRenderGraphBuilder>(*cmc->GetRenderSystem());
     RGTextureHandle final_color_id, scene_color_id, game_color_id;
+    // Build the graph at the size the window actually presents at, not at the display's size: the
+    // final target is copied into the surface, and a mismatch would present a sub-rectangle.
+    const Rhi::Extent2D present_extent = rsys->GetPresentProvider().GetExtent();
     auto rg = rgb->BuildEditorRenderGraph(
-        screenWidth, screenHeight, scene_widget.get(), game_widget.get(), scene_color_id, game_color_id, final_color_id
+        present_extent.width,
+        present_extent.height,
+        scene_widget.get(),
+        game_widget.get(),
+        scene_color_id,
+        game_color_id,
+        final_color_id
     );
 
     auto scene_texture = rg->GetInternalTextureResource(scene_color_id);
@@ -220,8 +264,24 @@ int RunExample(int argc, char **argv) {
 
     bool onQuit = false;
     int64_t frame_count = 0;
-    while (!onQuit && frame_count < options.max_frame_count) {
+    int64_t max_frames = options.max_frame_count;
+#if defined(__EMSCRIPTEN__)
+    // A page has no command line the shell can set from a URL, and a headless capture needs a
+    // finite run; `?frames=N` is that bound. Without it the editor runs until the page is closed.
+    if (max_frames == std::numeric_limits<int64_t>::max()) {
+        const int64_t browser_limit = BrowserFrameLimit();
+        if (browser_limit > 0) {
+            max_frames = browser_limit;
+        }
+    }
+#endif
+    while (!onQuit && frame_count < max_frames) {
         ++frame_count;
+#if defined(__EMSCRIPTEN__)
+        // This loop is what turns the page: the frame's waits poll the WebGPU instance, and a
+        // browser only delivers those callbacks once control returns to it.
+        emscripten_sleep(1);
+#endif
         cmc->GetTimeSystem()->NextFrame();
 
         asys->LoadAssetsInQueue();
@@ -311,8 +371,3 @@ int RunExample(int argc, char **argv) {
     CleanupProject(project_path, options.keep_project);
     return 0;
 }
-
-
-
-
-

@@ -5,11 +5,11 @@
 #include "Render/RenderSystem.h"
 
 #if defined(ENGINE_RHI_BACKEND_VULKAN)
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Render/RenderSystem/IPresentProvider.h"
-#include "Rhi/Device/DeviceInterface.h"
-#include "Rhi/Backend/Vulkan/VulkanStructs.h"
+#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include "Rhi/Backend/Vulkan/VulkanImageUtils.h"
+#include "Rhi/Backend/Vulkan/VulkanStructs.h"
+#include "Rhi/Device/DeviceInterface.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -92,9 +92,7 @@ namespace Engine {
     void GUISystem::DrawGUI(Rhi::CommandEncoder &encoder) const noexcept {
         ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(
-            ImGui::GetDrawData(),
-            static_cast<VkCommandBuffer>(Rhi::ToVulkanCommandBuffer(encoder.GetHandle())),
-            nullptr
+            ImGui::GetDrawData(), static_cast<VkCommandBuffer>(Rhi::ToVulkanCommandBuffer(encoder.GetHandle())), nullptr
         );
     }
 
@@ -107,9 +105,7 @@ namespace Engine {
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
-    void GUISystem::CreateBackend(
-        RenderSystem &render_system, Rhi::ImageFormat color_format, uint8_t samples
-    ) {
+    void GUISystem::CreateBackend(RenderSystem &render_system, Rhi::ImageFormat color_format, uint8_t samples) {
         const vk::Format color_attachment_format = Rhi::GetVkFormat(color_format);
 
         if (pimpl->vkr.descriptor_pool) {
@@ -123,7 +119,8 @@ namespace Engine {
             vk::DescriptorPoolCreateInfo dpci{
                 vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1000, pimpl->vkr.DESCRIPTOR_POOL_SIZES
             };
-            pimpl->vkr.descriptor_pool = ToVulkanDevice(render_system.GetDeviceInterface().GetDevice()).createDescriptorPoolUnique(dpci);
+            pimpl->vkr.descriptor_pool =
+                ToVulkanDevice(render_system.GetDeviceInterface().GetDevice()).createDescriptorPoolUnique(dpci);
         }
 
         const auto &present_provider = render_system.GetPresentProvider();
@@ -137,8 +134,7 @@ namespace Engine {
         info.MinImageCount = info.ImageCount;
         info.UseDynamicRendering = true;
 
-        const vk::Format present_format =
-            Rhi::GetVkFormat(render_system.GetPresentProvider().GetColorFormat());
+        const vk::Format present_format = Rhi::GetVkFormat(render_system.GetPresentProvider().GetColorFormat());
         std::array<vk::Format, 1> formats = {
             {color_attachment_format == vk::Format::eUndefined ? present_format : color_attachment_format}
         };
@@ -180,17 +176,23 @@ namespace Engine {
         };
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }
+
+    ImTextureID GUISystem::AddTexture(const Rhi::Texture &texture) {
+        // This backend registers a descriptor set per image: the view and sampler the texture owns
+        // are written into it, in the layout a sampled read expects.
+        return reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
+            Rhi::ToVulkanSampler(texture.GetSampler()),
+            Rhi::ToVulkanImageView(texture.GetImageView()),
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        ));
+    }
+
+    void GUISystem::RemoveTexture(ImTextureID texture_id) {
+        if (texture_id == ImTextureID_Invalid) {
+            return;
+        }
+        ImGui_ImplVulkan_RemoveTexture(reinterpret_cast<VkDescriptorSet>(texture_id));
+    }
 } // namespace Engine
-
-
-
-
-
-
-
-
-
-
-
 
 #endif

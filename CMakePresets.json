@@ -47,7 +47,7 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install-emscripten",
                 "ENGINE_RHI_BACKEND": "webgpu",
-                "ENGINE_BUILD_APPS": "OFF",
+                "ENGINE_BUILD_APPS": "ON",
                 "ENGINE_BUILD_DOCS": "OFF",
                 "ENGINE_BUILD_TESTS": "OFF",
                 "ENGINE_SHADER_MODE": "spv",

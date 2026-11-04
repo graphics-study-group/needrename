@@ -1,12 +1,15 @@
 # Handover
-has to be passed once because the Dawn build is not on `PATH`.
+
+The WebGPU build needs a SPIR-V to WGSL converter (`SHADER_WGSL_CONVERTER`) that has to be passed
+once because the Dawn build is not on `PATH`.
 
 ## Where it stands in one sentence
 
 The engine's own scene draws and presents through the WebGPU backend on desktop - the full
 windowed example runs to its last frame and the surface image it presents is the frame it
 rendered - the skybox test's WebGPU frame is byte-for-byte the frame Vulkan produces, and the
-browser page draws the same scene into its canvas with the material path reading the bake's description where a build has no reflection library.
+browser runs both the rigid-body example (bodies fall and roll, 2.2 -> 5.5 m of probe travel) and
+the editor (dockspace, scene, Play mode) in the canvas.
 
 ---
 
@@ -467,3 +470,83 @@ identical, and the opposite conclusion gets drawn. Two runs with 240 and 600 war
 differently for exactly that reason while the drawn scene was unchanged, and six hundred steps of
 gravity would have moved the falling sphere if the simulation had been advancing. Crop to the canvas
 rectangle before comparing anything about the picture.
+## 0i. The browser runs the physics example and the editor
+
+Measured 2026-11-04 on this branch. Both pages work end to end, and what was actually in the way was
+four defects and a build gate, not a missing feature.
+
+### What the pages do
+
+- `physics_rigid_body_example.html`: the five-layer box stack and the two spheres simulate in the
+  canvas. The probe logs `frame 60, probe z 1.778 (started 4.000), moved 2.222 m`, then `moved`
+  climbs to 5.5 m over later samples while the sphere rolls; the capture shows the collapsed stack.
+  It ran 480+ frames in a 20 s wall clock in headless Edge (about 24 fps at 1280x720, no vsync).
+- `editor_run_game_example.html`: the dockspace, Hierarchy/Scene/Game/Inspector/Project widgets and
+  the rendered scene are in the canvas, and clicking Start puts the editor into Play mode (the
+  button reads Stop) with physics running in the page.
+
+### The four defects, in the order they were found
+
+1. **One buffer bound to two storage bindings of one dispatch.** WebGPU rejects it (Chrome:
+   `Writable storage buffer binding aliasing ...`), and the rejection invalidates the whole physics
+   command buffer, so the solver never ran and the scene was static. Four shader families did it,
+   each for a different reason:
+   - `parallel_scan.comp` / `add_block_offset.comp` scanned in place through `InputData` +
+     `OutputData`; an in-place scan is now `parallel_scan_inplace.comp`, one read-write binding, and
+     the block sums alternate between two buffers so the recursion never binds its data as its own
+     block sums. The two-buffer form stays for a caller with distinct buffers (no transfer copy
+     needed, so the Vulkan barrier story is unchanged).
+   - `compact_scatter.comp` bound `SortedKeys` and `CompactKeys` to one buffer; it is one binding now.
+   - `sum_by_key_body.glsl` bound its record keys and values as two views of one record buffer, and
+     a level read the previous region while writing its own region of that buffer; each level now
+     owns a key buffer and a value buffer, and the bindings a level does not write point at sinks.
+   - `radix_scatter.comp` bound the key array as `PayloadIn` / `PayloadOut` when the caller had no
+     payload; a dedicated placeholder plus an always-allocated payload partner make every binding a
+     distinct buffer.
+   **The guard is the part to keep:** `ComputeKernel::DispatchAndRecord` now rejects two storage
+   bindings of one buffer when either is writable, so the desktop WebGPU build fails like Chrome.
+   It found the `SumByKey` and `RadixScatter` sites after the hand-written fixes had already been
+   made - wgpu-native accepts all of them silently.
+2. **A read-mode mapping read with the mutable accessor.** emdawnwebgpu rejects
+   `wgpuBufferGetMappedRange` on a `WGPUMapMode_Read` mapping ("Mapping is read-only. Use
+   GetConstMappedRange instead.") and returns null; the null left the map pending, and the next
+   `GetVMAddress` issued a second map request, which aborts the page with
+   `mPendingMapRequest.mode == WGPUMapMode_None`. `PrepareReadback`, `GetVMAddress` and the surface
+   capture now use `wgpuBufferGetConstMappedRange`.
+3. **The editor was gated out of every non-Vulkan build, and reached Vulkan directly.** It is
+   built for the selected backend now: `EngineEditor` is a static archive on Emscripten (the same
+   side-module trap `PhysicsApp` hit), the four files that included `vulkan/vulkan.hpp` /
+   `Rhi/Backend/Vulkan/...` / `imgui_impl_vulkan.h` no longer do, and the RTT-as-ImGui-image path
+   goes through `GUISystem::AddTexture` / `RemoveTexture`, whose WebGPU implementation hands back the
+   texture view as the id.
+4. **The editor's browser host code.** `SDL_GetDesktopDisplayMode(1)` has no display 1 on the web
+   (SDL3's Emscripten driver adds exactly one), the page has no data root to resolve next to an
+   executable, and the main loop never yielded. The example now falls back to display 0, sets
+   `NEEDRENAME_DATA_ROOT=/` under a preloaded tree, sizes the render graph from the present extent
+   rather than the display, and yields once per frame with `emscripten_sleep(1)`.
+
+Also worth keeping: `SignalSemaphore` is reported once rather than once per frame, and the physics
+example's per-frame `SDL_Log` diagnostics are gone - they cost real time in the browser and hid the
+probe lines.
+
+### How it was driven, and what to copy
+
+A page with a frame loop never "finishes", so `--screenshot` is the wrong tool. Launch Edge with
+`--remote-debugging-port` and drive it:
+
+```powershell
+node tools/dsh/cdp_shot.mjs http://127.0.0.1:9223 "http://127.0.0.1:8098/physics_rigid_body_example.html" out.png 20000 1280 1000
+```
+
+`?frames=N` bounds the physics example (it runs until the page closes otherwise), `?warmup=N` steps
+before the first frame, `?cam=N` shifts the camera so a capture proves it is fresh. The editor takes
+`?frames=N` too; without it, it runs until the page closes.
+
+### What is still not covered
+
+- No automated browser test: ctest runs no wasm, and these two runs are still manual captures plus
+  the console. The probe line is the assertion a script could read.
+- The WebGPU desktop validation build cannot reproduce a Chrome-only rule; the new guard is what
+  stands in for it, and it only covers compute storage-buffer aliasing.
+- The editor's MEMFS project (`temp_project`) is per-page-load: edits, imports and new folders are
+  lost on refresh until the project tree is mounted on IDBFS.

@@ -5,9 +5,12 @@ must not do inside a scope. It is written to be checked against the code rather
 than admired: every row names the header it lives in and the behaviour a backend
 has to reproduce.
 
-Status: the Vulkan column is what the engine does today. The WebGPU column is what
-`Backend/WebGPU/` must do; it is **designed, not implemented** - `Backend/WebGPU/`
-is empty, and this document says so rather than implying otherwise.
+Status: both columns are implemented. `Backend/Vulkan/` and `Backend/WebGPU/` each provide the
+whole contract, the two build shapes compile the same `Backend/WebGPU/` sources, and the desktop
+validation build runs the same tests as Vulkan where the test does not name a backend. The
+restrictions below are enforced where a backend can: rule 3 in particular is rejected by
+`ComputeKernel::DispatchAndRecord` on WebGPU, because wgpu-native would otherwise accept what a
+browser refuses.
 
 ## Objects the seam owns
 
@@ -74,7 +77,12 @@ against the seam today does not have to be rewritten later.
    allows binding a pipeline mid-pass; the WebGPU path rebinds at scope boundaries,
    which is why every dispatch gets its own scope.
 3. **No reading a resource the scope writes.** The same rule both APIs state; the
-   seam does not relax it.
+   seam does not relax it. On this backend it is a binding-level rule, not a
+   range-level one: one buffer reached through two storage bindings of a dispatch is
+   rejected when either binding is writable, even when the ranges are disjoint - so an
+   in-place algorithm needs one read-write binding, not an input and an output binding
+   of the same buffer. `ComputeKernel::DispatchAndRecord` rejects the aliasing for the
+   same reason, because wgpu-native accepts it and a browser does not.
 4. **No host wait inside a frame.** A frame's work is ordered with submissions and
    fences; waiting inside one is what the mapped-window and readback designs exist
    to avoid.

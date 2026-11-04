@@ -3,6 +3,10 @@
 > longer record of how it got there, and the section
 > "Handover: what is done, what is not, and what the next session should not redo" near the end is
 > an earlier version of the same material.
+>
+> **The state below is a snapshot from the pass it was written in** - when `Backend/WebGPU/` was
+> still empty and 24 of 51 tasks were checked. The backend is implemented and every task is
+> checked now; HANDOVER 0i records the browser runs. Read the counts here as history, not status.
 # Where this change stands
 
 Written to be read before the code, by someone deciding what to do next. It says

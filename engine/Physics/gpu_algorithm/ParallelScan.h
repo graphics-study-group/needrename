@@ -37,8 +37,12 @@ namespace Engine {
      *      read from the sub-block region without aliasing data)
      *   3. add_block_offset shader: add prefix-summed block offsets back to data
      *
-     * Input and output buffers are always separate bindings.  The caller may
-     * pass the same Rhi::ComputeBuffer for both to achieve in-place scan.
+     * Input and output buffers may be the same `Rhi::ComputeBuffer`, which is an
+     * in-place scan. The class picks the kernel shape from that: an in-place
+     * scan uses a one-binding read-write shader, a distinct pair uses a
+     * two-binding one. WebGPU forbids one buffer reached through two storage
+     * bindings of a dispatch, so the shape is chosen rather than expressed with
+     * two aliasing bindings.
      *
      * The instance holds no geometry: a call supplies its own element count, so
      * one instance serves any number of scans within a single frame.  Because
@@ -80,7 +84,10 @@ namespace Engine {
          *                     nothing.
          */
         void Record(
-            Rhi::CommandEncoder &encoder, Rhi::ComputeBuffer &input_buf, Rhi::ComputeBuffer &output_buf, uint32_t elem_count
+            Rhi::CommandEncoder &encoder,
+            Rhi::ComputeBuffer &input_buf,
+            Rhi::ComputeBuffer &output_buf,
+            uint32_t elem_count
         );
 
     private:
@@ -90,4 +97,3 @@ namespace Engine {
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_GPU_ALGORITHM_PARALLELSCAN_INCLUDED
-

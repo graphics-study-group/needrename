@@ -4,7 +4,6 @@
 #include "Asset/AssetRef.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include <memory>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     namespace Rhi {

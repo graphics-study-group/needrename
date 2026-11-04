@@ -127,8 +127,7 @@ namespace Engine::Rhi {
             }
             // One stage: these bindings belong to a compute pipeline, and a layout that also claims
             // the fragment stage is one the device may refuse for the number of storage buffers.
-            const DescriptorSetLayoutRef resolved =
-                cache.GetDescriptorSetLayoutRef(layout, name.data(), true);
+            const DescriptorSetLayoutRef resolved = cache.GetDescriptorSetLayoutRef(layout, name.data(), true);
             set_layouts[set_index] = resolved.handle;
             pimpl->set_layouts_by_index[set_index] = resolved;
             if (!pimpl->set_layout_ref.handle.IsValid()) {
@@ -146,9 +145,7 @@ namespace Engine::Rhi {
             // The size the caller is held to is the block the bake recorded: a kernel's `Dispatch`
             // asserts that what it pushes fits, and a size of zero would refuse every push.
             pimpl->parameter_block_size = description.constant_block.size;
-            constant_ranges.push_back(
-                Rhi::PushConstantRange{0, description.constant_block.size, true}
-            );
+            constant_ranges.push_back(Rhi::PushConstantRange{0, description.constant_block.size, true});
         }
         const PipelineLayoutDescription layout_description{
             .set_layouts = set_layouts, .push_constant_ranges = constant_ranges
@@ -239,7 +236,6 @@ namespace Engine::Rhi {
             return;
         }
 
-
         // Match every supplied name against the description, then order by binding number:
         // the arena keys a bind group on its content, so the caller's dictionary order must
         // not leak into the entries it is handed.
@@ -256,10 +252,9 @@ namespace Engine::Rhi {
             ResolvedBinding binding{};
             binding.binding = declared.binding;
             binding.type = ShaderInterfaceDescription::ToDescriptorType(declared.kind);
-            const bool is_image = binding.type == DescriptorType::CombinedImageSampler
-                                  || binding.type == DescriptorType::SampledImage
-                                  || binding.type == DescriptorType::StorageImage
-                                  || binding.type == DescriptorType::Sampler;
+            const bool is_image =
+                binding.type == DescriptorType::CombinedImageSampler || binding.type == DescriptorType::SampledImage
+                || binding.type == DescriptorType::StorageImage || binding.type == DescriptorType::Sampler;
             if (is_image) {
                 if (resource.kind != ComputeKernelResource::Kind::Texture) {
                     throw std::runtime_error(
@@ -293,6 +288,52 @@ namespace Engine::Rhi {
             return lhs.binding < rhs.binding;
         });
 
+        // WebGPU rejects a dispatch that reaches one buffer through two storage bindings when
+        // either of them is writable ("writable storage buffer binding aliasing"). Vulkan accepts
+        // it, and wgpu-native accepts it too, so a browser-only rule would otherwise stay
+        // undiscovered until the page runs it. Checking it here makes the desktop validation build
+        // fail the same way the browser does.
+        {
+            struct StorageUse {
+                uint32_t set{0};
+                uint32_t binding{0};
+                std::string name{};
+                bool read_only{true};
+            };
+            std::map<uint64_t, StorageUse> uses;
+            for (const auto &[key, resource] : resources) {
+                auto itr = pimpl->interface_by_name.find(std::string{key});
+                if (itr == pimpl->interface_by_name.end()) {
+                    continue; // already reported above
+                }
+                const ShaderInterfaceBinding &declared = *itr->second;
+                if (declared.kind != "storage-buffer") {
+                    continue;
+                }
+                const StorageUse use{declared.set, declared.binding, declared.name, declared.storage_read_only};
+                const uint64_t identity = resource.buffer.ref.id.GetValue();
+                const auto [existing, inserted] = uses.emplace(identity, use);
+                if (!inserted && (!existing->second.read_only || !use.read_only)) {
+                    throw std::runtime_error(
+                        std::format(
+                            "WebGPU: compute kernel '{}' binds one buffer (identity {}) to two storage "
+                            "bindings of one dispatch - set {} binding {} ('{}') and set {} binding {} "
+                            "('{}') - and at least one is writable. WebGPU forbids that aliasing; use "
+                            "one read-write binding or two buffers.",
+                            pimpl->name,
+                            identity,
+                            existing->second.set,
+                            existing->second.binding,
+                            existing->second.name,
+                            use.set,
+                            use.binding,
+                            use.name
+                        )
+                    );
+                }
+            }
+        }
+
         // Re-acquire on every dispatch: the arena keys on content, so an identical dictionary
         // reuses one bind group and a changed one does not.
         encoder.BindComputePipeline(pimpl->pipeline, pimpl->pipeline_layout);
@@ -319,9 +360,7 @@ namespace Engine::Rhi {
             encoder.BindDescriptorSet(set_index, set);
         }
         if (push != nullptr && push_size != 0) {
-            encoder.SetKernelParams(
-                std::span{static_cast<const std::byte *>(push), static_cast<size_t>(push_size)}
-            );
+            encoder.SetKernelParams(std::span{static_cast<const std::byte *>(push), static_cast<size_t>(push_size)});
         }
         encoder.DispatchCompute(group_count_x, group_count_y, group_count_z);
         encoder.EndComputePass();

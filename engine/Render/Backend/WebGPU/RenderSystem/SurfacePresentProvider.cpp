@@ -85,8 +85,7 @@ namespace Engine::RenderSystemState {
 
     SurfacePresentProvider::SurfacePresentProvider(
         const Rhi::DeviceInterface &device_interface, SDL_Window *window, Rhi::Extent2D extent
-    ) :
-        pimpl(std::make_unique<impl>()) {
+    ) : pimpl(std::make_unique<impl>()) {
         pimpl->instance = Rhi::ToWgpuInstance(device_interface.GetInstance());
         pimpl->adapter = Rhi::ToWgpuAdapter(device_interface.GetPhysicalDevice());
         pimpl->device = Rhi::ToWgpuDevice(device_interface.GetDevice());
@@ -173,7 +172,11 @@ namespace Engine::RenderSystemState {
     namespace {
         /// @brief Write a tight 24-bit BMP, converting the surface's channel order.
         void WriteBmp(
-            const std::string &path, const std::byte *pixels, uint32_t width, uint32_t height, uint32_t row_pitch,
+            const std::string &path,
+            const std::byte *pixels,
+            uint32_t width,
+            uint32_t height,
+            uint32_t row_pitch,
             bool bgra
         ) {
             const uint32_t row_bytes = width * 3u;
@@ -189,13 +192,56 @@ namespace Engine::RenderSystemState {
                 return static_cast<uint8_t>((value >> shift) & 0xFFu);
             };
             const uint8_t header[54] = {
-                'B', 'M', byte_at(file_size, 0), byte_at(file_size, 8), byte_at(file_size, 16), byte_at(file_size, 24),
-                0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0,
-                byte_at(width, 0), byte_at(width, 8), byte_at(width, 16), byte_at(width, 24),
-                byte_at(height, 0), byte_at(height, 8), byte_at(height, 16), byte_at(height, 24),
-                1, 0, 24, 0, 0, 0, 0, 0,
-                byte_at(image_bytes, 0), byte_at(image_bytes, 8), byte_at(image_bytes, 16), byte_at(image_bytes, 24),
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                'B',
+                'M',
+                byte_at(file_size, 0),
+                byte_at(file_size, 8),
+                byte_at(file_size, 16),
+                byte_at(file_size, 24),
+                0,
+                0,
+                0,
+                0,
+                54,
+                0,
+                0,
+                0,
+                40,
+                0,
+                0,
+                0,
+                byte_at(width, 0),
+                byte_at(width, 8),
+                byte_at(width, 16),
+                byte_at(width, 24),
+                byte_at(height, 0),
+                byte_at(height, 8),
+                byte_at(height, 16),
+                byte_at(height, 24),
+                1,
+                0,
+                24,
+                0,
+                0,
+                0,
+                0,
+                0,
+                byte_at(image_bytes, 0),
+                byte_at(image_bytes, 8),
+                byte_at(image_bytes, 16),
+                byte_at(image_bytes, 24),
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
             };
             file.write(reinterpret_cast<const char *>(header), sizeof(header));
             for (uint32_t y = 0; y < height; y++) {
@@ -322,11 +368,11 @@ namespace Engine::RenderSystemState {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU surface: the frame capture could not be read back.");
             return;
         }
-        const auto *pixels = static_cast<const std::byte *>(
-            wgpuBufferGetMappedRange(pimpl->capture, 0, pimpl->capture_size)
-        );
-        const bool bgra = pimpl->format == WGPUTextureFormat_BGRA8Unorm
-                          || pimpl->format == WGPUTextureFormat_BGRA8UnormSrgb;
+        // Read-mode mapping: this port only hands out the const range for it.
+        const auto *pixels =
+            static_cast<const std::byte *>(wgpuBufferGetConstMappedRange(pimpl->capture, 0, pimpl->capture_size));
+        const bool bgra =
+            pimpl->format == WGPUTextureFormat_BGRA8Unorm || pimpl->format == WGPUTextureFormat_BGRA8UnormSrgb;
 #if defined(__EMSCRIPTEN__)
         // A page cannot hand a file back, so what it can say is whether the captured frame has any
         // colour in it at all: a black canvas that is black in the capture is a recording that drew
@@ -360,10 +406,7 @@ namespace Engine::RenderSystemState {
     }
 
     Rhi::CommandBufferHandle SurfacePresentProvider::PrepareCopy(
-        Rhi::DeviceHandle,
-        const RenderTargetTexture &final_rtt,
-        uint32_t,
-        Rhi::MemoryAccessTypeImageBits
+        Rhi::DeviceHandle, const RenderTargetTexture &final_rtt, uint32_t, Rhi::MemoryAccessTypeImageBits
     ) {
         // The frame this provider copied out on its previous call has been presented by now, so
         // the surface image it was taken from is free to be read back.
@@ -413,9 +456,8 @@ namespace Engine::RenderSystemState {
             // What is read back is normally the surface image - the frame the window shows. A
             // diagnosis can ask for the render target instead, which says whether a black window
             // is a recording that drew nothing or a copy that lost what was drawn.
-            const bool capture_target =
-                SDL_getenv("NEEDRENAME_CAPTURE_SOURCE") != nullptr
-                && std::string_view{SDL_getenv("NEEDRENAME_CAPTURE_SOURCE")} == "target";
+            const bool capture_target = SDL_getenv("NEEDRENAME_CAPTURE_SOURCE") != nullptr
+                                        && std::string_view{SDL_getenv("NEEDRENAME_CAPTURE_SOURCE")} == "target";
             WGPUTexelCopyBufferInfo capture_destination{};
             capture_destination.buffer = pimpl->capture;
             capture_destination.layout.bytesPerRow = pimpl->capture_row_pitch;

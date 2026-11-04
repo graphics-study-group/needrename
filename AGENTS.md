@@ -9,6 +9,7 @@ C++20 game engine: Vulkan rendering, GPU physics, Python/libclang reflection, co
 Platform setup (dependencies, environment variables, interpreters) is **NOT** in this file — see:
 - Windows: `docs/build_instructions/windows_msvc.md`
 - Linux (WSL2): `docs/build_instructions/linux.md`
+- Browser (WebGPU / Emscripten): `docs/build_instructions/browser_webgpu.md`
 
 These platforms may have the platform environment active **before any cmake, build, ctest, or executable command**. Read the relevant doc above first.
 

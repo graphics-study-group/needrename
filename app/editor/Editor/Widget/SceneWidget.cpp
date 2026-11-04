@@ -1,38 +1,21 @@
 #include "SceneWidget.h"
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Core/Functional/SDLWindow.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/MainClass.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/Scene/LevelAsset.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/Scene/SceneAsset.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/World/Scene.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Framework/World/WorldSystem.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Pipeline/Renderer/Camera.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/CameraManager.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/RenderSystem/FrameManager.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <Render/Resource/RenderTargetTexture.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
+#include <Render/UserInterface/GUISystem.h>
 
 #include <AnnoRefl/serialization.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 #include <SDL3/SDL.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include <backends/imgui_impl_vulkan.h>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
-#include <vulkan/vulkan.hpp>
-#include "Rhi/Backend/Vulkan/VulkanHandles.h"
 
 namespace Editor {
     SceneWidget::SceneWidget(const std::string &name) : Widget(name) {
@@ -122,13 +105,14 @@ namespace Editor {
     }
 
     void SceneWidget::SetDisplayTexture(const Engine::RenderTargetTexture &texture) {
-        // Free previous descriptor set to avoid pool exhaustion.
-        if (m_color_att_id) {
-            ImGui_ImplVulkan_RemoveTexture(reinterpret_cast<VkDescriptorSet>(m_color_att_id));
+        // The GUI system owns what an image id means on the selected backend, so the widget does
+        // not name a texture API itself: it asks for an id and releases the previous one.
+        auto gui = Engine::MainClass::GetInstance()->GetGUISystem();
+        if (m_color_att_id != ImTextureID_Invalid) {
+            gui->RemoveTexture(m_color_att_id);
+            m_color_att_id = ImTextureID_Invalid;
         }
-        m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
-            Engine::Rhi::ToVulkanSampler(texture.GetSampler()), Engine::Rhi::ToVulkanImageView(texture.GetImageView()), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        ));
+        m_color_att_id = gui->AddTexture(texture);
         m_texture_size = ImVec2(texture.GetTextureDescription().width, texture.GetTextureDescription().height);
         SDL_LogInfo(
             SDL_LOG_CATEGORY_APPLICATION,
@@ -144,5 +128,3 @@ namespace Editor {
         return m_camera.m_camera->m_display_id;
     }
 } // namespace Editor
-
-

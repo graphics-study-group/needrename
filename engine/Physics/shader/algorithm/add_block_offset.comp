@@ -8,30 +8,26 @@
 //
 // ScanParams (push constant, matches C++ ScanParamsPush):
 //   mode          — 2 (for compatibility with the C++ dispatch logic)
-//   data_offset   — offset (in uints) into InputData / OutputData
+//   data_offset   — offset (in uints) into Data
 //   elem_count    — number of elements to process (logical, before offset)
 //   block_offset  — offset (in uints) into BlockSums for reading per-block offsets
 //
 // Bindings:
-//   binding 0 — readonly buffer uint[]  InputData
-//   binding 1 — buffer uint[]           OutputData (may alias InputData)
-//   binding 2 — readonly buffer uint[]  BlockSums
+//   binding 0 — buffer uint[]  Data (read and written in place)
+//   binding 1 — readonly buffer uint[]  BlockSums
+//
+// One Data binding, one BlockSums binding, and they are always distinct buffers: WebGPU forbids
+// two storage bindings of one buffer in a dispatch when either is writable, which is why the
+// offset addition is expressed as a read-modify-write of a single binding.
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 #define WG_SIZE  256u
 #define BLOCK_N  512u   // 2 * WG_SIZE
 
-// Not readonly: the scan that drives this kernel can pass the block-sums region as both the data
-// and the block sums, and WebGPU tracks a buffer's usage per submission - a reader that says
-// "readonly" next to the writable binding of the same buffer is a conflict.
-layout(set = 0, binding = 0) buffer InputData {
+layout(set = 0, binding = 0) buffer Data {
     uint v[];
-} input_data;
-
-layout(set = 0, binding = 1) buffer OutputData {
-    uint v[];
-} output_data;
+} data;
 
 // ---- Per-dispatch constants (push constant, recorded by the caller) ----
 
@@ -42,9 +38,7 @@ layout(push_constant) uniform ScanParamsPush {
     uint block_offset;
 } params;
 
-// Not readonly: the scan that writes this buffer declares it writable, and WebGPU tracks a
-// buffer's usage per submission - a reader that says "readonly" next to that is a conflict.
-layout(set = 0, binding = 2) buffer BlockSums {
+layout(set = 0, binding = 1) readonly buffer BlockSums {
     uint v[];
 } block_sums;
 
@@ -62,9 +56,9 @@ void main() {
     uint add_val = block_sums.v[params.block_offset + wg_id];
 
     if (logical_base + tid < n) {
-        output_data.v[idx0] = input_data.v[idx0] + add_val;
+        data.v[idx0] = data.v[idx0] + add_val;
     }
     if (logical_base + tid + WG_SIZE < n) {
-        output_data.v[idx1] = input_data.v[idx1] + add_val;
+        data.v[idx1] = data.v[idx1] + add_val;
     }
 }

@@ -1,6 +1,6 @@
 #version 450 core
 
-// Parallel exclusive prefix sum (Blelloch work-efficient scan).
+// Parallel exclusive prefix sum (Blelloch work-efficient scan): two-buffer form.
 //
 // Each workgroup scans up to 512 elements in shared memory.  For larger
 // arrays the C++ side (ParallelScan class) orchestrates a multi-level scan:
@@ -16,18 +16,21 @@
 //
 // Bindings:
 //   binding 0 — readonly buffer uint[]  InputData
-//   binding 1 — buffer uint[]           OutputData (may alias InputData)
+//   binding 1 — buffer uint[]           OutputData
 //   binding 2 — buffer uint[]           BlockSums
+//
+// This variant is only dispatched when InputData and OutputData are two different buffers.
+// WebGPU forbids two storage bindings of one buffer in a dispatch when either is writable, so an
+// in-place scan cannot use this interface; `parallel_scan_inplace.comp` is the one-buffer form and
+// is what the recursion and every in-place caller use. BlockSums is always a separate buffer from
+// the data - the recursion alternates between two block-sums buffers for that reason.
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 #define WG_SIZE   256u
 #define SHARED_N  512u   // 2 * WG_SIZE — each thread loads 2 elements
 
-// Not readonly: a scan in place passes the same buffer as InputData and OutputData, and WebGPU
-// tracks a buffer's usage per submission - a binding that may be written may still be read, but
-// a "readonly" one next to a writable binding of the same buffer is a conflict.
-layout(set = 0, binding = 0) buffer InputData {
+layout(set = 0, binding = 0) readonly buffer InputData {
     uint v[];
 } input_data;
 

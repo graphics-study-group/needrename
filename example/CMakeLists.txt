@@ -21,9 +21,9 @@ add_subdirectory(external_resource_loading_example)
 if (ENGINE_BUILD_APPS)
     add_subdirectory(physics_rigid_body_example)
 endif()
-# The editor example hosts the editor, which is a Vulkan application, so this is built only where
-# both the apps and that backend are present.
-if (ENGINE_BUILD_APPS AND ENGINE_RHI_BACKEND_VULKAN)
+# The editor example hosts the editor, which reaches every backend through the seam, so it is built
+# wherever the apps are.
+if (ENGINE_BUILD_APPS)
     add_subdirectory(editor_run_game_example)
 endif()
 # An example that presents through WebGPU directly: it exists to answer whether a surface can be

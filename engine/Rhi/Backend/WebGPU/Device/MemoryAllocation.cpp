@@ -59,16 +59,15 @@ namespace Engine::Rhi {
         // not by asking the device: wgpu-native implements wgpuBufferGetMapState as an
         // unimplemented!() that panics, which is how the first run of the device test
         // failed. A buffer created with mappedAtCreation is mapped; any other is not.
-        const bool host_visible = type.Test(BufferTypeBits::HostRandomAccess)
-                                  || type.Test(BufferTypeBits::HostSequentialAccess);
+        const bool host_visible =
+            type.Test(BufferTypeBits::HostRandomAccess) || type.Test(BufferTypeBits::HostSequentialAccess);
         if (pimpl->buffer != nullptr && host_visible) {
             // The three shapes an allocation can have, mirroring the usage flags the allocator
             // built: a readback target is mapped on demand, a host-written buffer that nothing
             // binds in a shader is mapped at creation, and a host-written buffer that is bound
             // in a shader gets a host copy published on flush.
             const bool readback = type.Test(BufferTypeBits::CopyTo) && !type.Test(BufferTypeBits::ShaderReadOnly)
-                                  && !type.Test(BufferTypeBits::ShaderWrite)
-                                  && !type.Test(BufferTypeBits::Index)
+                                  && !type.Test(BufferTypeBits::ShaderWrite) && !type.Test(BufferTypeBits::Index)
                                   && !type.Test(BufferTypeBits::Vertex)
                                   && !type.Test(BufferTypeBits::IndirectDrawCommand);
             const bool bound_in_shader = type.Test(BufferTypeBits::ShaderReadOnly)
@@ -176,7 +175,11 @@ namespace Engine::Rhi {
 #endif
         }
         if (mapped_ok) {
-            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, mapped_size);
+            // A read-mode mapping is a *const* range on this port: GetMappedRange rejects it with
+            // "Mapping is read-only. Use GetConstMappedRange instead." and returns null, and leaving
+            // `mapped` null makes the next GetVMAddress request a second map while one is pending,
+            // which aborts the page. The caller only reads through this pointer.
+            pimpl->mapped = const_cast<void *>(wgpuBufferGetConstMappedRange(pimpl->buffer, 0, mapped_size));
         }
     }
 
@@ -250,13 +253,11 @@ namespace Engine::Rhi {
                 SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: mapping a readback buffer failed.");
                 return nullptr;
             }
-            pimpl->mapped = wgpuBufferGetMappedRange(pimpl->buffer, 0, mapped_size);
+            // Read-mode mapping: the const range is the one this port accepts; see PrepareReadback.
+            pimpl->mapped = const_cast<void *>(wgpuBufferGetConstMappedRange(pimpl->buffer, 0, mapped_size));
             return static_cast<std::byte *>(pimpl->mapped);
         }
-        SDL_LogError(
-            SDL_LOG_CATEGORY_RENDER,
-            "WebGPU: GetVMAddress on a buffer that has no host mapping."
-        );
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: GetVMAddress on a buffer that has no host mapping.");
         return nullptr;
     }
 
@@ -328,4 +329,3 @@ namespace Engine::Rhi {
         return pimpl->identity;
     }
 } // namespace Engine::Rhi
-

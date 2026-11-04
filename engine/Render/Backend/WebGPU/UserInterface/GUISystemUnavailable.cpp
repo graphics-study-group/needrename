@@ -3,8 +3,10 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/IPresentProvider.h"
+#include "Rhi/Backend/WebGPU/WgpuHandles.h"
 #include "Rhi/Command/CommandEncoder.h"
-#include "Rhi/Backend/WebGPU/WgpuHandles.h"`r`n#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Device/DeviceInterface.h"
+#include "Rhi/Texture/Texture.h"
 
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
@@ -148,5 +150,15 @@ namespace Engine {
         // the caller makes after a resize.
         pimpl->m_color_format = Rhi::ToWgpuTextureFormat(format);
         pimpl->m_samples = samples == 0 ? 1 : samples;
+    }
+
+    ImTextureID GUISystem::AddTexture(const Rhi::Texture &texture) {
+        // This backend's user-texture binding *is* a texture view: ImGui creates an image bind
+        // group from it per draw and owns nothing, so the id borrows the texture's view.
+        return reinterpret_cast<ImTextureID>(Rhi::ToWgpuTextureView(texture.GetImageView()));
+    }
+
+    void GUISystem::RemoveTexture(ImTextureID) {
+        // Nothing was registered: the id names a view the texture owns.
     }
 } // namespace Engine

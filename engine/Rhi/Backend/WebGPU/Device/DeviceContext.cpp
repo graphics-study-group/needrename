@@ -12,11 +12,11 @@
 
 #include <SDL3/SDL.h>
 #include <chrono>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
 #include <thread>
-#include <limits>
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
@@ -266,8 +266,7 @@ namespace Engine::Rhi {
             WGPUCommandBuffer buffer = ToWgpuFinishedBuffer(handle);
             if (buffer == nullptr) {
                 SDL_LogError(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "WebGPU: a submitted command buffer was never finished. Call End first."
+                    SDL_LOG_CATEGORY_RENDER, "WebGPU: a submitted command buffer was never finished. Call End first."
                 );
                 continue;
             }
@@ -343,10 +342,8 @@ namespace Engine::Rhi {
             if (instance != nullptr) {
                 wgpuInstanceProcessEvents(instance);
             }
-            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                     std::chrono::steady_clock::now() - begin
-            )
-                                     .count();
+            const auto elapsed =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - begin).count();
             const uint64_t budget = timeout == 0 ? k_poll_budget_ns : timeout;
             if (budget != std::numeric_limits<uint64_t>::max() && static_cast<uint64_t>(elapsed) > budget) {
                 break;
@@ -366,6 +363,15 @@ namespace Engine::Rhi {
     }
 
     void DeviceContext::SignalSemaphore(const TimelineSignal &) {
+        // Reported once, not once per frame: the renderer signals a semaphore every frame, and a
+        // line per frame buries every other diagnostic the page prints. The seam's single ordered
+        // queue is what makes the missing signal harmless here, and a repeated message does not
+        // make it more true.
+        static bool reported = false;
+        if (reported) {
+            return;
+        }
+        reported = true;
         SDL_LogError(
             SDL_LOG_CATEGORY_RENDER,
             "WebGPU: SignalSemaphore is not implemented. The standard interface has no "
@@ -373,5 +379,3 @@ namespace Engine::Rhi {
         );
     }
 } // namespace Engine::Rhi
-
-

@@ -1,6 +1,5 @@
 #include "RadixSort.h"
 
-
 #include "ParallelScan.h"
 #include "Physics/PhysicsDispatch.h"
 #include "Physics/PhysicsSpirvLoader.h"
@@ -94,6 +93,12 @@ namespace Engine {
         std::unique_ptr<Rhi::ComputeBuffer> histogram{};
         std::unique_ptr<Rhi::ComputeBuffer> keys_tmp{};
         std::unique_ptr<Rhi::ComputeBuffer> payload_tmp{};
+        /// Bound in place of a payload array when the caller has none.
+        ///
+        /// The shader never dereferences it there (`has_payload` is false), but the bind group
+        /// still needs a buffer, and it must be one no other writable binding of the dispatch
+        /// names - WebGPU rejects two storage bindings of one buffer.
+        std::unique_ptr<Rhi::ComputeBuffer> payload_placeholder{};
 
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
@@ -120,8 +125,13 @@ namespace Engine {
             const Rhi::AllocatorState &allocator = device_context.GetAllocatorState();
             Rhi::EnsureComputeBuffer(histogram, allocator, histogram_bytes, false, "RadixSort Histogram");
             Rhi::EnsureComputeBuffer(keys_tmp, allocator, key_bytes, false, "RadixSort KeysTemp");
-            if (has_payload) {
-                Rhi::EnsureComputeBuffer(payload_tmp, allocator, key_bytes, false, "RadixSort PayloadTemp");
+            // The payload partner is allocated even without a payload: it is the distinct sink the
+            // no-payload scatter binds for `PayloadOut`.
+            Rhi::EnsureComputeBuffer(payload_tmp, allocator, key_bytes, false, "RadixSort PayloadTemp");
+            if (!has_payload) {
+                Rhi::EnsureComputeBuffer(
+                    payload_placeholder, allocator, key_bytes, false, "RadixSort PayloadPlaceholder"
+                );
             }
         }
     };
@@ -178,10 +188,11 @@ namespace Engine {
         // one, so the ping-pong parity decides which array holds the result.
         Rhi::ComputeBuffer *keys_in = buffers.keys;
         Rhi::ComputeBuffer *keys_out = m_impl->keys_tmp.get();
-        // Without a payload the shader never dereferences these bindings, so the
-        // key arrays serve as placeholders.
-        Rhi::ComputeBuffer *payload_in = has_payload ? buffers.payload : buffers.keys;
-        Rhi::ComputeBuffer *payload_out = has_payload ? m_impl->payload_tmp.get() : m_impl->keys_tmp.get();
+        // Without a payload the shader never dereferences these bindings, so they
+        // are placeholders - but they still have to name buffers no other binding
+        // of the dispatch names: WebGPU rejects two storage bindings of one buffer.
+        Rhi::ComputeBuffer *payload_in = has_payload ? buffers.payload : m_impl->payload_placeholder.get();
+        Rhi::ComputeBuffer *payload_out = m_impl->payload_tmp.get();
 
         for (uint32_t pass = 0u; pass < num_passes; ++pass) {
             if (pass > 0u) {
@@ -192,7 +203,8 @@ namespace Engine {
 
             // 1. Per-block histogram, written transposed and in full: no clear
             //    pass precedes it, and none is needed.
-            m_impl->histogram_kernel->Dispatch(encoder,
+            m_impl->histogram_kernel->Dispatch(
+                encoder,
                 {{"KeysIn", *keys_in}, {"Histogram", *m_impl->histogram}, {"ElemCount", *buffers.count}},
                 num_blocks,
                 1,
@@ -206,7 +218,8 @@ namespace Engine {
             DispatchBarrier(encoder);
 
             // 3. Stable scatter into the other array.
-            m_impl->scatter_kernel->Dispatch(encoder,
+            m_impl->scatter_kernel->Dispatch(
+                encoder,
                 {{"KeysIn", *keys_in},
                  {"KeysOut", *keys_out},
                  {"PayloadIn", *payload_in},
@@ -226,11 +239,12 @@ namespace Engine {
         // Copy the ping-pong if the number of passes is odd.
         if (num_passes % 2u == 1u) {
             DispatchBarrier(encoder);
-            m_impl->copy_back_kernel->Dispatch(encoder,
+            m_impl->copy_back_kernel->Dispatch(
+                encoder,
                 {{"SrcKeys", *keys_in},
                  {"DstKeys", *buffers.keys},
                  {"SrcPayload", *payload_in},
-                 {"DstPayload", has_payload ? *buffers.payload : *buffers.keys},
+                 {"DstPayload", *payload_out},
                  {"ValidCount", Rhi::ComputeKernelResource::Buffer(*buffers.count, 0u, sizeof(uint32_t))}},
                 (elem_capacity + 63u) / 64u,
                 1,
@@ -240,6 +254,3 @@ namespace Engine {
         }
     }
 } // namespace Engine
-
-
-

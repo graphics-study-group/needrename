@@ -1,6 +1,5 @@
 #include "SumByKey.h"
 
-
 #include "Physics/PhysicsDispatch.h"
 #include "Physics/PhysicsSpirvLoader.h"
 #include "Rhi/Buffer/ComputeBuffer.h"
@@ -55,47 +54,24 @@ namespace Engine {
         return g;
     }
 
-    // One stored record region (levels 1..k-1): byte offsets into the caller's
-    // record buffer for its keys and its values, plus its record count.  Derived
-    // per call, because the instance holds no geometry.
+    // One stored record region (levels 1..k-1): how many records it holds. Each region owns its own
+    // key and value buffers - see `Impl::record_regions` - so there is no offset to compute and no
+    // alignment padding between regions.
     struct RecordRegion {
         uint32_t count = 0u; // R_i records
-        size_t key_offset = 0u;
-        size_t val_offset = 0u;
     };
 
-    // The padded record-region partition: one region per level 1..k-1, each key
-    // array and value array starting on the device's descriptor offset
-    // alignment, and the total size the caller's record buffer must provide.
     struct RecordLayout {
         std::vector<RecordRegion> regions;
-        size_t total_bytes = 0u;
     };
 
-    size_t AlignUp(size_t value, size_t alignment) noexcept {
-        if (alignment <= 1u) return value;
-        return ((value + alignment - 1u) / alignment) * alignment;
-    }
-
-    // Padding sits between a region's key array and its value array and between
-    // consecutive regions, never inside a value array: a region's channel stride
-    // stays exactly its own record count, which is what the shader's
-    // `record_stride` field carries.
-    RecordLayout ComputeRecordLayout(const LevelGeometry &geometry, uint32_t num_channels, size_t alignment) {
+    RecordLayout ComputeRecordLayout(const LevelGeometry &geometry) {
         RecordLayout layout;
         if (geometry.r.size() <= 1u) return layout;
         layout.regions.reserve(geometry.r.size() - 1u);
-
-        size_t cursor = 0u;
         for (size_t i = 1u; i < geometry.r.size(); ++i) {
-            RecordRegion reg;
-            reg.count = geometry.r[i];
-            reg.key_offset = AlignUp(cursor, alignment);
-            reg.val_offset = AlignUp(reg.key_offset + static_cast<size_t>(reg.count) * sizeof(uint32_t), alignment);
-            layout.regions.push_back(reg);
-            cursor = reg.val_offset + static_cast<size_t>(num_channels) * reg.count * sizeof(uint32_t);
+            layout.regions.push_back(RecordRegion{geometry.r[i]});
         }
-        layout.total_bytes = cursor;
         return layout;
     }
 
@@ -109,8 +85,20 @@ namespace Engine {
         Rhi::ComputeKernel *reduce_kernel = nullptr;
         Rhi::ComputeKernel *reduce_push_kernel = nullptr;
 
-        /// Owned record-region storage, grown geometrically and reused across calls.
-        std::unique_ptr<Rhi::ComputeBuffer> records{};
+        /// Owned record-region storage: one key buffer and one value buffer per level.
+        ///
+        /// A level reads the previous level's region and writes its own, so both would be bound
+        /// as two writable storage bindings of one buffer if the regions shared storage - which
+        /// WebGPU forbids. Giving each level its own pair makes every level's input and output
+        /// distinct buffers, and the regions are tiny (two slots per block).
+        struct RegionBuffers {
+            std::unique_ptr<Rhi::ComputeBuffer> keys{};
+            std::unique_ptr<Rhi::ComputeBuffer> values{};
+        };
+        std::vector<RegionBuffers> record_regions{};
+        /// Bound for the bindings a level does not write (the final level, single-level calls).
+        std::unique_ptr<Rhi::ComputeBuffer> record_sink_keys{};
+        std::unique_ptr<Rhi::ComputeBuffer> record_sink_values{};
 
         explicit Impl(Rhi::DeviceContext &ctx) : device_context(ctx) {
         }
@@ -129,9 +117,28 @@ namespace Engine {
                 &LoadPhysicsKernel(device_context, "algorithm/sum_by_key_push.comp.spv", "SumByKey Push");
         }
 
-        /// @brief Grow the record-region storage to @p bytes.
-        void EnsureRecords(size_t bytes) {
-            Rhi::EnsureComputeBuffer(records, device_context.GetAllocatorState(), bytes, false, "SumByKey Records");
+        /// @brief Grow each level's record-region storage to this call's geometry.
+        void EnsureRecordRegions(const std::vector<RecordRegion> &regions, uint32_t num_channels) {
+            if (record_regions.size() < regions.size()) {
+                record_regions.resize(regions.size());
+            }
+            const Rhi::AllocatorState &allocator = device_context.GetAllocatorState();
+            for (size_t index = 0u; index < regions.size(); ++index) {
+                const size_t key_bytes =
+                    std::max<size_t>(static_cast<size_t>(regions[index].count) * sizeof(uint32_t), sizeof(uint32_t));
+                const size_t value_bytes = std::max<size_t>(
+                    static_cast<size_t>(num_channels) * regions[index].count * sizeof(uint32_t), sizeof(uint32_t)
+                );
+                const std::string suffix = std::to_string(index);
+                Rhi::EnsureComputeBuffer(
+                    record_regions[index].keys, allocator, key_bytes, false, "SumByKey RecKeys " + suffix
+                );
+                Rhi::EnsureComputeBuffer(
+                    record_regions[index].values, allocator, value_bytes, false, "SumByKey RecValues " + suffix
+                );
+            }
+            Rhi::EnsureComputeBuffer(record_sink_keys, allocator, sizeof(uint32_t), false, "SumByKey RecKeys Sink");
+            Rhi::EnsureComputeBuffer(record_sink_values, allocator, sizeof(uint32_t), false, "SumByKey RecValues Sink");
         }
     };
 
@@ -184,20 +191,12 @@ namespace Engine {
             throw std::runtime_error("SumByKey::Record: entry-count buffer must hold at least one uint");
         }
 
-        // The whole level chain is a pure function of this call's capacity, and the
-        // record-region partition is a pure function of the capacity, the channel
-        // count and the device's descriptor offset alignment.
+        // The whole level chain is a pure function of this call's capacity.
         const LevelGeometry geometry = ComputeGeometry(capacity);
         const uint32_t k = static_cast<uint32_t>(geometry.r.size());
         if (k == 0u) return;
 
-        const size_t alignment = std::max<size_t>(
-            1u,
-            m_impl->device_context.GetDeviceInterface().QueryLimit(
-                Rhi::DeviceInterface::PhysicalDeviceLimitInteger::StorageBufferOffsetAlignment
-            )
-        );
-        const RecordLayout layout = ComputeRecordLayout(geometry, num_channels, alignment);
+        const RecordLayout layout = ComputeRecordLayout(geometry);
 
         // The construction-time bound is gone, so the out-of-bounds guard is
         // checked per call against the buffers actually bound for this call.
@@ -223,13 +222,10 @@ namespace Engine {
         }
 
         m_impl->EnsureInitialized();
-        // A single-level reduction has no record regions, so the storage is
-        // created at a minimal size and the shader's unused bindings point at the
-        // output instead; see the level loop below.
-        m_impl->EnsureRecords(std::max<size_t>(layout.total_bytes, sizeof(uint32_t)));
-        Rhi::ComputeBuffer &records_buf = *m_impl->records;
-
+        // Every level owns its record region, so the bindings below never alias; the sinks keep
+        // the descriptor set complete for a level that writes no records.
         const std::vector<RecordRegion> &regions = layout.regions;
+        m_impl->EnsureRecordRegions(regions, num_channels);
 
         // Bindings that do not change with the level: the caller's level-0
         // key array, the caller's payload-index array (read only where
@@ -251,10 +247,12 @@ namespace Engine {
             if (level > 0u) {
                 const auto &reg = regions[level - 1u];
                 keys_in = Rhi::ComputeKernelResource::Buffer(
-                    records_buf, reg.key_offset, static_cast<size_t>(reg.count) * sizeof(uint32_t)
+                    *m_impl->record_regions[level - 1u].keys, 0u, static_cast<size_t>(reg.count) * sizeof(uint32_t)
                 );
                 values_in = Rhi::ComputeKernelResource::Buffer(
-                    records_buf, reg.val_offset, static_cast<size_t>(num_channels) * reg.count * sizeof(uint32_t)
+                    *m_impl->record_regions[level - 1u].values,
+                    0u,
+                    static_cast<size_t>(num_channels) * reg.count * sizeof(uint32_t)
                 );
             }
 
@@ -263,42 +261,30 @@ namespace Engine {
             Rhi::ComputeKernelResource rec_keys{};
             Rhi::ComputeKernelResource rec_values{};
             if (level + 1u < k) {
-                // Non-final: emit records into region for R_{level+1}.
+                // Non-final: emit records into the region of R_{level+1}, which is this level's own.
                 const auto &out_reg = regions[level]; // index level == region R_{level+1}
                 rec_keys = Rhi::ComputeKernelResource::Buffer(
-                    records_buf, out_reg.key_offset, static_cast<size_t>(out_reg.count) * sizeof(uint32_t)
+                    *m_impl->record_regions[level].keys, 0u, static_cast<size_t>(out_reg.count) * sizeof(uint32_t)
                 );
                 rec_values = Rhi::ComputeKernelResource::Buffer(
-                    records_buf,
-                    out_reg.val_offset,
+                    *m_impl->record_regions[level].values,
+                    0u,
                     static_cast<size_t>(num_channels) * out_reg.count * sizeof(uint32_t)
                 );
                 record_stride = out_reg.count;
-            } else if (k >= 2u) {
-                // Final level: no record output. Bind harmless ranges to keep the
-                // descriptor set complete.
-                const auto &last_reg = regions[k - 2u];
-                rec_keys = Rhi::ComputeKernelResource::Buffer(
-                    records_buf, last_reg.key_offset, static_cast<size_t>(last_reg.count) * sizeof(uint32_t)
-                );
-                rec_values = Rhi::ComputeKernelResource::Buffer(
-                    records_buf,
-                    last_reg.val_offset,
-                    static_cast<size_t>(num_channels) * last_reg.count * sizeof(uint32_t)
-                );
             } else {
-                // Single-level reduction (k == 1): no record regions exist. The
-                // shader's final branch never touches RecKeys/RecValues, but the
-                // descriptor set must still be complete, so point them at the
-                // (guaranteed non-empty) output buffer.
-                rec_keys = out_values;
-                rec_values = out_values;
+                // Final level (or a single-level call): no record output, so the bindings point at
+                // dedicated sinks. They must not be the input, the output or each other: all of
+                // those are writable bindings of this dispatch.
+                rec_keys = Rhi::ComputeKernelResource::Buffer(*m_impl->record_sink_keys, 0u, sizeof(uint32_t));
+                rec_values = Rhi::ComputeKernelResource::Buffer(*m_impl->record_sink_values, 0u, sizeof(uint32_t));
             }
 
             const uint32_t gather_payload = (level == 0u) ? 1u : 0u;
             if (entry_count_buf != nullptr) {
                 const SumByKeyPush params{input_count, num_channels, max_key_value, record_stride, gather_payload};
-                m_impl->reduce_kernel->Dispatch(encoder,
+                m_impl->reduce_kernel->Dispatch(
+                    encoder,
                     {{"KeysIn", keys_in},
                      {"ValuesIn", values_in},
                      {"PayloadIn", payload_in},
@@ -315,7 +301,8 @@ namespace Engine {
                 const SumByKeyValuePush params{
                     input_count, num_channels, max_key_value, record_stride, gather_payload, *entry_count_value
                 };
-                m_impl->reduce_push_kernel->Dispatch(encoder,
+                m_impl->reduce_push_kernel->Dispatch(
+                    encoder,
                     {{"KeysIn", keys_in},
                      {"ValuesIn", values_in},
                      {"PayloadIn", payload_in},
@@ -336,6 +323,3 @@ namespace Engine {
         }
     }
 } // namespace Engine
-
-
-

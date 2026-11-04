@@ -13,6 +13,9 @@ namespace Engine {
         struct AttachmentDescription;
     }
     class CommandBuffer;
+    namespace Rhi {
+        class Texture;
+    }
 
     class RENDER_API GUISystem {
     protected:
@@ -111,10 +114,31 @@ namespace Engine {
          * This will recreate the rendering pipeline used by the Dear ImGui backend.
          */
         void ResetColorAttachmentFormat(Rhi::ImageFormat format, uint8_t samples = 1) noexcept;
+
+        /**
+         * @brief Register a texture as an image ImGui can draw.
+         *
+         * The returned id is what `ImGui::Image` takes. What it names depends on the backend: on
+         * Vulkan a descriptor set built from the texture's view and sampler, on WebGPU the texture
+         * view itself (which is what that backend's user-texture binding is). The texture must
+         * outlive the id; the caller releases the id with `RemoveTexture` before the texture goes
+         * away.
+         *
+         * @param texture The rendered texture to display; its sampled view is what gets bound.
+         * @return An id usable as `ImGui::Image`'s texture id.
+         */
+        ImTextureID AddTexture(const Rhi::Texture &texture);
+
+        /**
+         * @brief Release an id returned by `AddTexture`.
+         *
+         * A backend whose id is a borrowed view does nothing here; one that registered a
+         * descriptor set frees it.
+         *
+         * @param texture_id The id to release. `ImTextureID_Invalid` is ignored.
+         */
+        void RemoveTexture(ImTextureID texture_id);
     };
 } // namespace Engine
 
 #endif // RENDER_USERINTERFACE_GUISYSTEM_INCLUDED
-
-
-

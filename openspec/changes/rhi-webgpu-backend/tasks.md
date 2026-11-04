@@ -377,11 +377,13 @@
     at the next `NewFrame` otherwise), and the pass-opening overload
     `DrawGUI(attachment, extent, cb)` opens the pass through the command buffer and draws into the one
     it opened - which is why the accessor belongs on the encoder.
-  - **What this does not claim.** The *editor* still cannot build on this backend:
-    `EditorRenderGraphBuilder.h` includes `vulkan/vulkan.hpp` directly, so the editor binary stays a
-    Vulkan application (it is excluded from the WebGPU tree, as recorded under 10.2). Porting the UI
-    backend is what makes a UI *possible* here; porting the editor's own render graph is a separate
-    piece of work that this task does not include.
+  - **What this task claimed and what has since changed.** At the time, the *editor* could not
+    build on this backend: `EditorRenderGraphBuilder.h` included `vulkan/vulkan.hpp` directly, so
+    the editor binary stayed a Vulkan application and was excluded from the WebGPU tree. The editor
+    is backend-neutral now - it no longer includes a backend header anywhere, and its rendered
+    textures reach ImGui through `GUISystem::AddTexture` - so it builds and runs on this backend,
+    including in the browser (see HANDOVER 0i). That work belongs to the editor's own port rather
+    than to this task's UI-backend claim.
 
 ## 11. Emscripten product build
 
@@ -394,6 +396,13 @@
     buffers in one group and a browser caps that at sixteen; the kernels are marked unavailable
     and their dispatches are no-ops, so the loop runs and the scene is static. That is a limit of
     the target, not a fault, and it is recorded here rather than worked around.
+  - **The budget was then met, and the remaining blocker was a rule, not a limit.** The detector and
+    accumulator records were merged until every kernel fits sixteen storage bindings, after which
+    the scene was still static for a different reason: three shader families bound one buffer to
+    two storage bindings of one dispatch, which WebGPU rejects and wgpu-native does not. HANDOVER 0i
+    records the fixes, the host-side guard that now makes the desktop build reject them too, and the
+    evidence - the rigid-body example simulates in the canvas (probe falls 4.000 -> 1.778 m and
+    rolls on) and the editor runs and plays there.
 - [x] 11.2 Verify the web build links neither the Vulkan SDK, VMA, glslang nor SPIRV-Cross
   - The browser build compiles EngineRhi from 31 objects - the same set as the desktop
     WebGPU build - and libEngineRhi.so defines 2086 symbols. llvm-nm finds zero matching

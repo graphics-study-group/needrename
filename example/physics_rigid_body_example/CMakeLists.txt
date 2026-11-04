@@ -30,9 +30,8 @@ if (EMSCRIPTEN)
     )
     target_compile_definitions(${ProjectId} PRIVATE ENGINE_DEV_DATA_ROOT_DIR="/")
 
-    # Known browser blocker, recorded here so it is not rediscovered: a bare MainClass target
-    # initialises fine in the browser (device ready, engine up), but once this target links
-    # PhysicsApp the WebGPU adapter callback traps with RuntimeError: null function. The desktop
-    # half of the same source runs and simulates correctly, so the fault is in the wasm link of the
-    # physics app archive, not in the scene or the loop.
+    # The build used to trap here with `RuntimeError: null function` the moment this target linked
+    # `PhysicsApp`: Emscripten built the app as a side module, whose symbols resolve to null in a
+    # statically linked wasm image. `app/physics/CMakeLists.txt` builds a static archive for
+    # Emscripten now, and this page runs the solver.
 endif()

@@ -1,7 +1,5 @@
-# The editor is a Vulkan application: it includes the backend's headers directly, so a WebGPU
-# build cannot compile it. The physics app is backend-neutral, and the WebGPU tree needs it to
-# exercise the solver there.
-if (ENGINE_RHI_BACKEND_VULKAN)
-    add_subdirectory(editor)
-endif()
+# Both apps are backend-neutral: the editor reaches the backend only through the RHI seam and the
+# GUI system, and the physics app owns no backend type at all. Each is built for whichever backend
+# the tree selects.
+add_subdirectory(editor)
 add_subdirectory(physics)

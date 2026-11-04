@@ -1,0 +1,108 @@
+#version 450 core
+
+// Parallel exclusive prefix sum (Blelloch work-efficient scan): in-place form.
+//
+// Identical arithmetic to `parallel_scan.comp`, but expressed with one data binding that is both
+// read and written. WebGPU forbids two storage bindings of the same buffer in one dispatch when
+// either is writable, so an in-place scan cannot be written as "InputData + OutputData pointing at
+// one buffer"; this is that shape instead.
+//
+// It is safe in place: a workgroup reads and writes the same 512-element range, every read happens
+// before the barrier that precedes the writes, and different workgroups own disjoint ranges.
+//
+// ScanParams (push constant, matches C++ ScanParamsPush):
+//   mode          — 0 = single-pass scan, 1 = scan + write block totals
+//   data_offset   — offset (in uints) into Data
+//   elem_count    — number of elements to process (logical, before offset)
+//   block_offset  — offset (in uints) into BlockSums for block-total writes
+//
+// Bindings:
+//   binding 0 — buffer uint[]  Data (read and written in place)
+//   binding 1 — buffer uint[]  BlockSums
+//
+// BlockSums is always a separate buffer from Data - the recursion alternates between two
+// block-sums buffers - so the second binding never aliases the first.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+#define WG_SIZE   256u
+#define SHARED_N  512u   // 2 * WG_SIZE — each thread loads 2 elements
+
+layout(set = 0, binding = 0) buffer Data {
+    uint v[];
+} data;
+
+// ---- Per-dispatch constants (push constant, recorded by the caller) ----
+
+layout(push_constant) uniform ScanParamsPush {
+    uint mode;
+    uint data_offset;
+    uint elem_count;
+    uint block_offset;
+} params;
+
+layout(set = 0, binding = 1) buffer BlockSums {
+    uint v[];
+} block_sums;
+
+shared uint s[SHARED_N];
+
+void main() {
+    uint tid = gl_LocalInvocationID.x;
+    uint wg_id = gl_WorkGroupID.x;
+    uint n = params.elem_count;
+    uint data_off = params.data_offset;
+
+    // Each workgroup handles SHARED_N elements starting at data_off + wg_id * SHARED_N.
+    uint logical_base = wg_id * SHARED_N;
+    uint phys_base = data_off + logical_base;
+    uint idx0 = phys_base + tid;
+    uint idx1 = phys_base + tid + WG_SIZE;
+
+    // Load 2 elements per thread (zero-pad out-of-range).
+    s[tid]           = (logical_base + tid < n) ? data.v[idx0] : 0u;
+    s[tid + WG_SIZE] = (logical_base + tid + WG_SIZE < n) ? data.v[idx1] : 0u;
+    barrier();
+
+    // --- Upsweep (parallel reduction) ---
+    for (uint offset = 1u; offset < SHARED_N; offset <<= 1u) {
+        uint idx = (tid + 1u) * offset * 2u - 1u;
+        if (idx < SHARED_N) {
+            s[idx] += s[idx - offset];
+        }
+        barrier();
+    }
+
+    // Save total sum of this block before clearing the last slot.
+    uint block_total = s[SHARED_N - 1u];
+
+    // Convert inclusive → exclusive: clear the last element.
+    if (tid == 0u) {
+        s[SHARED_N - 1u] = 0u;
+    }
+    barrier();
+
+    // --- Downsweep (distribution) ---
+    for (uint offset = SHARED_N >> 1u; offset > 0u; offset >>= 1u) {
+        uint idx = (tid + 1u) * offset * 2u - 1u;
+        if (idx < SHARED_N) {
+            uint t = s[idx - offset];
+            s[idx - offset] = s[idx];
+            s[idx] += t;
+        }
+        barrier();
+    }
+
+    // Store results (no add_val — offset addition is done by add_block_offset.comp).
+    if (logical_base + tid < n) {
+        data.v[idx0] = s[tid];
+    }
+    if (logical_base + tid + WG_SIZE < n) {
+        data.v[idx1] = s[tid + WG_SIZE];
+    }
+
+    // Mode 1: write per-block total sums to BlockSums[block_offset + wg_id].
+    if (params.mode == 1u && tid == 0u) {
+        block_sums.v[params.block_offset + wg_id] = block_total;
+    }
+}
