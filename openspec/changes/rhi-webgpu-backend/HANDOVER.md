@@ -429,3 +429,34 @@ capture would not open in the bundled 1.43 replay anyway. The defect was found b
 `.mesh` files directly - cheaper than a frame when the suspicion is asset content, which it should
 have been from the start: the two spheres differ only in which asset they were loaded from.
 
+
+## 0h. Running the physics app in a browser
+
+Four things were between the page and a simulation; three are solved and the fourth is where the work
+stands.
+
+- **`PhysicsApp` must be a static archive for Emscripten.** `add_library(... SHARED ...)` builds a
+  *side module* there, and a side module linked into a wasm image resolves its symbols to null - the
+  first call through one traps with `RuntimeError: null function`, which is what the WebGPU adapter
+  callback hit. With the archive the image shape matches the examples that already worked (a 630 KB
+  JS glue and a 114 MB wasm, instead of a 20 MB glue and a 14 MB wasm).
+- **The frame loop has to yield.** The engine's waits poll `wgpuInstanceProcessEvents`; a `while`
+  with no yield never receives the callbacks it is polling for, and the first `Step()` spins for ever.
+  `emscripten_sleep(1)` per iteration is what lets the browser deliver them. `emscripten_set_main_loop`
+  is *not* the pattern this engine uses - `MainClass::LoopFinite` is a plain `while` - and it did not
+  work with Asyncify here.
+- **A first visit has no data pak cache.** A fresh profile stalls on
+  `still waiting on run dependencies: ... .data`; reusing a profile that has fetched the 73 MB pak
+  once is what makes a repeat run start.
+- **The readback probe aborts the page.** Reading a body's state maps a readback buffer, and in a
+  browser that trap is a JS `RuntimeError`, not a C++ exception - `try`/`catch` around the call does
+  not save the page, and the run dies on the frame the probe fires (frame 60 in the example). The
+  fix is the completion-driven readback 8.5 describes: `PrepareReadback`, read only when the map is
+  ready, skip the frame otherwise. `PhysicsApp::GetBodyState` still takes the old "map on read" path.
+
+Evidence so far: the page loads, builds and draws the scene (a five-layer box stack with two spheres
+above it), the frame trace reaches 605 frames, and a `?cam=N` camera offset changes the captured
+image - so the screenshot is the current frame, not a stale compositor one. What is *not* yet
+demonstrated is the bodies moving: an identical image with and without a 240-step warm-up says either
+the solver is not changing anything the renderer reads, or the probe is the only thing that could
+have said so and it aborts. The numeric probe is the next step, not a picture.
