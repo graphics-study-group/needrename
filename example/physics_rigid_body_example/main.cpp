@@ -94,18 +94,17 @@ namespace {
 
     /// One frame: advance the simulation and draw it.
     void Frame() {
-        if (g_frames < 3) {
-            SDL_Log("physics example: frame %u begins", g_frames);
-        }
+        SDL_Log("physics example: frame %u begins", g_frames);
         if (!g_app->IsPaused()) {
             g_app->Step();
         }
-        if (g_frames < 3) {
-            SDL_Log("physics example: frame %u stepped", g_frames);
-        }
+        SDL_Log("physics example: frame %u stepped", g_frames);
         g_app->RenderNextFrame();
 
         ++g_frames;
+#if !defined(__EMSCRIPTEN__)
+        // The readback probe is a desktop diagnostic: reading a body's state maps a readback buffer,
+        // and a page cannot block on that map. The browser's evidence is the frame itself.
         if (g_probe_body != INVALID_BODY_ID && g_frames % kLogEveryFrames == 0) {
             const BodyState state = g_app->GetBodyState(g_probe_body);
             SDL_Log(
@@ -116,6 +115,11 @@ namespace {
                 glm::length(state.position - g_probe_start)
             );
         }
+#else
+        if (g_frames % kLogEveryFrames == 0) {
+            SDL_Log("physics example: frame %u simulated", g_frames);
+        }
+#endif
     }
 
     bool ShouldStop() {
