@@ -122,11 +122,14 @@ namespace Engine {
         /**
          * @brief Begin a frame only if its slot is free, and skip it otherwise.
          *
-         * @return The image index to render to, or `~0u` when the frame should be skipped.
+         * @return The image index to render to, `k_frame_busy` when the slot is still in flight, or
+         *         `~0u` when the presentation target could not be acquired (out of date, minimized).
          *
          * A product frame path uses this rather than `StartFrame`: the slot is polled, so a frame
          * the GPU has not finished with is skipped and retried instead of blocking the thread that
-         * would present it.
+         * would present it. The two skip values are distinct because only the out-of-date one may
+         * recreate the presentation target; recreating it for a busy slot reconfigures a surface
+         * that was fine - and on a canvas, clears what it was showing.
          */
         uint32_t TryStartFrame();
 

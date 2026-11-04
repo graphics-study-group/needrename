@@ -967,9 +967,10 @@ namespace AppPhysics {
             }
         }
 
-        if (impl.renderer->TryStartFrame() == std::numeric_limits<uint32_t>::max()) {
-            // Swapchain out of date / minimized: skip this frame and try again
-            // next call. A previous render-readback capture remains valid.
+        const uint32_t frame_index = impl.renderer->TryStartFrame();
+        if (frame_index == Engine::k_frame_busy || frame_index == std::numeric_limits<uint32_t>::max()) {
+            // The slot is still in flight, or the presentation target is out of date: skip this
+            // frame and try again next call. A previous render-readback capture remains valid.
             return;
         }
         auto cb = impl.renderer->GetFrameManager().BeginMainCommandBuffer();

@@ -473,19 +473,21 @@ rectangle before comparing anything about the picture.
 ## 0i. The browser runs the physics example and the editor
 
 Measured 2026-11-04 on this branch. Both pages work end to end, and what was actually in the way was
-four defects and a build gate, not a missing feature.
+five defects and a build gate, not a missing feature.
 
 ### What the pages do
 
 - `physics_rigid_body_example.html`: the five-layer box stack and the two spheres simulate in the
   canvas. The probe logs `frame 60, probe z 1.778 (started 4.000), moved 2.222 m`, then `moved`
-  climbs to 5.5 m over later samples while the sphere rolls; the capture shows the collapsed stack.
-  It ran 480+ frames in a 20 s wall clock in headless Edge (about 24 fps at 1280x720, no vsync).
+  climbs to 5.5 m over later samples while the sphere rolls; the capture shows the stack with the
+  spheres mid-roll. It ran 480+ frames in a 20 s wall clock in headless Edge (about 24 fps at
+  1280x720, no vsync). Frame: `evidence/browser-physics-simulation.png`.
 - `editor_run_game_example.html`: the dockspace, Hierarchy/Scene/Game/Inspector/Project widgets and
   the rendered scene are in the canvas, and clicking Start puts the editor into Play mode (the
-  button reads Stop) with physics running in the page.
+  button reads Stop) with physics running in the page. Frame:
+  `evidence/browser-editor-play.png`.
 
-### The four defects, in the order they were found
+### The five defects, in the order they were found
 
 1. **One buffer bound to two storage bindings of one dispatch.** WebGPU rejects it (Chrome:
    `Writable storage buffer binding aliasing ...`), and the rejection invalidates the whole physics
@@ -524,6 +526,14 @@ four defects and a build gate, not a missing feature.
    executable, and the main loop never yielded. The example now falls back to display 0, sets
    `NEEDRENAME_DATA_ROOT=/` under a preloaded tree, sizes the render graph from the present extent
    rather than the display, and yields once per frame with `emscripten_sleep(1)`.
+5. **A busy frame slot was treated as an out-of-date presentation target.**
+   `FrameManager::StartFrame(0)` returned the same `~0u` for "the slot is still in flight" and "the
+   image could not be acquired", and `RenderSystem::TryStartFrame` reacted by calling
+   `UpdateSwapchain` - so every frame that found the ring busy reconfigured the surface. On a canvas
+   `wgpuSurfaceConfigure` resets what the canvas shows, which is why the physics page was black
+   while it was still running; capturing after the loop had stopped showed the last frame, which is
+   how the black and the good captures differed. `StartFrame(0)` now returns `k_frame_busy` for the
+   busy case and `~0u` only for out-of-date, and the caller recreates only on the latter.
 
 Also worth keeping: `SignalSemaphore` is reported once rather than once per frame, and the physics
 example's per-frame `SDL_Log` diagnostics are gone - they cost real time in the browser and hid the

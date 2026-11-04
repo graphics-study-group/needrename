@@ -20,6 +20,17 @@ namespace Engine {
     class RenderTargetTexture;
     class IPresentProvider;
 
+    /**
+     * @brief Returned by `FrameManager::StartFrame` with a zero timeout when the frame slot is
+     * still in use.
+     *
+     * Distinct from `~0u`, which means the presentation target could not be acquired (out of
+     * date). The distinction matters: a busy slot must skip the frame and retry, while an
+     * out-of-date target has to be recreated - and recreating it because a slot was busy
+     * reconfigures a surface that was fine, which on a canvas also clears it.
+     */
+    inline constexpr uint32_t k_frame_busy = std::numeric_limits<uint32_t>::max() - 1u;
+
     namespace RenderSystemState {
         class FrameSemaphore;
 

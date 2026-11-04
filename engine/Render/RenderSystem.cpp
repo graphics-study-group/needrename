@@ -231,15 +231,21 @@ namespace Engine {
     }
 
     uint32_t RenderSystem::TryStartFrame() {
-        // A frame the engine may skip: the slot is polled, not waited for. A busy slot returns
-        // `~0u` and the caller comes back next frame, which is what keeps a product frame path
-        // free of the blocking wait `StartFrame` does.
+        // A frame the engine may skip: the slot is polled, not waited for. A busy slot is
+        // reported as `k_frame_busy` and the caller comes back next frame, which is what keeps a
+        // product frame path free of the blocking wait `StartFrame` does.
         auto fb = pimpl->m_frame_manager.StartFrame(0);
+        if (fb == k_frame_busy) {
+            // The slot is still in flight. Nothing was acquired, so there is nothing to recreate;
+            // recreating the presentation target here would reconfigure a surface that is fine,
+            // and on a canvas that clears whatever it was showing.
+            return fb;
+        }
         if (fb == std::numeric_limits<uint32_t>::max()) {
             this->UpdateSwapchain();
             fb = pimpl->m_frame_manager.StartFrame(0);
         }
-        if (fb == std::numeric_limits<uint32_t>::max()) {
+        if (fb == k_frame_busy || fb == std::numeric_limits<uint32_t>::max()) {
             return fb;
         }
 

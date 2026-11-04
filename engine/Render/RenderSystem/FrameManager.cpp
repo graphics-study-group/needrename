@@ -301,10 +301,10 @@ std::make_unique<Rhi::CommandEncoder>(GetRawMainCommandBuffer());
             )) {
             if (timeout == 0) {
                 // A zero budget is a caller saying "do not wait": the slot is still in use, so
-                // this frame is skipped and retried on the next call. Blocking here is what a
-                // product frame path must not do - a busy slot would stall the thread that has
-                // to present it.
-                return std::numeric_limits<uint32_t>::max();
+                // this frame is skipped and retried on the next call. The value says "busy"
+                // specifically, because a busy slot and an out-of-date presentation target need
+                // different reactions (skip versus recreate).
+                return k_frame_busy;
             }
             throw std::runtime_error("Timed out waiting for the frame fence.");
         }
