@@ -162,16 +162,25 @@ namespace Engine::RenderSystemState {
 
             const glm::vec3 eye = forward * eye_depth;
             const glm::mat4 view = glm::lookAtRH(eye, eye + forward, reference_up);
-            // Vulkan's clip space points y down, so the box is laid out with its
-            // top edge as `bottom`. Swapping the two (instead of negating P11)
-            // mirrors the extent about the box centre; negating only P11 would
-            // mirror it about light space y = 0 and push every cascade that is
-            // not centred on the light axis partly out of the clip range.
+            // The shadow map is sampled through a scale and bias from light space clip
+            // coordinates, so its rows must run the way the backend's framebuffer rows do.
+            // Vulkan's clip space points y down while the standard WebGPU clip space points y
+            // up, so the projection is laid out with the box's top edge as `bottom` there and
+            // normally here. Swapping the two (instead of negating P11) keeps the extent
+            // centred on the box; a wrong convention mirrors the map about light space y, and
+            // an object that moves one way then casts a shadow that moves the other.
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+            const float ortho_bottom = center_y + half_diameter;
+            const float ortho_top = center_y - half_diameter;
+#else
+            const float ortho_bottom = center_y - half_diameter;
+            const float ortho_top = center_y + half_diameter;
+#endif
             glm::mat4 projection = glm::ortho(
                 center_x - half_diameter,
                 center_x + half_diameter,
-                center_y + half_diameter,
-                center_y - half_diameter,
+                ortho_bottom,
+                ortho_top,
                 ortho_near,
                 ortho_far
             );

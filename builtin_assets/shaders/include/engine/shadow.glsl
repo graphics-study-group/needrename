@@ -108,7 +108,11 @@ float sampleShadowCascade(
 
     const vec4 light_space = light_vp * vec4(offset_position, 1.0);
     const vec3 projected = light_space.xyz / light_space.w;
-    const vec2 uv = projected.xy * 0.5 + 0.5;
+    // The y scale is the backend's framebuffer convention: a texture's v axis and a
+    // framebuffer's rows both run downwards, while the clip space y differs between
+    // backends. See `shadow_uv_scale_bias` in `interface.glsl`.
+    const vec4 uv_transform = scene.casting_lights.shadow_uv_scale_bias[lightIndex];
+    const vec2 uv = projected.xy * uv_transform.xy + uv_transform.zw;
     const float radius = SHADOW_PCF_RADIUS / SHADOWMAP_SIZE;
 
     float shadow = 0.0;

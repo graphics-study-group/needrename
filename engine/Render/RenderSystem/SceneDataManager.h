@@ -68,6 +68,26 @@ namespace Engine {
             static constexpr uint32_t SHADOWMAP_SIZE = 2048;
 
             /**
+             * @brief Scale and bias from light space clip coordinates to shadow map UVs.
+             *
+             * The y scale is the backend's framebuffer convention: a texture's v axis and a
+             * framebuffer's rows both run downwards, but Vulkan's clip space points y down
+             * while the standard WebGPU's points y up. The shadow shader samples with this
+             * transform, so the row it reads is the row the shadow pass rasterised the point
+             * into.
+             *
+             * The value travels to the shader in the scene uniform block; the shader does not
+             * duplicate the convention.
+             */
+            static glm::vec4 ShadowUvScaleBias() noexcept {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+                return glm::vec4{0.5f, 0.5f, 0.5f, 0.5f};
+#else
+                return glm::vec4{0.5f, -0.5f, 0.5f, 0.5f};
+#endif
+            }
+
+            /**
              * @brief Maximal non-casting lights available to the shader.
              *
              * Affects uniform buffer size.

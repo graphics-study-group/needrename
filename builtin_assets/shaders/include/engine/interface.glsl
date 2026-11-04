@@ -22,6 +22,18 @@ struct LightAttributeStruct {
     vec4 cascade_splits[MAX_SHADOW_CASTING_LIGHTS];
     /// Number of fitted cascades per light; 0 means the light casts no shadow.
     uint light_cascade_count[MAX_SHADOW_CASTING_LIGHTS];
+    /**
+     * Scale and bias from a light space clip position to shadow map coordinates:
+     * `uv = clip.xy * shadow_uv_scale_bias.xy + shadow_uv_scale_bias.zw`.
+     *
+     * The x scale and both biases are 0.5. The y scale carries the backend's
+     * framebuffer convention instead of a constant here: a framebuffer row runs
+     * the same way as a texture's v axis, but Vulkan's clip space points y down
+     * while the standard WebGPU clip space points y up. Sampling with the wrong
+     * sign mirrors the map about light space y, so an object that moves one way
+     * casts a shadow that moves the other way.
+     */
+    vec4 shadow_uv_scale_bias[MAX_SHADOW_CASTING_LIGHTS];
 };
 
 struct NonCastingLightAttributeStruct {

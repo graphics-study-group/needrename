@@ -40,7 +40,9 @@ namespace {
 
         // Mirrors `Camera::UpdateProjectionMatrix`, including the Y flip Vulkan needs.
         glm::mat4 projection = glm::perspectiveRH(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 200.0f);
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
         projection[1][1] *= -1.0f;
+#endif
         params.camera_projection = projection;
 
         params.camera_near = 0.1f;
@@ -80,7 +82,27 @@ namespace {
     ShadowMapPosition Project(const glm::mat4 &light_vp, glm::vec3 world) {
         const glm::vec4 clip = light_vp * glm::vec4{world, 1.0f};
         const glm::vec3 projected = glm::vec3{clip} / clip.w;
-        return ShadowMapPosition{.uv = glm::vec2{projected.x, projected.y} * 0.5f + 0.5f, .depth = projected.z};
+        // The transform the host installs, so a wrong sign in the engine fails this test.
+        const glm::vec4 uv_transform = SceneDataManager::ShadowUvScaleBias();
+        return ShadowMapPosition{
+            .uv = glm::vec2{projected.x, projected.y} * glm::vec2{uv_transform.x, uv_transform.y}
+                  + glm::vec2{uv_transform.z, uv_transform.w},
+            .depth = projected.z
+        };
+    }
+
+    /**
+     * @brief The fraction down the shadow map where the backend rasterises a clip position.
+     *
+     * A framebuffer's rows and a texture's v axis both run downwards; the difference is
+     * that Vulkan's clip space points y down and the standard WebGPU's points y up.
+     */
+    float RasterizedRowFraction(float clip_y, float clip_w) {
+#if defined(ENGINE_RHI_BACKEND_VULKAN)
+        return 0.5f + 0.5f * (clip_y / clip_w);
+#else
+        return 0.5f - 0.5f * (clip_y / clip_w);
+#endif
     }
 
     bool Inside(const ShadowMapPosition &position, float epsilon = 1e-4f) {
@@ -213,6 +235,34 @@ namespace {
     }
 
     /**
+     * @brief Sampling a world point hits the row the shadow pass rasterised it into.
+     *
+     * Both sides are conventions of the same backend, so a wrong sign shows as a
+     * shadow that slides one way while its caster slides the other.
+     */
+    void TestSampledRowMatchesRasterizedRow() {
+        const ShadowCascadeFitParams params = MakeParams();
+        const ShadowCascadeFit fit = FitShadowCascades(params);
+        Check(fit.valid && fit.count > 0, "the row test needs a fitted cascade");
+        if (!fit.valid || fit.count == 0) return;
+
+        const float near_plane = std::max(params.camera_near, params.shadow_distance * 0.001f);
+        const float depth = (near_plane + fit.splits[0]) * 0.5f;
+        const glm::vec3 center{glm::inverse(params.camera_view) * glm::vec4{0.0f, 0.0f, -depth, 1.0f}};
+
+        for (const float offset : {-0.5f, 0.0f, 0.5f}) {
+            const glm::vec3 world = center + glm::vec3{0.0f, offset, 0.0f};
+            const glm::vec4 clip = fit.matrices[0] * glm::vec4{world, 1.0f};
+            const float sampled_row = Project(fit.matrices[0], world).uv.y;
+            const float rasterized_row = RasterizedRowFraction(clip.y, clip.w);
+            Check(
+                std::abs(sampled_row - rasterized_row) < 1e-4f,
+                "the shadow map row a point samples is the row it was rasterised into"
+            );
+        }
+    }
+
+    /**
      * @brief Degenerate inputs are rejected instead of producing unusable matrices.
      */
     void TestDegenerateInputsAreRejected() {
@@ -298,6 +348,7 @@ int main() {
     TestShadowDistanceIsClampedToTheFarPlane();
     TestSliceCornersAreCovered();
     TestCastersInFrontOfTheSliceAreCovered();
+    TestSampledRowMatchesRasterizedRow();
     TestBoxExtentIsTranslationInvariant();
     TestDegenerateInputsAreRejected();
     TestSupportedCascadeCounts();

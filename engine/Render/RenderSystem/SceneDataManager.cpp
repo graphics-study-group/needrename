@@ -58,19 +58,26 @@ namespace Engine::RenderSystemState {
                 /// Number of valid cascades of each light; 0 means the light has no
                 /// fitted cascades and is rendered without dynamic shadows.
                 alignas(16) CascadeCountSlot light_cascade_count[MAX_SHADOW_CASTING_LIGHTS];
+
+                /// Scale and bias from a light space clip position to shadow map
+                /// coordinates. The y scale is the backend's framebuffer convention,
+                /// which is what keeps a sampled row on the row the shadow pass
+                /// rasterised the point into.
+                alignas(16) glm::vec4 shadow_uv_scale_bias[MAX_SHADOW_CASTING_LIGHTS];
             };
 
             // The uniform block is consumed as std140 in `interface.glsl`, so the
             // host-side layout must agree with it exactly.
             static_assert(
-                sizeof(ShadowCastingLightUniformBuffer) == 320,
+                sizeof(ShadowCastingLightUniformBuffer) == 336,
                 "ShadowCastingLightUniformBuffer must match the std140 layout of LightAttributeStruct"
             );
             static_assert(
                 offsetof(ShadowCastingLightUniformBuffer, light_color) == 16
                     && offsetof(ShadowCastingLightUniformBuffer, light_matrices) == 32
                     && offsetof(ShadowCastingLightUniformBuffer, cascade_splits) == 288
-                    && offsetof(ShadowCastingLightUniformBuffer, light_cascade_count) == 304,
+                    && offsetof(ShadowCastingLightUniformBuffer, light_cascade_count) == 304
+                    && offsetof(ShadowCastingLightUniformBuffer, shadow_uv_scale_bias) == 320,
                 "ShadowCastingLightUniformBuffer member offsets must match std140"
             );
 
@@ -92,8 +99,8 @@ namespace Engine::RenderSystemState {
             };
 
             static_assert(
-                sizeof(LightUniformBuffer) == 848 && offsetof(LightUniformBuffer, shadow_casting) == 16
-                    && offsetof(LightUniformBuffer, non_shadow_casting) == 336,
+                sizeof(LightUniformBuffer) == 864 && offsetof(LightUniformBuffer, shadow_casting) == 16
+                    && offsetof(LightUniformBuffer, non_shadow_casting) == 352,
                 "LightUniformBuffer must match the std140 layout of PerSceneUniform"
             );
 
@@ -132,6 +139,12 @@ namespace Engine::RenderSystemState {
                 auto &allocator = system.GetAllocatorState();
                 auto &arena = system.GetDeviceContext().GetDescriptorArena();
                 device_context = &system.GetDeviceContext();
+
+                // The UBO is written every frame, so the clip space convention the shadow
+                // sampling depends on is set once here rather than per light.
+                for (auto &transform : light_front_buffer.shadow_casting.shadow_uv_scale_bias) {
+                    transform = ShadowUvScaleBias();
+                }
 
                 // Create decriptor set layout
                 {
