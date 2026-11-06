@@ -22,12 +22,27 @@ target_link_libraries(EngineDepJson INTERFACE json)
 add_library(EngineDepSdl INTERFACE)
 target_link_libraries(EngineDepSdl INTERFACE SDL3::SDL3)
 
-# Consumers of the Rhi DLL import the dynamic dispatch loader from it. The
-# Vulkan dependency target (EngineDepVulkan) is defined at the top level,
-# before third_party/, because the ImGui back-end links a backend dependency.
 if (ENGINE_RHI_BACKEND_VULKAN)
+    add_library(EngineDepVulkan INTERFACE)
+    target_link_libraries(EngineDepVulkan INTERFACE Vulkan::Vulkan vma glslang)
+    target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+    if (WIN32 AND NOT MSVC)
+        target_compile_definitions(EngineDepVulkan INTERFACE "VULKAN_HPP_STORAGE_API=__declspec(dllimport)")
+    else()
+        target_compile_definitions(EngineDepVulkan INTERFACE VULKAN_HPP_STORAGE_SHARED=1)
+    endif()
+
+    # Consumers of the Rhi DLL import its dynamic dispatch loader.
     add_library(EngineDepVulkanExport INTERFACE)
     target_link_libraries(EngineDepVulkanExport INTERFACE EngineDepVulkan)
+endif()
+
+# Modules link this interface instead of naming the selected backend directly.
+add_library(EngineDepRhiBackend INTERFACE)
+if (ENGINE_RHI_BACKEND_VULKAN)
+    target_link_libraries(EngineDepRhiBackend INTERFACE EngineDepVulkan)
+else()
+    target_link_libraries(EngineDepRhiBackend INTERFACE EngineDepWebgpu)
 endif()
 
 add_library(EngineDepImgui INTERFACE)

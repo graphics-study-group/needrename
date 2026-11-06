@@ -56,9 +56,10 @@ namespace Engine::Rhi {
         pimpl->retire_sink = retire_sink;
 
         // Whether the buffer is mapped is decided by the usage flags it was created with,
-        // not by asking the device: wgpu-native implements wgpuBufferGetMapState as an
-        // unimplemented!() that panics, which is how the first run of the device test
-        // failed. A buffer created with mappedAtCreation is mapped; any other is not.
+        // not by asking the device: a desktop implementation this backend was validated
+        // against implemented wgpuBufferGetMapState as an unimplemented!() that panics,
+        // which is how the first run of the device test failed. A buffer created with
+        // mappedAtCreation is mapped; any other is not.
         const bool host_visible =
             type.Test(BufferTypeBits::HostRandomAccess) || type.Test(BufferTypeBits::HostSequentialAccess);
         if (pimpl->buffer != nullptr && host_visible) {

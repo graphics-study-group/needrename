@@ -709,7 +709,16 @@ namespace Engine::ShaderBake {
         return true;
     }
 
-    int BakeWgslTree(const WgslBakeOptions &options) {        if (!std::filesystem::is_directory(options.spirv_directory)) {
+    std::string StageOfFileName(const std::filesystem::path &file_path) {
+        return StageOf(file_path);
+    }
+
+    bool BakeWgslModule(const WgslBakeOptions &options, const std::filesystem::path &module_path, std::string &error) {
+        return BakeModule(options, module_path, error);
+    }
+
+    int BakeWgslTree(const WgslBakeOptions &options) {
+        if (!std::filesystem::is_directory(options.spirv_directory)) {
             std::cerr << "shader_baker: not a directory: " << options.spirv_directory.string() << '\n';
             return 1;
         }

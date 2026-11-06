@@ -6,9 +6,8 @@
 #   3. $ENV{EMSDK_ROOT}
 #
 # then defers to the SDK's own platform module, which sets the compilers, the
-# sysroot, the WASM linker rules and the port mechanism. Everything the engine
-# needs beyond that (the WebGPU interface) is asked for as a link-time port by
-# cmake/FindWebGPU.cmake, so this file stays a plain locator.
+# sysroot, the WASM linker rules and the port mechanism. This file only locates
+# the SDK; WebGPUDependencies.cmake selects the browser's WebGPU port.
 #
 # The build is a browser build: executables are .html + .wasm + .js, and every
 # target that reaches the device links `--use-port=emdawnwebgpu`.

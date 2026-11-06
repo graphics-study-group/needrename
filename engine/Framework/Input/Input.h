@@ -5,11 +5,12 @@
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_smart_pointer.h>
 #include <AnnoRefl/serialization_vector.h>
-#include <SDL3/SDL_events.h>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+union SDL_Event;
 
 namespace Engine {
     class FRAMEWORK_API REFL_SER_CLASS(REFL_WHITELIST) Input {

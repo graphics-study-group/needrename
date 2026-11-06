@@ -12,14 +12,14 @@ foreach(_src IN LISTS RHI_ALL_SOURCES)
         continue()
     endif()
     # SPLayout's two implementations are the one place where what this build contains,
-    # rather than which backend it targets, decides: the reflection unit is needed by a
-    # backend that reflects at runtime and by a build that contains the shader baker, and
-    # the stub is what is left. See ENGINE_RHI_BAKE_REFLECTION in the top-level file.
-    if (_src MATCHES "Pipeline/SpirvShaderParameterLayout\\.cpp" AND NOT ENGINE_RHI_BAKE_REFLECTION
-        AND NOT ENGINE_RHI_BACKEND_VULKAN)
+    # rather than which backend it targets, decides: the Vulkan backend reflects SPIR-V
+    # modules at runtime, the WebGPU backend never does (its interface descriptions are
+    # baked at build time by the native tooling), so a WebGPU runtime always builds the
+    # unavailable stub. The tooling's copy of the real unit lives in EngineShaderTooling.
+    if (_src MATCHES "Pipeline/SpirvShaderParameterLayout\\.cpp" AND NOT ENGINE_RHI_BACKEND_VULKAN)
         continue()
     endif()
-    if (_src MATCHES "ShaderParameterLayoutUnavailable\\.cpp" AND ENGINE_RHI_BAKE_REFLECTION)
+    if (_src MATCHES "ShaderParameterLayoutUnavailable\\.cpp" AND ENGINE_RHI_BACKEND_VULKAN)
         continue()
     endif()
     list(APPEND SOURCE "${_src}")
@@ -35,9 +35,9 @@ endforeach()
 add_library(EngineRhi ${SOURCE})
 
 # Whether this build can reflect a module at runtime is decided by which of SPLayout's two
-# implementations it contains, and that is the question a caller wants answered: the bake-only
-# macro means something different (that the shader baker is in the build).
-if (ENGINE_RHI_BAKE_REFLECTION OR ENGINE_RHI_BACKEND_VULKAN)
+# implementations it contains: the Vulkan backend's unit reflects, the WebGPU runtime's stub
+# does not - a WebGPU build reflects only at build time, inside the shader tooling.
+if (ENGINE_RHI_BACKEND_VULKAN)
     target_compile_definitions(EngineRhi PUBLIC ENGINE_RHI_HAS_REFLECTION=1)
 endif()
 target_link_libraries(EngineRhi
@@ -65,14 +65,10 @@ if (ENGINE_RHI_BACKEND_VULKAN)
     endif()
 else()
     # The WebGPU backend reaches the standard WebGPU C interface only. It has no
-    # Vulkan SDK, VMA or glslang dependency, and reflects nothing at runtime: the
-    # shader interface description is baked alongside the WGSL. A desktop build that
-    # contains the baker compiles the reflection unit for the baker's sake, and that
-    # is the one case where SPIRV-Cross is linked here.
+    # Vulkan SDK, VMA, glslang or SPIRV-Cross dependency, and reflects nothing at
+    # runtime: the shader interface description is baked alongside the WGSL by the
+    # native tooling, which carries its own copy of the reflection unit.
     target_link_libraries(EngineRhi PUBLIC EngineDepWebgpu)
-    if (ENGINE_RHI_BAKE_REFLECTION)
-        target_link_libraries(EngineRhi PRIVATE spirv-cross-cpp)
-    endif()
 endif()
 target_compile_definitions(EngineRhi PRIVATE RHI_DLL_EXPORTS)
 

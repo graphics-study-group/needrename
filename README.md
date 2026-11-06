@@ -6,12 +6,19 @@ An unnamed game engine with GPU-accelerated physics simulation, Vulkan-based ren
 
 ## Building the Engine
 
-The engine builds on two platforms:
+The engine supports these build targets:
 
-- **Windows** — MSVC toolchain via Visual Studio (multi-config generator). Full setup and build instructions: [`docs/build_instructions/windows_msvc.md`](./docs/build_instructions/windows_msvc.md)
-- **Linux** — Clang + Ninja with a manually installed LunarG Vulkan SDK and SDL3. Full setup and build instructions: [`docs/build_instructions/linux.md`](./docs/build_instructions/linux.md)
+- **Windows / Vulkan** — MSVC toolchain via Visual Studio (multi-config generator). Full setup and build instructions: [`docs/build_instructions/windows_msvc.md`](./docs/build_instructions/windows_msvc.md)
+- **Linux / Vulkan** — Clang + Ninja with a manually installed LunarG Vulkan SDK and SDL3. Full setup and build instructions: [`docs/build_instructions/linux.md`](./docs/build_instructions/linux.md)
+- **Desktop WebGPU** — MSVC with Dawn (static library), automatically downloaded in pinned Debug/Release configurations when no manual path is set. See [`docs/build_instructions/desktop_webgpu.md`](./docs/build_instructions/desktop_webgpu.md).
+- **Browser WebGPU** — Emscripten with the `emdawnwebgpu` port. See [`docs/build_instructions/browser_webgpu.md`](./docs/build_instructions/browser_webgpu.md).
 
-Shared CMake presets (`debug` / `release`) are defined in `CMakePresets.json`; Windows adds `msvc` + `msvc-debug` / `msvc-release`, Linux adds `linux-debug` / `linux-release`. Platform-specific configuration (environment variables, toolchains, interpreters) lives in the per-platform docs above.
+Shared CMake presets are defined in `CMakePresets.json`. Platform-specific configuration
+(environment variables, toolchains, interpreters) lives in the per-platform docs above. Manual
+Dawn, Tint, and DXC installation is covered by
+[`docs/build_instructions/webgpu_dependencies.md`](./docs/build_instructions/webgpu_dependencies.md).
+For a per-preset environment-variable matrix, see
+[`docs/build_instructions/environment_variables.md`](./docs/build_instructions/environment_variables.md).
 
 ## Project Structure
 

@@ -23,7 +23,9 @@ namespace Engine {
         );
     }
 
-    bool ShaderCompiler::CompileGLSLtoSPV(std::vector<uint32_t> &, const std::filesystem::path &, bool) {
+    bool ShaderCompiler::CompileGLSLtoSPV(
+        std::vector<uint32_t> &, const std::filesystem::path &, bool, std::set<std::string> *
+    ) {
         throw std::logic_error(
             "ShaderCompiler: this build has no runtime GLSL compiler. Shaders ship as SPIR-V; "
             "bake them with shader_baker and load the .spv asset instead."

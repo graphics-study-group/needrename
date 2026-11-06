@@ -2,19 +2,21 @@
 
 #include "wgsl_bake.h"
 
-#include <AnnoRefl/Archive.h>
 #include <SDL3/SDL.h>
 
+#include <nlohmann/json.hpp>
+
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
-#include <algorithm>
-#include <cctype>
 
 namespace {
     constexpr const char *k_shader_asset_type = "Engine::ShaderAsset";
@@ -28,6 +30,14 @@ namespace {
         std::filesystem::path shaders_directory{};
         /// @brief Directory of SPIR-V modules to bake the WGSL variant for.
         std::filesystem::path spirv_directory{};
+        /// @brief Single GLSL source to compile (the physics shader pipeline's mode).
+        std::filesystem::path source_file{};
+        /// @brief Output base path for --source: outputs land at <base>.spv and friends.
+        std::filesystem::path output_base{};
+        /// @brief Makefile-compatible dependency file for the single-source mode.
+        std::filesystem::path depfile{};
+        /// @brief Alongside the SPIR-V, bake the WGSL variant and interface description.
+        bool emit_wgsl = false;
         bool emit_debug_info = false;
         /// Bake an archive that already stores SPIR-V again, from its GLSL source. The stored form
         /// carries the interface description, and a description written by an older baker stays
@@ -41,11 +51,16 @@ namespace {
             message
             + "\nUsage: shader_baker <shaders-directory> [--debug-info]\n"
               "       shader_baker --spirv-dir <directory> [--converter <path>]\n"
+              "       shader_baker --source <file.glsl> --output-base <path> [--wgsl]\n"
+              "                  [--converter <path>] [--debug-info] [--depfile <path>]\n"
               "  With a shader directory: rewrites every built-in ShaderAsset archive from\n"
               "  GLSL form to embedded-SPIR-V form, preserving each asset's GUID.\n"
               "  With --spirv-dir: writes the WGSL variant and the interface description\n"
               "  next to every SPIR-V module in the tree, which is what the WebGPU backend\n"
-              "  loads instead of reflecting."
+              "  loads instead of reflecting.\n"
+              "  With --source: compiles one GLSL source to <path>.spv, and with --wgsl also\n"
+              "  to <path>.wgsl and <path>.iface.json through the same rewrite, conversion\n"
+              "  and description code as the built-in asset bake.\n"
         );
     }
 
@@ -64,6 +79,23 @@ namespace {
                     ThrowUsage("--spirv-dir needs a directory argument.");
                 }
                 options.spirv_directory = std::filesystem::path(argv[++index]);
+            } else if (argument == "--source") {
+                if (index + 1 >= argc) {
+                    ThrowUsage("--source needs a file argument.");
+                }
+                options.source_file = std::filesystem::path(argv[++index]);
+            } else if (argument == "--output-base") {
+                if (index + 1 >= argc) {
+                    ThrowUsage("--output-base needs a path argument.");
+                }
+                options.output_base = std::filesystem::path(argv[++index]);
+            } else if (argument == "--depfile") {
+                if (index + 1 >= argc) {
+                    ThrowUsage("--depfile needs a path argument.");
+                }
+                options.depfile = std::filesystem::path(argv[++index]);
+            } else if (argument == "--wgsl") {
+                options.emit_wgsl = true;
             } else if (argument == "--converter") {
                 if (index + 1 >= argc) {
                     ThrowUsage("--converter needs an executable path.");
@@ -77,8 +109,11 @@ namespace {
                 ThrowUsage("Unexpected argument: " + std::string(argument));
             }
         }
-        if (options.shaders_directory.empty() && options.spirv_directory.empty()) {
-            ThrowUsage("Missing shader or SPIR-V directory argument.");
+        if (options.shaders_directory.empty() && options.spirv_directory.empty() && options.source_file.empty()) {
+            ThrowUsage("Missing shader directory, SPIR-V directory, or source argument.");
+        }
+        if (!options.source_file.empty() && options.output_base.empty()) {
+            ThrowUsage("--source needs --output-base naming the output path without extension.");
         }
         return options;
     }
@@ -104,6 +139,40 @@ namespace {
         if (!file) {
             throw std::runtime_error("Failed while writing file: " + path.string());
         }
+    }
+
+    std::string DepfilePath(const std::filesystem::path &path) {
+        const std::string input = std::filesystem::absolute(path).generic_string();
+        std::string escaped;
+        escaped.reserve(input.size());
+        for (const char character : input) {
+            if (character == ' ' || character == '#') {
+                escaped.push_back('\\');
+            } else if (character == '$') {
+                escaped.push_back('$');
+            }
+            escaped.push_back(character);
+        }
+        return escaped;
+    }
+
+    void WriteDepfile(
+        const std::filesystem::path &path,
+        const std::vector<std::filesystem::path> &outputs,
+        const std::filesystem::path &source,
+        const std::set<std::string> &included_files
+    ) {
+        std::string content;
+        for (const auto &output : outputs) {
+            content += DepfilePath(output) + " ";
+        }
+        content += ":";
+        content += " " + DepfilePath(source);
+        for (const auto &included : included_files) {
+            content += " " + DepfilePath(included);
+        }
+        content += "\n";
+        WriteFile(path, content.data(), content.size());
     }
 
     /// @brief Get the engine archive base path of an `.asset` file (the path without `.asset`).
@@ -284,11 +353,70 @@ int main(int argc, char **argv) {
             return Engine::ShaderBake::BakeWgslTree(wgsl_options);
         }
 
+        // Single-source compile (the physics shader pipeline): SPIR-V, plus the
+        // WGSL variant and interface description for a WebGPU build, through the
+        // same compile, reflect, rewrite, convert and description code the other
+        // modes use. A failure exits nonzero with the source path in the
+        // diagnostic and leaves no output behind: each file is written only after
+        // the step that produces it succeeded, and a failed run removes what an
+        // earlier step of the same invocation wrote.
+        if (!options.source_file.empty()) {
+            if (options.emit_wgsl && options.converter_executable.empty()) {
+                throw std::runtime_error("--wgsl needs --converter naming a tint executable.");
+            }
+            const std::filesystem::path source_absolute = std::filesystem::absolute(options.source_file);
+            Engine::ShaderCompiler compiler;
+            std::vector<uint32_t> spirv;
+            std::set<std::string> included_files;
+            if (!compiler.CompileGLSLtoSPV(spirv, source_absolute, options.emit_debug_info, &included_files)) {
+                throw std::runtime_error("Failed to compile shader: " + source_absolute.string());
+            }
+            if (spirv.empty()) {
+                throw std::runtime_error("Shader compiled to an empty SPIR-V binary: " + source_absolute.string());
+            }
+
+            const std::filesystem::path spirv_path = options.output_base.string() + ".spv";
+            std::error_code directory_error;
+            std::filesystem::create_directories(options.output_base.parent_path(), directory_error);
+            WriteFile(spirv_path, spirv.data(), spirv.size() * sizeof(uint32_t));
+            std::cout << "  compiled " << source_absolute.filename().string() << " -> " << spirv_path.string() << " ("
+                      << spirv.size() << " words)\n";
+
+            std::vector<std::filesystem::path> outputs = {spirv_path};
+            if (options.emit_wgsl) {
+                Engine::ShaderBake::WgslBakeOptions wgsl_options{};
+                wgsl_options.converter_executable = options.converter_executable;
+                std::string wgsl_error;
+                if (!Engine::ShaderBake::BakeWgslModule(wgsl_options, spirv_path, wgsl_error)) {
+                    // A failed bake must not leave outputs a later build accepts: remove the
+                    // SPIR-V this invocation wrote (the WGSL bake cleans its own intermediates).
+                    std::error_code remove_error;
+                    std::filesystem::remove(spirv_path, remove_error);
+                    std::filesystem::remove(options.output_base.string() + ".wgsl", remove_error);
+                    std::filesystem::remove(options.output_base.string() + ".iface.json", remove_error);
+                    throw std::runtime_error(
+                        "Failed to bake the WGSL variant of " + source_absolute.string() + ": " + wgsl_error
+                    );
+                }
+                outputs.emplace_back(options.output_base.string() + ".wgsl");
+                outputs.emplace_back(options.output_base.string() + ".iface.json");
+            }
+            if (!options.depfile.empty()) {
+                WriteDepfile(options.depfile, outputs, source_absolute, included_files);
+            }
+            return 0;
+        }
+
         if (!std::filesystem::is_directory(options.shaders_directory)) {
             throw std::runtime_error("Not a directory: " + options.shaders_directory.string());
         }
 
-        Engine::ShaderCompiler compiler;
+        // The tooling build has no runtime data root, so the built-in shader
+        // include tree is registered the same way the runtime includer does it:
+        // as a system include path next to the shader directory being baked
+        // (the shaders directory is builtin_assets/shaders; its include tree is
+        // the runtime's <builtin_assets>/shaders/include).
+        Engine::ShaderCompiler compiler(options.shaders_directory / "include");
 
         std::cout << "Baking built-in shaders in " << options.shaders_directory.string() << '\n';
         size_t baked_count = 0;
@@ -297,7 +425,9 @@ int main(int argc, char **argv) {
             if (!entry.is_regular_file() || entry.path().extension() != ".asset") {
                 continue;
             }
-            if (BakeShaderAsset(entry.path(), options.emit_debug_info, options.force, compiler, options.converter_executable)) {
+            if (BakeShaderAsset(
+                    entry.path(), options.emit_debug_info, options.force, compiler, options.converter_executable
+                )) {
                 ++baked_count;
             }
         }

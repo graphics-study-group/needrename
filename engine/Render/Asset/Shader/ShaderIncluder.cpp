@@ -1,12 +1,18 @@
 #include "ShaderIncluder.h"
 
+#if !defined(ENGINE_SHADER_TOOLING)
 #include <Core/FileSystem/DataRoot.h>
+#endif
 #include <filesystem>
 
 namespace Engine {
     DirStackFileIncluder::DirStackFileIncluder() {
-        // The built-in shader include tree lives in the runtime data root.
+#if !defined(ENGINE_SHADER_TOOLING)
+        // The built-in shader include tree lives in the runtime data root. The
+        // tooling build has no runtime data root; its caller registers the
+        // include directory it wants as a system path.
         addSystemPath(BuiltinAssetsDir() / "shaders" / "include");
+#endif
     }
 
     glslang::TShader::Includer::IncludeResult *DirStackFileIncluder::includeLocal(

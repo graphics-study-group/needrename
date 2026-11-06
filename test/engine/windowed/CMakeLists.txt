@@ -4,8 +4,8 @@ anro_add_test(complex_mesh_test WINDOWED FRAMES 120 LINK "Engine;stb" TIMEOUT 30
 anro_add_test(shadow_map_test WINDOWED FRAMES 300 TIMEOUT 300 FOLDER tests/engine/windowed)
 anro_add_test(skybox_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)
 # Dear ImGui draws through its own backend (task 10.4). Its WebGPU backend builds against the
-# wgpu-native this tree uses, so the same test drives either one - it is what verifies that the
-# UI renders through the seam rather than only through Vulkan.
+# same standard webgpu.h the engine's WebGPU backend uses, so the same test drives either one -
+# it is what verifies that the UI renders through the seam rather than only through Vulkan.
     anro_add_test(imgui_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)
 anro_add_test(new_material_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)
 anro_add_test(input_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windowed)

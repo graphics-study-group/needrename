@@ -290,9 +290,9 @@ namespace Engine::Rhi {
 
         // WebGPU rejects a dispatch that reaches one buffer through two storage bindings when
         // either of them is writable ("writable storage buffer binding aliasing"). Vulkan accepts
-        // it, and wgpu-native accepts it too, so a browser-only rule would otherwise stay
-        // undiscovered until the page runs it. Checking it here makes the desktop validation build
-        // fail the same way the browser does.
+        // it, and the previous desktop implementation accepted it too, so a browser-only rule
+        // would otherwise stay undiscovered until the page runs it. Checking it here makes the
+        // desktop validation build fail the same way the browser does.
         {
             struct StorageUse {
                 uint32_t set{0};

@@ -1,36 +1,30 @@
-macro(subdirlist result curdir)
-    file(GLOB children RELATIVE ${curdir} ${curdir}/*)
-    set(dirlist "")
-    foreach(child ${children})
-        if(IS_DIRECTORY ${curdir}/${child})
-            list(APPEND dirlist ${child})
-            # message(${child})
-        endif()
-    endforeach()
-    set(${result} ${dirlist})
-endmacro()
+function(engine_configure_browser_example target)
+    if (NOT EMSCRIPTEN)
+        return()
+    endif()
 
-subdirlist(subdirs ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(${target} PROPERTIES SUFFIX ".html")
+    target_compile_options(${target} PRIVATE -fexceptions)
+    target_link_options(${target} PRIVATE
+        -fexceptions
+        -sNO_DISABLE_EXCEPTION_CATCHING=1
+        -sASYNCIFY
+        -sASYNCIFY_STACK_SIZE=2097152
+        "SHELL:--preload-file ${ASSETS_DIR}@/assets"
+        "SHELL:--preload-file ${PROJECTS_DIR}@/projects"
+        "SHELL:--preload-file ${ENGINE_DATA_STAGE_DIR}/builtin_assets@/builtin_assets"
+        "SHELL:--preload-file ${ENGINE_DATA_STAGE_DIR}/spirv@/spirv"
+        "SHELL:-sEXPORTED_RUNTIME_METHODS=FS"
+    )
+    add_dependencies(${target} runtime_data_stage)
+    target_compile_definitions(${target} PRIVATE ENGINE_DEV_DATA_ROOT_DIR="/")
+endfunction()
 
-# foreach(dir ${subdirs})
-#     add_subdirectory(${dir})
-# endforeach()
 add_subdirectory(external_resource_loading_example)
-# A rigid-body scene, on a window or a browser canvas. It needs the physics app, so it is built
-# wherever the apps are.
 if (ENGINE_BUILD_APPS)
     add_subdirectory(physics_rigid_body_example)
-endif()
-# The editor example hosts the editor, which reaches every backend through the seam, so it is built
-# wherever the apps are.
-if (ENGINE_BUILD_APPS)
     add_subdirectory(editor_run_game_example)
 endif()
-# An example that presents through WebGPU directly: it exists to answer whether a surface can be
-# acquired and presented at all, on either a canvas or a window, so it is built only where the
-# WebGPU backend is the one selected.
 if (ENGINE_RHI_BACKEND_WEBGPU)
     add_subdirectory(webgpu_clear_example)
 endif()
-
-

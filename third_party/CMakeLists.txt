@@ -3,6 +3,26 @@ add_subdirectory(AnnoRefl)
 # disable warning for third party
 add_compile_options($<$<CXX_COMPILER_ID:GNU,Clang>:-w>$<$<CXX_COMPILER_ID:MSVC>:/w>)
 
+# Host-tools builds need only what the native shader tools link: JSON, glslang
+# and SPIRV-Cross. Everything else (rendering, UI, asset formats) is engine
+# runtime territory and stays out of the host-tools tree.
+if (ENGINE_HOST_TOOLS_ONLY)
+    add_subdirectory(glm EXCLUDE_FROM_ALL SYSTEM)
+    add_subdirectory(json EXCLUDE_FROM_ALL SYSTEM)
+
+    set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
+    add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)
+
+    set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
+    set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)
+    set(SPIRV_CROSS_ENABLE_HLSL OFF CACHE BOOL "Enable HLSL target support." FORCE)
+    set(SPIRV_CROSS_ENABLE_MSL OFF CACHE BOOL "Enable MSL target support." FORCE)
+    set(SPIRV_CROSS_ENABLE_C_API OFF CACHE BOOL "Enable C API wrapper support in static library." FORCE)
+    set(SPIRV_CROSS_FORCE_PIC ON CACHE BOOL "Force position-independent code for all targets." FORCE)
+    add_subdirectory(SPIRV-Cross EXCLUDE_FROM_ALL SYSTEM)
+    return()
+endif()
+
 add_subdirectory(glm EXCLUDE_FROM_ALL SYSTEM)
 set_target_properties(glm PROPERTIES FOLDER third_party)
 
@@ -34,11 +54,10 @@ add_subdirectory(fastgltf EXCLUDE_FROM_ALL SYSTEM)
 set_target_properties(fastgltf PROPERTIES FOLDER third_party)
 set_target_properties(fastgltf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# For some reasons the SPIRV-Cross in Vulkan SDK cannot be found by CMake...
-# SPIRV-Cross reflects SPIR-V modules. The Vulkan backend does that at runtime; the
-# WebGPU backend does not, but the build-time shader baker does, so a desktop WebGPU
-# build that includes the tools builds it too.
-if (ENGINE_RHI_BACKEND_VULKAN OR ENGINE_RHI_BAKE_REFLECTION)
+# SPIRV-Cross reflects SPIR-V modules at build time: the native shader tooling
+# (and the Vulkan backend, which also reflects at runtime) need it on every
+# native build. WebGPU runtime targets never link it; browser builds skip it.
+if (NOT EMSCRIPTEN)
     set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
     set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)
     set(SPIRV_CROSS_ENABLE_HLSL OFF CACHE BOOL "Enable HLSL target support." FORCE)
@@ -79,11 +98,11 @@ if (ENGINE_RHI_BACKEND_VULKAN)
 else()
     target_link_libraries(imgui PUBLIC SDL3::SDL3 EngineDepWebgpu)
     # imgui's WebGPU back-end has to be told which implementation it talks to: the
-    # standard interface and wgpu-native's header differ enough that it asks rather than
-    # guessing, and a build naming neither fails with an #error naming both.
-    # The headers this build uses are Dawn's WebGPU headers - the bundled wgpu-native 29
-    # tracks the same naming, with WGPUComputeState and WGPUShaderSourceWGSL. imgui branches on
-    # which backend it is talking to, and the Dawn branch is the one those names belong to.
+    # standard interface and the implementation-specific headers differ enough that it asks
+    # rather than guessing, and a build naming neither fails with an #error naming both.
+    # The headers this build uses are Dawn's WebGPU headers (the browser shape uses the
+    # emdawnwebgpu port's); imgui branches on which backend it is talking to, and the Dawn
+    # branch is the one the WGPUComputeState / WGPUShaderSourceWGSL names belong to.
     target_compile_definitions(imgui PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_DAWN=1)
 endif()
 target_include_directories(
@@ -113,9 +132,10 @@ if(TARGET ktx)
 endif()
 
 set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
-if (ENGINE_RHI_BACKEND_VULKAN)
-    # glslang is the runtime GLSL compiler of the Vulkan backend only; the
-    # WebGPU backend loads baked WGSL and compiles nothing at runtime.
+if (NOT EMSCRIPTEN)
+    # glslang is the GLSL compiler of the native shader tooling on every native
+    # build, and of the Vulkan backend at runtime; a browser build ships baked
+    # SPIR-V/WGSL and compiles nothing, so it builds no glslang at all.
     add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)
 endif()
 
@@ -150,5 +170,27 @@ if (TARGET vma)
     list(APPEND _anro_system_reset_targets vma)
 endif()
 set_target_properties(${_anro_system_reset_targets} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")
+
+# With a Release-only desktop Dawn package, everything that can reach Dawn is
+# switched to the release runtime by the top-level pass at the end of configure.
+# Dual-config Dawn packages skip that pass. The shader-tooling third party (glslang,
+# SPIRV-Cross) and libktx's encoder internals never link Dawn; they keep the
+# default runtime, which is also what keeps libktx's mixed encoder sources
+# internally consistent.
+if (ENGINE_RHI_BACKEND_WEBGPU AND NOT EMSCRIPTEN)
+    function(_engine_mark_default_runtime dir)
+        get_property(_marked_targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(_marked_t IN LISTS _marked_targets)
+            set_target_properties(${_marked_t} PROPERTIES ENGINE_DEFAULT_RUNTIME ON)
+        endforeach()
+        get_property(_marked_subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
+        foreach(_marked_d IN LISTS _marked_subdirs)
+            _engine_mark_default_runtime("${_marked_d}")
+        endforeach()
+    endfunction()
+    _engine_mark_default_runtime(${CMAKE_CURRENT_SOURCE_DIR}/glslang)
+    _engine_mark_default_runtime(${CMAKE_CURRENT_SOURCE_DIR}/SPIRV-Cross)
+    _engine_mark_default_runtime(${CMAKE_CURRENT_SOURCE_DIR}/libktx)
+endif()
 
 

@@ -76,6 +76,22 @@ namespace Engine::ShaderBake {
         const std::string &wgsl,
         std::string &json
     );
+
+    /// @brief The shader stage a file name declares, inferred the way the WGSL tree bake infers it.
+    std::string StageOfFileName(const std::filesystem::path &file_path);
+
+    /**
+     * @brief Bake the WGSL variant and interface description for one SPIR-V module file.
+     *
+     * Writes <module>.wgsl and <module>.iface.json next to the module, with the same
+     * rewrite, conversion, agreement and validation checks as the tree bake.
+     *
+     * @param options Converter selection and validation behavior.
+     * @param module_path The `.spv` file to bake.
+     * @param error Receives a diagnostic when the bake fails.
+     * @return Whether the module was baked.
+     */
+    bool BakeWgslModule(const WgslBakeOptions &options, const std::filesystem::path &module_path, std::string &error);
 } // namespace Engine::ShaderBake
 
 #endif // ENGINE_SHADERBAKER_WGSL_BAKE_INCLUDED

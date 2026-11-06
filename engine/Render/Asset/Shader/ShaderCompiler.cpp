@@ -4,6 +4,9 @@
 #include <SDL3/SDL.h>
 #include <SPIRV/GlslangToSpv.h>
 
+#include <array>
+#include <cassert>
+
 namespace {
     /**
      * @brief Read whole file into a string.
@@ -86,7 +89,10 @@ namespace Engine {
         return true;
     }
     bool ShaderCompiler::CompileGLSLtoSPV(
-        std::vector<uint32_t> &spirv, const std::filesystem::path &shader_abs_path, bool emit_debug_info
+        std::vector<uint32_t> &spirv,
+        const std::filesystem::path &shader_abs_path,
+        bool emit_debug_info,
+        std::set<std::string> *included_files
     ) {
         assert(shader_abs_path.is_absolute());
 
@@ -171,6 +177,9 @@ namespace Engine {
                 option.disableOptimizer = true;
             }
             glslang::GlslangToSpv(*intermediate, spirv, &option);
+        }
+        if (included_files != nullptr) {
+            *included_files = includer.getIncludedFiles();
         }
         return true;
     }

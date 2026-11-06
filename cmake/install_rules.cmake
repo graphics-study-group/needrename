@@ -112,7 +112,7 @@ install(
 endif()
 
 # --- Data components ------------------------------------------------------
-# builtin_assets is staged and installed by the top-level CMakeLists (mode
+# builtin_assets is staged and installed by RuntimeData.cmake (mode
 # dependent); physics SPIR-V is installed by engine/Physics.
 
 # Project templates: an application materialises its working project from here.

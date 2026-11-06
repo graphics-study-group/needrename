@@ -20,8 +20,8 @@
 #define ENGINE_DEV_ASSETS_DIR "@ASSETS_DIR@"
 #define ENGINE_DEV_TESTS_DIR "@TESTS_DIR@"
 
-// Physics SPIR-V is compiled per configuration (Debug keeps glslangValidator's
-// -gVS debug info), so the build tree splits the artefacts by configuration.
+// Physics SPIR-V is compiled per configuration (Debug bakes debug info into the
+// module), so the build tree splits the artefacts by configuration.
 // ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR is defined per configuration by
 // engine/Physics/CMakeLists.txt; an installed data root has no split.
 #if defined(ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR)

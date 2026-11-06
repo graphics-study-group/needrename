@@ -4,13 +4,15 @@
 #include "Render/render_export.h"
 #include <cstdint>
 #include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
 
-#if defined(ENGINE_RHI_BACKEND_VULKAN)
-// Compiling GLSL at run time is Vulkan's path. The other backend ships baked SPIR-V and has no
-// compiler at all, so the includer and glslang sit behind the backend switch rather than always
-// present - that is what keeps glslang out of the browser build.
+// Compiling GLSL at run time is the Vulkan runtime's path; build-time compilation is the
+// native shader tooling's. Both set ENGINE_SHADER_COMPILER_HAS_GLSLANG; a WebGPU runtime
+// build has no compiler at all and ships baked SPIR-V/WGSL instead - that is what keeps
+// glslang out of the browser build.
+#if defined(ENGINE_SHADER_COMPILER_HAS_GLSLANG)
 #include "ShaderIncluder.h"
 #include <glslang/Public/ShaderLang.h>
 #else
@@ -48,17 +50,21 @@ namespace Engine {
          * correctly if asked to do so.
          */
         /// @param emit_debug_info Whether to embed non-semantic debug information.
+        /// @param included_files Receives the absolute paths read through the include callbacks.
         /// @note Off by default. The extension it adds (`SPV_KHR_non_semantic_info`) is rejected by
         /// a validation layer at `vkCreateShaderModule`, so a build that keeps it on cannot be run
         /// with validation; and a baked archive is meant to carry none (design D12).
         bool CompileGLSLtoSPV(
-            std::vector<uint32_t> &spirv, const std::filesystem::path &shader_abs_path, bool emit_debug_info = false
+            std::vector<uint32_t> &spirv,
+            const std::filesystem::path &shader_abs_path,
+            bool emit_debug_info = false,
+            std::set<std::string> *included_files = nullptr
         );
 
     protected:
         /// @brief Project assets include path, registered as a system include path during compilation.
         std::filesystem::path m_project_assets_path;
-#if defined(ENGINE_RHI_BACKEND_VULKAN)
+#if defined(ENGINE_SHADER_COMPILER_HAS_GLSLANG)
         TBuiltInResource m_built_in_resource = {
             .maxLights = 32,
             .maxClipPlanes = 6,
@@ -175,7 +181,7 @@ namespace Engine {
                 .generalConstantMatrixVectorIndexing = 1,
             }
         };
-#endif // ENGINE_RHI_BACKEND_VULKAN
+#endif // ENGINE_SHADER_COMPILER_HAS_GLSLANG
     };
 } // namespace Engine
 

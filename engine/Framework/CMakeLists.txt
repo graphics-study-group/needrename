@@ -46,20 +46,15 @@ add_reflection_parser(
 add_dependencies(EngineFramework meta_framework)
 target_link_libraries(EngineFramework PRIVATE meta_framework)
 
-# Copy third-party DLLs that are not natively built into the bin directory.
-# SDL3 is an imported target (SDL3_ROOT dev package); libktx overrides LIBRARY_OUTPUT_DIRECTORY.
+# Engine modules already share the global output directory. Only SDL3 and
+# libktx need copying from their own dependency output locations.
 if (NOT EMSCRIPTEN)
     add_custom_command(TARGET EngineFramework POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3-shared>
-    $<TARGET_FILE:ktx>
-    $<TARGET_FILE:EngineCore>
-    $<TARGET_FILE:EngineAssetCore>
-    $<TARGET_FILE:EnginePhysics>
-    $<TARGET_FILE:EngineRender>
-    $<TARGET_FILE:EngineFramework>
-    $<TARGET_FILE_DIR:EngineFramework>
-    COMMENT "Copying SDL3, libktx, and engine DLLs to output directory"
-)
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:SDL3::SDL3-shared>
+            $<TARGET_FILE:ktx>
+            $<TARGET_FILE_DIR:EngineFramework>
+        COMMENT "Copying SDL3 and libktx to the runtime output directory"
+    )
 endif()
 

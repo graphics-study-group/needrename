@@ -51,13 +51,12 @@
                 "ENGINE_BUILD_DOCS": "OFF",
                 "ENGINE_BUILD_TESTS": "OFF",
                 "ENGINE_SHADER_MODE": "spv",
-                "ENGINE_BUILD_TOOLS": "ON",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
             }
         },
         {
             "name": "webgpu-desktop",
-            "displayName": "Desktop WebGPU validation build (wgpu-native or Dawn)",
+            "displayName": "Desktop WebGPU validation build (Dawn)",
             "generator": "Visual Studio 18 2026",
             "binaryDir": "${sourceDir}/build/webgpu",
             "cacheVariables": {
@@ -67,6 +66,15 @@
                 "ENGINE_BUILD_DOCS": "OFF",
                 "ENGINE_BUILD_WEBGPU_SPIKE": "ON",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
+            }
+        },
+        {
+            "name": "host-tools",
+            "displayName": "Native host shader tools (browser prerequisite)",
+            "generator": "Visual Studio 18 2026",
+            "binaryDir": "${sourceDir}/build/host-tools",
+            "cacheVariables": {
+                "ENGINE_HOST_TOOLS_ONLY": "ON"
             }
         }
     ],
@@ -94,9 +102,19 @@
             "configurePreset": "emscripten"
         },
         {
-            "name": "webgpu-desktop",
+            "name": "webgpu-desktop-debug",
             "configurePreset": "webgpu-desktop",
             "configuration": "Debug"
+        },
+        {
+            "name": "webgpu-desktop-release",
+            "configurePreset": "webgpu-desktop",
+            "configuration": "Release"
+        },
+        {
+            "name": "host-tools",
+            "configurePreset": "host-tools",
+            "configuration": "Release"
         }
     ],
     "testPresets": [

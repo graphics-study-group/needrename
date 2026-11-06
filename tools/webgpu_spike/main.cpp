@@ -28,11 +28,18 @@
 
 #include <webgpu/webgpu.h>
 
+#if !defined(__EMSCRIPTEN__) && defined(_WIN32)
+#include <dawn/native/DawnNative.h>
+#include <windows.h>
+#endif
+
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #ifdef __EMSCRIPTEN__
@@ -860,6 +867,25 @@ fn read(@builtin(global_invocation_id) id: vec3<u32>) {
     }
 #endif
 
+    WGPUInstance CreateWebGPUInstance() {
+        WGPUInstanceDescriptor instance_desc{};
+#if !defined(__EMSCRIPTEN__) && defined(_WIN32)
+        std::array<char, MAX_PATH> system_directory{};
+        const UINT length = GetSystemDirectoryA(system_directory.data(), system_directory.size());
+        if (length == 0 || length >= system_directory.size()) {
+            std::printf("instance: cannot locate the Windows system directory\n");
+            return nullptr;
+        }
+        std::string system_path(system_directory.data(), length);
+        system_path.push_back('\\');
+        std::array<std::string_view, 1> search_paths{system_path};
+        dawn::native::DawnInstanceDescriptor dawn_desc{};
+        dawn_desc.additionalRuntimeSearchPaths = search_paths;
+        instance_desc.nextInChain = reinterpret_cast<WGPUChainedStruct *>(&dawn_desc);
+#endif
+        return wgpuCreateInstance(&instance_desc);
+    }
+
     /**
      * @brief Create the instance, adapter and device, then run the measurements.
      *
@@ -869,8 +895,7 @@ fn read(@builtin(global_invocation_id) id: vec3<u32>) {
      */
     int Run() {
         RunContext context{};
-        WGPUInstanceDescriptor instance_desc{};
-        context.instance = wgpuCreateInstance(&instance_desc);
+        context.instance = CreateWebGPUInstance();
         if (context.instance == nullptr) {
             std::printf("instance: creation failed\n");
             return 1;

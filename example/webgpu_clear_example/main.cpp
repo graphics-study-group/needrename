@@ -22,11 +22,15 @@
 #include <emscripten.h>
 #else
 #define WIN32_LEAN_AND_MEAN
+#include <dawn/native/DawnNative.h>
 #include <windows.h>
 #endif
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
+#include <string>
+#include <string_view>
 
 namespace {
     constexpr uint32_t WINDOW_WIDTH = 800;
@@ -347,6 +351,25 @@ namespace {
 #endif
         }
     }
+
+    WGPUInstance CreateWebGPUInstance() {
+        WGPUInstanceDescriptor instance_desc{};
+#if !defined(__EMSCRIPTEN__) && defined(_WIN32)
+        std::array<char, MAX_PATH> system_directory{};
+        const UINT length = GetSystemDirectoryA(system_directory.data(), system_directory.size());
+        if (length == 0 || length >= system_directory.size()) {
+            SDL_Log("webgpu_clear: cannot locate the Windows system directory");
+            return nullptr;
+        }
+        std::string system_path(system_directory.data(), length);
+        system_path.push_back('\\');
+        std::array<std::string_view, 1> search_paths{system_path};
+        dawn::native::DawnInstanceDescriptor dawn_desc{};
+        dawn_desc.additionalRuntimeSearchPaths = search_paths;
+        instance_desc.nextInChain = reinterpret_cast<WGPUChainedStruct *>(&dawn_desc);
+#endif
+        return wgpuCreateInstance(&instance_desc);
+    }
 } // namespace
 
 int main(int, char **) {
@@ -362,7 +385,7 @@ int main(int, char **) {
     }
 
     static State state{};
-    state.instance = wgpuCreateInstance(nullptr);
+    state.instance = CreateWebGPUInstance();
     if (state.instance == nullptr) {
         SDL_Log("webgpu_clear: no instance");
         return 1;

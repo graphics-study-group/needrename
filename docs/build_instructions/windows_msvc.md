@@ -14,8 +14,6 @@ This project builds on Windows with the **MSVC** toolchain (Visual Studio 2022 o
 | Python 3 + `.venv` | python.org or any Python 3 | Reflection parser interpreter (user-managed) |
 | Doxygen (optional) | winget | Documentation generation |
 
-No separate MinGW environment is required.
-
 ## Install Steps
 
 ### 1. Visual Studio

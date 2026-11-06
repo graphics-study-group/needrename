@@ -1,48 +1,54 @@
 # Browser (WebGPU / Emscripten) Build Instructions
 
 The browser build compiles the engine's WebGPU backend and its apps to wasm with Emscripten. It
-produces a page per executable (`.html` + `.js` + `.wasm` + `.data`), not a program.
+produces a page per executable (`.html` + `.js` + `.wasm`, plus `.data` when assets are preloaded),
+not a program.
 
 ## Dependencies
 
 | Dependency | Provisioning | Purpose |
 | --- | --- | --- |
 | **emsdk** with the `emdawnwebgpu` port | https://emscripten.org (`emsdk install latest && emsdk activate latest`) | wasm toolchain; the WebGPU port supplies `webgpu/webgpu.h` and `emdawnwebgpu.js` |
-| **Tint** | a Dawn release archive (e.g. `Dawn-<hash>-windows-latest-Release/bin/tint.exe`) | SPIR-V to WGSL converter used by the shader bake |
-| **Host `shader_baker`** | built by a native Vulkan configure (`build/msvc/bin/Debug/shader_baker.exe`) | a cross build cannot build or run the baker for its own target |
-| **glslangValidator** | Vulkan SDK | compiles the physics GLSL to SPIR-V during the build |
+| **Ninja** | on `PATH` or named by `CMAKE_MAKE_PROGRAM` | generator used by the `emscripten` preset |
+| **Tint** | [manual installation](webgpu_dependencies.md) | native host SPIR-V to WGSL converter used by the shader bake |
+| **Host `shader_baker`** | built by the `host-tools` preset (`build/host-tools/bin/Release/shader_baker.exe`) | a cross build cannot build or run the baker for its own target |
 | Python + `.venv` | as for the Windows build | reflection parser |
 | A Chromium browser with WebGPU | Edge or Chrome, hardware acceleration on | runs the page |
+| Node.js 22+ | https://nodejs.org | native `fetch` and `WebSocket` used by the CDP capture helper |
 
-The machine paths this repository's tree was set up with are listed in
-`openspec/changes/rhi-webgpu-backend/HANDOVER.md` ("Machine setup this expects").
+Install Tint and set `DAWN_ROOT` once using [webgpu_dependencies.md](webgpu_dependencies.md). See
+[environment_variables.md](environment_variables.md) for the complete preset-by-preset variable
+matrix, including emsdk and Ninja. The browser build links no Dawn and no wgpu-native;
+`emdawnwebgpu` supplies its WebGPU implementation, and the shader bake uses the native host
+`tint.exe` from the Dawn prefix.
 
 ## Configure and build
 
-A Vulkan configure must have built the host baker once:
+Build the native host tools once - this replaces the old full `msvc` engine prerequisite:
 
 ```powershell
-cmake --preset msvc
-cmake --build --preset msvc-debug --target shader_baker
+cmake --preset host-tools
+cmake --build --preset host-tools
 ```
 
-Then the browser build (the preset selects `ENGINE_RHI_BACKEND=webgpu` and builds the apps):
+Then the browser build (the preset selects `ENGINE_RHI_BACKEND=webgpu` and builds the apps). With
+`DAWN_ROOT` set, CMake discovers `bin/tint.exe` without an explicit converter argument:
 
 ```powershell
-cmake --preset emscripten -DSHADER_WGSL_CONVERTER=D:/tools/dawn/<dawn>/bin/tint.exe
-cmake --build build/emscripten
+cmake --preset emscripten
+cmake --build --preset emscripten
 ```
 
 Artifacts land in `build/emscripten/bin`: `physics_rigid_body_example.html`,
-`editor_run_game_example.html` and `external_resource_loading_example.html`, each with its `.js`,
-`.wasm` and `.data`.
+`editor_run_game_example.html`, `external_resource_loading_example.html`, and
+`webgpu_clear_example.html`. The first three preload assets and each has a `.data` file alongside
+its `.js` and `.wasm` files.
 
-The staged data root (`build/emscripten/stage/<config>`) must exist before a page is linked: it is
-what `--preload-file` reads for `builtin_assets` and the baked `spirv` tree.
-
-> The bake is a stamped custom command. After adding a shader, delete
-> `build/emscripten/engine/Physics/spirv/debug/.wgsl_stamp` so the new module is baked; the stamp
-> does not depend on individual shader files.
+The staged data root (`build/emscripten/stage/<config>`) is what `--preload-file` reads for
+`builtin_assets` and the baked `spirv` tree; every page that preloads it depends on the staging
+target, so a clean parallel build needs no manual staging command. Shader outputs are per-source
+custom commands: adding a GLSL file under `engine/Physics/shader/` is picked up by the next
+configure, and editing one source or shared include rebuilds exactly its outputs.
 
 ## Run
 
@@ -69,6 +75,7 @@ the DevTools protocol instead; `tools/dsh/cdp_shot.mjs` waits, captures the canv
 page's console:
 
 ```powershell
+# point $edge at your Edge or Chrome executable
 $edge = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
 $p = Start-Process $edge -ArgumentList @(
     '--headless=new', '--enable-unsafe-webgpu', '--no-sandbox', '--no-first-run',

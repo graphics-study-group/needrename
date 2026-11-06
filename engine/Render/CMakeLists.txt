@@ -8,14 +8,16 @@ foreach(_src IN LISTS RENDER_ALL_SOURCES)
     if (ENGINE_RHI_BACKEND_WEBGPU AND _src MATCHES "/Backend/Vulkan/")
         continue()
     endif()
-    # Runtime GLSL compilation is Vulkan's path. The other backend ships baked SPIR-V, so the
-    # compiler and its glslang includer are not built there at all - which is what lets the
-    # browser link without glslang. The stub that keeps ShaderCompiler's interface exists is
-    # the mirror case and is not built on Vulkan.
-    if (ENGINE_RHI_BACKEND_WEBGPU AND _src MATCHES "/Asset/Shader/(ShaderCompiler|ShaderIncluder)\\.cpp$")
+    # Runtime GLSL compilation is the Vulkan runtime's path; build-time compilation
+    # lives in the native shader tooling. A build without the GLSL compiler ships
+    # baked SPIR-V, so the compiler and its glslang includer are not built there at
+    # all - which is what lets the browser link without glslang. The stub that keeps
+    # ShaderCompiler's interface exists is the mirror case and is not built where the
+    # real compiler is.
+    if (NOT ENGINE_SHADER_COMPILER_HAS_GLSLANG AND _src MATCHES "/Asset/Shader/(ShaderCompiler|ShaderIncluder)\\.cpp$")
         continue()
     endif()
-    if (ENGINE_RHI_BACKEND_VULKAN AND _src MATCHES "/Asset/Shader/ShaderCompilerUnavailable\\.cpp$")
+    if (ENGINE_SHADER_COMPILER_HAS_GLSLANG AND _src MATCHES "/Asset/Shader/ShaderCompilerUnavailable\\.cpp$")
         continue()
     endif()
     # The render graph builder compiles on both backends now: the ordering it computes is portable

@@ -2,15 +2,21 @@
 
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
 #include "Rhi/Backend/WebGPU/WgpuStructs.h"
-#include "Rhi/Backend/WebGPU/WgpuNativeLog.h"
+#include "Rhi/Backend/WebGPU/WgpuImplLog.h"
 
 #include <SDL3/SDL.h>
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
+#elif defined(_WIN32)
+#include <dawn/native/DawnNative.h>
+#include <windows.h>
 #endif
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <vector>
 #include <cstdio>
 #include <thread>
@@ -82,6 +88,27 @@ namespace Engine::Rhi {
             }
             static_cast<void>(what);
         }
+
+        WGPUInstance CreateWebGPUInstance() {
+            WGPUInstanceDescriptor instance_desc{};
+#if !defined(__EMSCRIPTEN__) && defined(_WIN32)
+            // Dawn's default component loader does not fall back to System32
+            // correctly. Supply that directory explicitly for FXC; DXC remains
+            // application-local through Dawn's default executable search path.
+            std::array<char, MAX_PATH> system_directory{};
+            const UINT length = GetSystemDirectoryA(system_directory.data(), system_directory.size());
+            if (length == 0 || length >= system_directory.size()) {
+                throw std::runtime_error("WebGPU: cannot locate the Windows system directory.");
+            }
+            std::string system_path(system_directory.data(), length);
+            system_path.push_back('\\');
+            std::array<std::string_view, 1> search_paths{system_path};
+            dawn::native::DawnInstanceDescriptor dawn_desc{};
+            dawn_desc.additionalRuntimeSearchPaths = search_paths;
+            instance_desc.nextInChain = reinterpret_cast<WGPUChainedStruct *>(&dawn_desc);
+#endif
+            return wgpuCreateInstance(&instance_desc);
+        }
     } // namespace
 
     struct DeviceInterface::impl {
@@ -97,10 +124,7 @@ namespace Engine::Rhi {
         // status of "Validation Error" gets its reason.
         ConfigureWgpuLoggingFromEnvironment();
 
-        WGPUInstanceDescriptor instance_desc{};
-        // wgpu-native reads the backend selection from the environment; the browser
-        // ignores this field entirely.
-        pimpl->instance = wgpuCreateInstance(&instance_desc);
+        pimpl->instance = CreateWebGPUInstance();
         if (pimpl->instance == nullptr) {
             throw std::runtime_error("WebGPU: instance creation failed.");
         }
