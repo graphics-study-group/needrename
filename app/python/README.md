@@ -44,35 +44,34 @@ No C++ toolchain, Vulkan SDK, or engine checkout is required to use the wheel.
 
 ## Development iteration (no wheel)
 
-The extension is part of the engine build. With `ENGINE_BUILD_PYTHON_BINDINGS`
-on (the default), `cmake --build --preset msvc-debug` compiles `_physicsapp` into
-the project's normal per-configuration output directory,
-`build/msvc/bin/Debug/` (Release lands in `.../Release/`), next to the engine
-DLLs it links — so the two configurations never overwrite each other and a
-configuration can never mix with the other one's DLLs. A development run imports
-the package sources straight from `app/python/src`; the package then picks the
-extension up from beside the engine DLLs. Nothing is staged or copied next to
-the sources. scikit-build-core runs only when packaging a wheel, so this path
-reuses the CMake build tree you already have.
+With `ENGINE_BUILD_PYTHON_BINDINGS` on (the default), the normal build prepares a
+self-contained package in `build/msvc/python/Debug/needrename_sim/` (Release uses
+`.../Release/`). It contains the Python sources, extension and stub, engine DLLs,
+built-in assets, physics SPIR-V, and project templates. Each configuration has
+its own package, so their files cannot mix. scikit-build-core runs only when
+packaging a wheel.
 
 ```powershell
+# Build and stage everything needed for development.
 cmake --build --preset msvc-debug
-.venv\Scripts\python -m pytest app\python\tests
+
+# Build the staged runtime only, or build it and run the complete test suite.
+cmake --build --preset msvc-debug --target python_runtime
+cmake --build --preset msvc-debug --target python_test
 ```
 
+`python_test` runs the `python_bindings` CTest entry against the staged package.
+After a default build, `ctest --preset msvc-debug` runs the same test along with
+the C++ suite. With `ENGINE_BUILD_TESTS=OFF`, the test target and registration
+are absent, while the runtime and example targets remain available.
+
 The default build also runs `generate_python_stubs`, which uses the configured
-`.venv` interpreter to write `_physicsapp.pyi` beside the compiled extension in
-the configuration's output directory. The target can also be built separately;
-the stub is installed beside the extension and included in wheels automatically.
+`.venv` interpreter. The target can be built separately; the stub is staged with
+the extension and included in wheels automatically.
 
 ```powershell
 cmake --build build/msvc --config Debug --target generate_python_stubs
 ```
-
-The test configuration locates the built configuration directory (Debug first,
-then RelWithDebInfo/Release) and a developer data root (`build\py-runtime` or
-`install`) on its own; use the environment variables below when running scripts
-by hand.
 
 ## Building the wheel
 
@@ -118,12 +117,12 @@ On import the package locates three things:
 | Runtime data root (`builtin_assets/`, `projects/`, `spirv/`) | `NEEDRENAME_DATA_ROOT` | `needrename_sim/share/needrename/` |
 | Compiled extension (`_physicsapp*.pyd`) | `NEEDRENAME_BINDINGS_DIR` (override only) | the package directory, then beside the engine DLLs, then `<data root>/python/` |
 
-- The environment variables take precedence and are meant for development:
-  point them at an engine build's `bin/Debug` and an installed data root
-  (`<prefix>/share/needrename`) to run against a locally built engine.
-- The extension needs no variable in the two common layouts: an installed wheel
-  bundles it inside the package, and a build tree links it next to the engine
-  DLLs. `NEEDRENAME_BINDINGS_DIR` exists for layouts that move it elsewhere.
+- The environment variables take precedence and support custom layouts. The
+  normal development runtime and installed wheels need none of them.
+- The extension needs no variable in the common layouts: a wheel bundles it
+  inside the package, and the staged development package keeps it under the data
+  root's `python/` directory. `NEEDRENAME_BINDINGS_DIR` exists for layouts that
+  move it elsewhere.
 - On Windows the DLL search directories are registered before the extension is
   imported; `PATH` is not used.
 - Import fails with a message naming the variables that did not resolve (the
@@ -133,10 +132,8 @@ On import the package locates three things:
   create their own app.
 
 ```powershell
-# Development run against a build tree: sources + bin/Debug (DLLs and extension).
-$env:PYTHONPATH = "$PWD\app\python\src"
-$env:NEEDRENAME_RUNTIME_DIR = "$PWD\build\msvc\bin\Debug"
-$env:NEEDRENAME_DATA_ROOT = "$PWD\build\py-runtime\share\needrename"
+# Run a script against the staged Debug development package.
+$env:PYTHONPATH = "$PWD\build\msvc\python\Debug"
 .venv\Scripts\python -c "import needrename_sim"
 ```
 
@@ -227,18 +224,34 @@ readable immediately and takes effect on the next `step`.
 ## Tests and examples
 
 ```powershell
-# Test suite (from the repository root, wheel installed or build tree present).
-.venv\Scripts\python -m pytest app\python\tests
+# Build the development runtime and run the complete test suite.
+cmake --build --preset msvc-debug --target python_test
 
-# Examples; each takes a URDF path (no robot assets are bundled). `python` below
-# is an interpreter that has needrename-sim installed (a wheel install such as
-# .venv-app, or the repository .venv with the dev-mode variables above).
+# Run fixed-example smoke/demo workflows with the same staged package.
+cmake --build --preset msvc-debug --target python_example_rl
+cmake --build --preset msvc-debug --target python_example_headless
+cmake --build --preset msvc-debug --target python_example_windowed
+cmake --build --preset msvc-debug --target python_example_a1_stand
+```
+
+The generic example targets use `app/python/tests/data/minimal_robot.urdf` by
+default. Override it at configure time with
+`cmake --preset msvc -DNEEDRENAME_PYTHON_EXAMPLE_URDF=D:\path\to\robot.urdf`.
+The headless target writes two small PPM frames under
+`build/msvc/python-examples/Debug/frames/`; the windowed target stays open until
+its window closes. `python_example_a1_stand` always loads the repository's A1 and
+drives all twelve leg joints to a standing pose entirely from Python. For a
+finite self-checking run, execute `a1_stand.py --frames 600` directly.
+
+For arbitrary example arguments, use an interpreter with the wheel installed, or
+set `PYTHONPATH` to the staged development runtime as shown above and invoke the
+scripts directly:
+
+```powershell
 python app\python\examples\windowed_robot.py <robot.urdf>
 python app\python\examples\headless_render.py <robot.urdf> --frames 8 --out frames
 python app\python\examples\rl_loop_sketch.py <robot.urdf> --episodes 3 --steps 120
 ```
 
-`headless_render.py` writes PPM frames; `rl_loop_sketch.py` runs headless
-episodes and logs per-episode totals. The tests use a hand-written,
-mesh-free URDF fixture (`app/python/tests/data/minimal_robot.urdf`), so they pass
-with only the wheel's data available.
+The tests use a hand-written, mesh-free URDF fixture, so they also pass with only
+the wheel's data available.

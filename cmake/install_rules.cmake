@@ -11,6 +11,7 @@
 # Components:
 #   runtime        executables, shared libraries, built-in assets, physics SPIR-V
 #   apps-data      project templates used by the applications
+#   examples       example executables
 #   examples-data  sample content used by the example executables
 #   test-data      test executables and their fixtures (ENGINE_INSTALL_TESTS=ON)
 #   sdk            headers, libraries for linking, CMake package, reflection parser
@@ -90,7 +91,7 @@ foreach(candidate external_resource_loading_example editor_run_game_example)
     endif()
 endforeach()
 if (ENGINE_EXAMPLE_EXECUTABLES)
-    install(TARGETS ${ENGINE_EXAMPLE_EXECUTABLES} RUNTIME DESTINATION bin COMPONENT runtime)
+    install(TARGETS ${ENGINE_EXAMPLE_EXECUTABLES} RUNTIME DESTINATION bin COMPONENT examples)
 endif()
 
 # SDL3 is an imported target; its shared runtime has to travel with the

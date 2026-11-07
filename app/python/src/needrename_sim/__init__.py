@@ -5,12 +5,11 @@ DLL search directory (Windows loads extension-module dependencies from
 registered ``os.add_dll_directory`` entries only, not from ``PATH``), pins the
 runtime data root, and then loads the ``_physicsapp`` extension module.
 
-An installed wheel bundles everything inside the package and needs no
-configuration. A development checkout imports this package straight from
-``app/python/src`` (via ``PYTHONPATH``), where the compiled extension does not
-live; it is then found next to the engine DLLs in the build tree's
-per-configuration output directory (``build/msvc/bin/<config>``). Set
-``NEEDRENAME_BINDINGS_DIR`` only for layouts that put it somewhere else.
+An installed wheel or staged development runtime bundles everything inside the
+package and needs no configuration. Custom source-tree runs can point
+``NEEDRENAME_RUNTIME_DIR`` and ``NEEDRENAME_DATA_ROOT`` at separate build/install
+locations. Set ``NEEDRENAME_BINDINGS_DIR`` only for layouts that put the
+extension somewhere else.
 """
 
 from __future__ import annotations
