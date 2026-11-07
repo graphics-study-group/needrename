@@ -32,9 +32,10 @@ and SHALL NOT require any caller-side recording call.
 (Drive phase). It SHALL restore every body's position and rotation to the
 snapshot and write the snapshot velocities back as integration seeds (the next
 step derives velocity from the pose change, as elsewhere in the write API). It
-SHALL zero `ExternalForce` and `ExternalTorque` for every body, restore every
-actuator's target angle to its commit-time value, and reset actuator internal
-state through `Actuator::Reset()`.
+SHALL zero `ExternalForce` and `ExternalTorque` for every body, discard any
+uncommitted round writes (pending force/torque and state overrides written
+since the last `Step`), restore every actuator's target angle to its
+commit-time value, and reset actuator internal state through `Actuator::Reset()`.
 
 Restored state SHALL be visible to state reads immediately, and SHALL take
 effect in the physics buffers on the next `Step`. Reset SHALL NOT advance the
@@ -52,6 +53,12 @@ Calling `ResetToInitial` before `CommitScene` SHALL throw `std::logic_error`.
 
 - **WHEN** external force or torque was set on any body and `ResetToInitial` is called
 - **THEN** subsequent steps apply no residual force or torque from before the reset
+
+#### Scenario: Reset discards uncommitted round writes
+
+- **WHEN** `AddJointTorque` or `SetBodyValue` was called after the last `Step`
+  and `ResetToInitial` is called before the next `Step`
+- **THEN** the next step applies none of those pending writes
 
 #### Scenario: Reset restores actuator targets and internal state
 
