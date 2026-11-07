@@ -31,14 +31,28 @@ nanobind_add_module(_physicsapp NB_STATIC
 target_link_libraries(_physicsapp PRIVATE PhysicsApp)
 set_target_properties(_physicsapp PROPERTIES FOLDER engine_apps)
 
+set(PHYSICSAPP_STUB_FILE "$<TARGET_FILE_DIR:_physicsapp>/_physicsapp.pyi")
+add_custom_target(generate_python_stubs ALL
+    COMMAND "${Python3_EXECUTABLE}" "${THIRD_PARTY_DIR}/nanobind/src/stubgen.py"
+        -m _physicsapp
+        -i "$<TARGET_FILE_DIR:_physicsapp>"
+        -o "${PHYSICSAPP_STUB_FILE}"
+    DEPENDS _physicsapp
+    COMMENT "Generating Python type stubs for _physicsapp"
+    VERBATIM
+)
+set_target_properties(generate_python_stubs PROPERTIES FOLDER engine_apps)
+
 # Installation: a wheel build (scikit-build-core sets SKBUILD) installs the
-# extension straight into the package directory (`wheel.install-dir`), beside the
-# Python sources and the runtime/data it resolves at import. A plain engine
-# install keeps it under the data root instead of the prefix root.
+# extension and its stub straight into the package directory (`wheel.install-dir`),
+# beside the Python sources and the runtime/data it resolves at import. A plain
+# engine install keeps them under the data root instead of the prefix root.
 if (SKBUILD)
     install(TARGETS _physicsapp LIBRARY DESTINATION . COMPONENT runtime)
+    install(FILES "${PHYSICSAPP_STUB_FILE}" DESTINATION . COMPONENT runtime)
 else()
     install(TARGETS _physicsapp LIBRARY DESTINATION share/needrename/python COMPONENT runtime)
+    install(FILES "${PHYSICSAPP_STUB_FILE}" DESTINATION share/needrename/python COMPONENT runtime)
 endif()
 
 # No output-directory override: the extension lands in the project's normal

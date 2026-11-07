@@ -60,6 +60,15 @@ cmake --build --preset msvc-debug
 .venv\Scripts\python -m pytest app\python\tests
 ```
 
+The default build also runs `generate_python_stubs`, which uses the configured
+`.venv` interpreter to write `_physicsapp.pyi` beside the compiled extension in
+the configuration's output directory. The target can also be built separately;
+the stub is installed beside the extension and included in wheels automatically.
+
+```powershell
+cmake --build build/msvc --config Debug --target generate_python_stubs
+```
+
 The test configuration locates the built configuration directory (Debug first,
 then RelWithDebInfo/Release) and a developer data root (`build\py-runtime` or
 `install`) on its own; use the environment variables below when running scripts
