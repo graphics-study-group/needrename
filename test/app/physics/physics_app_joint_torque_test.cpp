@@ -1,21 +1,27 @@
-// physics_app_joint_torque_test.cpp — PhysicsApp::SetJointTorque behavior.
+// physics_app_joint_torque_test.cpp — PhysicsApp::AddJointTorque behavior.
 //
 // The torque channel is exercised on a two-body hinge in `AppMode::PhysicsOnly`:
 // a free dynamic pair whose bodies have identical mass and inertia, so a truly
 // equal-and-opposite torque pair must produce exactly opposite angular
 // velocities (`omega_child = -omega_parent`) about the hinge axis.
 //
+// Torque writes follow the one-round write lifetime: an `AddJointTorque` call
+// accumulates into the current round, the next `Step` consumes it, and a later
+// round applies nothing unless the caller adds again.
+//
 // Covered:
 //   * phase / handle / actuator-ownership error cases,
 //   * torque accelerates the joint in the +axis direction,
-//   * a once-set torque keeps applying on every step until overwritten,
+//   * a torque added once is consumed by its step (no persistence),
+//   * re-applying every step keeps accelerating,
+//   * an add of zero contributes no acceleration,
 //   * the actuator torque path still drives its joint and is not affected,
 //   * a later `SetBodyValue(ExternalTorque)` on one body wins over the joint
 //     torque for that body while the other body keeps its component,
 //   * `GetActuator` returns the registered instance and an empty pointer for a
 //     joint without one,
-//   * `RemoveActuator` clears the joint's torque channel (the stale actuator
-//     torque stops applying) and hands the joint back to `SetJointTorque`,
+//   * `RemoveActuator` detaches the actuator (its per-round torque stops
+//     immediately) and hands the joint back to `AddJointTorque`,
 //   * registration, tuning, and removal are legal in the Drive phase and an
 //     actuator added after `CommitScene` drives from the next `Step`.
 
@@ -107,7 +113,7 @@ int main() {
     app->SetTargetAngle(actuated.joint, 0.5f);
 
     // Removal scenario: a constant-torque actuator on a free pair, so the stale
-    // torque is observable as continued angular acceleration.
+    // torque would be observable as continued angular acceleration.
     const Assembly removable = AddHingeAssembly(*app, glm::vec3(40.0f, 0.0f, 0.0f), false);
     auto constant_actuator = std::make_shared<ConstantTorqueActuator>(kTorque);
     app->AddActuator(removable.joint, constant_actuator);
@@ -189,12 +195,12 @@ int main() {
     {
         bool threw = false;
         try {
-            app->SetJointTorque(manual.joint, kTorque);
+            app->AddJointTorque(manual.joint, kTorque);
         } catch (const std::logic_error &) {
             threw = true;
         } catch (...) {
         }
-        Check(threw, "SetJointTorque before CommitScene throws std::logic_error");
+        Check(threw, "AddJointTorque before CommitScene throws std::logic_error");
     }
 
     app->CommitScene();
@@ -203,36 +209,37 @@ int main() {
     {
         bool threw = false;
         try {
-            app->SetJointTorque(12345u, kTorque);
+            app->AddJointTorque(12345u, kTorque);
         } catch (const std::out_of_range &) {
             threw = true;
         } catch (...) {
         }
-        Check(threw, "SetJointTorque with an invalid JointId throws std::out_of_range");
+        Check(threw, "AddJointTorque with an invalid JointId throws std::out_of_range");
     }
     {
         bool threw = false;
         try {
-            app->SetJointTorque(INVALID_JOINT_ID, kTorque);
+            app->AddJointTorque(INVALID_JOINT_ID, kTorque);
         } catch (const std::out_of_range &) {
             threw = true;
         } catch (...) {
         }
-        Check(threw, "SetJointTorque with INVALID_JOINT_ID throws std::out_of_range");
+        Check(threw, "AddJointTorque with INVALID_JOINT_ID throws std::out_of_range");
     }
     {
         bool threw = false;
         try {
-            app->SetJointTorque(actuated.joint, kTorque);
+            app->AddJointTorque(actuated.joint, kTorque);
         } catch (const std::logic_error &) {
             threw = true;
         } catch (...) {
         }
-        Check(threw, "SetJointTorque on an actuated joint throws std::logic_error");
+        Check(threw, "AddJointTorque on an actuated joint throws std::logic_error");
     }
 
-    // ── Removal clears the torque channel ───────────────────────────────
-    // The constant-torque actuator has been driving its joint; after removal the
+    // ── Removal detaches the actuator's per-round torque ────────────────
+    // The constant-torque actuator has been driving its joint; because actuator
+    // torques live only in the round that produced them, removal is enough: the
     // joint keeps its angular velocity but stops accelerating.
     for (int i = 0; i < 3; ++i) {
         app->Step();
@@ -245,11 +252,11 @@ int main() {
     {
         bool threw = false;
         try {
-            app->SetJointTorque(removable.joint, 0.0f);
+            app->AddJointTorque(removable.joint, 0.0f);
         } catch (...) {
             threw = true;
         }
-        Check(!threw, "SetJointTorque is legal again after RemoveActuator");
+        Check(!threw, "AddJointTorque is legal again after RemoveActuator");
     }
 
     for (int i = 0; i < 3; ++i) {
@@ -259,7 +266,7 @@ int main() {
     Check(
         std::fabs(removable_omega_after - removable_omega_before)
             < 0.05f * std::max(std::fabs(removable_omega_before), 1e-6f),
-        "the removed actuator's stale torque stops applying"
+        "the removed actuator no longer accelerates the joint"
     );
 
     // ── Actuator path unchanged ─────────────────────────────────────────
@@ -276,16 +283,29 @@ int main() {
     );
 
     // ── Torque accelerates the joint in the +axis direction ─────────────
-    app->SetJointTorque(manual.joint, kTorque);
+    app->AddJointTorque(manual.joint, kTorque);
     app->Step();
     const float omega_1 = app->GetJointState(manual.joint).angular_velocity;
     Check(omega_1 > 0.0f, "positive torque accelerates the joint about +axis");
 
-    // ── Persistence: the once-set torque keeps applying every step ──────
+    // ── One-round lifetime: not re-applying adds no further torque ──────
     app->Step();
     app->Step();
     const float omega_3 = app->GetJointState(manual.joint).angular_velocity;
-    Check(omega_3 > 2.0f * omega_1, "a once-set torque keeps applying on every step");
+    Check(
+        std::fabs(omega_3 - omega_1) < 0.05f * std::max(std::fabs(omega_1), 1e-6f),
+        "a torque added once is consumed by its step"
+    );
+
+    // ── Re-applying every step keeps accelerating ───────────────────────
+    float previous_omega = omega_3;
+    for (int i = 0; i < 3; ++i) {
+        app->AddJointTorque(manual.joint, kTorque);
+        app->Step();
+        const float omega = app->GetJointState(manual.joint).angular_velocity;
+        Check(omega > previous_omega, "re-applying the torque accelerates on every step");
+        previous_omega = omega;
+    }
 
     // ── Equal-and-opposite torques on the two bodies ────────────────────
     // Identical bodies => a truly opposite torque pair => opposite angular
@@ -299,19 +319,20 @@ int main() {
         "the opposite body torques are equal in magnitude"
     );
 
-    // ── Zeroing the torque stops the acceleration ───────────────────────
-    app->SetJointTorque(manual.joint, 0.0f);
+    // ── An add of zero contributes no acceleration ──────────────────────
+    const float omega_before_zero = app->GetJointState(manual.joint).angular_velocity;
+    app->AddJointTorque(manual.joint, 0.0f);
     app->Step();
-    const float omega_zeroed = app->GetJointState(manual.joint).angular_velocity;
+    const float omega_after_zero = app->GetJointState(manual.joint).angular_velocity;
     Check(
-        std::fabs(omega_zeroed - omega_3) < 0.05f * std::fabs(omega_3),
-        "setting the torque to zero stops the acceleration"
+        std::fabs(omega_after_zero - omega_before_zero) < 0.05f * std::max(std::fabs(omega_before_zero), 1e-6f),
+        "adding zero torque adds no acceleration"
     );
 
     // ── A later SetBodyValue(ExternalTorque) wins for that body ─────────
     // Re-apply the pair, then zero only the child's channel: the child keeps its
     // angular velocity while the parent keeps accelerating on its component.
-    app->SetJointTorque(manual.joint, kTorque);
+    app->AddJointTorque(manual.joint, kTorque);
     app->SetBodyValue(manual.child, BodyField::ExternalTorque, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
     const float child_before = app->GetBodyState(manual.child).angular_velocity.z;
     const float parent_before = app->GetBodyState(manual.parent).angular_velocity.z;
@@ -365,11 +386,11 @@ int main() {
     {
         bool threw = false;
         try {
-            app->SetJointTorque(drive_phase.joint, 0.0f);
+            app->AddJointTorque(drive_phase.joint, 0.0f);
         } catch (...) {
             threw = true;
         }
-        Check(!threw, "removal in the Drive phase hands the joint back to SetJointTorque");
+        Check(!threw, "removal in the Drive phase hands the joint back to AddJointTorque");
     }
     {
         bool threw = false;

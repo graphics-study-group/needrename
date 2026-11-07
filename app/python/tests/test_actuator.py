@@ -91,7 +91,7 @@ def main():
     app.remove_actuator(joint)
     observed["removed"] = app.get_actuator(joint) is None
     observed["removed_target_readable"] = held.get_target_angle()
-    observed["manual_torque_after_removal"] = caught(lambda: app.set_joint_torque(joint, 2.0))
+    observed["manual_torque_after_removal"] = caught(lambda: app.add_joint_torque(joint, 2.0))
     app.step()
     observed["manual_omega"] = app.get_joint_state(joint).angular_velocity
     observed["second_removal"] = caught(lambda: app.remove_actuator(joint))
@@ -142,6 +142,52 @@ def main():
     for _ in range(80):
         app.step()
     observed["angle_strong_gain"] = app.get_joint_state(joint).angle
+
+    print("RESULT:" + json.dumps(observed))
+
+main()
+"""
+
+CHAIN_SCENARIO = _HELPERS + """
+class PD(s.Actuator):
+    def __init__(self, kp, kd):
+        super().__init__()
+        self.kp = kp
+        self.kd = kd
+
+    def compute_torque(self, angle, angular_velocity):
+        return self.kp * (self.get_target_angle() - angle) - self.kd * angular_velocity
+
+def main():
+    observed = {}
+    app = s.PhysicsApp.create(s.CreateInfo(mode=s.AppMode.physics_only))
+
+    # Serial chain base(A) -> mid(B) -> tip(C), both hinges about the engine +Z
+    # axis so gravity creates no hinge torque. B is the child of joint 0 and the
+    # parent of joint 1: it must receive BOTH joints' equal-and-opposite torques.
+    base = app.add_box(
+        s.BoxDesc(position=s.Vec3(0.0, 0.0, -0.25), half_extents=s.Vec3(0.2, 0.2, 0.2),
+                  mass=0.0, kinematic=True)
+    )
+    mid = app.add_box(s.BoxDesc(position=s.Vec3(0.0, 0.0, 0.25), half_extents=s.Vec3(0.2, 0.2, 0.2)))
+    tip = app.add_box(s.BoxDesc(position=s.Vec3(0.0, 0.0, 0.75), half_extents=s.Vec3(0.2, 0.2, 0.2)))
+    joint0 = app.add_hinge_joint(
+        base, mid, s.HingeJointParams(axis_obj1=s.Vec3(0.0, 0.0, 1.0), anchor_obj1=s.Vec3(0.0, 0.0, 0.5))
+    )
+    joint1 = app.add_hinge_joint(
+        mid, tip, s.HingeJointParams(axis_obj1=s.Vec3(0.0, 0.0, 1.0), anchor_obj1=s.Vec3(0.0, 0.0, 0.5))
+    )
+
+    app.add_actuator(joint0, PD(20.0, 1.0))
+    app.add_actuator(joint1, PD(20.0, 1.0))
+    app.set_target_angle(joint0, 0.5)
+    app.set_target_angle(joint1, -0.4)
+    app.commit_scene()
+
+    for _ in range(180):
+        app.step()
+    observed["angle0"] = app.get_joint_state(joint0).angle
+    observed["angle1"] = app.get_joint_state(joint1).angle
 
     print("RESULT:" + json.dumps(observed))
 
@@ -218,6 +264,22 @@ def test_live_parameter_tuning_changes_the_motion() -> None:
     assert observed["tuned_kd"] == 1.0
     # ... and the next steps drive the joint to the target.
     assert abs(observed["angle_strong_gain"] - 0.6) < 0.05, observed
+
+
+def test_chained_joints_accumulate_their_torque_on_a_shared_body() -> None:
+    """A body in two actuated hinges must receive both torques, not only the last.
+
+    Regression: assigning (instead of adding) the per-body external torque made a
+    serial chain unable to drive its first joint, because the downstream joint's
+    parent-side write erased it. This is what kept a multi-link leg (A1 hip ->
+    thigh -> calf) from moving or standing.
+    """
+    result = run_scenario(CHAIN_SCENARIO)
+    assert_scenario_passed(result)
+    observed = scenario_result(result)
+
+    assert abs(observed["angle0"] - 0.5) < 0.05, observed
+    assert abs(observed["angle1"] + 0.4) < 0.05, observed
 
 
 def test_dc_motor_parameters_are_readable_and_writable() -> None:

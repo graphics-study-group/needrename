@@ -133,6 +133,11 @@ $env:NEEDRENAME_DATA_ROOT = "$PWD\build\py-runtime\share\needrename"
 
 ## API notes
 
+- **Physics rate.** `CreateInfo` takes `physics_time_step` (seconds per `step()`,
+  default 1/60), `physics_substeps` and `physics_iterations` (0 keeps the engine
+  default). A control loop that must run at a training rate sets them, e.g.
+  `CreateInfo(physics_time_step=0.005)` for 200 Hz physics with one policy tick
+  every 4 steps (50 Hz) instead of decimating a 60 Hz default.
 - **One app per process.** The engine's `MainClass` is a process singleton, so
   create exactly one `PhysicsApp` per process. Parallelism is process-level:
   use one worker process per environment.
@@ -161,12 +166,20 @@ $env:NEEDRENAME_DATA_ROOT = "$PWD\build\py-runtime\share\needrename"
   clear its state. `ComputeTorque` is not const, so per-step state is allowed.
 - **Torque channels.** `add_actuator(joint, actuator)` gives an actuator
   ownership of a joint's torque. Joints without an actuator can be driven with
-  `set_joint_torque(joint, torque)`; both write the same persistent per-body
-  external-torque channel (last write wins, cleared by `reset_to_initial()` /
-  `Robot.reset()`).
-  `remove_actuator(joint)` detaches the actuator, clears that channel (the last
-  applied actuator torque stops applying), and hands the joint back to
-  `set_joint_torque`; the removed instance stays usable from Python.
+  `add_joint_torque(joint, torque)`, which **accumulates** into the same per-body
+  external-torque values: calls compose (a serial chain's middle link receives
+  both joints' contributions) and are not idempotent. Both actuator and manual
+  torques last exactly one step — re-apply them every `step()` to keep them
+  acting. `remove_actuator(joint)` detaches the actuator (nothing lingers, since
+  torques are per-round) and hands the joint back to `add_joint_torque`; the
+  removed instance stays usable from Python.
+- **Write lifetime.** Every write (`set_body_value`, `add_joint_torque`) takes
+  effect for one round — until the next `step()` consumes it. Positions and
+  velocities persist through the simulated state (set once, the body continues
+  from there); external force and torque are per-step quantities that the solver
+  applies and clears, so a force set once pushes for one step only. Within a
+  round, call order decides per slot: an accumulate adds, an assignment
+  overwrites.
 - **Releasing the app.** The engine holds GPU resources: destroy the app (for
   example by letting the function that created it return) before the
   interpreter shuts down. Scripts that keep the app in a module global until

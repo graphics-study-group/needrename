@@ -322,8 +322,8 @@ namespace NeedrenameBindings {
                 "remove_actuator",
                 &PhysicsApp::RemoveActuator,
                 "joint"_a,
-                "Detach a joint's actuator and clear its torque channel (handing the joint back to\n"
-                "manual `set_joint_torque` control)."
+                "Detach a joint's actuator (handing the joint back to\n"
+                "manual `add_joint_torque` control). No torque lingers."
             )
             .def(
                 "set_target_angle",
@@ -410,11 +410,14 @@ namespace NeedrenameBindings {
                 "Override one writable body field before the next step."
             )
             .def(
-                "set_joint_torque",
-                &PhysicsApp::SetJointTorque,
+                "add_joint_torque",
+                &PhysicsApp::AddJointTorque,
                 "joint"_a,
                 "torque"_a,
-                "Apply an equal-and-opposite torque about a joint's hinge axis (joints without actuators)."
+                "Accumulate an equal-and-opposite torque about a joint's hinge axis\n"
+                "for the next step (joints without actuators). Contributions add within\n"
+                "a round, so chained joints sharing a body compose; re-apply every step\n"
+                "to keep a torque acting."
             )
             .def(
                 "set_render_readback_enabled",

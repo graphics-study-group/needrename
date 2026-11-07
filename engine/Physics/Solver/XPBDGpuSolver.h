@@ -80,6 +80,17 @@ namespace Engine {
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };
+
+    /**
+     * @brief Engine default configuration for the XPBD solver.
+     *
+     * Single source of truth for the defaults used when a project registers
+     * the default solver. Callers that need to override a knob start from this
+     * configuration and change only that field.
+     *
+     * @return A configuration holding the engine's default solver values.
+     */
+    PHYSICS_API XpbdConfig MakeDefaultSolverConfig();
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED

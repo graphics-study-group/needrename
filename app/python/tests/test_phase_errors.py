@@ -33,7 +33,7 @@ def main():
         lambda: app.set_body_value(body, s.BodyField.position, s.Vec4(0.0, 0.0, 0.0, 0.0))
     )
     observed["joint_state_before_commit"] = caught(lambda: app.get_joint_state(0))
-    observed["joint_torque_before_commit"] = caught(lambda: app.set_joint_torque(0, 1.0))
+    observed["joint_torque_before_commit"] = caught(lambda: app.add_joint_torque(0, 1.0))
 
     app.commit_scene()
 
@@ -47,7 +47,7 @@ def main():
     )
     observed["joint_state_invalid_id"] = caught(lambda: app.get_joint_state(9999))
     observed["joint_limits_invalid_id"] = caught(lambda: app.get_joint_limits(9999))
-    observed["joint_torque_invalid_id"] = caught(lambda: app.set_joint_torque(9999, 1.0))
+    observed["joint_torque_invalid_id"] = caught(lambda: app.add_joint_torque(9999, 1.0))
     observed["target_angle_invalid_id"] = caught(lambda: app.set_target_angle(9999, 0.0))
 
     print("RESULT:" + json.dumps(observed))

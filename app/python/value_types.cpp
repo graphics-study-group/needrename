@@ -157,7 +157,10 @@ namespace NeedrenameBindings {
             .field("resol_x", &CreateInfo::resol_x)
             .field("resol_y", &CreateInfo::resol_y)
             .field("window_title", &CreateInfo::window_title)
-            .field("background_color", &CreateInfo::background_color);
+            .field("background_color", &CreateInfo::background_color)
+            .field("physics_time_step", &CreateInfo::physics_time_step)
+            .field("physics_substeps", &CreateInfo::physics_substeps)
+            .field("physics_iterations", &CreateInfo::physics_iterations);
 
         AggregateBinding<BoxDesc>(m, "BoxDesc")
             .field("position", &BoxDesc::position)

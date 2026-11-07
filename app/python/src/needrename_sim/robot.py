@@ -113,14 +113,15 @@ class Robot:
         for name, target in resolved.items():
             self._app.set_target_angle(self.joint_ids[name], target)
 
-    def set_joint_torques(self, torques: Mapping[str, float] | Sequence[float]) -> None:
-        """Apply manual joint torques by name, or in `joint_names` order.
+    def add_joint_torques(self, torques: Mapping[str, float] | Sequence[float]) -> None:
+        """Accumulate manual joint torques by name, or in `joint_names` order.
 
-        Only joints without a registered actuator accept manual torques.
+        Only joints without a registered actuator accept manual torques. The
+        torques last one step: call this before every step to keep them acting.
         """
-        resolved = _as_target_mapping(torques, self._joint_names, "set_joint_torques")
+        resolved = _as_target_mapping(torques, self._joint_names, "add_joint_torques")
         for name, torque in resolved.items():
-            self._app.set_joint_torque(self.joint_ids[name], torque)
+            self._app.add_joint_torque(self.joint_ids[name], torque)
 
     # ── Episode reset ───────────────────────────────────────────────────
     def reset(self) -> None:

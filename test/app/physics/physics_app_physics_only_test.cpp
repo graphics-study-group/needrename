@@ -230,27 +230,27 @@ int main() {
     // Two steps of gravity => v.z ≈ -2*g*dt ≈ -0.33 if not re-uploaded (≈ -0.16 if re-uploaded each step).
     Check(app->GetBodyState(b1).linear_velocity.z < -0.2f, "velocity field not re-uploaded on later steps");
 
-    // Force persists until caller zeroes it: teleport b0, clear velocity, apply
-    // an upward force strong enough to overcome gravity.
+    // Force is a per-step write: teleport b0, clear velocity, and re-apply an
+    // upward force strong enough to overcome gravity on every round.
     const glm::vec3 p0_f(0.0f, 0.0f, 10.0f);
     app->SetBodyValue(b0, BodyField::Position, glm::vec4(p0_f, 1.0f));
     app->SetBodyValue(b0, BodyField::LinearVelocity, glm::vec4(0.0f));
     const glm::vec3 up(0.0f, 0.0f, 20.0f);
-    app->SetBodyValue(b0, BodyField::ExternalForce, glm::vec4(up, 0.0f));
     for (int i = 0; i < 40; ++i) {
+        app->SetBodyValue(b0, BodyField::ExternalForce, glm::vec4(up, 0.0f));
         app->Step();
     }
     const float peak_z = app->GetBodyState(b0).position.z;
-    Check(peak_z > p0_f.z + 0.5f, "persistent force lifts body against gravity");
+    Check(peak_z > p0_f.z + 0.5f, "a re-applied force lifts body against gravity");
 
-    // Zero the force (and reset velocity) — caller-managed lifetime, no solver clearing.
-    app->SetBodyValue(b0, BodyField::ExternalForce, glm::vec4(0.0f));
+    // Stop re-applying the force (and reset velocity): the next round applies no
+    // force at all, so the body falls again.
     app->SetBodyValue(b0, BodyField::LinearVelocity, glm::vec4(0.0f));
     for (int i = 0; i < 20; ++i) {
         app->Step();
     }
     const float after_zero_z = app->GetBodyState(b0).position.z;
-    Check(after_zero_z < peak_z - 0.3f, "zeroed force lets body fall again (caller-managed lifetime)");
+    Check(after_zero_z < peak_z - 0.3f, "a force that is not re-applied lets the body fall again");
 
     // ── Whole-field upload does not disturb unwritten bodies ────────────
     // The Position upload covers every slot of the field, so it must carry the

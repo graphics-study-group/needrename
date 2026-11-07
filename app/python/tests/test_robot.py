@@ -34,15 +34,16 @@ def main():
     initial = {{name: app.get_body_state(body) for name, body in robot.link_bodies.items()}}
     initial_angles = robot.joint_angles().tolist()
 
-    # Drive the episode: a new target, a manual joint torque, and a push.
+    # Drive the episode: a new target, a manual joint torque, and a push. Writes
+    # last exactly one step, so the control loop re-applies them every round.
     for _ in range(60):
         app.step()
     robot.set_target_angles({{"joint1": 0.9}})
-    robot.set_joint_torques({{"joint2": 0.2}})
     for _ in range(40):
+        robot.add_joint_torques({{"joint2": 0.2}})
         app.step()
-    app.set_body_value(link2, s.BodyField.external_force, s.Vec4(0.0, 0.0, 30.0, 0.0))
     for _ in range(10):
+        app.set_body_value(link2, s.BodyField.external_force, s.Vec4(0.0, 0.0, 30.0, 0.0))
         app.step()
 
     disturbed = app.get_body_state(link2).position

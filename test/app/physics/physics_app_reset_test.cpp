@@ -155,10 +155,12 @@ int main() {
     Check(std::fabs(actuator->GetTargetAngle() - kCommitTarget) < 1e-5f, "actuator starts on its commit-time target");
 
     // ── Episode 1: disturb pose, velocity, force/torque, target, actuator ──
-    app->SetBodyValue(b0, BodyField::ExternalForce, glm::vec4(0.0f, 0.0f, 200.0f, 0.0f));
-    app->SetBodyValue(b0, BodyField::ExternalTorque, glm::vec4(0.0f, 0.0f, 5.0f, 0.0f));
+    // Force and torque are per-step writes: re-apply them every round to keep
+    // pushing and spinning the body.
     app->SetTargetAngle(hinge_joint, 0.9f);
     for (int i = 0; i < 60; ++i) {
+        app->SetBodyValue(b0, BodyField::ExternalForce, glm::vec4(0.0f, 0.0f, 200.0f, 0.0f));
+        app->SetBodyValue(b0, BodyField::ExternalTorque, glm::vec4(0.0f, 0.0f, 5.0f, 0.0f));
         app->Step();
     }
 

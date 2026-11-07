@@ -90,7 +90,7 @@ namespace Engine {
         std::dynamic_pointer_cast<FileSystemDatabase>(this->asset_database)->LoadBuiltinAssets(path);
     }
 
-    void MainClass::LoadProject(const std::filesystem::path &path) {
+    void MainClass::LoadProject(const std::filesystem::path &path, const XpbdConfig *solver_config) {
         std::dynamic_pointer_cast<FileSystemDatabase>(this->asset_database)->LoadProjectAssets(path / "assets");
 
         nlohmann::json project_config;
@@ -108,20 +108,11 @@ namespace Engine {
 
         auto *phys_scene = world->GetMainSceneRef().GetPhysicsScene();
         auto solver = std::make_unique<XpbdGpuSolver>(*this->m_device_context);
-        XpbdConfig config{};
-        config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
-        config.time_step = 1.0f / 60.0f;
-        config.num_substep_perstep = 2;
-        config.num_iter_persubstep = 50;
-        config.num_velocity_iters = 10;
-        config.max_contact_points = 50000u;
-        config.contact_margin = 0.001f;
-        config.grid_cell_size = 2.0f;
-        config.grid_world_min = glm::vec3(-100.0f, -100.0f, -5.0f);
-        config.grid_world_max = glm::vec3(100.0f, 100.0f, 50.0f);
-        config.max_cells_per_shape = 8;
-        config.max_global_shape_count = 128;
-        config.fallback_all_pairs_threshold = 8;
+        // Temporary seam: project-level configuration is not implemented yet, so
+        // the caller may supply the whole solver config at creation time.
+        // When it is, the config source moves into the project and the
+        // parameter is removed.
+        const XpbdConfig config = (solver_config != nullptr) ? *solver_config : MakeDefaultSolverConfig();
         solver->SetConfig(config);
         physics->RegisterSolver(phys_scene->GetSceneID(), std::move(solver));
     }

@@ -287,6 +287,27 @@ namespace Engine {
         return m_impl->config;
     }
 
+    XpbdConfig MakeDefaultSolverConfig() {
+        // The values used when a project registers the default solver. Kept in
+        // one place so a caller overriding one knob starts from the same base
+        // the engine would otherwise use.
+        XpbdConfig config{};
+        config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
+        config.time_step = 1.0f / 60.0f;
+        config.num_substep_perstep = 2;
+        config.num_iter_persubstep = 50;
+        config.num_velocity_iters = 10;
+        config.max_contact_points = 50000u;
+        config.contact_margin = 0.001f;
+        config.grid_cell_size = 2.0f;
+        config.grid_world_min = glm::vec3(-100.0f, -100.0f, -5.0f);
+        config.grid_world_max = glm::vec3(100.0f, 100.0f, 50.0f);
+        config.max_cells_per_shape = 8;
+        config.max_global_shape_count = 128;
+        config.fallback_all_pairs_threshold = 8;
+        return config;
+    }
+
     bool XpbdGpuSolver::PrepareStep() {
         const auto gpu = m_bound_scene->GetGpuBuffers();
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) return false;

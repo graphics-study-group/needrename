@@ -40,6 +40,15 @@ namespace AppPhysics {
         /// Background clear color in linear rgb. Defaults to black; the rendered
         /// frame background is this solid color (no skybox is drawn).
         glm::vec3 background_color{0.0f, 0.0f, 0.0f};
+        /// Physics step time in seconds for one `Step()`; 0 keeps the engine
+        /// default (1/60 s). A controller that must run at a specific rate (an RL
+        /// policy trained at 200 Hz physics / 50 Hz control) sets this instead of
+        /// decimating a mismatched default rate.
+        float physics_time_step{0.0f};
+        /// Solver substeps per `Step()`; 0 keeps the engine default.
+        uint32_t physics_substeps{0};
+        /// Solver iterations per substep; 0 keeps the engine default.
+        uint32_t physics_iterations{0};
     };
 
     /// Opaque handle identifying a created body. Not a pointer; do not dereference.
@@ -273,18 +282,26 @@ namespace AppPhysics {
      *
      * Actuators (see AddActuator) run inside Step(): they measure the current known
      * joint state (the last step's result overlaid with any pose writes made since)
-     * and write equal-and-opposite torques about the joint axis to the child/parent
-     * bodies' ExternalTorque each step, so the torque channel is owned by the
-     * actuators — user SetBodyValue(ExternalTorque)
-     * writes on an actuated joint's bodies are overwritten. Actuators are shared
-     * with the caller: the app keeps them alive while they are registered and
-     * `RemoveActuator` clears the channel so manual control (SetJointTorque) can
-     * take over again. Joints without an actuator can instead be driven externally
-     * with SetJointTorque, which writes the same per-body ExternalTorque fields
-     * (caller-managed) and therefore shares their last-write-wins semantics. Joint
+     * and ACCUMULATE equal-and-opposite torques about the joint axis into the
+     * child/parent bodies' ExternalTorque values of the current round. A body shared
+     * by two actuated joints (a serial chain, e.g. an A1 leg's hip -> thigh -> calf)
+     * receives the SUM of both joints' equal-and-opposite contributions, so a
+     * multi-link leg can hold and drive all of its joints. Actuator contributions
+     * are written last within the step and add to whatever the caller wrote into the
+     * round. Actuators are shared with the caller: the app keeps them alive while
+     * they are registered, and `RemoveActuator` simply detaches one (no torque
+     * lingers, because torques are per-round). Joints without an actuator are
+     * driven with `AddJointTorque`, which accumulates into the same per-body
+     * ExternalTorque values (see its documentation for the call-order rules). Joint
      * limits recorded from a URDF are data only and are never enforced. Actuators
      * on joints whose two bodies are both kinematic compute torques but they have
      * no effect (the solver skips such joints).
+     *
+     * Write lifetime: every write (`SetBodyValue`, `AddJointTorque`) takes effect
+     * for one round — the interval until the next `Step` consumes it. Position and
+     * velocity persist through the simulated state itself; external force and
+     * torque are per-step quantities that the solver clears after applying them, so
+     * they act for exactly one step unless re-written every round.
      *
      * Wrong-phase usage throws `std::logic_error`. Exceptions may cross the
      * DLL boundary; a future C API must convert them to error codes.
@@ -400,9 +417,9 @@ namespace AppPhysics {
          * @brief Detach a joint's actuator (legal in both phases).
          *
          * The actuator stops running from the next `Step`; the caller's share
-         * keeps it alive. The joint's external-torque channel is cleared so the
-         * last applied actuator torque stops applying and `SetJointTorque`
-         * becomes legal again for that joint.
+         * keeps it alive. No torque lingers: actuator torques are per-round, so
+         * dropping the actuator already removes its contribution, and
+         * `AddJointTorque` is immediately legal again for that joint.
          *
          * @param joint Joint whose actuator to detach.
          * @throws std::out_of_range when `joint` is invalid.
@@ -605,19 +622,26 @@ namespace AppPhysics {
          * @brief Override one writable field of a single body before the next step.
          *
          * Legal in the Drive phase (after `CommitScene`). The write lands in the
-         * app's host staging for that field, which holds "last simulated state +
-         * pending writes": it is observable immediately by `GetBodyState` /
+         * app's host staging for that field, which holds "current state + pending
+         * round writes": it is observable immediately by `GetBodyState` /
          * `GetBodyStates` / `GetJointState` and by actuator measurement, and it
          * reaches the GPU physics buffer on the next `Step`.
          *
          * - Rotation is stored as a quaternion (xyzw); the other five fields
          *   store their quantity in xyz with w = 0.
          * - All values are in physics (COM) world space, matching `BodyState`.
-         * - External force/torque are NOT cleared by the solver: they keep being
-         *   applied by every subsequent step until the caller sets them to zero
-         *   (caller-managed lifetime). Position/rotation/velocity evolve under
-         *   integration after they are applied and are not re-applied on later
-         *   steps.
+         * - Every write takes effect for exactly one round. `ExternalForce` and
+         *   `ExternalTorque` are per-step quantities: the step applies them and the
+         *   solver clears them afterwards, so they act for one step only — re-write
+         *   them before every `Step` to keep a force acting. Position, rotation and
+         *   velocity instead persist through the simulated state (their effect
+         *   evolves under integration and is not re-applied on later steps).
+         * - Within a round, writes resolve by call order per slot: a later
+         *   assignment overwrites whatever landed on that slot earlier in the round
+         *   (including an `AddJointTorque` contribution), and a value from an
+         *   earlier round never resurfaces. A `Step` that does not integrate
+         *   (paused) does not consume force/torque; they apply on the next
+         *   integrating step.
          * - Upload is whole-field per dirty field, but untouched slots carry their
          *   own current values, so writing one body's field never changes another
          *   body. Any number of writes to one field within a step interval cost
@@ -637,23 +661,28 @@ namespace AppPhysics {
         void SetBodyValue(BodyId id, BodyField field, glm::vec4 value);
 
         /**
-         * @brief Apply an equal-and-opposite torque about a joint's hinge axis.
+         * @brief Add an equal-and-opposite torque about a joint's hinge axis.
          *
-         * Legal only in the Drive phase (after `CommitScene`). The torque is
-         * written through the same persistent external-torque channel as
-         * `SetBodyValue(ExternalTorque)`: `+torque * axis_world` on the child
-         * body and `-torque * axis_world` on the parent body. The world-space
-         * axis is resolved internally from the current known body state
-         * (including pending writes) and the joint's recorded axis, so the caller
-         * never handles frames.
+         * Legal only in the Drive phase (after `CommitScene`). Each call
+         * ACCUMULATES (`+=`) `+torque * axis_world` into the child body's
+         * ExternalTorque and `-torque * axis_world` into the parent body's, for the
+         * current round. The world-space axis is resolved internally from the
+         * current known body state (including pending writes) and the joint's
+         * recorded axis, so the caller never handles frames.
          *
-         * The write is caller-managed: it persists and keeps applying on every
-         * subsequent `Step` until overwritten (including with zero). Because it
-         * shares the per-body external-torque field with
-         * `SetBodyValue(ExternalTorque)`, the most recent write to a body wins.
+         * Accumulation is what makes serial chains work: a body that is the child of
+         * one joint and the parent of another receives both contributions. The calls
+         * are not idempotent — two calls with the same value in one round produce
+         * twice the torque.
          *
-         * Manual torque control is for joints without actuators: an actuator
-         * owns its joint's torque channel and overwrites it every step.
+         * The value is consumed by the next `Step` (one-round lifetime, like every
+         * other write): re-apply it before every `Step` to keep a torque acting.
+         * The accumulate joins the round's per-body external torques in call order,
+         * so a body-level `SetBodyValue(ExternalTorque)` assignment made after it
+         * overwrites the slot.
+         *
+         * Manual torque control is for joints without actuators: an actuator owns
+         * its joint's torque channel (see `AddActuator`).
          *
          * @param joint  Joint to drive.
          * @param torque Torque [N·m] about the joint axis (sign follows the axis).
@@ -661,7 +690,7 @@ namespace AppPhysics {
          *         actuator.
          * @throws std::out_of_range when `joint` is invalid.
          */
-        void SetJointTorque(JointId joint, float torque);
+        void AddJointTorque(JointId joint, float torque);
 
         /**
          * @brief Toggle recording of a CPU readback of the final render target.

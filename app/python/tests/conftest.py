@@ -135,3 +135,11 @@ def minimal_urdf() -> Path:
     path = DATA_DIR / "minimal_robot.urdf"
     assert path.is_file(), f"missing URDF fixture: {path}"
     return path
+
+
+@pytest.fixture(scope="session")
+def tiny_inertia_urdf() -> Path:
+    """Path to the fixture whose child link has a small but invertible inertia."""
+    path = DATA_DIR / "tiny_inertia_robot.urdf"
+    assert path.is_file(), f"missing URDF fixture: {path}"
+    return path
