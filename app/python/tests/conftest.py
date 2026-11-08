@@ -88,3 +88,19 @@ def tiny_inertia_urdf() -> Path:
     path = DATA_DIR / "tiny_inertia_robot.urdf"
     assert path.is_file(), f"missing URDF fixture: {path}"
     return path
+
+
+@pytest.fixture(scope="session")
+def asymmetric_inertia_urdf() -> Path:
+    """Path to the fixture whose child has distinct X/Y inertia values."""
+    path = DATA_DIR / "asymmetric_inertia_robot.urdf"
+    assert path.is_file(), f"missing URDF fixture: {path}"
+    return path
+
+
+@pytest.fixture(scope="session")
+def no_collision_inertia_urdf() -> Path:
+    """Path to a single body that has manual inertia but no collision shape."""
+    path = DATA_DIR / "no_collision_inertia.urdf"
+    assert path.is_file(), f"missing URDF fixture: {path}"
+    return path

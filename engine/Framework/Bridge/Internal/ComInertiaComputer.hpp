@@ -222,7 +222,7 @@ namespace Engine {
                 const glm::vec3 object_world_position = rb_desc.world_position;
                 const glm::quat object_world_rotation = rb_desc.world_rotation;
 
-                if (shapes.empty()) {
+                if (shapes.empty() && !rb_desc.use_manual_inertia_com) {
                     output.center_world_position = ToVec4(object_world_position);
                     output.center_world_rotation = ToVec4(object_world_rotation);
                     output.center_offset_local = glm::vec4(0.0f);
