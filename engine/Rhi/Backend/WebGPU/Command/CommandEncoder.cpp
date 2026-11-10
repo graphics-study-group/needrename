@@ -457,6 +457,23 @@ namespace Engine::Rhi {
         );
     }
 
+    void CommandEncoder::FillBuffer(BufferHandle destination, uint64_t offset, uint64_t size, uint32_t value) {
+        if (pimpl->in_render_pass || pimpl->compute_pass != nullptr) {
+            throw std::logic_error("FillBuffer inside a pass: end the pass first.");
+        }
+        if (size == 0u) {
+            return;
+        }
+        if (value != 0u) {
+            // The standard interface only has a clear, which writes zero. Refusing a
+            // non-zero pattern is the answer that does not silently clear instead.
+            throw std::invalid_argument("WebGPU: FillBuffer can only write zero on this backend.");
+        }
+        // There is no barrier to record: a clear is ordered against the passes around it by
+        // the implementation, which is the same reason `Barrier` is a no-op here.
+        wgpuCommandEncoderClearBuffer(pimpl->encoder, ToWgpuBuffer(destination), offset, size);
+    }
+
     void CommandEncoder::CopyImageToBuffer(
         ImageHandle image, BufferHandle buffer, const Extent3D &extent, ImageAspect aspect
     ) {

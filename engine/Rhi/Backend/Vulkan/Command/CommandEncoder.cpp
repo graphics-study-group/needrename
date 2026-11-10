@@ -334,6 +334,42 @@ namespace Engine::Rhi {
         );
     }
 
+    void CommandEncoder::FillBuffer(BufferHandle destination, uint64_t offset, uint64_t size, uint32_t value) {
+        if (pimpl->in_render_pass) {
+            throw std::logic_error("FillBuffer inside a render pass: end the pass first");
+        }
+        if (size == 0u) {
+            return;
+        }
+        const vk::Buffer buffer = ToVulkanBuffer(destination);
+
+        // Everything recorded so far may have read the range, and a driver is free
+        // to keep those reads outside the transfer domain; `eAllCommands` is the
+        // pair that covers a compute read without naming the caller's pipeline.
+        const vk::MemoryBarrier2 before_fill{
+            vk::PipelineStageFlagBits2::eAllCommands,
+            vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderSampledRead
+                | vk::AccessFlagBits2::eTransferRead | vk::AccessFlagBits2::eMemoryRead,
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eTransferWrite
+        };
+        pimpl->command_buffer.pipelineBarrier2(vk::DependencyInfo{{}, {before_fill}, {}, {}});
+
+        pimpl->command_buffer.fillBuffer(buffer, offset, size, value);
+
+        // The cleared range is what the next shader pass reads, so the fill is made
+        // visible to shader work here rather than left to a caller's Barrier(): a
+        // compute-to-compute mark would not cover a transfer write.
+        const vk::MemoryBarrier2 after_fill{
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eTransferWrite,
+            vk::PipelineStageFlagBits2::eComputeShader | vk::PipelineStageFlagBits2::eAllGraphics,
+            vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite
+                | vk::AccessFlagBits2::eShaderSampledRead
+        };
+        pimpl->command_buffer.pipelineBarrier2(vk::DependencyInfo{{}, {after_fill}, {}, {}});
+    }
+
     void CommandEncoder::CopyImageToBuffer(
         ImageHandle image, BufferHandle destination, const Extent3D &extent, ImageAspect aspect
     ) {

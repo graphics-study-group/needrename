@@ -48,6 +48,37 @@ file(GLOB_RECURSE PHYSICS_GLSL_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/shader/*.geom"
 )
 
+# Sources that live in the tree but are not part of this build yet. The
+# single-workgroup joint sweep is deferred: it binds 18 storage buffers (over the
+# browser's 16-buffer limit) and uses a workgroup memory barrier the WGSL baker
+# cannot translate, so neither its SPIR-V nor its WGSL variant is produced and the
+# solver's per-color dispatch path is the only joint solver. Remove the file from
+# this list together with the binding compression that brings it back.
+set(PHYSICS_GLSL_DEFERRED
+    "${CMAKE_CURRENT_SOURCE_DIR}/shader/solver/XPBDSolver/joint_color_sweep.comp"
+)
+list(REMOVE_ITEM PHYSICS_GLSL_SOURCES ${PHYSICS_GLSL_DEFERRED})
+
+# A stale artefact from a build that still produced a deferred shader must not
+# survive: the solver no longer looks one up, but the staged data root is a
+# product and an orphan there is a lie about what the build uses.
+set(PHYSICS_SPIRV_DEFERRED_ARTEFACTS "")
+foreach(DEFERRED_SRC ${PHYSICS_GLSL_DEFERRED})
+    cmake_path(RELATIVE_PATH DEFERRED_SRC
+        BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/shader"
+        OUTPUT_VARIABLE DEFERRED_REL
+    )
+    list(APPEND PHYSICS_SPIRV_DEFERRED_ARTEFACTS
+        "${PHYSICS_SPIRV_ROOT}/debug/${DEFERRED_REL}.spv"
+        "${PHYSICS_SPIRV_ROOT}/release/${DEFERRED_REL}.spv"
+        "${PHYSICS_SPIRV_ROOT}/debug/${DEFERRED_REL}.wgsl"
+        "${PHYSICS_SPIRV_ROOT}/release/${DEFERRED_REL}.wgsl"
+        "${PHYSICS_SPIRV_ROOT}/debug/${DEFERRED_REL}.iface.json"
+        "${PHYSICS_SPIRV_ROOT}/release/${DEFERRED_REL}.iface.json"
+    )
+endforeach()
+file(REMOVE ${PHYSICS_SPIRV_DEFERRED_ARTEFACTS})
+
 # The baker records the include files each source actually reads in a depfile.
 # An include edit therefore rebuilds its consumers without invalidating every
 # unrelated physics shader.

@@ -30,8 +30,9 @@ multi-config install always installs the artifacts of the selected `--config`.
 
 | Component | Content |
 | --- | --- |
-| `runtime` | Executables, every shared library they load (engine modules, reflection, imgui, ktx, fastgltf, glslang, SDL3), the built-in asset database, physics SPIR-V |
+| `runtime` | Engine/application binaries, every shared library they load (engine modules, reflection, imgui, ktx, fastgltf, glslang, SDL3), Python binding files, the built-in asset database, physics SPIR-V |
 | `apps-data` | Project templates (`share/needrename/projects/`) |
+| `examples` | Example executables (`bin/`) |
 | `examples-data` | Sample content used by the examples (`share/needrename/assets/`, without documentation screenshots) |
 | `test-data` | Test executables and fixtures — only when configured with `-DENGINE_INSTALL_TESTS=ON` (default `OFF`) |
 | `sdk` | Headers, import/static libraries, the CMake package, the reflection parser and type lists |

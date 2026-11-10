@@ -15,3 +15,6 @@
 [submodule "third_party/libktx"]
 	path = third_party/libktx
 	url = https://github.com/KhronosGroup/KTX-Software.git
+[submodule "third_party/nanobind"]
+	path = third_party/nanobind
+	url = https://github.com/wjakob/nanobind.git

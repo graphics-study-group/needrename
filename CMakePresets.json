@@ -62,7 +62,8 @@
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install-webgpu",
                 "ENGINE_RHI_BACKEND": "webgpu",
-                "ENGINE_BUILD_APPS": "OFF",
+                "ENGINE_BUILD_APPS": "ON",
+                "ENGINE_BUILD_PYTHON_BINDINGS": "ON",
                 "ENGINE_BUILD_DOCS": "OFF",
                 "ENGINE_BUILD_WEBGPU_SPIKE": "ON",
                 "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"

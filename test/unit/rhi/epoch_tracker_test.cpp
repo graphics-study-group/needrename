@@ -25,11 +25,15 @@
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
+// The handle conversions are how the test reaches the device's Vulkan objects,
+// so they are needed in every configuration; only the CRT reporting setup below
+// is Debug-only.
+#include <Rhi/Backend/Vulkan/VulkanHandles.h>
+
 #if defined(_MSC_VER) && !defined(NDEBUG)
 #include <crtdbg.h>
 #include <cstdlib>
 #include <process.h>
-#include <Rhi/Backend/Vulkan/VulkanHandles.h>
 #endif
 
 using namespace Engine;

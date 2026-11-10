@@ -14,9 +14,11 @@ namespace AppPhysics {
      *
      * Yaw rotates around world Z, pitch rotates around world X.
      * Angles are accumulated each frame and the rotation is rebuilt from scratch
-     * to prevent drift. Tick() reads WASD/right-mouse-drag input axes and updates
-     * the parent GameObject's transform. Right mouse button enables relative
-     * mouse mode.
+     * to prevent drift. Tick() reads WASD/QE input axes plus the right-mouse look
+     * axes and updates the parent GameObject's transform only while an Alt
+     * modifier is held. The Alt gate covers both flight and mouse look (relative
+     * mouse mode is engaged only for Alt + right mouse), so no stray key press or
+     * drag can move the camera.
      */
     class CameraControllerComponent : public Engine::Component {
     public:

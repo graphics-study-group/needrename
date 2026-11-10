@@ -26,6 +26,7 @@ namespace Engine {
     class ComplexRenderGraphBuilder;
     class RenderGraph;
     enum class RGTextureHandle : int32_t;
+    struct XpbdConfig;
 
     class FRAMEWORK_API MainClass {
     public:
@@ -50,7 +51,16 @@ namespace Engine {
         );
 
         void LoadBuiltinAssets(const std::filesystem::path &path);
-        void LoadProject(const std::filesystem::path &path);
+        /**
+         * @brief Load a project and register the default physics solver.
+         *
+         * @param path Project directory.
+         * @param solver_config Optional XPBD solver configuration applied at
+         *        solver creation. Null keeps the engine defaults. This is a
+         *        temporary seam until project-level configuration exists: pass
+         *        the config once here, do not add per-field overrides.
+         */
+        void LoadProject(const std::filesystem::path &path, const XpbdConfig *solver_config = nullptr);
         void MainLoop();
         void LoopFinite(uint64_t max_frame_count = 0u, float max_time_seconds = 0.0f);
 

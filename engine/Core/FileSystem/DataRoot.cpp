@@ -116,19 +116,44 @@ namespace Engine {
 
     std::filesystem::path ResolveDataDir(std::string_view subdir, const std::filesystem::path &developer_fallback) {
         const DataRootResolution &resolution = CachedResolution();
-        const std::filesystem::path candidate =
-            resolution.source == DataRootSource::DeveloperFallback
-                ? developer_fallback.lexically_normal()
-                : (resolution.root / std::filesystem::path(subdir)).lexically_normal();
+        if (resolution.source != DataRootSource::DeveloperFallback) {
+            const std::filesystem::path candidate =
+                (resolution.root / std::filesystem::path(subdir)).lexically_normal();
+            if (!IsDirectory(candidate)) {
+                throw std::runtime_error(
+                    "Runtime data directory '" + std::string(subdir) + "' is missing at " + candidate.string()
+                    + " (data root resolved via " + resolution.step + "). Set " + std::string(k_data_root_env_var)
+                    + " to a complete data root directory."
+                );
+            }
+            return candidate;
+        }
 
-        if (!IsDirectory(candidate)) {
+        // A developer run reads the tree the build staged, because that is what
+        // the build produced: the built-in assets there carry the baked form the
+        // backend consumes (a WebGPU build has no runtime GLSL compiler, so the
+        // source assets are the one thing it cannot use). A category the build
+        // does not stage falls back to its source directory, which is also what
+        // makes live editing of content work.
+#if defined(ENGINE_BUILD_STAGE_DATA_ROOT)
+        {
+            const std::filesystem::path staged = (std::filesystem::path(ENGINE_BUILD_STAGE_DATA_ROOT)
+                                                  / std::filesystem::path(subdir))
+                                                     .lexically_normal();
+            if (IsDirectory(staged)) {
+                return staged;
+            }
+        }
+#endif
+        const std::filesystem::path fallback = developer_fallback.lexically_normal();
+        if (!IsDirectory(fallback)) {
             throw std::runtime_error(
-                "Runtime data directory '" + std::string(subdir) + "' is missing at " + candidate.string()
+                "Runtime data directory '" + std::string(subdir) + "' is missing at " + fallback.string()
                 + " (data root resolved via " + resolution.step + "). Set " + std::string(k_data_root_env_var)
                 + " to a complete data root directory."
             );
         }
-        return candidate;
+        return fallback;
     }
 
     std::filesystem::path BuiltinAssetsDir() {

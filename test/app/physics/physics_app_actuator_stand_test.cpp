@@ -5,6 +5,8 @@
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -16,6 +18,7 @@ namespace {
     constexpr uint32_t kScreenWidth = 1280;
     constexpr uint32_t kScreenHeight = 720;
     constexpr uint32_t kLogEverySteps = 60;
+    constexpr float kPhysicsTimeStep = 0.005f;
 
     // ── Tunable actuator parameters (edit these to tune standing) ────
     constexpr float kKp = 25.0f;
@@ -43,16 +46,18 @@ namespace {
 } // namespace
 
 int main(int argc, char **argv) {
-    // Finite frame count (argv[1]) = ctest smoke run; no arg = interactive,
+    // Finite frame count (argv[1]) = ctest regression run; no arg = interactive,
     // starts paused (SPACE resumes) for manual tuning.
     const bool finite = argc > 1;
     const uint32_t frame_count = finite ? static_cast<uint32_t>(std::stoul(argv[1])) : 0;
 
     CreateInfo info{};
-    info.mode = AppMode::Windowed;
+    info.mode = finite ? AppMode::PhysicsOnly : AppMode::Windowed;
     info.resol_x = kScreenWidth;
     info.resol_y = kScreenHeight;
     info.window_title = "Physics App (A1 actuator stand)";
+    // The low-inertia leg links make 60 Hz zero-order-held PD control unstable.
+    info.physics_time_step = kPhysicsTimeStep;
 
     auto app = PhysicsApp::Create(info);
 
@@ -85,13 +90,15 @@ int main(int argc, char **argv) {
         }
         const JointId jid = it->second.id;
         app->AddActuator(
-            jid, std::make_unique<DcMotorActuator>(kKp, kKd, kStallTorque, kNoLoadSpeed, kContTorque, kGearRatio)
+            jid, std::make_shared<DcMotorActuator>(kKp, kKd, kStallTorque, kNoLoadSpeed, kContTorque, kGearRatio)
         );
         app->SetTargetAngle(jid, target);
     }
 
-    app->AddDirectionalLight({.direction = {0.0f, 0.0f, -1.0f}, .intensity = 1.5f, .cast_shadow = true});
-    app->SetCameraPose(glm::vec3(2.5f, -2.5f, 2.0f), glm::vec3(0.0f, 0.0f, 0.5f));
+    if (!finite) {
+        app->AddDirectionalLight({.direction = {0.0f, 0.0f, -1.0f}, .intensity = 1.5f, .cast_shadow = true});
+        app->SetCameraPose(glm::vec3(2.5f, -2.5f, 2.0f), glm::vec3(0.0f, 0.0f, 0.5f));
+    }
 
     app->CommitScene();
 
@@ -99,12 +106,26 @@ int main(int argc, char **argv) {
         app->Resume();
     }
 
+    const bool check_standing = finite && frame_count >= 600;
+    float min_trunk_up_z = 1.0f;
+    float settle_peak_joint_speed = 0.0f;
     uint32_t steps = 0;
     uint32_t frames = 0;
     while (!app->ShouldQuit()) {
         if (!app->IsPaused()) {
             app->Step();
             ++steps;
+            if (check_standing) {
+                const glm::quat q = app->GetBodyState(res.link_bodies.at("trunk")).rotation;
+                const float up_z = 1.0f - 2.0f * (q.x * q.x + q.y * q.y);
+                min_trunk_up_z = std::min(min_trunk_up_z, up_z);
+                if (steps > frame_count - 60) {
+                    for (const auto &[name, target] : kDefaultJointPos) {
+                        const JointState st = app->GetJointState(res.joint_bodies.at(name).id);
+                        settle_peak_joint_speed = std::max(settle_peak_joint_speed, std::fabs(st.angular_velocity));
+                    }
+                }
+            }
             if (kLogEverySteps > 0 && (steps % kLogEverySteps == 0)) {
                 SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "--- step %u ---", steps);
                 for (const auto &[name, target] : kDefaultJointPos) {
@@ -120,9 +141,32 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        app->RenderNextFrame();
+        if (!finite) {
+            app->RenderNextFrame();
+        }
         if (finite && ++frames >= frame_count) {
             break;
+        }
+    }
+
+    if (check_standing) {
+        float max_joint_error = 0.0f;
+        for (const auto &[name, target] : kDefaultJointPos) {
+            const float angle = app->GetJointState(res.joint_bodies.at(name).id).angle;
+            max_joint_error = std::max(max_joint_error, std::fabs(angle - target));
+        }
+        SDL_LogInfo(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "A1 stand: min up_z=%+.3f, settle peak speed=%.3f, max joint error=%.3f",
+            min_trunk_up_z,
+            settle_peak_joint_speed,
+            max_joint_error
+        );
+        if (min_trunk_up_z < 0.0f || settle_peak_joint_speed > 2.0f || max_joint_error > 0.5f) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_APPLICATION, "A1 stand: robot did not stay upright and settle at its targets."
+            );
+            return 1;
         }
     }
 

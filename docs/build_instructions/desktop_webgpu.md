@@ -26,15 +26,13 @@ cmake --preset webgpu-desktop
 cmake --build --preset webgpu-desktop
 ```
 
-The preset selects `ENGINE_RHI_BACKEND=webgpu`, builds examples, tests, and `webgpu_spike`, and
-writes Debug executables to `build/webgpu/bin/Debug`.
+The preset selects `ENGINE_RHI_BACKEND=webgpu` and builds the applications (physics and editor),
+the Python bindings, the examples, the tests, and `webgpu_spike`. Debug executables go to
+`build/webgpu/bin/Debug`.
 
-The preset disables the physics and editor applications. To include their examples as well:
-
-```powershell
-cmake --preset webgpu-desktop -DENGINE_BUILD_APPS=ON
-cmake --build --preset webgpu-desktop
-```
+The applications and the bindings are part of this build on purpose: the physics app is the only
+target that drives the GPU solver end to end, and the joint path in particular is exercised by
+`physics_app_actuator_stand_test`. A render-only build would not compile it at all.
 
 ## Run and verify
 
@@ -48,14 +46,19 @@ build\webgpu\bin\Debug\webgpu_spike.exe
 build\webgpu\bin\Debug\webgpu_clear_example.exe
 ```
 
-Then exercise the complete engine against the staged data root:
+Then exercise the complete engine:
 
 ```powershell
-$env:NEEDRENAME_DATA_ROOT = (Resolve-Path build\webgpu\stage\Debug).Path
 $env:NEEDRENAME_PRESENT_CAPTURE = "$PWD\build\webgpu\presented.bmp"
 build\webgpu\bin\Debug\external_resource_loading_example.exe 30
 Remove-Item Env:NEEDRENAME_PRESENT_CAPTURE -ErrorAction SilentlyContinue
 ```
+
+A build-tree run resolves its data through `build/webgpu/stage/<config>`, which is what the build
+produced - and on this backend that matters, because the built-in shaders exist only as baked
+WGSL/SPIR-V there and a WebGPU build has no runtime GLSL compiler. `NEEDRENAME_DATA_ROOT` still
+overrides the root for a run that wants a different one, or that wants the source tree for live
+asset editing.
 
 A successful run exits with code zero. `presented.bmp` records what the surface received, which is
 stronger evidence than an offscreen render-target dump alone.
@@ -69,10 +72,8 @@ ctest --test-dir build/webgpu -C Debug `
 ctest --test-dir build/webgpu -C Debug --output-on-failure
 ```
 
-Keep `NEEDRENAME_DATA_ROOT` pointed at `build/webgpu/stage/Debug` for the WebGPU suite. Do not use
-that override for the Vulkan `msvc` suite.
-
-If `ENGINE_BUILD_APPS=ON`, the physics example supplies an additional numeric simulation check:
+If the applications are built (they are, by default), the physics example supplies an additional
+numeric simulation check:
 
 ```powershell
 build\webgpu\bin\Debug\physics_rigid_body_example.exe 180

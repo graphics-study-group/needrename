@@ -1,0 +1,122 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+
+// joint_color_sweep.comp — Every joint color of both types, in one workgroup.
+//
+// DEFERRED: this shader is not baked and no kernel binds it yet. Two things block
+// it, both of which the merge of master's joint-coloring work left open:
+//
+//   1. It has 18 storage-buffer bindings, over the browser's limit of 16. The
+//      fixed and hinge color-id and color-offset buffers have to be compressed
+//      into one pair (with the two slices carried in push constants) before a
+//      pipeline can be created on WebGPU.
+//   2. It uses a storage-buffer memory barrier between colors, which the WGSL
+//      baker cannot translate (`OpMemoryBarrier` is unhandled), so it has no WGSL
+//      variant.
+//
+// Until then the solver takes the per-color dispatch path for every scene and
+// `engine/Physics/CMakeLists.txt` keeps this source in `PHYSICS_GLSL_DEFERRED`.
+//
+// This is the single-dispatch face of the joint solve: one workgroup walks the
+// fixed colors and then the hinge colors in order, so the whole sweep costs one
+// dispatch latency instead of one per color. It is only recorded when every
+// color fits in one workgroup (the host checks that), which is the case for a
+// scene with tens of joints.
+//
+// A color's joints write body poses that the next color reads, so the handoff
+// between colors is a buffer memory barrier followed by a workgroup execution
+// barrier. `barrier()` alone is not enough: it is compiled with workgroup-memory
+// semantics and does not order storage-buffer accesses.
+//
+// Every invocation MUST reach every barrier: the color loops are bounded by
+// uniform push-constant values, and a joint's work is skipped inside the loop
+// body rather than by returning from main().
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "common/xpbd_math.glsl"
+#include "common/xpbd_joint_math.glsl"
+
+// ---- Joint definitions (PhysicsScene-owned, read-only) ----
+struct HingeJointComDescriptor {
+    uint obj1_index;
+    uint obj2_index;
+    float compliance;
+    float _pad;
+    vec4 hinge_axis_obj1;
+    vec4 hinge_anchor_obj1;
+    vec4 initial_rel_pos_local;
+    vec4 initial_rel_rotation;
+};
+
+struct FixedJointComDescriptor {
+    uint obj1_index;
+    uint obj2_index;
+    float compliance;
+    float _pad;
+    vec4 initial_rel_pos_local;
+    vec4 initial_rel_rotation;
+};
+
+layout(set = 0, binding = 0) readonly buffer FixedJoints { FixedJointComDescriptor v[]; } fixed_joints;
+layout(set = 0, binding = 1) buffer FixedRotationLagrange { float v[]; } fixed_rotation_lagrange;
+layout(set = 0, binding = 2) buffer FixedPositionLagrange { float v[]; } fixed_position_lagrange;
+layout(set = 0, binding = 3) readonly buffer FixedJointAlive { uint v[]; } fixed_joint_alive;
+
+layout(set = 0, binding = 4) readonly buffer HingeJoints { HingeJointComDescriptor v[]; } hinge_joints;
+layout(set = 0, binding = 5) buffer HingeAxisLagrange { float v[]; } hinge_axis_lagrange;
+layout(set = 0, binding = 6) buffer HingeAnchorLagrange { float v[]; } hinge_anchor_lagrange;
+layout(set = 0, binding = 7) readonly buffer HingeJointAlive { uint v[]; } hinge_joint_alive;
+
+// ---- Body state (position and rotation are read-write) ----
+layout(set = 0, binding = 8) readonly buffer RigidBodyAlive          { uint v[]; } rigid_body_alive;
+layout(set = 0, binding = 9) buffer          RigidBodyCenterPosition { vec4 v[]; } rigid_body_center_position;
+layout(set = 0, binding = 10) buffer          RigidBodyCenterRotation { vec4 v[]; } rigid_body_center_rotation;
+layout(set = 0, binding = 11) readonly buffer RigidBodyMass           { float v[]; } rigid_body_mass;
+layout(set = 0, binding = 12) readonly buffer RigidBodyInverseInertia { mat4 v[]; } rigid_body_inverse_inertia;
+layout(set = 0, binding = 13) readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
+
+// ---- Color bucket lists and per-color ranges ----
+layout(set = 0, binding = 14) readonly buffer FixedColorIds { uint v[]; } fixed_color_ids;
+layout(set = 0, binding = 15) readonly buffer FixedColorOffsets { uint v[]; } fixed_color_offsets;
+layout(set = 0, binding = 16) readonly buffer HingeColorIds { uint v[]; } hinge_color_ids;
+layout(set = 0, binding = 17) readonly buffer HingeColorOffsets { uint v[]; } hinge_color_offsets;
+
+#define XPBD_JOINT_SOLVE_HINGE
+#define XPBD_JOINT_SOLVE_FIXED
+#include "common/xpbd_joint_solve.glsl"
+
+// ---- Per-dispatch constants (push constant, recorded by the solver) ----
+layout(push_constant) uniform XpbdSweepPush {
+    vec4 gravity_dt;        // w = substep_dt
+    uint fixed_color_count; // fixed colors to walk
+    uint fixed_joint_count; // fixed descriptor slot count
+    uint hinge_color_count; // hinge colors to walk
+    uint hinge_joint_count; // hinge descriptor slot count
+} params;
+
+void main() {
+    uint tid = gl_LocalInvocationID.x;
+
+    for (uint color = 0u; color < params.fixed_color_count; ++color) {
+        uint begin = fixed_color_offsets.v[color];
+        uint end = fixed_color_offsets.v[color + 1u];
+        for (uint i = begin + tid; i < end; i += gl_WorkGroupSize.x) {
+            uint jidx = fixed_color_ids.v[i];
+            if (jidx < params.fixed_joint_count) joint_solve_fixed(jidx, params.gravity_dt.w);
+        }
+        memoryBarrierBuffer();
+        barrier();
+    }
+
+    for (uint color = 0u; color < params.hinge_color_count; ++color) {
+        uint begin = hinge_color_offsets.v[color];
+        uint end = hinge_color_offsets.v[color + 1u];
+        for (uint i = begin + tid; i < end; i += gl_WorkGroupSize.x) {
+            uint jidx = hinge_color_ids.v[i];
+            if (jidx < params.hinge_joint_count) joint_solve_hinge(jidx, params.gravity_dt.w);
+        }
+        memoryBarrierBuffer();
+        barrier();
+    }
+}

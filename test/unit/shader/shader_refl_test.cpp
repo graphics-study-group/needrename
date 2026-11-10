@@ -88,8 +88,16 @@ inline void PrintDescriptorSetLayoutBindings(
 int main(int argc, char *argv[]) {
     glslang::InitializeProcess();
 
-    auto p = argc == 1 ? Engine::BuiltinAssetsDir() / "shaders/pbr_base.vert.0.glsl"
-                       : Engine::BuiltinAssetsDir() / "shaders" / argv[1];
+    // This test reflects GLSL sources, which a staged tree that ships baked
+    // archives does not have by design, so the sources are read from the
+    // checkout rather than through the resolved data root.
+#ifdef NEEDRENAME_SOURCE_DIR
+    const std::filesystem::path shaders_dir = std::filesystem::path{NEEDRENAME_SOURCE_DIR} / "builtin_assets" / "shaders";
+#else
+    const std::filesystem::path shaders_dir = Engine::BuiltinAssetsDir() / "shaders";
+#endif
+
+    auto p = argc == 1 ? shaders_dir / "pbr_base.vert.0.glsl" : shaders_dir / argv[1];
 
     // Get SDL logging working.
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
@@ -100,7 +108,7 @@ int main(int argc, char *argv[]) {
     PrintLayout(layout1);
 
     binary = GetSpirvBinaryFromGLSL(
-        Engine::BuiltinAssetsDir() / "shaders/lambertian_cook_torrance.frag.0.glsl", EShLangFragment
+        shaders_dir / "lambertian_cook_torrance.frag.0.glsl", EShLangFragment
     );
     auto layout = Engine::Rhi::SPLayout::Reflect(binary, true);
     std::cout << " - Fragment Shader: " << std::endl;
@@ -111,7 +119,7 @@ int main(int argc, char *argv[]) {
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 
-    binary = GetSpirvBinaryFromGLSL(Engine::BuiltinAssetsDir() / "shaders/fluid.comp.0.glsl", EShLangCompute);
+    binary = GetSpirvBinaryFromGLSL(shaders_dir / "fluid.comp.0.glsl", EShLangCompute);
     layout = Engine::Rhi::SPLayout::Reflect(binary, false);
     std::cout << " - Compute Shader: " << std::endl;
     PrintLayout(layout);

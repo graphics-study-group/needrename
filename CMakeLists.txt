@@ -7,9 +7,24 @@ project(needrename VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 20)
 
 # --- Build feature options ------------------------------------------------
+# The Python bindings need a native CPython with development headers, which a
+# browser cross-build does not have and the host-tools build has no use for, so
+# only a native desktop build defaults them on. An explicit `-D` still wins, and
+# an unsupported combination is rejected below rather than half-configured.
+if (EMSCRIPTEN OR ENGINE_HOST_TOOLS_ONLY)
+    set(ENGINE_PYTHON_BINDINGS_DEFAULT OFF)
+else()
+    set(ENGINE_PYTHON_BINDINGS_DEFAULT ON)
+endif()
+
 option(ENGINE_BUILD_TESTS "Build first-party tests and vendored third-party tests" ON)
 option(ENGINE_BUILD_EXAMPLES "Build the example executables" ON)
 option(ENGINE_BUILD_APPS "Build the editor and physics applications" ON)
+option(
+    ENGINE_BUILD_PYTHON_BINDINGS
+    "Build the nanobind Python extension for PhysicsApp (native desktop only)"
+    ${ENGINE_PYTHON_BINDINGS_DEFAULT}
+)
 option(ENGINE_BUILD_TOOLS "Build build-time helper executables (e.g. shader_baker)" ON)
 option(ENGINE_BUILD_WEBGPU_SPIKE "Build the WebGPU spike harness (measurement tool, not a product target)" OFF)
 option(ENGINE_BUILD_DOCS "Generate the doxygen documentation" ON)
@@ -21,9 +36,25 @@ if (ENGINE_HOST_TOOLS_ONLY)
     set(ENGINE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(ENGINE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(ENGINE_BUILD_APPS OFF CACHE BOOL "" FORCE)
+    set(ENGINE_BUILD_PYTHON_BINDINGS OFF CACHE BOOL "" FORCE)
     set(ENGINE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(ENGINE_BUILD_WEBGPU_SPIKE OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+endif()
+
+# Reject combinations that cannot work, instead of configuring a tree whose
+# Python artifacts silently do not exist.
+if (ENGINE_BUILD_PYTHON_BINDINGS AND EMSCRIPTEN)
+    message(FATAL_ERROR
+        "ENGINE_BUILD_PYTHON_BINDINGS cannot be enabled for a browser build: nanobind links the host "
+        "CPython development library, which this cross-build has no interpreter for. Drop the option "
+        "(it defaults to OFF under Emscripten) and build the bindings in a native desktop tree.")
+endif()
+if (ENGINE_BUILD_PYTHON_BINDINGS AND NOT ENGINE_BUILD_APPS)
+    message(FATAL_ERROR
+        "ENGINE_BUILD_PYTHON_BINDINGS requires ENGINE_BUILD_APPS: the bindings live in app/python and "
+        "link the PhysicsApp target, which ENGINE_BUILD_APPS owns. Either enable ENGINE_BUILD_APPS or "
+        "disable ENGINE_BUILD_PYTHON_BINDINGS.")
 endif()
 
 # --- RHI backend selection -------------------------------------------------
@@ -108,6 +139,8 @@ if (NOT ENGINE_HOST_TOOLS_ONLY)
 endif()
 
 if (ENGINE_BUILD_APPS)
+    # The Python bindings live in app/python and are configured with the other
+    # apps, because they link the PhysicsApp target.
     add_subdirectory(app)
 endif()
 if (ENGINE_BUILD_EXAMPLES)

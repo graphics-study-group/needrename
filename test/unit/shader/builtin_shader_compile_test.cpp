@@ -9,6 +9,21 @@
 #include <Render/Asset/Shader/ShaderCompiler.h>
 
 namespace {
+    /// @brief The directory holding the built-in GLSL sources for this checkout.
+    ///
+    /// A staged data root that ships baked archives has no GLSL sources by
+    /// design, and this test's whole point is to compile them, so it reads the
+    /// source tree rather than the resolved data root.
+    ///
+    /// @return Absolute path of `builtin_assets/shaders`.
+    std::filesystem::path SourceShadersDirectory() {
+#ifdef NEEDRENAME_SOURCE_DIR
+        return std::filesystem::path{NEEDRENAME_SOURCE_DIR} / "builtin_assets" / "shaders";
+#else
+        return Engine::BuiltinAssetsDir() / "shaders";
+#endif
+    }
+
     /// @brief Collect every built-in shader entry point.
     ///
     /// Only the top level of `shaders/` is scanned: everything under
@@ -17,7 +32,7 @@ namespace {
     ///
     /// @return Absolute paths of the shaders, sorted for a deterministic report.
     std::vector<std::filesystem::path> CollectBuiltinShaders() {
-        const std::filesystem::path directory = Engine::BuiltinAssetsDir() / "shaders";
+        const std::filesystem::path directory = SourceShadersDirectory();
         std::vector<std::filesystem::path> shaders;
         for (const auto &entry : std::filesystem::directory_iterator(directory)) {
             if (!entry.is_regular_file()) continue;
@@ -33,7 +48,7 @@ int main() {
     Engine::ShaderCompiler compiler;
     const std::vector<std::filesystem::path> shaders = CollectBuiltinShaders();
     if (shaders.empty()) {
-        std::cerr << "No built-in shaders found under " << Engine::BuiltinAssetsDir() << "/shaders\n";
+        std::cerr << "No built-in shaders found under " << SourceShadersDirectory() << "\n";
         return 1;
     }
 

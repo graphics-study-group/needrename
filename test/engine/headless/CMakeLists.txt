@@ -33,6 +33,11 @@ anro_add_test(readback_state_machine_test FOLDER tests/engine/headless)
 
 anro_add_test(new_rendergraph_test FOLDER tests/engine/headless)
 
+# NOTE: master's `xpbd_joint_sweep_equivalence_test` is deliberately not registered yet.
+# The shared joint_solve algorithm and its per-color dispatch path are merged, but the
+# single-workgroup sweep fast path is deferred (see the deferred joint_color_sweep.comp
+# work). The equivalence test only has meaning once both paths exist.
+
 # Uses a hand-opened Vulkan command buffer to drive the physics façade, so it is a Vulkan test.
 if (ENGINE_RHI_BACKEND_VULKAN)
     anro_add_test(physics_system_model_matrices_test LINK "Engine;EnginePhysics" EXTRA_LABELS gpu FOLDER tests/engine/headless)

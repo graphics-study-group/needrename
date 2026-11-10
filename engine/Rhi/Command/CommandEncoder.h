@@ -239,6 +239,31 @@ namespace Engine::Rhi {
         void CopyBuffer(BufferHandle source, BufferHandle destination, uint64_t size);
 
         /**
+         * @brief Fill a byte range of a buffer with a repeating 32-bit value.
+         *
+         * A fill is a transfer write, which is why the seam states its ordering
+         * rather than leaving it to the caller: a shader that read the range
+         * earlier in the recording is ordered before the fill, and the fill is
+         * ordered before whatever reads the range afterwards. That is the shape a
+         * per-step buffer needs - a compute pass consumes the old contents, the
+         * fill clears them, the next step's compute pass reads the cleared range -
+         * and a caller records it as one call with no barrier to pair with it.
+         *
+         * `offset` and `size` must be multiples of four, and the range must lie
+         * inside the buffer.
+         *
+         * @note Not every backend has a patterned fill: one that only has a clear
+         * rejects a non-zero `value` rather than writing zero in its place, so a
+         * caller that needs a non-zero pattern must write it another way.
+         *
+         * @param destination The buffer being written.
+         * @param offset Byte offset of the range.
+         * @param size Byte length of the range.
+         * @param value The 32-bit pattern written across the range.
+         */
+        void FillBuffer(BufferHandle destination, uint64_t offset, uint64_t size, uint32_t value);
+
+        /**
          * @brief Copy a whole image into a buffer.
          *
          * The image is copied as one layer, tightly packed, from its first mip.

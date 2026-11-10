@@ -50,13 +50,15 @@ namespace Engine {
      * @brief Resolve a data directory beneath the runtime data root.
      *
      * An installed data root (or an explicit `NEEDRENAME_DATA_ROOT`) stores
-     * every category in a subdirectory of the root. The developer build tree
-     * keeps its categories apart, so it names each one with its own
-     * compile-time fallback.
+     * every category in a subdirectory of the root. A developer run keeps its
+     * categories apart, so it resolves them in two steps: the category staged for
+     * this build (`<build>/stage/<config>/<subdir>`, which is what the build
+     * produced, including baked shaders) and, only when that category is not
+     * staged, the compile-time source directory named by `developer_fallback`.
      *
      * @param subdir Layout subdirectory name beneath the data root.
-     * @param developer_fallback Directory to use when the root resolved through
-     * the developer fallback.
+     * @param developer_fallback Source directory used when this build stages no
+     * such category.
      * @return An existing directory.
      * @exception std::runtime_error The directory does not exist; the message
      * names the path attempted and the resolution step.

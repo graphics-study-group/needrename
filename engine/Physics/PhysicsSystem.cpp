@@ -5,8 +5,51 @@
 
 #include "PhysicsScene.h"
 #include "Solver/ISolver.h"
+#include <Rhi/Buffer/ComputeBuffer.h>
+#include <Rhi/Command/CommandEncoder.h>
 
 namespace Engine {
+    namespace {
+        /**
+         * @brief Record the per-step consumption of external force and torque.
+         *
+         * The external wrench buffers are per-step quantities: a step's integration
+         * applies whatever values they hold, and those values must not act again on
+         * a later step. The clearing is recorded once per scene after every solver
+         * has run, so one solver's consumption cannot erase values another solver
+         * has not seen yet.
+         *
+         * A step that does not integrate leaves the buffers untouched: pending
+         * values are deferred to the next step that actually integrates, matching
+         * the write-lifetime contract of the body-write API.
+         *
+         * The clear is a transfer, and `FillBuffer` is where the seam records the
+         * dependencies it needs: the solver's compute reads of these buffers are
+         * ordered before the fill, and the fill before the next step's compute
+         * reads. Nothing here has to name a stage or an access.
+         *
+         * @param scene   Physics scene whose step just ran.
+         * @param encoder Encoder the step was recorded to.
+         */
+        void RecordExternalWrenchConsumption(PhysicsScene &scene, Rhi::CommandEncoder &encoder) {
+            if (!scene.IsSimulationEnabled()) {
+                return;
+            }
+            const auto gpu = scene.GetGpuBuffers();
+            if (gpu.rigid_body_external_force == nullptr || gpu.rigid_body_external_torque == nullptr) {
+                return;
+            }
+            const uint64_t force_bytes = gpu.rigid_body_external_force->GetSize();
+            const uint64_t torque_bytes = gpu.rigid_body_external_torque->GetSize();
+            if (force_bytes == 0u || torque_bytes == 0u) {
+                return;
+            }
+
+            encoder.FillBuffer(gpu.rigid_body_external_force->GetBuffer(), 0u, force_bytes, 0u);
+            encoder.FillBuffer(gpu.rigid_body_external_torque->GetBuffer(), 0u, torque_bytes, 0u);
+        }
+    } // namespace
+
     PhysicsSystem::PhysicsSystem() {
     }
 
@@ -69,6 +112,7 @@ namespace Engine {
             for (auto &solver : iter->second) {
                 solver->GPUStep(encoder);
             }
+            RecordExternalWrenchConsumption(*scene, encoder);
         }
     }
 
