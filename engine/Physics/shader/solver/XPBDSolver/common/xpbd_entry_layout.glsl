@@ -1,9 +1,10 @@
-// xpbd_entry_layout.glsl — Channel and slot layout shared by the XPBD entry /
+// xpbd_entry_layout.glsl — Channel and slot layout shared by the contact entry /
 // accumulate / SumByKey pipeline.
 //
-// The solver reduces per-body Jacobi partials with SumByKey.  Each constraint
-// type (contact / hinge / fixed) maintains its own sorted entry list and its own
-// channel-major value buffer.  This file fixes the shared conventions so every
+// The solver reduces per-body Jacobi partials with SumByKey.  Only the contact
+// group goes through that pipeline: joints are solved by a direct pose write in
+// a color pass (see common/xpbd_joint_solve.glsl), so they have no entry list
+// and no value buffer.  This file fixes the contact group's conventions so every
 // stage indexes them identically.
 //
 // Value channels (per record, in one packed channel-major buffer):
@@ -11,15 +12,15 @@
 //   3..5 : Δang xyz
 //   6    : contribution flag (0.0 = skipped, 1.0 = contributed this iteration)
 //
-// A per-type sorted entry is a **key array plus a payload array** (a
-// struct-of-arrays record).  `key` encodes slot *ownership* only: the index of
-// the body the slot belongs to, or the invalid-slot key when the slot has no
-// owner this substep (no such contact/joint, or an out-of-range owner index).
-// Entry passes read no body state; whether a body actually receives a
-// contribution is decided by the accumulate shaders' guards, and a slot that is
-// never written stays inert because the value buffer is cleared every iteration.
+// A sorted entry is a **key array plus a payload array** (a struct-of-arrays
+// record).  `key` encodes slot *ownership* only: the index of the body the slot
+// belongs to, or the invalid-slot key when the slot has no owner this substep
+// (no such contact, or an out-of-range owner index).  The entry pass reads no
+// body state; whether a body actually receives a contribution is decided by the
+// accumulate shader's guards, and a slot that is never written stays inert
+// because the value buffer is cleared every iteration.
 //
-// The invalid-slot key is `body_count` (the live body slot count), which each
+// The invalid-slot key is `body_count` (the live body slot count), which the
 // entry pass receives as a per-dispatch value in its push-constant block.  It is
 // deliberately *not* a fixed constant: it is larger than every real key, so
 // unowned slots sort after every owned one, and it is exactly the
@@ -33,13 +34,11 @@
 // this entry's values from exactly `slot` in the channel-major value buffer.  So
 // an accumulate pass writes at the entry's own slot index and no permutation map
 // exists anywhere in the path.  Because the sort permutes the payload array in
-// place, every entry pass must rewrite it on every dispatch — see the CONTRACT
-// note at the top of each entries/*.comp.
+// place, the entry pass must rewrite it on every dispatch — see the CONTRACT
+// note at the top of entries/contact_entries.comp.
 //
 // Slot ids:
 //   contact : e = cidx * 2 + side        (side in {0 = body A, 1 = body B})
-//   hinge   : e = j * 4 + side * 2 + c   (2 bodies x {axis, anchor} constraints)
-//   fixed   : e = j * 4 + side * 2 + c   (2 bodies x {rotation, position})
 
 #ifndef XPBD_ENTRY_LAYOUT_GLSL
 #define XPBD_ENTRY_LAYOUT_GLSL
@@ -57,23 +56,14 @@ const uint kNumValueChannels = 7u;
 // live body slot count, received per dispatch in the push-constant block.  There
 // is deliberately no constant for it here — see the note above.
 
-// Hinge/fixed: 4 slots per joint = 2 bodies x 2 scalar constraints.
-const uint kJointSlotBase = 4u;   // slots per joint
-const uint kJointAxisSlot = 0u;   // within a body's pair: axis / rotation constraint
-const uint kJointAnchorSlot = 1u; // within a body's pair: anchor / position constraint
-
 // Contact: 2 slots per contact point = 2 bodies x 1 scalar constraint.
 const uint kContactSlotBase = 2u;
 
-// Slot ids — shared by the entry passes (which write them) and the accumulate
-// shaders (which use them as their scatter index).
+// Slot ids — shared by the entry pass (which writes them) and the accumulate
+// shader (which uses them as its scatter index).
 uint contact_slot(uint cidx, uint side) { return cidx * kContactSlotBase + side; }
 
-uint joint_slot(uint j, uint side, uint constraint) {
-    return j * kJointSlotBase + side * 2u + constraint;
-}
-
-// Buffer layout convention (shared by the entry passes, the accumulate scatter
+// Buffer layout convention (shared by the entry pass, the accumulate scatter
 // and SumByKey):
 //   - the sorted entry list is a **key array plus a payload array**; the radix
 //     sort orders it by key and permutes the payload along with it
@@ -86,6 +76,7 @@ uint joint_slot(uint j, uint side, uint constraint) {
 //     `values[channel * entry_capacity + payload]`
 //   - SumByKey's per-body output is channel-major with stride == body_count:
 //       out(channel, body) = out[channel * body_count + body]
-//   - apply merges those per-body outputs with the same stride
+//   - the contact position apply averages those per-body outputs by the contact
+//     contribution count
 
 #endif // XPBD_ENTRY_LAYOUT_GLSL

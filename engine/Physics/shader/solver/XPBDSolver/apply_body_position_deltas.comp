@@ -1,20 +1,22 @@
 #version 450 core
 #extension GL_GOOGLE_include_directive : require
 
-// apply_body_position_deltas.comp — Per-body Jacobi apply for position
-// constraints.
+// apply_body_position_deltas.comp — Per-body Jacobi apply for contacts.
 //
-// SumByKey reduced each constraint type's per-entry contribution values into a
-// per-body partial set in a channel-major buffer with stride == body_count:
+// SumByKey reduced the contact group's per-entry contributions into a per-body
+// partial set in a channel-major buffer with stride == body_count:
 //     out(c, body) = out[c * body_count + body],  c in 0..6
 //   (channels: Δlin 0..2, Δang 3..5, flag 6)
-// SumByKey only writes bodies present in the input, so a body absent from a
-// given type this iteration keeps stale cells.  This pass merges the contact /
-// hinge / fixed partial sets, averages by the total contribution count (sum of
-// the three flag channels), applies the averaged delta, then clears all 21
-// cells (7 x 3 sets) for this body so stale data can never pollute a later
-// iteration.  Kinematic / dead bodies are never written by SumByKey but we
-// still keep their cells zeroed.
+//
+// This pass averages the contact partials by the contact contribution count,
+// applies them, then clears the seven cells for this body so stale data can
+// never pollute a later iteration. Kinematic / dead bodies are never written by
+// SumByKey but their cells are still kept zeroed.
+//
+// Joints do not pass through here. A joint color pass writes both of its
+// bodies' poses directly (see common/xpbd_joint_solve.glsl), so this pass owns
+// the contact group alone and no hinge or fixed partial set exists.
+
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 #include "common/xpbd_math.glsl"
@@ -23,12 +25,10 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 layout(set = 0, binding = 0) readonly buffer RigidBodyAlive       { uint v[]; } rigid_body_alive;
 layout(set = 0, binding = 1) buffer      RigidBodyCenterPosition  { vec4 v[]; } rigid_body_center_position;
 layout(set = 0, binding = 2) buffer      RigidBodyCenterRotation  { vec4 v[]; } rigid_body_center_rotation;
-layout(set = 0, binding = 3) readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
+layout(set = 0, binding = 3) readonly buffer RigidBodyIsKinematic { uint v[]; } rigid_body_is_kinematic;
 
-// Three per-body partial sets (channel-major, stride = body_count).
+// Per-body contact partial set (channel-major, stride = body_count).
 layout(set = 0, binding = 4) buffer ContactOut { float v[]; } contact_out;
-layout(set = 0, binding = 5) buffer HingeOut   { float v[]; } hinge_out;
-layout(set = 0, binding = 6) buffer FixedOut   { float v[]; } fixed_out;
 
 layout(push_constant) uniform BodyCountPush {
     uint body_count_val;
@@ -42,8 +42,6 @@ void main() {
     if (rigid_body_is_kinematic.v[idx] != 0u) {
         for (uint c = 0u; c < kNumValueChannels; ++c) {
             contact_out.v[c * params.body_count_val + idx] = 0.0f;
-            hinge_out.v[c * params.body_count_val + idx] = 0.0f;
-            fixed_out.v[c * params.body_count_val + idx] = 0.0f;
         }
         return;
     }
@@ -58,29 +56,11 @@ void main() {
     ang_sum.x += contact_out.v[3u * params.body_count_val + idx];
     ang_sum.y += contact_out.v[4u * params.body_count_val + idx];
     ang_sum.z += contact_out.v[5u * params.body_count_val + idx];
-    count       += contact_out.v[6u * params.body_count_val + idx];
+    count     += contact_out.v[6u * params.body_count_val + idx];
 
-    lin_sum.x += hinge_out.v[0u * params.body_count_val + idx];
-    lin_sum.y += hinge_out.v[1u * params.body_count_val + idx];
-    lin_sum.z += hinge_out.v[2u * params.body_count_val + idx];
-    ang_sum.x += hinge_out.v[3u * params.body_count_val + idx];
-    ang_sum.y += hinge_out.v[4u * params.body_count_val + idx];
-    ang_sum.z += hinge_out.v[5u * params.body_count_val + idx];
-    count       += hinge_out.v[6u * params.body_count_val + idx];
-
-    lin_sum.x += fixed_out.v[0u * params.body_count_val + idx];
-    lin_sum.y += fixed_out.v[1u * params.body_count_val + idx];
-    lin_sum.z += fixed_out.v[2u * params.body_count_val + idx];
-    ang_sum.x += fixed_out.v[3u * params.body_count_val + idx];
-    ang_sum.y += fixed_out.v[4u * params.body_count_val + idx];
-    ang_sum.z += fixed_out.v[5u * params.body_count_val + idx];
-    count       += fixed_out.v[6u * params.body_count_val + idx];
-
-    // Clear the three partial sets for this body (consumed).
+    // Clear the partial set for this body (consumed).
     for (uint c = 0u; c < kNumValueChannels; ++c) {
         contact_out.v[c * params.body_count_val + idx] = 0.0f;
-        hinge_out.v[c * params.body_count_val + idx] = 0.0f;
-        fixed_out.v[c * params.body_count_val + idx] = 0.0f;
     }
 
     if (count <= 0.0f) return;

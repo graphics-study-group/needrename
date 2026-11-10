@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
     const uint32_t frame_count = finite ? static_cast<uint32_t>(std::stoul(argv[1])) : 0;
 
     CreateInfo info{};
-    info.mode = AppMode::Windowed;
+    info.mode = finite ? AppMode::PhysicsOnly : AppMode::Windowed;
     info.resol_x = kScreenWidth;
     info.resol_y = kScreenHeight;
     info.window_title = "Physics App (A1 actuator stand)";
@@ -95,8 +95,10 @@ int main(int argc, char **argv) {
         app->SetTargetAngle(jid, target);
     }
 
-    app->AddDirectionalLight({.direction = {0.0f, 0.0f, -1.0f}, .intensity = 1.5f, .cast_shadow = true});
-    app->SetCameraPose(glm::vec3(2.5f, -2.5f, 2.0f), glm::vec3(0.0f, 0.0f, 0.5f));
+    if (!finite) {
+        app->AddDirectionalLight({.direction = {0.0f, 0.0f, -1.0f}, .intensity = 1.5f, .cast_shadow = true});
+        app->SetCameraPose(glm::vec3(2.5f, -2.5f, 2.0f), glm::vec3(0.0f, 0.0f, 0.5f));
+    }
 
     app->CommitScene();
 
@@ -120,8 +122,7 @@ int main(int argc, char **argv) {
                 if (steps > frame_count - 60) {
                     for (const auto &[name, target] : kDefaultJointPos) {
                         const JointState st = app->GetJointState(res.joint_bodies.at(name).id);
-                        settle_peak_joint_speed =
-                            std::max(settle_peak_joint_speed, std::fabs(st.angular_velocity));
+                        settle_peak_joint_speed = std::max(settle_peak_joint_speed, std::fabs(st.angular_velocity));
                     }
                 }
             }
@@ -140,7 +141,9 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        app->RenderNextFrame();
+        if (!finite) {
+            app->RenderNextFrame();
+        }
         if (finite && ++frames >= frame_count) {
             break;
         }
@@ -160,7 +163,9 @@ int main(int argc, char **argv) {
             max_joint_error
         );
         if (min_trunk_up_z < 0.0f || settle_peak_joint_speed > 2.0f || max_joint_error > 0.5f) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "A1 stand: robot did not stay upright and settle at its targets.");
+            SDL_LogError(
+                SDL_LOG_CATEGORY_APPLICATION, "A1 stand: robot did not stay upright and settle at its targets."
+            );
             return 1;
         }
     }

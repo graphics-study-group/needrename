@@ -21,6 +21,22 @@ namespace {
         return std::as_bytes(std::span{source});
     }
 
+    template <typename Joint>
+    Engine::JointColorBuckets BuildBucketsFor(
+        const std::vector<Joint> &joints,
+        const std::vector<uint32_t> &alive,
+        const std::vector<uint32_t> &body_is_kinematic,
+        uint32_t body_count
+    ) {
+        std::vector<Engine::JointColorRef> refs(joints.size());
+        for (size_t slot = 0; slot < joints.size(); ++slot) {
+            refs[slot].obj1_index = joints[slot].obj1_index;
+            refs[slot].obj2_index = joints[slot].obj2_index;
+            refs[slot].alive = alive[slot];
+        }
+        return Engine::BuildJointColorBuckets(refs, body_is_kinematic, body_count);
+    }
+
     /**
      * @brief Grow a scene buffer to hold at least `element_count` elements.
      *
@@ -84,10 +100,19 @@ namespace Engine {
         m_fixed_joint_alive.clear();
         m_hinge_joints.clear();
         m_hinge_joint_alive.clear();
+        m_fixed_joint_colors = JointColorBuckets{};
+        m_hinge_joint_colors = JointColorBuckets{};
+        m_joint_colors_dirty = true;
+        m_fixed_joint_color_count = 0;
+        m_hinge_joint_color_count = 0;
         m_gpu_fixed_joints.reset();
         m_gpu_fixed_joint_alive.reset();
         m_gpu_hinge_joints.reset();
         m_gpu_hinge_joint_alive.reset();
+        m_gpu_fixed_joint_color_ids.reset();
+        m_gpu_fixed_joint_color_offsets.reset();
+        m_gpu_hinge_joint_color_ids.reset();
+        m_gpu_hinge_joint_color_offsets.reset();
 
         m_shape_filter_data.clear();
 
@@ -161,6 +186,7 @@ namespace Engine {
         joint.compliance = 0.0f;
         m_fixed_joints.push_back(joint);
         m_fixed_joint_alive.push_back(1u);
+        m_joint_colors_dirty = true;
         return static_cast<uint32_t>(m_fixed_joints.size() - 1);
     }
 
@@ -171,6 +197,7 @@ namespace Engine {
         joint.compliance = 0.0f;
         m_hinge_joints.push_back(joint);
         m_hinge_joint_alive.push_back(1u);
+        m_joint_colors_dirty = true;
         return static_cast<uint32_t>(m_hinge_joints.size() - 1);
     }
 
@@ -187,15 +214,23 @@ namespace Engine {
     void PhysicsScene::UnregisterFixedJoint(uint32_t joint_index) {
         if (joint_index >= m_fixed_joint_alive.size()) return;
         m_fixed_joint_alive[joint_index] = 0u;
+        m_joint_colors_dirty = true;
     }
 
     void PhysicsScene::UnregisterHingeJoint(uint32_t joint_index) {
         if (joint_index >= m_hinge_joint_alive.size()) return;
         m_hinge_joint_alive[joint_index] = 0u;
+        m_joint_colors_dirty = true;
     }
 
     void PhysicsScene::SubmitRigidBody(uint32_t rigid_body_index, const RigidBodyComDescriptor &desc) {
         if (!IsRigidBodyIndexValid(rigid_body_index)) return;
+        const uint32_t is_kinematic = desc.is_kinematic ? 1u : 0u;
+        if (m_rigid_body_is_kinematic[rigid_body_index] != is_kinematic) {
+            // A kinematic body is not a writable conflict in the joint color
+            // graph, so flipping the flag changes the coloring.
+            m_joint_colors_dirty = true;
+        }
         m_rigid_body_mass[rigid_body_index] = desc.is_kinematic ? 0.0f : desc.mass;
         m_rigid_body_static_friction[rigid_body_index] = desc.static_friction;
         m_rigid_body_dynamic_friction[rigid_body_index] = desc.dynamic_friction;
@@ -229,12 +264,14 @@ namespace Engine {
         if (joint_idx >= m_fixed_joints.size()) return;
         m_fixed_joints[joint_idx] = joint;
         m_fixed_joint_alive[joint_idx] = 1u;
+        m_joint_colors_dirty = true;
     }
 
     void PhysicsScene::SubmitHingeJoint(uint32_t joint_idx, const HingeJointComDescriptor &joint) {
         if (joint_idx >= m_hinge_joints.size()) return;
         m_hinge_joints[joint_idx] = joint;
         m_hinge_joint_alive[joint_idx] = 1u;
+        m_joint_colors_dirty = true;
     }
 
     void PhysicsScene::SyncGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper) {
@@ -271,10 +308,18 @@ namespace Engine {
             m_gpu_fixed_joint_alive.get(),
             m_gpu_hinge_joints.get(),
             m_gpu_hinge_joint_alive.get(),
+            m_gpu_fixed_joint_color_ids.get(),
+            m_gpu_fixed_joint_color_offsets.get(),
+            m_gpu_hinge_joint_color_ids.get(),
+            m_gpu_hinge_joint_color_offsets.get(),
             m_gpu_rigid_body_slot_count,
             m_gpu_shape_slot_count,
             static_cast<uint32_t>(m_fixed_joints.size()),
             static_cast<uint32_t>(m_hinge_joints.size()),
+            m_fixed_joint_color_count,
+            m_hinge_joint_color_count,
+            m_fixed_joint_colors.offsets,
+            m_hinge_joint_colors.offsets,
         };
     }
 
@@ -297,6 +342,20 @@ namespace Engine {
     void PhysicsScene::RefreshGpuBuffers(Rhi::DeviceContext &device_context, Rhi::SubmissionHelper &submission_helper) {
         m_gpu_rigid_body_slot_count = static_cast<uint32_t>(m_rigid_body_alive.size());
         m_gpu_shape_slot_count = static_cast<uint32_t>(m_shape_alive.size());
+
+        // Coloring is the only O(n) pass over the joint graph here, and it is
+        // rebuilt only when the graph can have changed (a joint allocated,
+        // unregistered or re-submitted, or a body's kinematic flag flipped).
+        const bool colors_rebuilt = m_joint_colors_dirty;
+        if (colors_rebuilt) {
+            m_fixed_joint_colors =
+                BuildBucketsFor(m_fixed_joints, m_fixed_joint_alive, m_rigid_body_is_kinematic, m_gpu_rigid_body_slot_count);
+            m_hinge_joint_colors =
+                BuildBucketsFor(m_hinge_joints, m_hinge_joint_alive, m_rigid_body_is_kinematic, m_gpu_rigid_body_slot_count);
+            m_fixed_joint_color_count = m_fixed_joint_colors.color_count;
+            m_hinge_joint_color_count = m_hinge_joint_colors.color_count;
+            m_joint_colors_dirty = false;
+        }
 
         const auto &allocator = device_context.GetAllocatorState();
         EnsureBuffer<uint32_t>(m_gpu_rigid_body_alive, allocator, m_gpu_rigid_body_slot_count, "Physics RB Alive");
@@ -404,6 +463,39 @@ namespace Engine {
         if (hinge_joint_count > 0) {
             submission.EnqueueBufferSubmission(*m_gpu_hinge_joints, MakeSpan(m_hinge_joints));
             submission.EnqueueBufferSubmission(*m_gpu_hinge_joint_alive, MakeSpan(m_hinge_joint_alive));
+        }
+
+        // The color buckets are pure CPU data derived from the graph, so they
+        // are uploaded only on the frame that rebuilt them. A type with no alive
+        // joint still gets a (size-1) buffer so the sweep's bindings stay valid.
+        if (colors_rebuilt) {
+            EnsureBuffer<uint32_t>(
+                m_gpu_fixed_joint_color_ids, allocator, m_fixed_joint_colors.ids.size(), "Physics FixedJoint ColorIds"
+            );
+            EnsureBuffer<uint32_t>(
+                m_gpu_fixed_joint_color_offsets,
+                allocator,
+                m_fixed_joint_colors.offsets.size(),
+                "Physics FixedJoint ColorOffsets"
+            );
+            EnsureBuffer<uint32_t>(
+                m_gpu_hinge_joint_color_ids, allocator, m_hinge_joint_colors.ids.size(), "Physics HingeJoint ColorIds"
+            );
+            EnsureBuffer<uint32_t>(
+                m_gpu_hinge_joint_color_offsets,
+                allocator,
+                m_hinge_joint_colors.offsets.size(),
+                "Physics HingeJoint ColorOffsets"
+            );
+
+            submission.EnqueueBufferSubmission(*m_gpu_fixed_joint_color_ids, MakeSpan(m_fixed_joint_colors.ids));
+            submission.EnqueueBufferSubmission(
+                *m_gpu_fixed_joint_color_offsets, MakeSpan(m_fixed_joint_colors.offsets)
+            );
+            submission.EnqueueBufferSubmission(*m_gpu_hinge_joint_color_ids, MakeSpan(m_hinge_joint_colors.ids));
+            submission.EnqueueBufferSubmission(
+                *m_gpu_hinge_joint_color_offsets, MakeSpan(m_hinge_joint_colors.offsets)
+            );
         }
     }
 
