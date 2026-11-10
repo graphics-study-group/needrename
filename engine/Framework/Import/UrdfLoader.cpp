@@ -414,9 +414,8 @@ namespace Engine {
                 glm::vec3(inertial.ixz, inertial.iyz, inertial.izz)
             );
 
-            const glm::mat3 urdf_to_engine = glm::mat3_cast(
-                glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f))
-            );
+            const glm::mat3 urdf_to_engine =
+                glm::mat3_cast(glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
             I = urdf_to_engine * I * glm::transpose(urdf_to_engine);
             if (glm::length(inertial.origin_rpy) > 1e-6f) {
                 const glm::mat3 R = glm::mat3_cast(UrdfRpyToEngineQuat(inertial.origin_rpy));

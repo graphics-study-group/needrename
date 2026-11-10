@@ -108,19 +108,17 @@ namespace Engine {
             glm::dmat3 m(0.0);
             for (int column = 0; column < 3; ++column) {
                 for (int row = 0; row < 3; ++row) {
-                    m[column][row] = 0.5 * (
-                        static_cast<double>(inertia[column][row]) + static_cast<double>(inertia[row][column])
-                    );
+                    m[column][row] =
+                        0.5 * (static_cast<double>(inertia[column][row]) + static_cast<double>(inertia[row][column]));
                 }
             }
 
             const double det = glm::determinant(m);
-            const double frobenius_squared = m[0][0] * m[0][0] + m[1][0] * m[1][0] + m[2][0] * m[2][0] +
-                                             m[0][1] * m[0][1] + m[1][1] * m[1][1] + m[2][1] * m[2][1] +
-                                             m[0][2] * m[0][2] + m[1][2] * m[1][2] + m[2][2] * m[2][2];
+            const double frobenius_squared = m[0][0] * m[0][0] + m[1][0] * m[1][0] + m[2][0] * m[2][0]
+                                             + m[0][1] * m[0][1] + m[1][1] * m[1][1] + m[2][1] * m[2][1]
+                                             + m[0][2] * m[0][2] + m[1][2] * m[1][2] + m[2][2] * m[2][2];
             const double norm = std::sqrt(frobenius_squared);
-            const double threshold =
-                std::numeric_limits<double>::epsilon() * norm * norm * norm;
+            const double threshold = std::numeric_limits<double>::epsilon() * norm * norm * norm;
             if (!(norm > 0.0) || std::abs(det) < threshold) {
                 return InertiaInvertibility::Singular;
             }

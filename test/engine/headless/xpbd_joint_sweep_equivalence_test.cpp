@@ -236,8 +236,8 @@ int main() {
             const glm::vec4 b = per_color.Position(body);
             if (glm::length(a - b) > 1e-6f) {
                 std::cerr << "FAIL: sweep and per-color positions diverged at step " << step << ", body " << body
-                          << ": (" << a.x << ", " << a.y << ", " << a.z << ") vs (" << b.x << ", " << b.y << ", "
-                          << b.z << ")" << std::endl;
+                          << ": (" << a.x << ", " << a.y << ", " << a.z << ") vs (" << b.x << ", " << b.y << ", " << b.z
+                          << ")" << std::endl;
                 g_failures++;
                 break;
             }

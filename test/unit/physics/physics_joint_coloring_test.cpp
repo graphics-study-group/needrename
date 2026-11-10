@@ -101,8 +101,7 @@ int main() {
     const std::vector<uint32_t> all_dynamic(QuadrupedBodyCount(), 0u);
 
     {
-        const JointColorBuckets buckets =
-            BuildJointColorBuckets(hinge_joints, all_dynamic, QuadrupedBodyCount());
+        const JointColorBuckets buckets = BuildJointColorBuckets(hinge_joints, all_dynamic, QuadrupedBodyCount());
         CHECK(buckets.color_count == 4u);
         CHECK(SlicesAreWellFormed(buckets, static_cast<uint32_t>(hinge_joints.size())));
         CHECK(buckets.offsets[1] - buckets.offsets[0] == 5u);
@@ -112,8 +111,7 @@ int main() {
     }
 
     {
-        const JointColorBuckets buckets =
-            BuildJointColorBuckets(fixed_joints, all_dynamic, QuadrupedBodyCount());
+        const JointColorBuckets buckets = BuildJointColorBuckets(fixed_joints, all_dynamic, QuadrupedBodyCount());
         CHECK(buckets.color_count == 1u);
         CHECK(buckets.ids.size() == fixed_joints.size());
         CHECK(SlicesAreWellFormed(buckets, static_cast<uint32_t>(fixed_joints.size())));
@@ -124,8 +122,7 @@ int main() {
     {
         std::vector<JointColorRef> disabled = hinge_joints;
         disabled[6].alive = 0u; // RR_hip: the last leg attachment that raised a color
-        const JointColorBuckets buckets =
-            BuildJointColorBuckets(disabled, all_dynamic, QuadrupedBodyCount());
+        const JointColorBuckets buckets = BuildJointColorBuckets(disabled, all_dynamic, QuadrupedBodyCount());
         CHECK(buckets.color_count == 3u);
         CHECK(buckets.ids.size() == disabled.size() - 1u);
         CHECK(SlicesAreWellFormed(buckets, static_cast<uint32_t>(buckets.ids.size())));
@@ -139,8 +136,7 @@ int main() {
     {
         std::vector<uint32_t> trunk_kinematic(QuadrupedBodyCount(), 0u);
         trunk_kinematic[kTrunk] = 1u;
-        const JointColorBuckets buckets =
-            BuildJointColorBuckets(hinge_joints, trunk_kinematic, QuadrupedBodyCount());
+        const JointColorBuckets buckets = BuildJointColorBuckets(hinge_joints, trunk_kinematic, QuadrupedBodyCount());
         CHECK(buckets.color_count == 2u);
         CHECK(buckets.offsets[1] - buckets.offsets[0] == 8u);
         CHECK(buckets.offsets[2] - buckets.offsets[1] == 4u);
@@ -170,8 +166,7 @@ int main() {
         }
 
         std::vector<uint32_t> dynamic(kCopies * bodies_per_copy, 0u);
-        const JointColorBuckets buckets =
-            BuildJointColorBuckets(many, dynamic, static_cast<uint32_t>(dynamic.size()));
+        const JointColorBuckets buckets = BuildJointColorBuckets(many, dynamic, static_cast<uint32_t>(dynamic.size()));
         CHECK(buckets.color_count == 4u);
         CHECK(buckets.ids.size() == many.size());
         CHECK(SlicesAreWellFormed(buckets, static_cast<uint32_t>(many.size())));

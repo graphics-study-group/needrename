@@ -106,13 +106,10 @@ namespace AppPhysics {
         /// overlay never captures the mouse and the camera keeps the window's
         /// full input area.
         void DrawControlHint() {
-            constexpr ImGuiWindowFlags k_hint_flags = ImGuiWindowFlags_NoDecoration
-                                                      | ImGuiWindowFlags_NoMove
+            constexpr ImGuiWindowFlags k_hint_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
                                                       | ImGuiWindowFlags_NoSavedSettings
-                                                      | ImGuiWindowFlags_NoFocusOnAppearing
-                                                      | ImGuiWindowFlags_NoNav
-                                                      | ImGuiWindowFlags_NoInputs
-                                                      | ImGuiWindowFlags_AlwaysAutoResize;
+                                                      | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav
+                                                      | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize;
             ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_Always);
             ImGui::SetNextWindowBgAlpha(0.35f);
             if (ImGui::Begin("##physics_app_control_hint", nullptr, k_hint_flags)) {
@@ -285,12 +282,13 @@ namespace AppPhysics {
         /// observe the device-written readback (defensive; a no-op on coherent
         /// memory).
         void InvalidateSharedFieldStaging() {
-            for (auto *buffer : {pos_staging.get(),
-                                 rot_staging.get(),
-                                 linvel_staging.get(),
-                                 angvel_staging.get(),
-                                 force_staging.get(),
-                                 torque_staging.get()}) {
+            for (auto *buffer :
+                 {pos_staging.get(),
+                  rot_staging.get(),
+                  linvel_staging.get(),
+                  angvel_staging.get(),
+                  force_staging.get(),
+                  torque_staging.get()}) {
                 if (buffer) {
                     buffer->Invalidate(0, FieldBytes());
                 }
@@ -624,9 +622,7 @@ namespace AppPhysics {
         // color format, which `BuildDefaultRenderGraph` fixes at R8G8B8A8UNorm.
         impl.gui = cmc->GetGUISystem().get();
         if (impl.mode == AppMode::Windowed && impl.gui != nullptr) {
-            impl.gui->CreateVulkanBackend(
-                *impl.renderer, Rhi::GetVkFormat(Rhi::ImageFormat::R8G8B8A8UNorm)
-            );
+            impl.gui->CreateVulkanBackend(*impl.renderer, Rhi::GetVkFormat(Rhi::ImageFormat::R8G8B8A8UNorm));
         } else {
             impl.gui = nullptr;
         }
@@ -1248,8 +1244,8 @@ namespace AppPhysics {
         // the present blit derive their source layout from this value, so it
         // must match the graph's real last access.
         Rhi::MemoryAccessTypeImageBits final_last_access = impl.gui != nullptr
-                                                              ? Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
-                                                              : Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite;
+                                                               ? Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
+                                                               : Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite;
         if (impl.render_readback_enabled && impl.render_graph) {
             auto *final_tex = impl.render_graph->GetInternalTextureResource(impl.final_color_id);
             impl.EnsureRenderStaging(*final_tex);

@@ -348,10 +348,12 @@ namespace Engine {
         // unregistered or re-submitted, or a body's kinematic flag flipped).
         const bool colors_rebuilt = m_joint_colors_dirty;
         if (colors_rebuilt) {
-            m_fixed_joint_colors =
-                BuildBucketsFor(m_fixed_joints, m_fixed_joint_alive, m_rigid_body_is_kinematic, m_gpu_rigid_body_slot_count);
-            m_hinge_joint_colors =
-                BuildBucketsFor(m_hinge_joints, m_hinge_joint_alive, m_rigid_body_is_kinematic, m_gpu_rigid_body_slot_count);
+            m_fixed_joint_colors = BuildBucketsFor(
+                m_fixed_joints, m_fixed_joint_alive, m_rigid_body_is_kinematic, m_gpu_rigid_body_slot_count
+            );
+            m_hinge_joint_colors = BuildBucketsFor(
+                m_hinge_joints, m_hinge_joint_alive, m_rigid_body_is_kinematic, m_gpu_rigid_body_slot_count
+            );
             m_fixed_joint_color_count = m_fixed_joint_colors.color_count;
             m_hinge_joint_color_count = m_hinge_joint_colors.color_count;
             m_joint_colors_dirty = false;
