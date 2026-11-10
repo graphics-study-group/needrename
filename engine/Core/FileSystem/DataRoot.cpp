@@ -16,7 +16,7 @@ namespace Engine {
         // TODO: rename - the data-root override environment variable carries the
         // placeholder package name.
         constexpr const char *k_data_root_env_var = "NEEDRENAME_DATA_ROOT";
-        constexpr const char *k_installed_data_subdir = "share/needrename";
+        constexpr const char *k_data_subdir = "share/needrename";
 
         std::mutex g_resolve_mutex{};
         std::optional<DataRootResolution> g_resolution{};
@@ -67,18 +67,33 @@ namespace Engine {
 
             const std::filesystem::path executable_directory = ExecutableDirectory();
             if (!executable_directory.empty()) {
-                // One rule for both layouts: a build-tree product keeps its data
-                // in `share/needrename` beside the binaries, exactly where an
-                // installed prefix keeps it.
-                const std::filesystem::path candidate =
-                    (executable_directory / ".." / k_installed_data_subdir).lexically_normal();
-                attempts.push_back(candidate.string());
-                if (IsDirectory(candidate)) {
-                    return DataRootResolution{
-                        candidate,
+                // Two layouts carry the same subdirectory name. An installed
+                // prefix keeps its binaries in `bin/`, so the data root is one
+                // level up; a build tree writes its binaries into the
+                // configuration's run directory, which is the prefix root itself
+                // and stages the data root inside it.
+                struct Candidate {
+                    std::filesystem::path path;
+                    DataRootSource source;
+                    const char *step;
+                };
+                const Candidate candidates[] = {
+                    {
+                        (executable_directory / ".." / k_data_subdir).lexically_normal(),
                         DataRootSource::Installed,
-                        "executable-relative " + std::string(k_installed_data_subdir),
-                    };
+                        "executable-relative ../share/needrename",
+                    },
+                    {
+                        (executable_directory / k_data_subdir).lexically_normal(),
+                        DataRootSource::BuildTree,
+                        "executable-relative share/needrename",
+                    },
+                };
+                for (const Candidate &candidate : candidates) {
+                    attempts.push_back(candidate.path.string());
+                    if (IsDirectory(candidate.path)) {
+                        return DataRootResolution{candidate.path, candidate.source, candidate.step};
+                    }
                 }
             }
 

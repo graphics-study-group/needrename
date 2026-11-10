@@ -135,9 +135,8 @@ add_dependencies(EnginePhysics physics_shader)
 # Stage the configuration's modules into the data root for every backend, not
 # only the one that loads WGSL: the runtime resolves physics modules through the
 # data root unconditionally, so a Vulkan product must carry its `/spirv` tree the
-# same way a WebGPU one does. Without this a Vulkan run falls back to a
-# compile-time path into the build tree, which is exactly the kind of path the
-# data root exists to replace.
+# same way a WebGPU one does. There is no compile-time path to fall back to, so a
+# configuration without this tree has no physics modules at all.
 set(PHYSICS_STAGE_DIR "${ENGINE_DATA_STAGE_DIR}/spirv")
 set(PHYSICS_STAGED_STAMP "${ENGINE_DATA_STAGE_DIR}/.stamps/physics_shader")
 add_custom_command(

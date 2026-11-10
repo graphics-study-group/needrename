@@ -36,31 +36,39 @@ See `proposal.md` — Why. The constraints that shape the approach:
 
 ## Decisions
 
-### D1: Two directories per configuration, not one
+### D1: The run directory hosts the data root; the product stays install-shaped
 
-`stage/<config>` is the build's data root and `output/<config>` is the assembled product. They are
-separate because they answer different questions: staging is what the build produced (one command per
-category, each with its own stamp), and assembly is a copy of binaries plus staged data into a
-prefix. Merging them was considered - the stash's earlier draft had a single flat `output/<config>`
-holding the executables *and* the data, which removes a copy - and rejected here for two reasons.
-First, the plan's contract is that `install` only copies and assembles, which needs a staging
-directory that is not also the install destination. Second, and decisively, the product must be
-install-shaped: `data_root_test` and the locator's proximity rule are then one rule for a build tree
-and a prefix, instead of a build-only layout that has to be taught to the locator.
+The linker writes to `bin/<config>`, and the build stages the data root inside that same directory at
+`share/needrename`, so `bin/<config>/<exe>` resolves its data by proximity - the directory a developer
+starts from is runnable as built. `output/<config>` is still assembled from the install rules and stays
+install-shaped, because assembly is what proves the shipped layout.
 
-Consequence accepted: a configuration's data is copied twice (source -> stage, stage -> product).
-Both copies are skipped when nothing changed, because each has its own stamp and its own dependency
-list.
+Merging everything into one tree was considered twice and rejected. A single `output/<config>` holding
+the executables *and* the data would make the product the linker's output directory: it removes a copy,
+but then the product is no longer a `cmake --install` of the real rules, which is the property that
+caught a component-registration bug in the Python extension, and assembly's `rm -rf` would be deleting
+a directory that holds build outputs.
 
-### D2: The product is install-shaped, so proximity is the only rule
+Consequence accepted: a configuration's data is copied twice (source -> run directory, run directory ->
+product). Both copies are skipped when nothing changed, because each has its own stamp and its own
+dependency list.
 
-`output/<config>` contains `bin/` and `share/needrename/`, exactly like a prefix. The locator's
-existing second step - `<executable dir>/../share/needrename` - therefore resolves a build-tree run
-with no new branch, no new `DataRootSource` value and no marker file.
+### D2: Proximity, with the two shapes a prefix and a run directory need
 
-Alternative considered: a flat product directory whose own directory is the data root, detected by
-the presence of `builtin_assets`. It was rejected because it is a second layout to specify, test and
-keep in step with the install, for the sole benefit of removing one `share/` level.
+`output/<config>` contains `bin/` and `share/needrename/`, exactly like a prefix, so the locator's
+`<executable dir>/../share/needrename` step resolves a product run unchanged. The run directory
+`bin/<config>` is the prefix root itself, so its data root is `<executable dir>/share/needrename` and
+the locator needs a third step, reported as `DataRootSource::BuildTree`.
+
+One step was not possible: a multi-configuration build shares `bin/` between Debug and Release, and the
+data differs per configuration - the shader form (`glsl` for a Debug Vulkan build, `spv` otherwise) and
+the baked physics modules. The two shapes are the same relationship the Python development package
+already has (`needrename_sim/{*.pyd, bin/, share/needrename}`), and each is anchored on the binary
+rather than on a build-machine path.
+
+Alternative considered: making the run directory itself the data root, detected by the presence of
+`builtin_assets`. It was rejected because detection by content is a third layout to specify and test,
+whereas a fixed `share/needrename` name is the same name in both places and needs no probing.
 
 ### D3: Delete the compile-time developer fallback rather than repoint it
 
@@ -98,17 +106,20 @@ subdirectory is flattened away here, which is why the runtime needs no configura
 
 ### D6: Install reads staging, never the checkout
 
-Every data `install()` sources `stage/<config>`. That makes staging the single decision point for a
-category's form and contents, keeps the "build preprocesses, install copies" split literal, and means
-an install and the assembled product carry identical bytes by construction.
+Every data `install()` sources the run directory's staged categories
+(`bin/<config>/share/needrename/...`). That makes staging the single decision point for a category's
+form and contents, keeps the "build preprocesses, install copies" split literal, and means an install
+and the assembled product carry identical bytes by construction.
 
-### D7: Tests run the product
+### D7: Tests run the product, and one of them runs the build tree
 
 `anro_add_test` registers `output/<config>/bin/<test>` and sets `NEEDRENAME_DATA_ROOT=` (empty), so
 every test exercises the proximity rule and the assembled data, and an inherited value cannot mask a
-broken layout. Tests do not each depend on the assembly target - that would be a target-level cycle
-with the assembly's dependency on the test binaries; the product is part of the default build, so a
-test binary and its product are both present after `cmake --build`.
+broken layout. `data_root_test` is registered a second time from `bin/<config>`: it asserts whichever
+resolution step matches the layout it was started in, so the build-tree step cannot silently rot.
+Tests do not each depend on the assembly target - that would be a target-level cycle with the
+assembly's dependency on the test binaries; the product is part of the default build, so a test binary
+and its product are both present after `cmake --build`.
 
 The redundant `mrt_test_staged_builtin_assets` is deleted: with the product as the only data root,
 its explicit `NEEDRENAME_DATA_ROOT` run is what every other test now does.

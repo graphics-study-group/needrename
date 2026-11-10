@@ -44,7 +44,7 @@ Artifacts land in `build/emscripten/bin`: `physics_rigid_body_example.html`,
 `webgpu_clear_example.html`. The first three preload assets and each has a `.data` file alongside
 its `.js` and `.wasm` files.
 
-The staged data root (`build/emscripten/stage/<config>`) is what `--preload-file` reads for
+The staged data root (`build/emscripten/bin/share/needrename`) is what `--preload-file` reads for
 `builtin_assets` and the baked `spirv` tree; every page that preloads it depends on the staging
 target, so a clean parallel build needs no manual staging command. Shader outputs are per-source
 custom commands: adding a GLSL file under `engine/Physics/shader/` is picked up by the next

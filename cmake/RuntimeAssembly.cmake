@@ -2,12 +2,14 @@ include_guard(GLOBAL)
 
 # --- Runtime assembly -------------------------------------------------------
 #
-# The build produces two things per configuration: binaries in `bin/<config>` and
-# a staged data root in `stage/<config>`. Assembly copies them into a directory
-# laid out exactly like an install prefix, using the same install rules a
-# distribution uses. That is the point of the function: a development product and
-# a shipped prefix cannot drift, because the development product is
-# `cmake --install` of the same rules, just pointed at a different prefix.
+# The build produces two things per configuration: binaries in the run directory
+# (`bin/<config>`) and a data root inside it (`bin/<config>/share/needrename`),
+# which is what lets a build-tree executable resolve its data by proximity.
+# Assembly copies them into a directory laid out exactly like an installed prefix,
+# using the same install rules a distribution uses. That is the point of the
+# function: a development product and a shipped prefix cannot drift, because the
+# development product is `cmake --install` of the same rules, just pointed at a
+# different prefix.
 #
 # Roles, stated once:
 #   - `build` compiles and preprocesses (shader bake, physiology modules, staging);

@@ -2,22 +2,22 @@
 
 ### Requirement: Configuration-scoped build directories
 
-The build SHALL produce, per configuration, a staged data root at `<build tree>/stage/<configuration>`
-and an assembled product at `<build tree>/output/<configuration>`, with the configuration name present
-on both single-configuration and multi-configuration generators. The linker's raw output SHALL remain
-in `<build tree>/bin/<configuration>`, and import and static libraries in
-`<build tree>/lib/<configuration>`.
+The build SHALL produce, per configuration, a run directory at `<build tree>/bin/<configuration>` that
+holds the linker's executables and shared libraries plus a data root staged inside it at
+`share/needrename`, and an assembled product at `<build tree>/output/<configuration>`, with the
+configuration name present on both single-configuration and multi-configuration generators. Import and
+static libraries SHALL remain in `<build tree>/lib/<configuration>`.
 
 #### Scenario: Multi-configuration generator
 
 - **WHEN** the project is configured with a multi-configuration generator and built for Debug and Release
-- **THEN** `stage/Debug`, `stage/Release`, `output/Debug` and `output/Release` SHALL exist
+- **THEN** `bin/Debug`, `bin/Release`, `output/Debug` and `output/Release` SHALL exist
 - **AND** the two configurations SHALL NOT overwrite each other's product or data
 
 #### Scenario: Single-configuration generator
 
 - **WHEN** the project is configured with a single-configuration generator and a build type
-- **THEN** the same two directories SHALL appear under one configuration name
+- **THEN** the same layout SHALL appear under one run directory name
 
 #### Scenario: Product and linker output stay separate
 
@@ -26,11 +26,19 @@ in `<build tree>/bin/<configuration>`, and import and static libraries in
 - **AND** `bin/<configuration>` SHALL NOT be inside or beneath the product directory, so an install
   into the product can never be asked to copy a file onto itself
 
+#### Scenario: The data root is not shared between configurations
+
+- **WHEN** two configurations are built from one multi-configuration build tree
+- **THEN** each SHALL stage its data root inside its own run directory
+- **AND** neither SHALL write to a directory shared with the other, because the shader form and the
+  baked physics modules differ per configuration
+
 ### Requirement: The staged data root is complete and fresh
 
-`stage/<configuration>` SHALL contain `builtin_assets/` in the configuration's shader form, `assets/`,
-`projects/`, `spirv/` and `test_data/`. Each category SHALL be produced by its own command with its
-own stamp and its own source-file dependencies. Physics modules SHALL be staged for every backend.
+`bin/<configuration>/share/needrename` SHALL contain `builtin_assets/` in the configuration's shader
+form, `assets/`, `projects/`, `spirv/` and `test_data/`. Each category SHALL be produced by its own
+command with its own stamp and its own source-file dependencies. Physics modules SHALL be staged for
+every backend.
 
 #### Scenario: An asset edit does not re-bake shaders
 
@@ -53,6 +61,25 @@ own stamp and its own source-file dependencies. Physics modules SHALL be staged 
 - **WHEN** a Vulkan configuration is built
 - **THEN** its staged data root SHALL contain `spirv/` with the `.spv` modules
 - **AND** a WebGPU configuration's SHALL contain the `.spv`, `.wgsl` and `.iface.json` variants
+
+### Requirement: The build tree is runnable as built
+
+An executable started from `<build tree>/bin/<configuration>` SHALL resolve the data root staged
+inside that same directory, so a build-tree run needs no environment variable and no product
+assembly.
+
+#### Scenario: Starting a build-tree executable needs no environment
+
+- **WHEN** an executable in `bin/<configuration>` is started from any working directory without
+  `NEEDRENAME_DATA_ROOT`
+- **THEN** it SHALL resolve `bin/<configuration>/share/needrename`
+- **AND** the resolution step SHALL be the build-tree one, distinct from the installed one
+
+#### Scenario: Both layouts resolve from the binary alone
+
+- **WHEN** the same test binary runs once from `bin/<configuration>` and once from
+  `output/<configuration>/bin`
+- **THEN** both runs SHALL succeed and each SHALL report the resolution step for its own layout
 
 ### Requirement: The product is a runnable, install-shaped data root
 
@@ -82,9 +109,9 @@ rebuilt by the build.
 ### Requirement: Runtime data root resolution
 
 The runtime locator SHALL resolve, in order: an existing directory named by `NEEDRENAME_DATA_ROOT`,
-then `<executable directory>/../share/needrename`, then fail with a diagnostic naming every attempted
-path. It SHALL NOT substitute a compile-time path, and every data category SHALL be resolved relative
-to the resolved root.
+then `<executable directory>/../share/needrename`, then `<executable directory>/share/needrename`,
+then fail with a diagnostic naming every attempted path. It SHALL NOT substitute a compile-time path,
+and every data category SHALL be resolved relative to the resolved root.
 
 #### Scenario: A build-tree product resolves like an install
 
@@ -106,15 +133,17 @@ to the resolved root.
 ### Requirement: Tests run the assembled product
 
 CTest SHALL register each test executable from `output/<configuration>/bin` and SHALL clear
-`NEEDRENAME_DATA_ROOT` for it, so the proximity rule is exercised rather than overridden.
+`NEEDRENAME_DATA_ROOT` for it, so the proximity rule is exercised rather than overridden. It SHALL
+additionally register one test from `bin/<configuration>` so the build-tree layout stays covered.
 
 #### Scenario: No test depends on an environment override
 
 - **WHEN** the suite runs
 - **THEN** no test SHALL rely on `NEEDRENAME_DATA_ROOT` being set
-- **AND** the data root each test resolves SHALL be its own configuration's product
+- **AND** the data root each test resolves SHALL be its own configuration's, from the layout it
+  started in
 
 #### Scenario: Read-only data-root test
 
 - **WHEN** the data-root test runs
-- **THEN** it SHALL NOT create or delete a directory beneath the product's `share/needrename`
+- **THEN** it SHALL NOT create or delete a directory beneath the data root it resolves

@@ -66,7 +66,7 @@ The shared `msvc` preset sets `Python3_EXECUTABLE` to `${sourceDir}/.venv/Script
 
 ## Build Steps
 
-The `msvc` presets use the **Visual Studio multi-config** generator: one build tree holds both configurations, and the output paths include the config name. The linker writes to `build/msvc/bin/<Config>/`, and the build assembles a runnable product in `build/msvc/output/<Config>/` - the same binaries beside `share/needrename/`, which is the data root they resolve. No Developer PowerShell / vcvars setup is needed — CMake locates Visual Studio itself.
+The `msvc` presets use the **Visual Studio multi-config** generator: one build tree holds both configurations, and the output paths include the config name. The linker writes to `build/msvc/bin/<Config>/`, and this build stages its data root inside that directory (`bin/<Config>/share/needrename/`), so an executable started there finds its data by proximity. The build also assembles an install-shaped product in `build/msvc/output/<Config>/` - the same binaries beside `share/needrename/`. No Developer PowerShell / vcvars setup is needed — CMake locates Visual Studio itself.
 
 ```powershell
 # Configure (Debug and Release live in the same build/msvc tree)

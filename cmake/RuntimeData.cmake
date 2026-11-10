@@ -2,11 +2,14 @@ include_guard(GLOBAL)
 
 # Runtime data staging for one build configuration.
 #
-# `stage/<config>` is the data root this build produces. It is built category by
-# category, and every category is its own command with its own stamp and its own
-# source-file dependencies, because the categories change at very different rates
-# and one of them is expensive: editing a sample asset must not re-run the shader
-# bake, and a rebuild with nothing changed must run nothing at all.
+# The data root this build produces is `share/needrename` inside the
+# configuration's run directory, so the executables the linker writes there find
+# it by proximity - no environment variable, no build-machine path. It is built
+# category by category, and every category is its own command with its own stamp
+# and its own source-file dependencies, because the categories change at very
+# different rates and one of them is expensive: editing a sample asset must not
+# re-run the shader bake, and a rebuild with nothing changed must run nothing at
+# all.
 #
 #   builtin_assets/   the built-in asset database in the configuration's shader form
 #                     (baked by the shader baker, WGSL included for WebGPU)

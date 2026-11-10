@@ -49,13 +49,16 @@ missing directory unless `apps-data`/`examples-data` are installed too.
 
 ### Build tree versus install
 
-The build produces two things per configuration: the linker's output in
-`bin/<Config>/`, and the staged data root in `stage/<Config>/`. Assembly copies
-them - with the same install rules above - into `output/<Config>/`, which is
-therefore the same layout as a prefix: `bin/` plus `share/needrename/`. That is
-what `ctest` runs and what a developer starts, and it is why no environment
-variable is needed to find the data. It is a development artifact, not a
-distribution format: it carries test executables and is rebuilt by the build.
+The build produces two things per configuration: the executables in the run
+directory `bin/<Config>/`, and the data root staged inside it at
+`bin/<Config>/share/needrename/`. That is deliberate: an executable started from
+`bin/<Config>/` finds its data by proximity, with no environment variable, the
+same way an installed one does. Assembly then copies both - with the same install
+rules above - into `output/<Config>/`, which is therefore the same layout as a
+prefix: `bin/` plus `share/needrename/`. That is what `ctest` runs and what a
+developer starts when they want the exact shipped shape. It is a development
+artifact, not a distribution format: it carries test executables and is rebuilt by
+the build.
 
 ### Installed layout
 
@@ -100,8 +103,14 @@ shaders are still compiled at runtime in every mode.
 Executables resolve one data root, first match wins:
 
 1. `NEEDRENAME_DATA_ROOT`, when it names an existing directory;
-2. `<executable directory>/../share/needrename` (the installed layout);
-3. a compile-time developer fallback used by the build tree.
+2. `<executable directory>/../share/needrename` (the installed layout, where the
+   executables live in `bin/`);
+3. `<executable directory>/share/needrename` (the build tree, whose run directory
+   holds the staged data root).
+
+There is no compile-time fallback into the checkout: a binary carries no knowledge
+of where it was built, so it cannot silently read sources that do not match its
+configuration. A run that wants a different tree says so with the variable.
 
 Set the override for unusual deployments and test harnesses:
 

@@ -83,7 +83,7 @@ verification commands.
 | Variable | Purpose |
 | --- | --- |
 | `VK_LAYER_PATH` | Vulkan validation-layer discovery for Debug runs; normally the SDK installation is sufficient, and missing layers are skipped gracefully |
-| `NEEDRENAME_DATA_ROOT` | Runtime data-root override used by selected tests and development runs; not a build dependency |
+| `NEEDRENAME_DATA_ROOT` | Runtime data-root override for a run that wants a specific tree (usually the checkout, for live asset editing); not a build dependency and never needed by the build or the test suite |
 | `LIBCLANG_LIBRARY_PATH` / `LIBCLANG_LIBRARY_FILE` | Optional reflection-parser overrides; normally CMake uses the Clang component installed with Visual Studio |
 
 Python is configured through the preset's `Python3_EXECUTABLE` CMake cache entry, not an environment

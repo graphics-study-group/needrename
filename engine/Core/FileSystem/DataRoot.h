@@ -14,6 +14,7 @@ namespace Engine {
     enum class DataRootSource {
         Environment,
         Installed,
+        BuildTree,
     };
 
     /**
@@ -29,14 +30,14 @@ namespace Engine {
      * @brief Resolve the runtime data root, caching the result.
      *
      * The root is the first match of `NEEDRENAME_DATA_ROOT` (when it names an
-     * existing directory) and `<executable dir>/../share/needrename`.
+     * existing directory), `<executable dir>/../share/needrename` (an installed
+     * prefix, whose executables live in `bin/`), and `<executable dir>/share/needrename`
+     * (the build tree, whose run directory is the prefix root).
      *
      * There is no compile-time path into the source tree, on purpose. A binary
      * carries no knowledge of where it was built, so it cannot silently read a
-     * checkout that does not match its configuration: a build-tree product uses
-     * the same rule as an installed prefix, because both put their data in
-     * `share/needrename` beside the binaries. A run that wants a different tree -
-     * the checkout, for live asset editing - says so with
+     * checkout that does not match its configuration. A run that wants a
+     * different tree - the checkout, for live asset editing - says so with
      * `NEEDRENAME_DATA_ROOT`.
      *
      * @return The cached resolution, including the step that produced it.

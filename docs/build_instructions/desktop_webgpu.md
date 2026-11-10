@@ -28,7 +28,8 @@ cmake --build --preset webgpu-desktop
 
 The preset selects `ENGINE_RHI_BACKEND=webgpu` and builds the applications (physics and editor),
 the Python bindings, the examples, the tests, and `webgpu_spike`. Debug executables go to
-`build/webgpu/output/Debug/bin`.
+`build/webgpu/bin/Debug`, with the staged data root in `build/webgpu/bin/Debug/share/needrename`;
+the install-shaped product is `build/webgpu/output/Debug`.
 
 The applications and the bindings are part of this build on purpose: the physics app is the only
 target that drives the GPU solver end to end, and the joint path in particular is exercised by
@@ -54,10 +55,11 @@ build\webgpu\output\Debug\bin\external_resource_loading_example.exe 30
 Remove-Item Env:NEEDRENAME_PRESENT_CAPTURE -ErrorAction SilentlyContinue
 ```
 
-A run resolves its data by proximity: `output/<config>/share/needrename` sits beside the binaries,
-the same way an installed prefix keeps it beside `bin/`. On this backend that matters, because the
-built-in shaders exist only as baked WGSL/SPIR-V there and a WebGPU build has no runtime GLSL
-compiler. `NEEDRENAME_DATA_ROOT` still overrides the root for a run that wants a different one.
+A run resolves its data by proximity: the build stages `share/needrename` inside the run directory
+`bin/<config>/`, and the assembled product keeps it beside `bin/` as an installed prefix does. Either
+way no environment variable is needed. On this backend that matters, because the built-in shaders
+exist only as baked WGSL/SPIR-V there and a WebGPU build has no runtime GLSL compiler.
+`NEEDRENAME_DATA_ROOT` still overrides the root for a run that wants a different one.
 
 A successful run exits with code zero. `presented.bmp` records what the surface received, which is
 stronger evidence than an offscreen render-target dump alone.
@@ -79,6 +81,6 @@ Every 60 frames it logs `probe z ... moved ...`; an increasing `moved` value dem
 solver is advancing.
 
 Dawn's WebGPU library is linked statically, so there is no `webgpu_dawn.dll`. The build copies
-`dxcompiler.dll` and `dxil.dll` from `DXC_ROOT/bin/x64` into `build/webgpu/output/Debug/bin` automatically,
+`dxcompiler.dll` and `dxil.dll` from `DXC_ROOT/bin/x64` into `build/webgpu/bin/Debug` automatically,
 and install rules include them in `bin`. `d3dcompiler_47.dll` loads directly from System32. No PATH
 modification or manual per-executable copy is needed.

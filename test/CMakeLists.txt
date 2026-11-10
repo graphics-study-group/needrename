@@ -46,11 +46,11 @@ function(anro_add_test target)
         list(APPEND test_args ${TEST_FRAMES})
     endif()
 
-    # A test runs from the assembled product, not from the linker's output
-    # directory: that is where the binaries sit beside their data root, so the
-    # locator resolves the configuration's own data by proximity and the test
-    # exercises the layout a developer actually starts. `product_stage` is part of
-    # the default build, so a test binary and its product are both present after
+    # A test runs from the assembled product: that is the installed shape, so the
+    # suite exercises the layout a distribution ships as well as the proximity
+    # rule. The build tree's own run directory is covered separately
+    # (`data_root_build_tree`, from test/unit/core). `product_stage` is part of the
+    # default build, so a test binary and its product are both present after
     # `cmake --build`.
     if (EMSCRIPTEN)
         add_test(NAME ${target} COMMAND ${target} ${test_args})

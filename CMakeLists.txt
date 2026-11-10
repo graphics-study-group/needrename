@@ -132,11 +132,25 @@ endif()
 include(cmake/ShaderTooling.cmake)
 
 if (NOT ENGINE_HOST_TOOLS_ONLY)
-    # Where the build's preprocessed data root lives, and where the assembled
-    # development product goes. Both carry the configuration name explicitly, so
-    # single-configuration (Ninja) and multi-configuration (Visual Studio)
-    # generators produce the same layout.
-    set(ENGINE_DATA_STAGE_DIR "${CMAKE_BINARY_DIR}/stage/$<CONFIG>")
+    # The directory this configuration's executables and shared libraries are
+    # written to. Multi-configuration generators append the configuration name to
+    # CMAKE_RUNTIME_OUTPUT_DIRECTORY; single-configuration ones use it as-is.
+    if (CMAKE_CONFIGURATION_TYPES)
+        set(ENGINE_RUNTIME_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
+    else()
+        set(ENGINE_RUNTIME_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+    endif()
+
+    # Where this configuration's data root lives, and where the assembled
+    # development product goes. The data root sits inside the run directory, under
+    # `share/needrename`, so a build-tree executable resolves it by proximity with
+    # no environment variable and no build-machine path - the same step an
+    # installed executable uses one directory higher. It cannot be
+    # `<run dir>/../share`: a multi-configuration build shares that directory
+    # between configurations, and the data is per configuration (shader form,
+    # baked physics modules). The product carries the configuration name
+    # explicitly, so single- and multi-configuration generators agree on layout.
+    set(ENGINE_DATA_STAGE_DIR "${ENGINE_RUNTIME_DIR}/share/needrename")
     set(ENGINE_PRODUCT_DIR "${CMAKE_BINARY_DIR}/output/$<CONFIG>")
     add_subdirectory(engine)
     include(cmake/RuntimeData.cmake)
