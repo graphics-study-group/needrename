@@ -13,6 +13,7 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace AppPhysics {
 
@@ -722,9 +723,61 @@ namespace AppPhysics {
         /**
          * @brief Check whether the app should quit.
          *
-         * @return True when an SDL_QUIT (window close) event has been received.
+         * @return True once the window has been asked to close (the X button sends
+         * `SDL_EVENT_WINDOW_CLOSE_REQUESTED`) or SDL reported a quit
+         * (`SDL_EVENT_QUIT`, produced by session shutdown and by SDL's signal
+         * handler, which this app leaves disabled — see `Create`). Always false in
+         * headless/offscreen mode, which have no window.
          */
         bool ShouldQuit() const;
+
+        /**
+         * @brief Check whether a named key is currently held down.
+         *
+         * Names are the SDL scancode names the engine's input map uses: single
+         * letters and digits (`"w"`, `"1"`), `"space"`, `"return"`, `"escape"`,
+         * `"left"`/`"right"`/`"up"`/`"down"`, `"f1"`..`"f12"`, `"left shift"`,
+         * etc. See `Input::k_name_code_map` for the full list.
+         *
+         * State is sampled by `RenderNextFrame`, which is the only place the
+         * app drains the window event queue, so a caller that renders once per
+         * tick observes one keyboard sample per tick. Always false in headless
+         * mode, which has no window.
+         *
+         * @param key Key name (case-insensitive).
+         * @return True while the key is held.
+         */
+        bool IsKeyDown(const std::string &key) const;
+
+        /**
+         * @brief Check whether a key went down since the previous sample.
+         *
+         * Edge-triggered companion to `IsKeyDown`: true for exactly one
+         * `RenderNextFrame` sample after the key-down event, so a caller can
+         * latch a single press without tracking the previous held state.
+         *
+         * @param key Key name (case-insensitive).
+         * @return True on the sample that observed the key-down event.
+         */
+        bool IsKeyPressed(const std::string &key) const;
+
+        /**
+         * @brief Check whether a key went up since the previous sample.
+         *
+         * @param key Key name (case-insensitive).
+         * @return True on the sample that observed the key-up event.
+         */
+        bool IsKeyReleased(const std::string &key) const;
+
+        /**
+         * @brief List every key currently held down, sorted by name.
+         *
+         * Useful for building a key-binding UI or a text-mode teleop readout
+         * without probing names one at a time.
+         *
+         * @return Key names that are down; empty in headless mode.
+         */
+        std::vector<std::string> GetKeysDown() const;
 
     private:
         PhysicsApp();

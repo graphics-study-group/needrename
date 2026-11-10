@@ -29,26 +29,33 @@
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Resource/RenderTargetTexture.h>
+#include <Render/UserInterface/GUISystem.h>
 #include <Rhi/Buffer/ComputeBuffer.h>
 #include <Rhi/Buffer/DeviceBuffer.h>
 #include <Rhi/Device/MemoryAccessTypes.h>
 #include <Rhi/Device/MemoryTypes.h>
 #include <Rhi/Device/Structs.h>
 #include <Rhi/Submission/EpochTracker.h>
+#include <Rhi/Texture/ImageUtilsFunc.h>
 #include <SDL3/SDL.h>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
+#include <imgui.h>
 #include <vulkan/vulkan.hpp>
 
 #include <cstring>
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -57,6 +64,23 @@ namespace AppPhysics {
     using namespace Engine;
 
     namespace {
+        /// @brief Resolve an input key name to its SDL scancode.
+        ///
+        /// Names come from `Engine::Input::k_name_code_map` ("w", "space",
+        /// "left", ...). Matching is case-insensitive so a caller can write
+        /// "W" or "Space" without consulting the map's spelling.
+        ///
+        /// @return The scancode, or -1 when the name is not in the map.
+        int ScancodeForName(const std::string &key) {
+            std::string lowered;
+            lowered.reserve(key.size());
+            for (const char c : key) {
+                lowered.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+            }
+            const auto found = Input::k_name_code_map.find(lowered);
+            return found == Input::k_name_code_map.end() ? -1 : static_cast<int>(found->second);
+        }
+
         // Rotation that maps `from` onto `to` (both normalized at call sites).
         glm::quat QuatFromVecToVec(const glm::vec3 &from, const glm::vec3 &to) {
             float dot = glm::clamp(glm::dot(from, to), -1.0f, 1.0f);
@@ -73,6 +97,31 @@ namespace AppPhysics {
             }
             glm::vec3 axis = glm::normalize(glm::cross(from, to));
             return glm::angleAxis(std::acos(dot), axis);
+        }
+
+        /// @brief Draw the one-line camera control hint in the window's top-left
+        /// corner.
+        ///
+        /// The window is input-transparent (`ImGuiWindowFlags_NoInputs`), so the
+        /// overlay never captures the mouse and the camera keeps the window's
+        /// full input area.
+        void DrawControlHint() {
+            constexpr ImGuiWindowFlags k_hint_flags = ImGuiWindowFlags_NoDecoration
+                                                      | ImGuiWindowFlags_NoMove
+                                                      | ImGuiWindowFlags_NoSavedSettings
+                                                      | ImGuiWindowFlags_NoFocusOnAppearing
+                                                      | ImGuiWindowFlags_NoNav
+                                                      | ImGuiWindowFlags_NoInputs
+                                                      | ImGuiWindowFlags_AlwaysAutoResize;
+            ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.35f);
+            if (ImGui::Begin("##physics_app_control_hint", nullptr, k_hint_flags)) {
+                ImGui::TextUnformatted(
+                    "Camera: hold Alt + W/A/S/D/Q/E to move, Alt + right mouse drag to look  |  "
+                    "Space: pause/resume"
+                );
+            }
+            ImGui::End();
         }
     } // namespace
 
@@ -97,6 +146,8 @@ namespace AppPhysics {
         Input *input{};
         TimeSystem *time{};
         Scene *scene{};
+        /// @brief ImGui overlay host; null in headless/offscreen modes.
+        GUISystem *gui{};
 
         std::unique_ptr<SceneBuilder> builder{};
         GameObject *root{};
@@ -121,6 +172,13 @@ namespace AppPhysics {
         bool should_quit{false};
         bool paused{true};
         bool toggle_was_pressed{false};
+
+        // ── Keyboard state, refreshed by the window event drain ──────────
+        // Scancodes rather than keycodes: the engine's input map is scancode
+        // based, so the two agree on a physical key regardless of layout.
+        std::unordered_set<uint32_t> keys_down{};     ///< Held right now.
+        std::unordered_set<uint32_t> keys_pressed{};  ///< Went down since the previous sample.
+        std::unordered_set<uint32_t> keys_released{}; ///< Went up since the previous sample.
 
         // ── Physics state staging (readback and writes share one buffer) ──
         bool physics_readback_built{false};
@@ -534,6 +592,20 @@ namespace AppPhysics {
             solver_config.num_iter_persubstep = info.physics_iterations;
         }
 
+        // Keep SIGINT with the host process. SDL installs its own SIGINT/SIGTERM
+        // handler at init and converts the signal into an SDL_EVENT_QUIT, which
+        // is only ever observed by a loop that drains the window event queue.
+        // An embedded host (Python, a test harness) usually does not, so Ctrl+C
+        // would become a no-op event nobody reads; leaving the signal alone lets
+        // the host raise its own interrupt instead. Must precede SDL_Init.
+        SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
+        // SDL mutes the console keyboard by default ("so keystrokes don't show up
+        // on the console"), which on Windows takes the console out of processed
+        // mode: Ctrl+C stops being a console signal and becomes a keystroke SDL
+        // swallows, so a terminal cannot interrupt the app at all. Pass console
+        // input through instead; the window still receives its own key events.
+        SDL_SetHint(SDL_HINT_MUTE_CONSOLE_KEYBOARD, "0");
+
         cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_INFO);
         cmc->LoadBuiltinAssets(BuiltinAssetsDir());
         cmc->LoadProject(ProjectsDir() / "empty_with_sky", &solver_config);
@@ -545,6 +617,19 @@ namespace AppPhysics {
         impl.input = cmc->GetInputSystem().get();
         impl.time = cmc->GetTimeSystem().get();
         impl.scene = &impl.world->GetMainSceneRef();
+
+        // The control hint is an ImGui overlay on the presented frame; it exists
+        // only for a windowed run (headless initialization creates no GUI
+        // system). The backend is created against the render graph's final
+        // color format, which `BuildDefaultRenderGraph` fixes at R8G8B8A8UNorm.
+        impl.gui = cmc->GetGUISystem().get();
+        if (impl.mode == AppMode::Windowed && impl.gui != nullptr) {
+            impl.gui->CreateVulkanBackend(
+                *impl.renderer, Rhi::GetVkFormat(Rhi::ImageFormat::R8G8B8A8UNorm)
+            );
+        } else {
+            impl.gui = nullptr;
+        }
 
         // Register input axes used by the built-in camera controls and the
         // SPACE pause toggle (only when a window/input exists).
@@ -565,6 +650,10 @@ namespace AppPhysics {
             );
             input->AddAxis(Input::ButtonAxis("mouse right", Input::AxisType::TypeMouseButton, "mouse right", ""));
             input->AddAxis(Input::ButtonAxis("toggle simulation", Input::AxisType::TypeKey, "space", ""));
+            // Camera movement arming keys: the fly controls translate only while
+            // either Alt is held (see CameraControllerComponent::Tick).
+            input->AddAxis(Input::ButtonAxis("camera alt left", Input::AxisType::TypeKey, "left alt", ""));
+            input->AddAxis(Input::ButtonAxis("camera alt right", Input::AxisType::TypeKey, "right alt", ""));
         }
 
         // Root GameObject parenting all app-created scene objects.
@@ -929,7 +1018,7 @@ namespace AppPhysics {
             const AttachmentUtils::ColorClearValue background{
                 impl.background_color.r, impl.background_color.g, impl.background_color.b, 1.0f
             };
-            auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id, background);
+            auto rg = impl.rg_builder->BuildDefaultRenderGraph(final_color_id, background, impl.gui);
             impl.render_graph = std::move(rg);
             impl.final_color_id = final_color_id;
         }
@@ -1039,10 +1128,33 @@ namespace AppPhysics {
         // Window input is processed only in windowed mode; offscreen has no
         // window/input and no SPACE toggle.
         if (impl.mode == AppMode::Windowed) {
+            // Edges live for exactly one sample: clear the previous drain's
+            // before collecting this one.
+            impl.keys_pressed.clear();
+            impl.keys_released.clear();
+
             SDL_Event event;
             while (SDL_PollEvent(&event)) {
+                // SDL3 splits "the user closed the window" (the X button) from
+                // "the application should quit" (SDL_EVENT_QUIT, which the SDL
+                // signal handler and session shutdown produce). Both mean the
+                // host loop has to stop, so both latch the same flag.
                 if (event.type == SDL_EVENT_QUIT) {
                     impl.should_quit = true;
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "PhysicsApp: quit event received");
+                } else if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+                    impl.should_quit = true;
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "PhysicsApp: window close requested");
+                }
+                if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+                    impl.keys_down.insert(event.key.scancode);
+                    impl.keys_pressed.insert(event.key.scancode);
+                } else if (event.type == SDL_EVENT_KEY_UP) {
+                    impl.keys_down.erase(event.key.scancode);
+                    impl.keys_released.insert(event.key.scancode);
+                }
+                if (impl.gui) {
+                    impl.gui->ProcessEvent(&event);
                 }
                 if (impl.input) {
                     impl.input->ProcessEvent(&event);
@@ -1111,6 +1223,16 @@ namespace AppPhysics {
             // next call. A previous render-readback capture remains valid.
             return;
         }
+
+        // Prepare the ImGui overlay frame before the command buffer records the
+        // render graph: the graph's GUI pass consumes the draw data built here.
+        // Doing this only after a successful StartFrame keeps the ImGui
+        // frame/Render pairing intact when a frame is skipped.
+        if (impl.gui != nullptr && impl.render_graph && impl.render_graph->GetNumPasses() > 0) {
+            ImGui::SetCurrentContext(impl.gui->GetCurrentContext());
+            impl.gui->PrepareGUI();
+            DrawControlHint();
+        }
         auto cb = impl.renderer->GetFrameManager().BeginMainCommandBuffer();
         if (impl.render_graph && impl.render_graph->GetNumPasses() > 0) {
             impl.render_graph->RecordAllPasses(cb.GetCommandBuffer());
@@ -1118,7 +1240,16 @@ namespace AppPhysics {
 
         // Opt-in render readback: record a copy of the final RTT into the
         // resident staging buffer after all passes.
-        Rhi::MemoryAccessTypeImageBits final_last_access = Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite;
+        //
+        // The layout the final color target is left in depends on what the graph
+        // last did with it: the ImGui overlay pass ends in a color attachment
+        // (e.COLOR_ATTACHMENT_OPTIMAL), while without it the bloom compute pass
+        // leaves it as a storage image (e.GENERAL). Both the readback copy and
+        // the present blit derive their source layout from this value, so it
+        // must match the graph's real last access.
+        Rhi::MemoryAccessTypeImageBits final_last_access = impl.gui != nullptr
+                                                              ? Rhi::MemoryAccessTypeImageBits::ColorAttachmentWrite
+                                                              : Rhi::MemoryAccessTypeImageBits::ShaderRandomWrite;
         if (impl.render_readback_enabled && impl.render_graph) {
             auto *final_tex = impl.render_graph->GetInternalTextureResource(impl.final_color_id);
             impl.EnsureRenderStaging(*final_tex);
@@ -1167,6 +1298,47 @@ namespace AppPhysics {
             return false;
         }
         return m_impl->should_quit;
+    }
+
+    bool PhysicsApp::IsKeyDown(const std::string &key) const {
+        // Headless/offscreen never drain a window event queue.
+        if (m_impl->mode != AppMode::Windowed) {
+            return false;
+        }
+        const int scancode = ScancodeForName(key);
+        return scancode >= 0 && m_impl->keys_down.contains(static_cast<uint32_t>(scancode));
+    }
+
+    bool PhysicsApp::IsKeyPressed(const std::string &key) const {
+        if (m_impl->mode != AppMode::Windowed) {
+            return false;
+        }
+        const int scancode = ScancodeForName(key);
+        return scancode >= 0 && m_impl->keys_pressed.contains(static_cast<uint32_t>(scancode));
+    }
+
+    bool PhysicsApp::IsKeyReleased(const std::string &key) const {
+        if (m_impl->mode != AppMode::Windowed) {
+            return false;
+        }
+        const int scancode = ScancodeForName(key);
+        return scancode >= 0 && m_impl->keys_released.contains(static_cast<uint32_t>(scancode));
+    }
+
+    std::vector<std::string> PhysicsApp::GetKeysDown() const {
+        std::vector<std::string> names;
+        if (m_impl->mode != AppMode::Windowed || m_impl->keys_down.empty()) {
+            return names;
+        }
+        names.reserve(m_impl->keys_down.size());
+        for (const auto &[name, code] : Input::k_name_code_map) {
+            if (m_impl->keys_down.contains(code)) {
+                names.push_back(name);
+            }
+        }
+        // The map is unordered; sort so a readout is stable between samples.
+        std::sort(names.begin(), names.end());
+        return names;
     }
 
     // ── Drive-phase readback ───────────────────────────────────────────

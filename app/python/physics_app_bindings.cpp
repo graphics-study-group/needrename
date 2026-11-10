@@ -27,6 +27,7 @@
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/unique_ptr.h>
+#include <nanobind/stl/vector.h>
 #include <nanobind/trampoline.h>
 
 #include <cstdint>
@@ -392,6 +393,31 @@ namespace NeedrenameBindings {
                 "step_id", [](nb::object self) { return StepIdOf(self); }, "Number of steps completed so far."
             )
             .def_prop_ro("should_quit", &PhysicsApp::ShouldQuit, "True once a window-close event has been received.")
+            .def(
+                "is_key_down",
+                &PhysicsApp::IsKeyDown,
+                "key"_a,
+                "True while the named key is held. Names are the engine input map's scancode "
+                "names ('w', 'space', 'left', 'f1', ...); sampled by render_next_frame, and "
+                "always False in headless mode."
+            )
+            .def(
+                "is_key_pressed",
+                &PhysicsApp::IsKeyPressed,
+                "key"_a,
+                "True on the render_next_frame sample that observed the key going down."
+            )
+            .def(
+                "is_key_released",
+                &PhysicsApp::IsKeyReleased,
+                "key"_a,
+                "True on the render_next_frame sample that observed the key going up."
+            )
+            .def(
+                "keys_down",
+                &PhysicsApp::GetKeysDown,
+                "Names of every key currently held, sorted. Empty in headless mode."
+            )
             .def("get_body_state", &PhysicsApp::GetBodyState, "id"_a, "Read one body's dynamic state.")
             .def(
                 "get_body_states",

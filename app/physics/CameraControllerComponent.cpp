@@ -26,15 +26,21 @@ namespace AppPhysics {
         auto look_x = input->GetAxisRaw("look x");
         auto look_y = input->GetAxisRaw("look y");
         auto mouse_right = input->GetAxisRaw("mouse right");
+        // Both fly movement and mouse look are armed only while Alt is held, so
+        // neither an accidental WASD/QE press nor an accidental right-drag can
+        // move the camera away from the scene.
+        const bool alt_held =
+            input->GetAxisRaw("camera alt left") > 0.0f || input->GetAxisRaw("camera alt right") > 0.0f;
+        const bool look_armed = alt_held && mouse_right > 0.0f;
 
         auto go = GetParentGameObject();
         if (!go) return;
         Transform &transform = go->GetTransformRef();
         float dt = Engine::MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
 
-        // Right mouse button: manage relative mouse mode.
+        // Alt + right mouse button: manage relative mouse mode.
         auto window = Engine::MainClass::GetInstance()->GetWindow()->GetWindow();
-        if (mouse_right > 0.0f) {
+        if (look_armed) {
             if (!m_relative_mouse_enabled) {
                 SDL_SetWindowRelativeMouseMode(window, true);
                 m_relative_mouse_enabled = true;
@@ -46,9 +52,9 @@ namespace AppPhysics {
             }
         }
 
-        // --- Lock Z-up: accumulate yaw/pitch (only when right mouse is held),
-        // then rebuild rotation from scratch using world axes only.
-        if (mouse_right > 0.0f) {
+        // --- Lock Z-up: accumulate yaw/pitch (only while Alt + right mouse is
+        // held), then rebuild rotation from scratch using world axes only.
+        if (look_armed) {
             m_yaw += look_x * m_rotation_speed;
             m_pitch += look_y * m_rotation_speed;
 
@@ -65,8 +71,11 @@ namespace AppPhysics {
             transform.SetRotation(qYaw * qPitch);
         }
 
-        // WASD + QE movement in camera-local space (RFU: X=right, Y=forward, Z=up).
-        glm::vec3 movement{move_right, move_forward, move_up};
-        transform.SetPosition(transform.GetPosition() + transform.GetRotation() * movement * m_move_speed * dt);
+        // Alt + WASD/QE movement in camera-local space (RFU: X=right, Y=forward,
+        // Z=up). Without the Alt modifier the camera stays put.
+        if (alt_held) {
+            glm::vec3 movement{move_right, move_forward, move_up};
+            transform.SetPosition(transform.GetPosition() + transform.GetRotation() * movement * m_move_speed * dt);
+        }
     }
 } // namespace AppPhysics

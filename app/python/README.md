@@ -190,6 +190,24 @@ $env:PYTHONPATH = "$PWD\build\msvc\python\Debug"
   example by letting the function that created it return) before the
   interpreter shuts down. Scripts that keep the app in a module global until
   exit produce nanobind leak reports at shutdown.
+- **Keyboard.** `is_key_down(key)`, `is_key_pressed(key)` and
+  `is_key_released(key)` report a named key; `keys_down()` lists them. Names are
+  the engine input map's SDL scancode names (`"w"`, `"1"`, `"space"`,
+  `"left"`, `"f1"`, `"left shift"`, ...), matched case-insensitively; an unknown
+  name is simply `False`. The state refreshes inside `render_next_frame`, which
+  is the only call that drains the window event queue, so render once per tick
+  and read the keys right after: `is_key_pressed` is then true for exactly one
+  tick. Headless and offscreen apps have no window and always report nothing
+  pressed. The engine's own SPACE pause toggle rides on the same path:
+  `is_paused` reflects it, and a loop that owns `step()` should skip stepping
+  while it is set.
+- **Stopping a windowed run.** `should_quit` turns true when the window is asked
+  to close (the X button) or SDL reports a quit (session shutdown). The engine
+  only records the event; the driving loop has to check it and stop, otherwise
+  the window stays open and the app keeps stepping. In a terminal, Ctrl+C stays a
+  normal Python `KeyboardInterrupt`: `PhysicsApp` disables SDL's signal handler
+  and its console-keyboard muting, which would otherwise turn the interrupt into
+  an unread event or swallow it entirely.
 
 ## Robot helper
 

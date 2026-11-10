@@ -14,6 +14,7 @@ namespace Engine {
     } // namespace Rhi
     class RenderGraph;
     class RenderSystem;
+    class GUISystem;
 
     /**
      * @brief A render graph that integrates all current rendering features (Shadow, PBR, Blinn-Phong, etc.)
@@ -33,10 +34,19 @@ namespace Engine {
          *
          * @param final_color_target_id     Output handle for the final (post-bloom) color target.
          * @param background_color          Clear color of the HDR color target, in linear rgb.
+         * @param gui_overlay               Optional ImGui overlay. When non-null, a pass that
+         *                                  draws the GUI on top of the final color target is
+         *                                  appended; the caller must have called
+         *                                  `GUISystem::PrepareGUI` and built its ImGui windows
+         *                                  for the frame before recording the graph, and the
+         *                                  backend must have been created with the final color
+         *                                  target's format.
          * @return Compiled RenderGraph.
          */
         std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            RGTextureHandle &final_color_target_id, const AttachmentUtils::ColorClearValue &background_color = {}
+            RGTextureHandle &final_color_target_id,
+            const AttachmentUtils::ColorClearValue &background_color = {},
+            GUISystem *gui_overlay = nullptr
         );
 
     protected:
