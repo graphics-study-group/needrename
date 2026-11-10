@@ -57,6 +57,7 @@ All executables and DLLs are written to a unified `bin/` output directory (impor
 ### 1. GPU Physics Simulation
 
 ![physics_example1](assets/img/physics_example1.gif) ![physics_example2](assets/img/physics_example2.gif)
+![a1_walk_example](./assets/img/a1_walk_example.gif)
 
 - **XPBD Solver** — GPU-accelerated position-based dynamics with sub-step integration, per-step collision detection, and Jacobi position/velocity constraint solving
 - **Collision Detection Pipeline** — Spatial-hash broad-phase with AABB overlap pruning, followed by MPR-based narrow-phase contact generation with plane fitting and rotating calipers manifold reduction
@@ -105,4 +106,4 @@ All executables and DLLs are written to a unified `bin/` output directory (impor
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+This project is licensed under the LGPL License. See [LICENSE](./LICENSE) for details.
