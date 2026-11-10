@@ -38,14 +38,29 @@ function(anro_add_test target)
         target_include_directories(${target} PRIVATE "${ANRO_TEST_ROOT}")
         target_compile_options(${target} PRIVATE /FIForcedTestRuntime.h)
     endif()
-    # The install rules collect these when ENGINE_INSTALL_TESTS is ON.
+    # The install rules collect these so the development product can run them.
     set_property(GLOBAL APPEND PROPERTY ENGINE_TEST_TARGETS ${target})
 
     set(test_args ${TEST_ARGS})
     if(TEST_FRAMES)
         list(APPEND test_args ${TEST_FRAMES})
     endif()
-    add_test(NAME ${target} COMMAND ${target} ${test_args})
+
+    # A test runs from the assembled product, not from the linker's output
+    # directory: that is where the binaries sit beside their data root, so the
+    # locator resolves the configuration's own data by proximity and the test
+    # exercises the layout a developer actually starts. `product_stage` is part of
+    # the default build, so a test binary and its product are both present after
+    # `cmake --build`.
+    if (EMSCRIPTEN)
+        add_test(NAME ${target} COMMAND ${target} ${test_args})
+    else()
+        set(product_test "${ENGINE_PRODUCT_DIR}/bin/${target}${CMAKE_EXECUTABLE_SUFFIX}")
+        add_test(NAME ${target} COMMAND "${product_test}" ${test_args})
+        # An empty override is the statement that no test needs one: the data root
+        # must resolve without help. Setting it also clears an inherited value.
+        set_tests_properties(${target} PROPERTIES ENVIRONMENT "NEEDRENAME_DATA_ROOT=")
+    endif()
 
     if(TEST_WINDOWED)
         set(labels "windowed")

@@ -32,6 +32,11 @@ target_link_libraries(_physicsapp PRIVATE PhysicsApp)
 set_target_properties(_physicsapp PROPERTIES FOLDER engine_apps/python)
 
 set(PHYSICSAPP_STUB_FILE "$<TARGET_FILE_DIR:_physicsapp>/_physicsapp.pyi")
+# The stub is regenerated every build: stubgen is cheap, its output path depends on
+# the target's configuration directory, and an always-run target keeps ordering
+# simple. The package assembly does not depend on the file - it depends on the
+# extension target - so a stub rewrite alone does not reassemble the package; a
+# bindings change relinks the extension and does.
 add_custom_target(generate_python_stubs ALL
     COMMAND "${Python3_EXECUTABLE}" "${THIRD_PARTY_DIR}/nanobind/src/stubgen.py"
         -m _physicsapp
@@ -47,6 +52,13 @@ set_target_properties(generate_python_stubs PROPERTIES FOLDER engine_apps/python
 # extension and its stub straight into the package directory (`wheel.install-dir`),
 # beside the Python sources and the runtime/data it resolves at import. A plain
 # engine install keeps them under the data root instead of the prefix root.
+#
+# `LIBRARY` carries the module on every platform: a Python extension is a MODULE
+# library, and CMake installs that artifact kind through the library destination
+# even where it is a `.pyd`. `COMPONENT` must directly follow the destination -
+# adding a `RUNTIME` destination in between moves the component onto it and leaves
+# the module in the "Unspecified" group, which is how it silently stopped being
+# installed.
 if (SKBUILD)
     install(TARGETS _physicsapp LIBRARY DESTINATION . COMPONENT runtime)
     install(FILES "${PHYSICSAPP_STUB_FILE}" DESTINATION . COMPONENT runtime)
@@ -55,28 +67,41 @@ else()
     install(FILES "${PHYSICSAPP_STUB_FILE}" DESTINATION share/needrename/python COMPONENT runtime)
 endif()
 
-# The extension is linked in the normal per-configuration output directory next
-# to its engine DLLs. The development package stages those artifacts through the
-# same install components used by distributions, so its runtime inventory does
-# not drift from the install layout.
+# The development package is assembled by the same function the development
+# product uses: install components `runtime` and `apps-data` into a prefix, then
+# copy the Python package sources beside them. Nothing here decides which files a
+# distribution carries - the install rules do - so the package cannot drift from
+# an install.
 set(PYTHON_DEV_ROOT "${CMAKE_BINARY_DIR}/python/$<CONFIG>")
 set(PYTHON_DEV_PACKAGE_DIR "${PYTHON_DEV_ROOT}/needrename_sim")
-set(PYTHON_RUNTIME_DEPENDENCIES generate_python_stubs builtin_assets_stage)
-if (TARGET EngineEditor)
-    list(APPEND PYTHON_RUNTIME_DEPENDENCIES EngineEditor)
-endif()
-add_custom_target(python_runtime ALL
-    COMMAND "${CMAKE_COMMAND}" --install "${CMAKE_BINARY_DIR}"
-        --config "$<CONFIG>" --prefix "${PYTHON_DEV_PACKAGE_DIR}" --component runtime
-    COMMAND "${CMAKE_COMMAND}" --install "${CMAKE_BINARY_DIR}"
-        --config "$<CONFIG>" --prefix "${PYTHON_DEV_PACKAGE_DIR}" --component apps-data
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/needrename_sim" "${PYTHON_DEV_PACKAGE_DIR}"
-    DEPENDS ${PYTHON_RUNTIME_DEPENDENCIES}
-    COMMENT "Staging the Python development runtime for $<CONFIG>"
-    VERBATIM
+# Stamps are files, targets are names: a name orders the assembly after the target
+# on every generator, a `$<TARGET_FILE:...>` does not.
+set(PYTHON_RUNTIME_DEPENDS
+    ${ENGINE_STAGED_DATA_STAMPS}
+    _physicsapp
+    PhysicsApp
+    EngineFramework
+    EnginePhysics
+    EngineRender
+    EngineRhi
+    EngineCore
+    EngineAssetCore
+    AnnoRefl
 )
-set_target_properties(python_runtime PROPERTIES FOLDER engine_apps/python)
+if (TARGET EngineEditor)
+    # The runtime component installs it, so the assembly has to wait for it.
+    list(APPEND PYTHON_RUNTIME_DEPENDS EngineEditor)
+endif()
+needrename_stage_runtime(
+    TARGET python_runtime
+    PREFIX "${PYTHON_DEV_PACKAGE_DIR}"
+    COMPONENTS runtime apps-data
+    EXTRA_COPY "${CMAKE_CURRENT_SOURCE_DIR}/src/needrename_sim" "${PYTHON_DEV_PACKAGE_DIR}"
+    DEPENDS ${PYTHON_RUNTIME_DEPENDS}
+)
+# The stub is installed by the runtime component, so it has to exist before the
+# assembly runs; the assembly itself does not depend on its timestamp.
+add_dependencies(python_runtime generate_python_stubs)
 
 set(PYTHON_DEV_ENVIRONMENT
     --unset=NEEDRENAME_RUNTIME_DIR

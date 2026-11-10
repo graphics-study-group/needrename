@@ -34,7 +34,7 @@ multi-config install always installs the artifacts of the selected `--config`.
 | `apps-data` | Project templates (`share/needrename/projects/`) |
 | `examples` | Example executables (`bin/`) |
 | `examples-data` | Sample content used by the examples (`share/needrename/assets/`, without documentation screenshots) |
-| `test-data` | Test executables and fixtures — only when configured with `-DENGINE_INSTALL_TESTS=ON` (default `OFF`) |
+| `test-data` | Test executables and fixtures. The rules are always declared; `ENGINE_INSTALL_TESTS=ON` adds them to a plain `cmake --install`, while the development product always requests the component |
 | `sdk` | Headers, import/static libraries, the CMake package, the reflection parser and type lists |
 
 Install a subset with `--component`:
@@ -46,6 +46,16 @@ cmake --install build/msvc --config Release --prefix install --component runtime
 A `runtime`-only install is a working engine distribution. Executables that also
 need example data (`projects/`, `assets/`) fail with a diagnostic naming the
 missing directory unless `apps-data`/`examples-data` are installed too.
+
+### Build tree versus install
+
+The build produces two things per configuration: the linker's output in
+`bin/<Config>/`, and the staged data root in `stage/<Config>/`. Assembly copies
+them - with the same install rules above - into `output/<Config>/`, which is
+therefore the same layout as a prefix: `bin/` plus `share/needrename/`. That is
+what `ctest` runs and what a developer starts, and it is why no environment
+variable is needed to find the data. It is a development artifact, not a
+distribution format: it carries test executables and is rebuilt by the build.
 
 ### Installed layout
 

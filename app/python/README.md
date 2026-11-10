@@ -46,12 +46,14 @@ No C++ toolchain, Vulkan SDK, or engine checkout is required to use the wheel.
 
 With `ENGINE_BUILD_PYTHON_BINDINGS` on (the default for a native desktop build;
 OFF under Emscripten and for the host-tools build, which have no host CPython to
-link), the normal build prepares a
-self-contained package in `build/msvc/python/Debug/needrename_sim/` (Release uses
-`.../Release/`). It contains the Python sources, extension and stub, engine DLLs,
-built-in assets, physics SPIR-V, and project templates. Each configuration has
-its own package, so their files cannot mix. scikit-build-core runs only when
-packaging a wheel.
+link), the normal build assembles a self-contained package in
+`build/msvc/python/Debug/needrename_sim/` (Release uses `.../Release/`). It
+contains the Python sources, extension and stub, engine DLLs, built-in assets,
+physics SPIR-V, and project templates. The package is assembled by the same
+install rules and the same function as the development product - install
+components into a prefix, then copy the Python sources - so its inventory cannot
+drift from an install. Each configuration has its own package, so their files
+cannot mix. scikit-build-core runs only when packaging a wheel.
 
 ```powershell
 # Build and stage everything needed for development.

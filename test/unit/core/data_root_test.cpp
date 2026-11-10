@@ -1,20 +1,24 @@
+// data_root_test.cpp — the runtime data locator, checked read-only.
+//
+// The test runs from the assembled product, so the data root it must find is the
+// one this build produced: `share/needrename` beside the executable's directory.
+// It asserts that resolution, the categories beneath it, and that the explicit
+// override still wins - without ever creating or deleting a directory. A test is
+// not allowed to build a fake layout where it runs, because that is the real
+// product's data root and a stray `remove_all` there would delete the build.
+
 #include <Core/FileSystem/DataRoot.h>
 
 #include <SDL3/SDL.h>
 
 #include <filesystem>
 #include <iostream>
-#include <stdexcept>
+#include <set>
 #include <string>
 #include <system_error>
 
 namespace {
     constexpr const char *k_data_root_env_var = "NEEDRENAME_DATA_ROOT";
-
-    // The install layout the locator resolves against (see the install-layout
-    // spec). Spelled out here so the test exercises the documented names rather
-    // than the internal layout macros.
-    constexpr const char *k_layout_subdirs[] = {"builtin_assets", "projects", "assets", "spirv", "test_data"};
 
     int g_failures = 0;
 
@@ -26,21 +30,6 @@ namespace {
         ++g_failures;
     }
 
-    void CreateLayout(const std::filesystem::path &root) {
-        for (const char *subdir : k_layout_subdirs) {
-            std::error_code ec;
-            std::filesystem::create_directories(root / subdir, ec);
-        }
-    }
-
-    std::filesystem::path ScratchDirectory(const char *name) {
-        const std::filesystem::path root = std::filesystem::temp_directory_path() / "needrename_data_root_test" / name;
-        std::error_code ec;
-        std::filesystem::remove_all(root, ec);
-        std::filesystem::create_directories(root, ec);
-        return std::filesystem::weakly_canonical(root, ec);
-    }
-
     std::filesystem::path ExecutableDirectory() {
         const char *base_path = SDL_GetBasePath();
         if (base_path == nullptr) {
@@ -48,66 +37,81 @@ namespace {
         }
         return std::filesystem::path(base_path);
     }
+
+    std::filesystem::path Canonical(const std::filesystem::path &path) {
+        std::error_code ec;
+        return std::filesystem::weakly_canonical(path, ec);
+    }
 } // namespace
 
 int main() {
-    std::error_code ec;
-
-    // --- Developer fallback: no override, no install layout next to the test --
+    // --- Proximity: the product's own data root, with no override ------------
     SDL_unsetenv_unsafe(k_data_root_env_var);
     Engine::ResetDataRootCache();
+
+    const std::filesystem::path expected_root = ExecutableDirectory() / ".." / "share" / "needrename";
     {
         const Engine::DataRootResolution &resolution = Engine::ResolveDataRoot();
         Check(
-            resolution.source == Engine::DataRootSource::DeveloperFallback,
-            "no override resolves the developer fallback"
+            resolution.source == Engine::DataRootSource::Installed,
+            "the product's data root resolves from the executable's own directory"
         );
-        Check(std::filesystem::is_directory(Engine::BuiltinAssetsDir()), "developer built-in assets resolve");
-        Check(std::filesystem::is_directory(Engine::ProjectsDir()), "developer projects resolve");
-        Check(std::filesystem::is_directory(Engine::AssetsDir()), "developer sample assets resolve");
-        Check(std::filesystem::is_directory(Engine::TestDataDir()), "developer test data resolves");
+        Check(
+            Canonical(Engine::DataRoot()) == Canonical(expected_root),
+            "data root is <executable dir>/../share/needrename"
+        );
     }
 
-    // --- Installed layout: `<exe dir>/../share/needrename` --------------------
-    const std::filesystem::path install_root = ExecutableDirectory() / ".." / "share" / "needrename";
-    CreateLayout(install_root);
+    // Every category the runtime asks for exists beneath that root and is
+    // root-relative. This is also the check that the build's staging and the
+    // install rules agree about the layout.
+    const std::set<std::string> categories{"builtin_assets", "assets", "projects", "spirv", "test_data"};
+    for (const std::string &category : categories) {
+        bool ok = false;
+        try {
+            ok = std::filesystem::is_directory(Engine::DataRoot() / category);
+        } catch (const std::exception &error) {
+            std::cerr << "resolving " << category << " threw: " << error.what() << '\n';
+        }
+        Check(ok, "the product carries " + category + "/");
+    }
+    Check(
+        Canonical(Engine::BuiltinAssetsDir()) == Canonical(Engine::DataRoot() / "builtin_assets"),
+        "built-in assets are root-relative"
+    );
+    Check(
+        Canonical(Engine::ProjectsDir()) == Canonical(Engine::DataRoot() / "projects"),
+        "project templates are root-relative"
+    );
+    Check(
+        Canonical(Engine::AssetsDir()) == Canonical(Engine::DataRoot() / "assets"),
+        "sample content is root-relative"
+    );
+    Check(
+        Canonical(Engine::TestDataDir()) == Canonical(Engine::DataRoot() / "test_data"),
+        "test fixtures are root-relative"
+    );
+
+    // --- The explicit override wins over proximity ---------------------------
+    // Pointing it at the same root is enough to prove precedence, and it leaves
+    // the filesystem untouched.
+    const std::string product_root = Canonical(expected_root).string();
+    SDL_setenv_unsafe(k_data_root_env_var, product_root.c_str(), 1);
     Engine::ResetDataRootCache();
     {
         const Engine::DataRootResolution &resolution = Engine::ResolveDataRoot();
-        Check(resolution.source == Engine::DataRootSource::Installed, "install layout resolves before the fallback");
+        Check(resolution.source == Engine::DataRootSource::Environment, "an explicit override wins");
         Check(
-            std::filesystem::weakly_canonical(Engine::DataRoot(), ec)
-                == std::filesystem::weakly_canonical(install_root, ec),
-            "installed data root is the executable-relative share/needrename"
-        );
-        Check(
-            Engine::BuiltinAssetsDir() == Engine::DataRoot() / "builtin_assets",
-            "installed built-in assets are root-relative"
-        );
-    }
-    std::filesystem::remove_all(install_root, ec);
-
-    // --- Environment override wins over everything ----------------------------
-    const std::filesystem::path override_root = ScratchDirectory("override");
-    CreateLayout(override_root);
-    SDL_setenv_unsafe(k_data_root_env_var, override_root.string().c_str(), 1);
-    Engine::ResetDataRootCache();
-    {
-        const Engine::DataRootResolution &resolution = Engine::ResolveDataRoot();
-        Check(resolution.source == Engine::DataRootSource::Environment, "environment override wins");
-        Check(
-            std::filesystem::weakly_canonical(Engine::DataRoot(), ec) == override_root,
-            "data root is the NEEDRENAME_DATA_ROOT directory"
-        );
-        Check(
-            Engine::BuiltinAssetsDir() == Engine::DataRoot() / "builtin_assets",
-            "override built-in assets are root-relative"
+            Canonical(Engine::DataRoot()) == Canonical(expected_root),
+            "the override names the data root"
         );
     }
 
-    // --- Failure: the override resolves but a required directory is missing ---
-    const std::filesystem::path incomplete_root = ScratchDirectory("incomplete");
-    SDL_setenv_unsafe(k_data_root_env_var, incomplete_root.string().c_str(), 1);
+    // --- A required directory that is missing throws, and says what is missing
+    // `test_data/` is a real directory that is not itself a data root, so it
+    // resolves as one and then lacks every category: no writing involved.
+    const std::filesystem::path not_a_root = Canonical(expected_root / "test_data");
+    SDL_setenv_unsafe(k_data_root_env_var, not_a_root.string().c_str(), 1);
     Engine::ResetDataRootCache();
     {
         bool threw = false;
@@ -118,26 +122,19 @@ int main() {
             const std::string message = error.what();
             Check(
                 message.find("builtin_assets") != std::string::npos,
-                "missing-directory diagnostic names the directory that is missing"
-            );
-            Check(
-                message.find(incomplete_root.string()) != std::string::npos,
-                "missing-directory diagnostic names the resolved path"
+                "the missing-directory diagnostic names the directory that is missing"
             );
             Check(
                 message.find(k_data_root_env_var) != std::string::npos,
-                "missing-directory diagnostic names the resolution step"
+                "the missing-directory diagnostic names the resolution step"
             );
         }
-        Check(threw, "missing required directory throws");
+        Check(threw, "a root without the required directory throws");
     }
 
     // Leave the process with the default resolution for any later work.
     SDL_unsetenv_unsafe(k_data_root_env_var);
     Engine::ResetDataRootCache();
-    std::filesystem::remove_all(override_root, ec);
-    std::filesystem::remove_all(incomplete_root, ec);
-    std::filesystem::remove_all(override_root.parent_path(), ec);
 
     if (g_failures != 0) {
         std::cerr << g_failures << " check(s) failed\n";

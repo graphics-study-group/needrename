@@ -132,9 +132,15 @@ endif()
 include(cmake/ShaderTooling.cmake)
 
 if (NOT ENGINE_HOST_TOOLS_ONLY)
+    # Where the build's preprocessed data root lives, and where the assembled
+    # development product goes. Both carry the configuration name explicitly, so
+    # single-configuration (Ninja) and multi-configuration (Visual Studio)
+    # generators produce the same layout.
     set(ENGINE_DATA_STAGE_DIR "${CMAKE_BINARY_DIR}/stage/$<CONFIG>")
+    set(ENGINE_PRODUCT_DIR "${CMAKE_BINARY_DIR}/output/$<CONFIG>")
     add_subdirectory(engine)
     include(cmake/RuntimeData.cmake)
+    include(cmake/RuntimeAssembly.cmake)
     add_subdirectory(tools)
 endif()
 

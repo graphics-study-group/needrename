@@ -17,18 +17,6 @@ endif()
 
 add_library(EngineCore ${SOURCE})
 target_compile_definitions(EngineCore PRIVATE CORE_DLL_EXPORTS)
-
-# The data root this build staged for the configuration being compiled.
-#
-# A developer run resolves the runtime data root through the tree it was built
-# from, and the staged tree - not the source tree - is what the build produced:
-# on a WebGPU build the built-in shaders exist only as baked WGSL/SPIR-V there,
-# so reading the source assets would hand the runtime GLSL it cannot compile.
-# `ENGINE_DATA_STAGE_DIR` carries `$<CONFIG>`, which is why this is a compile
-# definition rather than a header value.
-target_compile_definitions(EngineCore PRIVATE
-    "ENGINE_BUILD_STAGE_DATA_ROOT=\"${ENGINE_DATA_STAGE_DIR}\""
-)
 target_link_libraries(EngineCore
     PUBLIC
     EngineLibHeaderInterface

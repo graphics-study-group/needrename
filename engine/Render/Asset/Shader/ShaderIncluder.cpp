@@ -2,7 +2,6 @@
 
 #if !defined(ENGINE_SHADER_TOOLING)
 #include <Core/FileSystem/DataRoot.h>
-#include <cmake_config.h>
 #endif
 #include <filesystem>
 
@@ -12,20 +11,7 @@ namespace Engine {
         // The built-in shader include tree lives in the runtime data root. The
         // tooling build has no runtime data root; its caller registers the
         // include directory it wants as a system path.
-        const std::filesystem::path include_tree = BuiltinAssetsDir() / "shaders" / "include";
-        addSystemPath(include_tree);
-        // A data root staged in baked form drops the GLSL sources and the include
-        // tree with them, which is the right thing to ship: nothing that loads a
-        // baked archive reads them. A caller that still compiles GLSL at runtime -
-        // a development tool, a unit test - needs the headers, and the checkout is
-        // the only place they exist, so it is the fallback.
-        if (!std::filesystem::is_directory(include_tree)) {
-            const std::filesystem::path source_include_tree =
-                std::filesystem::path{ENGINE_DEV_BUILTIN_ASSETS_DIR} / "shaders" / "include";
-            if (std::filesystem::is_directory(source_include_tree)) {
-                addSystemPath(source_include_tree);
-            }
-        }
+        addSystemPath(BuiltinAssetsDir() / "shaders" / "include");
 #endif
     }
 

@@ -28,7 +28,7 @@ cmake --build --preset webgpu-desktop
 
 The preset selects `ENGINE_RHI_BACKEND=webgpu` and builds the applications (physics and editor),
 the Python bindings, the examples, the tests, and `webgpu_spike`. Debug executables go to
-`build/webgpu/bin/Debug`.
+`build/webgpu/output/Debug/bin`.
 
 The applications and the bindings are part of this build on purpose: the physics app is the only
 target that drives the GPU solver end to end, and the joint path in particular is exercised by
@@ -40,35 +40,31 @@ Start with the two small WebGPU-only targets:
 
 ```powershell
 # Headless device, compute, readback, and offscreen rendering checks
-build\webgpu\bin\Debug\webgpu_spike.exe
+build\webgpu\output\Debug\bin\webgpu_spike.exe
 
 # SDL surface, compute, triangle, and presentation; exits after 30 frames
-build\webgpu\bin\Debug\webgpu_clear_example.exe
+build\webgpu\output\Debug\bin\webgpu_clear_example.exe
 ```
 
 Then exercise the complete engine:
 
 ```powershell
-$env:NEEDRENAME_PRESENT_CAPTURE = "$PWD\build\webgpu\presented.bmp"
-build\webgpu\bin\Debug\external_resource_loading_example.exe 30
+$env:NEEDRENAME_PRESENT_CAPTURE = "$PWD\build\webgpu\output\Debug\presented.bmp"
+build\webgpu\output\Debug\bin\external_resource_loading_example.exe 30
 Remove-Item Env:NEEDRENAME_PRESENT_CAPTURE -ErrorAction SilentlyContinue
 ```
 
-A build-tree run resolves its data through `build/webgpu/stage/<config>`, which is what the build
-produced - and on this backend that matters, because the built-in shaders exist only as baked
-WGSL/SPIR-V there and a WebGPU build has no runtime GLSL compiler. `NEEDRENAME_DATA_ROOT` still
-overrides the root for a run that wants a different one, or that wants the source tree for live
-asset editing.
+A run resolves its data by proximity: `output/<config>/share/needrename` sits beside the binaries,
+the same way an installed prefix keeps it beside `bin/`. On this backend that matters, because the
+built-in shaders exist only as baked WGSL/SPIR-V there and a WebGPU build has no runtime GLSL
+compiler. `NEEDRENAME_DATA_ROOT` still overrides the root for a run that wants a different one.
 
 A successful run exits with code zero. `presented.bmp` records what the surface received, which is
 stronger evidence than an offscreen render-target dump alone.
 
-Run the focused staged-asset and cross-backend image checks, then the full suite:
+Then the full suite, which runs the assembled product's executables:
 
 ```powershell
-ctest --test-dir build/webgpu -C Debug `
-    -R 'skybox_golden_test|mrt_test_staged_builtin_assets' `
-    --output-on-failure
 ctest --test-dir build/webgpu -C Debug --output-on-failure
 ```
 
@@ -76,13 +72,13 @@ If the applications are built (they are, by default), the physics example suppli
 numeric simulation check:
 
 ```powershell
-build\webgpu\bin\Debug\physics_rigid_body_example.exe 180
+build\webgpu\output\Debug\bin\physics_rigid_body_example.exe 180
 ```
 
 Every 60 frames it logs `probe z ... moved ...`; an increasing `moved` value demonstrates that the
 solver is advancing.
 
 Dawn's WebGPU library is linked statically, so there is no `webgpu_dawn.dll`. The build copies
-`dxcompiler.dll` and `dxil.dll` from `DXC_ROOT/bin/x64` into `build/webgpu/bin/Debug` automatically,
+`dxcompiler.dll` and `dxil.dll` from `DXC_ROOT/bin/x64` into `build/webgpu/output/Debug/bin` automatically,
 and install rules include them in `bin`. `d3dcompiler_47.dll` loads directly from System32. No PATH
 modification or manual per-executable copy is needed.

@@ -67,6 +67,9 @@ namespace Engine {
 
             const std::filesystem::path executable_directory = ExecutableDirectory();
             if (!executable_directory.empty()) {
+                // One rule for both layouts: a build-tree product keeps its data
+                // in `share/needrename` beside the binaries, exactly where an
+                // installed prefix keeps it.
                 const std::filesystem::path candidate =
                     (executable_directory / ".." / k_installed_data_subdir).lexically_normal();
                 attempts.push_back(candidate.string());
@@ -77,16 +80,6 @@ namespace Engine {
                         "executable-relative " + std::string(k_installed_data_subdir),
                     };
                 }
-            }
-
-            const std::filesystem::path developer_root(ENGINE_DEV_DATA_ROOT_DIR);
-            attempts.push_back(developer_root.string());
-            if (IsDirectory(developer_root)) {
-                return DataRootResolution{
-                    developer_root,
-                    DataRootSource::DeveloperFallback,
-                    "compile-time developer fallback",
-                };
             }
 
             std::string message = "Cannot resolve the runtime data root. Tried:";
@@ -114,62 +107,35 @@ namespace Engine {
         return CachedResolution().root;
     }
 
-    std::filesystem::path ResolveDataDir(std::string_view subdir, const std::filesystem::path &developer_fallback) {
+    std::filesystem::path ResolveDataDir(std::string_view subdir) {
         const DataRootResolution &resolution = CachedResolution();
-        if (resolution.source != DataRootSource::DeveloperFallback) {
-            const std::filesystem::path candidate =
-                (resolution.root / std::filesystem::path(subdir)).lexically_normal();
-            if (!IsDirectory(candidate)) {
-                throw std::runtime_error(
-                    "Runtime data directory '" + std::string(subdir) + "' is missing at " + candidate.string()
-                    + " (data root resolved via " + resolution.step + "). Set " + std::string(k_data_root_env_var)
-                    + " to a complete data root directory."
-                );
-            }
-            return candidate;
-        }
+        const std::filesystem::path candidate =
+            (resolution.root / std::filesystem::path(subdir)).lexically_normal();
 
-        // A developer run reads the tree the build staged, because that is what
-        // the build produced: the built-in assets there carry the baked form the
-        // backend consumes (a WebGPU build has no runtime GLSL compiler, so the
-        // source assets are the one thing it cannot use). A category the build
-        // does not stage falls back to its source directory, which is also what
-        // makes live editing of content work.
-#if defined(ENGINE_BUILD_STAGE_DATA_ROOT)
-        {
-            const std::filesystem::path staged = (std::filesystem::path(ENGINE_BUILD_STAGE_DATA_ROOT)
-                                                  / std::filesystem::path(subdir))
-                                                     .lexically_normal();
-            if (IsDirectory(staged)) {
-                return staged;
-            }
-        }
-#endif
-        const std::filesystem::path fallback = developer_fallback.lexically_normal();
-        if (!IsDirectory(fallback)) {
+        if (!IsDirectory(candidate)) {
             throw std::runtime_error(
-                "Runtime data directory '" + std::string(subdir) + "' is missing at " + fallback.string()
+                "Runtime data directory '" + std::string(subdir) + "' is missing at " + candidate.string()
                 + " (data root resolved via " + resolution.step + "). Set " + std::string(k_data_root_env_var)
                 + " to a complete data root directory."
             );
         }
-        return fallback;
+        return candidate;
     }
 
     std::filesystem::path BuiltinAssetsDir() {
-        return ResolveDataDir(ENGINE_DATA_SUBDIR_BUILTIN_ASSETS, ENGINE_DEV_BUILTIN_ASSETS_DIR);
+        return ResolveDataDir(ENGINE_DATA_SUBDIR_BUILTIN_ASSETS);
     }
 
     std::filesystem::path ProjectsDir() {
-        return ResolveDataDir(ENGINE_DATA_SUBDIR_PROJECTS, ENGINE_DEV_PROJECTS_DIR);
+        return ResolveDataDir(ENGINE_DATA_SUBDIR_PROJECTS);
     }
 
     std::filesystem::path AssetsDir() {
-        return ResolveDataDir(ENGINE_DATA_SUBDIR_ASSETS, ENGINE_DEV_ASSETS_DIR);
+        return ResolveDataDir(ENGINE_DATA_SUBDIR_ASSETS);
     }
 
     std::filesystem::path TestDataDir() {
-        return ResolveDataDir(ENGINE_DATA_SUBDIR_TEST_DATA, ENGINE_DEV_TESTS_DIR);
+        return ResolveDataDir(ENGINE_DATA_SUBDIR_TEST_DATA);
     }
 
     void ResetDataRootCache() {

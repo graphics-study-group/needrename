@@ -54,29 +54,30 @@ namespace {
 } // namespace
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        std::cerr << "usage: shader_archive_form_test <data-root> <glsl|spv>\n";
+    if (argc != 2) {
+        std::cerr << "usage: shader_archive_form_test <glsl|spv>\n";
         return 2;
     }
 
-    const std::filesystem::path data_root(argv[1]);
-    const std::string expected_mode(argv[2]);
+    const std::string expected_mode(argv[1]);
     if (expected_mode != "glsl" && expected_mode != "spv") {
         std::cerr << "unexpected mode: " << expected_mode << '\n';
         return 2;
     }
 
-    // Point the locator at the staged data root before anything resolves it.
-    SDL_setenv_unsafe(k_data_root_env_var, data_root.string().c_str(), 1);
+    // The test runs from the assembled product, so its own data root is the one
+    // this build produced: that is what gets validated, and it is validated the
+    // way a run finds it - by proximity, with no override.
+    SDL_unsetenv_unsafe(k_data_root_env_var);
     Engine::ResetDataRootCache();
 
     Check(
-        Engine::ResolveDataRoot().source == Engine::DataRootSource::Environment,
-        "the staged data root resolves through the environment override"
+        Engine::ResolveDataRoot().source == Engine::DataRootSource::Installed,
+        "the product's data root resolves by proximity to the executable"
     );
 
     const std::filesystem::path shaders_dir = Engine::BuiltinAssetsDir() / "shaders";
-    Check(std::filesystem::is_directory(shaders_dir), "the staged data root has a shader directory");
+    Check(std::filesystem::is_directory(shaders_dir), "the resolved data root has a shader directory");
 
     const bool expect_spv = expected_mode == "spv";
     size_t shader_assets = 0;

@@ -17,9 +17,9 @@ namespace Engine {
     /**
      * @brief Get the physics SPIR-V root of the resolved runtime data root.
      *
-     * An installed data root keeps the modules in `spv/` with no configuration
-     * split; the developer build tree keeps the per-configuration build output
-     * directory named by `ENGINE_PHYSICS_SPIRV_DIR`.
+     * The modules live in `spirv/` beneath the data root, in a build-tree
+     * product and in an installed prefix alike; the build's per-configuration
+     * split is flattened away when the category is staged.
      *
      * @return The directory holding the physics compute SPIR-V modules.
      * @exception std::runtime_error The directory does not exist.

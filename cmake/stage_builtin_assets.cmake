@@ -6,12 +6,17 @@
 #   -DSHADER_MODE=<glsl|spv>
 #   -DSHADER_BAKER=<shader_baker executable>
 #   -DDEBUG_INFO=<ON|OFF>
+#   -DSTAMP=<file touched when the category is complete>
 #
 # glsl mode copies the built-in assets as-is: the shader archives stay in GLSL
 # form and the shader include tree ships with them.
 # spv mode copies them, bakes every shader archive to embedded SPIR-V form, then
 # drops the GLSL sources and the include tree — they are not needed to load a
 # baked archive.
+#
+# This command owns only `builtin_assets/`: the sibling data categories are
+# staged by their own commands, so an edit to a sample asset cannot re-run the
+# bake.
 
 if (NOT STAGE_ROOT)
     message(FATAL_ERROR "stage_builtin_assets: STAGE_ROOT is not set.")
@@ -21,6 +26,9 @@ if (NOT SOURCE_BUILTIN_ASSETS)
 endif()
 if (NOT SHADER_MODE)
     message(FATAL_ERROR "stage_builtin_assets: SHADER_MODE is not set.")
+endif()
+if (NOT STAMP)
+    message(FATAL_ERROR "stage_builtin_assets: STAMP is not set.")
 endif()
 
 set(staged_builtin_assets "${STAGE_ROOT}/builtin_assets")
@@ -68,17 +76,10 @@ else()
     message(FATAL_ERROR "stage_builtin_assets: unexpected shader mode '${SHADER_MODE}'.")
 endif()
 
-# A data root is more than the built-in assets: a runtime that resolves its data through
-# NEEDRENAME_DATA_ROOT reads the project and artist assets from the same root. The staged tree
-# therefore mirrors the developer root's sibling directories, so a run can point at it and
-# still load everything it needs. They are copies, not links, because a link to the source tree
-# would defeat the point of staging the assets into a fresh root.
-get_filename_component(source_root "${SOURCE_BUILTIN_ASSETS}" DIRECTORY)
-foreach(sibling assets projects)
-    if (IS_DIRECTORY "${source_root}/${sibling}")
-        file(COPY "${source_root}/${sibling}/" DESTINATION "${STAGE_ROOT}/${sibling}")
-    endif()
-endforeach()
+# A data root is more than the built-in assets, but this command owns only its
+# own category: `assets/` and `projects/` are staged by their own commands so an
+# edit there cannot re-run the bake. They used to be copied from here, which
+# made the bake step depend on trees it does not read.
 
 # Stamp last: a failed staging run must not look up to date.
-file(TOUCH "${staged_builtin_assets}/.staged")
+file(TOUCH "${STAMP}")

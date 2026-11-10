@@ -57,7 +57,9 @@ The engine is split into modular shared libraries (DLLs) with one-way dependenci
 - **EngineEditor** — Engine editor, loaded by the editor example executable
 - **tests** — Executable demos and test cases (runnable via CTest)
 
-All executables and DLLs are written to a unified `bin/` output directory (import libraries to `lib/`).
+All executables and DLLs are written to `bin/<Config>/` (import libraries to `lib/<Config>/`). Each
+build also assembles a runnable product in `output/<Config>/` - the binaries plus the data root
+beside them - so a start needs no environment variable.
 
 ## Key Features
 

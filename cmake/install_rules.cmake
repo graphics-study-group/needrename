@@ -13,7 +13,8 @@
 #   apps-data      project templates used by the applications
 #   examples       example executables
 #   examples-data  sample content used by the example executables
-#   test-data      test executables and their fixtures (ENGINE_INSTALL_TESTS=ON)
+#   test-data      test executables and their fixtures (also the development
+#                  product; only in a plain install with ENGINE_INSTALL_TESTS=ON)
 #   sdk            headers, libraries for linking, CMake package, reflection parser
 
 include_guard(GLOBAL)
@@ -113,8 +114,12 @@ install(
 endif()
 
 # --- Data components ------------------------------------------------------
-# builtin_assets is staged and installed by RuntimeData.cmake (mode
-# dependent); physics SPIR-V is installed by engine/Physics.
+# Every data component is installed from the configuration's staging tree, never
+# from the checkout: install copies what the build produced, including the baked
+# shaders and the physics modules. Staging is what decides a category's form, so
+# an install and a build-tree product carry the same bytes. The category stamps
+# (ENGINE_STAGED_DATA_STAMPS, from RuntimeData.cmake) are the assembly
+# dependencies, because a stamp changes exactly when its category was restaged.
 
 # Project templates: an application materialises its working project from here.
 # `ENGINE_SHIPPED_PROJECTS` trims the set for distributions that ship only the
@@ -124,28 +129,25 @@ set(ENGINE_SHIPPED_PROJECTS "" CACHE STRING
 if (ENGINE_SHIPPED_PROJECTS)
     foreach(SHIPPED_PROJECT IN LISTS ENGINE_SHIPPED_PROJECTS)
         install(
-            DIRECTORY "${PROJECTS_DIR}/${SHIPPED_PROJECT}/"
+            DIRECTORY "${ENGINE_DATA_STAGE_DIR}/projects/${SHIPPED_PROJECT}/"
             DESTINATION "share/needrename/projects/${SHIPPED_PROJECT}"
             COMPONENT apps-data
-            PATTERN "CMakeLists.txt" EXCLUDE
         )
     endforeach()
 else()
     install(
-        DIRECTORY "${PROJECTS_DIR}/"
+        DIRECTORY "${ENGINE_DATA_STAGE_DIR}/projects/"
         DESTINATION share/needrename/projects
         COMPONENT apps-data
-        PATTERN "CMakeLists.txt" EXCLUDE
     )
 endif()
 
-# Sample content for the examples. Documentation screenshots never ship.
+# Sample content for the examples. Documentation screenshots never enter the
+# staging tree in the first place.
 install(
-    DIRECTORY "${ASSETS_DIR}/"
+    DIRECTORY "${ENGINE_DATA_STAGE_DIR}/assets/"
     DESTINATION share/needrename/assets
     COMPONENT examples-data
-    PATTERN "img" EXCLUDE
-    PATTERN "CMakeLists.txt" EXCLUDE
 )
 
 # --- SDK headers ----------------------------------------------------------
@@ -337,17 +339,62 @@ install(
 )
 
 # --- Tests ----------------------------------------------------------------
+# The rules are always declared, because the development product asks for this
+# component explicitly; `ENGINE_INSTALL_TESTS` decides whether tests also join a
+# plain `cmake --install` (and therefore a ZIP package). With it OFF the rules
+# carry EXCLUDE_FROM_ALL, which keeps them out of the default install and out of
+# CPack while leaving `--component test-data` available.
+get_property(ENGINE_TEST_TARGETS GLOBAL PROPERTY ENGINE_TEST_TARGETS)
 if (ENGINE_INSTALL_TESTS)
-    get_property(engine_test_targets GLOBAL PROPERTY ENGINE_TEST_TARGETS)
-    if (engine_test_targets)
-        install(TARGETS ${engine_test_targets} RUNTIME DESTINATION bin COMPONENT test-data)
-    endif()
-    install(
-        DIRECTORY "${TESTS_DIR}/"
-        DESTINATION share/needrename/test_data
+    set(ENGINE_TEST_INSTALL_EXCLUSION "")
+else()
+    set(ENGINE_TEST_INSTALL_EXCLUSION EXCLUDE_FROM_ALL)
+endif()
+if (ENGINE_TEST_TARGETS)
+    install(TARGETS ${ENGINE_TEST_TARGETS}
+        RUNTIME DESTINATION bin
         COMPONENT test-data
-        PATTERN "CMakeLists.txt" EXCLUDE
-        PATTERN "__generated__" EXCLUDE
+        ${ENGINE_TEST_INSTALL_EXCLUSION}
+    )
+endif()
+install(
+    DIRECTORY "${ENGINE_DATA_STAGE_DIR}/test_data/"
+    DESTINATION share/needrename/test_data
+    COMPONENT test-data
+    ${ENGINE_TEST_INSTALL_EXCLUSION}
+)
+
+# --- Development product ---------------------------------------------------
+# `output/<config>` is a runnable copy of this configuration: the binaries, and
+# the data root beside them, assembled by the same install rules a distribution
+# uses. It is not a distribution format - it carries test executables and is
+# rebuilt by the build - but it is what a developer starts, and starting it needs
+# no environment variable because the locator finds `../share/needrename`.
+if (NOT EMSCRIPTEN)
+    set(ENGINE_PRODUCT_DEPENDS ${ENGINE_STAGED_DATA_STAMPS})
+
+    # Target names, not `$<TARGET_FILE:...>`: a name makes CMake order the
+    # assembly after the target is built on every generator, while the file form
+    # only states a file dependency the Visual Studio generator does not turn into
+    # project ordering.
+    foreach(product_target IN LISTS
+            ENGINE_EXPORT_LIBRARY_TARGETS
+            ENGINE_RUNTIME_ONLY_TARGETS
+            ENGINE_EXAMPLE_EXECUTABLES
+            ENGINE_TEST_TARGETS)
+        if (TARGET ${product_target})
+            list(APPEND ENGINE_PRODUCT_DEPENDS ${product_target})
+        endif()
+    endforeach()
+    if (TARGET _physicsapp)
+        list(APPEND ENGINE_PRODUCT_DEPENDS _physicsapp)
+    endif()
+
+    needrename_stage_runtime(
+        TARGET product_stage
+        PREFIX "${ENGINE_PRODUCT_DIR}"
+        COMPONENTS runtime apps-data examples examples-data test-data
+        DEPENDS ${ENGINE_PRODUCT_DEPENDS}
     )
 endif()
 

@@ -32,9 +32,9 @@ if (NOT ENGINE_SHADER_BAKER_EXECUTABLE)
         "a browser build needs the host-tools preset (see the top-level configure diagnostic).")
 endif()
 
-# Single source of truth for the per-config subdirectory: used both for the
-# output path below and for the ENGINE_PHYSICS_SPIRV_DIR the runtime resolves
-# against (see engine/cmake_config.h.in), so build and loader cannot drift.
+# Single source of truth for the per-config subdirectory of the bake output.
+# Staging flattens it away into the data root's `spirv/`, so the runtime never
+# sees it.
 # RelWithDebInfo/MinSizeRel compile without debug info, hence share the release tree.
 set(PHYSICS_SPIRV_CONFIG_SUBDIR "$<IF:$<CONFIG:Debug>,debug,release>")
 
@@ -132,34 +132,37 @@ set_target_properties(physics_shader PROPERTIES
 )
 add_dependencies(EnginePhysics physics_shader)
 
-# WebGPU loads the baked WGSL tree through the configuration's data root.
-if (ENGINE_RHI_BACKEND_WEBGPU)
-    set(PHYSICS_STAGE_DIR "${ENGINE_DATA_STAGE_DIR}/spirv")
-    add_custom_target(physics_shader_stage ALL
-        COMMAND ${CMAKE_COMMAND} -E rm -rf "${PHYSICS_STAGE_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${PHYSICS_SPIRV_ROOT}/${PHYSICS_SPIRV_CONFIG_SUBDIR}"
-                "${PHYSICS_STAGE_DIR}"
-        DEPENDS physics_shader
-        COMMENT "Staging the baked physics shaders into the data root"
-        VERBATIM
-    )
-    set_target_properties(physics_shader_stage PROPERTIES FOLDER build)
-    add_dependencies(EnginePhysics physics_shader_stage)
-endif()
-
-# The C++ side loads SPIR-V through the runtime data locator's physics root;
-# ENGINE_PHYSICS_SPIRV_DIR is its developer fallback and must select the same
-# per-configuration subdirectory the artefacts above are written to.
-target_compile_definitions(EnginePhysics PRIVATE
-    ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR="${PHYSICS_SPIRV_CONFIG_SUBDIR}"
+# Stage the configuration's modules into the data root for every backend, not
+# only the one that loads WGSL: the runtime resolves physics modules through the
+# data root unconditionally, so a Vulkan product must carry its `/spirv` tree the
+# same way a WebGPU one does. Without this a Vulkan run falls back to a
+# compile-time path into the build tree, which is exactly the kind of path the
+# data root exists to replace.
+set(PHYSICS_STAGE_DIR "${ENGINE_DATA_STAGE_DIR}/spirv")
+set(PHYSICS_STAGED_STAMP "${ENGINE_DATA_STAGE_DIR}/.stamps/physics_shader")
+add_custom_command(
+    OUTPUT "${PHYSICS_STAGED_STAMP}"
+    COMMAND ${CMAKE_COMMAND}
+        "-DSOURCE=${PHYSICS_SPIRV_ROOT}/${PHYSICS_SPIRV_CONFIG_SUBDIR}"
+        "-DDESTINATION=${PHYSICS_STAGE_DIR}"
+        "-DEXCLUDES=*.d;*.log"
+        "-DSTAMP=${PHYSICS_STAGED_STAMP}"
+        -P "${CMAKE_SOURCE_DIR}/cmake/stage_tree.cmake"
+    DEPENDS ${PHYSICS_SPIRV_OUTPUTS}
+    COMMENT "Staging the baked physics shaders into the data root"
+    VERBATIM
 )
+add_custom_target(physics_shader_stage ALL DEPENDS "${PHYSICS_STAGED_STAMP}")
+set_target_properties(physics_shader_stage PROPERTIES
+    FOLDER build
+    ADDITIONAL_CLEAN_FILES "${PHYSICS_STAGE_DIR}"
+)
+add_dependencies(EnginePhysics physics_shader_stage)
 
-# Install the configuration's artefacts into the runtime data root at
-# source-relative paths. An installation carries one configuration, so the
-# per-configuration build-tree split is flattened away.
+# Install the staged tree: an installation carries one configuration, so the
+# per-configuration build-tree split is already flattened away by staging.
 install(
-    DIRECTORY "${PHYSICS_SPIRV_ROOT}/${PHYSICS_SPIRV_CONFIG_SUBDIR}/"
+    DIRECTORY "${ENGINE_DATA_STAGE_DIR}/spirv/"
     DESTINATION share/needrename/spirv
     COMPONENT runtime
 )

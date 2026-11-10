@@ -17,7 +17,6 @@ function(engine_configure_browser_example target)
         "SHELL:-sEXPORTED_RUNTIME_METHODS=FS"
     )
     add_dependencies(${target} runtime_data_stage)
-    target_compile_definitions(${target} PRIVATE ENGINE_DEV_DATA_ROOT_DIR="/")
 endfunction()
 
 add_subdirectory(external_resource_loading_example)

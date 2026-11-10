@@ -4,6 +4,7 @@
 #include <cstdlib>
 #endif
 #include <cassert>
+#include <filesystem>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -86,9 +87,12 @@ int RunExample(int argc, char **argv) {
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "diagnostic skips: 0x%x", diagnostic_skip);
     }
 
-    // Runtime scratch: materialise the working project in the current working
-    // directory, never in the source tree or the (read-only) data root.
-    const std::filesystem::path project_path = std::filesystem::path("temp_project");
+    // Runtime scratch: materialise the working project in the platform's temporary
+    // directory, never in the working directory (which may be the product
+    // directory, and must stay exactly what the build assembled) and never in the
+    // read-only data root.
+    const std::filesystem::path project_path =
+        std::filesystem::temp_directory_path() / "needrename_external_resource_project";
     if (std::filesystem::exists(project_path)) std::filesystem::remove_all(project_path);
     std::filesystem::copy(ProjectsDir() / "test_project", project_path, std::filesystem::copy_options::recursive);
 

@@ -11,14 +11,14 @@
 namespace {
     /// @brief The directory holding the built-in GLSL sources for this checkout.
     ///
-    /// A staged data root that ships baked archives has no GLSL sources by
+    /// An assembled product that ships baked archives has no GLSL sources by
     /// design, and this test's whole point is to compile them, so it reads the
     /// source tree rather than the resolved data root.
     ///
     /// @return Absolute path of `builtin_assets/shaders`.
     std::filesystem::path SourceShadersDirectory() {
-#ifdef NEEDRENAME_SOURCE_DIR
-        return std::filesystem::path{NEEDRENAME_SOURCE_DIR} / "builtin_assets" / "shaders";
+#ifdef NEEDRENAME_SOURCE_BUILTIN_ASSETS
+        return std::filesystem::path{NEEDRENAME_SOURCE_BUILTIN_ASSETS} / "shaders";
 #else
         return Engine::BuiltinAssetsDir() / "shaders";
 #endif
@@ -45,7 +45,10 @@ namespace {
 } // namespace
 
 int main() {
-    Engine::ShaderCompiler compiler;
+    // The include tree travels with the sources, so it is named here too: a
+    // product that ships baked archives carries neither, and the includer's own
+    // system path would point at a directory that does not exist.
+    Engine::ShaderCompiler compiler{SourceShadersDirectory() / "include"};
     const std::vector<std::filesystem::path> shaders = CollectBuiltinShaders();
     if (shaders.empty()) {
         std::cerr << "No built-in shaders found under " << SourceShadersDirectory() << "\n";

@@ -164,9 +164,12 @@ int RunExample(int argc, char **argv) {
     std::filesystem::path project_template_path(ProjectsDir());
     project_template_path = project_template_path / "test_project";
 
-    // Runtime scratch: materialise the working project in the current working
-    // directory, never in the source tree or the (read-only) data root.
-    const std::filesystem::path project_path = std::filesystem::path("temp_project");
+    // Runtime scratch: the working copy of the project is materialised in the
+    // platform's temporary directory. It must not land in the working directory,
+    // because that may be the product directory, which has to stay exactly what
+    // the build assembled. `--keep-project` logs the path for inspection.
+    const std::filesystem::path project_path =
+        std::filesystem::temp_directory_path() / "needrename_editor_project";
 
     SDL_Init(SDL_INIT_VIDEO);
 

@@ -66,7 +66,7 @@ The shared `msvc` preset sets `Python3_EXECUTABLE` to `${sourceDir}/.venv/Script
 
 ## Build Steps
 
-The `msvc` presets use the **Visual Studio multi-config** generator: one build tree holds both configurations, and the output paths include the config name (`build/msvc/bin/Debug/`, `build/msvc/bin/Release/`). No Developer PowerShell / vcvars setup is needed — CMake locates Visual Studio itself.
+The `msvc` presets use the **Visual Studio multi-config** generator: one build tree holds both configurations, and the output paths include the config name. The linker writes to `build/msvc/bin/<Config>/`, and the build assembles a runnable product in `build/msvc/output/<Config>/` - the same binaries beside `share/needrename/`, which is the data root they resolve. No Developer PowerShell / vcvars setup is needed — CMake locates Visual Studio itself.
 
 ```powershell
 # Configure (Debug and Release live in the same build/msvc tree)
@@ -75,8 +75,11 @@ cmake --preset msvc
 # Build Debug
 cmake --build --preset msvc-debug
 
-# Test Debug
+# Test Debug (runs the assembled product's executables)
 ctest --preset msvc-debug
+
+# Run an executable from the product, from any directory
+& build\msvc\output\Debug\physics_rigid_body_example.exe 300
 
 # Build Release
 cmake --build --preset msvc-release
@@ -88,7 +91,9 @@ Equivalent direct commands: `cmake --build build/msvc --config Debug`, `ctest -C
 
 `cmake --install` produces a self-contained prefix (`bin/` with every DLL,
 `share/needrename/` data root, `include/`, `lib/cmake/needrename`); the same
-prefix is a CMake package other projects can link against.
+prefix is a CMake package other projects can link against. The build tree's
+`output/<Config>/` is the same layout, assembled from the same install rules, so
+what you run while developing is what an install produces.
 
 ```powershell
 cmake --build --preset msvc-release

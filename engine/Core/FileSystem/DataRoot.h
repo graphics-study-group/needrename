@@ -14,7 +14,6 @@ namespace Engine {
     enum class DataRootSource {
         Environment,
         Installed,
-        DeveloperFallback,
     };
 
     /**
@@ -22,7 +21,7 @@ namespace Engine {
      */
     struct DataRootResolution {
         std::filesystem::path root{};
-        DataRootSource source{DataRootSource::DeveloperFallback};
+        DataRootSource source{DataRootSource::Installed};
         std::string step{};
     };
 
@@ -30,8 +29,15 @@ namespace Engine {
      * @brief Resolve the runtime data root, caching the result.
      *
      * The root is the first match of `NEEDRENAME_DATA_ROOT` (when it names an
-     * existing directory), `../share/needrename` beneath the executable's
-     * directory, and the compile-time developer fallback.
+     * existing directory) and `<executable dir>/../share/needrename`.
+     *
+     * There is no compile-time path into the source tree, on purpose. A binary
+     * carries no knowledge of where it was built, so it cannot silently read a
+     * checkout that does not match its configuration: a build-tree product uses
+     * the same rule as an installed prefix, because both put their data in
+     * `share/needrename` beside the binaries. A run that wants a different tree -
+     * the checkout, for live asset editing - says so with
+     * `NEEDRENAME_DATA_ROOT`.
      *
      * @return The cached resolution, including the step that produced it.
      * @exception std::runtime_error No candidate directory exists.
@@ -49,23 +55,15 @@ namespace Engine {
     /**
      * @brief Resolve a data directory beneath the runtime data root.
      *
-     * An installed data root (or an explicit `NEEDRENAME_DATA_ROOT`) stores
-     * every category in a subdirectory of the root. A developer run keeps its
-     * categories apart, so it resolves them in two steps: the category staged for
-     * this build (`<build>/stage/<config>/<subdir>`, which is what the build
-     * produced, including baked shaders) and, only when that category is not
-     * staged, the compile-time source directory named by `developer_fallback`.
+     * Every category lives in a subdirectory of the root, in a build tree and in
+     * an install alike.
      *
      * @param subdir Layout subdirectory name beneath the data root.
-     * @param developer_fallback Source directory used when this build stages no
-     * such category.
      * @return An existing directory.
      * @exception std::runtime_error The directory does not exist; the message
      * names the path attempted and the resolution step.
      */
-    CORE_API std::filesystem::path ResolveDataDir(
-        std::string_view subdir, const std::filesystem::path &developer_fallback
-    );
+    CORE_API std::filesystem::path ResolveDataDir(std::string_view subdir);
 
     /**
      * @brief Get the built-in asset database root (`builtin_assets/`).

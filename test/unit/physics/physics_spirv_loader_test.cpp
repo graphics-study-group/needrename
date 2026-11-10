@@ -3,8 +3,9 @@
 //   - a missing module throws `std::runtime_error` naming the absolute path
 //     attempted
 //
-// The test deliberately does not include `ENGINE_PHYSICS_SPIRV_DIR`: it must not
-// need the per-configuration subdirectory definition that the loader carries.
+// The test goes through the loader's public surface only: it names a module and
+// expects the resolved data root to hold it, without knowing where the build put
+// its artefacts.
 
 #include "Physics/PhysicsSpirvLoader.h"
 

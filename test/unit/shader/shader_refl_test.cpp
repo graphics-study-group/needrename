@@ -23,7 +23,13 @@ inline std::vector<uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, ESh
     file.close();
 
     std::vector<uint32_t> binary{};
+    // The include tree travels with the sources; a product that ships baked
+    // archives carries neither, so the source directory names both.
+#ifdef NEEDRENAME_SOURCE_BUILTIN_ASSETS
+    Engine::ShaderCompiler compiler{std::filesystem::path{NEEDRENAME_SOURCE_BUILTIN_ASSETS} / "shaders" / "include"};
+#else
     Engine::ShaderCompiler compiler;
+#endif
     compiler.CompileGLSLtoSPV(binary, glsl_code, shaderType);
     return binary;
 }
@@ -91,8 +97,8 @@ int main(int argc, char *argv[]) {
     // This test reflects GLSL sources, which a staged tree that ships baked
     // archives does not have by design, so the sources are read from the
     // checkout rather than through the resolved data root.
-#ifdef NEEDRENAME_SOURCE_DIR
-    const std::filesystem::path shaders_dir = std::filesystem::path{NEEDRENAME_SOURCE_DIR} / "builtin_assets" / "shaders";
+#ifdef NEEDRENAME_SOURCE_BUILTIN_ASSETS
+    const std::filesystem::path shaders_dir = std::filesystem::path{NEEDRENAME_SOURCE_BUILTIN_ASSETS} / "shaders";
 #else
     const std::filesystem::path shaders_dir = Engine::BuiltinAssetsDir() / "shaders";
 #endif
