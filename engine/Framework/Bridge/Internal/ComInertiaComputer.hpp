@@ -10,6 +10,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include <cmath>
+#include <limits>
+#include <stdexcept>
+
 namespace Engine {
     namespace detail {
 
@@ -68,6 +72,83 @@ namespace Engine {
 
         inline float ComputeBoxVolume(const glm::vec3 &feature) {
             return 8.0f * feature.x * feature.y * feature.z;
+        }
+
+        /// @brief Classification of an inertia tensor for inversion.
+        enum class InertiaInvertibility {
+            Invertible, ///< Positive definite and well conditioned at its own scale.
+            Singular,   ///< Not numerically invertible at its own scale.
+            Invalid,    ///< Invertible in magnitude but not positive definite.
+        };
+
+        /// @brief Classify an inertia tensor for inversion.
+        ///
+        /// A body's inertia scales with `mass * length^2`, so an absolute epsilon is
+        /// not a valid singularity test: it rejects perfectly good small bodies. The
+        /// Unitree A1 foot (0.06 kg, 2 cm sphere) has `diag(9.6e-6)` inertia,
+        /// determinant 8.85e-16 — below the old absolute 1e-12 — so its inverse
+        /// inertia was zeroed, freezing the calf it is welded to and leaving the
+        /// lower leg unable to swing.
+        ///
+        /// The test is therefore relative to the tensor's own scale: `|det|` below
+        /// `machine epsilon * ||I||_F^3` means the determinant has lost all
+        /// significance at double precision, i.e. the tensor is numerically
+        /// singular. The determinant and Frobenius norm are computed in double so
+        /// tiny-but-valid tensors cannot underflow to a false singular verdict.
+        ///
+        /// Positive definiteness is checked separately (Sylvester's criterion on the
+        /// symmetrized tensor): a tensor that is invertible but not positive
+        /// definite is not a valid inertia at all.
+        ///
+        /// @param inertia Inertia tensor about the body's center of mass.
+        /// @return Invertible, Singular, or Invalid.
+        inline InertiaInvertibility ClassifyInertia(const glm::mat3 &inertia) {
+            // An inertia tensor is symmetric; use the symmetric part so a
+            // caller-provided manual tensor with rounding noise is judged fairly.
+            glm::dmat3 m(0.0);
+            for (int column = 0; column < 3; ++column) {
+                for (int row = 0; row < 3; ++row) {
+                    m[column][row] =
+                        0.5 * (static_cast<double>(inertia[column][row]) + static_cast<double>(inertia[row][column]));
+                }
+            }
+
+            const double det = glm::determinant(m);
+            const double frobenius_squared = m[0][0] * m[0][0] + m[1][0] * m[1][0] + m[2][0] * m[2][0]
+                                             + m[0][1] * m[0][1] + m[1][1] * m[1][1] + m[2][1] * m[2][1]
+                                             + m[0][2] * m[0][2] + m[1][2] * m[1][2] + m[2][2] * m[2][2];
+            const double norm = std::sqrt(frobenius_squared);
+            const double threshold = std::numeric_limits<double>::epsilon() * norm * norm * norm;
+            if (!(norm > 0.0) || std::abs(det) < threshold) {
+                return InertiaInvertibility::Singular;
+            }
+
+            // Sylvester's criterion: leading principal minors of the symmetric
+            // matrix must be positive for the tensor to be positive definite.
+            const double minor1 = m[0][0];
+            const double minor2 = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+            if (!(minor1 > 0.0) || !(minor2 > 0.0) || !(det > 0.0)) {
+                return InertiaInvertibility::Invalid;
+            }
+            return InertiaInvertibility::Invertible;
+        }
+
+        /// @brief Invert an inertia tensor, or zero the inverse when singular.
+        ///
+        /// @param inertia Inertia tensor about the body's center of mass.
+        /// @return The inverse inertia, or a zero matrix for a singular tensor.
+        /// @throws std::invalid_argument when the tensor is invertible but not
+        ///         positive definite (that is not a valid inertia tensor).
+        inline glm::mat3 InvertOrZeroInertia(const glm::mat3 &inertia) {
+            switch (ClassifyInertia(inertia)) {
+            case InertiaInvertibility::Invertible:
+                return glm::inverse(inertia);
+            case InertiaInvertibility::Singular:
+                return glm::mat3(0.0f);
+            case InertiaInvertibility::Invalid:
+                break;
+            }
+            throw std::invalid_argument("ComInertiaComputer: inertia tensor is not positive definite");
         }
 
         inline float ComputeSphereVolume(float radius) {
@@ -139,7 +220,7 @@ namespace Engine {
                 const glm::vec3 object_world_position = rb_desc.world_position;
                 const glm::quat object_world_rotation = rb_desc.world_rotation;
 
-                if (shapes.empty()) {
+                if (shapes.empty() && !rb_desc.use_manual_inertia_com) {
                     output.center_world_position = ToVec4(object_world_position);
                     output.center_world_rotation = ToVec4(object_world_rotation);
                     output.center_offset_local = glm::vec4(0.0f);
@@ -150,12 +231,7 @@ namespace Engine {
 
                 if (rb_desc.use_manual_inertia_com) {
                     output.inertia = glm::mat4(rb_desc.manual_inertia);
-                    const float det = glm::determinant(rb_desc.manual_inertia);
-                    if (det > 1e-12f) {
-                        output.inverse_inertia = glm::mat4(glm::inverse(rb_desc.manual_inertia));
-                    } else {
-                        output.inverse_inertia = glm::mat4(0.0f);
-                    }
+                    output.inverse_inertia = glm::mat4(InvertOrZeroInertia(rb_desc.manual_inertia));
                     const glm::vec3 manual_com = rb_desc.manual_center_of_mass;
                     const glm::vec3 center_world_pos = object_world_position + object_world_rotation * manual_com;
                     output.center_world_position = ToVec4(center_world_pos);
@@ -282,12 +358,7 @@ namespace Engine {
                 }
 
                 output.inertia = glm::mat4(inertia_tensor);
-                const float det = glm::determinant(inertia_tensor);
-                if (glm::abs(det) > 1e-12f) {
-                    output.inverse_inertia = glm::mat4(glm::inverse(inertia_tensor));
-                } else {
-                    output.inverse_inertia = glm::mat4(0.0f);
-                }
+                output.inverse_inertia = glm::mat4(InvertOrZeroInertia(inertia_tensor));
 
                 return output;
             }

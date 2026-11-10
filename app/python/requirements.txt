@@ -1,0 +1,5 @@
+build
+scikit-build-core
+numpy
+pytest
+nanobind

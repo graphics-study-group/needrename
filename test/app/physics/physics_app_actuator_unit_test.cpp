@@ -32,6 +32,36 @@ namespace {
         }
         return angle;
     }
+
+    /// @brief Stateful control law for the `Reset()` contract: a leaking
+    /// integrator whose output depends on how many calls came before.
+    class LeakingIntegratorActuator final : public Actuator {
+    public:
+        float ComputeTorque(float angle, float angular_velocity) override {
+            // Leak 10% per call so the state saturates instead of growing without
+            // bound, then integrate the angle and use the accumulated error.
+            m_integral = 0.9f * m_integral + angle;
+            m_calls++;
+            return 10.0f * m_integral - 2.0f * angular_velocity;
+        }
+
+        void Reset() override {
+            m_integral = 0.0f;
+            m_calls = 0;
+        }
+
+        float Integral() const {
+            return m_integral;
+        }
+
+        int Calls() const {
+            return m_calls;
+        }
+
+    private:
+        float m_integral{0.0f};
+        int m_calls{0};
+    };
 } // namespace
 
 int main() {
@@ -90,6 +120,70 @@ int main() {
         const float tau = a.ComputeTorque(0.0f, 25.0f);
         Check(tau < 0.0f, "DcMotor sign reversal above no-load");
         Check(Close(tau, upper, 1e-3f), "DcMotor sign reversal value");
+    }
+
+    // ── Parameters are readable and tunable (Pd) ─────────────────────
+    {
+        PdActuator a(10.0f, 2.0f);
+        Check(a.GetKp() == 10.0f, "Pd kp read-back");
+        Check(a.GetKd() == 2.0f, "Pd kd read-back");
+
+        a.SetTargetAngle(1.0f);
+        a.SetKp(30.0f);
+        a.SetKd(0.0f);
+        Check(a.GetKp() == 30.0f, "Pd kp written value is readable");
+        Check(a.GetKd() == 0.0f, "Pd kd written value is readable");
+        Check(
+            Close(a.ComputeTorque(0.8f, 0.1f), 30.0f * Wrap(0.2f), 1e-5f),
+            "Pd tuned kp changes the next computed torque"
+        );
+    }
+
+    // ── Parameters are readable and tunable (DcMotor) ────────────────
+    {
+        DcMotorActuator a(10.0f, 2.0f, 33.5f, 21.0f, 13.4f, 1.0f);
+        Check(a.GetKp() == 10.0f, "DcMotor kp read-back");
+        Check(a.GetKd() == 2.0f, "DcMotor kd read-back");
+        Check(a.GetStallTorque() == 33.5f, "DcMotor stall_torque read-back");
+        Check(a.GetNoLoadSpeed() == 21.0f, "DcMotor no_load_speed read-back");
+        Check(a.GetContTorque() == 13.4f, "DcMotor cont_torque read-back");
+        Check(a.GetGearRatio() == 1.0f, "DcMotor gear_ratio read-back");
+
+        a.SetTargetAngle(0.1f);
+        a.SetKp(1000.0f);
+        a.SetKd(0.0f);
+        a.SetStallTorque(33.5f);
+        a.SetNoLoadSpeed(21.0f);
+        a.SetContTorque(5.0f);
+        a.SetGearRatio(1.0f);
+        Check(a.GetContTorque() == 5.0f, "DcMotor cont_torque written value is readable");
+        Check(
+            Close(a.ComputeTorque(0.0f, 0.0f), 5.0f, 1e-4f),
+            "DcMotor tuned cont_torque changes the next computed torque"
+        );
+    }
+
+    // ── Reset clears internal control state ──────────────────────────
+    {
+        LeakingIntegratorActuator a;
+        a.SetTargetAngle(0.0f);
+        const float first = a.ComputeTorque(0.5f, 0.0f);
+        const float second = a.ComputeTorque(0.5f, 0.0f);
+        Check(a.Calls() == 2, "stateful actuator accumulates state");
+        Check(second != first, "stateful actuator output depends on accumulated state");
+
+        a.Reset();
+        Check(a.Integral() == 0.0f, "Reset clears the accumulated integral");
+        Check(a.Calls() == 0, "Reset clears the call counter");
+        const float after_reset = a.ComputeTorque(0.5f, 0.0f);
+        Check(Close(after_reset, first, 1e-6f), "Reset restores freshly-constructed behavior");
+
+        // The base implementation is a no-op: a stateless actuator resets fine.
+        PdActuator pd(10.0f, 2.0f);
+        pd.SetTargetAngle(1.0f);
+        const float before = pd.ComputeTorque(0.8f, 0.1f);
+        pd.Reset();
+        Check(Close(pd.ComputeTorque(0.8f, 0.1f), before, 1e-6f), "stateless Reset is a no-op");
     }
 
     // ── Default constructors produce A1 configuration ────────────────

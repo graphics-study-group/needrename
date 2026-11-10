@@ -16,6 +16,7 @@
 #include <Render/RenderSystem/IPresentProvider.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Resource/RenderTargetTexture.h>
+#include <Render/UserInterface/GUISystem.h>
 #include <Rhi/Pipeline/ComputeKernel.h>
 
 #include <vulkan/vulkan.hpp>
@@ -30,7 +31,9 @@ namespace Engine {
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        RGTextureHandle &final_color_target_id
+        RGTextureHandle &final_color_target_id,
+        const AttachmentUtils::ColorClearValue &background_color,
+        GUISystem *gui_overlay
     ) {
         RenderGraphBuilder rgb{m_system};
 
@@ -97,7 +100,11 @@ namespace Engine {
 
             lit_pass_builder
                 .AppendColorAttachment(
-                    {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                    {hdr_color_id,
+                     {},
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::Store,
+                     background_color}
                 )
                 .SetDepthStencilAttachment(
                     {depth_id,
@@ -160,6 +167,28 @@ namespace Engine {
                 })
                 .Get()
         );
+
+        // Compose the optional ImGui overlay on top of the post-bloom final color.
+        // The pass loads the existing contents (the bloom output) and draws the
+        // GUI frame the caller prepared. Without a GUI system no pass is added,
+        // so headless and non-GUI callers keep the exact graph they had.
+        if (gui_overlay != nullptr) {
+            rgb.AddPass(
+                RenderGraphPassBuilder{m_system}
+                    .SetName("GUI Overlay pass")
+                    .AppendColorAttachment(
+                        {final_color_target_id,
+                         {},
+                         AttachmentUtils::LoadOperation::Load,
+                         AttachmentUtils::StoreOperation::Store}
+                    )
+                    .SetPassFunction([gui_overlay](CommandBuffer &cb, const RenderGraph &) {
+                        gui_overlay->DrawGUI(cb.GetCommandBuffer());
+                    })
+                    .WrapRenderPass()
+                    .Get()
+            );
+        }
 
         return rgb.BuildRenderGraph();
     }

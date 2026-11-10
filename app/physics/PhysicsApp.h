@@ -13,6 +13,7 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace AppPhysics {
 
@@ -28,14 +29,27 @@ namespace AppPhysics {
     /**
      * @brief Options for creating the physics app.
      *
-     * Only window parameters are exposed. Asset and project paths are read
-     * internally from cmake_config.h for this iteration.
+     * Only window parameters and the background clear color are exposed. Asset
+     * and project paths are read internally from cmake_config.h for this
+     * iteration.
      */
     struct CreateInfo {
         AppMode mode{AppMode::Windowed};
         uint32_t resol_x{1280};
         uint32_t resol_y{720};
         std::string window_title{"Physics App"};
+        /// Background clear color in linear rgb. Defaults to black; the rendered
+        /// frame background is this solid color (no skybox is drawn).
+        glm::vec3 background_color{0.0f, 0.0f, 0.0f};
+        /// Physics step time in seconds for one `Step()`; 0 keeps the engine
+        /// default (1/60 s). A controller that must run at a specific rate (an RL
+        /// policy trained at 200 Hz physics / 50 Hz control) sets this instead of
+        /// decimating a mismatched default rate.
+        float physics_time_step{0.0f};
+        /// Solver substeps per `Step()`; 0 keeps the engine default.
+        uint32_t physics_substeps{0};
+        /// Solver iterations per substep; 0 keeps the engine default.
+        uint32_t physics_iterations{0};
     };
 
     /// Opaque handle identifying a created body. Not a pointer; do not dereference.
@@ -63,7 +77,8 @@ namespace AppPhysics {
     };
 
     /**
-     * @brief Single body's dynamic state, assembled from the readback arrays.
+     * @brief Single body's dynamic state, assembled from the app's current known
+     * body state (last simulated state overlaid with pending writes).
      *
      * All values are in physics (COM) space.
      */
@@ -101,7 +116,12 @@ namespace AppPhysics {
      * `slot_indices`; `positions`/`rotations`/`linear_velocities`/
      * `angular_velocities` store vec4 (rotation is quaternion xyzw, velocity
      * `.w` is padding). `com_offsets` is GO-local and static (zero for
-     * self-built shapes). Valid until the next `Step`.
+     * self-built shapes).
+     *
+     * The arrays show the app's current known state, not just the last step's
+     * result: a `SetBodyValue` (or `ResetToInitial`) write is visible in them
+     * immediately, in place, without bumping the step counter. Valid until the
+     * next `Step`.
      */
     struct BodyStatesView {
         std::span<const uint32_t> slot_indices;        ///< BodyId → slot index mapping.
@@ -257,16 +277,32 @@ namespace AppPhysics {
      *   1. Create(info) - full initialization (window, assets, project, input axes).
      *   2. Building phase - add bodies, joints, lights, set camera pose.
      *   3. CommitScene() - one-way freeze; afterwards no scene changes are allowed.
-     *   4. Drive phase - Step() / RenderNextFrame() / Pause() / Resume() / ShouldQuit().
+     *      Records the episode-start state restored by ResetToInitial().
+     *   4. Drive phase - Step() / ResetToInitial() / RenderNextFrame() / Pause() /
+     *      Resume() / ShouldQuit().
      *
-     * Actuators (see AddActuator) run inside Step(): they read the joint state
-     * measured from the previous step and write equal-and-opposite torques about
-     * the joint axis to the child/parent bodies' ExternalTorque each step, so the
-     * torque channel is owned by the actuators — user SetBodyValue(ExternalTorque)
-     * writes on an actuated joint's bodies are overwritten. Joint limits recorded
-     * from a URDF are data only and are never enforced. Actuators on joints whose
-     * two bodies are both kinematic compute torques but they have no effect
-     * (the solver skips such joints).
+     * Actuators (see AddActuator) run inside Step(): they measure the current known
+     * joint state (the last step's result overlaid with any pose writes made since)
+     * and ACCUMULATE equal-and-opposite torques about the joint axis into the
+     * child/parent bodies' ExternalTorque values of the current round. A body shared
+     * by two actuated joints (a serial chain, e.g. an A1 leg's hip -> thigh -> calf)
+     * receives the SUM of both joints' equal-and-opposite contributions, so a
+     * multi-link leg can hold and drive all of its joints. Actuator contributions
+     * are written last within the step and add to whatever the caller wrote into the
+     * round. Actuators are shared with the caller: the app keeps them alive while
+     * they are registered, and `RemoveActuator` simply detaches one (no torque
+     * lingers, because torques are per-round). Joints without an actuator are
+     * driven with `AddJointTorque`, which accumulates into the same per-body
+     * ExternalTorque values (see its documentation for the call-order rules). Joint
+     * limits recorded from a URDF are data only and are never enforced. Actuators
+     * on joints whose two bodies are both kinematic compute torques but they have
+     * no effect (the solver skips such joints).
+     *
+     * Write lifetime: every write (`SetBodyValue`, `AddJointTorque`) takes effect
+     * for one round — the interval until the next `Step` consumes it. Position and
+     * velocity persist through the simulated state itself; external force and
+     * torque are per-step quantities that the solver clears after applying them, so
+     * they act for exactly one step unless re-written every round.
      *
      * Wrong-phase usage throws `std::logic_error`. Exceptions may cross the
      * DLL boundary; a future C API must convert them to error codes.
@@ -351,20 +387,46 @@ namespace AppPhysics {
         JointId AddHingeJoint(BodyId obj1, BodyId obj2, const HingeJointParams &params);
 
         /**
-         * @brief Register an actuator on a joint (Building phase only).
+         * @brief Register an actuator on a joint (legal in both phases).
          *
          * At most one actuator SHALL exist per joint; the torque channel is owned
          * by the actuator, which overwrites the joint bodies' external torque
-         * every `Step`. New actuator types need no `PhysicsApp` API change.
+         * every `Step`. Ownership is shared: the app keeps the actuator alive
+         * while it is registered, and the caller may keep and keep using the same
+         * instance. An actuator added after `CommitScene` drives its joint from
+         * the next `Step`. New actuator types need no `PhysicsApp` API change.
          *
          * @param joint    Joint to drive.
-         * @param actuator Actuator to take ownership of.
-         * @throws std::logic_error after CommitScene.
+         * @param actuator Actuator to share ownership of.
          * @throws std::out_of_range when `joint` is invalid.
          * @throws std::invalid_argument when `actuator` is null or `joint`
          *         already has an actuator.
          */
-        void AddActuator(JointId joint, std::unique_ptr<Actuator> actuator);
+        void AddActuator(JointId joint, std::shared_ptr<Actuator> actuator);
+
+        /**
+         * @brief Get the actuator registered on a joint (legal in both phases).
+         *
+         * @param joint Joint to query.
+         * @return The registered instance, or an empty pointer when the joint has
+         *         no actuator.
+         * @throws std::out_of_range when `joint` is invalid.
+         */
+        std::shared_ptr<Actuator> GetActuator(JointId joint) const;
+
+        /**
+         * @brief Detach a joint's actuator (legal in both phases).
+         *
+         * The actuator stops running from the next `Step`; the caller's share
+         * keeps it alive. No torque lingers: actuator torques are per-round, so
+         * dropping the actuator already removes its contribution, and
+         * `AddJointTorque` is immediately legal again for that joint.
+         *
+         * @param joint Joint whose actuator to detach.
+         * @throws std::out_of_range when `joint` is invalid.
+         * @throws std::logic_error when `joint` has no actuator.
+         */
+        void RemoveActuator(JointId joint);
 
         /**
          * @brief Set an actuator's target joint angle (both phases legal).
@@ -381,6 +443,9 @@ namespace AppPhysics {
 
         /**
          * @brief Get a joint's measured state (Drive phase only).
+         *
+         * Measured from the same current known body state the readback exposes, so
+         * a pose written by `SetBodyValue` is measured immediately.
          *
          * @param joint Joint to read.
          * @return Current signed angle (relative to initial pose) and angular
@@ -460,9 +525,39 @@ namespace AppPhysics {
          * pause flag — the caller's loop decides whether to call this by checking
          * `IsPaused()`.
          *
+         * Pending `SetBodyValue` writes are uploaded before the solve (one
+         * whole-field upload per dirty field) and made device-visible once per
+         * step, so writes never synchronize with the device themselves. After the
+         * step the readback is refreshed and state reads see the integrated
+         * result.
+         *
          * @throws std::logic_error before CommitScene.
          */
         void Step();
+
+        /**
+         * @brief Restore the whole app to the state recorded at `CommitScene`.
+         *
+         * Episode-level reset for repeated trials. Restores every body's position
+         * and rotation to the commit-time snapshot, writes the snapshot velocities
+         * back as integration seeds (XPBD derives velocity from the pose change,
+         * so a restored velocity seeds the next step's derivation rather than
+         * persisting as state), zeroes every body's external force and torque,
+         * restores every actuator's target angle to its commit-time value and
+         * clears actuator internal state through `Actuator::Reset()`. Actuators
+         * registered after `CommitScene` have no commit-time target and keep
+         * theirs, but their internal state is cleared too.
+         *
+         * The restored state is visible to `GetBodyState` / `GetBodyStates` /
+         * `GetJointState` immediately and reaches the physics buffers on the next
+         * `Step`. The reset itself neither advances the simulation nor renders.
+         *
+         * Like `SetBodyValue`, call between `Step` calls: the app is
+         * single-threaded and this performs host writes with no synchronization.
+         *
+         * @throws std::logic_error before CommitScene.
+         */
+        void ResetToInitial();
 
         /**
          * @brief Render one frame, processing input and updating the camera.
@@ -505,6 +600,10 @@ namespace AppPhysics {
         /**
          * @brief Get a single body's dynamic state.
          *
+         * Returns the app's current known state: the last step's simulated state
+         * overlaid with any `SetBodyValue` writes made since, so a write is
+         * observable here without an intervening `Step`.
+         *
          * @param id BodyId returned by an Add method.
          * @return The body's COM position, rotation and velocities.
          * @throws std::logic_error before CommitScene.
@@ -515,7 +614,7 @@ namespace AppPhysics {
         /**
          * @brief Get the SoA batch view of all bodies' dynamic state.
          *
-         * @return BodyStatesView over the readback arrays (slot-indexed).
+         * @return BodyStatesView over the staging arrays (slot-indexed).
          * @throws std::logic_error before CommitScene.
          */
         BodyStatesView GetBodyStates() const;
@@ -523,21 +622,34 @@ namespace AppPhysics {
         /**
          * @brief Override one writable field of a single body before the next step.
          *
-         * Legal in the Drive phase (after `CommitScene`). The value directly
-         * replaces the corresponding GPU physics buffer slot at the next `Step`
-         * and persists until overwritten by another call:
+         * Legal in the Drive phase (after `CommitScene`). The write lands in the
+         * app's host staging for that field, which holds "current state + pending
+         * round writes": it is observable immediately by `GetBodyState` /
+         * `GetBodyStates` / `GetJointState` and by actuator measurement, and it
+         * reaches the GPU physics buffer on the next `Step`.
          *
          * - Rotation is stored as a quaternion (xyzw); the other five fields
          *   store their quantity in xyz with w = 0.
          * - All values are in physics (COM) world space, matching `BodyState`.
-         * - External force/torque are NOT cleared by the solver: they keep being
-         *   applied by every subsequent step until the caller sets them to zero
-         *   (caller-managed lifetime). Position/rotation/velocity evolve under
-         *   integration after they are applied and are not re-applied on later
-         *   steps.
-         * - The write is applied on the next `Step`; it is not reflected by
-         *   `GetBodyState` before that step. Call between `Step` calls (the app
-         *   is single-threaded and waits on the device inside `Step`).
+         * - Every write takes effect for exactly one round. `ExternalForce` and
+         *   `ExternalTorque` are per-step quantities: the step applies them and the
+         *   solver clears them afterwards, so they act for one step only — re-write
+         *   them before every `Step` to keep a force acting. Position, rotation and
+         *   velocity instead persist through the simulated state (their effect
+         *   evolves under integration and is not re-applied on later steps).
+         * - Within a round, writes resolve by call order per slot: a later
+         *   assignment overwrites whatever landed on that slot earlier in the round
+         *   (including an `AddJointTorque` contribution), and a value from an
+         *   earlier round never resurfaces. A `Step` that does not integrate
+         *   (paused) does not consume force/torque; they apply on the next
+         *   integrating step.
+         * - Upload is whole-field per dirty field, but untouched slots carry their
+         *   own current values, so writing one body's field never changes another
+         *   body. Any number of writes to one field within a step interval cost
+         *   exactly one upload of that field.
+         * - No per-call device synchronization: pending writes are made
+         *   device-visible once per step. Call between `Step` calls (the app is
+         *   single-threaded and waits on the device inside `Step`).
          *
          * The rotation quaternion is normalized on write.
          *
@@ -548,6 +660,38 @@ namespace AppPhysics {
          * @throws std::out_of_range when `id` is invalid.
          */
         void SetBodyValue(BodyId id, BodyField field, glm::vec4 value);
+
+        /**
+         * @brief Add an equal-and-opposite torque about a joint's hinge axis.
+         *
+         * Legal only in the Drive phase (after `CommitScene`). Each call
+         * ACCUMULATES (`+=`) `+torque * axis_world` into the child body's
+         * ExternalTorque and `-torque * axis_world` into the parent body's, for the
+         * current round. The world-space axis is resolved internally from the
+         * current known body state (including pending writes) and the joint's
+         * recorded axis, so the caller never handles frames.
+         *
+         * Accumulation is what makes serial chains work: a body that is the child of
+         * one joint and the parent of another receives both contributions. The calls
+         * are not idempotent — two calls with the same value in one round produce
+         * twice the torque.
+         *
+         * The value is consumed by the next `Step` (one-round lifetime, like every
+         * other write): re-apply it before every `Step` to keep a torque acting.
+         * The accumulate joins the round's per-body external torques in call order,
+         * so a body-level `SetBodyValue(ExternalTorque)` assignment made after it
+         * overwrites the slot.
+         *
+         * Manual torque control is for joints without actuators: an actuator owns
+         * its joint's torque channel (see `AddActuator`).
+         *
+         * @param joint  Joint to drive.
+         * @param torque Torque [N·m] about the joint axis (sign follows the axis).
+         * @throws std::logic_error before CommitScene, or when `joint` has an
+         *         actuator.
+         * @throws std::out_of_range when `joint` is invalid.
+         */
+        void AddJointTorque(JointId joint, float torque);
 
         /**
          * @brief Toggle recording of a CPU readback of the final render target.
@@ -579,9 +723,61 @@ namespace AppPhysics {
         /**
          * @brief Check whether the app should quit.
          *
-         * @return True when an SDL_QUIT (window close) event has been received.
+         * @return True once the window has been asked to close (the X button sends
+         * `SDL_EVENT_WINDOW_CLOSE_REQUESTED`) or SDL reported a quit
+         * (`SDL_EVENT_QUIT`, produced by session shutdown and by SDL's signal
+         * handler, which this app leaves disabled — see `Create`). Always false in
+         * headless/offscreen mode, which have no window.
          */
         bool ShouldQuit() const;
+
+        /**
+         * @brief Check whether a named key is currently held down.
+         *
+         * Names are the SDL scancode names the engine's input map uses: single
+         * letters and digits (`"w"`, `"1"`), `"space"`, `"return"`, `"escape"`,
+         * `"left"`/`"right"`/`"up"`/`"down"`, `"f1"`..`"f12"`, `"left shift"`,
+         * etc. See `Input::k_name_code_map` for the full list.
+         *
+         * State is sampled by `RenderNextFrame`, which is the only place the
+         * app drains the window event queue, so a caller that renders once per
+         * tick observes one keyboard sample per tick. Always false in headless
+         * mode, which has no window.
+         *
+         * @param key Key name (case-insensitive).
+         * @return True while the key is held.
+         */
+        bool IsKeyDown(const std::string &key) const;
+
+        /**
+         * @brief Check whether a key went down since the previous sample.
+         *
+         * Edge-triggered companion to `IsKeyDown`: true for exactly one
+         * `RenderNextFrame` sample after the key-down event, so a caller can
+         * latch a single press without tracking the previous held state.
+         *
+         * @param key Key name (case-insensitive).
+         * @return True on the sample that observed the key-down event.
+         */
+        bool IsKeyPressed(const std::string &key) const;
+
+        /**
+         * @brief Check whether a key went up since the previous sample.
+         *
+         * @param key Key name (case-insensitive).
+         * @return True on the sample that observed the key-up event.
+         */
+        bool IsKeyReleased(const std::string &key) const;
+
+        /**
+         * @brief List every key currently held down, sorted by name.
+         *
+         * Useful for building a key-binding UI or a text-mode teleop readout
+         * without probing names one at a time.
+         *
+         * @return Key names that are down; empty in headless mode.
+         */
+        std::vector<std::string> GetKeysDown() const;
 
     private:
         PhysicsApp();

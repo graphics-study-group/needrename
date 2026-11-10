@@ -11,6 +11,7 @@
 # Components:
 #   runtime        executables, shared libraries, built-in assets, physics SPIR-V
 #   apps-data      project templates used by the applications
+#   examples       example executables
 #   examples-data  sample content used by the example executables
 #   test-data      test executables and their fixtures (ENGINE_INSTALL_TESTS=ON)
 #   sdk            headers, libraries for linking, CMake package, reflection parser
@@ -90,7 +91,7 @@ foreach(candidate external_resource_loading_example editor_run_game_example)
     endif()
 endforeach()
 if (ENGINE_EXAMPLE_EXECUTABLES)
-    install(TARGETS ${ENGINE_EXAMPLE_EXECUTABLES} RUNTIME DESTINATION bin COMPONENT runtime)
+    install(TARGETS ${ENGINE_EXAMPLE_EXECUTABLES} RUNTIME DESTINATION bin COMPONENT examples)
 endif()
 
 # SDL3 is an imported target; its shared runtime has to travel with the
@@ -107,12 +108,27 @@ install(
 # dependent); physics SPIR-V is installed by engine/Physics.
 
 # Project templates: an application materialises its working project from here.
-install(
-    DIRECTORY "${PROJECTS_DIR}/"
-    DESTINATION share/needrename/projects
-    COMPONENT apps-data
-    PATTERN "CMakeLists.txt" EXCLUDE
-)
+# `ENGINE_SHIPPED_PROJECTS` trims the set for distributions that ship only the
+# project(s) they use (the Python wheel ships the default project only).
+set(ENGINE_SHIPPED_PROJECTS "" CACHE STRING
+    "Project template directory names to install (empty = every project in projects/)")
+if (ENGINE_SHIPPED_PROJECTS)
+    foreach(SHIPPED_PROJECT IN LISTS ENGINE_SHIPPED_PROJECTS)
+        install(
+            DIRECTORY "${PROJECTS_DIR}/${SHIPPED_PROJECT}/"
+            DESTINATION "share/needrename/projects/${SHIPPED_PROJECT}"
+            COMPONENT apps-data
+            PATTERN "CMakeLists.txt" EXCLUDE
+        )
+    endforeach()
+else()
+    install(
+        DIRECTORY "${PROJECTS_DIR}/"
+        DESTINATION share/needrename/projects
+        COMPONENT apps-data
+        PATTERN "CMakeLists.txt" EXCLUDE
+    )
+endif()
 
 # Sample content for the examples. Documentation screenshots never ship.
 install(

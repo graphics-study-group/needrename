@@ -66,18 +66,33 @@ The pipeline SHALL NOT require the developer to list shader files manually in CM
 
 ### Requirement: Runtime SPIR-V root exposed via cmake_config.h
 
-The build SHALL define the C/C++ macro `ENGINE_PHYSICS_SPIRV_DIR` in `engine/cmake_config.h` (driven by `engine/cmake_config.h.in`). Its value SHALL be the absolute path of the physics SPIR-V root directory used by the build pipeline (i.e. `${CMAKE_BINARY_DIR}/engine/Physics/spirv`). The macro SHALL be a string literal usable in C++ to construct `std::filesystem::path` instances.
+The build SHALL define the C/C++ macro `ENGINE_PHYSICS_SPIRV_DIR` in the generated configuration header (driven by `engine/cmake_config.h.in`). Its value SHALL be the absolute path of the physics SPIR-V root directory used by the build pipeline (i.e. `${CMAKE_BINARY_DIR}/engine/Physics/spirv`), serving as the **developer fallback** of the runtime data-root resolution chain.
 
-Runtime physics code requiring a precompiled physics shader SHALL resolve its file location relative to `ENGINE_PHYSICS_SPIRV_DIR` plus the source-relative path with `.spv` appended (e.g. `solver/XPBDSolver/step.comp.spv`). Runtime code MUST NOT hard-code build-tree paths or reach into source-tree shader directories.
+At runtime, the physics SPIR-V root SHALL be resolved through the data-root resolution chain (see `runtime-data-resolution`): the `NEEDRENAME_DATA_ROOT` override, then the installed data root (`share/needrename/spirv` relative to the executable), then the `ENGINE_PHYSICS_SPIRV_DIR` fallback — where the fallback keeps the per-configuration subdirectory selection (`ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR`) because build-tree artifacts are split per configuration. The installed form SHALL NOT use a per-configuration subdirectory. The macro SHALL remain a string literal usable in C++ to construct `std::filesystem::path` instances.
+
+Runtime physics code requiring a precompiled physics shader SHALL resolve its file location relative to the resolved physics SPIR-V root plus the source-relative path with `.spv` appended (e.g. `solver/XPBDSolver/step.comp.spv`). Runtime code MUST NOT hard-code build-tree paths or reach into source-tree shader directories.
 
 #### Scenario: Macro is defined and consumable
-- **WHEN** any engine translation unit includes `cmake_config.h`
+
+- **WHEN** any engine translation unit includes the generated configuration header
 - **THEN** `ENGINE_PHYSICS_SPIRV_DIR` is defined as a string literal
 - **AND** `std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR)` refers to an existing directory after a successful build
 
 #### Scenario: Runtime resolves a shader by relative path
+
 - **WHEN** runtime code requests the SPIR-V for `solver/XPBDSolver/step.comp`
-- **THEN** it loads the file at `<ENGINE_PHYSICS_SPIRV_DIR>/solver/XPBDSolver/step.comp.spv`
+- **THEN** it loads the file at `<resolved physics SPIR-V root>/solver/XPBDSolver/step.comp.spv`
+
+#### Scenario: Installed binary resolves physics shaders from the data root
+
+- **WHEN** an installed executable runs with `NEEDRENAME_DATA_ROOT` unset
+- **THEN** physics SPIR-V files resolve under `share/needrename/spirv/` of the install prefix
+- **AND** the absolute developer fallback path is not consulted
+
+#### Scenario: Developer build tree resolves via the fallback
+
+- **WHEN** an executable from a developer build tree runs on the machine that built it
+- **THEN** the physics SPIR-V root resolves to the build-tree directory named by `ENGINE_PHYSICS_SPIRV_DIR` including its per-configuration subdirectory
 
 ### Requirement: XPBDGpuSolver loads precompiled SPIR-V
 
@@ -89,8 +104,6 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/integrate_forces.comp.spv`
 - `solver/XPBDSolver/update_shape_world_pose.comp.spv`
 - `solver/XPBDSolver/entries/contact_entries.comp.spv`
-- `solver/XPBDSolver/entries/hinge_entries.comp.spv`
-- `solver/XPBDSolver/entries/fixed_entries.comp.spv`
 - `solver/XPBDSolver/accumulate_contact_position.comp.spv`
 - `solver/XPBDSolver/apply_body_position_deltas.comp.spv`
 - `solver/XPBDSolver/update_velocities_from_pose.comp.spv`
@@ -99,12 +112,16 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/snapshot_position.comp.spv`
 - `solver/XPBDSolver/clear_int_buffer.comp.spv`
 - `solver/XPBDSolver/clear_entry_values.comp.spv` (entry count from a bound buffer)
-- `solver/XPBDSolver/clear_entry_values_push.comp.spv` (entry count from the push-constant block)
 - `solver/common/model_matrix.comp.spv`
-- `solver/XPBDSolver/accumulate_hinge_position.comp.spv`
-- `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
+- `solver/XPBDSolver/accumulate_hinge_position.comp.spv` (one hinge color, direct write)
+- `solver/XPBDSolver/accumulate_fixed_position.comp.spv` (one fixed color, direct write)
+- `solver/XPBDSolver/joint_color_sweep.comp.spv` (every joint color of a type in one workgroup)
 - `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
 - `solver/XPBDSolver/clear_fixed_lagrange.comp.spv`
+
+There SHALL be no joint entry-pass shader: `entries/hinge_entries.comp.spv` and `entries/fixed_entries.comp.spv` SHALL NOT exist, because joints are solved from their descriptors through the color bucket index list rather than through a sorted entry list.
+
+The counted entry-value clear SHALL exist in a single form, the bound-buffer count source used by the contact group. `clear_entry_values_push.comp.spv` SHALL NOT exist: no constraint type publishes a per-iteration entry scratch whose count is CPU-known.
 
 There is no permutation-inversion shader: the sorted `(key, slot)` pair array produced by the radix sort is the segmented reduction's level-0 input, so `invert_permutation.comp.spv` SHALL NOT be loaded and SHALL NOT exist.
 
@@ -114,7 +131,7 @@ The `SumByKey` reduce shaders (`algorithm/sum_by_key.comp.spv` and its count-sou
 
 The counted entry-value clear SHALL be a separate shader from `clear_int_buffer.comp` rather than a mode of it: it clears `num_channels` channel planes with a stride taken from a push-constant capacity, whereas `clear_int_buffer.comp` clears a flat range whose length is a push constant. Following the solver's existing convention, the two jobs SHALL NOT be selected by a mode flag.
 
-The counted clear SHALL exist in one form per count source, following the convention `copy_uint.comp` / `copy_uint_push.comp` already establish. Only the **contact** group's count is produced on the GPU in the same substep, so only that group's clear reads it from a bound buffer at execution time; its dispatch geometry follows the entry capacity and the count bounds how many elements are written, for the same reason as the segmented reduction's level 0. The **hinge** and **fixed** groups' counts are CPU-known, so their clear takes the count from its push-constant block and its dispatch geometry follows the count itself, and it SHALL declare no count binding. The header comment of the buffer-count form SHALL state the GPU-produced case rather than claiming that the count can never be a push constant.
+The joint color passes SHALL share one implementation of the constraint math with the single-workgroup sweep: the per-joint hinge and fixed evaluation SHALL live in a shared GLSL include, so a joint evaluated by one color dispatch and the same joint evaluated inside the sweep compute the same correction.
 
 #### Scenario: First Step call loads SPIR-V from disk
 
@@ -137,7 +154,7 @@ The counted clear SHALL exist in one form per count source, following the conven
 #### Scenario: Joint shader SPIR-V files are loaded alongside contact shaders
 
 - **WHEN** the solver initializes its pipelines
-- **THEN** all four joint shader SPIR-V files are loaded from the same directory as contact shaders
+- **THEN** the two per-color joint shaders, the single-workgroup joint color sweep shader and the two joint lagrange clear shaders are loaded from the same directory as the contact shaders
 - **AND** a compute pipeline is created for each
 
 #### Scenario: No permutation inversion shader is loaded
@@ -149,15 +166,17 @@ The counted clear SHALL exist in one form per count source, following the conven
 #### Scenario: Entry-pass shaders are loaded alongside the accumulate shaders
 
 - **WHEN** the solver initializes its pipelines
-- **THEN** `entries/contact_entries.comp.spv`, `entries/hinge_entries.comp.spv` and `entries/fixed_entries.comp.spv` are loaded from `solver/XPBDSolver/entries/`
-- **AND** a compute pipeline is created for each
+- **THEN** `entries/contact_entries.comp.spv` is loaded from `solver/XPBDSolver/entries/`
+- **AND** a compute pipeline is created for it
+- **AND** no `entries/hinge_entries.comp.spv` or `entries/fixed_entries.comp.spv` is loaded or present, because joints have no entry pass
 
 #### Scenario: Counted clear shader is loaded alongside the flat clear shader
 
 - **WHEN** the solver initializes its pipelines
-- **THEN** `clear_entry_values.comp.spv` and `clear_entry_values_push.comp.spv` are loaded from `solver/XPBDSolver/`
-- **AND** a compute pipeline is created for each
+- **THEN** `clear_entry_values.comp.spv` is loaded from `solver/XPBDSolver/`
+- **AND** a compute pipeline is created for it
 - **AND** `clear_int_buffer.comp.spv` is still loaded separately for the flat clears
+- **AND** `clear_entry_values_push.comp.spv` is neither loaded nor present
 
 #### Scenario: Model matrix shader is loaded from the shared directory
 
@@ -167,14 +186,16 @@ The counted clear SHALL exist in one form per count source, following the conven
 
 ### Requirement: XPBD solver loads and dispatches multiple compute shaders
 
-XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, collision detection (broad and narrow phase via the detector classes), entry-list construction (one pass per constraint type), radix sorting, accumulator clearing, contact position delta accumulation (scatter), per-body segmented reduction via `SumByKey`, body position delta application, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.
+XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, collision detection (broad and narrow phase via the detector classes), contact entry-list construction, radix sorting, accumulator clearing, contact position delta accumulation (scatter), per-body segmented reduction via `SumByKey`, body position delta application, the hinge and fixed joint color passes, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.
 
 Each solver pass SHALL be a separate `.comp` file under `engine/Physics/shader/solver/XPBDSolver/` following the existing source layout convention. Algorithm shaders owned by `gpu_algorithm` classes (radix sort, `SumByKey`) SHALL live under `engine/Physics/shader/algorithm/`.
+
+The joint color passes SHALL be the only joint constraint dispatches: there SHALL be no joint entry-list construction, no joint radix sort, no joint segmented reduction and no joint per-body apply pass.
 
 #### Scenario: All XPBD shaders are loaded on first Step call
 
 - **WHEN** `XPBDGpuSolver::Step` is called for the first time
-- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, entry-list construction, accumulate/apply position deltas, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and the `SumByKey`/`RadixSort` algorithm modules
+- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, contact entry-list construction, accumulate/apply position deltas, the joint color passes, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and the `SumByKey`/`RadixSort` algorithm modules
 - **AND** a compute kernel exists for each
 
 #### Scenario: Algorithm shaders load through their owning classes
@@ -185,7 +206,7 @@ Each solver pass SHALL be a separate `.comp` file under `engine/Physics/shader/s
 
 ### Requirement: Physics SPIR-V loading is centralized in one helper
 
-`engine/Physics/` SHALL provide a single shared helper that reads a physics `.spv` file given its source-relative path, resolving it against `ENGINE_PHYSICS_SPIRV_DIR`. Every physics component that needs a precompiled shader — solver, detectors and `gpu_algorithm` classes alike — SHALL use that helper.
+`engine/Physics/` SHALL provide a single shared helper that reads a physics `.spv` file given its source-relative path, resolving it against the runtime-resolved physics SPIR-V root. Every physics component that needs a precompiled shader — solver, detectors and `gpu_algorithm` classes alike — SHALL use that helper.
 
 Component-local copies of the loading helper SHALL NOT exist, and the helper SHALL be the only place that performs the file read and the size validation.
 
@@ -193,7 +214,7 @@ The same module path SHALL be the shader's compute kernel identity, and the help
 
 #### Scenario: One loader serves every component
 
-- **WHEN** `engine/Physics/` is searched for functions that read a `.spv` file from `ENGINE_PHYSICS_SPIRV_DIR`
+- **WHEN** `engine/Physics/` is searched for functions that read a `.spv` file from the physics SPIR-V root
 - **THEN** exactly one such helper exists
 - **AND** the solver, both detectors and all `gpu_algorithm` classes call it
 

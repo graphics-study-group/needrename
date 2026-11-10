@@ -25,7 +25,9 @@ The change SHALL add a `PhysicsApp` shared library in a new `app/physics/` direc
 - **THEN** a unique-ownership `PhysicsApp` instance is returned
 
 ### Requirement: Create performs full initialization
-`PhysicsApp::Create(CreateInfo)` SHALL perform full initialization internally: `MainClass::Initialize`, `LoadBuiltinAssets`, and `LoadProject` (project `empty_with_sky`). Asset and project paths SHALL be read from `cmake_config.h` macros (`ENGINE_BUILTIN_ASSETS_DIR`, `ENGINE_PROJECTS_DIR`) for this iteration. `CreateInfo` SHALL carry window resolution and window title only. Initialization failure SHALL throw.
+`PhysicsApp::Create(CreateInfo)` SHALL perform full initialization internally: `MainClass::Initialize`, `LoadBuiltinAssets`, and `LoadProject` (the built-in default project, which ships without skybox texture data). Asset and project paths SHALL be read from `cmake_config.h` macros (`ENGINE_BUILTIN_ASSETS_DIR`, `ENGINE_PROJECTS_DIR`) for this iteration. `CreateInfo` SHALL carry execution mode, window resolution, window title, a background clear color, and physics timing knobs: `physics_time_step` (seconds per `Step`, `0` keeps the engine default of 1/60 s), `physics_substeps` (`0` keeps the default), and `physics_iterations` (`0` keeps the default). Initialization failure SHALL throw.
+
+The physics timing knobs SHALL reach the solver's configuration at creation time only — the engine's startup options and main-class state SHALL NOT carry physics fields.
 
 #### Scenario: Consumer does not touch MainClass
 - **WHEN** a consumer calls `PhysicsApp::Create`
@@ -34,6 +36,14 @@ The change SHALL add a `PhysicsApp` shared library in a new `app/physics/` direc
 #### Scenario: Paths come from cmake_config
 - **WHEN** `Create` is called
 - **THEN** builtin assets and project directories are taken from `ENGINE_BUILTIN_ASSETS_DIR` and `ENGINE_PROJECTS_DIR` macros
+
+#### Scenario: Physics timing knobs reach the solver
+- **WHEN** `Create` is called with `physics_time_step = 0.005` and the scene is committed and stepped
+- **THEN** each `Step` advances the simulation by 0.005 s
+
+#### Scenario: Zero knobs keep engine defaults
+- **WHEN** `Create` is called with the physics timing knobs at their zero defaults
+- **THEN** the solver uses the engine's default time step, substep count, and iteration count
 
 ### Requirement: Two-phase state machine with scene freeze
 `PhysicsApp` SHALL enforce a one-way two-phase state machine: `Building` (after Create) → `Committed` (after `CommitScene`). During Building, build APIs SHALL be legal and drive APIs (`Step`, `RenderNextFrame`, `Pause`, `Resume`) SHALL throw `std::logic_error`. After Commit, build APIs SHALL throw `std::logic_error` (scene freeze, preventing physics scene refresh), drive APIs SHALL be legal, and a second `CommitScene` SHALL throw `std::logic_error`. `ShouldQuit` and `SetCameraPose` SHALL be legal in both phases. Runtime controls (pause/resume, camera) SHALL NOT be considered scene changes.
@@ -124,7 +134,7 @@ The model matrices buffer SHALL be obtained from the render system; `CommitScene
 
 ### Requirement: Step executes one pure physics step
 
-`Step` SHALL advance the physics simulation by one fixed step (XpbdConfig timestep 1/60) using a dedicated command buffer, with device-level waitIdle before and after the physics submission. `Step` SHALL NOT process input events. Consecutive `Step` calls SHALL be allowed (physics fast-forward without rendering). While paused, `Step` SHALL remain callable and the solver layer SHALL no-op.
+`Step` SHALL advance the physics simulation by one fixed step using a dedicated command buffer, with device-level waitIdle before and after the physics submission. The step time SHALL be the `physics_time_step` given at `Create` (engine default 1/60 s when zero). `Step` SHALL NOT process input events. Consecutive `Step` calls SHALL be allowed (physics fast-forward without rendering). While paused, `Step` SHALL remain callable and the solver layer SHALL no-op.
 
 Because the step no longer produces model matrices as a side effect, `Step` SHALL also produce model matrices into the render system's buffer on the same command buffer after the step, so that a render frame following a step observes the poses that step produced.
 
@@ -143,6 +153,11 @@ Because the step no longer produces model matrices as a side effect, `Step` SHAL
 - **WHEN** `Step` advances the simulation and `RenderNextFrame` is called afterwards
 - **THEN** the model matrices read by the render frame correspond to the poses the step produced
 - **AND** the model matrices were recorded on the same command buffer as the step
+
+#### Scenario: Configured time step is used
+
+- **WHEN** the app was created with `physics_time_step = 0.005` and `Step` is called
+- **THEN** the simulation advances by 0.005 s rather than the 1/60 s default
 
 ### Requirement: RenderNextFrame processes input and renders one frame
 `RenderNextFrame` SHALL process SDL events and input updates, update the camera, update renderer data, and execute one render frame (StartFrame → record all render graph passes → CompleteFrame). If StartFrame reports a swapchain-out-of-date failure, the frame SHALL be skipped without throwing.
@@ -178,3 +193,27 @@ The app SHALL be built exclusively on existing public interfaces (MainClass gett
 #### Scenario: Example main is thin
 - **WHEN** the rewritten example is inspected
 - **THEN** it contains no render graph construction, no camera construction, and no MainClass initialization calls
+
+### Requirement: Background clear color instead of skybox
+`CreateInfo` SHALL carry a background color (linear rgb, default black). The
+rendered frame background SHALL be that solid color: no skybox material or
+cubemap texture SHALL be drawn, and the built-in default project SHALL contain
+no skybox material reference or cubemap texture data. Lighting of scene objects
+SHALL remain driven by the directional light API and shadows, unaffected by the
+background.
+
+#### Scenario: Default background is black
+- **WHEN** an app is created without setting the background color and an
+  offscreen frame of an empty scene is read back
+- **THEN** pixels not covered by geometry are black
+
+#### Scenario: Configured background color renders
+- **WHEN** an app is created with a non-black background color and an offscreen
+  frame is read back
+- **THEN** pixels not covered by geometry match the configured color (within
+  tonemapping tolerance)
+
+#### Scenario: Default project ships no skybox data
+- **WHEN** the shipped default project directory is inspected
+- **THEN** it contains no cubemap texture files and its level asset references
+  no skybox material

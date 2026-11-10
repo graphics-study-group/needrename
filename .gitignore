@@ -3,6 +3,9 @@
 CMakeFiles/
 __*
 __generated__
+# Python packages own their __init__.py, so the generated-code pattern above
+# must not hide it.
+!**/__init__.py
 
 CMakeCache.txt
 CMakeUserPresets.json

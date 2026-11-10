@@ -2,6 +2,7 @@
 #define ENGINE_PHYSICS_PHYSICSSCENE_INCLUDED
 
 #include "PhysicsDescriptors.h"
+#include "PhysicsJointColoring.h"
 
 #include <AnnoRefl/macros.h>
 #include <AnnoRefl/serialization_glm.h>
@@ -9,6 +10,7 @@
 #include <gtc/quaternion.hpp>
 
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace Engine {
@@ -89,11 +91,23 @@ namespace Engine {
             const Rhi::ComputeBuffer *gpu_fixed_joint_alive{};
             const Rhi::ComputeBuffer *gpu_hinge_joints{};
             const Rhi::ComputeBuffer *gpu_hinge_joint_alive{};
+            const Rhi::ComputeBuffer *gpu_fixed_joint_color_ids{};
+            const Rhi::ComputeBuffer *gpu_fixed_joint_color_offsets{};
+            const Rhi::ComputeBuffer *gpu_hinge_joint_color_ids{};
+            const Rhi::ComputeBuffer *gpu_hinge_joint_color_offsets{};
 
             uint32_t rigid_body_slot_count{0};
             uint32_t shape_slot_count{0};
             uint32_t fixed_joint_count{0};
             uint32_t hinge_joint_count{0};
+            uint32_t fixed_joint_color_count{0};
+            uint32_t hinge_joint_color_count{0};
+
+            /// Per-color slice starts on the CPU, so the solver can bound each
+            /// color's dispatch without reading the offsets buffer back.
+            /// Size is `*_joint_color_count + 1`.
+            std::span<const uint32_t> fixed_joint_color_ranges{};
+            std::span<const uint32_t> hinge_joint_color_ranges{};
         };
 
         PhysicsGpuBuffers GetGpuBuffers() const noexcept;
@@ -168,10 +182,19 @@ namespace Engine {
         std::vector<uint32_t> m_fixed_joint_alive{};
         std::vector<HingeJointComDescriptor> m_hinge_joints{};
         std::vector<uint32_t> m_hinge_joint_alive{};
+        JointColorBuckets m_fixed_joint_colors{};
+        JointColorBuckets m_hinge_joint_colors{};
+        bool m_joint_colors_dirty{true};
+        uint32_t m_fixed_joint_color_count{0};
+        uint32_t m_hinge_joint_color_count{0};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_fixed_joints{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_fixed_joint_alive{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_hinge_joints{};
         std::unique_ptr<Rhi::ComputeBuffer> m_gpu_hinge_joint_alive{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_fixed_joint_color_ids{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_fixed_joint_color_offsets{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_hinge_joint_color_ids{};
+        std::unique_ptr<Rhi::ComputeBuffer> m_gpu_hinge_joint_color_offsets{};
 
         std::vector<uint32_t> m_shape_filter_data{};
 

@@ -34,6 +34,16 @@ namespace Engine {
         uint32_t max_cells_per_shape = 8;
         uint32_t max_global_shape_count = 128;
         uint32_t fallback_all_pairs_threshold = 32;
+
+        /**
+         * @brief Largest joint color the single-workgroup sweep may process.
+         *
+         * When every color of a joint type holds at most this many joints, the
+         * whole color sequence is recorded as one dispatch whose only workgroup
+         * walks the colors in order. Otherwise each color gets its own dispatch.
+         * Zero disables the sweep.
+         */
+        uint32_t joint_sweep_max_color_width = 64u;
     };
 
     /**
@@ -80,6 +90,17 @@ namespace Engine {
         struct Impl;
         std::unique_ptr<Impl> m_impl;
     };
+
+    /**
+     * @brief Engine default configuration for the XPBD solver.
+     *
+     * Single source of truth for the defaults used when a project registers
+     * the default solver. Callers that need to override a knob start from this
+     * configuration and change only that field.
+     *
+     * @return A configuration holding the engine's default solver values.
+     */
+    PHYSICS_API XpbdConfig MakeDefaultSolverConfig();
 } // namespace Engine
 
 #endif // ENGINE_PHYSICS_XPBDGPUSOLVER_INCLUDED

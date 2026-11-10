@@ -1,0 +1,67 @@
+# Build configuration for the `needrename-sim` Python distribution package.
+#
+# scikit-build-core drives the engine's own CMake build (source directory `..`),
+# installs the runtime into the wheel under `needrename_sim/`, and copies the
+# Python sources from `src/needrename_sim/` next to them. The result is a
+# self-contained wheel: `import needrename_sim` resolves the bundled DLLs and
+# data root without any environment variables.
+#
+# Building requires the full engine toolchain (VS2026, Vulkan SDK, SDL3 via
+# SDL3_ROOT, and a Python interpreter with the reflection parser requirements);
+# consuming the wheel needs only Python and a GPU driver. See README.md.
+
+[build-system]
+# scikit-build-core drives the CMake build. `libclang` and `mako` are the
+# reflection parser's requirements: the isolated build environment's interpreter
+# is the one CMake picks as `Python3_EXECUTABLE`, so it must be able to import
+# them. nanobind itself comes from the `third_party/nanobind` submodule.
+requires = ["scikit-build-core>=0.10", "libclang", "mako"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "needrename-sim"
+version = "0.1.0"
+description = "Python bindings for the needrename PhysicsApp GPU physics simulator"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [{ name = "needrename" }]
+keywords = ["physics", "simulation", "robotics", "vulkan", "reinforcement-learning"]
+classifiers = [
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: C++",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = ["numpy>=1.26"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.scikit-build]
+minimum-version = "0.10"
+# Persistent, incremental build tree shared by repeated wheel builds. It lives
+# under the repository's build/ root, next to the CMake preset trees; relative
+# paths in `build-dir` resolve against this directory (the PEP 517 source dir).
+# A developer build reuses `build/msvc` instead and never invokes scikit-build.
+build-dir = "../../build/python/{wheel_tag}"
+cmake.source-dir = "../.."
+cmake.build-type = "Release"
+# Python sources of the package.
+wheel.packages = ["src/needrename_sim"]
+# CMake installs (DLLs, data root) land inside the package directory.
+wheel.install-dir = "needrename_sim"
+# `runtime` = shared libraries + built-in assets + physics SPIR-V,
+# `apps-data` = the default project. No examples/test data, no SDK headers.
+install.components = ["runtime", "apps-data"]
+
+[tool.scikit-build.cmake.define]
+ENGINE_BUILD_TESTS = "OFF"
+ENGINE_BUILD_EXAMPLES = "OFF"
+ENGINE_BUILD_DOCS = "OFF"
+ENGINE_BUILD_APPS = "ON"
+ENGINE_BUILD_TOOLS = "ON"
+ENGINE_BUILD_PYTHON_BINDINGS = "ON"
+ENGINE_SHADER_MODE = "spv"
+# Ship only the default project: no sample content, no robot assets, no cubemap.
+ENGINE_SHIPPED_PROJECTS = "empty_with_sky"
