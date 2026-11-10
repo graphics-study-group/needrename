@@ -2,14 +2,14 @@ include_guard(GLOBAL)
 
 # Runtime data staging for one build configuration.
 #
-# The data root this build produces is `share/needrename` inside the
-# configuration's run directory, so the executables the linker writes there find
-# it by proximity - no environment variable, no build-machine path. It is built
-# category by category, and every category is its own command with its own stamp
-# and its own source-file dependencies, because the categories change at very
-# different rates and one of them is expensive: editing a sample asset must not
-# re-run the shader bake, and a rebuild with nothing changed must run nothing at
-# all.
+# The data root this build produces is `share/needrename` in the configuration's
+# prefix (`output/<config>`), one level above the `bin/` the linker writes into, so
+# the programs find it by the same rule an installed one uses - no environment
+# variable, no build-machine path. It is built category by category, and every
+# category is its own command with its own stamp and its own source-file
+# dependencies, because the categories change at very different rates and one of
+# them is expensive: editing a sample asset must not re-run the shader bake, and a
+# rebuild with nothing changed must run nothing at all.
 #
 #   builtin_assets/   the built-in asset database in the configuration's shader form
 #                     (baked by the shader baker, WGSL included for WebGPU)
@@ -18,8 +18,8 @@ include_guard(GLOBAL)
 #   test_data/        test fixtures
 #   spirv/            physics modules, staged by engine/Physics
 #
-# Assembly into a runnable product, and into an install prefix, is a separate
-# step (`needrename_stage_runtime`): the build only produces this tree.
+# The build tree is the prefix here, so nothing has to be assembled for a run; the
+# staging commands are also the only source of the data an install copies.
 
 set(ENGINE_STAGE_DIR "${ENGINE_DATA_STAGE_DIR}")
 set(ENGINE_STAGE_STAMPS_DIR "${ENGINE_STAGE_DIR}/.stamps")
@@ -151,8 +151,8 @@ endif()
 set_target_properties(runtime_data_stage PROPERTIES FOLDER build)
 
 # The category stamps, for consumers that need file-level dependencies rather
-# than a phony target: an assembled product is out of date exactly when one of
-# these is, so depending on them keeps a no-op build free of recopying.
+# than a phony target: the Python package's assembly is out of date exactly when
+# one of these is, so depending on them keeps a no-op build free of recopying.
 set(ENGINE_STAGED_DATA_STAMPS
     "${ENGINE_STAGED_BUILTIN_ASSETS_STAMP}"
     "${ENGINE_STAGED_ASSETS_STAMP}"

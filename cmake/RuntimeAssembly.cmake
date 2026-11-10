@@ -2,14 +2,15 @@ include_guard(GLOBAL)
 
 # --- Runtime assembly -------------------------------------------------------
 #
-# The build produces two things per configuration: binaries in the run directory
-# (`bin/<config>`) and a data root inside it (`bin/<config>/share/needrename`),
-# which is what lets a build-tree executable resolve its data by proximity.
-# Assembly copies them into a directory laid out exactly like an installed prefix,
-# using the same install rules a distribution uses. That is the point of the
-# function: a development product and a shipped prefix cannot drift, because the
-# development product is `cmake --install` of the same rules, just pointed at a
-# different prefix.
+# A native build writes its programs into `output/<config>/bin` and stages its data
+# root next to them in `output/<config>/share/needrename`; that tree is the install
+# prefix, so no assembly is needed for a development run. A *second* prefix is still
+# assembled where the layout differs from the build tree - the Python development
+# package, whose package root holds `share/needrename`, `bin/` and the extension -
+# and a distribution install is the same rules pointed at any other prefix.
+#
+# That is the point of the function: the development package and a shipped prefix
+# cannot drift, because both are `cmake --install` of the same rules.
 #
 # Roles, stated once:
 #   - `build` compiles and preprocesses (shader bake, physiology modules, staging);

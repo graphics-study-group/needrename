@@ -17,8 +17,8 @@ anro_add_test(mrt_test WINDOWED FRAMES 120 TIMEOUT 300 FOLDER tests/engine/windo
 # same scene and camera; every backend is asked to reproduce it byte for byte, so a change that
 # renders "roughly right" on one backend and differently on the other fails here.
 #
-# Both the test and its fixture come from the assembled product: the fixture is the copy that
-# travels with this configuration, so the comparison is against what the build shipped.
+# Both the test and its fixture come from the build tree: the fixture is the copy that travels with
+# this configuration, so the comparison is against what the build staged.
 add_test(
     NAME skybox_golden_test
     COMMAND

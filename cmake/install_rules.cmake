@@ -117,7 +117,7 @@ endif()
 # Every data component is installed from the configuration's staging tree, never
 # from the checkout: install copies what the build produced, including the baked
 # shaders and the physics modules. Staging is what decides a category's form, so
-# an install and a build-tree product carry the same bytes. The category stamps
+# an install and the build tree carry the same bytes. The category stamps
 # (ENGINE_STAGED_DATA_STAMPS, from RuntimeData.cmake) are the assembly
 # dependencies, because a stamp changes exactly when its category was restaged.
 
@@ -363,40 +363,6 @@ install(
     COMPONENT test-data
     ${ENGINE_TEST_INSTALL_EXCLUSION}
 )
-
-# --- Development product ---------------------------------------------------
-# `output/<config>` is a runnable copy of this configuration: the binaries, and
-# the data root beside them, assembled by the same install rules a distribution
-# uses. It is not a distribution format - it carries test executables and is
-# rebuilt by the build - but it is what a developer starts, and starting it needs
-# no environment variable because the locator finds `../share/needrename`.
-if (NOT EMSCRIPTEN)
-    set(ENGINE_PRODUCT_DEPENDS ${ENGINE_STAGED_DATA_STAMPS})
-
-    # Target names, not `$<TARGET_FILE:...>`: a name makes CMake order the
-    # assembly after the target is built on every generator, while the file form
-    # only states a file dependency the Visual Studio generator does not turn into
-    # project ordering.
-    foreach(product_target IN LISTS
-            ENGINE_EXPORT_LIBRARY_TARGETS
-            ENGINE_RUNTIME_ONLY_TARGETS
-            ENGINE_EXAMPLE_EXECUTABLES
-            ENGINE_TEST_TARGETS)
-        if (TARGET ${product_target})
-            list(APPEND ENGINE_PRODUCT_DEPENDS ${product_target})
-        endif()
-    endforeach()
-    if (TARGET _physicsapp)
-        list(APPEND ENGINE_PRODUCT_DEPENDS _physicsapp)
-    endif()
-
-    needrename_stage_runtime(
-        TARGET product_stage
-        PREFIX "${ENGINE_PRODUCT_DIR}"
-        COMPONENTS runtime apps-data examples examples-data test-data
-        DEPENDS ${ENGINE_PRODUCT_DEPENDS}
-    )
-endif()
 
 # --- Packaging ------------------------------------------------------------
 option(ENGINE_PACKAGE_ZIP "Produce a CPack ZIP archive of the install layout" ON)

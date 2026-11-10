@@ -1,13 +1,11 @@
 // data_root_test.cpp — the runtime data locator, checked read-only.
 //
-// The test runs twice (see test/unit/core/CMakeLists.txt): from the assembled
-// product, where the data root is `<prefix>/share/needrename` one level above the
-// executables, and from the build tree's run directory, where this build stages
-// `<run dir>/share/needrename`. Both are found by proximity, so the test expects
-// whichever directory exists beside its own and asserts that resolution, the
-// categories beneath it, and that the explicit override still wins - without ever
-// creating or deleting a directory. A test is not allowed to build a fake layout
-// where it runs, because that is the real product's data root and a stray
+// The test runs from the configuration's prefix - this build tree, `output/<config>`
+// - so the data root it must find is the one the build produced:
+// `share/needrename` one level above the executable's directory. It asserts that
+// resolution, the categories beneath it, and that the explicit override still wins
+// - without ever creating or deleting a directory. A test is not allowed to build a
+// fake layout where it runs, because that is the real prefix and a stray
 // `remove_all` there would delete the build.
 
 #include <Core/FileSystem/DataRoot.h>
@@ -48,31 +46,20 @@ namespace {
 } // namespace
 
 int main() {
-    // --- Proximity: the data root this build produced, with no override ------
+    // --- Proximity: the prefix this build produced, with no override ---------
     SDL_unsetenv_unsafe(k_data_root_env_var);
     Engine::ResetDataRootCache();
 
-    // Which of the two layouts is this: the build tree stages the data root
-    // inside the run directory, a product keeps it one level above the binaries.
-    const std::filesystem::path run_directory_root = ExecutableDirectory() / "share" / "needrename";
-    const bool from_build_tree = std::filesystem::is_directory(run_directory_root);
-    const std::filesystem::path expected_root =
-        from_build_tree ? run_directory_root : ExecutableDirectory() / ".." / "share" / "needrename";
-    const Engine::DataRootSource expected_source =
-        from_build_tree ? Engine::DataRootSource::BuildTree : Engine::DataRootSource::Installed;
-
+    const std::filesystem::path expected_root = ExecutableDirectory() / ".." / "share" / "needrename";
     {
         const Engine::DataRootResolution &resolution = Engine::ResolveDataRoot();
         Check(
-            resolution.source == expected_source,
-            from_build_tree
-                ? "the build tree's data root resolves beside the executable"
-                : "the product's data root resolves from the executable's own directory"
+            resolution.source == Engine::DataRootSource::Installed,
+            "the prefix's data root resolves from the executable's own directory"
         );
         Check(
             Canonical(Engine::DataRoot()) == Canonical(expected_root),
-            from_build_tree ? "data root is <executable dir>/share/needrename"
-                            : "data root is <executable dir>/../share/needrename"
+            "data root is <executable dir>/../share/needrename"
         );
     }
 
@@ -109,8 +96,8 @@ int main() {
     // --- The explicit override wins over proximity ---------------------------
     // Pointing it at the same root is enough to prove precedence, and it leaves
     // the filesystem untouched.
-    const std::string resolved_root = Canonical(expected_root).string();
-    SDL_setenv_unsafe(k_data_root_env_var, resolved_root.c_str(), 1);
+    const std::string product_root = Canonical(expected_root).string();
+    SDL_setenv_unsafe(k_data_root_env_var, product_root.c_str(), 1);
     Engine::ResetDataRootCache();
     {
         const Engine::DataRootResolution &resolution = Engine::ResolveDataRoot();

@@ -67,11 +67,12 @@ else()
     install(FILES "${PHYSICSAPP_STUB_FILE}" DESTINATION share/needrename/python COMPONENT runtime)
 endif()
 
-# The development package is assembled by the same function the development
-# product uses: install components `runtime` and `apps-data` into a prefix, then
-# copy the Python package sources beside them. Nothing here decides which files a
-# distribution carries - the install rules do - so the package cannot drift from
-# an install.
+# The development package is assembled by the install rules: install components
+# `runtime` and `apps-data` into a prefix, then copy the Python package sources
+# beside them. The prefix differs from the build tree's (`output/<config>`), whose
+# package root is the prefix itself, so this is the one place that assembles a
+# second layout. Nothing here decides which files a distribution carries - the
+# install rules do - so the package cannot drift from an install.
 set(PYTHON_DEV_ROOT "${CMAKE_BINARY_DIR}/python/$<CONFIG>")
 set(PYTHON_DEV_PACKAGE_DIR "${PYTHON_DEV_ROOT}/needrename_sim")
 # Stamps are files, targets are names: a name orders the assembly after the target

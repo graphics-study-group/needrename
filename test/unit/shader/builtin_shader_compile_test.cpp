@@ -11,7 +11,7 @@
 namespace {
     /// @brief The directory holding the built-in GLSL sources for this checkout.
     ///
-    /// An assembled product that ships baked archives has no GLSL sources by
+    /// A staged data root that carries baked archives has no GLSL sources by
     /// design, and this test's whole point is to compile them, so it reads the
     /// source tree rather than the resolved data root.
     ///

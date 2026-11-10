@@ -50,7 +50,7 @@ link), the normal build assembles a self-contained package in
 `build/msvc/python/Debug/needrename_sim/` (Release uses `.../Release/`). It
 contains the Python sources, extension and stub, engine DLLs, built-in assets,
 physics SPIR-V, and project templates. The package is assembled by the same
-install rules and the same function as the development product - install
+install rules and the same function a distribution install uses - install
 components into a prefix, then copy the Python sources - so its inventory cannot
 drift from an install. Each configuration has its own package, so their files
 cannot mix. scikit-build-core runs only when packaging a wheel.

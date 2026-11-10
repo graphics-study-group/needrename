@@ -123,17 +123,17 @@ cmake --preset linux-debug
 # Build
 cmake --build --preset linux-debug
 
-# Test (runs the assembled product's executables)
+# Test (runs the build tree's executables)
 ctest --preset linux-debug
 
-# Run a product executable from any directory
+# Run an executable from any directory
 ./build/debug/output/Debug/bin/physics_rigid_body_example 300
 ```
 
-A `linux-release` preset is also available. Each configuration stages its data
-root inside its run directory (`build/<tree>/bin/`), so an executable started
-there resolves it by proximity too. The build also assembles an install-shaped
-product in `build/<tree>/output/<config>/`, with `share/needrename/` beside `bin/`.
+A `linux-release` preset is also available. Each configuration is laid out as an
+install prefix in `build/<tree>/output/<config>/`: executables in `bin/` and the
+staged data root in `share/needrename/` beside them, so a program started there
+finds its data by proximity.
 
 ## Install and SDK
 

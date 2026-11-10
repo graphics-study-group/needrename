@@ -83,9 +83,9 @@ if (WIN32)
     message(STATUS "DXC runtime: ${_dxc_runtime_dir}")
 
     add_custom_target(dawn_dxc_stage
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${DXC_RUNTIME_FILES} "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>"
+            ${DXC_RUNTIME_FILES} "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
         COMMENT "Staging Dawn's DXC runtime DLLs"
         VERBATIM
     )

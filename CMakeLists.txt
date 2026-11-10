@@ -89,8 +89,24 @@ set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
 if (NOT EMSCRIPTEN)
     set(BUILD_SHARED_LIBS ON)
 endif()
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+# A native build's run directory is also its install prefix: `bin/` with the
+# programs, and `share/needrename/` with the data root staged beside them. Both are
+# written into `output/<config>`, so the build produces the layout a distribution
+# has, and a start needs no environment variable. The browser build has no prefix -
+# its pages are served from `bin` - and the host-tools build produces one tool with
+# no runtime data, so both keep the plain directory.
+if (EMSCRIPTEN)
+    set(ENGINE_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin")
+    set(ENGINE_DATA_STAGE_DIR "${ENGINE_RUNTIME_DIR}/share/needrename")
+elseif (ENGINE_HOST_TOOLS_ONLY)
+    set(ENGINE_RUNTIME_DIR "${CMAKE_BINARY_DIR}/bin")
+else()
+    set(ENGINE_PRODUCT_DIR "${CMAKE_BINARY_DIR}/output/$<CONFIG>")
+    set(ENGINE_RUNTIME_DIR "${ENGINE_PRODUCT_DIR}/bin")
+    set(ENGINE_DATA_STAGE_DIR "${ENGINE_PRODUCT_DIR}/share/needrename")
+endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${ENGINE_RUNTIME_DIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${ENGINE_RUNTIME_DIR}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
 if (UNIX)
@@ -132,26 +148,6 @@ endif()
 include(cmake/ShaderTooling.cmake)
 
 if (NOT ENGINE_HOST_TOOLS_ONLY)
-    # The directory this configuration's executables and shared libraries are
-    # written to. Multi-configuration generators append the configuration name to
-    # CMAKE_RUNTIME_OUTPUT_DIRECTORY; single-configuration ones use it as-is.
-    if (CMAKE_CONFIGURATION_TYPES)
-        set(ENGINE_RUNTIME_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
-    else()
-        set(ENGINE_RUNTIME_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-    endif()
-
-    # Where this configuration's data root lives, and where the assembled
-    # development product goes. The data root sits inside the run directory, under
-    # `share/needrename`, so a build-tree executable resolves it by proximity with
-    # no environment variable and no build-machine path - the same step an
-    # installed executable uses one directory higher. It cannot be
-    # `<run dir>/../share`: a multi-configuration build shares that directory
-    # between configurations, and the data is per configuration (shader form,
-    # baked physics modules). The product carries the configuration name
-    # explicitly, so single- and multi-configuration generators agree on layout.
-    set(ENGINE_DATA_STAGE_DIR "${ENGINE_RUNTIME_DIR}/share/needrename")
-    set(ENGINE_PRODUCT_DIR "${CMAKE_BINARY_DIR}/output/$<CONFIG>")
     add_subdirectory(engine)
     include(cmake/RuntimeData.cmake)
     include(cmake/RuntimeAssembly.cmake)

@@ -66,7 +66,7 @@ The shared `msvc` preset sets `Python3_EXECUTABLE` to `${sourceDir}/.venv/Script
 
 ## Build Steps
 
-The `msvc` presets use the **Visual Studio multi-config** generator: one build tree holds both configurations, and the output paths include the config name. The linker writes to `build/msvc/bin/<Config>/`, and this build stages its data root inside that directory (`bin/<Config>/share/needrename/`), so an executable started there finds its data by proximity. The build also assembles an install-shaped product in `build/msvc/output/<Config>/` - the same binaries beside `share/needrename/`. No Developer PowerShell / vcvars setup is needed — CMake locates Visual Studio itself.
+The `msvc` presets use the **Visual Studio multi-config** generator: one build tree holds both configurations, and the output paths include the config name. Each configuration is laid out as an install prefix under `build/msvc/output/<Config>/`: the linker writes the executables and DLLs to `bin/`, and the build stages the data root in `share/needrename/` beside them, so a program started there finds its data by proximity. No Developer PowerShell / vcvars setup is needed — CMake locates Visual Studio itself.
 
 ```powershell
 # Configure (Debug and Release live in the same build/msvc tree)
@@ -75,11 +75,11 @@ cmake --preset msvc
 # Build Debug
 cmake --build --preset msvc-debug
 
-# Test Debug (runs the assembled product's executables)
+# Test Debug (runs the build tree's executables)
 ctest --preset msvc-debug
 
-# Run an executable from the product, from any directory
-& build\msvc\output\Debug\physics_rigid_body_example.exe 300
+# Run an executable from the build tree, from any directory
+& build\msvc\output\Debug\bin\physics_rigid_body_example.exe 300
 
 # Build Release
 cmake --build --preset msvc-release
@@ -91,9 +91,9 @@ Equivalent direct commands: `cmake --build build/msvc --config Debug`, `ctest -C
 
 `cmake --install` produces a self-contained prefix (`bin/` with every DLL,
 `share/needrename/` data root, `include/`, `lib/cmake/needrename`); the same
-prefix is a CMake package other projects can link against. The build tree's
-`output/<Config>/` is the same layout, assembled from the same install rules, so
-what you run while developing is what an install produces.
+prefix is a CMake package other projects can link against. The build tree already
+has that layout in `output/<Config>/`, so what you run while developing is what an
+install produces.
 
 ```powershell
 cmake --build --preset msvc-release

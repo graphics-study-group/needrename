@@ -57,10 +57,10 @@ The engine is split into modular shared libraries (DLLs) with one-way dependenci
 - **EngineEditor** — Engine editor, loaded by the editor example executable
 - **tests** — Executable demos and test cases (runnable via CTest)
 
-All executables and DLLs are written to `bin/<Config>/` (import libraries to `lib/<Config>/`), and
-this build stages its data root inside that same directory (`bin/<Config>/share/needrename/`) - so a
-start needs no environment variable. Each build also assembles an install-shaped product in
-`output/<Config>/` from the same install rules.
+A configuration's build tree is laid out as an install prefix: executables and DLLs go to
+`output/<Config>/bin/` (import libraries to `lib/<Config>/`), and the data root is staged beside them
+in `output/<Config>/share/needrename/`, so a start needs no environment variable. `cmake --install`
+produces the same layout at any prefix.
 
 ## Key Features
 

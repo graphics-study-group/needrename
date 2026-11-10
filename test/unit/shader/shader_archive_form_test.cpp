@@ -65,9 +65,9 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    // The test runs from the assembled product, so its own data root is the one
-    // this build produced: that is what gets validated, and it is validated the
-    // way a run finds it - by proximity, with no override.
+    // The test runs from the build tree, so its own data root is the one this
+    // build staged: that is what gets validated, and it is validated the way a
+    // run finds it - by proximity, with no override.
     SDL_unsetenv_unsafe(k_data_root_env_var);
     Engine::ResetDataRootCache();
 

@@ -46,17 +46,15 @@ function(anro_add_test target)
         list(APPEND test_args ${TEST_FRAMES})
     endif()
 
-    # A test runs from the assembled product: that is the installed shape, so the
-    # suite exercises the layout a distribution ships as well as the proximity
-    # rule. The build tree's own run directory is covered separately
-    # (`data_root_build_tree`, from test/unit/core). `product_stage` is part of the
-    # default build, so a test binary and its product are both present after
-    # `cmake --build`.
+    # A test runs from this configuration's prefix. The build tree is laid out as an
+    # install - programs in `bin/`, the data root in `share/needrename/` - so the
+    # suite exercises the shape a distribution ships and the locator's
+    # installed-layout step at once, with no assembly step in between.
     if (EMSCRIPTEN)
         add_test(NAME ${target} COMMAND ${target} ${test_args})
     else()
-        set(product_test "${ENGINE_PRODUCT_DIR}/bin/${target}${CMAKE_EXECUTABLE_SUFFIX}")
-        add_test(NAME ${target} COMMAND "${product_test}" ${test_args})
+        set(prefix_test "${ENGINE_PRODUCT_DIR}/bin/${target}${CMAKE_EXECUTABLE_SUFFIX}")
+        add_test(NAME ${target} COMMAND "${prefix_test}" ${test_args})
         # An empty override is the statement that no test needs one: the data root
         # must resolve without help. Setting it also clears an inherited value.
         set_tests_properties(${target} PROPERTIES ENVIRONMENT "NEEDRENAME_DATA_ROOT=")

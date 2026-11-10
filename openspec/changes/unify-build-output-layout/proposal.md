@@ -15,44 +15,40 @@ and any change re-ran the shader bake. Physics SPIR-V was staged for WebGPU only
 
 ## What Changes
 
-- **A staged data root per configuration, inside the run directory.** `bin/<config>` holds the
-  executables and, at `share/needrename`, `builtin_assets/` (in the configuration's shader form),
-  `assets/`, `projects/`, `spirv/` and `test_data/`, each produced by its own command with its own
-  stamp and its own source-file dependencies. Physics SPIR-V is staged for every backend, not only
-  WebGPU. A binary the linker just wrote therefore runs without setup.
-- **An assembled product per configuration.** `output/<config>/` is `bin/` plus
-  `share/needrename/` - the install layout, assembled from the install rules by
-  `cmake --install --component ...`. Keeping the product separate from `bin/<config>/` is what makes
-  the development product an install of the real rules rather than a hand-copied lookalike.
-- **One assembly function.** `needrename_stage_runtime()` assembles a prefix from install
-  components; the development product and the Python development package are both calls to it, and a
-  distribution install is the same rules pointed at another prefix.
+- **The build tree is the install prefix.** `output/<config>` holds `bin/` with the executables and
+  shared libraries, and `share/needrename` with the data root: `builtin_assets/` (in the
+  configuration's shader form), `assets/`, `projects/`, `spirv/` and `test_data/`, each produced by its
+  own command with its own stamp and its own source-file dependencies. There is no second tree and no
+  assembly copy, so a program the linker just wrote resolves its data without setup and the build
+  produces the shipped layout directly. Physics SPIR-V is staged for every backend, not only WebGPU.
+- **One assembly function, for the prefixes the build tree is not.** `needrename_stage_runtime()`
+  assembles a prefix from install components. The Python development package needs a different prefix
+  (its package root holds `share/needrename`, `bin/` and the extension), so it is assembled; a
+  distribution install is the same rules pointed at any prefix, and CPack zips them.
 - **No compile-time data path.** `ENGINE_DEV_*`, `ENGINE_PHYSICS_SPIRV_DIR` and the per-category
   fallbacks are deleted; the generated configuration header carries only layout constants. A run
-  resolves `NEEDRENAME_DATA_ROOT`, else `<executable dir>/../share/needrename`, else
-  `<executable dir>/share/needrename`, else fails. Both executable-relative steps are anchored on the
-  binary, so a build tree and an install each resolve their own configuration without an environment
-  variable, and `NEEDRENAME_DATA_ROOT` remains the explicit override.
-- **Tests consume the product.** `ctest` runs `output/<config>/bin/<test>` with
-  `NEEDRENAME_DATA_ROOT` cleared, so every test proves the proximity rule works. The redundant
-  staged-assets duplicate test is removed, the archive-form test validates the product, and the two
-  Vulkan tests that compile GLSL receive the source asset directory explicitly.
+  resolves `NEEDRENAME_DATA_ROOT`, else `<executable dir>/../share/needrename`, else fails. That one
+  executable-relative step covers both the build tree and an installed prefix, and
+  `NEEDRENAME_DATA_ROOT` remains the explicit override.
+- **Tests run the build tree.** `ctest` runs `output/<config>/bin/<test>` with `NEEDRENAME_DATA_ROOT`
+  cleared, so every test proves the proximity rule works in the layout a distribution ships. The
+  redundant staged-assets duplicate test is removed, the archive-form test validates the staged
+  shaders, and the two Vulkan tests that compile GLSL receive the source asset directory explicitly.
 - **Scratch leaves the tree.** The examples materialise their working project in the platform
-  temporary directory instead of the working directory, which may be the product directory.
+  temporary directory instead of the working directory, which may be the prefix.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `build-output-layout`: the contract for the build tree's directories - the run directory with the
-  data root staged inside it, and the assembled install-shaped product - what each contains, and that
-  each is the runtime data root of a run started from it.
+- `build-output-layout`: the contract for the build tree's layout - `output/<configuration>` holding
+  `bin/` and `share/needrename/`, that it is the install prefix, that the browser build keeps a flat
+  output directory, and that a program started there resolves its own configuration's data.
 
 ### Modified Capabilities
 
 - `runtime-data-resolution`: the resolution chain loses the compile-time developer fallback and the
-  per-category fallbacks, and gains the executable-relative build-tree step; a build-tree run and an
-  installed one each resolve by proximity.
+  per-category fallbacks; one executable-relative step resolves both the build tree and an install.
 
 ## Impact
 
