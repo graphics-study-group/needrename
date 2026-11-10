@@ -104,8 +104,6 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/integrate_forces.comp.spv`
 - `solver/XPBDSolver/update_shape_world_pose.comp.spv`
 - `solver/XPBDSolver/entries/contact_entries.comp.spv`
-- `solver/XPBDSolver/entries/hinge_entries.comp.spv`
-- `solver/XPBDSolver/entries/fixed_entries.comp.spv`
 - `solver/XPBDSolver/accumulate_contact_position.comp.spv`
 - `solver/XPBDSolver/apply_body_position_deltas.comp.spv`
 - `solver/XPBDSolver/update_velocities_from_pose.comp.spv`
@@ -114,12 +112,16 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/snapshot_position.comp.spv`
 - `solver/XPBDSolver/clear_int_buffer.comp.spv`
 - `solver/XPBDSolver/clear_entry_values.comp.spv` (entry count from a bound buffer)
-- `solver/XPBDSolver/clear_entry_values_push.comp.spv` (entry count from the push-constant block)
 - `solver/common/model_matrix.comp.spv`
-- `solver/XPBDSolver/accumulate_hinge_position.comp.spv`
-- `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
+- `solver/XPBDSolver/accumulate_hinge_position.comp.spv` (one hinge color, direct write)
+- `solver/XPBDSolver/accumulate_fixed_position.comp.spv` (one fixed color, direct write)
+- `solver/XPBDSolver/joint_color_sweep.comp.spv` (every joint color of a type in one workgroup)
 - `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
 - `solver/XPBDSolver/clear_fixed_lagrange.comp.spv`
+
+There SHALL be no joint entry-pass shader: `entries/hinge_entries.comp.spv` and `entries/fixed_entries.comp.spv` SHALL NOT exist, because joints are solved from their descriptors through the color bucket index list rather than through a sorted entry list.
+
+The counted entry-value clear SHALL exist in a single form, the bound-buffer count source used by the contact group. `clear_entry_values_push.comp.spv` SHALL NOT exist: no constraint type publishes a per-iteration entry scratch whose count is CPU-known.
 
 There is no permutation-inversion shader: the sorted `(key, slot)` pair array produced by the radix sort is the segmented reduction's level-0 input, so `invert_permutation.comp.spv` SHALL NOT be loaded and SHALL NOT exist.
 
@@ -129,7 +131,7 @@ The `SumByKey` reduce shaders (`algorithm/sum_by_key.comp.spv` and its count-sou
 
 The counted entry-value clear SHALL be a separate shader from `clear_int_buffer.comp` rather than a mode of it: it clears `num_channels` channel planes with a stride taken from a push-constant capacity, whereas `clear_int_buffer.comp` clears a flat range whose length is a push constant. Following the solver's existing convention, the two jobs SHALL NOT be selected by a mode flag.
 
-The counted clear SHALL exist in one form per count source, following the convention `copy_uint.comp` / `copy_uint_push.comp` already establish. Only the **contact** group's count is produced on the GPU in the same substep, so only that group's clear reads it from a bound buffer at execution time; its dispatch geometry follows the entry capacity and the count bounds how many elements are written, for the same reason as the segmented reduction's level 0. The **hinge** and **fixed** groups' counts are CPU-known, so their clear takes the count from its push-constant block and its dispatch geometry follows the count itself, and it SHALL declare no count binding. The header comment of the buffer-count form SHALL state the GPU-produced case rather than claiming that the count can never be a push constant.
+The joint color passes SHALL share one implementation of the constraint math with the single-workgroup sweep: the per-joint hinge and fixed evaluation SHALL live in a shared GLSL include, so a joint evaluated by one color dispatch and the same joint evaluated inside the sweep compute the same correction.
 
 #### Scenario: First Step call loads SPIR-V from disk
 
@@ -152,7 +154,7 @@ The counted clear SHALL exist in one form per count source, following the conven
 #### Scenario: Joint shader SPIR-V files are loaded alongside contact shaders
 
 - **WHEN** the solver initializes its pipelines
-- **THEN** all four joint shader SPIR-V files are loaded from the same directory as contact shaders
+- **THEN** the two per-color joint shaders, the single-workgroup joint color sweep shader and the two joint lagrange clear shaders are loaded from the same directory as the contact shaders
 - **AND** a compute pipeline is created for each
 
 #### Scenario: No permutation inversion shader is loaded
@@ -164,15 +166,17 @@ The counted clear SHALL exist in one form per count source, following the conven
 #### Scenario: Entry-pass shaders are loaded alongside the accumulate shaders
 
 - **WHEN** the solver initializes its pipelines
-- **THEN** `entries/contact_entries.comp.spv`, `entries/hinge_entries.comp.spv` and `entries/fixed_entries.comp.spv` are loaded from `solver/XPBDSolver/entries/`
-- **AND** a compute pipeline is created for each
+- **THEN** `entries/contact_entries.comp.spv` is loaded from `solver/XPBDSolver/entries/`
+- **AND** a compute pipeline is created for it
+- **AND** no `entries/hinge_entries.comp.spv` or `entries/fixed_entries.comp.spv` is loaded or present, because joints have no entry pass
 
 #### Scenario: Counted clear shader is loaded alongside the flat clear shader
 
 - **WHEN** the solver initializes its pipelines
-- **THEN** `clear_entry_values.comp.spv` and `clear_entry_values_push.comp.spv` are loaded from `solver/XPBDSolver/`
-- **AND** a compute pipeline is created for each
+- **THEN** `clear_entry_values.comp.spv` is loaded from `solver/XPBDSolver/`
+- **AND** a compute pipeline is created for it
 - **AND** `clear_int_buffer.comp.spv` is still loaded separately for the flat clears
+- **AND** `clear_entry_values_push.comp.spv` is neither loaded nor present
 
 #### Scenario: Model matrix shader is loaded from the shared directory
 
@@ -182,14 +186,16 @@ The counted clear SHALL exist in one form per count source, following the conven
 
 ### Requirement: XPBD solver loads and dispatches multiple compute shaders
 
-XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, collision detection (broad and narrow phase via the detector classes), entry-list construction (one pass per constraint type), radix sorting, accumulator clearing, contact position delta accumulation (scatter), per-body segmented reduction via `SumByKey`, body position delta application, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.
+XPBDGpuSolver SHALL load, compile, and dispatch multiple compute shader passes per `Step()` call: force integration, shape world pose update, collision detection (broad and narrow phase via the detector classes), contact entry-list construction, radix sorting, accumulator clearing, contact position delta accumulation (scatter), per-body segmented reduction via `SumByKey`, body position delta application, the hinge and fixed joint color passes, velocity-from-pose update, contact velocity delta accumulation, body velocity delta application, buffer snapshot copies, and integer buffer clearing.
 
 Each solver pass SHALL be a separate `.comp` file under `engine/Physics/shader/solver/XPBDSolver/` following the existing source layout convention. Algorithm shaders owned by `gpu_algorithm` classes (radix sort, `SumByKey`) SHALL live under `engine/Physics/shader/algorithm/`.
+
+The joint color passes SHALL be the only joint constraint dispatches: there SHALL be no joint entry-list construction, no joint radix sort, no joint segmented reduction and no joint per-body apply pass.
 
 #### Scenario: All XPBD shaders are loaded on first Step call
 
 - **WHEN** `XPBDGpuSolver::Step` is called for the first time
-- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, entry-list construction, accumulate/apply position deltas, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and the `SumByKey`/`RadixSort` algorithm modules
+- **THEN** the solver loads SPIR-V files for integrate forces, update shape world pose, contact entry-list construction, accumulate/apply position deltas, the joint color passes, update velocities, accumulate/apply velocity deltas, snapshot copy, clear int buffer, and the `SumByKey`/`RadixSort` algorithm modules
 - **AND** a compute kernel exists for each
 
 #### Scenario: Algorithm shaders load through their owning classes
