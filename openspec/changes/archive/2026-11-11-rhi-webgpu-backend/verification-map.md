@@ -1,9 +1,11 @@
 # Which scenario is verified, and how
 
-The change makes 75 promises across seven delta specs. This file maps each one to the evidence that exists today. Every one now has evidence of some kind: a test, a build rule, an inspection with line numbers, or a measured artifact. The rows that used to read "none yet" are the ones this session closed, and what closed them is named in each.
-the evidence that exists today, and says plainly which have none.
+The change makes 75 promises across seven delta specs. This file maps each one to the evidence that
+exists today. Almost every one has evidence of some kind: a test, a build rule, an inspection with line
+numbers, or a measured artifact. The single row whose promise the implementation does not keep says so
+in that row and is named again at the end.
 
-Three kinds of evidence appear below, and they are not interchangeable:
+Four kinds of evidence appear below, and they are not interchangeable:
 
 - **test** — a named entry in the suite; `ctest --preset msvc-debug -R <name>`. A few entries are the same binary with a flag rather than a separate source file: `compute_kernel_oversize_test` is `compute_kernel_test --oversize-push`, which is why no `*oversize*` executable exists.
 - **build** — the claim is enforced by something that fails to compile or link.
@@ -107,10 +109,15 @@ unchecked and the whole directory has to exist before any of these can run.
 
 ## What is left, and why
 
-One row is still unverified, and it is the one that cannot be checked on this backend rather than one
-nobody got to: `rhi-mapped-window`'s invalidation scenario. The standard interface has no operation
-that invalidates a mapping - a readback is mapped when the host asks for it and released when it is
-done - so there is nothing for the row's check to observe. It is recorded rather than quietly
+One row is recorded as not held rather than merely unticked, and it is the reason the count reads 74 of
+75: `rhi-mapped-window`'s "No torn state is observable". The callback path cannot see a half-written
+buffer, but a direct read of `GetVMAddress` while a readback is in flight is neither blocked nor
+refused, so the requirement holds for callers that consume through the callback and not for callers that
+read the window themselves. The three ways to close it, and what each costs, are in `tasks.md`.
+
+The invalidation row is a separate matter. The standard interface has no operation that invalidates a
+mapping - a readback is mapped when the host asks for it and released when it is done - so on the WebGPU
+backend there is nothing for that row's check to observe. It is recorded rather than quietly
 reinterpreted.
 
 The rest were closed the way the table above says: by tests that fail without the implementation

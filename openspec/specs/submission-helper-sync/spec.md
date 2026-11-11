@@ -22,7 +22,7 @@ Defines `SubmissionHelper` as a render-system-independent batch submission compo
 
 ### Requirement: Parameterized submission signal
 
-`ExecuteSubmission` SHALL accept a `vk::SemaphoreSignalInfo` parameter as the batch completion signal. When the batch is empty it SHALL advance that signal CPU-side via `signalSemaphore` directly. When the batch is non-empty it SHALL signal the semaphore with the submission of the one-time command buffer (signal stage `eAllTransfer`). `OnPreMainCbSubmission` SHALL be removed, and `FrameManager::SubmitFrame` SHALL call `ExecuteSubmission(this_timeline_semaphore.GetSignalInfo(2))` directly.
+`ExecuteSubmission` SHALL accept a completion-signal parameter of the backend-neutral signal kind as the batch completion signal; the parameter MUST NOT name a backend type. When the batch is empty it SHALL advance that signal CPU-side directly. When the batch is non-empty it SHALL carry the signal with the submission of the one-time command buffer. The frame path SHALL pass its own frame signal to `ExecuteSubmission` directly.
 
 #### Scenario: Empty batch CPU signal
 
@@ -32,12 +32,12 @@ Defines `SubmissionHelper` as a render-system-independent batch submission compo
 #### Scenario: Non-empty batch signals with submission
 
 - **WHEN** `ExecuteSubmission(signal)` is called with pending Enqueue operations
-- **THEN** a one-time command buffer is recorded and submitted, and the submitted signal carries the caller's semaphore and value
+- **THEN** a one-time command buffer is recorded and submitted, and the submitted signal carries the caller's completion signal
 
 #### Scenario: Main batch dependency preserved
 
-- **WHEN** a frame has no upload operations and `FrameManager::SubmitFrame` calls `ExecuteSubmission(GetSignalInfo(2))` before the main batch waits on timepoint 2
-- **THEN** timepoint 2 has already been advanced by the CPU signal and the main batch does not block
+- **WHEN** a frame has no upload operations and the frame path calls `ExecuteSubmission(its signal)` before the main batch depends on that signal
+- **THEN** the signal has already been advanced by the CPU and the main batch does not block
 
 ### Requirement: Batch state machine protocol
 
@@ -60,27 +60,32 @@ Defines `SubmissionHelper` as a render-system-independent batch submission compo
 
 #### Scenario: Re-submission after reap
 
-- **WHEN** `ExecuteSubmission` is followed by `OnFrameComplete` (reap), then `ExecuteSubmission` is called again
+- **WHEN** `ExecuteSubmission` is followed by `OnBatchComplete` (reap), then `ExecuteSubmission` is called again
 - **THEN** the second submission succeeds and the state machine flows normally
 
 ### Requirement: Frame-end reap protocol
 
-`OnFrameComplete` SHALL, in the `Submitted` state, wait on the batch fence, release staging, reclaim the command buffer, and set the state to `Reset`. In the `Reset` state: it SHALL throw `std::runtime_error` if unsubmitted Enqueue operations are pending, and SHALL return idempotently if completely idle.
+`OnBatchComplete` SHALL, in the `Submitted` state, observe the batch's completion, release staging, reclaim the command buffer, and set the state to `Reset`. Observing completion SHALL NOT block a thread that must keep rendering: on a backend whose completion is reported asynchronously, reap SHALL act on the completion record rather than waiting. In the `Reset` state: it SHALL throw `std::runtime_error` if unsubmitted Enqueue operations are pending, and SHALL return idempotently if completely idle.
 
 #### Scenario: Frame end rejected with unsubmitted operations
 
-- **WHEN** `OnFrameComplete` is called after Enqueue operations that were never submitted
+- **WHEN** `OnBatchComplete` is called after Enqueue operations that were never submitted
 - **THEN** it throws `std::runtime_error`
 
 #### Scenario: Idle frame reap is idempotent
 
-- **WHEN** `OnFrameComplete` is called with no Enqueue and no submission
+- **WHEN** `OnBatchComplete` is called with no Enqueue and no submission
 - **THEN** it returns idempotently, the state stays Reset, and no exception is thrown
 
 #### Scenario: Normal reap
 
-- **WHEN** `OnFrameComplete` is called after a submitted `ExecuteSubmission`
-- **THEN** the batch fence is waited on, staging and the command buffer are reclaimed, and the state is set to Reset
+- **WHEN** `OnBatchComplete` is called after a submitted `ExecuteSubmission`
+- **THEN** the batch's completion is observed, staging and the command buffer are reclaimed, and the state is set to Reset
+
+#### Scenario: Reap does not block an unfinished batch
+
+- **WHEN** `OnBatchComplete` is called while the submitted batch has not yet completed
+- **THEN** it does not wait; the batch stays in `Submitted` and its staging is retained until a later reap observes completion
 
 ### Requirement: Per-batch staging lifecycle
 
@@ -89,7 +94,7 @@ Defines `SubmissionHelper` as a render-system-independent batch submission compo
 #### Scenario: Mixing immediate and deferred submissions does not corrupt staging
 
 - **WHEN** a deferred batch is submitted (staging awaiting reap) and `ExecuteSubmissionImmediately` then runs (with its own Enqueued operations), in a state where the protocol allows it
-- **THEN** the immediate submission reaps only its own batch's staging, and the deferred batch's staging is preserved until its `OnFrameComplete` reap
+- **THEN** the immediate submission reaps only its own batch's staging, and the deferred batch's staging is preserved until its `OnBatchComplete` reap
 
 #### Scenario: Immediate submission semantics
 
@@ -136,13 +141,13 @@ Staging SHALL be released under the retirement facility's exact mode, naming the
 
 #### Scenario: Deferred batch staging is released at its reap, not a frame later
 
-- **WHEN** a deferred batch is submitted and its staging is still awaiting `OnFrameComplete`
+- **WHEN** a deferred batch is submitted and its staging is still awaiting `OnBatchComplete`
 - **THEN** that staging is retained until the batch fence has been waited on
 - **AND** it is released as soon as that batch's own epoch is reported
 - **AND** it is not retained until the completed prefix reaches that epoch
 
 #### Scenario: Reaping a batch does not report the frame's epoch
 
-- **WHEN** `OnFrameComplete` reaps a deferred batch whose upload was submitted inside a frame epoch opened by another submitter
+- **WHEN** `OnBatchComplete` reaps a deferred batch whose upload was submitted inside a frame epoch opened by another submitter
 - **THEN** it reports only the epoch it opened itself for that upload submission
 - **AND** the frame's epoch remains outstanding until its own submitter observes the frame's completion signal

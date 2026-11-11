@@ -6,35 +6,42 @@ Replaces the machine-absolute path macros with a runtime data-root resolution ch
 
 ## Requirements
 
-### Requirement: Data root resolution chain
+### Requirement: Runtime data root resolution
 
-The engine SHALL resolve a single runtime data root through the first match of:
-
-1. the `NEEDRENAME_DATA_ROOT` environment variable, if set;
-2. the installed layout relative to the executable location (`../share/needrename` beneath the executable's directory);
-3. a compile-time developer fallback path pointing into the developer machine's tree.
+The runtime locator SHALL resolve, in order: an existing directory named by `NEEDRENAME_DATA_ROOT`, then `<executable directory>/../share/needrename`, then fail with a diagnostic naming every attempted path. It SHALL NOT substitute a compile-time path, and every data category SHALL be resolved relative to the resolved root.
 
 Every runtime data location — built-in assets, project templates, physics SPIR-V, sample/test data — SHALL be expressed relative to this data root. The resolution SHALL be identical for engine internals and for executables built against the engine.
 
 #### Scenario: Environment override wins
 
 - **WHEN** `NEEDRENAME_DATA_ROOT` points at a valid data root
-- **THEN** all data locations resolve beneath it, regardless of install layout or compile-time fallback
+- **THEN** all data locations resolve beneath it, regardless of the layout beside the executable
 
 #### Scenario: Installed binary resolves its own prefix
 
 - **WHEN** an installed executable runs with `NEEDRENAME_DATA_ROOT` unset
 - **THEN** the data root resolves to `../share/needrename` relative to the executable's directory
 
-#### Scenario: Developer build tree still works
+#### Scenario: A build-tree run resolves like an install
 
-- **WHEN** an executable from a developer build tree runs on the machine that built it
-- **THEN** the data root resolves through the compile-time fallback
-- **AND** existing developer workflows (running tests from the build tree) keep working unchanged
+- **WHEN** an executable in `output/<configuration>/bin` resolves its data root
+- **THEN** the result SHALL be `output/<configuration>/share/needrename`
+- **AND** the resolution step SHALL be the executable-relative one
+
+#### Scenario: No root available
+
+- **WHEN** neither an override nor an executable-relative data root exists
+- **THEN** resolution SHALL throw, naming the attempted paths
+- **AND** it SHALL NOT fall back to a checkout path
+
+#### Scenario: A missing category is named
+
+- **WHEN** a resolved root lacks a required category directory
+- **THEN** resolving that category SHALL throw, naming the category, the path and the resolution step
 
 ### Requirement: Configuration header carries no machine-absolute install paths
 
-The generated configuration header SHALL define only layout constants (data-root subdirectory names) and the developer fallback. It SHALL be generated into the build tree, never into the source tree. The installed SDK SHALL ship a configuration header containing no absolute path of the build machine.
+The generated configuration header SHALL define only layout constants (data-root subdirectory names) and SHALL carry no filesystem path at all. It SHALL be generated into the build tree, never into the source tree. The installed SDK SHALL ship a configuration header containing no absolute path of the build machine.
 
 #### Scenario: No generated header in the source tree
 
@@ -59,6 +66,21 @@ Every executable shipped or installed by this project — examples, apps, tests 
 
 - **WHEN** a test executable that needs test fixture files runs from an install (with test-data installed) or from a build tree
 - **THEN** its fixtures resolve beneath the data root in both cases
+
+### Requirement: Tests run the build tree's executables
+
+CTest SHALL register each test executable from `output/<configuration>/bin` and SHALL clear `NEEDRENAME_DATA_ROOT` for it, so the proximity rule is exercised rather than overridden.
+
+#### Scenario: No test depends on an environment override
+
+- **WHEN** the suite runs
+- **THEN** no test SHALL rely on `NEEDRENAME_DATA_ROOT` being set
+- **AND** the data root each test resolves SHALL be its own configuration's
+
+#### Scenario: Read-only data-root test
+
+- **WHEN** the data-root test runs
+- **THEN** it SHALL NOT create or delete a directory beneath the data root it resolves
 
 ### Requirement: Executables write only to writable locations
 

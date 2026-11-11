@@ -31,52 +31,58 @@ Physics GLSL source code MUST NOT be embedded as string literals inside C++ sour
 
 ### Requirement: CMake build pipeline compiles physics shaders to SPIR-V
 
-The CMake build SHALL discover all GLSL source files under `engine/Physics/shader/` and compile each to SPIR-V using `Vulkan_GLSLANG_VALIDATOR_EXECUTABLE` during the build phase. Output SHALL be written to `${CMAKE_BINARY_DIR}/engine/Physics/spirv/<same-relative-path-as-source>.spv`, preserving the directory structure beneath `engine/Physics/shader/`.
+The CMake build SHALL discover all GLSL source files under `engine/Physics/shader/` and compile each to SPIR-V using the same native C++ `shader_baker` used for built-in shader baking. The build SHALL NOT require a separately installed `glslangValidator` executable. Output SHALL preserve the source-relative directory structure beneath the configuration-specific `${CMAKE_BINARY_DIR}/engine/Physics/spirv/` tree.
 
-The pipeline SHALL be exposed as a CMake target named `physics_shader`, declared under `engine/Physics/CMakeLists.txt`. The `EnginePhysics` target SHALL declare a build dependency on `physics_shader`, and the `engine` shared library target SHALL obtain it transitively through its link dependency on `EnginePhysics`, so that any successful engine build produces all physics SPIR-V artefacts.
+For a WebGPU build, each source SHALL also produce its WGSL variant and interface description as per-source outputs. These side artifacts SHALL NOT be represented by a directory-wide stamp.
 
-Each shader file SHALL be its own incremental compilation unit: editing a single `.comp` SHALL trigger recompilation of only that file's `.spv`.
+The pipeline SHALL be exposed as a CMake target named `physics_shader`, declared under `engine/Physics/CMakeLists.txt`. The `EnginePhysics` target SHALL declare a build dependency on `physics_shader`, and the engine aggregate target SHALL obtain it transitively through its link dependency on `EnginePhysics`, so that any successful engine build produces all physics shader artifacts required by the selected backend.
 
-The pipeline SHALL NOT require the developer to list shader files manually in CMake. Newly added shader files SHALL be picked up on the next CMake reconfigure.
+Each shader file SHALL be its own incremental compilation unit: editing a single source or one of its included GLSL files SHALL trigger regeneration of only the affected source's SPIR-V and backend-specific side artifacts. Every output SHALL depend on its source, shared includes, and the native baker; WebGPU outputs SHALL also depend on the selected converter. Newly added shader files SHALL be picked up on the next CMake reconfigure without a manual file list or stamp deletion.
 
 #### Scenario: Clean engine build produces all physics SPIR-V
-- **WHEN** the developer performs a clean build of the `engine` target
-- **THEN** for every `<rel>.<stage>` file under `engine/Physics/shader/`
-- **AND** a corresponding `${CMAKE_BINARY_DIR}/engine/Physics/spirv/<rel>.<stage>.spv` exists on disk
+
+- **WHEN** the developer performs a clean build of the engine target
+- **THEN** every physics GLSL source has a corresponding configuration-specific `.spv` output at its source-relative path
+- **AND** a WebGPU build also has the corresponding `.wgsl` and interface-description outputs
+- **AND** no system `glslangValidator` is invoked
 
 #### Scenario: Editing one shader causes only that shader to recompile
-- **WHEN** the developer modifies `engine/Physics/shader/solver/XPBDSolver/step.comp` and rebuilds
-- **THEN** only `${CMAKE_BINARY_DIR}/engine/Physics/spirv/solver/XPBDSolver/step.comp.spv` is regenerated
-- **AND** other physics SPIR-V files retain their previous mtime
+
+- **WHEN** the developer modifies one physics shader or a shared GLSL file and rebuilds
+- **THEN** only outputs belonging to sources affected by that edit are regenerated
+- **AND** unrelated physics SPIR-V, WGSL, and interface files retain their previous mtimes
 
 #### Scenario: Adding a shader file requires no CMake edit
-- **WHEN** the developer adds a new file `engine/Physics/shader/solver/XPBDSolver/extra.comp` and reconfigures + builds
-- **THEN** `${CMAKE_BINARY_DIR}/engine/Physics/spirv/solver/XPBDSolver/extra.comp.spv` is produced
-- **AND** no edit to any `CMakeLists.txt` was required
+
+- **WHEN** the developer adds a new physics GLSL source and reconfigures and builds a WebGPU target
+- **THEN** its SPIR-V, WGSL, and interface description are produced
+- **AND** no edit to a CMake source list or deletion of `.wgsl_stamp` is required
 
 #### Scenario: GLSL syntax error fails the build
+
 - **WHEN** a physics shader contains invalid GLSL
-- **THEN** the build fails with `glslangValidator`'s diagnostic
-- **AND** no stale `.spv` is left in place for that source file
+- **THEN** the build fails with the baker's compiler diagnostic identifying the source
+- **AND** no stale output from the failed invocation is accepted as up to date
 
 #### Scenario: Engine builds physics_shader transitively
-- **WHEN** the developer builds only the `engine` target
-- **THEN** `physics_shader` runs before `EnginePhysics` completes
-- **AND** the engine build does not declare a direct dependency on `physics_shader`
 
-### Requirement: Runtime SPIR-V root exposed via cmake_config.h
+- **WHEN** the developer builds only the engine aggregate target
+- **THEN** `physics_shader` and the native baker run before `EnginePhysics` completes
+- **AND** the engine aggregate target does not declare a direct dependency on `physics_shader`
 
-The build SHALL define the C/C++ macro `ENGINE_PHYSICS_SPIRV_DIR` in the generated configuration header (driven by `engine/cmake_config.h.in`). Its value SHALL be the absolute path of the physics SPIR-V root directory used by the build pipeline (i.e. `${CMAKE_BINARY_DIR}/engine/Physics/spirv`), serving as the **developer fallback** of the runtime data-root resolution chain.
+### Requirement: Physics SPIR-V root resolves through the data root
 
-At runtime, the physics SPIR-V root SHALL be resolved through the data-root resolution chain (see `runtime-data-resolution`): the `NEEDRENAME_DATA_ROOT` override, then the installed data root (`share/needrename/spirv` relative to the executable), then the `ENGINE_PHYSICS_SPIRV_DIR` fallback — where the fallback keeps the per-configuration subdirectory selection (`ENGINE_PHYSICS_SPIRV_CONFIG_SUBDIR`) because build-tree artifacts are split per configuration. The installed form SHALL NOT use a per-configuration subdirectory. The macro SHALL remain a string literal usable in C++ to construct `std::filesystem::path` instances.
+The physics SPIR-V modules SHALL live in the `spirv/` category of the runtime data root (see `runtime-data-resolution`). The generated configuration header SHALL declare only that category's subdirectory name and SHALL NOT name an absolute path or a build-tree directory.
+
+The build's per-configuration split SHALL be flattened away when the category is staged, so a build-tree product and an installed prefix resolve the same root-relative path and no per-configuration subdirectory is consulted beneath the root.
 
 Runtime physics code requiring a precompiled physics shader SHALL resolve its file location relative to the resolved physics SPIR-V root plus the source-relative path with `.spv` appended (e.g. `solver/XPBDSolver/step.comp.spv`). Runtime code MUST NOT hard-code build-tree paths or reach into source-tree shader directories.
 
-#### Scenario: Macro is defined and consumable
+#### Scenario: Configuration header names no path
 
-- **WHEN** any engine translation unit includes the generated configuration header
-- **THEN** `ENGINE_PHYSICS_SPIRV_DIR` is defined as a string literal
-- **AND** `std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR)` refers to an existing directory after a successful build
+- **WHEN** the generated configuration header is inspected
+- **THEN** it declares only data-root-relative subdirectory names
+- **AND** it declares no absolute path and no build-tree directory
 
 #### Scenario: Runtime resolves a shader by relative path
 
@@ -87,12 +93,12 @@ Runtime physics code requiring a precompiled physics shader SHALL resolve its fi
 
 - **WHEN** an installed executable runs with `NEEDRENAME_DATA_ROOT` unset
 - **THEN** physics SPIR-V files resolve under `share/needrename/spirv/` of the install prefix
-- **AND** the absolute developer fallback path is not consulted
 
-#### Scenario: Developer build tree resolves via the fallback
+#### Scenario: Developer build tree resolves through the staged category
 
 - **WHEN** an executable from a developer build tree runs on the machine that built it
-- **THEN** the physics SPIR-V root resolves to the build-tree directory named by `ENGINE_PHYSICS_SPIRV_DIR` including its per-configuration subdirectory
+- **THEN** the physics SPIR-V root resolves beneath `output/<configuration>/share/needrename/spirv`
+- **AND** no per-configuration subdirectory is consulted beneath it
 
 ### Requirement: XPBDGpuSolver loads precompiled SPIR-V
 
@@ -136,7 +142,7 @@ The joint color passes SHALL share one implementation of the constraint math wit
 #### Scenario: First Step call loads SPIR-V from disk
 
 - **WHEN** the solver records its first `GPUStep` on a populated `PhysicsScene`
-- **THEN** the solver reads its shader SPIR-V files from `<ENGINE_PHYSICS_SPIRV_DIR>`, the model matrix shader from `solver/common/` and the rest from `solver/XPBDSolver/`
+- **THEN** the solver reads its shader SPIR-V files from `<resolved physics SPIR-V root>`, the model matrix shader from `solver/common/` and the rest from `solver/XPBDSolver/`
 - **AND** creates its compute pipelines from those words
 
 #### Scenario: No GLSL compilation occurs at runtime for XPBD shaders
@@ -181,7 +187,7 @@ The joint color passes SHALL share one implementation of the constraint math wit
 #### Scenario: Model matrix shader is loaded from the shared directory
 
 - **WHEN** the solver needs the model matrix shader
-- **THEN** it loads `solver/common/model_matrix.comp.spv` from `<ENGINE_PHYSICS_SPIRV_DIR>`
+- **THEN** it loads `solver/common/model_matrix.comp.spv` from `<resolved physics SPIR-V root>`
 - **AND** no `solver/XPBDSolver/model_matrix.comp.spv` is loaded or produced
 
 ### Requirement: XPBD solver loads and dispatches multiple compute shaders
@@ -310,7 +316,7 @@ The three pair-generation shaders (`generate_broad_pairs.comp`, `generate_global
 #### Scenario: Broad-phase shaders compiled to SPIR-V
 
 - **WHEN** the engine build completes
-- **THEN** all 11 broad-phase shader SPIR-V files exist under `<ENGINE_PHYSICS_SPIRV_DIR>/collision/SpatialHashBroadDetector/`
+- **THEN** all 11 broad-phase shader SPIR-V files exist under `<resolved physics SPIR-V root>/collision/SpatialHashBroadDetector/`
 - **AND** each was compiled from its corresponding `.comp` source
 
 #### Scenario: Pair-generation shaders bind AABB buffers
@@ -333,7 +339,7 @@ The reusable `parallel_scan.comp` shader SHALL live at `engine/Physics/shader/al
 #### Scenario: Parallel scan shader compiled automatically
 
 - **WHEN** `parallel_scan.comp` is present in the shader source tree and the engine builds
-- **THEN** the SPIR-V output is produced at `<ENGINE_PHYSICS_SPIRV_DIR>/algorithm/parallel_scan.comp.spv`
+- **THEN** the SPIR-V output is produced at `<resolved physics SPIR-V root>/algorithm/parallel_scan.comp.spv`
 - **AND** no CMakeLists.txt edits are required
 
 ### Requirement: Removed generate_pairs.comp

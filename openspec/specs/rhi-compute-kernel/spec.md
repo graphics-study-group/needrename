@@ -49,17 +49,17 @@ A kernel SHALL be constructible from Rhi facilities, a SPIR-V word sequence and 
 
 ### Requirement: Dispatch takes a name-to-resource dictionary and a grid
 
-Invoking a kernel SHALL be a single call taking the command buffer, the resources keyed by the shader's declared interface names, the workgroup counts for all three dimensions, and the push-constant value. A caller MUST NOT be required to allocate a binding object, select a rotation slot, or issue separate pipeline-bind, resource-bind and dispatch calls.
+Invoking a kernel SHALL be a single call taking the command encoder, the resources keyed by the shader's declared interface names, the workgroup counts for all three dimensions, and the per-dispatch constant block. A caller MUST NOT be required to allocate a binding object, select a rotation slot, or issue separate pipeline-bind, resource-bind and dispatch calls.
 
 #### Scenario: One call records one dispatch
 
-- **WHEN** a caller dispatches a kernel with its resource dictionary, a grid and a push-constant value
-- **THEN** the pipeline is bound, the resources are bound, the push constant is recorded, and the dispatch is recorded
+- **WHEN** a caller dispatches a kernel with its resource dictionary, a grid and a constant block
+- **THEN** the pipeline is bound, the resources are bound, the constant block is recorded, and the dispatch is recorded
 - **AND** no additional binding or dispatch call is required from the caller
 
 #### Scenario: Repeated dispatch of one kernel
 
-- **WHEN** the same kernel is dispatched several times in one command buffer with different resources
+- **WHEN** the same kernel is dispatched several times in one command encoder with different resources
 - **THEN** each dispatch records its own resource binding
 - **AND** the caller does not create any binding object between dispatches
 
@@ -152,33 +152,32 @@ A declared interface with no bound resource MUST NOT be silently skipped, and MU
 - **WHEN** a dictionary names exactly the interfaces the shader declares
 - **THEN** dispatch records the command without throwing
 
-### Requirement: Push constants are declared from reflection and recorded by dispatch
+### Requirement: Per-dispatch constants are declared from reflection and recorded by dispatch
 
-A kernel SHALL declare a push-constant range covering exactly the reflected push-constant block size, and SHALL declare no push-constant range when the shader declares no push-constant block.
+A kernel SHALL declare the size of its per-dispatch constant block from exactly the reflected constant-block size of the shader, and SHALL declare a size of zero when the shader declares no constant block. The block is the kernel-parameter contract: the caller supplies the value, the backend maps it to its own mechanism.
 
-A push-constant value recorded through dispatch SHALL be written at offset 0 with its own size, and debug builds SHALL assert that this size does not exceed the reflected block size.
+A constant block recorded through dispatch SHALL reach the shader as the whole block at offset 0 with its own size, and debug builds SHALL assert that this size does not exceed the reflected block size. The recording mechanism is the backend's choice: a backend with native per-dispatch constants SHALL use them while the block fits its device limit, and a backend without them SHALL carry the block in a uniform-buffer window bound for that dispatch.
 
-#### Scenario: Shader with a push block gets a matching range
+#### Scenario: Shader with a constant block reports its size
 
-- **WHEN** a kernel is created from a shader declaring a 16-byte push-constant block
-- **THEN** the kernel reports a reflected push-constant size of 16
-- **AND** its pipeline layout's push-constant ranges cover `{eCompute, 0, 16}`
+- **WHEN** a kernel is created from a shader declaring a 16-byte constant block
+- **THEN** the kernel reports a reflected constant-block size of 16
 
-#### Scenario: Shader without a push block gets no range
+#### Scenario: Shader without a constant block reports zero
 
-- **WHEN** a kernel is created from a shader declaring no push-constant block
-- **THEN** the kernel reports a reflected push-constant size of 0
-- **AND** its pipeline layout contains no push-constant range
+- **WHEN** a kernel is created from a shader declaring no constant block
+- **THEN** the kernel reports a reflected constant-block size of 0
+- **AND** dispatching it with an empty constant block succeeds
 
-#### Scenario: Oversized push value is caught in debug builds
+#### Scenario: Oversized constant block is caught in debug builds
 
-- **WHEN** a caller records a push-constant value larger than the reflected block size
+- **WHEN** a caller records a constant block larger than the reflected block size
 - **THEN** the dispatch asserts in debug builds
 
-#### Scenario: Recorded push value reaches the shader
+#### Scenario: Recorded value reaches the shader
 
-- **WHEN** a caller dispatches with a push-constant value of type `T`
-- **THEN** the command buffer receives `sizeof(T)` bytes of that value at offset 0
+- **WHEN** a caller dispatches with a constant block of type `T`
+- **THEN** the dispatched shader observes `sizeof(T)` bytes of that value as its constant block
 
 ### Requirement: The kernel inserts no barrier
 
@@ -211,7 +210,7 @@ Dispatch MUST NOT accept a rotation, slot, or frame parameter.
 #### Scenario: No rotation parameter exists
 
 - **WHEN** the kernel's dispatch entry point is inspected
-- **THEN** it takes the command buffer, the resource dictionary, the grid and the push-constant value
+- **THEN** it takes the command encoder, the resource dictionary, the grid and the constant block
 - **AND** it takes no slot, rotation, back-buffer or frame parameter
 
 #### Scenario: No presentation vocabulary in the interface
