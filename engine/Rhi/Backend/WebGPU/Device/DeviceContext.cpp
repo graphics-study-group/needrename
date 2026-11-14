@@ -1,5 +1,6 @@
 #include "Rhi/Device/DeviceContext.h"
 
+#include "Rhi/Backend/WebGPU/Command/RecordingState.h"
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
 #include "Rhi/Backend/WebGPU/WgpuStructs.h"
 #include "Rhi/Device/AllocatorState.h"
@@ -28,6 +29,7 @@ namespace Engine::Rhi {
         WGPUDevice g_device = nullptr;
         WGPUQueue g_queue = nullptr;
         WGPUInstance g_instance = nullptr;
+
     } // namespace
 
     void RegisterWgpuDevice(WGPUDevice device, WGPUQueue queue, WGPUInstance instance) noexcept {
@@ -115,14 +117,14 @@ namespace Engine::Rhi {
         if (!wgpuDeviceGetLimits(ToWgpuDevice(pimpl->device_interface->GetDevice()), &limits)) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "WebGPU: the device did not report its limits.");
         }
-        pimpl->capabilities = DeviceCapabilities{
-            // Push constants have no equivalent: a kernel parameter block is a uniform
-            // buffer here, so the seam sees zero rather than a lie.
-            .max_push_constant_bytes = 0,
-            .uniform_buffer_offset_alignment = limits.minUniformBufferOffsetAlignment,
-            .max_storage_buffer_range = limits.maxStorageBufferBindingSize,
-            .max_compute_invocations = limits.maxComputeInvocationsPerWorkgroup,
-            .max_bind_groups = limits.maxBindGroups
+        pimpl->capabilities =
+            DeviceCapabilities{// Push constants have no equivalent: a kernel parameter block is a uniform
+                               // buffer here, so the seam sees zero rather than a lie.
+                               .max_push_constant_bytes = 0,
+                               .uniform_buffer_offset_alignment = limits.minUniformBufferOffsetAlignment,
+                               .max_storage_buffer_range = limits.maxStorageBufferBindingSize,
+                               .max_compute_invocations = limits.maxComputeInvocationsPerWorkgroup,
+                               .max_bind_groups = limits.maxBindGroups
         };
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "WebGPU device context ready.");
     }
@@ -260,8 +262,13 @@ namespace Engine::Rhi {
         // through the window, and the submission is what makes the write visible.
         pimpl->allocator_state->FlushPendingHostWrites();
         pimpl->submissions_since_completion++;
+
         std::vector<WGPUCommandBuffer> commands;
+        // Parallel to `commands`: the recording that staged constants for that command buffer, or
+        // null. A command buffer with no constants needs no queue write at all.
+        std::vector<RecordingState *> staged;
         commands.reserve(submission.command_buffers.size());
+        staged.reserve(submission.command_buffers.size());
         for (const CommandBufferHandle &handle : submission.command_buffers) {
             WGPUCommandBuffer buffer = ToWgpuFinishedBuffer(handle);
             if (buffer == nullptr) {
@@ -271,13 +278,42 @@ namespace Engine::Rhi {
                 continue;
             }
             commands.push_back(buffer);
+            RecordingState *recording = FindFinishedRecordingState(buffer);
+            staged.push_back(recording != nullptr && HasStagedConstants(*recording) ? recording : nullptr);
         }
         if (commands.empty()) {
             return;
         }
 
         WGPUQueue queue = wgpuDeviceGetQueue(ToWgpuDevice(GetDevice()));
-        wgpuQueueSubmit(queue, commands.size(), commands.data());
+        // Publish and submit in segments with at most one constant-bearing command buffer each.
+        // Every command buffer's device windows start at zero, so publishing two of them before
+        // one submit would overwrite the first one's bytes. Splitting the submit is what keeps
+        // the order write-A/submit-A/write-B/submit-B, which is the order design D3 relies on;
+        // a submission whose command buffers carry no constants stays a single submit.
+        size_t begin = 0;
+        while (begin < commands.size()) {
+            size_t staged_index = commands.size();
+            for (size_t index = begin; index < commands.size(); index++) {
+                if (staged[index] != nullptr) {
+                    staged_index = index;
+                    break;
+                }
+            }
+            const size_t end = staged_index == commands.size() ? commands.size() - 1 : staged_index;
+            if (staged_index != commands.size()) {
+                // Immediately before the submission that reads them: a queue write is ordered
+                // against the submissions on the same queue, and it copies the bytes before it
+                // returns, so the host staging can be recycled straight afterwards.
+                PublishStagedConstants(*staged[staged_index]);
+            }
+            wgpuQueueSubmit(queue, static_cast<uint32_t>(end - begin + 1), commands.data() + begin);
+            CountQueueSubmit();
+            if (staged_index != commands.size()) {
+                RecycleStagedConstants(*staged[staged_index]);
+            }
+            begin = end + 1;
+        }
 
         // Completion is a callback rather than a fence. The submission carries it, so it is
         // registered here against the work just handed over.
@@ -306,9 +342,9 @@ namespace Engine::Rhi {
 
     bool DeviceContext::WaitForFence(FenceHandle, uint64_t timeout) {
         // Completion arrives as a callback rather than through a fence, so waiting is: ask the
-        // queue to call back when the work handed over so far is done, then dispatch events
-        // until it does. `timeout == 0` is the poll form a caller uses to ask "can I reuse this
-        // slot yet", and it dispatches once and answers.
+        // queue to call back when the work handed over so far is done, then block on that
+        // callback. `timeout == 0` is the poll form a caller uses to ask "can I reuse this
+        // slot yet", and the platform wait answers it without waiting.
         WGPUQueue queue = wgpuDeviceGetQueue(ToWgpuDevice(pimpl->device_interface->GetDevice()));
         if (queue == nullptr) {
             return true;
@@ -321,6 +357,11 @@ namespace Engine::Rhi {
             // not to fire, and every frame would begin by waiting for it.
             return true;
         }
+        WGPUInstance instance = ToWgpuInstance(pimpl->device_interface->GetInstance());
+#if defined(__EMSCRIPTEN__)
+        // The browser answers on the event loop the caller is occupying, so the wait has to
+        // yield to it; without this the callback can never be delivered, and there is no
+        // blocking wait to hand the wait to.
         bool done = false;
         WGPUQueueWorkDoneCallbackInfo info{};
         info.mode = WGPUCallbackMode_AllowProcessEvents;
@@ -330,7 +371,6 @@ namespace Engine::Rhi {
         info.userdata1 = &done;
         wgpuQueueOnSubmittedWorkDone(queue, info);
 
-        WGPUInstance instance = ToWgpuInstance(pimpl->device_interface->GetInstance());
         const auto begin = std::chrono::steady_clock::now();
         // A poll still dispatches the device's events for a moment: the callback that answers
         // this question is delivered by that dispatch, and one pass over the event queue often
@@ -348,18 +388,50 @@ namespace Engine::Rhi {
             if (budget != std::numeric_limits<uint64_t>::max() && static_cast<uint64_t>(elapsed) > budget) {
                 break;
             }
-#if defined(__EMSCRIPTEN__)
-            // The browser answers on the event loop the caller is occupying, so the wait has to
-            // yield to it; without this the callback can never be delivered.
             emscripten_sleep(0);
-#else
-            std::this_thread::sleep_for(std::chrono::microseconds(50));
-#endif
         }
         if (done) {
             pimpl->submissions_since_completion = 0;
         }
         return done;
+#else
+        // A wait-only callback is one the platform delivers by blocking the waiter, which is what
+        // `wgpuInstanceWaitAny` does: the caller's timeout is handed to the platform instead of
+        // being spent in a loop that sleeps and re-asks. Windows quantises `sleep_for` to the
+        // timer resolution, which is what made the polling wait cost milliseconds.
+        bool done = false;
+        WGPUQueueWorkDoneCallbackInfo info{};
+        info.mode = WGPUCallbackMode_WaitAnyOnly;
+        info.callback = [](WGPUQueueWorkDoneStatus status, WGPUStringView, void *userdata1, void *) {
+            if (status != WGPUQueueWorkDoneStatus_Success) {
+                SDL_LogError(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "WebGPU: a waited-for submission completed with status %d.",
+                    static_cast<int>(status)
+                );
+            }
+            *static_cast<bool *>(userdata1) = true;
+        };
+        info.userdata1 = &done;
+        WGPUFutureWaitInfo wait_info{};
+        wait_info.future = wgpuQueueOnSubmittedWorkDone(queue, info);
+        if (instance != nullptr) {
+            // The wait itself dispatches the instance's events, so the callback runs on this
+            // thread before the call returns.
+            const WGPUWaitStatus status = wgpuInstanceWaitAny(instance, 1, &wait_info, timeout);
+            if (status == WGPUWaitStatus_TimedOut) {
+                return false;
+            }
+        }
+        if (!done) {
+            // No instance to wait on: answer from the callback if it already ran, otherwise say
+            // the work has not been observed to complete rather than reporting a completion that
+            // was never observed.
+            return false;
+        }
+        pimpl->submissions_since_completion = 0;
+        return true;
+#endif
     }
 
     void DeviceContext::SignalSemaphore(const TimelineSignal &) {

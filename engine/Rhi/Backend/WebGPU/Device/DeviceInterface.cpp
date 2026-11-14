@@ -1,8 +1,8 @@
 #include "Rhi/Device/DeviceInterface.h"
 
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
-#include "Rhi/Backend/WebGPU/WgpuStructs.h"
 #include "Rhi/Backend/WebGPU/WgpuImplLog.h"
+#include "Rhi/Backend/WebGPU/WgpuStructs.h"
 
 #include <SDL3/SDL.h>
 #if defined(__EMSCRIPTEN__)
@@ -14,12 +14,12 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <vector>
-#include <cstdio>
 #include <thread>
+#include <vector>
 #include <webgpu/webgpu.h>
 
 namespace Engine::Rhi {
@@ -91,6 +91,26 @@ namespace Engine::Rhi {
 
         WGPUInstance CreateWebGPUInstance() {
             WGPUInstanceDescriptor instance_desc{};
+            // A finite timeout on `wgpuInstanceWaitAny` is an instance feature, and the backend's
+            // fence wait is exactly that call with the caller's budget. Asking for it here is what
+            // makes a poll ("is this slot free?") a poll instead of an indefinite block; the
+            // browser port offers neither the feature nor the blocking wait, and its wait path
+            // stays on the event pump.
+            WGPUInstanceFeatureName required_features[1]{};
+            size_t required_feature_count = 0;
+#if !defined(__EMSCRIPTEN__)
+            if (wgpuHasInstanceFeature(WGPUInstanceFeatureName_TimedWaitAny)) {
+                required_features[required_feature_count++] = WGPUInstanceFeatureName_TimedWaitAny;
+            } else {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "WebGPU: the runtime offers no timed wait; a finite wait budget falls back to "
+                    "an immediate poll."
+                );
+            }
+#endif
+            instance_desc.requiredFeatureCount = required_feature_count;
+            instance_desc.requiredFeatures = required_feature_count == 0 ? nullptr : required_features;
 #if !defined(__EMSCRIPTEN__) && defined(_WIN32)
             // Dawn's default component loader does not fall back to System32
             // correctly. Supply that directory explicitly for FXC; DXC remains
@@ -271,9 +291,3 @@ namespace Engine::Rhi {
         return SwapchainSupport{};
     }
 } // namespace Engine::Rhi
-
-
-
-
-
-

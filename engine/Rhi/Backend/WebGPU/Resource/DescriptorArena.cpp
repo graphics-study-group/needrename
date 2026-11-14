@@ -66,6 +66,9 @@ namespace Engine::Rhi {
         /// Bind groups by (layout identity, set id, content hash).
         std::unordered_map<size_t, WGPUBindGroup> bind_groups{};
         std::unordered_map<size_t, uint64_t> bind_group_ids{};
+        /// How many bind groups this arena has created. A repeated content mints nothing, which
+        /// is what makes reuse observable rather than assumed.
+        size_t minted{0};
         size_t resident_budget{0};
     };
 
@@ -100,17 +103,13 @@ namespace Engine::Rhi {
     }
 
     DescriptorSetHandle DescriptorArena::Acquire(
-        DescriptorSetLayoutRef layout,
-        uint32_t set_id,
-        bool,
-        bool,
-        std::span<const ResolvedBinding> content
+        DescriptorSetLayoutRef layout, uint32_t set_id, bool, bool, std::span<const ResolvedBinding> content
     ) {
         // The shape a caller passes is the one it would bind with, so the key is the
         // layout identity, the set index and the content - and identical requests
         // return one bind group, which is what a per-frame rewrite relies on.
-        const size_t key = static_cast<size_t>(layout.id.GetValue()) * 1315423911u
-                           ^ (static_cast<size_t>(set_id) << 8) ^ HashContent(content);
+        const size_t key = static_cast<size_t>(layout.id.GetValue()) * 1315423911u ^ (static_cast<size_t>(set_id) << 8)
+                           ^ HashContent(content);
         if (auto itr = pimpl->bind_groups.find(key); itr != pimpl->bind_groups.end()) {
             return FromWgpuBindGroup(itr->second);
         }
@@ -131,10 +130,7 @@ namespace Engine::Rhi {
             case DescriptorType::StorageBufferDynamic:
                 if (binding.buffer.handle.IsValid() == false) {
                     SDL_LogError(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "WebGPU: binding %u of set %u has no buffer.",
-                        binding.binding,
-                        set_id
+                        SDL_LOG_CATEGORY_RENDER, "WebGPU: binding %u of set %u has no buffer.", binding.binding, set_id
                     );
                     return {};
                 }
@@ -142,8 +138,7 @@ namespace Engine::Rhi {
                 entry.offset = binding.offset;
                 // The seam's "maximum size means all of it" is the standard interface's
                 // WGPU_WHOLE_SIZE.
-                entry.size = binding.range == std::numeric_limits<size_t>::max() ? WGPU_WHOLE_SIZE
-                                                                                : binding.range;
+                entry.size = binding.range == std::numeric_limits<size_t>::max() ? WGPU_WHOLE_SIZE : binding.range;
                 break;
             case DescriptorType::CombinedImageSampler: {
                 // One seam binding is two entries here: the texture at the binding the shader
@@ -196,6 +191,7 @@ namespace Engine::Rhi {
             return {};
         }
         pimpl->bind_groups.emplace(key, group);
+        pimpl->minted++;
         return FromWgpuBindGroup(group);
     }
 
@@ -210,5 +206,15 @@ namespace Engine::Rhi {
 
     size_t DescriptorArena::GetResidentBudget() const noexcept {
         return pimpl->resident_budget;
+    }
+
+    size_t DescriptorArena::GetResidentEntryCount() const noexcept {
+        // One resident entry per distinct content: this backend has no pool layer and no epoch
+        // guard, so the cache layer is the whole of what it keeps.
+        return pimpl->bind_groups.size();
+    }
+
+    size_t DescriptorArena::GetMintedSetCount() const noexcept {
+        return pimpl->minted;
     }
 } // namespace Engine::Rhi

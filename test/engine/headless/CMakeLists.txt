@@ -47,4 +47,8 @@ endif()
 # for that backend, because on Vulkan the rest of this directory already exercises the seam.
 if (ENGINE_RHI_BACKEND_WEBGPU)
     anro_add_test(webgpu_device_test LINK "EngineRhi" FOLDER tests/engine/headless)
+    # The recording and submission path: shared compute scopes, batched constant publication and
+    # dispatch validation. It reads the backend's own counters, so it links that backend's unit
+    # rather than the whole engine.
+    anro_add_test(webgpu_submission_path_test LINK "EngineRhi" FOLDER tests/engine/headless)
 endif()

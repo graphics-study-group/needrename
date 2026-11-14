@@ -13,9 +13,11 @@
 
 #include <cstdint>
 #include <fstream>
+#include <span>
 #include <stdexcept>
 #include <string>
 
+#include "Render/Backend/WebGPU/RenderSystem/PresentModePolicy.h"
 #include "Render/Resource/RenderTargetTexture.h"
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
 #include "Rhi/Device/DeviceInterface.h"
@@ -360,7 +362,16 @@ fn fs_linear(input: VertexOutput) -> @location(0) vec4f {
             }
         }
         if (capabilities.presentModeCount > 0) {
-            pimpl->present_mode = capabilities.presentModes[0];
+            // Take the first mode the surface advertises only as a last resort: the policy is
+            // what decides between Mailbox and FIFO, and it is applied to the advertised list.
+#if defined(__EMSCRIPTEN__)
+            constexpr PresentTarget k_target = PresentTarget::Browser;
+#else
+            constexpr PresentTarget k_target = PresentTarget::Native;
+#endif
+            pimpl->present_mode = SelectPresentMode(
+                k_target, std::span<const WGPUPresentMode>(capabilities.presentModes, capabilities.presentModeCount)
+            );
         }
         if (capabilities.alphaModeCount > 0) {
             pimpl->alpha_mode = capabilities.alphaModes[0];
@@ -400,10 +411,11 @@ fn fs_linear(input: VertexOutput) -> @location(0) vec4f {
 
         SDL_LogInfo(
             SDL_LOG_CATEGORY_RENDER,
-            "WebGPU surface: %ux%u, format %d, present %d, alpha %d, %zu formats offered",
+            "WebGPU surface: %ux%u, format %d, present %s (%d), alpha %d, %zu formats offered",
             pimpl->extent.width,
             pimpl->extent.height,
             static_cast<int>(pimpl->format),
+            PresentModeName(pimpl->present_mode),
             static_cast<int>(pimpl->present_mode),
             static_cast<int>(pimpl->alpha_mode),
             capabilities.formatCount

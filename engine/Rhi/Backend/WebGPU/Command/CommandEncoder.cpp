@@ -1,11 +1,11 @@
 #include "Rhi/Command/CommandEncoder.h"
 
+#include "Rhi/Backend/WebGPU/Command/RecordingState.h"
 #include "Rhi/Backend/WebGPU/WgpuHandles.h"
 #include "Rhi/Backend/WebGPU/WgpuStructs.h"
 #include "Rhi/RhiTypes.h"
 
 #include <SDL3/SDL.h>
-#include <array>
 #include <algorithm>
 #include <format>
 #include <span>
@@ -22,18 +22,6 @@ namespace Engine::Rhi {
             throw std::logic_error(std::string{"WebGPU: "} + what + " is not implemented. " + why);
         }
 
-        /**
-         * @brief The host-visible buffer that carries every push-constant block.
-         *
-         * One buffer, one window per record, and a dynamic offset chosen when the bind group is
-         * bound. Two facts make this safe rather than a guess:
-         *
-         * - a queue write is ordered against submissions on the same queue, so a write a later
-         *   frame makes cannot be observed by an earlier frame's commands;
-         * - every window is `k_constant_window` bytes and the cursor restarts at zero for each
-         *   command encoder, so the whole frame fits in the buffer as long as it records at most
-         *   `capacity / k_constant_window` of them.
-         */
         /**
          * @brief Staging buffers whose copies are still recorded but not yet executed.
          *
@@ -57,64 +45,21 @@ namespace Engine::Rhi {
             RetiredStagingList().push_back(RetiredStaging{encoder, buffer});
         }
 
-        struct ConstantRing {
-            WGPUBuffer buffer{nullptr};
-            WGPUBindGroupLayout layout{nullptr};
-            WGPUBindGroup group{nullptr};
-            size_t capacity{0};
-
-            bool Ready() const noexcept {
-                return buffer != nullptr && group != nullptr;
-            }
-        };
-
-        ConstantRing &Ring() {
-            static ConstantRing ring{};
-            if (ring.Ready()) {
-                return ring;
-            }            WGPUDevice device = RegisteredWgpuDevice();
-            if (device == nullptr) {
-                return ring;
-            }
-
-            const WGPUBindGroupLayoutEntry entry = ConstantBlockLayoutEntry();
-            WGPUBindGroupLayoutDescriptor layout_desc{};
-            layout_desc.entryCount = 1;
-            layout_desc.entries = &entry;
-            layout_desc.label = WGPUStringView{"Constant Block Layout", 23};
-            ring.layout = wgpuDeviceCreateBindGroupLayout(device, &layout_desc);
-
-            ring.capacity = 1u << 20; // 1 MiB: 4096 records per frame.
-            WGPUBufferDescriptor buffer_desc{};
-            buffer_desc.size = ring.capacity;
-            buffer_desc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
-            buffer_desc.mappedAtCreation = false;
-            buffer_desc.label = WGPUStringView{"Constant Ring", 13};
-            ring.buffer = wgpuDeviceCreateBuffer(device, &buffer_desc);
-
-            WGPUBindGroupEntry group_entry{};
-            group_entry.binding = 0;
-            group_entry.buffer = ring.buffer;
-            group_entry.offset = 0;
-            group_entry.size = k_constant_window;
-
-            WGPUBindGroupDescriptor group_desc{};
-            group_desc.layout = ring.layout;
-            group_desc.entryCount = 1;
-            group_desc.entries = &group_entry;
-            group_desc.label = WGPUStringView{"Constant Block Bind Group", 25};
-            ring.group = wgpuDeviceCreateBindGroup(device, &group_desc);
-            return ring;
-        }
-
-        /// @brief Publish one push-constant block and select its window for the current pass.
-        void RecordConstantWindow(
-            WGPURenderPassEncoder render_pass,
-            WGPUComputePassEncoder compute_pass,
-            size_t &cursor,
-            std::span<const std::byte> data
-        ) {
-            if (render_pass == nullptr && compute_pass == nullptr) {
+        /**
+         * @brief Record one constant block into the command buffer's staging.
+         *
+         * The block is not published here. Recording appends a zero-filled window to the
+         * command buffer's staging and binds that window's device offset; the bytes reach
+         * the device in one queue write immediately before the submission that reads them
+         * (`DeviceContext::Submit`). See design D3.
+         *
+         * The window is zero-filled before the block is copied into it: a shader reads its
+         * whole declared struct, and a caller that pushes fewer bytes than the block is -
+         * which every draw in this engine does, it pushes the model matrix and leaves the
+         * two indices out - would otherwise read whatever the ring held there before.
+         */
+        void RecordConstantWindow(RecordingState &state, std::span<const std::byte> data) {
+            if (state.render_pass == nullptr && state.compute_pass == nullptr) {
                 throw std::logic_error("A constant block can only be set inside a pass.");
             }
             if (data.size() > k_constant_window) {
@@ -127,42 +72,32 @@ namespace Engine::Rhi {
                     )
                 );
             }
-            ConstantRing &ring = Ring();
+            const ConstantRingRef ring = GetConstantRing();
             if (!ring.Ready()) {
                 Unsupported("PushConstants", "the constant ring could not be created on this device.");
             }
-            if (cursor + k_constant_window > ring.capacity) {
+            if (state.constant_staging.size() + k_constant_window > ring.capacity) {
                 throw std::length_error(
                     std::format(
-                        "WebGPU: the frame recorded more constant blocks than the {} byte ring holds.",
+                        "WebGPU: one command buffer recorded more constant blocks than the {} byte "
+                        "constant ring holds.",
                         ring.capacity
                     )
                 );
             }
 
-            const size_t offset = cursor;
-            cursor += k_constant_window;
-
-            // The window is zero-filled before the block is copied into it: a shader reads its
-            // whole declared struct, and a caller that pushes fewer bytes than the block is -
-            // which every draw in this engine does, it pushes the model matrix and leaves the
-            // two indices out - would otherwise read whatever the ring held there before.
-            std::array<std::byte, k_constant_window> window{};
-            std::copy(data.begin(), data.end(), window.begin());
-
-            // Published before the submission that reads it: a queue write is ordered against
-            // the submissions on the same queue, so the window is visible to the draws that
-            // follow in this frame's command buffer.
-            wgpuQueueWriteBuffer(
-                RegisteredWgpuQueue(), ring.buffer, offset, window.data(), window.size()
-            );
+            const size_t offset = state.constant_staging.size();
+            state.constant_staging.resize(offset + k_constant_window, std::byte{0});
+            std::copy(data.begin(), data.end(), state.constant_staging.begin() + static_cast<ptrdiff_t>(offset));
 
             const uint32_t dynamic_offset = static_cast<uint32_t>(offset);
-            if (render_pass != nullptr) {
-                wgpuRenderPassEncoderSetBindGroup(render_pass, k_constant_bind_group, ring.group, 1, &dynamic_offset);
+            if (state.render_pass != nullptr) {
+                wgpuRenderPassEncoderSetBindGroup(
+                    state.render_pass, k_constant_bind_group, ring.group, 1, &dynamic_offset
+                );
             } else {
                 wgpuComputePassEncoderSetBindGroup(
-                    compute_pass, k_constant_bind_group, ring.group, 1, &dynamic_offset
+                    state.compute_pass, k_constant_bind_group, ring.group, 1, &dynamic_offset
                 );
             }
         }
@@ -175,7 +110,9 @@ namespace Engine::Rhi {
      * buffer and a render pass is a lifetime inside it; the standard interface hands out
      * a `WGPURenderPassEncoder` or a `WGPUComputePassEncoder` that exists only while the
      * pass is open, and bind calls go to that object rather than to the command
-     * encoder. The `impl` therefore holds whichever pass is current.
+     * encoder. The recording therefore lives in a `RecordingState` that the command
+     * buffer owns - not in this object - because the same recording is finished and
+     * submitted by units that never see an encoder (see `RecordingState.h`).
      *
      * Two calls have no counterpart at all, and they are the interesting ones:
      *
@@ -185,41 +122,54 @@ namespace Engine::Rhi {
      *   nothing is correct here and is not a stub - the same call on the same resource
      *   produces the same frame, which is what a portable barrier is for.
      *
-     * - `PushConstants` and `SetKernelParams` throw. There is no push-constant block; a
-     *   kernel parameter block is a uniform buffer bound at the slot the bake records in
-     *   `.iface.json` under `constant_block` - `{set: 1, binding: 0, size: 12}` for
-     *   `radix_scatter.comp`, so the slot is decided. What is missing is the ring that holds
-     *   one window per dispatch; throwing until then is the answer that does not silently
-     *   drop the values.
+     * - Compute scopes are derived rather than declared. The first compute pipeline bind
+     *   opens one, and consecutive compute commands record into it; a copy, a clear, a
+     *   render scope or the end of the recording closes it. The seam has no
+     *   `BeginComputePass` because a caller does not say when compute starts.
      */
     struct CommandEncoder::impl {
+        /// @brief The recording this encoder records into; owned by its command buffer.
+        RecordingState *state{nullptr};
+        /// @brief The encoder handle, kept so the destructor can tell a live state from a freed one.
         WGPUCommandEncoder encoder{nullptr};
-        /// Whichever pass is open, if any. At most one of these is non-null.
-        WGPURenderPassEncoder render_pass{nullptr};
-        WGPUComputePassEncoder compute_pass{nullptr};
-        bool in_render_pass{false};
-        /// Whether the pass that is open has had a pipeline set in it. A draw before that is
-        /// what the interface reports as "Render pipeline must be set".
-        bool pass_pipeline_set{false};
-        /// How far into the constant ring this command buffer has written. It restarts at zero
-        /// for every encoder, and queue ordering makes the reuse across frames safe.
-        size_t constant_cursor{0};
+        /// @brief A state this encoder had to create itself, for a handle no command buffer owns.
+        std::unique_ptr<RecordingState> owned_state{};
     };
 
     CommandEncoder::CommandEncoder(CommandBufferHandle handle) : pimpl(std::make_unique<impl>()) {
         pimpl->encoder = ToWgpuCommandEncoder(handle);
+        pimpl->state = FindRecordingState(pimpl->encoder);
+        if (pimpl->state == nullptr) {
+            // A handle this backend did not hand out: record through a state of this
+            // encoder's own rather than through a null pointer. Nothing finishes it, which is
+            // the same as any other recording nobody finishes.
+            pimpl->owned_state.reset(CreateRecordingState(pimpl->encoder));
+            pimpl->state = pimpl->owned_state.get();
+        }
     }
 
     CommandEncoder::~CommandEncoder() {
+        if (!pimpl) {
+            return;
+        }
+        if (pimpl->owned_state != nullptr) {
+            CloseOpenPass(*pimpl->owned_state);
+            pimpl->owned_state.reset();
+            return;
+        }
         // A pass left open would be a caller bug, but leaking the encoder would be
         // worse: end it so the command buffer is still usable.
-        if (pimpl && pimpl->render_pass != nullptr) {
-            wgpuRenderPassEncoderEnd(pimpl->render_pass);
-            wgpuRenderPassEncoderRelease(pimpl->render_pass);
-        }
-        if (pimpl && pimpl->compute_pass != nullptr) {
-            wgpuComputePassEncoderEnd(pimpl->compute_pass);
-            wgpuComputePassEncoderRelease(pimpl->compute_pass);
+        //
+        // The state belongs to the command buffer, and the two objects are held by different
+        // owners with no ordering between them - the frame manager destroys its encoder array and
+        // its command-buffer array independently. So the registry, not the cached pointer, decides
+        // whether there is still a state to close: a command buffer that is already gone took its
+        // recording state with it, and touching the old address would be a use-after-free.
+        if (pimpl->encoder != nullptr) {
+            RecordingState *live = FindRecordingState(pimpl->encoder);
+            if (live != nullptr && live == pimpl->state) {
+                CloseOpenPass(*live);
+            }
         }
     }
 
@@ -229,11 +179,14 @@ namespace Engine::Rhi {
     void *CommandEncoder::GetNativeRenderPass() const noexcept {
         // The pass exists only between BeginRenderPass and EndRenderPass, which is exactly when
         // a library that records into it itself needs to see it.
-        return pimpl != nullptr && pimpl->in_render_pass ? pimpl->render_pass : nullptr;
+        if (pimpl == nullptr || pimpl->state == nullptr || !pimpl->state->in_render_pass) {
+            return nullptr;
+        }
+        return pimpl->state->render_pass;
     }
 
     void CommandEncoder::Barrier() {
-        if (pimpl->in_render_pass) {
+        if (pimpl->state->in_render_pass) {
             throw std::logic_error(
                 "Barrier() inside a render pass: a backend that has no transitions cannot honour it"
             );
@@ -252,16 +205,17 @@ namespace Engine::Rhi {
     }
 
     void CommandEncoder::BlitImage(const ImageBlitDescription &, bool) {
-        Unsupported(
-            "BlitImage",
-            "A blit is a draw with a shader here; the seam's blit is a fixed-function copy."
-        );
+        Unsupported("BlitImage", "A blit is a draw with a shader here; the seam's blit is a fixed-function copy.");
     }
 
     void CommandEncoder::BeginRenderPass(const RenderPassDescription &description) {
-        if (pimpl->in_render_pass) {
+        if (pimpl->state->in_render_pass) {
             throw std::logic_error("BeginRenderPass called while a render pass is already open.");
         }
+        // A compute scope cannot span a render scope: the two are different pass objects and
+        // the standard interface orders them only as separate commands.
+        CloseComputePass(*pimpl->state);
+
         std::vector<WGPURenderPassColorAttachment> color_attachments;
         color_attachments.reserve(description.color_attachments.size());
         for (const ColorAttachmentDescription &attachment : description.color_attachments) {
@@ -272,12 +226,8 @@ namespace Engine::Rhi {
             color.view = ToWgpuTextureView(attachment.view);
             color.loadOp = attachment.load == LoadOperation::Clear ? WGPULoadOp_Clear : WGPULoadOp_Load;
             color.storeOp = attachment.store == StoreOperation::Store ? WGPUStoreOp_Store : WGPUStoreOp_Discard;
-            color.clearValue = WGPUColor{
-                attachment.clear.r,
-                attachment.clear.g,
-                attachment.clear.b,
-                attachment.clear.a
-            };
+            color.clearValue =
+                WGPUColor{attachment.clear.r, attachment.clear.g, attachment.clear.b, attachment.clear.a};
             color_attachments.push_back(color);
         }
 
@@ -285,9 +235,8 @@ namespace Engine::Rhi {
         const bool has_depth = description.depth_attachment.view.IsValid();
         if (has_depth) {
             depth.view = ToWgpuTextureView(description.depth_attachment.view);
-            depth.depthLoadOp = description.depth_attachment.load == LoadOperation::Clear
-                                    ? WGPULoadOp_Clear
-                                    : WGPULoadOp_Load;
+            depth.depthLoadOp =
+                description.depth_attachment.load == LoadOperation::Clear ? WGPULoadOp_Clear : WGPULoadOp_Load;
             depth.depthStoreOp = WGPUStoreOp_Store;
             depth.depthClearValue = description.depth_attachment.clear_depth;
         }
@@ -296,128 +245,123 @@ namespace Engine::Rhi {
         pass_desc.colorAttachmentCount = color_attachments.size();
         pass_desc.colorAttachments = color_attachments.data();
         pass_desc.depthStencilAttachment = has_depth ? &depth : nullptr;
-        pimpl->render_pass = wgpuCommandEncoderBeginRenderPass(pimpl->encoder, &pass_desc);
-        pimpl->in_render_pass = true;
-        pimpl->pass_pipeline_set = false;
+        pimpl->state->render_pass = wgpuCommandEncoderBeginRenderPass(pimpl->state->encoder, &pass_desc);
+        pimpl->state->in_render_pass = true;
+        pimpl->state->pass_pipeline_set = false;
         // The constant group is part of every pipeline layout that declares a constant range,
         // and a draw whose shader reads it must find it bound even before the first
         // `PushConstants` of the pass. Window zero is a valid window; a push replaces it.
-        ConstantRing &ring = Ring();
+        const ConstantRingRef ring = GetConstantRing();
         if (ring.Ready()) {
             const uint32_t offset = 0;
-            wgpuRenderPassEncoderSetBindGroup(pimpl->render_pass, k_constant_bind_group, ring.group, 1, &offset);
+            wgpuRenderPassEncoderSetBindGroup(pimpl->state->render_pass, k_constant_bind_group, ring.group, 1, &offset);
         }
     }
 
     void CommandEncoder::EndRenderPass() {
-        if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
+        if (!pimpl->state->in_render_pass || pimpl->state->render_pass == nullptr) {
             throw std::logic_error("EndRenderPass called with no render pass open.");
         }
-        wgpuRenderPassEncoderEnd(pimpl->render_pass);
-        wgpuRenderPassEncoderRelease(pimpl->render_pass);
-        pimpl->render_pass = nullptr;
-        pimpl->in_render_pass = false;
+        CloseRenderPass(*pimpl->state);
     }
 
     void CommandEncoder::BindComputePipeline(PipelineHandle pipeline, PipelineLayoutHandle layout) {
         static_cast<void>(layout);
-        if (pimpl->in_render_pass) {
+        if (pimpl->state->in_render_pass) {
             throw std::logic_error("BindComputePipeline inside a render pass.");
         }
-        // The seam has no BeginComputePass: the first compute call opens one, because a
-        // caller does not say when compute starts. EndComputePass closes it, and so does
-        // the destructor.
-        if (pimpl->compute_pass == nullptr) {
-            pimpl->compute_pass = wgpuCommandEncoderBeginComputePass(pimpl->encoder, nullptr);
-            ConstantRing &ring = Ring();
+        // The seam has no BeginComputePass: the first compute command opens one, and it stays
+        // open for the compute commands that follow. Everything that cannot be recorded inside
+        // a compute scope closes it first; `CommandBuffer::End` closes whatever is left.
+        if (pimpl->state->compute_pass == nullptr) {
+            pimpl->state->compute_pass = wgpuCommandEncoderBeginComputePass(pimpl->state->encoder, nullptr);
+            CountComputePassOpened();
+            const ConstantRingRef ring = GetConstantRing();
             if (ring.Ready()) {
                 const uint32_t offset = 0;
                 wgpuComputePassEncoderSetBindGroup(
-                    pimpl->compute_pass, k_constant_bind_group, ring.group, 1, &offset
+                    pimpl->state->compute_pass, k_constant_bind_group, ring.group, 1, &offset
                 );
             }
         }
-        wgpuComputePassEncoderSetPipeline(pimpl->compute_pass, ToWgpuComputePipeline(pipeline));
+        wgpuComputePassEncoderSetPipeline(pimpl->state->compute_pass, ToWgpuComputePipeline(pipeline));
     }
 
     void CommandEncoder::EndComputePass() {
-        if (pimpl->compute_pass == nullptr) {
-            return;
-        }
-        wgpuComputePassEncoderEnd(pimpl->compute_pass);
-        wgpuComputePassEncoderRelease(pimpl->compute_pass);
-        pimpl->compute_pass = nullptr;
+        CloseComputePass(*pimpl->state);
     }
 
     void CommandEncoder::BindGraphicsPipeline(PipelineHandle pipeline, PipelineLayoutHandle layout) {
         static_cast<void>(layout);
-        if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
+        if (!pimpl->state->in_render_pass || pimpl->state->render_pass == nullptr) {
             throw std::logic_error("BindGraphicsPipeline outside a render pass.");
         }
-        if (!pipeline.IsValid()) {
-        }
-        pimpl->pass_pipeline_set = true;
-        wgpuRenderPassEncoderSetPipeline(pimpl->render_pass, ToWgpuRenderPipeline(pipeline));
+        pimpl->state->pass_pipeline_set = true;
+        wgpuRenderPassEncoderSetPipeline(pimpl->state->render_pass, ToWgpuRenderPipeline(pipeline));
     }
 
     void CommandEncoder::PushConstants(std::span<const std::byte> data) {
-        RecordConstantWindow(pimpl->render_pass, pimpl->compute_pass, pimpl->constant_cursor, data);
+        RecordConstantWindow(*pimpl->state, data);
     }
 
     void CommandEncoder::SetKernelParams(std::span<const std::byte> data) {
-        RecordConstantWindow(pimpl->render_pass, pimpl->compute_pass, pimpl->constant_cursor, data);
+        RecordConstantWindow(*pimpl->state, data);
     }
 
     void CommandEncoder::BindGraphicsDescriptorSet(
         uint32_t index, DescriptorSetHandle set, PipelineLayoutHandle, std::span<const uint32_t>
     ) {
-        if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
+        if (!pimpl->state->in_render_pass || pimpl->state->render_pass == nullptr) {
             throw std::logic_error("BindGraphicsDescriptorSet outside a render pass.");
         }
-        wgpuRenderPassEncoderSetBindGroup(pimpl->render_pass, index, ToWgpuBindGroup(set), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(pimpl->state->render_pass, index, ToWgpuBindGroup(set), 0, nullptr);
     }
 
     void CommandEncoder::BindDescriptorSet(uint32_t set_index, DescriptorSetHandle set) {
-        if (pimpl->in_render_pass && pimpl->render_pass != nullptr) {
-            wgpuRenderPassEncoderSetBindGroup(pimpl->render_pass, set_index, ToWgpuBindGroup(set), 0, nullptr);
-        } else if (pimpl->compute_pass != nullptr) {
-            wgpuComputePassEncoderSetBindGroup(pimpl->compute_pass, set_index, ToWgpuBindGroup(set), 0, nullptr);
+        if (pimpl->state->in_render_pass && pimpl->state->render_pass != nullptr) {
+            wgpuRenderPassEncoderSetBindGroup(pimpl->state->render_pass, set_index, ToWgpuBindGroup(set), 0, nullptr);
+        } else if (pimpl->state->compute_pass != nullptr) {
+            wgpuComputePassEncoderSetBindGroup(pimpl->state->compute_pass, set_index, ToWgpuBindGroup(set), 0, nullptr);
         } else {
             throw std::logic_error("BindDescriptorSet outside any pass.");
         }
     }
 
-    void CommandEncoder::BindVertexBuffers(
-        std::span<const BufferHandle> buffers, std::span<const uint64_t> offsets
-    ) {
-        if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
+    void CommandEncoder::BindVertexBuffers(std::span<const BufferHandle> buffers, std::span<const uint64_t> offsets) {
+        if (!pimpl->state->in_render_pass || pimpl->state->render_pass == nullptr) {
             throw std::logic_error("BindVertexBuffers outside a render pass.");
         }
         for (size_t i = 0; i < buffers.size(); i++) {
             wgpuRenderPassEncoderSetVertexBuffer(
-                pimpl->render_pass, static_cast<uint32_t>(i), ToWgpuBuffer(buffers[i]),
-                i < offsets.size() ? offsets[i] : 0, WGPU_WHOLE_SIZE
+                pimpl->state->render_pass,
+                static_cast<uint32_t>(i),
+                ToWgpuBuffer(buffers[i]),
+                i < offsets.size() ? offsets[i] : 0,
+                WGPU_WHOLE_SIZE
             );
         }
     }
 
     void CommandEncoder::BindIndexBuffer(BufferHandle buffer, uint64_t offset, bool wide) {
-        if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
+        if (!pimpl->state->in_render_pass || pimpl->state->render_pass == nullptr) {
             throw std::logic_error("BindIndexBuffer outside a render pass.");
         }
         wgpuRenderPassEncoderSetIndexBuffer(
-            pimpl->render_pass, ToWgpuBuffer(buffer), wide ? WGPUIndexFormat_Uint32 : WGPUIndexFormat_Uint16,
-            offset, WGPU_WHOLE_SIZE
+            pimpl->state->render_pass,
+            ToWgpuBuffer(buffer),
+            wide ? WGPUIndexFormat_Uint32 : WGPUIndexFormat_Uint16,
+            offset,
+            WGPU_WHOLE_SIZE
         );
     }
 
     void CommandEncoder::SetViewport(float width, float height, const Rect2D &scissor) {
-        if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
+        if (!pimpl->state->in_render_pass || pimpl->state->render_pass == nullptr) {
             throw std::logic_error("SetViewport outside a render pass.");
         }
-        wgpuRenderPassEncoderSetViewport(pimpl->render_pass, 0.0f, 0.0f, width, height, 0.0f, 1.0f);
+        wgpuRenderPassEncoderSetViewport(pimpl->state->render_pass, 0.0f, 0.0f, width, height, 0.0f, 1.0f);
         wgpuRenderPassEncoderSetScissorRect(
-            pimpl->render_pass, scissor.offset.x, scissor.offset.y, scissor.extent.width, scissor.extent.height
+            pimpl->state->render_pass, scissor.offset.x, scissor.offset.y, scissor.extent.width, scissor.extent.height
         );
     }
 
@@ -428,38 +372,38 @@ namespace Engine::Rhi {
         int32_t vertex_offset,
         uint32_t first_instance
     ) {
-        if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
+        if (!pimpl->state->in_render_pass || pimpl->state->render_pass == nullptr) {
             throw std::logic_error("DrawIndexed outside a render pass.");
         }
-        if (!pimpl->pass_pipeline_set) {
-        }
         wgpuRenderPassEncoderDrawIndexed(
-            pimpl->render_pass, index_count, instance_count, first_index, vertex_offset, first_instance
+            pimpl->state->render_pass, index_count, instance_count, first_index, vertex_offset, first_instance
         );
     }
 
     void CommandEncoder::Draw(
         uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance
     ) {
-        if (!pimpl->in_render_pass || pimpl->render_pass == nullptr) {
+        if (!pimpl->state->in_render_pass || pimpl->state->render_pass == nullptr) {
             throw std::logic_error("Draw outside a render pass.");
         }
-        if (!pimpl->pass_pipeline_set) {
-        }
         wgpuRenderPassEncoderDraw(
-            pimpl->render_pass, vertex_count, instance_count, first_vertex, first_instance
+            pimpl->state->render_pass, vertex_count, instance_count, first_vertex, first_instance
         );
     }
 
     void CommandEncoder::CopyBuffer(BufferHandle source, BufferHandle destination, uint64_t size) {
+        // A copy is not a compute command, so the scope the compute commands recorded into ends
+        // before it: the standard interface has no ordering between a pass and a copy that
+        // overlaps a pass, and the copy has to observe the writes that precede it.
+        CloseComputePass(*pimpl->state);
         wgpuCommandEncoderCopyBufferToBuffer(
-            pimpl->encoder, ToWgpuBuffer(source), 0, ToWgpuBuffer(destination), 0, size
+            pimpl->state->encoder, ToWgpuBuffer(source), 0, ToWgpuBuffer(destination), 0, size
         );
     }
 
     void CommandEncoder::FillBuffer(BufferHandle destination, uint64_t offset, uint64_t size, uint32_t value) {
-        if (pimpl->in_render_pass || pimpl->compute_pass != nullptr) {
-            throw std::logic_error("FillBuffer inside a pass: end the pass first.");
+        if (pimpl->state->in_render_pass) {
+            throw std::logic_error("FillBuffer inside a render pass: end the pass first.");
         }
         if (size == 0u) {
             return;
@@ -469,15 +413,21 @@ namespace Engine::Rhi {
             // non-zero pattern is the answer that does not silently clear instead.
             throw std::invalid_argument("WebGPU: FillBuffer can only write zero on this backend.");
         }
+        // The clear runs outside any pass, so the compute scope recorded so far ends here and
+        // the later compute work opens a new one.
+        CloseComputePass(*pimpl->state);
         // There is no barrier to record: a clear is ordered against the passes around it by
         // the implementation, which is the same reason `Barrier` is a no-op here.
-        wgpuCommandEncoderClearBuffer(pimpl->encoder, ToWgpuBuffer(destination), offset, size);
+        wgpuCommandEncoderClearBuffer(pimpl->state->encoder, ToWgpuBuffer(destination), offset, size);
     }
 
     void CommandEncoder::CopyImageToBuffer(
         ImageHandle image, BufferHandle buffer, const Extent3D &extent, ImageAspect aspect
     ) {
         static_cast<void>(aspect);
+        // A texture-to-buffer copy is recorded on the command encoder, so an open compute scope
+        // ends before it.
+        CloseComputePass(*pimpl->state);
         // The interface requires every copied row to start at a multiple of 256 bytes, while
         // the seam's readback size is the image's tight size. Widening the pitch would write past
         // the destination, so the copy is staged: one texture-to-buffer copy with padded rows,
@@ -512,7 +462,7 @@ namespace Engine::Rhi {
             destination.buffer = destination_buffer;
             destination.layout.bytesPerRow = tight_row;
             destination.layout.rowsPerImage = extent.height;
-            wgpuCommandEncoderCopyTextureToBuffer(pimpl->encoder, &source, &destination, &copy_extent);
+            wgpuCommandEncoderCopyTextureToBuffer(pimpl->state->encoder, &source, &destination, &copy_extent);
             return;
         }
 
@@ -526,11 +476,11 @@ namespace Engine::Rhi {
         destination.buffer = staging;
         destination.layout.bytesPerRow = padded_row;
         destination.layout.rowsPerImage = extent.height;
-        wgpuCommandEncoderCopyTextureToBuffer(pimpl->encoder, &source, &destination, &copy_extent);
+        wgpuCommandEncoderCopyTextureToBuffer(pimpl->state->encoder, &source, &destination, &copy_extent);
 
         for (uint32_t row = 0; row < extent.height; row++) {
             wgpuCommandEncoderCopyBufferToBuffer(
-                pimpl->encoder,
+                pimpl->state->encoder,
                 staging,
                 static_cast<uint64_t>(row) * padded_row,
                 destination_buffer,
@@ -542,21 +492,20 @@ namespace Engine::Rhi {
         // when the command buffer is submitted - later than this call. Releasing it here would be
         // a use-after-free at submit, which is what a read-back that took this path crashed on.
         // It is retired instead, and released when the command buffer that used it goes away.
-        RetireStagingBuffer(pimpl->encoder, staging);
+        RetireStagingBuffer(pimpl->state->encoder, staging);
     }
 
-    void CommandEncoder::DispatchCompute(
-        uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z
-    ) {
-        if (pimpl->compute_pass == nullptr) {
+    void CommandEncoder::DispatchCompute(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) {
+        if (pimpl->state->compute_pass == nullptr) {
             throw std::logic_error(
                 "DispatchCompute with no compute pipeline bound: the standard interface has no "
                 "current pipeline outside a pass, so bind one first."
             );
         }
         wgpuComputePassEncoderDispatchWorkgroups(
-            pimpl->compute_pass, group_count_x, group_count_y, group_count_z
+            pimpl->state->compute_pass, group_count_x, group_count_y, group_count_z
         );
+        CountDispatch();
     }
 
     CommandBufferHandle CommandEncoder::GetHandle() const noexcept {

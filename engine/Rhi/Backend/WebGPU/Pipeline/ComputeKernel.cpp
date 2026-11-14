@@ -12,8 +12,11 @@
 
 #include <SDL3/SDL.h>
 #include <algorithm>
+#include <array>
 #include <format>
+#include <functional>
 #include <map>
+#include <string_view>
 #include <webgpu/webgpu.h>
 
 namespace Engine::Rhi {
@@ -24,9 +27,11 @@ namespace Engine::Rhi {
      * one is handed the table by the bake, which is the point of D9: no reflection library
      * is linked into the build that runs here.
      *
-     * `parameter_block_size` is zero and stays zero until a parameter block is bound as a
-     * uniform buffer, which is what this backend substitutes for push constants. A caller
-     * that dispatches with a value is told rather than having it dropped.
+     * `parameter_block_size` is the size the bake recorded for the kernel's constant block,
+     * and it is bound as a dynamic uniform window rather than as push constants, which is
+     * what this backend substitutes for them. A caller that dispatches with a value gets the
+     * value into the shader; a caller that dispatches without one is refused rather than
+     * having the block read whatever the window held.
      */
     struct ComputeKernel::impl {
         DeviceContext *device_context{nullptr};
@@ -39,7 +44,11 @@ namespace Engine::Rhi {
         std::map<uint32_t, DescriptorSetLayoutRef> set_layouts_by_index;
         ShaderInterfaceDescription description{};
         /// Name to the description entry that declares it, for matching a dispatch.
-        std::map<std::string, const ShaderInterfaceBinding *> interface_by_name{};
+        ///
+        /// The comparator is transparent so a dispatch can look up the `std::string_view` its
+        /// dictionary is keyed by directly: a `std::less<void>` map is searched without building
+        /// a temporary `std::string` for every name of every dispatch.
+        std::map<std::string, const ShaderInterfaceBinding *, std::less<>> interface_by_name{};
         /// A set with nothing bound, used for the groups a padded pipeline layout declares.
         ///
         /// The constant block lives at group 3, so groups 1 and 2 exist in every kernel's
@@ -236,25 +245,31 @@ namespace Engine::Rhi {
             return;
         }
 
-        // Match every supplied name against the description, then order by binding number:
-        // the arena keys a bind group on its content, so the caller's dictionary order must
-        // not leak into the entries it is handed.
-        std::vector<ResolvedBinding> content;
-        content.reserve(resources.size());
+        // One record per supplied name: the declared interface it matched, plus the binding
+        // content it resolved to. Resolving once is what removes the repeated work this used to
+        // do - three passes over the dictionary, each building a `std::string` to look a name up.
+        struct ResolvedRecord {
+            const ShaderInterfaceBinding *declared{nullptr};
+            ResolvedBinding binding{};
+        };
+        std::vector<ResolvedRecord> resolved;
+        resolved.reserve(resources.size());
         for (const auto &[key, resource] : resources) {
-            auto itr = pimpl->interface_by_name.find(std::string{key});
+            const auto itr = pimpl->interface_by_name.find(key);
             if (itr == pimpl->interface_by_name.end()) {
                 throw std::runtime_error(
                     std::format("Compute kernel '{}' does not declare interface '{}'.", pimpl->name, key)
                 );
             }
             const ShaderInterfaceBinding &declared = *itr->second;
-            ResolvedBinding binding{};
-            binding.binding = declared.binding;
-            binding.type = ShaderInterfaceDescription::ToDescriptorType(declared.kind);
-            const bool is_image =
-                binding.type == DescriptorType::CombinedImageSampler || binding.type == DescriptorType::SampledImage
-                || binding.type == DescriptorType::StorageImage || binding.type == DescriptorType::Sampler;
+            ResolvedRecord record{};
+            record.declared = &declared;
+            record.binding.binding = declared.binding;
+            record.binding.type = ShaderInterfaceDescription::ToDescriptorType(declared.kind);
+            const bool is_image = record.binding.type == DescriptorType::CombinedImageSampler
+                                  || record.binding.type == DescriptorType::SampledImage
+                                  || record.binding.type == DescriptorType::StorageImage
+                                  || record.binding.type == DescriptorType::Sampler;
             if (is_image) {
                 if (resource.kind != ComputeKernelResource::Kind::Texture) {
                     throw std::runtime_error(
@@ -265,8 +280,8 @@ namespace Engine::Rhi {
                         )
                     );
                 }
-                binding.image_view = resource.image.view;
-                binding.sampler = resource.image.sampler;
+                record.binding.image_view = resource.image.view;
+                record.binding.sampler = resource.image.sampler;
             } else {
                 if (resource.kind != ComputeKernelResource::Kind::Buffer) {
                     throw std::runtime_error(
@@ -277,15 +292,21 @@ namespace Engine::Rhi {
                         )
                     );
                 }
-                binding.buffer = resource.buffer.ref;
-                binding.offset = resource.buffer.offset;
-                binding.range = resource.buffer.size;
+                record.binding.buffer = resource.buffer.ref;
+                record.binding.offset = resource.buffer.offset;
+                record.binding.range = resource.buffer.size;
             }
-            content.push_back(binding);
+            resolved.push_back(record);
         }
 
-        std::sort(content.begin(), content.end(), [](const ResolvedBinding &lhs, const ResolvedBinding &rhs) {
-            return lhs.binding < rhs.binding;
+        // Order by set and then by binding, once. The arena keys a bind group on its content, so
+        // the caller's dictionary order must not leak into the entries it is handed; ordering here
+        // is also what makes each set's entries one contiguous span below.
+        std::sort(resolved.begin(), resolved.end(), [](const ResolvedRecord &lhs, const ResolvedRecord &rhs) {
+            if (lhs.declared->set != rhs.declared->set) {
+                return lhs.declared->set < rhs.declared->set;
+            }
+            return lhs.declared->binding < rhs.declared->binding;
         });
 
         // WebGPU rejects a dispatch that reaches one buffer through two storage bindings when
@@ -294,26 +315,33 @@ namespace Engine::Rhi {
         // would otherwise stay undiscovered until the page runs it. Checking it here makes the
         // desktop validation build fail the same way the browser does.
         {
+            // A device cannot offer more storage bindings than this in one dispatch, and the
+            // entries are pointers into the interface description, so the scan costs no
+            // allocation and builds a message only when it finds a conflict.
+            constexpr size_t k_max_tracked_storage_uses = 64;
+            constexpr std::string_view k_storage_buffer_kind{"storage-buffer"};
             struct StorageUse {
-                uint32_t set{0};
-                uint32_t binding{0};
-                std::string name{};
-                bool read_only{true};
+                uint64_t identity{0};
+                const ShaderInterfaceBinding *declared{nullptr};
             };
-            std::map<uint64_t, StorageUse> uses;
-            for (const auto &[key, resource] : resources) {
-                auto itr = pimpl->interface_by_name.find(std::string{key});
-                if (itr == pimpl->interface_by_name.end()) {
-                    continue; // already reported above
-                }
-                const ShaderInterfaceBinding &declared = *itr->second;
-                if (declared.kind != "storage-buffer") {
+            std::array<StorageUse, k_max_tracked_storage_uses> uses{};
+            size_t use_count = 0;
+            for (const ResolvedRecord &record : resolved) {
+                const ShaderInterfaceBinding &declared = *record.declared;
+                if (declared.kind != k_storage_buffer_kind) {
                     continue;
                 }
-                const StorageUse use{declared.set, declared.binding, declared.name, declared.storage_read_only};
-                const uint64_t identity = resource.buffer.ref.id.GetValue();
-                const auto [existing, inserted] = uses.emplace(identity, use);
-                if (!inserted && (!existing->second.read_only || !use.read_only)) {
+                const uint64_t identity = record.binding.buffer.id.GetValue();
+                for (size_t seen = 0; seen < use_count; seen++) {
+                    if (uses[seen].identity != identity) {
+                        continue;
+                    }
+                    const ShaderInterfaceBinding &earlier = *uses[seen].declared;
+                    if (earlier.storage_read_only && declared.storage_read_only) {
+                        // Two read-only bindings of one buffer are what every shader that reads
+                        // the same data twice does, and WebGPU allows it.
+                        continue;
+                    }
                     throw std::runtime_error(
                         std::format(
                             "WebGPU: compute kernel '{}' binds one buffer (identity {}) to two storage "
@@ -322,14 +350,17 @@ namespace Engine::Rhi {
                             "one read-write binding or two buffers.",
                             pimpl->name,
                             identity,
-                            existing->second.set,
-                            existing->second.binding,
-                            existing->second.name,
-                            use.set,
-                            use.binding,
-                            use.name
+                            earlier.set,
+                            earlier.binding,
+                            earlier.name,
+                            declared.set,
+                            declared.binding,
+                            declared.name
                         )
                     );
+                }
+                if (use_count < uses.size()) {
+                    uses[use_count++] = StorageUse{identity, &declared};
                 }
             }
         }
@@ -337,32 +368,33 @@ namespace Engine::Rhi {
         // Re-acquire on every dispatch: the arena keys on content, so an identical dictionary
         // reuses one bind group and a changed one does not.
         encoder.BindComputePipeline(pimpl->pipeline, pimpl->pipeline_layout);
-        for (const auto &[set_index, layout_ref] : pimpl->set_layouts_by_index) {
-            std::vector<ResolvedBinding> entries;
-            for (const auto &[key, resource] : resources) {
-                static_cast<void>(resource);
-                auto itr = pimpl->interface_by_name.find(std::string{key});
-                if (itr == pimpl->interface_by_name.end() || itr->second->set != set_index) {
-                    continue;
-                }
-                for (const ResolvedBinding &entry : content) {
-                    if (entry.binding == itr->second->binding) {
-                        entries.push_back(entry);
-                        break;
-                    }
-                }
+
+        std::vector<ResolvedBinding> bindings;
+        bindings.reserve(resolved.size());
+        for (const ResolvedRecord &record : resolved) {
+            bindings.push_back(record.binding);
+        }
+        size_t group_begin = 0;
+        while (group_begin < bindings.size()) {
+            const uint32_t set_index = resolved[group_begin].declared->set;
+            size_t group_end = group_begin + 1;
+            while (group_end < bindings.size() && resolved[group_end].declared->set == set_index) {
+                group_end++;
             }
-            std::sort(entries.begin(), entries.end(), [](const ResolvedBinding &lhs, const ResolvedBinding &rhs) {
-                return lhs.binding < rhs.binding;
-            });
-            const DescriptorSetHandle set =
-                pimpl->device_context->GetDescriptorArena().Acquire(layout_ref, 0, false, false, entries);
-            encoder.BindDescriptorSet(set_index, set);
+            const auto layout_itr = pimpl->set_layouts_by_index.find(set_index);
+            if (layout_itr != pimpl->set_layouts_by_index.end()) {
+                const std::span<const ResolvedBinding> entries(bindings.data() + group_begin, group_end - group_begin);
+                const DescriptorSetHandle set =
+                    pimpl->device_context->GetDescriptorArena().Acquire(layout_itr->second, 0, false, false, entries);
+                encoder.BindDescriptorSet(set_index, set);
+            }
+            group_begin = group_end;
         }
         if (push != nullptr && push_size != 0) {
             encoder.SetKernelParams(std::span{static_cast<const std::byte *>(push), static_cast<size_t>(push_size)});
         }
+        // The compute scope stays open: the next dispatch of this or another kernel records into
+        // the same pass, and whatever cannot be recorded inside it closes it first.
         encoder.DispatchCompute(group_count_x, group_count_y, group_count_z);
-        encoder.EndComputePass();
     }
 } // namespace Engine::Rhi
